@@ -24,8 +24,10 @@ jobs:
 
       - name: Build
         run: npm run build
+        env:
+          NODE_ENV: production
 
-      - name: Deploy dist to EC2
+      - name: Deploy to EC2
         env:
           PRIVATE_KEY: ${{ secrets.EC2_SSH_KEY }}
           HOST: ${{ secrets.EC2_HOST }}
@@ -34,11 +36,46 @@ jobs:
           echo "$PRIVATE_KEY" > private_key.pem
           chmod 600 private_key.pem
 
-          # dist 폴더만 EC2로 전송
-          rsync -avz --delete -e "ssh -i private_key.pem -o StrictHostKeyChecking=no" \
-            dist/ ${USER}@${HOST}:~/dlive-cona-client/dist/
+          # EC2에 애플리케이션 디렉토리 생성
+          ssh -i private_key.pem -o StrictHostKeyChecking=no ${USER}@${HOST} "mkdir -p ~/app"
 
-          # PM2 재시작
-          ssh -i private_key.pem -o StrictHostKeyChecking=no ${USER}@${HOST} "source ~/.nvm/nvm.sh && pm2 restart dlive"
+          # 필요한 파일들만 전송
+          rsync -avz --delete \
+            --exclude 'node_modules' \
+            --exclude '.git' \
+            --exclude '.github' \
+            --exclude '.env.local' \
+            --exclude '.claude' \
+            --exclude 'docs' \
+            -e "ssh -i private_key.pem -o StrictHostKeyChecking=no" \
+            dist/ server.js api-proxy.js package.json package-lock.json \
+            ${USER}@${HOST}:~/app/
+
+          # EC2에서 의존성 설치 및 PM2로 실행
+          ssh -i private_key.pem -o StrictHostKeyChecking=no ${USER}@${HOST} << 'EOF'
+            cd ~/app
+
+            # 프로덕션 의존성만 설치
+            npm ci --omit=dev
+
+            # PM2로 server.js 실행 (없으면 시작, 있으면 재시작)
+            if pm2 describe dlive-equipment > /dev/null 2>&1; then
+              echo "Restarting existing PM2 process..."
+              pm2 restart dlive-equipment
+            else
+              echo "Starting new PM2 process..."
+              pm2 start server.js --name dlive-equipment
+            fi
+
+            # PM2 저장 및 startup 설정
+            pm2 save
+            sudo env PATH=$PATH:/usr/bin pm2 startup systemd -u ubuntu --hp /home/ubuntu || true
+          EOF
 
           rm -f private_key.pem
+
+      - name: Deploy Success Notification
+        if: success()
+        run: |
+          echo "✅ Deployment successful!"
+          echo "🌐 Application URL: http://${{ secrets.EC2_HOST }}:3000"
