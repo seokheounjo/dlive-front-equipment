@@ -1,0 +1,38 @@
+{
+  "name": "d'live-mobile-cona",
+  "private": true,
+  "version": "0.0.0",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "build:ec2": "vite build",
+    "start:ec2": "node server.js",
+    "pm2:start": "npm run build:ec2 && pm2 start server.js --name dlive-cona-front --port 80",
+    "pm2:stop": "pm2 stop dlive-cona-front",
+    "pm2:restart": "pm2 restart dlive-cona-front",
+    "pm2:logs": "pm2 logs dlive-cona-front"
+  },
+  "dependencies": {
+    "@radix-ui/react-tabs": "^1.1.13",
+    "@tanstack/react-query": "^5.90.11",
+    "@tanstack/react-query-devtools": "^5.91.1",
+    "class-variance-authority": "^0.7.1",
+    "clsx": "^2.1.1",
+    "cors": "^2.8.5",
+    "express": "^5.1.0",
+    "lucide-react": "^0.544.0",
+    "react": "^19.2.1",
+    "react-dom": "^19.2.1",
+    "tailwind-merge": "^3.3.1",
+    "zustand": "^5.0.8"
+  },
+  "devDependencies": {
+    "@types/node": "^22.14.0",
+    "@vitejs/plugin-react": "^5.0.0",
+    "next": "^15.5.7",
+    "typescript": "~5.8.2",
+    "vite": "^6.2.0",
+    "vite-plugin-pwa": "^1.1.0"
+  }
+}

@@ -1,0 +1,44 @@
+name: Build and Deploy to EC2
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build
+        run: npm run build
+
+      - name: Deploy dist to EC2
+        env:
+          PRIVATE_KEY: ${{ secrets.EC2_SSH_KEY }}
+          HOST: ${{ secrets.EC2_HOST }}
+          USER: ${{ secrets.EC2_USERNAME }}
+        run: |
+          echo "$PRIVATE_KEY" > private_key.pem
+          chmod 600 private_key.pem
+
+          # dist 폴더만 EC2로 전송
+          rsync -avz --delete -e "ssh -i private_key.pem -o StrictHostKeyChecking=no" \
+            dist/ ${USER}@${HOST}:~/dlive-cona-client/dist/
+
+          # PM2 재시작
+          ssh -i private_key.pem -o StrictHostKeyChecking=no ${USER}@${HOST} "source ~/.nvm/nvm.sh && pm2 restart dlive"
+
+          rm -f private_key.pem

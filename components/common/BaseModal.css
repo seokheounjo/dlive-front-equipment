@@ -1,0 +1,185 @@
+/* BaseModal - 모든 모달의 기본 스타일 (반응형) */
+
+/* 오버레이 */
+.base-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100; /* Lower than Select dropdown (z-index: 10000-10001) */
+  padding: 3vw; /* 뷰포트 너비의 3% */
+}
+
+/* 모달 컨테이너 */
+.base-modal-container {
+  background: white;
+  border-radius: 0.75rem; /* 12px */
+  box-shadow: 0 1.25rem 1.5625rem -0.3125rem rgba(0, 0, 0, 0.1), 0 0.625rem 0.625rem -0.3125rem rgba(0, 0, 0, 0.04);
+  width: 95%;
+  max-width: 95vw;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden; /* Keep modal structure intact */
+  position: relative;
+  z-index: 101; /* Above overlay but below Select dropdown */
+}
+
+/* 모달 크기 - 상대적 최대 너비 */
+.base-modal-container.modal-sm {
+  max-width: min(24rem, 90vw); /* 384px 또는 화면의 90% 중 작은 값 */
+}
+
+.base-modal-container.modal-md {
+  max-width: min(32rem, 92vw); /* 512px 또는 화면의 92% 중 작은 값 */
+}
+
+.base-modal-container.modal-lg {
+  max-width: min(42rem, 95vw); /* 672px 또는 화면의 95% 중 작은 값 */
+}
+
+/* 헤더 */
+.base-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.75rem 1rem; /* 12px 16px */
+  background: linear-gradient(135deg, #007bff 0%, #0056b3 100%);
+  border-bottom: 1px solid #e5e7eb;
+  flex-shrink: 0;
+}
+
+.base-modal-title {
+  margin: 0;
+  font-size: 1rem; /* 16px, 기준: 16px */
+  font-weight: 600;
+  color: white;
+  line-height: 1.5;
+}
+
+.base-modal-close-btn {
+  padding: 0.25rem; /* 4px */
+  background: transparent;
+  border: none;
+  color: white;
+  cursor: pointer;
+  border-radius: 0.25rem; /* 4px */
+  transition: background-color 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.base-modal-close-btn:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.base-modal-close-btn:active {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+/* 서브헤더 (선택적) */
+.base-modal-subheader {
+  padding: 0.75rem 1rem; /* 12px 16px */
+  background: #eff6ff;
+  border-bottom: 1px solid #e5e7eb;
+  flex-shrink: 0;
+}
+
+/* 본문 - 스크롤 가능 */
+.base-modal-body {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 1rem; /* 16px */
+  -webkit-overflow-scrolling: touch;
+}
+
+/* 푸터 (선택적) */
+.base-modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 0.5rem; /* 8px */
+  padding: 0.75rem 1rem; /* 12px 16px */
+  background: #f9fafb;
+  border-top: 1px solid #e5e7eb;
+  flex-shrink: 0;
+}
+
+/* 태블릿 (640px ~ 1024px) */
+@media (min-width: 640px) and (max-width: 1024px) {
+  .base-modal-container.modal-sm {
+    max-width: min(28rem, 85vw);
+  }
+
+  .base-modal-container.modal-md {
+    max-width: min(36rem, 88vw);
+  }
+
+  .base-modal-container.modal-lg {
+    max-width: min(48rem, 90vw);
+  }
+}
+
+/* 모바일 (< 640px) */
+@media (max-width: 640px) {
+  .base-modal-overlay {
+    padding: 2vw;
+  }
+
+  .base-modal-container {
+    max-height: 92vh;
+    width: 96%;
+  }
+
+  .base-modal-header {
+    padding: 0.625rem 0.75rem; /* 10px 12px */
+  }
+
+  .base-modal-title {
+    font-size: 0.9375rem; /* 15px */
+  }
+
+  .base-modal-subheader {
+    padding: 0.625rem 0.75rem; /* 10px 12px */
+  }
+
+  .base-modal-body {
+    padding: 0.75rem; /* 12px */
+  }
+
+  .base-modal-footer {
+    padding: 0.625rem 0.75rem; /* 10px 12px */
+    gap: 0.375rem; /* 6px */
+  }
+}
+
+/* 매우 작은 화면 (< 375px, 아이폰 SE 등) */
+@media (max-width: 375px) {
+  .base-modal-overlay {
+    padding: 1vw;
+  }
+
+  .base-modal-container {
+    max-height: 94vh;
+    width: 98%;
+  }
+
+  .base-modal-title {
+    font-size: 0.875rem; /* 14px */
+  }
+
+  .base-modal-header,
+  .base-modal-subheader,
+  .base-modal-footer {
+    padding: 0.5rem; /* 8px */
+  }
+
+  .base-modal-body {
+    padding: 0.625rem; /* 10px */
+  }
+}

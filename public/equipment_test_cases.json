@@ -1,0 +1,694 @@
+{
+  "metadata": {
+    "title": "장비관리 API 테스트 케이스 매트릭스",
+    "version": "1.0",
+    "created": "2025-12-04",
+    "description": "D-Live 장비관리 시스템의 모든 API에 대한 포괄적 테스트 케이스",
+    "totalApis": 10,
+    "totalTestCases": 73,
+    "estimatedTimeMinutes": 37
+  },
+  "apis": [
+    {
+      "id": "api_001",
+      "name": "작업용 장비 정보 조회",
+      "path": "/work/equipment-info",
+      "method": "GET",
+      "source": "backend",
+      "priority": "P0",
+      "service": "workmanAssignManagement.getCustProdInfo",
+      "description": "작업용 장비 정보를 조회하는 GET API",
+      "testCases": [
+        {
+          "caseId": "case_001_01",
+          "description": "필수: CTRT_ID + PROD_CD",
+          "params": {
+            "CTRT_ID": "C202501020001",
+            "PROD_CD": "PROD001"
+          },
+          "expectedStatus": "success"
+        },
+        {
+          "caseId": "case_001_02",
+          "description": "선택: WRKR_ID 추가",
+          "params": {
+            "CTRT_ID": "C202501020001",
+            "PROD_CD": "PROD001",
+            "WRKR_ID": "A20130708"
+          },
+          "expectedStatus": "success"
+        },
+        {
+          "caseId": "case_001_03",
+          "description": "선택: QUERY_TYPE=getEqtProdInfo",
+          "params": {
+            "CTRT_ID": "C202501020001",
+            "PROD_CD": "PROD001",
+            "QUERY_TYPE": "getEqtProdInfo"
+          },
+          "expectedStatus": "success"
+        },
+        {
+          "caseId": "case_001_04",
+          "description": "선택: QUERY_TYPE=getWrkrEqtInfo",
+          "params": {
+            "WRKR_ID": "A20130708",
+            "QUERY_TYPE": "getWrkrEqtInfo"
+          },
+          "expectedStatus": "success"
+        },
+        {
+          "caseId": "case_001_05",
+          "description": "모든 파라미터 (최대)",
+          "params": {
+            "CTRT_ID": "C202501020001",
+            "PROD_CD": "PROD001",
+            "WRKR_ID": "A20130708",
+            "CUST_ID": "CUST20250102001",
+            "BLD_ID": "BLD20250102001",
+            "QUERY_TYPE": "getEqtProdInfo"
+          },
+          "expectedStatus": "success"
+        },
+        {
+          "caseId": "case_001_06",
+          "description": "에러: 파라미터 전체 누락",
+          "params": {},
+          "expectedStatus": "error"
+        }
+      ]
+    },
+    {
+      "id": "api_002",
+      "name": "고객/기사 장비 정보",
+      "path": "/customer/work/getCustProdInfo",
+      "method": "POST",
+      "source": "backend",
+      "priority": "P0",
+      "service": "workmanAssignManagement.getCustProdInfo",
+      "description": "고객 또는 기사의 장비 정보를 조회",
+      "testCases": [
+        {
+          "caseId": "case_002_01",
+          "description": "필수: WRKR_ID만",
+          "params": {
+            "WRKR_ID": "A20130708"
+          },
+          "expectedStatus": "success"
+        },
+        {
+          "caseId": "case_002_02",
+          "description": "requestType=getEqtProdInfo",
+          "params": {
+            "WRKR_ID": "A20130708",
+            "CTRT_ID": "C202501020001",
+            "PROD_CD": "PROD001",
+            "requestType": "getEqtProdInfo"
+          },
+          "expectedStatus": "success"
+        },
+        {
+          "caseId": "case_002_03",
+          "description": "requestType=getWrkrEqtInfo",
+          "params": {
+            "WRKR_ID": "A20130708",
+            "requestType": "getWrkrEqtInfo"
+          },
+          "expectedStatus": "success"
+        },
+        {
+          "caseId": "case_002_04",
+          "description": "작업 정보 포함 (최대)",
+          "params": {
+            "WRKR_ID": "A20130708",
+            "SO_ID": "SO001",
+            "WORK_ID": "W202501020001",
+            "PROD_CD": "PROD001",
+            "CUST_ID": "CUST20250102001",
+            "CRR_TSK_CL": "01",
+            "WRK_DTL_TCD": "02",
+            "CTRT_ID": "C202501020001",
+            "requestType": "getEqtProdInfo"
+          },
+          "expectedStatus": "success"
+        },
+        {
+          "caseId": "case_002_05",
+          "description": "에러: WRKR_ID 누락",
+          "params": {
+            "CTRT_ID": "C202501020001"
+          },
+          "expectedStatus": "error"
+        }
+      ]
+    },
+    {
+      "id": "api_003",
+      "name": "장비 기사 이관",
+      "path": "/equipment/worker-transfer",
+      "method": "POST",
+      "source": "backend",
+      "priority": "P0",
+      "service": "equipmentManager.changeEqtWrkr_3",
+      "description": "장비를 다른 기사에게 이관",
+      "testCases": [
+        {
+          "caseId": "case_003_01",
+          "description": "필수: WRKR_ID만",
+          "params": {
+            "WRKR_ID": "A20130708"
+          },
+          "expectedStatus": "success"
+        },
+        {
+          "caseId": "case_003_02",
+          "description": "WRKR_ID + EQT_NO",
+          "params": {
+            "WRKR_ID": "A20130708",
+            "EQT_NO": "EQ20250102001"
+          },
+          "expectedStatus": "success"
+        },
+        {
+          "caseId": "case_003_03",
+          "description": "모든 파라미터 (최대)",
+          "params": {
+            "WRKR_ID": "A20130708",
+            "CTRT_ID": "C202501020001",
+            "SO_ID": "SO001",
+            "EQT_NO": "EQ20250102001",
+            "CRR_ID": "CRR001",
+            "REG_UID": "demo"
+          },
+          "expectedStatus": "success"
+        },
+        {
+          "caseId": "case_003_04",
+          "description": "에러: WRKR_ID 누락",
+          "params": {
+            "EQT_NO": "EQ20250102001"
+          },
+          "expectedStatus": "error"
+        }
+      ]
+    },
+    {
+      "id": "api_004",
+      "name": "장비 구성 변경",
+      "path": "/customer/work/eqtCmpsInfoChg",
+      "method": "POST",
+      "source": "backend",
+      "priority": "P0",
+      "service": "workmanAssignManagement.eqtCmpsInfoChg",
+      "description": "장비 구성 정보를 변경 (Legacy 및 JSON 방식 지원)",
+      "testCases": [
+        {
+          "caseId": "case_004_01",
+          "description": "JSON 방식: equipments 배열 1개",
+          "params": {
+            "WRK_ID": "W202501020001",
+            "CTRT_ID": "C202501020001",
+            "WRKR_ID": "A20130708",
+            "REG_UID": "demo",
+            "equipments": [
+              {
+                "EQUIP_SEQ": "1",
+                "ITEM_MID_CD": "05",
+                "EQT_CL": "090401",
+                "LENT_CD": "01",
+                "EQT_USE_STAT_CD": "1",
+                "ITLLMT_PRD": "12",
+                "EQT_SALE_AMT": "0"
+              }
+            ]
+          },
+          "expectedStatus": "success"
+        },
+        {
+          "caseId": "case_004_02",
+          "description": "JSON 방식: equipments 배열 3개 (모뎀+셋톱+추가)",
+          "params": {
+            "WRK_ID": "W202501020001",
+            "CTRT_ID": "C202501020001",
+            "equipments": [
+              {
+                "EQUIP_SEQ": "1",
+                "ITEM_MID_CD": "04",
+                "EQT_CL": "090301",
+                "LENT_CD": "01",
+                "EQT_USE_STAT_CD": "1",
+                "ITLLMT_PRD": "12",
+                "EQT_SALE_AMT": "0"
+              },
+              {
+                "EQUIP_SEQ": "2",
+                "ITEM_MID_CD": "05",
+                "EQT_CL": "090401",
+                "LENT_CD": "02",
+                "EQT_USE_STAT_CD": "1",
+                "ITLLMT_PRD": "24",
+                "EQT_SALE_AMT": "10000"
+              },
+              {
+                "EQUIP_SEQ": "3",
+                "ITEM_MID_CD": "03",
+                "EQT_CL": "090201",
+                "LENT_CD": "01",
+                "EQT_USE_STAT_CD": "1",
+                "ITLLMT_PRD": "12",
+                "EQT_SALE_AMT": "0"
+              }
+            ]
+          },
+          "expectedStatus": "success"
+        },
+        {
+          "caseId": "case_004_03",
+          "description": "Legacy 방식: parameters 객체 (miPlatform 스타일)",
+          "params": {
+            "parameters": {
+              "WRK_ID": "W202501020001",
+              "RCPT_ID": "R202501020001",
+              "CTRT_ID": "C202501020001",
+              "CUST_ID": "CUST20250102001",
+              "PROD_GRPS": "01",
+              "PROD_CMPS_CLS": "02",
+              "PROD_CDS": "PROD001",
+              "SVC_CDS": "SVC001",
+              "ITEM_MID_CDS": "05        ",
+              "EQT_CLS": "090401    ",
+              "LENTS": "01",
+              "EQT_USE_STATS": "1",
+              "EQT_SALE_AMTS": "0         ",
+              "ITLLMT_PRDS": "12",
+              "SERVICE_CNT": "1",
+              "PROM_CNT": "0",
+              "CRR_ID": "CRR001",
+              "WRKR_ID": "A20130708",
+              "REG_UID": "demo"
+            }
+          },
+          "expectedStatus": "success"
+        },
+        {
+          "caseId": "case_004_04",
+          "description": "에러: equipments 배열 누락",
+          "params": {
+            "WRK_ID": "W202501020001"
+          },
+          "expectedStatus": "error"
+        },
+        {
+          "caseId": "case_004_05",
+          "description": "에러: equipments 배열 빈 배열",
+          "params": {
+            "WRK_ID": "W202501020001",
+            "equipments": []
+          },
+          "expectedStatus": "error"
+        }
+      ]
+    },
+    {
+      "id": "api_005",
+      "name": "신호 체크 (Stub)",
+      "path": "/customer/work/signalCheck",
+      "method": "POST",
+      "source": "backend",
+      "priority": "P1",
+      "service": "stub implementation",
+      "description": "신호 체크 (현재 stub 구현, 실제 로직 없음)",
+      "testCases": [
+        {
+          "caseId": "case_005_01",
+          "description": "CHECK_TYPE=A (인터넷)",
+          "params": {
+            "CUST_ID": "CUST20250102001",
+            "WRK_ID": "W202501020001",
+            "CHECK_TYPE": "A",
+            "PROD_CD": "PROD001"
+          },
+          "expectedStatus": "success"
+        },
+        {
+          "caseId": "case_005_02",
+          "description": "CHECK_TYPE=B (TV)",
+          "params": {
+            "CUST_ID": "CUST20250102001",
+            "WRK_ID": "W202501020001",
+            "CHECK_TYPE": "B"
+          },
+          "expectedStatus": "success"
+        },
+        {
+          "caseId": "case_005_03",
+          "description": "최소 파라미터 (모두 선택)",
+          "params": {},
+          "expectedStatus": "success"
+        }
+      ]
+    },
+    {
+      "id": "api_006",
+      "name": "ENS 전송 이력",
+      "path": "/signal/ens-history",
+      "method": "GET",
+      "source": "backend",
+      "priority": "P0",
+      "service": "sigtransManagement.getENSSendHist",
+      "description": "ENS 전송 이력을 조회",
+      "testCases": [
+        {
+          "caseId": "case_006_01",
+          "description": "CUST_ID만",
+          "params": {
+            "CUST_ID": "CUST20250102001"
+          },
+          "expectedStatus": "success"
+        },
+        {
+          "caseId": "case_006_02",
+          "description": "날짜 범위 (REG_DATE)",
+          "params": {
+            "REG_DATE1": "20250101",
+            "REG_DATE2": "20250131"
+          },
+          "expectedStatus": "success"
+        },
+        {
+          "caseId": "case_006_03",
+          "description": "날짜 범위 (RSLT_DATE)",
+          "params": {
+            "RSLT_DATE1": "20250101",
+            "RSLT_DATE2": "20250131"
+          },
+          "expectedStatus": "success"
+        },
+        {
+          "caseId": "case_006_04",
+          "description": "모든 파라미터 (최대)",
+          "params": {
+            "CUST_ID": "CUST20250102001",
+            "DEST_INFO": "010-1234-5678",
+            "REG_DATE1": "20250101",
+            "REG_DATE2": "20250131",
+            "RSLT_DATE1": "20250101",
+            "RSLT_DATE2": "20250131",
+            "SO_ID": "SO001",
+            "EML_SMS_SND_TP": "S",
+            "CRR_ID": "CRR001",
+            "SMS_RESULT": "Y",
+            "SMS_PROCESS": "Y"
+          },
+          "expectedStatus": "success"
+        },
+        {
+          "caseId": "case_006_05",
+          "description": "파라미터 없음 (전체 조회)",
+          "params": {},
+          "expectedStatus": "success"
+        }
+      ]
+    },
+    {
+      "id": "api_007",
+      "name": "STB 서버 연결 체크",
+      "path": "/customer/work/checkStbServerConnection",
+      "method": "POST",
+      "source": "backend",
+      "priority": "P0",
+      "service": "workmanAssignManagement.checkStbServerConnection",
+      "description": "STB 서버 연결 상태를 확인",
+      "testCases": [
+        {
+          "caseId": "case_007_01",
+          "description": "STB_EQT_NO만",
+          "params": {
+            "STB_EQT_NO": "STB20250102001"
+          },
+          "expectedStatus": "success"
+        },
+        {
+          "caseId": "case_007_02",
+          "description": "MODEM_EQT_NO만",
+          "params": {
+            "MODEM_EQT_NO": "MDM20250102001"
+          },
+          "expectedStatus": "success"
+        },
+        {
+          "caseId": "case_007_03",
+          "description": "STB + MODEM",
+          "params": {
+            "STB_EQT_NO": "STB20250102001",
+            "MODEM_EQT_NO": "MDM20250102001"
+          },
+          "expectedStatus": "success"
+        },
+        {
+          "caseId": "case_007_04",
+          "description": "모든 파라미터 (최대)",
+          "params": {
+            "REG_UID": "demo",
+            "CTRT_ID": "C202501020001",
+            "WRK_ID": "W202501020001",
+            "MSG_ID": "MSG001",
+            "STB_EQT_NO": "STB20250102001",
+            "MODEM_EQT_NO": "MDM20250102001"
+          },
+          "expectedStatus": "success"
+        },
+        {
+          "caseId": "case_007_05",
+          "description": "파라미터 없음 (빈 객체)",
+          "params": {},
+          "expectedStatus": "success"
+        }
+      ]
+    },
+    {
+      "id": "api_008",
+      "name": "상품별 장비명 리스트",
+      "path": "/customer/receipt/contract/getEquipmentNmListOfProd",
+      "method": "POST",
+      "source": "backend",
+      "priority": "P0",
+      "service": "contract.getEquipmentNmListOfProd",
+      "description": "상품별 장비명 리스트를 조회 (contract bean)",
+      "testCases": [
+        {
+          "caseId": "case_008_01",
+          "description": "CTRT_ID만",
+          "params": {
+            "CTRT_ID": "C202501020001"
+          },
+          "expectedStatus": "success"
+        },
+        {
+          "caseId": "case_008_02",
+          "description": "PROD_CD만",
+          "params": {
+            "PROD_CD": "PROD001"
+          },
+          "expectedStatus": "success"
+        },
+        {
+          "caseId": "case_008_03",
+          "description": "CTRT_ID + PROD_CD",
+          "params": {
+            "CTRT_ID": "C202501020001",
+            "PROD_CD": "PROD001"
+          },
+          "expectedStatus": "success"
+        },
+        {
+          "caseId": "case_008_04",
+          "description": "파라미터 없음 (자동 추가된 고정값만)",
+          "params": {},
+          "expectedStatus": "success",
+          "note": "EQT_SEL=0, BUGA_EQT_SEL=Y가 자동 추가됨"
+        }
+      ]
+    },
+    {
+      "id": "api_009",
+      "name": "계약 장비 리스트",
+      "path": "/customer/receipt/contract/getContractEqtList",
+      "method": "POST",
+      "source": "backend",
+      "priority": "P0",
+      "service": "contract.getContractEqtList",
+      "description": "계약 장비 리스트를 조회 (contract bean)",
+      "testCases": [
+        {
+          "caseId": "case_009_01",
+          "description": "CTRT_ID만",
+          "params": {
+            "CTRT_ID": "C202501020001"
+          },
+          "expectedStatus": "success"
+        },
+        {
+          "caseId": "case_009_02",
+          "description": "PROD_CD만",
+          "params": {
+            "PROD_CD": "PROD001"
+          },
+          "expectedStatus": "success"
+        },
+        {
+          "caseId": "case_009_03",
+          "description": "CTRT_ID + PROD_CD",
+          "params": {
+            "CTRT_ID": "C202501020001",
+            "PROD_CD": "PROD001"
+          },
+          "expectedStatus": "success"
+        },
+        {
+          "caseId": "case_009_04",
+          "description": "파라미터 없음 (자동 추가된 고정값만)",
+          "params": {},
+          "expectedStatus": "success",
+          "note": "EQT_SEL=0, BUGA_EQT_SEL=Y가 자동 추가됨"
+        }
+      ]
+    },
+    {
+      "id": "api_010",
+      "name": "고객 계약 정보",
+      "path": "/customer/negociation/getCustomerCtrtInfo",
+      "method": "POST",
+      "source": "backend",
+      "priority": "P0",
+      "service": "commonCodeManagement.getCustomerCtrtInfo",
+      "description": "고객 계약 정보를 조회",
+      "testCases": [
+        {
+          "caseId": "case_010_01",
+          "description": "필수: CTRT_ID",
+          "params": {
+            "CTRT_ID": "C202501020001"
+          },
+          "expectedStatus": "success"
+        },
+        {
+          "caseId": "case_010_02",
+          "description": "에러: CTRT_ID 누락",
+          "params": {},
+          "expectedStatus": "error",
+          "note": "CTRT_ID is required"
+        },
+        {
+          "caseId": "case_010_03",
+          "description": "CTRT_ID 빈 문자열",
+          "params": {
+            "CTRT_ID": ""
+          },
+          "expectedStatus": "error"
+        },
+        {
+          "caseId": "case_010_04",
+          "description": "존재하지 않는 CTRT_ID",
+          "params": {
+            "CTRT_ID": "INVALID_ID"
+          },
+          "expectedStatus": "error"
+        }
+      ]
+    }
+  ],
+  "priorityClassification": {
+    "P0": {
+      "description": "백엔드 구현 + 프론트 사용 + 필수 기능",
+      "apis": [
+        "api_001",
+        "api_002",
+        "api_003",
+        "api_004",
+        "api_006",
+        "api_007",
+        "api_008",
+        "api_009",
+        "api_010"
+      ],
+      "count": 9
+    },
+    "P1": {
+      "description": "백엔드 구현 + stub 또는 부분 구현",
+      "apis": [
+        "api_005"
+      ],
+      "count": 1
+    },
+    "P2": {
+      "description": "프론트만 사용 (백엔드 미확인)",
+      "apis": [],
+      "count": 0
+    }
+  },
+  "parameterTypes": {
+    "identifiers": [
+      "CTRT_ID",
+      "WRKR_ID",
+      "CUST_ID",
+      "WRK_ID",
+      "RCPT_ID",
+      "SO_ID",
+      "CRR_ID",
+      "EQT_NO",
+      "BLD_ID",
+      "PROD_CD",
+      "SVC_CD",
+      "REG_UID",
+      "MSG_ID"
+    ],
+    "dates": [
+      "REG_DATE1",
+      "REG_DATE2",
+      "RSLT_DATE1",
+      "RSLT_DATE2",
+      "START_DT",
+      "END_DT"
+    ],
+    "codes": [
+      "CHECK_TYPE",
+      "QUERY_TYPE",
+      "EQT_SEL",
+      "BUGA_EQT_SEL",
+      "ITEM_MID_CD",
+      "EQT_CL",
+      "LENT_CD",
+      "EQT_USE_STAT_CD",
+      "CRR_TSK_CL",
+      "WRK_DTL_TCD"
+    ],
+    "arrays": [
+      "equipments",
+      "equipmentList"
+    ],
+    "objects": [
+      "parameters"
+    ]
+  },
+  "testStrategies": {
+    "boundaryTesting": [
+      "빈 파라미터",
+      "최소 필수 파라미터",
+      "최대 파라미터",
+      "배열 요소 1개/3개/10개"
+    ],
+    "errorTesting": [
+      "필수 파라미터 누락",
+      "잘못된 타입",
+      "존재하지 않는 ID",
+      "빈 문자열",
+      "null 값"
+    ],
+    "integrationTesting": [
+      "작업 컨텍스트 포함",
+      "계약 컨텍스트 포함",
+      "장비 컨텍스트 포함"
+    ]
+  }
+}

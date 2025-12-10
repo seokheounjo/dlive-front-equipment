@@ -1,0 +1,16 @@
+{
+  "permissions": {
+    "allow": [
+      "Read(//Users/hanseungsu/Desktop/poby/딜라이브/dlive-json-api/mobile-cona-front/components/**)",
+      "Read(//Users/hanseungsu/Desktop/poby/딜라이브/dlive-json-api/mobile-cona-front/services/**)",
+      "Read(//Users/hanseungsu/Desktop/poby/딜라이브/dlive-json-api/mobile-cona-front/**)",
+      "Read(//Users/hanseungsu/Desktop/poby/딜라이브/dlive-json-api/**)",
+      "Bash(find:*)",
+      "Bash(ant clean:*)",
+      "Bash(ssh:*)",
+      "Bash(curl:*)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}

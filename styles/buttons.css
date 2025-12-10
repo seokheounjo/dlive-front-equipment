@@ -1,0 +1,212 @@
+/* 공통 버튼 스타일 - 반응형 모바일 최적화 */
+
+/* 기본 버튼 */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.5rem 1rem; /* 8px 16px */
+  font-size: 0.8125rem; /* 13px */
+  font-weight: 600;
+  border-radius: 0.5rem; /* 8px */
+  border: none;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+  text-align: center;
+  line-height: 1.5;
+}
+
+.btn:active {
+  transform: scale(0.98);
+}
+
+/* 작은 버튼 (모달 내부용) */
+.btn-sm {
+  padding: 0.375rem 0.75rem; /* 6px 12px */
+  font-size: 0.75rem; /* 12px */
+  border-radius: 0.375rem; /* 6px */
+}
+
+/* 큰 버튼 (모바일 터치 타겟) */
+.btn-lg {
+  min-height: 3rem; /* 48px - 모바일 터치 타겟 */
+  padding: 0.75rem 1.5rem; /* 12px 24px */
+  font-size: 1rem; /* 16px */
+  border-radius: 0.5rem; /* 8px */
+}
+
+/* Primary - 주요 액션 (파란색) */
+.btn-primary {
+  background: #007bff;
+  color: white;
+}
+
+.btn-primary:hover:not(:disabled) {
+  background: #0056b3;
+}
+
+/* Secondary - 보조 액션 (회색) */
+.btn-secondary {
+  background: #6c757d;
+  color: white;
+}
+
+.btn-secondary:hover:not(:disabled) {
+  background: #5a6268;
+}
+
+/* Success - 저장/완료 (초록색) */
+.btn-success {
+  background: #28a745;
+  color: white;
+}
+
+.btn-success:hover:not(:disabled) {
+  background: #218838;
+}
+
+/* Danger - 취소/삭제 (빨간색) */
+.btn-danger {
+  background: #dc3545;
+  color: white;
+}
+
+.btn-danger:hover:not(:disabled) {
+  background: #c82333;
+}
+
+/* Warning - 경고 (노란색) */
+.btn-warning {
+  background: #ffc107;
+  color: #212529;
+}
+
+.btn-warning:hover:not(:disabled) {
+  background: #e0a800;
+}
+
+/* Outline 버튼 */
+.btn-outline-primary {
+  background: transparent;
+  color: #007bff;
+  border: 2px solid #007bff;
+}
+
+.btn-outline-primary:hover:not(:disabled) {
+  background: #007bff;
+  color: white;
+}
+
+.btn-outline-secondary {
+  background: transparent;
+  color: #6c757d;
+  border: 2px solid #6c757d;
+}
+
+.btn-outline-secondary:hover:not(:disabled) {
+  background: #6c757d;
+  color: white;
+}
+
+/* 비활성화 상태 */
+.btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+  background: #d3d3d3 !important;
+  color: #888 !important;
+  border-color: #d3d3d3 !important;
+}
+
+.btn:disabled:hover {
+  transform: none;
+}
+
+/* 버튼 그룹 (모달 푸터 등) */
+.btn-group {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.btn-group-vertical {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+}
+
+.btn-group-vertical .btn {
+  width: 100%;
+}
+
+/* 모바일 최적화 */
+@media (max-width: 640px) {
+  .btn {
+    padding: 0.5rem 0.875rem; /* 8px 14px */
+    font-size: 0.75rem; /* 12px */
+  }
+
+  .btn-sm {
+    padding: 0.375rem 0.625rem; /* 6px 10px */
+    font-size: 0.6875rem; /* 11px */
+  }
+
+  /* 모바일에서 버튼 그룹을 세로로 */
+  .btn-group-mobile-vertical {
+    flex-direction: column;
+    width: 100%;
+  }
+
+  .btn-group-mobile-vertical .btn {
+    width: 100%;
+  }
+}
+
+/* 매우 작은 화면 (< 375px) */
+@media (max-width: 375px) {
+  .btn {
+    padding: 0.4375rem 0.75rem; /* 7px 12px */
+    font-size: 0.6875rem; /* 11px */
+  }
+
+  .btn-sm {
+    padding: 0.3125rem 0.5rem; /* 5px 8px */
+    font-size: 0.625rem; /* 10px */
+  }
+}
+
+/* Full Width 버튼 */
+.btn-block {
+  width: 100%;
+  display: flex;
+}
+
+/* 아이콘이 있는 버튼 */
+.btn-with-icon {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem; /* 6px */
+}
+
+.btn-icon-only {
+  padding: 0.5rem; /* 8px */
+  width: 2.25rem; /* 36px */
+  height: 2.25rem; /* 36px */
+}
+
+.btn-icon-only.btn-sm {
+  padding: 0.375rem; /* 6px */
+  width: 1.875rem; /* 30px */
+  height: 1.875rem; /* 30px */
+}
+
+/* 스크롤바 숨기기 (탭 리스트 등) */
+.scrollbar-hide {
+  -ms-overflow-style: none;  /* IE and Edge */
+  scrollbar-width: none;  /* Firefox */
+}
+
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;  /* Chrome, Safari, Opera */
+}
