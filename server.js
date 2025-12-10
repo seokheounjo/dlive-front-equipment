@@ -3,7 +3,7 @@ const cors = require('cors');
 const path = require('path');
 
 const app = express();
-const PORT = process.env.PORT || 80;  // nginx 뒤에서 3000 포트 사용
+const PORT = process.env.PORT || 8080;  // nginx 뒤에서 3000 포트 사용
 
 // 허용된 IP 목록
 const ALLOWED_IPS = [

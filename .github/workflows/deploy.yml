@@ -77,4 +77,4 @@ jobs:
         if: success()
         run: |
           echo "✅ Deployment successful!"
-          echo "🌐 Application URL: http://${{ secrets.EC2_HOST }}:3000"
+          echo "🌐 Application URL: http://${{ secrets.EC2_HOST }}:8080"
