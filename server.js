@@ -70,12 +70,12 @@ app.use(express.json());
 
 // CORS 설정
 app.use(cors({
-  origin: ['http://localhost:3000', 'http://127.0.0.1:3000', 'http://52.63.131.157'],
+  origin: ['http://localhost:3000', 'http://127.0.0.1:3000', 'http://52.63.131.157', 'http://52.63.232.141:3000'],
   credentials: true
 }));
 
-// IP 제한 미들웨어 적용
-app.use(ipRestriction);
+// IP 제한 미들웨어 적용 (테스트를 위해 임시 비활성화)
+// app.use(ipRestriction);
 
 // API 프록시 라우터
 const apiProxy = require('./api-proxy');
