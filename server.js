@@ -3,7 +3,7 @@ const cors = require('cors');
 const path = require('path');
 
 const app = express();
-const PORT = process.env.PORT || 3000;  // nginx 뒤에서 3000 포트 사용
+const PORT = process.env.PORT || 80;  // nginx 뒤에서 3000 포트 사용
 
 // 허용된 IP 목록
 const ALLOWED_IPS = [
@@ -70,7 +70,7 @@ app.use(express.json());
 
 // CORS 설정
 app.use(cors({
-  origin: ['http://localhost:3000', 'http://127.0.0.1:3000', 'http://52.63.131.157', 'http://52.63.232.141:3000'],
+  origin: ['http://localhost:3000', 'http://127.0.0.1:3000', 'http://52.63.232.141', 'http://52.63.232.141'],
   credentials: true
 }));
 
@@ -96,6 +96,6 @@ app.use((req, res, next) => {
 
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`🚀 서버가 포트 ${PORT}에서 실행 중입니다`);
-  console.log(`🔗 접속 URL: http://52.63.131.157:${PORT}`);
+  console.log(`🔗 접속 URL: http://52.63.232.141:${PORT}`);
   console.log(`🛡️ IP 제한 활성화 - 허용된 IP: ${ALLOWED_IPS.join(', ')}`);
 });
