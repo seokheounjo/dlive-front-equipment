@@ -1,6 +1,12 @@
-# 📱 Mobile CONA Frontend
+# 📱 D'Live Equipment Management System
 
-딜라이브 현장 기사용 모바일 웹 애플리케이션 - 실제 딜라이브 JSON API 연동
+딜라이브 장비관리 시스템 - 15개 API 자동 테스트 및 검증
+
+## 🚀 배포 정보
+
+- **운영 서버**: http://52.63.232.141:3000
+- **자동 배포**: GitHub Actions (main 브랜치 푸시 시)
+- **인프라**: AWS EC2 t3.micro (Ubuntu 24.04)
 
 ## 🎯 프로젝트 개요
 
