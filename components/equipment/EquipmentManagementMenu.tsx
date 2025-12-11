@@ -4,9 +4,7 @@ import EquipmentAssignment from '../equipment/EquipmentAssignment';
 import EquipmentStatusView from '../equipment/EquipmentStatusView';
 import EquipmentMovement from '../equipment/EquipmentMovement';
 import EquipmentRecovery from '../equipment/EquipmentRecovery';
-import EquipmentAutoTester from '../equipment/EquipmentAutoTester';
-import EquipmentApiStatus from '../equipment/EquipmentApiStatus';
-import ApiDebugDashboard from '../equipment/ApiDebugDashboard';
+import EquipmentApiTester from '../equipment/EquipmentApiTester';
 
 interface EquipmentManagementMenuProps {
   onNavigateToMenu: () => void;
@@ -20,9 +18,7 @@ const EquipmentManagementMenu: React.FC<EquipmentManagementMenuProps> = ({ onNav
     { id: 'equipment-status', title: '장비상태조회', description: '장비 상태 조회' },
     { id: 'equipment-movement', title: '기사간 장비이동', description: '기사 간 장비 이동 관리' },
     { id: 'equipment-recovery', title: '미회수 장비 회수처리', description: '미회수 장비 회수 처리' },
-    { id: 'api-status', title: 'API 상태 현황', description: '15개 API 구현 현황' },
-    { id: 'auto-tester', title: '전체 자동 테스트', description: '73개 케이스 자동 실행' },
-    { id: 'api-debug', title: '🔧 API 디버거', description: '원클릭 전체 점검 & 파라미터 탐색' }
+    { id: 'api-tester', title: '🔧 API 통합 테스터', description: '20개 API 원클릭 테스트 & 디버깅' }
   ];
 
   const handleTabChange = (tabId: string) => {
@@ -39,12 +35,8 @@ const EquipmentManagementMenu: React.FC<EquipmentManagementMenuProps> = ({ onNav
         return <EquipmentMovement onBack={onNavigateToMenu} />;
       case 'equipment-recovery':
         return <EquipmentRecovery onBack={onNavigateToMenu} />;
-      case 'api-status':
-        return <EquipmentApiStatus />;
-      case 'auto-tester':
-        return <EquipmentAutoTester />;
-      case 'api-debug':
-        return <ApiDebugDashboard />;
+      case 'api-tester':
+        return <EquipmentApiTester />;
       default:
         return null;
     }
