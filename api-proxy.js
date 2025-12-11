@@ -167,7 +167,7 @@ async function handleProxy(req, res) {
       method: req.method,
       headers: {
         'Content-Type': 'application/json',
-        'Origin': req.headers.origin || 'http://52.63.232.141',
+        'Origin': req.headers.origin || 'http://52.63.232.141:8080',
         'User-Agent': 'EC2-Proxy/1.0',
         // 일부 레거시에서 Host 헤더/포워드 헤더 필요
         'Host': parsedUrl.host,
