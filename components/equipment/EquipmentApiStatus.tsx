@@ -39,30 +39,30 @@ const EquipmentApiStatus: React.FC = () => {
   const [expandedResults, setExpandedResults] = useState<Set<number>>(new Set());
 
   // 장비관리 4개 탭의 API 목록 (필수/선택 파라미터 포함)
-  // 중요: legacy-server의 모든 API는 .req 확장자를 필요로 함 (Spring MVC PropertiesMethodNameResolver 설정)
+  // 중요: /api/* 서블릿을 사용하므로 .req 확장자 없이 호출해야 함
   const equipmentApis: ApiInfo[] = [
     // 1. 장비할당/반납처리 (9개) - EquipmentManagerDelegate.java
-    { path: '/customer/equipment/getEquipmentOutList.req', name: '기사할당장비조회', tab: '장비할당/반납처리', feature: '출고일자/지점 조건으로 기사 할당 장비 조회', status: 'completed', testable: true, required: ['WRKR_ID'], optional: ['SO_ID', 'OUT_DATE', 'CARRIER_ID'] },
-    { path: '/customer/equipment/getEquipmentProcYnCheck.req', name: '기사할당장비확인', tab: '장비할당/반납처리', feature: '장비할당처리 확인', status: 'incomplete', testable: true, required: ['WRKR_ID', 'SO_ID', 'EQT_NO'], optional: [] },
-    { path: '/customer/equipment/addCorporationEquipmentQuota.req', name: '법인장비쿼터추가', tab: '장비할당/반납처리', feature: '법인 장비 할당', status: 'incomplete', testable: true, required: ['SO_ID', 'EQT_NO', 'CARRIER_ID', 'WRKR_ID'], optional: ['CORP_ID', 'EQT_TYPE', 'QUOTA', 'REG_UID'] },
-    { path: '/customer/equipment/getEquipmentReturnRequestList.req', name: '반납요청목록조회', tab: '장비할당/반납처리', feature: '기사가 보유한 장비 조회', status: 'completed', testable: true, required: ['WRKR_ID'], optional: ['SO_ID', 'START_DATE', 'END_DATE'] },
-    { path: '/customer/equipment/getEquipmentReturnRequestCheck.req', name: '반납요청확인', tab: '장비할당/반납처리', feature: '장비상태 체크', status: 'incomplete', testable: true, required: ['WRKR_ID', 'SO_ID', 'EQT_NO'], optional: [] },
-    { path: '/customer/equipment/addEquipmentReturnRequest.req', name: '반납요청등록', tab: '장비할당/반납처리', feature: '장비반납 요청', status: 'incomplete', testable: true, required: ['EQT_NO', 'WRKR_ID'], optional: ['SO_ID', 'RETURN_REASON', 'REG_UID'] },
-    { path: '/customer/equipment/getWrkrHaveEqtList.req', name: '작업자보유장비조회', tab: '장비할당/반납처리', feature: '기사 보유 장비 조회 (분실처리용)', status: 'completed', testable: true, required: ['WRKR_ID'], optional: ['SO_ID', 'EQT_STATUS'] },
-    { path: '/customer/equipment/cmplEqtCustLossIndem.req', name: '분실처리', tab: '장비할당/반납처리', feature: '장비 분실 처리', status: 'incomplete', testable: true, required: ['EQT_NO'], optional: ['WRKR_ID', 'SO_ID', 'LOSS_REASON', 'REG_UID'] },
-    { path: '/customer/equipment/setEquipmentChkStndByY.req', name: '장비상태변경(검사대기)', tab: '장비할당/반납처리', feature: '검사대기 → 사용가능 상태 변경', status: 'incomplete', testable: true, required: ['EQT_NO', 'WRKR_ID'], optional: ['SO_ID', 'REG_UID'] },
+    { path: '/customer/equipment/getEquipmentOutList', name: '기사할당장비조회', tab: '장비할당/반납처리', feature: '출고일자/지점 조건으로 기사 할당 장비 조회', status: 'completed', testable: true, required: ['WRKR_ID'], optional: ['SO_ID', 'OUT_DATE', 'CARRIER_ID'] },
+    { path: '/customer/equipment/getEquipmentProcYnCheck', name: '기사할당장비확인', tab: '장비할당/반납처리', feature: '장비할당처리 확인', status: 'incomplete', testable: true, required: ['WRKR_ID', 'SO_ID', 'EQT_NO'], optional: [] },
+    { path: '/customer/equipment/addCorporationEquipmentQuota', name: '법인장비쿼터추가', tab: '장비할당/반납처리', feature: '법인 장비 할당', status: 'incomplete', testable: true, required: ['SO_ID', 'EQT_NO', 'CARRIER_ID', 'WRKR_ID'], optional: ['CORP_ID', 'EQT_TYPE', 'QUOTA', 'REG_UID'] },
+    { path: '/customer/equipment/getEquipmentReturnRequestList', name: '반납요청목록조회', tab: '장비할당/반납처리', feature: '기사가 보유한 장비 조회', status: 'completed', testable: true, required: ['WRKR_ID'], optional: ['SO_ID', 'START_DATE', 'END_DATE'] },
+    { path: '/customer/equipment/getEquipmentReturnRequestCheck', name: '반납요청확인', tab: '장비할당/반납처리', feature: '장비상태 체크', status: 'incomplete', testable: true, required: ['WRKR_ID', 'SO_ID', 'EQT_NO'], optional: [] },
+    { path: '/customer/equipment/addEquipmentReturnRequest', name: '반납요청등록', tab: '장비할당/반납처리', feature: '장비반납 요청', status: 'incomplete', testable: true, required: ['EQT_NO', 'WRKR_ID'], optional: ['SO_ID', 'RETURN_REASON', 'REG_UID'] },
+    { path: '/customer/equipment/getWrkrHaveEqtList', name: '작업자보유장비조회', tab: '장비할당/반납처리', feature: '기사 보유 장비 조회 (분실처리용)', status: 'completed', testable: true, required: ['WRKR_ID'], optional: ['SO_ID', 'EQT_STATUS'] },
+    { path: '/customer/equipment/cmplEqtCustLossIndem', name: '분실처리', tab: '장비할당/반납처리', feature: '장비 분실 처리', status: 'incomplete', testable: true, required: ['EQT_NO'], optional: ['WRKR_ID', 'SO_ID', 'LOSS_REASON', 'REG_UID'] },
+    { path: '/customer/equipment/setEquipmentChkStndByY', name: '장비상태변경(검사대기)', tab: '장비할당/반납처리', feature: '검사대기 → 사용가능 상태 변경', status: 'incomplete', testable: true, required: ['EQT_NO', 'WRKR_ID'], optional: ['SO_ID', 'REG_UID'] },
 
     // 2. 장비상태조회 (2개)
-    { path: '/statistics/equipment/getEquipmentHistoryInfo.req', name: '장비이력조회', tab: '장비상태조회', feature: 'S/N으로 장비 현재상태 조회', status: 'incomplete', testable: true, required: ['EQT_NO'], optional: ['WRKR_ID', 'SO_ID', 'SERIAL_NO'] },
-    { path: '/customer/equipment/changeEqtWrkr_3.req', name: '장비기사이관', tab: '장비상태조회', feature: '다른 기사 장비를 내가 인수', status: 'incomplete', testable: true, required: ['EQT_NO', 'TO_WRKR_ID'], optional: ['FROM_WRKR_ID', 'CTRT_ID', 'SO_ID', 'CRR_ID', 'REG_UID'] },
+    { path: '/statistics/equipment/getEquipmentHistoryInfo', name: '장비이력조회', tab: '장비상태조회', feature: 'S/N으로 장비 현재상태 조회', status: 'incomplete', testable: true, required: ['EQT_NO'], optional: ['WRKR_ID', 'SO_ID', 'SERIAL_NO'] },
+    { path: '/customer/equipment/changeEqtWrkr_3', name: '장비기사이관', tab: '장비상태조회', feature: '다른 기사 장비를 내가 인수', status: 'incomplete', testable: true, required: ['EQT_NO', 'TO_WRKR_ID'], optional: ['FROM_WRKR_ID', 'CTRT_ID', 'SO_ID', 'CRR_ID', 'REG_UID'] },
 
     // 3. 기사간 장비이동 (2개)
-    { path: '/system/cm/getFindUsrList3.req', name: '타기사조회', tab: '기사간 장비이동', feature: '기사 정보 조회', status: 'completed', testable: true, required: ['USR_NM'], optional: ['WRKR_ID', 'SO_ID', 'SEARCH_TEXT', 'SEARCH_TYPE'] },
-    { path: '/customer/sigtrans/saveENSSendHist.req', name: '타기사문자발송', tab: '기사간 장비이동', feature: '장비이관 문자 발송', status: 'incomplete', testable: true, required: ['EQT_NO', 'TO_WRKR_ID', 'FROM_WRKR_ID'], optional: ['DEST_PHONE', 'MESSAGE', 'REG_UID', 'WRKR_ID', 'SO_ID'] },
+    { path: '/system/cm/getFindUsrList3', name: '타기사조회', tab: '기사간 장비이동', feature: '기사 정보 조회', status: 'completed', testable: true, required: ['USR_NM'], optional: ['WRKR_ID', 'SO_ID', 'SEARCH_TEXT', 'SEARCH_TYPE'] },
+    { path: '/customer/sigtrans/saveENSSendHist', name: '타기사문자발송', tab: '기사간 장비이동', feature: '장비이관 문자 발송', status: 'incomplete', testable: true, required: ['EQT_NO', 'TO_WRKR_ID', 'FROM_WRKR_ID'], optional: ['DEST_PHONE', 'MESSAGE', 'REG_UID', 'WRKR_ID', 'SO_ID'] },
 
     // 4. 미회수 장비 회수처리 (2개) - WorkmanAssignDelegate.java
-    { path: '/customer/work/getEquipLossInfo.req', name: '미회수장비조회', tab: '미회수 장비 회수처리', feature: '미회수 장비 리스트 조회', status: 'completed', testable: true, required: [], optional: ['WRKR_ID', 'EQT_NO', 'SO_ID', 'START_DATE', 'END_DATE'] },
-    { path: '/customer/work/modEquipLoss.req', name: '미회수장비회수처리', tab: '미회수 장비 회수처리', feature: '미회수 장비 회수', status: 'incomplete', testable: true, required: ['EQT_NO', 'STATE'], optional: ['MEMO', 'WRKR_ID', 'SO_ID', 'RECOVERY_STATUS', 'REG_UID'] },
+    { path: '/customer/work/getEquipLossInfo', name: '미회수장비조회', tab: '미회수 장비 회수처리', feature: '미회수 장비 리스트 조회', status: 'completed', testable: true, required: [], optional: ['WRKR_ID', 'EQT_NO', 'SO_ID', 'START_DATE', 'END_DATE'] },
+    { path: '/customer/work/modEquipLoss', name: '미회수장비회수처리', tab: '미회수 장비 회수처리', feature: '미회수 장비 회수', status: 'incomplete', testable: true, required: ['EQT_NO', 'STATE'], optional: ['MEMO', 'WRKR_ID', 'SO_ID', 'RECOVERY_STATUS', 'REG_UID'] },
   ];
 
   // API별 테스트 케이스 생성
