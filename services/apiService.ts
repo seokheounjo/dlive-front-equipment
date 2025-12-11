@@ -194,9 +194,42 @@ const getErrorMessage = (statusCode: number, defaultMessage: string = '오류가
   }
 };
 
+// ============ API 로깅 통합 ============
+
+// API 로그 타입 (apiDebugger.ts와 동기화)
+interface ApiLogEntry {
+  api: string;
+  method: string;
+  request: any;
+  response: any;
+  status: 'success' | 'error' | 'timeout';
+  duration: number;
+  error?: string;
+}
+
+// 글로벌 로그 저장소 (apiDebugger.ts에서 관리)
+const emitApiLog = (log: ApiLogEntry) => {
+  // apiDebugger.ts의 addApiLog 함수 호출 (동적 import 방지를 위해 이벤트 사용)
+  if (typeof window !== 'undefined') {
+    try {
+      // 직접 import하면 순환 참조 문제가 생길 수 있으므로 이벤트로 전달
+      window.dispatchEvent(new CustomEvent('api-call-complete', { detail: log }));
+
+      // 콘솔에도 간략히 출력
+      const emoji = log.status === 'success' ? '✅' : log.status === 'timeout' ? '⏱️' : '❌';
+      console.log(
+        `%c${emoji} [${log.method}] ${log.api} (${log.duration}ms)`,
+        `color: ${log.status === 'success' ? '#10B981' : log.status === 'timeout' ? '#F59E0B' : '#EF4444'}; font-weight: bold`
+      );
+    } catch (e) {
+      // 로깅 실패는 무시
+    }
+  }
+};
+
 // ============ API 호출 헬퍼 (재시도 로직 포함) ============
 
-const fetchWithRetry = async (
+export const fetchWithRetry = async (
   url: string,
   options: RequestInit,
   maxRetries: number = 3,

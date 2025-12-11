@@ -6,6 +6,7 @@ import EquipmentMovement from '../equipment/EquipmentMovement';
 import EquipmentRecovery from '../equipment/EquipmentRecovery';
 import EquipmentAutoTester from '../equipment/EquipmentAutoTester';
 import EquipmentApiStatus from '../equipment/EquipmentApiStatus';
+import ApiDebugDashboard from '../equipment/ApiDebugDashboard';
 
 interface EquipmentManagementMenuProps {
   onNavigateToMenu: () => void;
@@ -20,7 +21,8 @@ const EquipmentManagementMenu: React.FC<EquipmentManagementMenuProps> = ({ onNav
     { id: 'equipment-movement', title: '기사간 장비이동', description: '기사 간 장비 이동 관리' },
     { id: 'equipment-recovery', title: '미회수 장비 회수처리', description: '미회수 장비 회수 처리' },
     { id: 'api-status', title: 'API 상태 현황', description: '15개 API 구현 현황' },
-    { id: 'auto-tester', title: '전체 자동 테스트', description: '73개 케이스 자동 실행' }
+    { id: 'auto-tester', title: '전체 자동 테스트', description: '73개 케이스 자동 실행' },
+    { id: 'api-debug', title: '🔧 API 디버거', description: '원클릭 전체 점검 & 파라미터 탐색' }
   ];
 
   const handleTabChange = (tabId: string) => {
@@ -41,6 +43,8 @@ const EquipmentManagementMenu: React.FC<EquipmentManagementMenuProps> = ({ onNav
         return <EquipmentApiStatus />;
       case 'auto-tester':
         return <EquipmentAutoTester />;
+      case 'api-debug':
+        return <ApiDebugDashboard />;
       default:
         return null;
     }
