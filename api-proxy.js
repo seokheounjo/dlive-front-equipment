@@ -91,6 +91,8 @@ router.post('/customer/equipment/cmplEqtCustLossIndem', handleProxy);
 router.post('/customer/equipment/setEquipmentChkStndByY', handleProxy);
 router.post('/customer/equipment/changeEqtWrkr_3', handleProxy);
 router.post('/customer/equipment/updateInstlLocFrWrk', handleProxy);
+router.post('/customer/equipment/getTechnicianInventory', handleProxy);
+router.post('/customer/equipment/getStatus', handleProxy);
 
 // Statistics/Equipment API
 router.post('/statistics/equipment/getEquipmentHistoryInfo', handleProxy);
