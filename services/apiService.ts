@@ -3141,11 +3141,35 @@ export const setEquipmentCheckStandby = async (params: {
 export const getEquipmentHistoryInfo = async (params: {
   EQT_SERNO?: string;
   MAC_ADDRESS?: string;
+  SO_ID?: string;
+  WRKR_ID?: string;
 }): Promise<any> => {
   console.log('🔍 [장비조회] API 호출:', params);
 
   try {
     const origin = typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000';
+
+    // localStorage에서 사용자 정보 가져오기 (SO_ID, WRKR_ID 자동 추가)
+    const requestParams: Record<string, string | undefined> = { ...params };
+    if (!requestParams.SO_ID || !requestParams.WRKR_ID) {
+      try {
+        const userInfo = localStorage.getItem('userInfo');
+        if (userInfo) {
+          const user = JSON.parse(userInfo);
+          if (!requestParams.SO_ID && user.soId) {
+            requestParams.SO_ID = user.soId;
+          }
+          if (!requestParams.WRKR_ID && user.userId) {
+            requestParams.WRKR_ID = user.userId;
+          }
+          console.log('🔍 [장비조회] 사용자 정보 추가:', { SO_ID: requestParams.SO_ID, WRKR_ID: requestParams.WRKR_ID });
+        }
+      } catch (e) {
+        console.warn('🔍 [장비조회] 사용자 정보 파싱 실패:', e);
+      }
+    }
+
+    console.log('🔍 [장비조회] 최종 파라미터:', requestParams);
 
     const response = await fetchWithRetry(`${API_BASE}/statistics/equipment/getEquipmentHistoryInfo`, {
       method: 'POST',
@@ -3154,7 +3178,7 @@ export const getEquipmentHistoryInfo = async (params: {
         'Origin': origin
       },
       credentials: 'include',
-      body: JSON.stringify(params),
+      body: JSON.stringify(requestParams),
     });
 
     const result = await response.json();
