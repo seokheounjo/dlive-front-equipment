@@ -766,19 +766,22 @@ export const cancelWork = async (cancelData: any): Promise<{ code: string; messa
 };
 
 // API 엔드포인트: 환경별 최적화
+// 모든 환경에서 EC2 프록시를 통해 API 호출 (세션 쿠키 공유를 위해)
 export const API_BASE = typeof window !== 'undefined' ? (() => {
   const hostname = window.location.hostname;
   const protocol = window.location.protocol;
 
-  console.log('[작업상세 API] 현재 환경:', { hostname, protocol });
+  console.log('[API] 현재 환경:', { hostname, protocol });
 
   if (hostname === 'localhost' || hostname === '127.0.0.1') {
-    return 'http://58.143.140.222:8080/api';  // 로컬 → 딜라이브 내부서버
+    // 로컬 개발 → EC2 프록시 서버 사용 (레거시 서버 직접 호출 시 세션 문제)
+    return 'http://52.63.232.141/api';
   } else if (hostname === '52.63.232.141') {
-    // EC2 환경: Express 프록시 사용 (딜라이브 내부에서도 8080 포트 접근 문제)
-    return '/api';  // EC2 Express 서버의 프록시 사용
+    // EC2 환경: 상대 경로로 같은 서버의 프록시 사용
+    return '/api';
   } else {
-    return '/api';  // Vercel 프록시
+    // 기타 환경 (Vercel 등)
+    return '/api';
   }
 })() : '/api';
 
