@@ -5,8 +5,16 @@ import {
   checkEquipmentProc,
   addEquipmentQuota
 } from '../../services/apiService';
-import { useAuthStore } from '../../stores/authStore';
 import BaseModal from '../common/BaseModal';
+
+interface UserInfo {
+  userId: string;
+  userName: string;
+  userRole: string;
+  crrId?: string;
+  soId?: string;
+  mstSoId?: string;
+}
 
 interface EquipmentAssignmentProps {
   onBack: () => void;
@@ -72,12 +80,22 @@ const DEFAULT_SO_LIST: SoListItem[] = [
 ];
 
 const EquipmentAssignment: React.FC<EquipmentAssignmentProps> = ({ onBack, showToast }) => {
-  const { user } = useAuthStore();
+  // localStorage에서 userInfo 가져오기
+  const getUserInfo = (): UserInfo | null => {
+    try {
+      const stored = localStorage.getItem('userInfo');
+      return stored ? JSON.parse(stored) : null;
+    } catch {
+      return null;
+    }
+  };
+
+  const userInfo = getUserInfo();
 
   // 검색 조건
   const [fromDate, setFromDate] = useState<string>(new Date().toISOString().slice(0, 10).replace(/-/g, ''));
   const [toDate, setToDate] = useState<string>(new Date().toISOString().slice(0, 10).replace(/-/g, ''));
-  const [selectedSoId, setSelectedSoId] = useState<string>(user?.soId || '');
+  const [selectedSoId, setSelectedSoId] = useState<string>(userInfo?.soId || '');
 
   // 데이터
   const [eqtOutList, setEqtOutList] = useState<EqtOut[]>([]);
