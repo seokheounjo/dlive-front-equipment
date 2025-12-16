@@ -376,13 +376,8 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
     }
   };
 
-  // 검색조건별 버튼 활성화 여부
-  const isReturnButtonEnabled = searchCondition === 'OWNED' || searchCondition === 'RETURN_REQUESTED';
-  const isLossButtonEnabled = searchCondition === 'OWNED';
-  const isStatusChangeButtonEnabled = searchCondition === 'INSPECTION_WAITING';
-
-  // 반납/취소 버튼 텍스트
-  const returnButtonText = searchCondition === 'RETURN_REQUESTED' ? '반납취소' : '장비반납';
+  // 선택된 장비 수
+  const selectedCount = equipmentList.filter(item => item.CHK).length;
 
   return (
     <div className="p-2">
@@ -441,63 +436,60 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
         </div>
       </div>
 
-      {/* 검색 필터 영역 */}
+      {/* 검색 필터 영역 - 키-값 한줄 레이아웃 */}
       <div className="mb-3 bg-white rounded-lg shadow-sm border border-gray-200 p-3">
-        <div className="space-y-3">
-          {/* 지점 + 구분 */}
-          <div className="grid grid-cols-2 gap-2">
-            <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1">지점</label>
-              <select
-                value={selectedSoId}
-                onChange={(e) => setSelectedSoId(e.target.value)}
-                className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
-              >
-                <option value="">전체</option>
-                {soList.map((item) => (
-                  <option key={item.SO_ID} value={item.SO_ID}>{item.SO_NM}</option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1">구분</label>
-              <select
-                value={selectedCategory}
-                onChange={(e) => setSelectedCategory(e.target.value)}
-                className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded"
-              >
-                <option value="">전체</option>
-                <option value="Y">임대</option>
-                <option value="N">판매</option>
-                <option value="31">할부</option>
-              </select>
-            </div>
+        <div className="space-y-2">
+          {/* 지점 (한 줄) */}
+          <div className="flex items-center gap-2">
+            <label className="text-xs font-medium text-gray-600 w-16 flex-shrink-0">지점</label>
+            <select
+              value={selectedSoId}
+              onChange={(e) => setSelectedSoId(e.target.value)}
+              className="flex-1 px-2 py-1.5 text-sm border border-gray-300 rounded"
+            >
+              <option value="">전체</option>
+              {soList.map((item) => (
+                <option key={item.SO_ID} value={item.SO_ID}>{item.SO_NM}</option>
+              ))}
+            </select>
           </div>
-
-          {/* 장비종류 + S/N */}
-          <div className="grid grid-cols-2 gap-2">
-            <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1">장비종류</label>
-              <select
-                value={selectedItemMidCd}
-                onChange={(e) => setSelectedItemMidCd(e.target.value)}
-                className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded"
-              >
-                {itemMidList.map((item) => (
-                  <option key={item.COMMON_CD} value={item.COMMON_CD}>{item.COMMON_CD_NM}</option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1">S/N (바코드)</label>
-              <input
-                type="text"
-                value={eqtSerno}
-                onChange={(e) => setEqtSerno(e.target.value.toUpperCase())}
-                className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded uppercase"
-                placeholder="일련번호 입력"
-              />
-            </div>
+          {/* 구분 (한 줄) */}
+          <div className="flex items-center gap-2">
+            <label className="text-xs font-medium text-gray-600 w-16 flex-shrink-0">구분</label>
+            <select
+              value={selectedCategory}
+              onChange={(e) => setSelectedCategory(e.target.value)}
+              className="flex-1 px-2 py-1.5 text-sm border border-gray-300 rounded"
+            >
+              <option value="">전체</option>
+              <option value="Y">임대</option>
+              <option value="N">판매</option>
+              <option value="31">할부</option>
+            </select>
+          </div>
+          {/* 장비종류 (한 줄) */}
+          <div className="flex items-center gap-2">
+            <label className="text-xs font-medium text-gray-600 w-16 flex-shrink-0">장비종류</label>
+            <select
+              value={selectedItemMidCd}
+              onChange={(e) => setSelectedItemMidCd(e.target.value)}
+              className="flex-1 px-2 py-1.5 text-sm border border-gray-300 rounded"
+            >
+              {itemMidList.map((item) => (
+                <option key={item.COMMON_CD} value={item.COMMON_CD}>{item.COMMON_CD_NM}</option>
+              ))}
+            </select>
+          </div>
+          {/* S/N (한 줄) */}
+          <div className="flex items-center gap-2">
+            <label className="text-xs font-medium text-gray-600 w-16 flex-shrink-0">S/N</label>
+            <input
+              type="text"
+              value={eqtSerno}
+              onChange={(e) => setEqtSerno(e.target.value.toUpperCase())}
+              className="flex-1 px-2 py-1.5 text-sm border border-gray-300 rounded uppercase"
+              placeholder="바코드 또는 일련번호"
+            />
           </div>
         </div>
 
@@ -603,46 +595,65 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
         </div>
       )}
 
-      {/* 하단 버튼 영역 */}
+      {/* 하단 버튼 영역 - 검색조건별 필요한 버튼만 표시 */}
       <div className="mt-3 flex gap-2">
-        {/* 장비반납/취소 버튼 */}
-        <button
-          onClick={handleReturnClick}
-          disabled={!isReturnButtonEnabled || equipmentList.filter(item => item.CHK).length === 0}
-          className={`flex-1 py-2.5 rounded font-medium text-sm shadow-md transition-all ${
-            isReturnButtonEnabled && equipmentList.filter(item => item.CHK).length > 0
-              ? 'bg-blue-600 hover:bg-blue-700 text-white'
-              : 'bg-gray-200 text-gray-400 cursor-not-allowed'
-          }`}
-        >
-          {returnButtonText}
-        </button>
+        {/* 보유: 장비반납, 분실처리 */}
+        {searchCondition === 'OWNED' && (
+          <>
+            <button
+              onClick={handleReturnClick}
+              disabled={selectedCount === 0}
+              className={`flex-1 py-2.5 rounded font-medium text-sm shadow-md transition-all ${
+                selectedCount > 0
+                  ? 'bg-blue-600 hover:bg-blue-700 text-white'
+                  : 'bg-gray-200 text-gray-400 cursor-not-allowed'
+              }`}
+            >
+              장비반납
+            </button>
+            <button
+              onClick={handleLossClick}
+              disabled={selectedCount === 0}
+              className={`flex-1 py-2.5 rounded font-medium text-sm shadow-md transition-all ${
+                selectedCount > 0
+                  ? 'bg-red-600 hover:bg-red-700 text-white'
+                  : 'bg-gray-200 text-gray-400 cursor-not-allowed'
+              }`}
+            >
+              분실처리
+            </button>
+          </>
+        )}
 
-        {/* 분실처리 버튼 */}
-        <button
-          onClick={handleLossClick}
-          disabled={!isLossButtonEnabled || equipmentList.filter(item => item.CHK).length === 0}
-          className={`flex-1 py-2.5 rounded font-medium text-sm shadow-md transition-all ${
-            isLossButtonEnabled && equipmentList.filter(item => item.CHK).length > 0
-              ? 'bg-red-600 hover:bg-red-700 text-white'
-              : 'bg-gray-200 text-gray-400 cursor-not-allowed'
-          }`}
-        >
-          분실처리
-        </button>
+        {/* 반납요청중: 반납취소 */}
+        {searchCondition === 'RETURN_REQUESTED' && (
+          <button
+            onClick={handleReturnClick}
+            disabled={selectedCount === 0}
+            className={`flex-1 py-2.5 rounded font-medium text-sm shadow-md transition-all ${
+              selectedCount > 0
+                ? 'bg-orange-600 hover:bg-orange-700 text-white'
+                : 'bg-gray-200 text-gray-400 cursor-not-allowed'
+            }`}
+          >
+            반납취소
+          </button>
+        )}
 
-        {/* 사용가능변경 버튼 */}
-        <button
-          onClick={handleStatusChangeClick}
-          disabled={!isStatusChangeButtonEnabled || equipmentList.filter(item => item.CHK).length === 0}
-          className={`flex-1 py-2.5 rounded font-medium text-sm shadow-md transition-all ${
-            isStatusChangeButtonEnabled && equipmentList.filter(item => item.CHK).length > 0
-              ? 'bg-green-600 hover:bg-green-700 text-white'
-              : 'bg-gray-200 text-gray-400 cursor-not-allowed'
-          }`}
-        >
-          사용가능변경
-        </button>
+        {/* 검사대기: 사용가능변경 */}
+        {searchCondition === 'INSPECTION_WAITING' && (
+          <button
+            onClick={handleStatusChangeClick}
+            disabled={selectedCount === 0}
+            className={`flex-1 py-2.5 rounded font-medium text-sm shadow-md transition-all ${
+              selectedCount > 0
+                ? 'bg-green-600 hover:bg-green-700 text-white'
+                : 'bg-gray-200 text-gray-400 cursor-not-allowed'
+            }`}
+          >
+            사용가능변경
+          </button>
+        )}
       </div>
 
       {/* 장비반납 모달 */}

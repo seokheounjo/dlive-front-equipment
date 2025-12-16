@@ -66,54 +66,55 @@ const EquipmentRecovery: React.FC<EquipmentRecoveryProps> = ({ onBack }) => {
   };
 
   return (
-    <div>
-      <div className="mb-3">
-        <h2 className="text-lg font-bold text-gray-900">미회수 장비 회수처리</h2>
+    <div className="p-2">
+      <div className="flex items-center justify-between mb-3">
+        <h2 className="text-lg font-bold text-gray-900">미회수장비</h2>
+        <button onClick={onBack} className="text-sm text-gray-600 hover:text-gray-800">← 뒤로</button>
       </div>
 
-      {/* 검색 영역 */}
+      {/* 검색 영역 - 키-값 한줄 레이아웃 */}
       <div className="mb-3 bg-white rounded-lg shadow-sm border border-gray-200 p-3">
         <div className="space-y-2">
-          <div>
-            <label className="block text-xs font-medium text-gray-600 mb-1">해지일자</label>
-            <div className="grid grid-cols-2 gap-2">
-              <input
-                type="date"
-                value={searchParams.FROM_DT}
-                onChange={(e) => setSearchParams({...searchParams, FROM_DT: e.target.value})}
-                className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded"
-                style={{ colorScheme: 'light' }}
-              />
-              <input
-                type="date"
-                value={searchParams.TO_DT}
-                onChange={(e) => setSearchParams({...searchParams, TO_DT: e.target.value})}
-                className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded"
-                style={{ colorScheme: 'light' }}
-              />
-            </div>
+          {/* 해지일자 (한 줄) */}
+          <div className="flex items-center gap-2">
+            <label className="text-xs font-medium text-gray-600 w-16 flex-shrink-0">해지일자</label>
+            <input
+              type="date"
+              value={searchParams.FROM_DT}
+              onChange={(e) => setSearchParams({...searchParams, FROM_DT: e.target.value})}
+              className="flex-1 px-2 py-1.5 text-sm border border-gray-300 rounded"
+              style={{ colorScheme: 'light' }}
+            />
+            <span className="text-gray-400">~</span>
+            <input
+              type="date"
+              value={searchParams.TO_DT}
+              onChange={(e) => setSearchParams({...searchParams, TO_DT: e.target.value})}
+              className="flex-1 px-2 py-1.5 text-sm border border-gray-300 rounded"
+              style={{ colorScheme: 'light' }}
+            />
           </div>
-          <div className="grid grid-cols-2 gap-2">
-            <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1">고객ID</label>
-              <input
-                type="text"
-                value={searchParams.CUST_ID}
-                onChange={(e) => setSearchParams({...searchParams, CUST_ID: e.target.value})}
-                className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded"
-                placeholder="고객ID"
-              />
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1">고객명</label>
-              <input
-                type="text"
-                value={searchParams.CUST_NM}
-                onChange={(e) => setSearchParams({...searchParams, CUST_NM: e.target.value})}
-                className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded"
-                placeholder="고객명"
-              />
-            </div>
+          {/* 고객ID (한 줄) */}
+          <div className="flex items-center gap-2">
+            <label className="text-xs font-medium text-gray-600 w-16 flex-shrink-0">고객ID</label>
+            <input
+              type="text"
+              value={searchParams.CUST_ID}
+              onChange={(e) => setSearchParams({...searchParams, CUST_ID: e.target.value})}
+              className="flex-1 px-2 py-1.5 text-sm border border-gray-300 rounded"
+              placeholder="고객ID 입력"
+            />
+          </div>
+          {/* 고객명 (한 줄) */}
+          <div className="flex items-center gap-2">
+            <label className="text-xs font-medium text-gray-600 w-16 flex-shrink-0">고객명</label>
+            <input
+              type="text"
+              value={searchParams.CUST_NM}
+              onChange={(e) => setSearchParams({...searchParams, CUST_NM: e.target.value})}
+              className="flex-1 px-2 py-1.5 text-sm border border-gray-300 rounded"
+              placeholder="고객명 입력"
+            />
           </div>
           <button
             onClick={handleSearch}

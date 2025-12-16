@@ -105,6 +105,12 @@ const WorkerSearchModal: React.FC<{
 };
 
 const EquipmentMovement: React.FC<EquipmentMovementProps> = ({ onBack }) => {
+  // 로그인한 사용자 = 이관기사 (장비를 인수받는 사람)
+  const [loggedInUser, setLoggedInUser] = useState<{ userId: string; userName: string; soId: string; crrId: string }>({
+    userId: '', userName: '', soId: '', crrId: ''
+  });
+
+  // 보유기사 = 장비를 내놓는 타 기사 (조회 대상)
   const [searchParams, setSearchParams] = useState<EqtTrnsSearch>({
     EQT_NO: '', MST_SO_ID: '', MST_SO_NM: '', SO_ID: '', CRR_ID: '', CRR_NM: '',
     WRKR_ID: '', WRKR_NM: '', ITEM_MID_CD: '', EQT_CL_CD: '', TRNS_STAT: '1', EQT_SERNO: ''
@@ -117,11 +123,7 @@ const EquipmentMovement: React.FC<EquipmentMovementProps> = ({ onBack }) => {
   const [eqtClList, setEqtClList] = useState<EqtClItem[]>([]);
   const [isLoading, setIsLoading] = useState(false);
 
-  const [trgtWrkrNm, setTrgtWrkrNm] = useState('');
-  const [trgtWrkrId, setTrgtWrkrId] = useState('');
-
   const [workerModalOpen, setWorkerModalOpen] = useState(false);
-  const [trgtWorkerModalOpen, setTrgtWorkerModalOpen] = useState(false);
   const [searchedWorkers, setSearchedWorkers] = useState<{ USR_ID: string; USR_NM: string }[]>([]);
 
   useEffect(() => {
@@ -133,9 +135,16 @@ const EquipmentMovement: React.FC<EquipmentMovementProps> = ({ onBack }) => {
       const userInfo = localStorage.getItem('userInfo');
       if (userInfo) {
         const user = JSON.parse(userInfo);
+        // 로그인한 사용자 = 이관기사 (인수받는 사람)
+        setLoggedInUser({
+          userId: user.userId || '',
+          userName: user.userName || '',
+          soId: user.soId || '',
+          crrId: user.crrId || ''
+        });
+        // 보유기사 조회용 기본값 (지점, 협력업체)
         setSearchParams(prev => ({
-          ...prev, SO_ID: user.soId || '', CRR_ID: user.crrId || '',
-          WRKR_ID: user.userId || '', WRKR_NM: user.userName || ''
+          ...prev, SO_ID: user.soId || '', CRR_ID: user.crrId || ''
         }));
       }
     } catch (e) { console.warn('사용자 정보 파싱 실패:', e); }
@@ -206,37 +215,24 @@ const EquipmentMovement: React.FC<EquipmentMovementProps> = ({ onBack }) => {
     } catch (error) { console.error('보유기사 검색 실패:', error); alert('보유기사 검색에 실패했습니다.'); }
   };
 
-  const handleTrgtWorkerSearch = async () => {
-    const keyword = prompt('이관기사 이름 또는 ID를 입력하세요:');
-    if (!keyword) return;
-    try {
-      const isIdSearch = /^\d+$/.test(keyword);
-      const searchParam = isIdSearch ? { USR_ID: keyword } : { USR_NM: keyword };
-      const result = await findUserList(searchParam);
-      if (!result || result.length === 0) { alert('검색 결과가 없습니다.'); return; }
-      if (result.length === 1) { setTrgtWrkrId(result[0].USR_ID); setTrgtWrkrNm(result[0].USR_NM); }
-      else { setSearchedWorkers(result); setTrgtWorkerModalOpen(true); }
-    } catch (error) { console.error('이관기사 검색 실패:', error); alert('이관기사 검색에 실패했습니다.'); }
-  };
-
   const handleTransfer = async () => {
     const checkedItems = eqtTrnsList.filter(item => item.CHK);
-    if (checkedItems.length === 0) { alert('이관할 장비를 선택해주세요.'); return; }
-    if (!trgtWrkrId) { alert('이관기사를 선택해주세요.'); return; }
-    if (!confirm(`${trgtWrkrNm}(${trgtWrkrId})에게 ${checkedItems.length}건의 장비를 이관하시겠습니까?`)) return;
+    if (checkedItems.length === 0) { alert('인수할 장비를 선택해주세요.'); return; }
+    if (!loggedInUser.userId) { alert('로그인 정보가 없습니다.'); return; }
+    if (!confirm(`${searchParams.WRKR_NM}(${searchParams.WRKR_ID})의 장비 ${checkedItems.length}건을 인수하시겠습니까?`)) return;
     try {
-      // 각 장비에 대해 이관 처리
+      // 각 장비에 대해 이관 처리 (보유기사 → 로그인한 기사)
       let successCount = 0;
       for (const item of checkedItems) {
         try {
           await changeEquipmentWorker({
             EQT_NO: item.EQT_NO,
-            FROM_WRKR_ID: searchParams.WRKR_ID,
-            TO_WRKR_ID: trgtWrkrId
+            FROM_WRKR_ID: searchParams.WRKR_ID,  // 보유기사 (장비를 내놓는 사람)
+            TO_WRKR_ID: loggedInUser.userId       // 이관기사 = 로그인한 사람 (인수받는 사람)
           });
           successCount++;
         } catch (err) {
-          console.error('장비 이관 실패:', item.EQT_SERNO, err);
+          console.error('장비 인수 실패:', item.EQT_SERNO, err);
         }
       }
       if (successCount > 0) {
@@ -244,74 +240,75 @@ const EquipmentMovement: React.FC<EquipmentMovementProps> = ({ onBack }) => {
       } else {
         throw new Error('장비 인수에 실패했습니다.');
       }
-      setEqtTrnsList([]); setTrgtWrkrId(''); setTrgtWrkrNm('');
-    } catch (error) { console.error('장비 이관 실패:', error); alert('장비 이관에 실패했습니다.'); }
+      setEqtTrnsList([]);
+    } catch (error) { console.error('장비 인수 실패:', error); alert('장비 인수에 실패했습니다.'); }
   };
 
   const handleCheckAll = (checked: boolean) => setEqtTrnsList(eqtTrnsList.map(item => ({ ...item, CHK: checked })));
   const handleCheckItem = (index: number, checked: boolean) => { const newList = [...eqtTrnsList]; newList[index].CHK = checked; setEqtTrnsList(newList); };
 
   return (
-    <div>
-      <div className="mb-3"><h2 className="text-lg font-bold text-gray-900">작업기사 이관신청</h2></div>
+    <div className="p-2">
+      <div className="flex items-center justify-between mb-3">
+        <h2 className="text-lg font-bold text-gray-900">기사간 장비이동</h2>
+        <button onClick={onBack} className="text-sm text-gray-600 hover:text-gray-800">← 뒤로</button>
+      </div>
 
+      {/* 이관기사 (로그인한 사용자 = 인수받는 사람) */}
+      <div className="mb-3 bg-blue-50 rounded-lg border border-blue-200 p-3">
+        <div className="flex items-center justify-between">
+          <span className="text-xs font-medium text-blue-700">이관기사 (나)</span>
+          <span className="text-sm font-bold text-blue-900">{loggedInUser.userName} ({loggedInUser.userId})</span>
+        </div>
+      </div>
+
+      {/* 보유기사 조회 영역 */}
       <div className="mb-3 bg-white rounded-lg shadow-sm border border-gray-200 p-3">
-        <div className="mb-2"><h3 className="text-sm font-semibold text-gray-700">보유기사</h3></div>
+        <div className="mb-2">
+          <h3 className="text-sm font-semibold text-gray-700">보유기사 조회</h3>
+          <p className="text-[10px] text-gray-500">장비를 넘겨받을 기사를 검색하세요</p>
+        </div>
         <div className="space-y-2">
-          <div>
-            <label className="block text-xs font-medium text-gray-600 mb-1">지점 <span className="text-red-500">*</span></label>
-            <select value={searchParams.SO_ID} onChange={(e) => setSearchParams({...searchParams, SO_ID: e.target.value})} className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded">
+          {/* 지점 + 협력업체 (한 줄) */}
+          <div className="flex items-center gap-2">
+            <label className="text-xs font-medium text-gray-600 w-16 flex-shrink-0">지점 <span className="text-red-500">*</span></label>
+            <select value={searchParams.SO_ID} onChange={(e) => setSearchParams({...searchParams, SO_ID: e.target.value})} className="flex-1 px-2 py-1.5 text-sm border border-gray-300 rounded">
               <option value="">선택</option>
               {soList.map((item) => (<option key={item.SO_ID} value={item.SO_ID}>{item.SO_NM}</option>))}
             </select>
           </div>
-          <div>
-            <label className="block text-xs font-medium text-gray-600 mb-1">협력업체 <span className="text-red-500">*</span></label>
-            <select value={searchParams.CRR_ID} onChange={(e) => setSearchParams({...searchParams, CRR_ID: e.target.value})} className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded">
+          <div className="flex items-center gap-2">
+            <label className="text-xs font-medium text-gray-600 w-16 flex-shrink-0">협력업체 <span className="text-red-500">*</span></label>
+            <select value={searchParams.CRR_ID} onChange={(e) => setSearchParams({...searchParams, CRR_ID: e.target.value})} className="flex-1 px-2 py-1.5 text-sm border border-gray-300 rounded">
               <option value="">선택</option>
               {corpList.map((item) => (<option key={item.CRR_ID} value={item.CRR_ID}>{item.CORP_NM}</option>))}
             </select>
           </div>
-          <div>
-            <label className="block text-xs font-medium text-gray-600 mb-1">장비</label>
-            <div className="grid grid-cols-2 gap-2">
-              <select value={searchParams.ITEM_MID_CD} onChange={(e) => setSearchParams({...searchParams, ITEM_MID_CD: e.target.value})} className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded">
-                <option value="">중분류</option>
-                {itemMidList.map((item) => (<option key={item.COMMON_CD} value={item.COMMON_CD}>{item.COMMON_CD_NM}</option>))}
-              </select>
-              <select value={searchParams.EQT_CL_CD} onChange={(e) => setSearchParams({...searchParams, EQT_CL_CD: e.target.value})} className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded">
-                <option value="">장비클래스</option>
-                {eqtClList.map((item) => (<option key={item.COMMON_CD} value={item.COMMON_CD}>{item.COMMON_CD_NM}</option>))}
-              </select>
-            </div>
+          {/* 장비종류 (한 줄) */}
+          <div className="flex items-center gap-2">
+            <label className="text-xs font-medium text-gray-600 w-16 flex-shrink-0">장비</label>
+            <select value={searchParams.ITEM_MID_CD} onChange={(e) => setSearchParams({...searchParams, ITEM_MID_CD: e.target.value})} className="flex-1 px-2 py-1.5 text-sm border border-gray-300 rounded">
+              <option value="">중분류</option>
+              {itemMidList.map((item) => (<option key={item.COMMON_CD} value={item.COMMON_CD}>{item.COMMON_CD_NM}</option>))}
+            </select>
+            <select value={searchParams.EQT_CL_CD} onChange={(e) => setSearchParams({...searchParams, EQT_CL_CD: e.target.value})} className="flex-1 px-2 py-1.5 text-sm border border-gray-300 rounded">
+              <option value="">클래스</option>
+              {eqtClList.map((item) => (<option key={item.COMMON_CD} value={item.COMMON_CD}>{item.COMMON_CD_NM}</option>))}
+            </select>
           </div>
-          <div>
-            <label className="block text-xs font-medium text-gray-600 mb-1">일련번호</label>
-            <input type="text" value={searchParams.EQT_SERNO} onChange={(e) => setSearchParams({...searchParams, EQT_SERNO: e.target.value.toUpperCase()})} className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded uppercase" placeholder="장비 일련번호" />
+          {/* S/N (한 줄) */}
+          <div className="flex items-center gap-2">
+            <label className="text-xs font-medium text-gray-600 w-16 flex-shrink-0">S/N</label>
+            <input type="text" value={searchParams.EQT_SERNO} onChange={(e) => setSearchParams({...searchParams, EQT_SERNO: e.target.value.toUpperCase()})} className="flex-1 px-2 py-1.5 text-sm border border-gray-300 rounded uppercase" placeholder="일련번호" />
           </div>
-          <div>
-            <label className="block text-xs font-medium text-gray-600 mb-1">보유기사 <span className="text-red-500">*</span></label>
-            <div className="flex gap-1">
-              <input type="text" value={searchParams.WRKR_NM} readOnly className="min-w-0 flex-1 px-2 py-1.5 text-sm border border-gray-300 rounded bg-gray-50" placeholder="기사명" />
-              <button onClick={handleWorkerSearch} className="flex-shrink-0 w-9 py-1.5 text-sm border border-gray-300 rounded bg-white hover:bg-gray-50" title="이름 또는 ID로 검색">🔍</button>
-              <input type="text" value={searchParams.WRKR_ID} readOnly className="flex-shrink-0 w-20 px-2 py-1.5 text-sm border border-gray-300 rounded bg-gray-50 text-xs" placeholder="ID" />
-            </div>
-            <p className="text-xs text-gray-400 mt-1">* 돋보기 클릭 후 이름 또는 기사ID 입력</p>
+          {/* 보유기사 (한 줄) */}
+          <div className="flex items-center gap-2">
+            <label className="text-xs font-medium text-gray-600 w-16 flex-shrink-0">보유기사 <span className="text-red-500">*</span></label>
+            <input type="text" value={searchParams.WRKR_NM} readOnly className="flex-1 px-2 py-1.5 text-sm border border-gray-300 rounded bg-gray-50" placeholder="기사명" />
+            <button onClick={handleWorkerSearch} className="flex-shrink-0 px-3 py-1.5 text-sm border border-gray-300 rounded bg-white hover:bg-gray-50" title="검색">🔍</button>
+            <input type="text" value={searchParams.WRKR_ID} readOnly className="w-20 px-2 py-1.5 text-sm border border-gray-300 rounded bg-gray-50 text-xs" placeholder="ID" />
           </div>
-          <button onClick={handleSearch} disabled={isLoading} className="w-full bg-orange-500 hover:bg-orange-600 disabled:bg-orange-300 text-white py-2 rounded font-medium text-sm shadow-md transition-all">{isLoading ? '조회 중...' : '조회'}</button>
-        </div>
-      </div>
-
-      <div className="mb-3 bg-white rounded-lg shadow-sm border border-gray-200 p-3">
-        <div className="mb-2"><h3 className="text-sm font-semibold text-gray-700">이관기사</h3></div>
-        <div>
-          <label className="block text-xs font-medium text-gray-600 mb-1">이관기사 <span className="text-red-500">*</span></label>
-          <div className="flex gap-1">
-            <input type="text" value={trgtWrkrNm} readOnly className="min-w-0 flex-1 px-2 py-1.5 text-sm border border-gray-300 rounded bg-gray-50" placeholder="기사명" />
-            <button onClick={handleTrgtWorkerSearch} className="flex-shrink-0 w-9 py-1.5 text-sm border border-gray-300 rounded bg-white hover:bg-gray-50" title="이름 또는 ID로 검색">🔍</button>
-            <input type="text" value={trgtWrkrId} readOnly className="flex-shrink-0 w-20 px-2 py-1.5 text-sm border border-gray-300 rounded bg-gray-50 text-xs" placeholder="ID" />
-          </div>
-          <p className="text-xs text-gray-400 mt-1">* 돋보기 클릭 후 이름 또는 기사ID 입력</p>
+          <button onClick={handleSearch} disabled={isLoading || !searchParams.WRKR_ID} className="w-full bg-orange-500 hover:bg-orange-600 disabled:bg-gray-300 text-white py-2 rounded font-medium text-sm shadow-md transition-all">{isLoading ? '조회 중...' : '조회'}</button>
         </div>
       </div>
 
@@ -360,7 +357,6 @@ const EquipmentMovement: React.FC<EquipmentMovementProps> = ({ onBack }) => {
       )}
 
       <WorkerSearchModal isOpen={workerModalOpen} onClose={() => setWorkerModalOpen(false)} onSelect={(worker) => setSearchParams({...searchParams, WRKR_ID: worker.USR_ID, WRKR_NM: worker.USR_NM})} workers={searchedWorkers} title="보유기사 선택" />
-      <WorkerSearchModal isOpen={trgtWorkerModalOpen} onClose={() => setTrgtWorkerModalOpen(false)} onSelect={(worker) => { setTrgtWrkrId(worker.USR_ID); setTrgtWrkrNm(worker.USR_NM); }} workers={searchedWorkers} title="이관기사 선택" />
     </div>
   );
 };
