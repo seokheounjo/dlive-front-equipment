@@ -122,6 +122,10 @@ const EquipmentList: React.FC<EquipmentListProps> = ({ onBack, showToast }) => {
   const [myEquipments, setMyEquipments] = useState<any[]>([]);
   const [isLoadingMyEquipments, setIsLoadingMyEquipments] = useState(false);
 
+  // 복수 스캔 누적 조회 기능
+  const [scannedItems, setScannedItems] = useState<EquipmentDetail[]>([]);
+  const [isMultiScanMode, setIsMultiScanMode] = useState(false);
+
   // 로그인한 사용자 정보 가져오기
   const getLoggedInUser = () => {
     try {
@@ -198,23 +202,37 @@ const EquipmentList: React.FC<EquipmentListProps> = ({ onBack, showToast }) => {
 
     setIsLoading(true);
     setError(null);
-    setEquipmentDetail(null);
+    if (!isMultiScanMode) {
+      setEquipmentDetail(null);
+    }
     setRawResponse(null);
 
     const searchVal = searchValue.toUpperCase().replace(/[:-]/g, '');
-    console.log('🔍 [장비목록] 검색 시작:', { searchType, searchValue: searchVal });
+    console.log('🔍 [장비조회] 검색 시작:', { searchType, searchValue: searchVal, isMultiScanMode });
 
     const allResponses: any[] = [];
 
     // 1. 먼저 내 보유 장비에서 검색 시도
     if (myEquipments.length > 0) {
-      console.log('🔍 [장비목록] 내 보유 장비에서 검색 시도...');
+      console.log('🔍 [장비조회] 내 보유 장비에서 검색 시도...');
       const foundInMy = searchInMyEquipments(searchVal);
       if (foundInMy) {
-        console.log('✅ [장비목록] 내 보유 장비에서 발견:', foundInMy);
-        setEquipmentDetail(foundInMy as EquipmentDetail);
-        setRawResponse({ successApi: 'myEquipments', data: foundInMy, source: '내 보유 장비' });
-        showToast?.('장비 정보를 조회했습니다. (내 보유 장비)', 'success');
+        console.log('✅ [장비조회] 내 보유 장비에서 발견:', foundInMy);
+        const equipment = foundInMy as EquipmentDetail;
+
+        if (isMultiScanMode) {
+          // 복수 스캔 모드: 목록에 추가
+          const added = handleAddToScannedList(equipment);
+          if (added) {
+            showToast?.(`장비가 추가되었습니다. (${scannedItems.length + 1}건)`, 'success');
+          }
+          setSearchValue(''); // 입력 초기화
+        } else {
+          // 단일 조회 모드
+          setEquipmentDetail(equipment);
+          setRawResponse({ successApi: 'myEquipments', data: foundInMy, source: '내 보유 장비' });
+          showToast?.('장비 정보를 조회했습니다.', 'success');
+        }
         setIsLoading(false);
         return;
       }
@@ -277,9 +295,21 @@ const EquipmentList: React.FC<EquipmentListProps> = ({ onBack, showToast }) => {
             // 배열이면 첫 번째 항목 사용
             const data = Array.isArray(result) ? result[0] : result;
             if (data && Object.keys(data).length > 0 && !data.code) {
-              setEquipmentDetail(data as EquipmentDetail);
-              setRawResponse({ successApi: attempt.name, data: result, allAttempts: allResponses });
-              showToast?.('장비 정보를 조회했습니다.', 'success');
+              const equipment = data as EquipmentDetail;
+
+              if (isMultiScanMode) {
+                // 복수 스캔 모드: 목록에 추가
+                const added = handleAddToScannedList(equipment);
+                if (added) {
+                  showToast?.(`장비가 추가되었습니다. (${scannedItems.length + 1}건)`, 'success');
+                }
+                setSearchValue(''); // 입력 초기화
+              } else {
+                // 단일 조회 모드
+                setEquipmentDetail(equipment);
+                setRawResponse({ successApi: attempt.name, data: result, allAttempts: allResponses });
+                showToast?.('장비 정보를 조회했습니다.', 'success');
+              }
               setIsLoading(false);
               return;
             }
@@ -292,9 +322,14 @@ const EquipmentList: React.FC<EquipmentListProps> = ({ onBack, showToast }) => {
     }
 
     // 모든 시도 실패
-    setRawResponse({ allAttempts: allResponses });
-    setError('장비 정보를 찾을 수 없습니다. S/N 또는 MAC 주소를 확인해주세요.\n\n참고: 현재 장비 원장 조회 API가 정상 동작하지 않습니다. 내 보유 장비에서만 검색이 가능합니다.');
-    showToast?.('장비 정보를 찾을 수 없습니다.', 'error');
+    if (isMultiScanMode) {
+      setSearchValue(''); // 입력 초기화
+      showToast?.('장비를 찾을 수 없습니다. S/N을 확인해주세요.', 'error');
+    } else {
+      setRawResponse({ allAttempts: allResponses });
+      setError('장비 정보를 찾을 수 없습니다. S/N 또는 MAC 주소를 확인해주세요.\n\n참고: 현재 장비 원장 조회 API가 정상 동작하지 않습니다. 내 보유 장비에서만 검색이 가능합니다.');
+      showToast?.('장비 정보를 찾을 수 없습니다.', 'error');
+    }
     setIsLoading(false);
   };
 
@@ -313,19 +348,43 @@ const EquipmentList: React.FC<EquipmentListProps> = ({ onBack, showToast }) => {
     </div>
   );
 
+  // 스캔 아이템 삭제
+  const handleRemoveScannedItem = (index: number) => {
+    setScannedItems(prev => prev.filter((_, i) => i !== index));
+  };
+
+  // 스캔 목록 초기화
+  const handleClearScannedItems = () => {
+    setScannedItems([]);
+    setEquipmentDetail(null);
+    showToast?.('스캔 목록이 초기화되었습니다.', 'info');
+  };
+
+  // 복수 스캔 모드에서 장비 추가
+  const handleAddToScannedList = (equipment: EquipmentDetail) => {
+    // 중복 체크
+    const isDuplicate = scannedItems.some(
+      item => item.EQT_SERNO === equipment.EQT_SERNO || item.EQT_NO === equipment.EQT_NO
+    );
+    if (isDuplicate) {
+      showToast?.('이미 스캔된 장비입니다.', 'warning');
+      return false;
+    }
+    setScannedItems(prev => [...prev, equipment]);
+    return true;
+  };
+
   return (
     <div className="p-2">
       {/* 헤더 */}
       <div className="flex items-center justify-between mb-3">
         <div>
-          <h2 className="text-lg font-bold text-gray-900">장비목록</h2>
+          <h2 className="text-lg font-bold text-gray-900">장비조회</h2>
           {isLoadingMyEquipments ? (
             <p className="text-xs text-gray-500">내 보유 장비 로딩 중...</p>
           ) : myEquipments.length > 0 ? (
-            <p className="text-xs text-green-600">내 보유 장비: {myEquipments.length}건 (로컬 검색 가능)</p>
-          ) : (
-            <p className="text-xs text-gray-500">내 보유 장비 없음</p>
-          )}
+            <p className="text-xs text-green-600">내 보유 장비: {myEquipments.length}건</p>
+          ) : null}
         </div>
         <button
           onClick={onBack}
@@ -333,6 +392,41 @@ const EquipmentList: React.FC<EquipmentListProps> = ({ onBack, showToast }) => {
         >
           ← 뒤로
         </button>
+      </div>
+
+      {/* 복수 스캔 모드 토글 */}
+      <div className="mb-3 bg-white rounded-lg shadow-sm border border-gray-200 p-3">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <span className="text-sm font-medium text-gray-700">복수 스캔 모드</span>
+            <span className="text-xs text-gray-500">(바코드 연속 스캔)</span>
+          </div>
+          <button
+            onClick={() => setIsMultiScanMode(!isMultiScanMode)}
+            className={`relative w-12 h-6 rounded-full transition-colors ${
+              isMultiScanMode ? 'bg-orange-500' : 'bg-gray-300'
+            }`}
+          >
+            <span
+              className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${
+                isMultiScanMode ? 'translate-x-6' : ''
+              }`}
+            />
+          </button>
+        </div>
+        {isMultiScanMode && scannedItems.length > 0 && (
+          <div className="mt-2 flex items-center justify-between">
+            <span className="text-xs text-orange-600 font-medium">
+              스캔된 장비: {scannedItems.length}건
+            </span>
+            <button
+              onClick={handleClearScannedItems}
+              className="text-xs text-red-500 hover:text-red-700"
+            >
+              목록 초기화
+            </button>
+          </div>
+        )}
       </div>
 
       {/* 검색 영역 */}
@@ -348,7 +442,7 @@ const EquipmentList: React.FC<EquipmentListProps> = ({ onBack, showToast }) => {
                   : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
               }`}
             >
-              S/N 검색
+              S/N (바코드)
             </button>
             <button
               onClick={() => setSearchType('MAC')}
@@ -358,14 +452,14 @@ const EquipmentList: React.FC<EquipmentListProps> = ({ onBack, showToast }) => {
                   : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
               }`}
             >
-              MAC 검색
+              MAC 주소
             </button>
           </div>
 
           {/* 검색 입력 */}
           <div>
             <label className="block text-xs font-medium text-gray-600 mb-1">
-              {searchType === 'SN' ? '장비 일련번호 (S/N)' : 'MAC 주소'}
+              {searchType === 'SN' ? '장비 S/N 또는 바코드 스캔' : 'MAC 주소'}
             </label>
             <input
               type="text"
@@ -373,7 +467,8 @@ const EquipmentList: React.FC<EquipmentListProps> = ({ onBack, showToast }) => {
               onChange={(e) => setSearchValue(e.target.value.toUpperCase())}
               onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
               className="w-full px-3 py-2 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-orange-500 focus:border-orange-500 uppercase font-mono"
-              placeholder={searchType === 'SN' ? '예: 330968023116101734' : '예: 481B40B6F453'}
+              placeholder={searchType === 'SN' ? '바코드 스캔 또는 S/N 입력' : '예: 481B40B6F453'}
+              autoFocus
             />
           </div>
 
@@ -391,12 +486,57 @@ const EquipmentList: React.FC<EquipmentListProps> = ({ onBack, showToast }) => {
                 </svg>
                 조회 중...
               </>
+            ) : isMultiScanMode ? (
+              '스캔 추가'
             ) : (
               '조회'
             )}
           </button>
         </div>
       </div>
+
+      {/* 복수 스캔 모드: 스캔된 장비 목록 */}
+      {isMultiScanMode && scannedItems.length > 0 && (
+        <div className="mb-3 bg-white rounded-lg shadow-sm border border-orange-200 p-3">
+          <h3 className="text-sm font-bold text-orange-700 mb-2 flex items-center gap-2">
+            <span>📦 스캔된 장비 목록</span>
+            <span className="bg-orange-100 text-orange-600 px-2 py-0.5 rounded-full text-xs">
+              {scannedItems.length}건
+            </span>
+          </h3>
+          <div className="space-y-2 max-h-48 overflow-y-auto">
+            {scannedItems.map((item, index) => (
+              <div
+                key={index}
+                className="flex items-center justify-between p-2 bg-gray-50 rounded border border-gray-100"
+              >
+                <div className="flex-1">
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-medium text-gray-800">
+                      {item.EQT_CL_NM || item.ITEM_NM || '장비'}
+                    </span>
+                    <span className="text-xs text-gray-500 font-mono">
+                      {item.EQT_SERNO || '-'}
+                    </span>
+                  </div>
+                  <div className="text-[10px] text-gray-400">
+                    {item.EQT_STAT_CD_NM || item.EQT_USE_STAT_CD_NM || ''}
+                    {item.WRKR_NM && ` · ${item.WRKR_NM}`}
+                  </div>
+                </div>
+                <button
+                  onClick={() => handleRemoveScannedItem(index)}
+                  className="text-red-400 hover:text-red-600 p-1"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* 에러 메시지 */}
       {error && (

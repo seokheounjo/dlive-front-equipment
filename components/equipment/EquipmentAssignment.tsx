@@ -249,7 +249,7 @@ const EquipmentAssignment: React.FC<EquipmentAssignmentProps> = ({ onBack, showT
     <div className="p-2">
       {/* 헤더 */}
       <div className="flex items-center justify-between mb-3">
-        <h2 className="text-lg font-bold text-gray-900">장비 할당/반납 처리</h2>
+        <h2 className="text-lg font-bold text-gray-900">장비할당</h2>
         <button
           onClick={onBack}
           className="text-sm text-gray-600 hover:text-gray-800"

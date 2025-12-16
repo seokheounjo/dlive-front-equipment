@@ -22,8 +22,8 @@ interface UserInfo {
   mstSoId?: string;
 }
 
-// 장비 상태 타입
-type EquipmentSearchCondition = 'OWNED' | 'RETURN_REQUESTED' | 'UNRETRIEVED' | 'INSPECTION_WAITING';
+// 장비 상태 타입 (미회수 제외 - 미회수장비 메뉴에서 처리)
+type EquipmentSearchCondition = 'OWNED' | 'RETURN_REQUESTED' | 'INSPECTION_WAITING';
 
 // 장비 아이템 인터페이스
 interface EquipmentItem {
@@ -97,11 +97,8 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
   const [selectedCategory, setSelectedCategory] = useState<string>('');
   const [selectedItemMidCd, setSelectedItemMidCd] = useState<string>('');
   const [eqtSerno, setEqtSerno] = useState<string>('');
-  const [custId, setCustId] = useState<string>('');
-  const [custNm, setCustNm] = useState<string>('');
-  const [ctrtId, setCtrtId] = useState<string>('');
 
-  // 검색 조건 (라디오 버튼) - 보유, 반납요청중, 미회수, 검사대기
+  // 검색 조건 - 보유, 반납요청중, 검사대기 (미회수 제외 - 별도 메뉴에서 처리)
   const [searchCondition, setSearchCondition] = useState<EquipmentSearchCondition>('OWNED');
 
   // 데이터
@@ -141,14 +138,12 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
     setEquipmentList([]);
 
     try {
-      console.log('🔍 [장비조회] 시작:', {
+      console.log('🔍 [장비처리] 시작:', {
         searchCondition,
         SO_ID: selectedSoId,
         WRKR_ID: userInfo.userId,
         ITEM_MID_CD: selectedItemMidCd,
-        EQT_SERNO: eqtSerno,
-        CUST_ID: custId,
-        CTRT_ID: ctrtId
+        EQT_SERNO: eqtSerno
       });
 
       let result: any[] = [];
@@ -174,10 +169,6 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
           // 반납요청중: EQT_STAT_CD = '40'
           baseParams.EQT_STAT_CD = '40';
           break;
-        case 'UNRETRIEVED':
-          // 미회수: EQT_STAT_CD = '60'
-          baseParams.EQT_STAT_CD = '60';
-          break;
         case 'INSPECTION_WAITING':
           // 검사대기: EQT_STAT_CD = '50'
           baseParams.EQT_STAT_CD = '50';
@@ -193,7 +184,7 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
           ...baseParams
         });
       } else {
-        // 미회수, 검사대기는 getWorkerEquipmentList 사용
+        // 검사대기는 getWorkerEquipmentList 사용
         result = await getWorkerEquipmentList({
           WRKR_ID: userInfo.userId,
           SO_ID: selectedSoId || userInfo.soId || undefined,
@@ -201,7 +192,7 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
         });
       }
 
-      console.log('✅ [장비조회] 결과:', result);
+      console.log('✅ [장비처리] 결과:', result);
 
       // 결과 변환 및 필터링
       const transformedList: EquipmentItem[] = (Array.isArray(result) ? result : []).map((item: any) => ({
@@ -229,14 +220,8 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
         RETN_RESN_NM: item.RETN_RESN_NM || '',
       }));
 
-      // 추가 필터링 (고객ID, 고객명, 계약ID)
+      // 추가 필터링 (S/N)
       let filteredList = transformedList;
-      if (custId) {
-        filteredList = filteredList.filter(item => item.CUST_ID?.includes(custId));
-      }
-      if (ctrtId) {
-        filteredList = filteredList.filter(item => item.CTRT_ID?.includes(ctrtId));
-      }
       if (eqtSerno) {
         filteredList = filteredList.filter(item => item.EQT_SERNO?.toUpperCase().includes(eqtSerno.toUpperCase()));
       }
@@ -403,7 +388,7 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
     <div className="p-2">
       {/* 헤더 */}
       <div className="flex items-center justify-between mb-3">
-        <h2 className="text-lg font-bold text-gray-900">장비조회</h2>
+        <h2 className="text-lg font-bold text-gray-900">장비처리</h2>
         <button
           onClick={onBack}
           className="text-sm text-gray-600 hover:text-gray-800"
@@ -412,26 +397,68 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
         </button>
       </div>
 
-      {/* 검색 조건 영역 */}
+      {/* 검색 조건 선택 박스 (상단 배치) - 라디오 버튼 없이 박스 클릭으로 선택 */}
+      <div className="mb-3 bg-white rounded-lg shadow-sm border border-gray-200 p-3">
+        <div className="grid grid-cols-3 gap-2">
+          <button
+            type="button"
+            onClick={() => setSearchCondition('OWNED')}
+            className={`p-3 rounded-lg border-2 transition-all text-center ${
+              searchCondition === 'OWNED'
+                ? 'bg-orange-50 border-orange-500 text-orange-700 shadow-sm'
+                : 'border-gray-200 hover:bg-gray-50 text-gray-600'
+            }`}
+          >
+            <div className="text-sm font-bold">보유</div>
+            <div className="text-[10px] text-gray-500 mt-0.5">내 장비 목록</div>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setSearchCondition('RETURN_REQUESTED')}
+            className={`p-3 rounded-lg border-2 transition-all text-center ${
+              searchCondition === 'RETURN_REQUESTED'
+                ? 'bg-orange-50 border-orange-500 text-orange-700 shadow-sm'
+                : 'border-gray-200 hover:bg-gray-50 text-gray-600'
+            }`}
+          >
+            <div className="text-sm font-bold">반납요청중</div>
+            <div className="text-[10px] text-gray-500 mt-0.5">반납 진행중</div>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setSearchCondition('INSPECTION_WAITING')}
+            className={`p-3 rounded-lg border-2 transition-all text-center ${
+              searchCondition === 'INSPECTION_WAITING'
+                ? 'bg-orange-50 border-orange-500 text-orange-700 shadow-sm'
+                : 'border-gray-200 hover:bg-gray-50 text-gray-600'
+            }`}
+          >
+            <div className="text-sm font-bold">검사대기</div>
+            <div className="text-[10px] text-gray-500 mt-0.5">검사 대기중</div>
+          </button>
+        </div>
+      </div>
+
+      {/* 검색 필터 영역 */}
       <div className="mb-3 bg-white rounded-lg shadow-sm border border-gray-200 p-3">
         <div className="space-y-3">
-          {/* 지점 */}
-          <div>
-            <label className="block text-xs font-medium text-gray-600 mb-1">지점</label>
-            <select
-              value={selectedSoId}
-              onChange={(e) => setSelectedSoId(e.target.value)}
-              className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
-            >
-              <option value="">전체</option>
-              {soList.map((item) => (
-                <option key={item.SO_ID} value={item.SO_ID}>{item.SO_NM}</option>
-              ))}
-            </select>
-          </div>
-
-          {/* 구분 + 장비종류 */}
+          {/* 지점 + 구분 */}
           <div className="grid grid-cols-2 gap-2">
+            <div>
+              <label className="block text-xs font-medium text-gray-600 mb-1">지점</label>
+              <select
+                value={selectedSoId}
+                onChange={(e) => setSelectedSoId(e.target.value)}
+                className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+              >
+                <option value="">전체</option>
+                {soList.map((item) => (
+                  <option key={item.SO_ID} value={item.SO_ID}>{item.SO_NM}</option>
+                ))}
+              </select>
+            </div>
             <div>
               <label className="block text-xs font-medium text-gray-600 mb-1">구분</label>
               <select
@@ -445,6 +472,10 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
                 <option value="31">할부</option>
               </select>
             </div>
+          </div>
+
+          {/* 장비종류 + S/N */}
+          <div className="grid grid-cols-2 gap-2">
             <div>
               <label className="block text-xs font-medium text-gray-600 mb-1">장비종류</label>
               <select
@@ -457,121 +488,17 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
                 ))}
               </select>
             </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-600 mb-1">S/N (바코드)</label>
+              <input
+                type="text"
+                value={eqtSerno}
+                onChange={(e) => setEqtSerno(e.target.value.toUpperCase())}
+                className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded uppercase"
+                placeholder="일련번호 입력"
+              />
+            </div>
           </div>
-
-          {/* S/N */}
-          <div>
-            <label className="block text-xs font-medium text-gray-600 mb-1">S/N</label>
-            <input
-              type="text"
-              value={eqtSerno}
-              onChange={(e) => setEqtSerno(e.target.value.toUpperCase())}
-              className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded uppercase"
-              placeholder="장비 일련번호"
-            />
-          </div>
-
-          {/* 고객ID */}
-          <div>
-            <label className="block text-xs font-medium text-gray-600 mb-1">고객ID</label>
-            <input
-              type="text"
-              value={custId}
-              onChange={(e) => setCustId(e.target.value)}
-              className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded"
-              placeholder="고객ID"
-            />
-          </div>
-
-          {/* 고객명 */}
-          <div>
-            <label className="block text-xs font-medium text-gray-600 mb-1">고객명</label>
-            <input
-              type="text"
-              value={custNm}
-              onChange={(e) => setCustNm(e.target.value)}
-              className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded"
-              placeholder="고객명"
-            />
-          </div>
-
-          {/* 계약ID */}
-          <div>
-            <label className="block text-xs font-medium text-gray-600 mb-1">계약ID</label>
-            <input
-              type="text"
-              value={ctrtId}
-              onChange={(e) => setCtrtId(e.target.value)}
-              className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded"
-              placeholder="계약ID"
-            />
-          </div>
-        </div>
-      </div>
-
-      {/* 검색 조건 라디오 버튼 */}
-      <div className="mb-3 bg-white rounded-lg shadow-sm border border-gray-200 p-3">
-        <div className="text-xs font-medium text-gray-600 mb-2">검색조건</div>
-        <div className="grid grid-cols-2 gap-2">
-          <label className={`flex items-center p-2 rounded-lg border cursor-pointer transition-all ${
-            searchCondition === 'OWNED'
-              ? 'bg-orange-50 border-orange-500 text-orange-700'
-              : 'border-gray-200 hover:bg-gray-50'
-          }`}>
-            <input
-              type="radio"
-              name="searchCondition"
-              checked={searchCondition === 'OWNED'}
-              onChange={() => setSearchCondition('OWNED')}
-              className="w-4 h-4 text-orange-500 focus:ring-orange-500"
-            />
-            <span className="ml-2 text-sm font-medium">보유</span>
-          </label>
-
-          <label className={`flex items-center p-2 rounded-lg border cursor-pointer transition-all ${
-            searchCondition === 'RETURN_REQUESTED'
-              ? 'bg-orange-50 border-orange-500 text-orange-700'
-              : 'border-gray-200 hover:bg-gray-50'
-          }`}>
-            <input
-              type="radio"
-              name="searchCondition"
-              checked={searchCondition === 'RETURN_REQUESTED'}
-              onChange={() => setSearchCondition('RETURN_REQUESTED')}
-              className="w-4 h-4 text-orange-500 focus:ring-orange-500"
-            />
-            <span className="ml-2 text-sm font-medium">반납요청중</span>
-          </label>
-
-          <label className={`flex items-center p-2 rounded-lg border cursor-pointer transition-all ${
-            searchCondition === 'UNRETRIEVED'
-              ? 'bg-orange-50 border-orange-500 text-orange-700'
-              : 'border-gray-200 hover:bg-gray-50'
-          }`}>
-            <input
-              type="radio"
-              name="searchCondition"
-              checked={searchCondition === 'UNRETRIEVED'}
-              onChange={() => setSearchCondition('UNRETRIEVED')}
-              className="w-4 h-4 text-orange-500 focus:ring-orange-500"
-            />
-            <span className="ml-2 text-sm font-medium">미회수</span>
-          </label>
-
-          <label className={`flex items-center p-2 rounded-lg border cursor-pointer transition-all ${
-            searchCondition === 'INSPECTION_WAITING'
-              ? 'bg-orange-50 border-orange-500 text-orange-700'
-              : 'border-gray-200 hover:bg-gray-50'
-          }`}>
-            <input
-              type="radio"
-              name="searchCondition"
-              checked={searchCondition === 'INSPECTION_WAITING'}
-              onChange={() => setSearchCondition('INSPECTION_WAITING')}
-              className="w-4 h-4 text-orange-500 focus:ring-orange-500"
-            />
-            <span className="ml-2 text-sm font-medium">검사대기</span>
-          </label>
         </div>
 
         {/* 조회 버튼 */}
