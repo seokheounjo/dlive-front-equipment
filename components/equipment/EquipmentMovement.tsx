@@ -153,42 +153,52 @@ const EquipmentMovement: React.FC<EquipmentMovementProps> = ({ onBack }) => {
 
   const loadDropdownData = async () => {
     try {
-      // 지점 목록 - 로그인한 사용자 정보에서 가져오거나 기본값 사용
-      const userInfo = localStorage.getItem('userInfo');
-      if (userInfo) {
-        const user = JSON.parse(userInfo);
-        // 사용자의 지점 정보가 있으면 해당 지점을 기본으로 설정
-        if (user.soId && user.soNm) {
-          setSoList([{ SO_ID: user.soId, SO_NM: user.soNm }]);
-        } else {
-          // D'Live 지점 목록 (실제 데이터)
-          setSoList([
-            { SO_ID: '100', SO_NM: '본사' },
-            { SO_ID: '209', SO_NM: '송파지점' },
-            { SO_ID: '210', SO_NM: '강남지점' },
-            { SO_ID: '211', SO_NM: '서초지점' },
-            { SO_ID: '212', SO_NM: '강동지점' },
-            { SO_ID: '213', SO_NM: '성동지점' },
-            { SO_ID: '214', SO_NM: '영등포지점' },
-            { SO_ID: '215', SO_NM: '구로지점' }
-          ]);
+      // 지점 목록 - 타기사 조회 API로 지점 정보 수집
+      console.log('📋 [장비이동] 지점/협력업체 목록 로드 시작');
+
+      // 기사 조회를 통해 지점 목록 수집 시도
+      const userResult = await findUserList({ USR_NM: '' }); // 빈 검색어로 전체 조회 시도
+
+      if (Array.isArray(userResult) && userResult.length > 0) {
+        // 결과에서 고유한 지점 목록 추출
+        const soMap = new Map<string, string>();
+        const crrMap = new Map<string, string>();
+
+        userResult.forEach((user: any) => {
+          if (user.SO_ID && user.SO_NM) {
+            soMap.set(user.SO_ID, user.SO_NM);
+          }
+          if (user.CRR_ID && user.CRR_NM) {
+            crrMap.set(user.CRR_ID, user.CRR_NM);
+          }
+        });
+
+        if (soMap.size > 0) {
+          const soListFromApi = Array.from(soMap.entries()).map(([id, nm]) => ({ SO_ID: id, SO_NM: nm }));
+          setSoList(soListFromApi);
+          console.log('✅ [장비이동] 지점 목록 로드 성공:', soListFromApi.length, '건');
         }
-      } else {
-        setSoList([
-          { SO_ID: '100', SO_NM: '본사' },
-          { SO_ID: '209', SO_NM: '송파지점' },
-          { SO_ID: '210', SO_NM: '강남지점' },
-          { SO_ID: '211', SO_NM: '서초지점' },
-          { SO_ID: '212', SO_NM: '강동지점' }
-        ]);
+
+        if (crrMap.size > 0) {
+          const crrListFromApi = Array.from(crrMap.entries()).map(([id, nm]) => ({ CRR_ID: id, CORP_NM: nm }));
+          setCorpList(crrListFromApi);
+          console.log('✅ [장비이동] 협력업체 목록 로드 성공:', crrListFromApi.length, '건');
+        }
       }
 
-      // 협력업체 목록 - 기본값 설정
-      setCorpList([
-        { CRR_ID: 'CRR001', CORP_NM: '디라이브서비스' },
-        { CRR_ID: 'CRR002', CORP_NM: '협력업체A' },
-        { CRR_ID: 'CRR003', CORP_NM: '협력업체B' }
-      ]);
+      // API 결과가 없으면 로그인한 사용자 정보 기반으로 설정
+      if (soList.length === 0) {
+        const userInfo = localStorage.getItem('userInfo');
+        if (userInfo) {
+          const user = JSON.parse(userInfo);
+          if (user.soId) {
+            setSoList([{ SO_ID: user.soId, SO_NM: user.soNm || user.soId }]);
+          }
+          if (user.crrId) {
+            setCorpList([{ CRR_ID: user.crrId, CORP_NM: user.crrNm || user.crrId }]);
+          }
+        }
+      }
 
       // 장비 중분류
       setItemMidList([
@@ -208,8 +218,17 @@ const EquipmentMovement: React.FC<EquipmentMovementProps> = ({ onBack }) => {
       ]);
     } catch (error) {
       console.error('드롭다운 데이터 로드 실패:', error);
-      setSoList([{ SO_ID: '100', SO_NM: '본사' }, { SO_ID: '209', SO_NM: '송파지점' }]);
-      setCorpList([{ CRR_ID: 'CRR001', CORP_NM: '디라이브서비스' }]);
+      // 로그인한 사용자 정보 기반 폴백
+      const userInfo = localStorage.getItem('userInfo');
+      if (userInfo) {
+        const user = JSON.parse(userInfo);
+        if (user.soId) {
+          setSoList([{ SO_ID: user.soId, SO_NM: user.soNm || user.soId }]);
+        }
+        if (user.crrId) {
+          setCorpList([{ CRR_ID: user.crrId, CORP_NM: user.crrNm || user.crrId }]);
+        }
+      }
       setItemMidList([{ COMMON_CD: '04', COMMON_CD_NM: '모뎀' }, { COMMON_CD: '05', COMMON_CD_NM: '셋톱박스' }]);
       setEqtClList([{ COMMON_CD: 'STB01', COMMON_CD_NM: 'HD 셋톱박스' }]);
     }
