@@ -41,11 +41,13 @@ interface LogEntry {
   response: any;
 }
 
-// ============ 실제 테스트 데이터 (더미 DB 기반) ============
+// ============ 실제 테스트 데이터 (D'Live 시스템 기반) ============
 const REAL_TEST_DATA = {
   WRKR_ID: ['20230019', '20230020', '20230021'],
   EQT_NO: ['EQT001', 'EQT002', 'EQT003', 'EQT004', 'EQT005'],
-  SO_ID: ['SO-001', 'SO-002', 'SO-003'],
+  EQT_SERNO: ['CT22947931247BA0', 'DR7227112123733F', '11420829432741', 'D1603A013377', 'S63LB43039'],
+  MAC_ADDRESS: ['481B40B6F453', '0280194087'],
+  SO_ID: ['100', 'SO-001', 'SO-002'],
   CARRIER_ID: ['CRR-001', 'CRR-002', 'CRR-003'],
   USR_NM: ['이진영', '김기사', '박기사'],
 };
@@ -65,7 +67,7 @@ const EQUIPMENT_APIS: ApiDefinition[] = [
   { id: 'api09', name: '장비상태변경(검사대기)', path: '/customer/equipment/setEquipmentChkStndByY', category: '장비할당/반납처리', feature: '검사대기 상태 설정', apiStatus: 'error', required: ['EQT_NO', 'WRKR_ID'], optional: ['SO_ID', 'REG_UID'] },
 
   // 2. 장비상태조회 (2개)
-  { id: 'api10', name: '장비이력조회', path: '/statistics/equipment/getEquipmentHistoryInfo', category: '장비상태조회', feature: 'S/N으로 장비 이력 조회', apiStatus: 'error', required: ['EQT_NO'], optional: ['WRKR_ID', 'SO_ID', 'SERIAL_NO'] },
+  { id: 'api10', name: '장비이력조회', path: '/statistics/equipment/getEquipmentHistoryInfo', category: '장비상태조회', feature: 'S/N 또는 MAC으로 장비 이력 조회', apiStatus: 'error', required: [], optional: ['EQT_NO', 'EQT_SERNO', 'MAC_ADDRESS', 'WRKR_ID', 'SO_ID', 'SERIAL_NO'] },
   { id: 'api11', name: '장비기사이관', path: '/customer/equipment/changeEqtWrkr_3', category: '장비상태조회', feature: '장비 담당자 변경', apiStatus: 'error', required: ['EQT_NO', 'TO_WRKR_ID'], optional: ['FROM_WRKR_ID', 'CTRT_ID', 'SO_ID', 'CRR_ID', 'REG_UID'] },
 
   // 3. 기사간 장비이동 (2개)
@@ -106,6 +108,8 @@ const EquipmentApiTester: React.FC = () => {
       if (key === 'WRKR_ID' || key === 'TO_WRKR_ID' || key === 'FROM_WRKR_ID') params[key] = '20230019';
       else if (key === 'SO_ID') params[key] = 'SO-001';
       else if (key === 'EQT_NO') params[key] = 'EQT001';
+      else if (key === 'EQT_SERNO' || key === 'SERIAL_NO') params[key] = 'CT22947931247BA0';
+      else if (key === 'MAC_ADDRESS') params[key] = '0280194087';
       else if (key === 'CARRIER_ID' || key === 'CRR_ID') params[key] = 'CRR-001';
       else if (key === 'USR_NM') params[key] = '이진영';
       else if (key === 'STATE') params[key] = 'RECOVERED';
