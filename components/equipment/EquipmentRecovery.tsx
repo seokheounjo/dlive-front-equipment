@@ -118,9 +118,10 @@ const EquipmentRecovery: React.FC<EquipmentRecoveryProps> = ({ onBack }) => {
                   type="date"
                   value={formatDateInput(searchParams.FROM_DT)}
                   onChange={(e) => setSearchParams({...searchParams, FROM_DT: formatDateApi(e.target.value)})}
-                  className="absolute inset-0 opacity-0 cursor-pointer z-10"
+                  className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                  style={{ zIndex: 10 }}
                 />
-                <div className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded bg-white truncate">
+                <div className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded bg-white truncate pointer-events-none">
                   {formatDateDot(searchParams.FROM_DT) || '시작일'}
                 </div>
               </div>
@@ -130,9 +131,10 @@ const EquipmentRecovery: React.FC<EquipmentRecoveryProps> = ({ onBack }) => {
                   type="date"
                   value={formatDateInput(searchParams.TO_DT)}
                   onChange={(e) => setSearchParams({...searchParams, TO_DT: formatDateApi(e.target.value)})}
-                  className="absolute inset-0 opacity-0 cursor-pointer z-10"
+                  className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                  style={{ zIndex: 10 }}
                 />
-                <div className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded bg-white truncate">
+                <div className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded bg-white truncate pointer-events-none">
                   {formatDateDot(searchParams.TO_DT) || '종료일'}
                 </div>
               </div>

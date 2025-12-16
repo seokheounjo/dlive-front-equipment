@@ -284,9 +284,10 @@ const EquipmentAssignment: React.FC<EquipmentAssignmentProps> = ({ onBack, showT
                   type="date"
                   value={formatDateForInput(fromDate)}
                   onChange={(e) => setFromDate(formatDateForApi(e.target.value))}
-                  className="absolute inset-0 opacity-0 cursor-pointer z-10"
+                  className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                  style={{ zIndex: 10 }}
                 />
-                <div className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded bg-white truncate">
+                <div className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded bg-white truncate pointer-events-none">
                   {formatDateDot(fromDate) || '시작일'}
                 </div>
               </div>
@@ -296,9 +297,10 @@ const EquipmentAssignment: React.FC<EquipmentAssignmentProps> = ({ onBack, showT
                   type="date"
                   value={formatDateForInput(toDate)}
                   onChange={(e) => setToDate(formatDateForApi(e.target.value))}
-                  className="absolute inset-0 opacity-0 cursor-pointer z-10"
+                  className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                  style={{ zIndex: 10 }}
                 />
-                <div className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded bg-white truncate">
+                <div className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded bg-white truncate pointer-events-none">
                   {formatDateDot(toDate) || '종료일'}
                 </div>
               </div>

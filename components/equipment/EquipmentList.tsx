@@ -126,6 +126,9 @@ const EquipmentList: React.FC<EquipmentListProps> = ({ onBack, showToast }) => {
   const [scannedItems, setScannedItems] = useState<EquipmentDetail[]>([]);
   const [isMultiScanMode, setIsMultiScanMode] = useState(false);
 
+  // 바코드 스캔 입력 참조
+  const inputRef = React.useRef<HTMLInputElement>(null);
+
   // 로그인한 사용자 정보 가져오기
   const getLoggedInUser = () => {
     try {
@@ -374,6 +377,35 @@ const EquipmentList: React.FC<EquipmentListProps> = ({ onBack, showToast }) => {
     return true;
   };
 
+  // 바코드 스캔 시 자동 검색 (Enter 없이 일정 시간 후 자동 실행)
+  const [scanTimeout, setScanTimeout] = useState<NodeJS.Timeout | null>(null);
+
+  const handleBarcodeInput = (value: string) => {
+    setSearchValue(value.toUpperCase());
+
+    // 복수 스캔 모드에서 바코드 스캔 시 자동 검색
+    if (isMultiScanMode && value.length >= 6) {
+      // 이전 타임아웃 클리어
+      if (scanTimeout) {
+        clearTimeout(scanTimeout);
+      }
+      // 300ms 후 자동 검색 (바코드 스캐너 입력 완료 대기)
+      const timeout = setTimeout(() => {
+        handleSearch();
+      }, 300);
+      setScanTimeout(timeout);
+    }
+  };
+
+  // 컴포넌트 언마운트 시 타임아웃 클리어
+  useEffect(() => {
+    return () => {
+      if (scanTimeout) {
+        clearTimeout(scanTimeout);
+      }
+    };
+  }, [scanTimeout]);
+
   return (
     <div className="p-2">
       {/* 헤더 */}
@@ -460,14 +492,16 @@ const EquipmentList: React.FC<EquipmentListProps> = ({ onBack, showToast }) => {
           <div>
             <label className="block text-xs font-medium text-gray-600 mb-1">
               {searchType === 'SN' ? '장비 S/N 또는 바코드 스캔' : 'MAC 주소'}
+              {isMultiScanMode && <span className="text-orange-500 ml-1">(스캔 시 자동 추가)</span>}
             </label>
             <input
+              ref={inputRef}
               type="text"
               value={searchValue}
-              onChange={(e) => setSearchValue(e.target.value.toUpperCase())}
+              onChange={(e) => handleBarcodeInput(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
               className="w-full px-3 py-2 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-orange-500 focus:border-orange-500 uppercase font-mono"
-              placeholder={searchType === 'SN' ? '바코드 스캔 또는 S/N 입력' : '예: 481B40B6F453'}
+              placeholder={searchType === 'SN' ? (isMultiScanMode ? '바코드 스캔하면 자동 추가됩니다' : '바코드 스캔 또는 S/N 입력') : '예: 481B40B6F453'}
               autoFocus
             />
           </div>

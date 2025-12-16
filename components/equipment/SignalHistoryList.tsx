@@ -98,9 +98,10 @@ const SignalHistoryList: React.FC<SignalHistoryListProps> = ({ onBack }) => {
                   type="date"
                   value={formatDateInput(regDate1)}
                   onChange={(e) => setRegDate1(formatDateApi(e.target.value))}
-                  className="absolute inset-0 opacity-0 cursor-pointer z-10"
+                  className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                  style={{ zIndex: 10 }}
                 />
-                <div className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded bg-white truncate">
+                <div className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded bg-white truncate pointer-events-none">
                   {formatDateDot(regDate1) || '시작일'}
                 </div>
               </div>
@@ -110,9 +111,10 @@ const SignalHistoryList: React.FC<SignalHistoryListProps> = ({ onBack }) => {
                   type="date"
                   value={formatDateInput(regDate2)}
                   onChange={(e) => setRegDate2(formatDateApi(e.target.value))}
-                  className="absolute inset-0 opacity-0 cursor-pointer z-10"
+                  className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                  style={{ zIndex: 10 }}
                 />
-                <div className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded bg-white truncate">
+                <div className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded bg-white truncate pointer-events-none">
                   {formatDateDot(regDate2) || '종료일'}
                 </div>
               </div>

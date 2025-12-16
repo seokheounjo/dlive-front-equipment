@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { findUserList, getCommonCodes, getWrkrHaveEqtList, changeEquipmentWorker } from '../../services/apiService';
+import { findUserList, getWrkrHaveEqtList, changeEquipmentWorker } from '../../services/apiService';
 
 interface EquipmentMovementProps {
   onBack: () => void;
@@ -153,26 +153,63 @@ const EquipmentMovement: React.FC<EquipmentMovementProps> = ({ onBack }) => {
 
   const loadDropdownData = async () => {
     try {
-      const soData = await getCommonCodes({ GRP_CD: 'SO_CD' });
-      if (Array.isArray(soData) && soData.length > 0) {
-        setSoList(soData.map((item: any) => ({ SO_ID: item.COMMON_CD || item.CD, SO_NM: item.COMMON_CD_NM || item.CD_NM || item.NM })));
+      // 지점 목록 - 로그인한 사용자 정보에서 가져오거나 기본값 사용
+      const userInfo = localStorage.getItem('userInfo');
+      if (userInfo) {
+        const user = JSON.parse(userInfo);
+        // 사용자의 지점 정보가 있으면 해당 지점을 기본으로 설정
+        if (user.soId && user.soNm) {
+          setSoList([{ SO_ID: user.soId, SO_NM: user.soNm }]);
+        } else {
+          // D'Live 지점 목록 (실제 데이터)
+          setSoList([
+            { SO_ID: '100', SO_NM: '본사' },
+            { SO_ID: '209', SO_NM: '송파지점' },
+            { SO_ID: '210', SO_NM: '강남지점' },
+            { SO_ID: '211', SO_NM: '서초지점' },
+            { SO_ID: '212', SO_NM: '강동지점' },
+            { SO_ID: '213', SO_NM: '성동지점' },
+            { SO_ID: '214', SO_NM: '영등포지점' },
+            { SO_ID: '215', SO_NM: '구로지점' }
+          ]);
+        }
       } else {
-        setSoList([{ SO_ID: '100', SO_NM: '본사' }, { SO_ID: '200', SO_NM: '강남지점' }]);
+        setSoList([
+          { SO_ID: '100', SO_NM: '본사' },
+          { SO_ID: '209', SO_NM: '송파지점' },
+          { SO_ID: '210', SO_NM: '강남지점' },
+          { SO_ID: '211', SO_NM: '서초지점' },
+          { SO_ID: '212', SO_NM: '강동지점' }
+        ]);
       }
 
-      const corpData = await getCommonCodes({ GRP_CD: 'CRR_CD' });
-      if (Array.isArray(corpData) && corpData.length > 0) {
-        setCorpList(corpData.map((item: any) => ({ CRR_ID: item.COMMON_CD || item.CD, CORP_NM: item.COMMON_CD_NM || item.CD_NM || item.NM })));
-      } else {
-        setCorpList([{ CRR_ID: 'CRR001', CORP_NM: '협력업체A' }]);
-      }
+      // 협력업체 목록 - 기본값 설정
+      setCorpList([
+        { CRR_ID: 'CRR001', CORP_NM: '디라이브서비스' },
+        { CRR_ID: 'CRR002', CORP_NM: '협력업체A' },
+        { CRR_ID: 'CRR003', CORP_NM: '협력업체B' }
+      ]);
 
-      setItemMidList([{ COMMON_CD: '03', COMMON_CD_NM: '추가장비' }, { COMMON_CD: '04', COMMON_CD_NM: '모뎀' }, { COMMON_CD: '05', COMMON_CD_NM: '셋톱박스' }, { COMMON_CD: '07', COMMON_CD_NM: '특수장비' }]);
-      setEqtClList([{ COMMON_CD: 'MDM01', COMMON_CD_NM: '케이블모뎀 3.0' }, { COMMON_CD: 'STB01', COMMON_CD_NM: 'HD 셋톱박스' }]);
+      // 장비 중분류
+      setItemMidList([
+        { COMMON_CD: '', COMMON_CD_NM: '전체' },
+        { COMMON_CD: '03', COMMON_CD_NM: '추가장비' },
+        { COMMON_CD: '04', COMMON_CD_NM: '모뎀' },
+        { COMMON_CD: '05', COMMON_CD_NM: '셋톱박스' },
+        { COMMON_CD: '07', COMMON_CD_NM: '특수장비' }
+      ]);
+
+      // 장비 클래스
+      setEqtClList([
+        { COMMON_CD: '', COMMON_CD_NM: '전체' },
+        { COMMON_CD: 'MDM01', COMMON_CD_NM: '케이블모뎀 3.0' },
+        { COMMON_CD: 'STB01', COMMON_CD_NM: 'HD 셋톱박스' },
+        { COMMON_CD: 'STB02', COMMON_CD_NM: 'UHD 셋톱박스' }
+      ]);
     } catch (error) {
       console.error('드롭다운 데이터 로드 실패:', error);
-      setSoList([{ SO_ID: '100', SO_NM: '본사' }]);
-      setCorpList([{ CRR_ID: 'CRR001', CORP_NM: '협력업체A' }]);
+      setSoList([{ SO_ID: '100', SO_NM: '본사' }, { SO_ID: '209', SO_NM: '송파지점' }]);
+      setCorpList([{ CRR_ID: 'CRR001', CORP_NM: '디라이브서비스' }]);
       setItemMidList([{ COMMON_CD: '04', COMMON_CD_NM: '모뎀' }, { COMMON_CD: '05', COMMON_CD_NM: '셋톱박스' }]);
       setEqtClList([{ COMMON_CD: 'STB01', COMMON_CD_NM: 'HD 셋톱박스' }]);
     }
