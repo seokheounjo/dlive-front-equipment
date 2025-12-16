@@ -3917,3 +3917,5 @@ export const updateInstallLocation = async (params: {
     };
   }
 };
+// Alias exports for backward compatibility
+export const getWrkrHaveEqtList = getWorkerEquipmentList;
