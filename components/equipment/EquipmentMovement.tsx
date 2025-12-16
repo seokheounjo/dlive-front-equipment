@@ -291,10 +291,10 @@ const EquipmentMovement: React.FC<EquipmentMovementProps> = ({ onBack }) => {
           </div>
           <div>
             <label className="block text-xs font-medium text-gray-600 mb-1">보유기사 <span className="text-red-500">*</span></label>
-            <div className="flex gap-2">
-              <input type="text" value={searchParams.WRKR_NM} readOnly className="flex-1 px-2 py-1.5 text-sm border border-gray-300 rounded bg-gray-50" placeholder="기사명" />
-              <button onClick={handleWorkerSearch} className="px-3 py-1.5 text-sm border border-gray-300 rounded bg-white hover:bg-gray-50" title="이름 또는 ID로 검색">🔍</button>
-              <input type="text" value={searchParams.WRKR_ID} readOnly className="w-24 px-2 py-1.5 text-sm border border-gray-300 rounded bg-gray-50" placeholder="ID" />
+            <div className="flex gap-1">
+              <input type="text" value={searchParams.WRKR_NM} readOnly className="min-w-0 flex-1 px-2 py-1.5 text-sm border border-gray-300 rounded bg-gray-50" placeholder="기사명" />
+              <button onClick={handleWorkerSearch} className="flex-shrink-0 w-9 py-1.5 text-sm border border-gray-300 rounded bg-white hover:bg-gray-50" title="이름 또는 ID로 검색">🔍</button>
+              <input type="text" value={searchParams.WRKR_ID} readOnly className="flex-shrink-0 w-20 px-2 py-1.5 text-sm border border-gray-300 rounded bg-gray-50 text-xs" placeholder="ID" />
             </div>
             <p className="text-xs text-gray-400 mt-1">* 돋보기 클릭 후 이름 또는 기사ID 입력</p>
           </div>
@@ -306,10 +306,10 @@ const EquipmentMovement: React.FC<EquipmentMovementProps> = ({ onBack }) => {
         <div className="mb-2"><h3 className="text-sm font-semibold text-gray-700">이관기사</h3></div>
         <div>
           <label className="block text-xs font-medium text-gray-600 mb-1">이관기사 <span className="text-red-500">*</span></label>
-          <div className="flex gap-2">
-            <input type="text" value={trgtWrkrNm} readOnly className="flex-1 px-2 py-1.5 text-sm border border-gray-300 rounded bg-gray-50" placeholder="기사명" />
-            <button onClick={handleTrgtWorkerSearch} className="px-3 py-1.5 text-sm border border-gray-300 rounded bg-white hover:bg-gray-50" title="이름 또는 ID로 검색">🔍</button>
-            <input type="text" value={trgtWrkrId} readOnly className="w-24 px-2 py-1.5 text-sm border border-gray-300 rounded bg-gray-50" placeholder="ID" />
+          <div className="flex gap-1">
+            <input type="text" value={trgtWrkrNm} readOnly className="min-w-0 flex-1 px-2 py-1.5 text-sm border border-gray-300 rounded bg-gray-50" placeholder="기사명" />
+            <button onClick={handleTrgtWorkerSearch} className="flex-shrink-0 w-9 py-1.5 text-sm border border-gray-300 rounded bg-white hover:bg-gray-50" title="이름 또는 ID로 검색">🔍</button>
+            <input type="text" value={trgtWrkrId} readOnly className="flex-shrink-0 w-20 px-2 py-1.5 text-sm border border-gray-300 rounded bg-gray-50 text-xs" placeholder="ID" />
           </div>
           <p className="text-xs text-gray-400 mt-1">* 돋보기 클릭 후 이름 또는 기사ID 입력</p>
         </div>
