@@ -5,6 +5,36 @@ interface SignalHistoryListProps {
   onBack: () => void;
 }
 
+// 날짜 포맷 함수 (YYYY.MM.DD)
+const formatDateDot = (dateStr: string): string => {
+  if (!dateStr) return '';
+  // YYYYMMDD -> YYYY.MM.DD
+  if (dateStr.length === 8 && !dateStr.includes('-') && !dateStr.includes('.')) {
+    return `${dateStr.slice(0, 4)}.${dateStr.slice(4, 6)}.${dateStr.slice(6, 8)}`;
+  }
+  // YYYY-MM-DD -> YYYY.MM.DD
+  if (dateStr.includes('-')) {
+    return dateStr.replace(/-/g, '.');
+  }
+  return dateStr;
+};
+
+// 날짜를 YYYYMMDD로 변환 (API용)
+const formatDateApi = (dateStr: string): string => {
+  if (!dateStr) return '';
+  return dateStr.replace(/[-\.]/g, '');
+};
+
+// 날짜를 YYYY-MM-DD로 변환 (input용)
+const formatDateInput = (dateStr: string): string => {
+  if (!dateStr) return '';
+  // YYYYMMDD -> YYYY-MM-DD
+  if (dateStr.length === 8 && !dateStr.includes('-') && !dateStr.includes('.')) {
+    return `${dateStr.slice(0, 4)}-${dateStr.slice(4, 6)}-${dateStr.slice(6, 8)}`;
+  }
+  return dateStr;
+};
+
 const SignalHistoryList: React.FC<SignalHistoryListProps> = ({ onBack }) => {
   const [histories, setHistories] = useState<ENSHistory[]>([]);
   const [selectedHistory, setSelectedHistory] = useState<ENSHistory | null>(null);
@@ -16,9 +46,9 @@ const SignalHistoryList: React.FC<SignalHistoryListProps> = ({ onBack }) => {
   const [regDate1, setRegDate1] = useState<string>(() => {
     const date = new Date();
     date.setMonth(date.getMonth() - 1);
-    return date.toISOString().slice(0, 10);
+    return date.toISOString().slice(0, 10).replace(/-/g, '');
   });
-  const [regDate2, setRegDate2] = useState<string>(new Date().toISOString().slice(0, 10));
+  const [regDate2, setRegDate2] = useState<string>(new Date().toISOString().slice(0, 10).replace(/-/g, ''));
   const [filterStatus, setFilterStatus] = useState<string>('전체');
 
   useEffect(() => {
@@ -32,8 +62,8 @@ const SignalHistoryList: React.FC<SignalHistoryListProps> = ({ onBack }) => {
 
       const params: any = {};
       if (custId) params.CUST_ID = custId;
-      if (regDate1) params.REG_DATE1 = regDate1.replace(/-/g, '');
-      if (regDate2) params.REG_DATE2 = regDate2.replace(/-/g, '');
+      if (regDate1) params.REG_DATE1 = formatDateApi(regDate1);
+      if (regDate2) params.REG_DATE2 = formatDateApi(regDate2);
 
       const data = await getENSHistory(params);
       setHistories(data);
@@ -58,33 +88,44 @@ const SignalHistoryList: React.FC<SignalHistoryListProps> = ({ onBack }) => {
 
       {/* 필터 영역 */}
       <div className="mb-3 bg-white rounded-lg shadow-sm border border-gray-200 p-3">
-        <div className="grid grid-cols-2 gap-2 mb-2">
-          <div>
-            <input
-              type="date"
-              value={regDate1}
-              onChange={(e) => setRegDate1(e.target.value)}
-              className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded"
-              style={{ colorScheme: 'light' }}
-            />
+        <div className="space-y-2">
+          {/* 조회기간 - 한 줄 레이아웃 */}
+          <div className="flex items-center gap-1.5">
+            <label className="text-xs font-medium text-gray-600 w-14 flex-shrink-0">조회기간</label>
+            <div className="flex-1 flex items-center gap-1 min-w-0">
+              <div className="relative flex-1 min-w-0">
+                <input
+                  type="date"
+                  value={formatDateInput(regDate1)}
+                  onChange={(e) => setRegDate1(formatDateApi(e.target.value))}
+                  className="absolute inset-0 opacity-0 cursor-pointer z-10"
+                />
+                <div className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded bg-white truncate">
+                  {formatDateDot(regDate1) || '시작일'}
+                </div>
+              </div>
+              <span className="text-gray-400 flex-shrink-0">~</span>
+              <div className="relative flex-1 min-w-0">
+                <input
+                  type="date"
+                  value={formatDateInput(regDate2)}
+                  onChange={(e) => setRegDate2(formatDateApi(e.target.value))}
+                  className="absolute inset-0 opacity-0 cursor-pointer z-10"
+                />
+                <div className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded bg-white truncate">
+                  {formatDateDot(regDate2) || '종료일'}
+                </div>
+              </div>
+            </div>
           </div>
-          <div>
-            <input
-              type="date"
-              value={regDate2}
-              onChange={(e) => setRegDate2(e.target.value)}
-              className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded"
-              style={{ colorScheme: 'light' }}
-            />
-          </div>
+          <button
+            onClick={fetchHistory}
+            disabled={isLoading}
+            className="w-full bg-orange-500 hover:bg-orange-600 text-white py-2 rounded font-medium text-sm shadow-md transition-all disabled:opacity-50"
+          >
+            조회
+          </button>
         </div>
-        <button
-          onClick={fetchHistory}
-          disabled={isLoading}
-          className="w-full bg-orange-500 hover:bg-orange-600 text-white py-2 rounded font-medium text-sm shadow-md transition-all disabled:opacity-50"
-        >
-          조회
-        </button>
       </div>
 
       {/* 로딩/에러 상태 */}

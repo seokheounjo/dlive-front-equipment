@@ -71,6 +71,20 @@ interface SoListItem {
   SO_NM: string;
 }
 
+// 날짜 포맷 함수 (YYYY.MM.DD)
+const formatDateDot = (dateStr: string): string => {
+  if (!dateStr) return '';
+  // YYYYMMDD -> YYYY.MM.DD
+  if (dateStr.length === 8 && !dateStr.includes('-') && !dateStr.includes('.')) {
+    return `${dateStr.slice(0, 4)}.${dateStr.slice(4, 6)}.${dateStr.slice(6, 8)}`;
+  }
+  // YYYY-MM-DD -> YYYY.MM.DD
+  if (dateStr.includes('-')) {
+    return dateStr.replace(/-/g, '.');
+  }
+  return dateStr;
+};
+
 // 지점 목록 (실제로는 API에서 가져와야 함)
 const DEFAULT_SO_LIST: SoListItem[] = [
   { SO_ID: '209', SO_NM: '송파지점' },
@@ -260,35 +274,44 @@ const EquipmentAssignment: React.FC<EquipmentAssignmentProps> = ({ onBack, showT
 
       {/* 검색 영역 */}
       <div className="mb-3 bg-white rounded-lg shadow-sm border border-gray-200 p-3">
-        <div className="space-y-3">
-          {/* 출고일자 범위 */}
-          <div>
-            <label className="block text-xs font-medium text-gray-600 mb-1">출고일자</label>
-            <div className="grid grid-cols-2 gap-2">
-              <input
-                type="date"
-                value={formatDateForInput(fromDate)}
-                onChange={(e) => setFromDate(formatDateForApi(e.target.value))}
-                className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
-                style={{ colorScheme: 'light' }}
-              />
-              <input
-                type="date"
-                value={formatDateForInput(toDate)}
-                onChange={(e) => setToDate(formatDateForApi(e.target.value))}
-                className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
-                style={{ colorScheme: 'light' }}
-              />
+        <div className="space-y-2">
+          {/* 출고일자 범위 - 한 줄 레이아웃 */}
+          <div className="flex items-center gap-1.5">
+            <label className="text-xs font-medium text-gray-600 w-14 flex-shrink-0">출고일자</label>
+            <div className="flex-1 flex items-center gap-1 min-w-0">
+              <div className="relative flex-1 min-w-0">
+                <input
+                  type="date"
+                  value={formatDateForInput(fromDate)}
+                  onChange={(e) => setFromDate(formatDateForApi(e.target.value))}
+                  className="absolute inset-0 opacity-0 cursor-pointer z-10"
+                />
+                <div className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded bg-white truncate">
+                  {formatDateDot(fromDate) || '시작일'}
+                </div>
+              </div>
+              <span className="text-gray-400 flex-shrink-0">~</span>
+              <div className="relative flex-1 min-w-0">
+                <input
+                  type="date"
+                  value={formatDateForInput(toDate)}
+                  onChange={(e) => setToDate(formatDateForApi(e.target.value))}
+                  className="absolute inset-0 opacity-0 cursor-pointer z-10"
+                />
+                <div className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded bg-white truncate">
+                  {formatDateDot(toDate) || '종료일'}
+                </div>
+              </div>
             </div>
           </div>
 
-          {/* 지점 선택 */}
-          <div>
-            <label className="block text-xs font-medium text-gray-600 mb-1">지점</label>
+          {/* 지점 선택 - 한 줄 레이아웃 */}
+          <div className="flex items-center gap-2">
+            <label className="text-xs font-medium text-gray-600 w-14 flex-shrink-0">지점</label>
             <select
               value={selectedSoId}
               onChange={(e) => setSelectedSoId(e.target.value)}
-              className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+              className="flex-1 px-2 py-1.5 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
             >
               <option value="">전체</option>
               {soList.map((item) => (

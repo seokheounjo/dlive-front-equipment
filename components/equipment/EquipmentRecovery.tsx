@@ -31,6 +31,40 @@ interface UnreturnedEqt {
   RETN_REQ_YN: string;
 }
 
+// 날짜 포맷 함수 (YYYY.MM.DD)
+const formatDateDot = (dateStr: string): string => {
+  if (!dateStr) return '';
+  // YYYYMMDD -> YYYY.MM.DD
+  if (dateStr.length === 8 && !dateStr.includes('-') && !dateStr.includes('.')) {
+    return `${dateStr.slice(0, 4)}.${dateStr.slice(4, 6)}.${dateStr.slice(6, 8)}`;
+  }
+  // YYYY-MM-DD -> YYYY.MM.DD
+  if (dateStr.includes('-')) {
+    return dateStr.replace(/-/g, '.');
+  }
+  return dateStr;
+};
+
+// 날짜를 YYYYMMDD로 변환 (API용)
+const formatDateApi = (dateStr: string): string => {
+  if (!dateStr) return '';
+  return dateStr.replace(/[-\.]/g, '');
+};
+
+// 날짜를 YYYY-MM-DD로 변환 (input용)
+const formatDateInput = (dateStr: string): string => {
+  if (!dateStr) return '';
+  // YYYYMMDD -> YYYY-MM-DD
+  if (dateStr.length === 8 && !dateStr.includes('-') && !dateStr.includes('.')) {
+    return `${dateStr.slice(0, 4)}-${dateStr.slice(4, 6)}-${dateStr.slice(6, 8)}`;
+  }
+  // YYYY.MM.DD -> YYYY-MM-DD
+  if (dateStr.includes('.')) {
+    return dateStr.replace(/\./g, '-');
+  }
+  return dateStr;
+};
+
 const EquipmentRecovery: React.FC<EquipmentRecoveryProps> = ({ onBack }) => {
   const [searchParams, setSearchParams] = useState<UnreturnedEqtSearch>({
     CUST_ID: '',
@@ -39,9 +73,9 @@ const EquipmentRecovery: React.FC<EquipmentRecoveryProps> = ({ onBack }) => {
     FROM_DT: (() => {
       const date = new Date();
       date.setMonth(date.getMonth() - 3);
-      return date.toISOString().slice(0, 10);
+      return date.toISOString().slice(0, 10).replace(/-/g, '');
     })(),
-    TO_DT: new Date().toISOString().slice(0, 10),
+    TO_DT: new Date().toISOString().slice(0, 10).replace(/-/g, ''),
     EQT_CL_CD: ''
   });
 
@@ -75,24 +109,34 @@ const EquipmentRecovery: React.FC<EquipmentRecoveryProps> = ({ onBack }) => {
       {/* 검색 영역 - 키-값 한줄 레이아웃 */}
       <div className="mb-3 bg-white rounded-lg shadow-sm border border-gray-200 p-3">
         <div className="space-y-2">
-          {/* 해지일자 (한 줄) */}
-          <div className="flex items-center gap-2">
-            <label className="text-xs font-medium text-gray-600 w-16 flex-shrink-0">해지일자</label>
-            <input
-              type="date"
-              value={searchParams.FROM_DT}
-              onChange={(e) => setSearchParams({...searchParams, FROM_DT: e.target.value})}
-              className="flex-1 px-2 py-1.5 text-sm border border-gray-300 rounded"
-              style={{ colorScheme: 'light' }}
-            />
-            <span className="text-gray-400">~</span>
-            <input
-              type="date"
-              value={searchParams.TO_DT}
-              onChange={(e) => setSearchParams({...searchParams, TO_DT: e.target.value})}
-              className="flex-1 px-2 py-1.5 text-sm border border-gray-300 rounded"
-              style={{ colorScheme: 'light' }}
-            />
+          {/* 해지일자 (한 줄) - 반응형 레이아웃 */}
+          <div className="flex items-center gap-1.5">
+            <label className="text-xs font-medium text-gray-600 w-14 flex-shrink-0">해지일자</label>
+            <div className="flex-1 flex items-center gap-1 min-w-0">
+              <div className="relative flex-1 min-w-0">
+                <input
+                  type="date"
+                  value={formatDateInput(searchParams.FROM_DT)}
+                  onChange={(e) => setSearchParams({...searchParams, FROM_DT: formatDateApi(e.target.value)})}
+                  className="absolute inset-0 opacity-0 cursor-pointer z-10"
+                />
+                <div className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded bg-white truncate">
+                  {formatDateDot(searchParams.FROM_DT) || '시작일'}
+                </div>
+              </div>
+              <span className="text-gray-400 flex-shrink-0">~</span>
+              <div className="relative flex-1 min-w-0">
+                <input
+                  type="date"
+                  value={formatDateInput(searchParams.TO_DT)}
+                  onChange={(e) => setSearchParams({...searchParams, TO_DT: formatDateApi(e.target.value)})}
+                  className="absolute inset-0 opacity-0 cursor-pointer z-10"
+                />
+                <div className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded bg-white truncate">
+                  {formatDateDot(searchParams.TO_DT) || '종료일'}
+                </div>
+              </div>
+            </div>
           </div>
           {/* 고객ID (한 줄) */}
           <div className="flex items-center gap-2">
