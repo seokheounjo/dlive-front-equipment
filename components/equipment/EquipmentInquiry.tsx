@@ -123,19 +123,11 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
   }, []);
 
   const loadDropdownData = async () => {
-    try {
-      // 지점 코드 조회
-      const soData = await getCommonCodes({ GRP_CD: 'SO_CD' });
-      if (Array.isArray(soData) && soData.length > 0) {
-        const soItems = soData.map((item: any) => ({
-          SO_ID: item.COMMON_CD || item.CD || item.SO_ID,
-          SO_NM: item.COMMON_CD_NM || item.CD_NM || item.SO_NM || item.NM
-        }));
-        setSoList(soItems.length > 0 ? soItems : DEFAULT_SO_LIST);
-      }
-    } catch (error) {
-      console.warn('드롭다운 데이터 로드 실패, 기본값 사용:', error);
-    }
+    // 지점 코드는 API가 올바른 데이터를 반환하지 않으므로 기본값 사용
+    // API 응답: {name: '선택', sort_no: '0', ...} 형태로 SO_ID/SO_NM 없음
+    // 추후 백엔드에서 지점코드 API 추가 시 연동 가능
+    console.log('📋 [지점코드] 기본값 사용 (API 미지원)');
+    setSoList(DEFAULT_SO_LIST);
   };
 
   // 장비 조회
@@ -479,31 +471,28 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
             />
           </div>
 
-          {/* 고객ID + 고객명 */}
-          <div className="grid grid-cols-2 gap-2">
-            <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1">고객ID</label>
-              <div className="flex gap-1">
-                <input
-                  type="text"
-                  value={custId}
-                  onChange={(e) => setCustId(e.target.value)}
-                  className="flex-1 px-2 py-1.5 text-sm border border-gray-300 rounded"
-                  placeholder="고객ID"
-                />
-                <button className="px-2 py-1.5 text-sm border border-gray-300 rounded bg-white hover:bg-gray-50">🔍</button>
-              </div>
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1">고객명</label>
-              <input
-                type="text"
-                value={custNm}
-                onChange={(e) => setCustNm(e.target.value)}
-                className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded"
-                placeholder="고객명"
-              />
-            </div>
+          {/* 고객ID */}
+          <div>
+            <label className="block text-xs font-medium text-gray-600 mb-1">고객ID</label>
+            <input
+              type="text"
+              value={custId}
+              onChange={(e) => setCustId(e.target.value)}
+              className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded"
+              placeholder="고객ID"
+            />
+          </div>
+
+          {/* 고객명 */}
+          <div>
+            <label className="block text-xs font-medium text-gray-600 mb-1">고객명</label>
+            <input
+              type="text"
+              value={custNm}
+              onChange={(e) => setCustNm(e.target.value)}
+              className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded"
+              placeholder="고객명"
+            />
           </div>
 
           {/* 계약ID */}
