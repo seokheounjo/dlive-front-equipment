@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { findUserList, getCommonCodes, getWrkrHaveEqtList } from '../../services/apiService';
+import { findUserList, getCommonCodes, getWrkrHaveEqtList, changeEquipmentWorker } from '../../services/apiService';
 
 interface EquipmentMovementProps {
   onBack: () => void;
@@ -225,8 +225,25 @@ const EquipmentMovement: React.FC<EquipmentMovementProps> = ({ onBack }) => {
     if (!trgtWrkrId) { alert('이관기사를 선택해주세요.'); return; }
     if (!confirm(`${trgtWrkrNm}(${trgtWrkrId})에게 ${checkedItems.length}건의 장비를 이관하시겠습니까?`)) return;
     try {
-      console.log('장비 이관 처리:', { FROM_WRKR_ID: searchParams.WRKR_ID, TO_WRKR_ID: trgtWrkrId, equipmentList: checkedItems });
-      alert(`${checkedItems.length}건의 장비 이관 신청이 완료되었습니다.`);
+      // 각 장비에 대해 이관 처리
+      let successCount = 0;
+      for (const item of checkedItems) {
+        try {
+          await changeEquipmentWorker({
+            EQT_NO: item.EQT_NO,
+            FROM_WRKR_ID: searchParams.WRKR_ID,
+            TO_WRKR_ID: trgtWrkrId
+          });
+          successCount++;
+        } catch (err) {
+          console.error('장비 이관 실패:', item.EQT_SERNO, err);
+        }
+      }
+      if (successCount > 0) {
+        alert(successCount + '건의 장비 인수가 완료되었습니다. 보유기사에게 SMS가 발송되었습니다.');
+      } else {
+        throw new Error('장비 인수에 실패했습니다.');
+      }
       setEqtTrnsList([]); setTrgtWrkrId(''); setTrgtWrkrNm('');
     } catch (error) { console.error('장비 이관 실패:', error); alert('장비 이관에 실패했습니다.'); }
   };

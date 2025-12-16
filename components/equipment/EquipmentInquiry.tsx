@@ -1,0 +1,879 @@
+import React, { useState, useEffect } from 'react';
+import {
+  getWorkerEquipmentList,
+  getEquipmentReturnRequestList,
+  addEquipmentReturnRequest,
+  processEquipmentLoss,
+  setEquipmentCheckStandby,
+  getCommonCodes
+} from '../../services/apiService';
+import BaseModal from '../common/BaseModal';
+
+interface EquipmentInquiryProps {
+  onBack: () => void;
+  showToast?: (message: string, type: 'success' | 'error' | 'warning' | 'info') => void;
+}
+
+interface UserInfo {
+  userId: string;
+  userName: string;
+  soId?: string;
+  crrId?: string;
+  mstSoId?: string;
+}
+
+// 장비 상태 타입
+type EquipmentSearchCondition = 'OWNED' | 'RETURN_REQUESTED' | 'UNRETRIEVED' | 'INSPECTION_WAITING';
+
+// 장비 아이템 인터페이스
+interface EquipmentItem {
+  CHK: boolean;
+  EQT_NO: string;
+  EQT_SERNO: string;
+  MAC_ADDRESS: string;
+  EQT_CL_CD: string;
+  EQT_CL_NM: string;
+  ITEM_MID_CD: string;
+  ITEM_MID_NM: string;
+  ITEM_NM: string;
+  SO_ID: string;
+  SO_NM: string;
+  EQT_STAT_CD: string;
+  EQT_STAT_NM: string;
+  PROC_STAT?: string;
+  PROC_STAT_NM?: string;
+  WRKR_ID?: string;
+  WRKR_NM?: string;
+  CUST_ID?: string;
+  CTRT_ID?: string;
+  EQT_USE_END_DT?: string;
+  RETN_RESN_CD?: string;
+  RETN_RESN_NM?: string;
+}
+
+interface SoListItem {
+  SO_ID: string;
+  SO_NM: string;
+}
+
+interface ItemMidItem {
+  COMMON_CD: string;
+  COMMON_CD_NM: string;
+}
+
+// 기본 지점 목록
+const DEFAULT_SO_LIST: SoListItem[] = [
+  { SO_ID: '209', SO_NM: '송파지점' },
+  { SO_ID: '210', SO_NM: '강남지점' },
+  { SO_ID: '211', SO_NM: '서초지점' },
+  { SO_ID: '212', SO_NM: '강동지점' },
+  { SO_ID: '100', SO_NM: '동서울지점' },
+];
+
+// 장비 중분류 목록
+const DEFAULT_ITEM_MID_LIST: ItemMidItem[] = [
+  { COMMON_CD: '', COMMON_CD_NM: '전체' },
+  { COMMON_CD: '03', COMMON_CD_NM: '추가장비' },
+  { COMMON_CD: '04', COMMON_CD_NM: '모뎀' },
+  { COMMON_CD: '05', COMMON_CD_NM: '셋톱박스' },
+  { COMMON_CD: '07', COMMON_CD_NM: '특수장비' },
+];
+
+const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }) => {
+  // localStorage에서 userInfo 가져오기
+  const getUserInfo = (): UserInfo | null => {
+    try {
+      const stored = localStorage.getItem('userInfo');
+      return stored ? JSON.parse(stored) : null;
+    } catch {
+      return null;
+    }
+  };
+
+  const userInfo = getUserInfo();
+
+  // 검색 조건
+  const [selectedSoId, setSelectedSoId] = useState<string>(userInfo?.soId || '');
+  const [selectedCategory, setSelectedCategory] = useState<string>('');
+  const [selectedItemMidCd, setSelectedItemMidCd] = useState<string>('');
+  const [eqtSerno, setEqtSerno] = useState<string>('');
+  const [custId, setCustId] = useState<string>('');
+  const [custNm, setCustNm] = useState<string>('');
+  const [ctrtId, setCtrtId] = useState<string>('');
+
+  // 검색 조건 (라디오 버튼) - 보유, 반납요청중, 미회수, 검사대기
+  const [searchCondition, setSearchCondition] = useState<EquipmentSearchCondition>('OWNED');
+
+  // 데이터
+  const [equipmentList, setEquipmentList] = useState<EquipmentItem[]>([]);
+  const [soList, setSoList] = useState<SoListItem[]>(DEFAULT_SO_LIST);
+  const [itemMidList] = useState<ItemMidItem[]>(DEFAULT_ITEM_MID_LIST);
+
+  // UI 상태
+  const [isLoading, setIsLoading] = useState(false);
+  const [showReturnModal, setShowReturnModal] = useState(false);
+  const [showLossModal, setShowLossModal] = useState(false);
+  const [selectedEquipment, setSelectedEquipment] = useState<EquipmentItem | null>(null);
+  const [returnReason, setReturnReason] = useState<string>('');
+  const [lossReason, setLossReason] = useState<string>('');
+
+  // 초기 데이터 로드
+  useEffect(() => {
+    loadDropdownData();
+  }, []);
+
+  const loadDropdownData = async () => {
+    try {
+      // 지점 코드 조회
+      const soData = await getCommonCodes({ GRP_CD: 'SO_CD' });
+      if (Array.isArray(soData) && soData.length > 0) {
+        const soItems = soData.map((item: any) => ({
+          SO_ID: item.COMMON_CD || item.CD || item.SO_ID,
+          SO_NM: item.COMMON_CD_NM || item.CD_NM || item.SO_NM || item.NM
+        }));
+        setSoList(soItems.length > 0 ? soItems : DEFAULT_SO_LIST);
+      }
+    } catch (error) {
+      console.warn('드롭다운 데이터 로드 실패, 기본값 사용:', error);
+    }
+  };
+
+  // 장비 조회
+  const handleSearch = async () => {
+    if (!userInfo?.userId) {
+      showToast?.('로그인 정보가 없습니다. 다시 로그인해주세요.', 'error');
+      return;
+    }
+
+    setIsLoading(true);
+    setEquipmentList([]);
+
+    try {
+      console.log('🔍 [장비조회] 시작:', {
+        searchCondition,
+        SO_ID: selectedSoId,
+        WRKR_ID: userInfo.userId,
+        ITEM_MID_CD: selectedItemMidCd,
+        EQT_SERNO: eqtSerno,
+        CUST_ID: custId,
+        CTRT_ID: ctrtId
+      });
+
+      let result: any[] = [];
+
+      // 검색 조건에 따라 다른 API 호출 또는 필터링
+      const baseParams: any = {
+        WRKR_ID: userInfo.userId,
+        SO_ID: selectedSoId || userInfo.soId || undefined,
+        ITEM_MID_CD: selectedItemMidCd || undefined,
+        EQT_SERNO: eqtSerno || undefined,
+      };
+
+      // 검색조건별 파라미터 설정
+      switch (searchCondition) {
+        case 'OWNED':
+          // 보유: EQT_STAT_CD = '10' (재고있음), EQT_LOC_TP_CD = '3' (작업기사 소유)
+          // 반납요청중, 미회수, 검사대기 제외
+          baseParams.EQT_STAT_CD = '10';
+          baseParams.EQT_LOC_TP_CD = '3';
+          baseParams.EXCLUDE_STAT = ['40', '60', '50']; // 반납요청중, 미회수, 검사대기 제외
+          break;
+        case 'RETURN_REQUESTED':
+          // 반납요청중: EQT_STAT_CD = '40'
+          baseParams.EQT_STAT_CD = '40';
+          break;
+        case 'UNRETRIEVED':
+          // 미회수: EQT_STAT_CD = '60'
+          baseParams.EQT_STAT_CD = '60';
+          break;
+        case 'INSPECTION_WAITING':
+          // 검사대기: EQT_STAT_CD = '50'
+          baseParams.EQT_STAT_CD = '50';
+          break;
+      }
+
+      // getEquipmentReturnRequestList 또는 getWorkerEquipmentList 호출
+      // 보유/반납요청중에는 getEquipmentReturnRequestList 사용
+      if (searchCondition === 'OWNED' || searchCondition === 'RETURN_REQUESTED') {
+        result = await getEquipmentReturnRequestList({
+          WRKR_ID: userInfo.userId,
+          SO_ID: selectedSoId || userInfo.soId || undefined,
+          ...baseParams
+        });
+      } else {
+        // 미회수, 검사대기는 getWorkerEquipmentList 사용
+        result = await getWorkerEquipmentList({
+          WRKR_ID: userInfo.userId,
+          SO_ID: selectedSoId || userInfo.soId || undefined,
+          ...baseParams
+        });
+      }
+
+      console.log('✅ [장비조회] 결과:', result);
+
+      // 결과 변환 및 필터링
+      const transformedList: EquipmentItem[] = (Array.isArray(result) ? result : []).map((item: any) => ({
+        CHK: false,
+        EQT_NO: item.EQT_NO || '',
+        EQT_SERNO: item.EQT_SERNO || item.SERIAL_NO || '',
+        MAC_ADDRESS: item.MAC_ADDRESS || item.MAC || '',
+        EQT_CL_CD: item.EQT_CL_CD || '',
+        EQT_CL_NM: item.EQT_CL_NM || item.EQT_TYPE || '',
+        ITEM_MID_CD: item.ITEM_MID_CD || '',
+        ITEM_MID_NM: item.ITEM_MID_NM || '',
+        ITEM_NM: item.ITEM_NM || '',
+        SO_ID: item.SO_ID || selectedSoId,
+        SO_NM: item.SO_NM || '',
+        EQT_STAT_CD: item.EQT_STAT_CD || item.STATUS || '',
+        EQT_STAT_NM: item.EQT_STAT_NM || item.STATUS_NM || '',
+        PROC_STAT: item.PROC_STAT || '',
+        PROC_STAT_NM: item.PROC_STAT_NM || '',
+        WRKR_ID: item.WRKR_ID || userInfo.userId,
+        WRKR_NM: item.WRKR_NM || userInfo.userName,
+        CUST_ID: item.CUST_ID || '',
+        CTRT_ID: item.CTRT_ID || '',
+        EQT_USE_END_DT: item.EQT_USE_END_DT || '',
+        RETN_RESN_CD: item.RETN_RESN_CD || '',
+        RETN_RESN_NM: item.RETN_RESN_NM || '',
+      }));
+
+      // 추가 필터링 (고객ID, 고객명, 계약ID)
+      let filteredList = transformedList;
+      if (custId) {
+        filteredList = filteredList.filter(item => item.CUST_ID?.includes(custId));
+      }
+      if (ctrtId) {
+        filteredList = filteredList.filter(item => item.CTRT_ID?.includes(ctrtId));
+      }
+      if (eqtSerno) {
+        filteredList = filteredList.filter(item => item.EQT_SERNO?.toUpperCase().includes(eqtSerno.toUpperCase()));
+      }
+
+      setEquipmentList(filteredList);
+
+      if (filteredList.length === 0) {
+        showToast?.('조회된 장비가 없습니다.', 'info');
+      } else {
+        showToast?.(`${filteredList.length}건의 장비를 조회했습니다.`, 'success');
+      }
+    } catch (error: any) {
+      console.error('❌ [장비조회] 실패:', error);
+      showToast?.(error.message || '장비 조회에 실패했습니다.', 'error');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // 전체 선택/해제
+  const handleCheckAll = (checked: boolean) => {
+    setEquipmentList(equipmentList.map(item => ({ ...item, CHK: checked })));
+  };
+
+  // 개별 선택
+  const handleCheckItem = (index: number, checked: boolean) => {
+    const newList = [...equipmentList];
+    newList[index].CHK = checked;
+    setEquipmentList(newList);
+  };
+
+  // 장비 중분류별 색상
+  const getItemColor = (itemMidCd: string) => {
+    switch (itemMidCd) {
+      case '03': return 'bg-green-100 text-green-800';  // 추가장비
+      case '04': return 'bg-blue-100 text-blue-800';    // 모뎀
+      case '05': return 'bg-purple-100 text-purple-800'; // 셋톱박스
+      case '07': return 'bg-orange-100 text-orange-800'; // 특수장비
+      default: return 'bg-gray-100 text-gray-800';
+    }
+  };
+
+  // 장비반납/취소 버튼 클릭
+  const handleReturnClick = () => {
+    const checkedItems = equipmentList.filter(item => item.CHK);
+    if (checkedItems.length === 0) {
+      showToast?.('반납할 장비를 선택해주세요.', 'warning');
+      return;
+    }
+    setShowReturnModal(true);
+  };
+
+  // 장비반납 처리
+  const handleReturnRequest = async (action: 'RETURN' | 'CANCEL') => {
+    const checkedItems = equipmentList.filter(item => item.CHK);
+    if (checkedItems.length === 0) {
+      showToast?.('처리할 장비를 선택해주세요.', 'warning');
+      return;
+    }
+
+    try {
+      const result = await addEquipmentReturnRequest({
+        WRKR_ID: userInfo?.userId || '',
+        equipmentList: checkedItems.map(item => ({
+          EQT_NO: item.EQT_NO,
+          EQT_SERNO: item.EQT_SERNO,
+          ACTION: action,
+          RETN_RESN_CD: returnReason || '01', // 기본: 사용기간 만료
+        })),
+      });
+
+      console.log('✅ 반납 처리 결과:', result);
+      showToast?.(
+        action === 'RETURN'
+          ? `${checkedItems.length}건의 장비 반납 요청이 완료되었습니다.`
+          : `${checkedItems.length}건의 반납 요청이 취소되었습니다.`,
+        'success'
+      );
+      setShowReturnModal(false);
+      setReturnReason('');
+      await handleSearch(); // 리스트 새로고침
+    } catch (error: any) {
+      console.error('❌ 반납 처리 실패:', error);
+      showToast?.(error.message || '반납 처리에 실패했습니다.', 'error');
+    }
+  };
+
+  // 분실처리 버튼 클릭
+  const handleLossClick = () => {
+    const checkedItems = equipmentList.filter(item => item.CHK);
+    if (checkedItems.length === 0) {
+      showToast?.('분실 처리할 장비를 선택해주세요.', 'warning');
+      return;
+    }
+    if (checkedItems.length > 1) {
+      showToast?.('분실 처리는 한 번에 1건만 가능합니다.', 'warning');
+      return;
+    }
+    setSelectedEquipment(checkedItems[0]);
+    setShowLossModal(true);
+  };
+
+  // 분실처리 실행
+  const handleLossProcess = async () => {
+    if (!selectedEquipment) return;
+
+    try {
+      const result = await processEquipmentLoss({
+        EQT_NO: selectedEquipment.EQT_NO,
+        WRKR_ID: userInfo?.userId || '',
+        LOSS_REASON: lossReason || undefined,
+      });
+
+      console.log('✅ 분실 처리 결과:', result);
+      showToast?.('장비 분실 처리가 완료되었습니다.', 'success');
+      setShowLossModal(false);
+      setSelectedEquipment(null);
+      setLossReason('');
+      await handleSearch(); // 리스트 새로고침
+    } catch (error: any) {
+      console.error('❌ 분실 처리 실패:', error);
+      showToast?.(error.message || '분실 처리에 실패했습니다.', 'error');
+    }
+  };
+
+  // 사용가능변경 버튼 클릭
+  const handleStatusChangeClick = async () => {
+    const checkedItems = equipmentList.filter(item => item.CHK);
+    if (checkedItems.length === 0) {
+      showToast?.('상태 변경할 장비를 선택해주세요.', 'warning');
+      return;
+    }
+
+    // 동일고객의 당일해지 후 당일설치 작업이 발생하는 경우만 변경 가능
+    // 이 검증은 서버에서 처리되지만 UI에서도 안내
+    if (!confirm('동일 고객의 당일해지 후 당일설치 작업이 발생하는 경우에만 변경 가능합니다. 계속하시겠습니까?')) {
+      return;
+    }
+
+    try {
+      for (const item of checkedItems) {
+        await setEquipmentCheckStandby({
+          EQT_NO: item.EQT_NO,
+        });
+      }
+
+      showToast?.(`${checkedItems.length}건의 장비 상태가 '사용가능'으로 변경되었습니다.`, 'success');
+      await handleSearch(); // 리스트 새로고침
+    } catch (error: any) {
+      console.error('❌ 상태 변경 실패:', error);
+      showToast?.(error.message || '상태 변경에 실패했습니다.', 'error');
+    }
+  };
+
+  // 검색조건별 버튼 활성화 여부
+  const isReturnButtonEnabled = searchCondition === 'OWNED' || searchCondition === 'RETURN_REQUESTED';
+  const isLossButtonEnabled = searchCondition === 'OWNED';
+  const isStatusChangeButtonEnabled = searchCondition === 'INSPECTION_WAITING';
+
+  // 반납/취소 버튼 텍스트
+  const returnButtonText = searchCondition === 'RETURN_REQUESTED' ? '반납취소' : '장비반납';
+
+  return (
+    <div className="p-2">
+      {/* 헤더 */}
+      <div className="flex items-center justify-between mb-3">
+        <h2 className="text-lg font-bold text-gray-900">장비조회</h2>
+        <button
+          onClick={onBack}
+          className="text-sm text-gray-600 hover:text-gray-800"
+        >
+          ← 뒤로
+        </button>
+      </div>
+
+      {/* 검색 조건 영역 */}
+      <div className="mb-3 bg-white rounded-lg shadow-sm border border-gray-200 p-3">
+        <div className="space-y-3">
+          {/* 지점 */}
+          <div>
+            <label className="block text-xs font-medium text-gray-600 mb-1">지점</label>
+            <select
+              value={selectedSoId}
+              onChange={(e) => setSelectedSoId(e.target.value)}
+              className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+            >
+              <option value="">전체</option>
+              {soList.map((item) => (
+                <option key={item.SO_ID} value={item.SO_ID}>{item.SO_NM}</option>
+              ))}
+            </select>
+          </div>
+
+          {/* 구분 + 장비종류 */}
+          <div className="grid grid-cols-2 gap-2">
+            <div>
+              <label className="block text-xs font-medium text-gray-600 mb-1">구분</label>
+              <select
+                value={selectedCategory}
+                onChange={(e) => setSelectedCategory(e.target.value)}
+                className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded"
+              >
+                <option value="">전체</option>
+                <option value="Y">임대</option>
+                <option value="N">판매</option>
+                <option value="31">할부</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-600 mb-1">장비종류</label>
+              <select
+                value={selectedItemMidCd}
+                onChange={(e) => setSelectedItemMidCd(e.target.value)}
+                className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded"
+              >
+                {itemMidList.map((item) => (
+                  <option key={item.COMMON_CD} value={item.COMMON_CD}>{item.COMMON_CD_NM}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          {/* S/N */}
+          <div>
+            <label className="block text-xs font-medium text-gray-600 mb-1">S/N</label>
+            <input
+              type="text"
+              value={eqtSerno}
+              onChange={(e) => setEqtSerno(e.target.value.toUpperCase())}
+              className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded uppercase"
+              placeholder="장비 일련번호"
+            />
+          </div>
+
+          {/* 고객ID + 고객명 */}
+          <div className="grid grid-cols-2 gap-2">
+            <div>
+              <label className="block text-xs font-medium text-gray-600 mb-1">고객ID</label>
+              <div className="flex gap-1">
+                <input
+                  type="text"
+                  value={custId}
+                  onChange={(e) => setCustId(e.target.value)}
+                  className="flex-1 px-2 py-1.5 text-sm border border-gray-300 rounded"
+                  placeholder="고객ID"
+                />
+                <button className="px-2 py-1.5 text-sm border border-gray-300 rounded bg-white hover:bg-gray-50">🔍</button>
+              </div>
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-600 mb-1">고객명</label>
+              <input
+                type="text"
+                value={custNm}
+                onChange={(e) => setCustNm(e.target.value)}
+                className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded"
+                placeholder="고객명"
+              />
+            </div>
+          </div>
+
+          {/* 계약ID */}
+          <div>
+            <label className="block text-xs font-medium text-gray-600 mb-1">계약ID</label>
+            <input
+              type="text"
+              value={ctrtId}
+              onChange={(e) => setCtrtId(e.target.value)}
+              className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded"
+              placeholder="계약ID"
+            />
+          </div>
+        </div>
+      </div>
+
+      {/* 검색 조건 라디오 버튼 */}
+      <div className="mb-3 bg-white rounded-lg shadow-sm border border-gray-200 p-3">
+        <div className="text-xs font-medium text-gray-600 mb-2">검색조건</div>
+        <div className="grid grid-cols-2 gap-2">
+          <label className={`flex items-center p-2 rounded-lg border cursor-pointer transition-all ${
+            searchCondition === 'OWNED'
+              ? 'bg-orange-50 border-orange-500 text-orange-700'
+              : 'border-gray-200 hover:bg-gray-50'
+          }`}>
+            <input
+              type="radio"
+              name="searchCondition"
+              checked={searchCondition === 'OWNED'}
+              onChange={() => setSearchCondition('OWNED')}
+              className="w-4 h-4 text-orange-500 focus:ring-orange-500"
+            />
+            <span className="ml-2 text-sm font-medium">보유</span>
+          </label>
+
+          <label className={`flex items-center p-2 rounded-lg border cursor-pointer transition-all ${
+            searchCondition === 'RETURN_REQUESTED'
+              ? 'bg-orange-50 border-orange-500 text-orange-700'
+              : 'border-gray-200 hover:bg-gray-50'
+          }`}>
+            <input
+              type="radio"
+              name="searchCondition"
+              checked={searchCondition === 'RETURN_REQUESTED'}
+              onChange={() => setSearchCondition('RETURN_REQUESTED')}
+              className="w-4 h-4 text-orange-500 focus:ring-orange-500"
+            />
+            <span className="ml-2 text-sm font-medium">반납요청중</span>
+          </label>
+
+          <label className={`flex items-center p-2 rounded-lg border cursor-pointer transition-all ${
+            searchCondition === 'UNRETRIEVED'
+              ? 'bg-orange-50 border-orange-500 text-orange-700'
+              : 'border-gray-200 hover:bg-gray-50'
+          }`}>
+            <input
+              type="radio"
+              name="searchCondition"
+              checked={searchCondition === 'UNRETRIEVED'}
+              onChange={() => setSearchCondition('UNRETRIEVED')}
+              className="w-4 h-4 text-orange-500 focus:ring-orange-500"
+            />
+            <span className="ml-2 text-sm font-medium">미회수</span>
+          </label>
+
+          <label className={`flex items-center p-2 rounded-lg border cursor-pointer transition-all ${
+            searchCondition === 'INSPECTION_WAITING'
+              ? 'bg-orange-50 border-orange-500 text-orange-700'
+              : 'border-gray-200 hover:bg-gray-50'
+          }`}>
+            <input
+              type="radio"
+              name="searchCondition"
+              checked={searchCondition === 'INSPECTION_WAITING'}
+              onChange={() => setSearchCondition('INSPECTION_WAITING')}
+              className="w-4 h-4 text-orange-500 focus:ring-orange-500"
+            />
+            <span className="ml-2 text-sm font-medium">검사대기</span>
+          </label>
+        </div>
+
+        {/* 조회 버튼 */}
+        <button
+          onClick={handleSearch}
+          disabled={isLoading}
+          className="w-full mt-3 bg-orange-500 hover:bg-orange-600 disabled:bg-gray-400 text-white py-2.5 rounded font-medium text-sm shadow-md transition-all flex items-center justify-center gap-2"
+        >
+          {isLoading ? (
+            <>
+              <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+              </svg>
+              조회 중...
+            </>
+          ) : (
+            '조회'
+          )}
+        </button>
+      </div>
+
+      {/* 장비 리스트 */}
+      {equipmentList.length > 0 && (
+        <div className="mb-3">
+          {/* 전체 선택 & 카운트 */}
+          <div className="flex items-center justify-between mb-2">
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input
+                type="checkbox"
+                onChange={(e) => handleCheckAll(e.target.checked)}
+                checked={equipmentList.length > 0 && equipmentList.every(item => item.CHK)}
+                className="w-4 h-4 text-orange-500 rounded focus:ring-orange-500"
+              />
+              <span className="text-sm font-medium text-gray-700">전체선택</span>
+            </label>
+            <span className="text-xs text-gray-500">
+              {equipmentList.length}건 (선택: {equipmentList.filter(item => item.CHK).length}건)
+            </span>
+          </div>
+
+          {/* 장비 리스트 테이블 */}
+          <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+            <div className="max-h-64 overflow-y-auto">
+              <table className="w-full text-xs">
+                <thead className="bg-gray-50 sticky top-0 z-10">
+                  <tr>
+                    <th className="px-2 py-2 text-center border-b w-8">선택</th>
+                    <th className="px-2 py-2 text-center text-xs font-semibold text-gray-700 border-b">요청</th>
+                    <th className="px-2 py-2 text-left text-xs font-semibold text-gray-700 border-b">장비유형</th>
+                    <th className="px-2 py-2 text-left text-xs font-semibold text-gray-700 border-b">장비일련번호</th>
+                    <th className="px-2 py-2 text-left text-xs font-semibold text-gray-700 border-b">M/A</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {equipmentList.map((item, idx) => (
+                    <tr
+                      key={idx}
+                      className={`${item.CHK ? 'bg-orange-50' : 'hover:bg-gray-50'} transition-colors`}
+                    >
+                      <td className="px-2 py-2 text-center border-b">
+                        <input
+                          type="checkbox"
+                          checked={item.CHK || false}
+                          onChange={(e) => handleCheckItem(idx, e.target.checked)}
+                          className="w-4 h-4 text-orange-500 rounded focus:ring-orange-500"
+                        />
+                      </td>
+                      <td className="px-2 py-2 text-center border-b">
+                        {item.PROC_STAT === 'R' && (
+                          <span className="text-orange-600 font-bold">●</span>
+                        )}
+                      </td>
+                      <td className="px-2 py-2 border-b">
+                        <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${getItemColor(item.ITEM_MID_CD)}`}>
+                          {item.EQT_CL_NM || item.ITEM_MID_NM || '장비'}
+                        </span>
+                      </td>
+                      <td className="px-2 py-2 text-xs text-gray-900 border-b font-mono">
+                        {item.EQT_SERNO || '-'}
+                      </td>
+                      <td className="px-2 py-2 text-xs text-gray-500 border-b font-mono truncate max-w-[80px]">
+                        {item.MAC_ADDRESS || '-'}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 빈 상태 */}
+      {equipmentList.length === 0 && !isLoading && (
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-8">
+          <div className="text-center">
+            <div className="text-4xl mb-3">📦</div>
+            <p className="text-gray-600 text-sm mb-1">조회된 장비가 없습니다</p>
+            <p className="text-gray-400 text-xs">검색 조건을 설정하고 조회 버튼을 눌러주세요</p>
+          </div>
+        </div>
+      )}
+
+      {/* 하단 버튼 영역 */}
+      <div className="mt-3 flex gap-2">
+        {/* 장비반납/취소 버튼 */}
+        <button
+          onClick={handleReturnClick}
+          disabled={!isReturnButtonEnabled || equipmentList.filter(item => item.CHK).length === 0}
+          className={`flex-1 py-2.5 rounded font-medium text-sm shadow-md transition-all ${
+            isReturnButtonEnabled && equipmentList.filter(item => item.CHK).length > 0
+              ? 'bg-blue-600 hover:bg-blue-700 text-white'
+              : 'bg-gray-200 text-gray-400 cursor-not-allowed'
+          }`}
+        >
+          {returnButtonText}
+        </button>
+
+        {/* 분실처리 버튼 */}
+        <button
+          onClick={handleLossClick}
+          disabled={!isLossButtonEnabled || equipmentList.filter(item => item.CHK).length === 0}
+          className={`flex-1 py-2.5 rounded font-medium text-sm shadow-md transition-all ${
+            isLossButtonEnabled && equipmentList.filter(item => item.CHK).length > 0
+              ? 'bg-red-600 hover:bg-red-700 text-white'
+              : 'bg-gray-200 text-gray-400 cursor-not-allowed'
+          }`}
+        >
+          분실처리
+        </button>
+
+        {/* 사용가능변경 버튼 */}
+        <button
+          onClick={handleStatusChangeClick}
+          disabled={!isStatusChangeButtonEnabled || equipmentList.filter(item => item.CHK).length === 0}
+          className={`flex-1 py-2.5 rounded font-medium text-sm shadow-md transition-all ${
+            isStatusChangeButtonEnabled && equipmentList.filter(item => item.CHK).length > 0
+              ? 'bg-green-600 hover:bg-green-700 text-white'
+              : 'bg-gray-200 text-gray-400 cursor-not-allowed'
+          }`}
+        >
+          사용가능변경
+        </button>
+      </div>
+
+      {/* 장비반납 모달 */}
+      <BaseModal
+        isOpen={showReturnModal}
+        onClose={() => setShowReturnModal(false)}
+        title="장비반납요청-장비선택"
+        size="md"
+      >
+        <div className="space-y-4">
+          {/* 지점 (ReadOnly) */}
+          <div>
+            <label className="block text-xs font-medium text-gray-600 mb-1">지점</label>
+            <input
+              type="text"
+              value={soList.find(s => s.SO_ID === selectedSoId)?.SO_NM || userInfo?.soId || ''}
+              readOnly
+              className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded bg-gray-100"
+            />
+          </div>
+
+          {/* 반납 사유 선택 */}
+          <div>
+            <label className="block text-xs font-medium text-gray-600 mb-1">반납 사유</label>
+            <select
+              value={returnReason}
+              onChange={(e) => setReturnReason(e.target.value)}
+              className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded"
+            >
+              <option value="">선택</option>
+              <option value="01">장비 사용일 만료</option>
+              <option value="02">장비 불량 (고객 설치 불가)</option>
+              <option value="03">기타</option>
+            </select>
+          </div>
+
+          {/* 선택된 장비 리스트 */}
+          <div>
+            <label className="block text-xs font-medium text-gray-600 mb-1">선택된 장비</label>
+            <div className="max-h-40 overflow-y-auto border border-gray-200 rounded">
+              <table className="w-full text-xs">
+                <thead className="bg-gray-50 sticky top-0">
+                  <tr>
+                    <th className="px-2 py-1.5 text-left">장비유형</th>
+                    <th className="px-2 py-1.5 text-left">일련번호</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {equipmentList.filter(item => item.CHK).map((item, idx) => (
+                    <tr key={idx} className="border-t border-gray-100">
+                      <td className="px-2 py-1.5">{item.EQT_CL_NM}</td>
+                      <td className="px-2 py-1.5 font-mono">{item.EQT_SERNO}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          {/* 버튼 */}
+          <div className="flex gap-2">
+            <button
+              onClick={() => setShowReturnModal(false)}
+              className="flex-1 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded font-medium text-sm"
+            >
+              재선택
+            </button>
+            {searchCondition === 'OWNED' ? (
+              <button
+                onClick={() => handleReturnRequest('RETURN')}
+                className="flex-1 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded font-medium text-sm"
+              >
+                반납요청
+              </button>
+            ) : (
+              <button
+                onClick={() => handleReturnRequest('CANCEL')}
+                className="flex-1 py-2 bg-orange-600 hover:bg-orange-700 text-white rounded font-medium text-sm"
+              >
+                요청취소
+              </button>
+            )}
+          </div>
+        </div>
+      </BaseModal>
+
+      {/* 분실처리 모달 */}
+      <BaseModal
+        isOpen={showLossModal}
+        onClose={() => { setShowLossModal(false); setSelectedEquipment(null); }}
+        title="분실처리"
+        size="md"
+      >
+        {selectedEquipment && (
+          <div className="space-y-4">
+            {/* 장비 정보 */}
+            <div className="bg-gray-50 rounded-lg p-3">
+              <div className="grid grid-cols-2 gap-2 text-xs">
+                <div>
+                  <span className="text-gray-500">장비유형:</span>
+                  <span className="ml-1 font-medium">{selectedEquipment.EQT_CL_NM}</span>
+                </div>
+                <div>
+                  <span className="text-gray-500">일련번호:</span>
+                  <span className="ml-1 font-medium font-mono">{selectedEquipment.EQT_SERNO}</span>
+                </div>
+              </div>
+            </div>
+
+            {/* 분실 사유 */}
+            <div>
+              <label className="block text-xs font-medium text-gray-600 mb-1">분실 사유</label>
+              <textarea
+                value={lossReason}
+                onChange={(e) => setLossReason(e.target.value)}
+                className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded h-20 resize-none"
+                placeholder="분실 사유를 입력해주세요"
+              />
+            </div>
+
+            {/* 경고 메시지 */}
+            <div className="bg-red-50 border border-red-200 rounded-lg p-3">
+              <p className="text-xs text-red-600">
+                ⚠️ 분실 처리 시 장비 변상금이 청구될 수 있습니다.
+              </p>
+            </div>
+
+            {/* 버튼 */}
+            <div className="flex gap-2">
+              <button
+                onClick={() => { setShowLossModal(false); setSelectedEquipment(null); }}
+                className="flex-1 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded font-medium text-sm"
+              >
+                취소
+              </button>
+              <button
+                onClick={handleLossProcess}
+                className="flex-1 py-2 bg-red-600 hover:bg-red-700 text-white rounded font-medium text-sm"
+              >
+                분실처리
+              </button>
+            </div>
+          </div>
+        )}
+      </BaseModal>
+    </div>
+  );
+};
+
+export default EquipmentInquiry;
