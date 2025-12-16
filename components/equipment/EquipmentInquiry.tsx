@@ -417,7 +417,7 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
                 : 'border-gray-200 hover:bg-gray-50 text-gray-600'
             }`}
           >
-            <div className="text-sm font-bold">반납요청중</div>
+            <div className="text-sm font-bold">반납요청</div>
             <div className="text-[10px] text-gray-500 mt-0.5">반납 진행중</div>
           </button>
 
