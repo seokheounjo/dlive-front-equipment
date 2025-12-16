@@ -118,10 +118,13 @@ const EquipmentRecovery: React.FC<EquipmentRecoveryProps> = ({ onBack }) => {
                   type="date"
                   value={formatDateInput(searchParams.FROM_DT)}
                   onChange={(e) => setSearchParams({...searchParams, FROM_DT: formatDateApi(e.target.value)})}
-                  className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                  className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
                 />
-                <div className="px-2 py-1.5 text-sm border border-gray-300 rounded bg-white pointer-events-none">
-                  {formatDateDot(searchParams.FROM_DT)}
+                <div className="flex items-center px-2 py-1.5 text-sm border border-gray-300 rounded bg-white pointer-events-none">
+                  <span className="flex-1">{formatDateDot(searchParams.FROM_DT)}</span>
+                  <svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                  </svg>
                 </div>
               </div>
               <span className="text-gray-400 flex-shrink-0">~</span>
@@ -130,10 +133,13 @@ const EquipmentRecovery: React.FC<EquipmentRecoveryProps> = ({ onBack }) => {
                   type="date"
                   value={formatDateInput(searchParams.TO_DT)}
                   onChange={(e) => setSearchParams({...searchParams, TO_DT: formatDateApi(e.target.value)})}
-                  className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                  className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
                 />
-                <div className="px-2 py-1.5 text-sm border border-gray-300 rounded bg-white pointer-events-none">
-                  {formatDateDot(searchParams.TO_DT)}
+                <div className="flex items-center px-2 py-1.5 text-sm border border-gray-300 rounded bg-white pointer-events-none">
+                  <span className="flex-1">{formatDateDot(searchParams.TO_DT)}</span>
+                  <svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                  </svg>
                 </div>
               </div>
             </div>
