@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { getEquipmentHistoryInfo, apiRequest } from '../../services/apiService';
+import React, { useState, useEffect } from 'react';
+import { getEquipmentHistoryInfo, apiRequest, getWrkrHaveEqtList } from '../../services/apiService';
 
 interface EquipmentListProps {
   onBack: () => void;
@@ -119,6 +119,76 @@ const EquipmentList: React.FC<EquipmentListProps> = ({ onBack, showToast }) => {
   const [equipmentDetail, setEquipmentDetail] = useState<EquipmentDetail | null>(null);
   const [rawResponse, setRawResponse] = useState<any>(null);
   const [error, setError] = useState<string | null>(null);
+  const [myEquipments, setMyEquipments] = useState<any[]>([]);
+  const [isLoadingMyEquipments, setIsLoadingMyEquipments] = useState(false);
+
+  // 로그인한 사용자 정보 가져오기
+  const getLoggedInUser = () => {
+    try {
+      const userStr = localStorage.getItem('user');
+      if (userStr) {
+        const user = JSON.parse(userStr);
+        return user.USR_ID || user.WRKR_ID || null;
+      }
+    } catch (e) {
+      console.warn('사용자 정보 파싱 실패:', e);
+    }
+    return null;
+  };
+
+  // 내 보유 장비 목록 로드
+  useEffect(() => {
+    const loadMyEquipments = async () => {
+      const wrkrId = getLoggedInUser();
+      if (!wrkrId) return;
+
+      setIsLoadingMyEquipments(true);
+      try {
+        console.log('📦 [장비목록] 내 보유 장비 로드 중... WRKR_ID:', wrkrId);
+        const result = await getWrkrHaveEqtList({ WRKR_ID: wrkrId });
+        console.log('📦 [장비목록] 내 보유 장비 응답:', result);
+
+        if (Array.isArray(result)) {
+          setMyEquipments(result);
+        } else if (result && Array.isArray(result.data)) {
+          setMyEquipments(result.data);
+        }
+      } catch (err) {
+        console.warn('내 보유 장비 로드 실패:', err);
+      } finally {
+        setIsLoadingMyEquipments(false);
+      }
+    };
+
+    loadMyEquipments();
+  }, []);
+
+  // 내 보유 장비에서 검색
+  const searchInMyEquipments = (searchVal: string): any | null => {
+    const normalizedSearch = searchVal.toUpperCase().replace(/[:-]/g, '');
+
+    for (const eq of myEquipments) {
+      // S/N 검색
+      const serno = (eq.EQT_SERNO || eq.SERIAL_NO || eq.SN || '').toUpperCase().replace(/[:-]/g, '');
+      if (serno && serno.includes(normalizedSearch)) {
+        return eq;
+      }
+
+      // MAC 검색
+      const mac = (eq.MAC_ADDRESS || eq.MAC || eq.MAC_ADDR || '').toUpperCase().replace(/[:-]/g, '');
+      if (mac && mac.includes(normalizedSearch)) {
+        return eq;
+      }
+
+      // EQT_NO 검색
+      const eqtNo = (eq.EQT_NO || '').toUpperCase();
+      if (eqtNo && eqtNo.includes(normalizedSearch)) {
+        return eq;
+      }
+    }
+
+    return null;
+  };
 
   const handleSearch = async () => {
     if (!searchValue.trim()) {
@@ -134,7 +204,24 @@ const EquipmentList: React.FC<EquipmentListProps> = ({ onBack, showToast }) => {
     const searchVal = searchValue.toUpperCase().replace(/[:-]/g, '');
     console.log('🔍 [장비목록] 검색 시작:', { searchType, searchValue: searchVal });
 
-    // 여러 API를 순차적으로 시도
+    const allResponses: any[] = [];
+
+    // 1. 먼저 내 보유 장비에서 검색 시도
+    if (myEquipments.length > 0) {
+      console.log('🔍 [장비목록] 내 보유 장비에서 검색 시도...');
+      const foundInMy = searchInMyEquipments(searchVal);
+      if (foundInMy) {
+        console.log('✅ [장비목록] 내 보유 장비에서 발견:', foundInMy);
+        setEquipmentDetail(foundInMy as EquipmentDetail);
+        setRawResponse({ successApi: 'myEquipments', data: foundInMy, source: '내 보유 장비' });
+        showToast?.('장비 정보를 조회했습니다. (내 보유 장비)', 'success');
+        setIsLoading(false);
+        return;
+      }
+      allResponses.push({ api: 'myEquipments', status: 'not_found' });
+    }
+
+    // 2. API를 통한 검색 시도
     const apiAttempts = [
       // 1. 장비 이력 조회 API (statistics)
       {
@@ -143,32 +230,37 @@ const EquipmentList: React.FC<EquipmentListProps> = ({ onBack, showToast }) => {
           searchType === 'SN' ? { EQT_SERNO: searchVal } : { MAC_ADDRESS: searchVal }
         )
       },
-      // 2. 직접 API 호출 - SERIAL_NO 파라미터
+      // 2. EQT_NO로 직접 조회
+      {
+        name: 'getEquipmentHistoryInfo (EQT_NO)',
+        call: () => apiRequest('/statistics/equipment/getEquipmentHistoryInfo', 'POST', {
+          EQT_NO: searchVal
+        })
+      },
+      // 3. 직접 API 호출 - SERIAL_NO 파라미터
       {
         name: 'getEquipmentHistoryInfo (SERIAL_NO)',
         call: () => apiRequest('/statistics/equipment/getEquipmentHistoryInfo', 'POST', {
           SERIAL_NO: searchVal
         })
       },
-      // 3. 직접 API 호출 - MAC_ADDR 파라미터
+      // 4. 직접 API 호출 - MAC_ADDR 파라미터
       {
         name: 'getEquipmentHistoryInfo (MAC_ADDR)',
         call: () => apiRequest('/statistics/equipment/getEquipmentHistoryInfo', 'POST', {
           MAC_ADDR: searchVal
         })
       },
-      // 4. 장비 상태 조회 API
+      // 5. 장비 상태 조회 API
       {
         name: 'getEquipmentStatus',
         call: () => apiRequest('/customer/equipment/getStatus', 'POST', {
           EQT_SERNO: searchVal,
-          SERIAL_NO: searchVal
+          SERIAL_NO: searchVal,
+          EQT_NO: searchVal
         })
       },
     ];
-
-    let lastError: any = null;
-    let allResponses: any[] = [];
 
     for (const attempt of apiAttempts) {
       try {
@@ -184,7 +276,7 @@ const EquipmentList: React.FC<EquipmentListProps> = ({ onBack, showToast }) => {
           if (!result.code || result.code === 'SUCCESS') {
             // 배열이면 첫 번째 항목 사용
             const data = Array.isArray(result) ? result[0] : result;
-            if (data && Object.keys(data).length > 0) {
+            if (data && Object.keys(data).length > 0 && !data.code) {
               setEquipmentDetail(data as EquipmentDetail);
               setRawResponse({ successApi: attempt.name, data: result, allAttempts: allResponses });
               showToast?.('장비 정보를 조회했습니다.', 'success');
@@ -195,14 +287,13 @@ const EquipmentList: React.FC<EquipmentListProps> = ({ onBack, showToast }) => {
         }
       } catch (err: any) {
         console.warn(`⚠️ [장비목록] ${attempt.name} 실패:`, err.message);
-        lastError = err;
         allResponses.push({ api: attempt.name, error: err.message });
       }
     }
 
     // 모든 시도 실패
     setRawResponse({ allAttempts: allResponses });
-    setError('장비 정보를 찾을 수 없습니다. S/N 또는 MAC 주소를 확인해주세요.');
+    setError('장비 정보를 찾을 수 없습니다. S/N 또는 MAC 주소를 확인해주세요.\n\n참고: 현재 장비 원장 조회 API가 정상 동작하지 않습니다. 내 보유 장비에서만 검색이 가능합니다.');
     showToast?.('장비 정보를 찾을 수 없습니다.', 'error');
     setIsLoading(false);
   };
@@ -226,7 +317,16 @@ const EquipmentList: React.FC<EquipmentListProps> = ({ onBack, showToast }) => {
     <div className="p-2">
       {/* 헤더 */}
       <div className="flex items-center justify-between mb-3">
-        <h2 className="text-lg font-bold text-gray-900">장비목록</h2>
+        <div>
+          <h2 className="text-lg font-bold text-gray-900">장비목록</h2>
+          {isLoadingMyEquipments ? (
+            <p className="text-xs text-gray-500">내 보유 장비 로딩 중...</p>
+          ) : myEquipments.length > 0 ? (
+            <p className="text-xs text-green-600">내 보유 장비: {myEquipments.length}건 (로컬 검색 가능)</p>
+          ) : (
+            <p className="text-xs text-gray-500">내 보유 장비 없음</p>
+          )}
+        </div>
         <button
           onClick={onBack}
           className="text-sm text-gray-600 hover:text-gray-800"
@@ -417,8 +517,48 @@ const EquipmentList: React.FC<EquipmentListProps> = ({ onBack, showToast }) => {
           <div className="text-center">
             <div className="text-4xl mb-3">🔍</div>
             <p className="text-gray-600 text-sm mb-1">장비 일련번호(S/N) 또는 MAC 주소로</p>
-            <p className="text-gray-600 text-sm">장비 정보를 조회해보세요</p>
+            <p className="text-gray-600 text-sm mb-3">장비 정보를 조회해보세요</p>
+            {myEquipments.length > 0 && (
+              <div className="mt-4 p-3 bg-blue-50 rounded-lg">
+                <p className="text-xs text-blue-700">
+                  💡 내 보유 장비({myEquipments.length}건)에서 먼저 검색합니다.
+                </p>
+              </div>
+            )}
           </div>
+        </div>
+      )}
+
+      {/* 내 보유 장비 목록 미리보기 */}
+      {!equipmentDetail && myEquipments.length > 0 && (
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-3 mt-3">
+          <details>
+            <summary className="text-xs font-medium text-gray-700 cursor-pointer">
+              📦 내 보유 장비 목록 ({myEquipments.length}건)
+            </summary>
+            <div className="mt-2 space-y-1 max-h-48 overflow-y-auto">
+              {myEquipments.slice(0, 20).map((eq, idx) => (
+                <div
+                  key={idx}
+                  className="flex items-center justify-between p-2 bg-gray-50 rounded text-xs cursor-pointer hover:bg-gray-100"
+                  onClick={() => {
+                    setSearchValue(eq.EQT_SERNO || eq.SERIAL_NO || eq.MAC_ADDRESS || eq.MAC || '');
+                    setEquipmentDetail(eq);
+                    setRawResponse({ source: '내 보유 장비 목록에서 선택', data: eq });
+                  }}
+                >
+                  <div>
+                    <span className="font-medium text-gray-800">{eq.EQT_CL_NM || eq.EQT_TP_CD || '장비'}</span>
+                    <span className="ml-2 text-gray-500">{eq.EQT_SERNO || eq.SERIAL_NO || '-'}</span>
+                  </div>
+                  <span className="text-gray-400 text-xs">{eq.EQT_STAT_CD_NM || eq.EQT_USE_STAT_CD || ''}</span>
+                </div>
+              ))}
+              {myEquipments.length > 20 && (
+                <p className="text-xs text-gray-500 text-center py-1">... 외 {myEquipments.length - 20}건</p>
+              )}
+            </div>
+          </details>
         </div>
       )}
     </div>
