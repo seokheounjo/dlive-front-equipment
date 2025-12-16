@@ -93,21 +93,29 @@ const SignalHistoryList: React.FC<SignalHistoryListProps> = ({ onBack }) => {
           <div className="flex items-center gap-1.5">
             <label className="text-xs font-medium text-gray-600 w-14 flex-shrink-0">조회기간</label>
             <div className="flex-1 flex items-center gap-1 min-w-0">
-              <input
-                type="date"
-                value={formatDateInput(regDate1)}
-                onChange={(e) => setRegDate1(formatDateApi(e.target.value))}
-                className="flex-1 min-w-0 px-2 py-1.5 text-sm border border-gray-300 rounded bg-white"
-                style={{ colorScheme: 'light' }}
-              />
+              <div className="relative flex-1 min-w-0">
+                <input
+                  type="date"
+                  value={formatDateInput(regDate1)}
+                  onChange={(e) => setRegDate1(formatDateApi(e.target.value))}
+                  className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                />
+                <div className="px-2 py-1.5 text-sm border border-gray-300 rounded bg-white pointer-events-none">
+                  {formatDateDot(regDate1)}
+                </div>
+              </div>
               <span className="text-gray-400 flex-shrink-0">~</span>
-              <input
-                type="date"
-                value={formatDateInput(regDate2)}
-                onChange={(e) => setRegDate2(formatDateApi(e.target.value))}
-                className="flex-1 min-w-0 px-2 py-1.5 text-sm border border-gray-300 rounded bg-white"
-                style={{ colorScheme: 'light' }}
-              />
+              <div className="relative flex-1 min-w-0">
+                <input
+                  type="date"
+                  value={formatDateInput(regDate2)}
+                  onChange={(e) => setRegDate2(formatDateApi(e.target.value))}
+                  className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                />
+                <div className="px-2 py-1.5 text-sm border border-gray-300 rounded bg-white pointer-events-none">
+                  {formatDateDot(regDate2)}
+                </div>
+              </div>
             </div>
           </div>
           <button

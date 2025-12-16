@@ -113,21 +113,29 @@ const EquipmentRecovery: React.FC<EquipmentRecoveryProps> = ({ onBack }) => {
           <div className="flex items-center gap-1.5">
             <label className="text-xs font-medium text-gray-600 w-14 flex-shrink-0">해지일자</label>
             <div className="flex-1 flex items-center gap-1 min-w-0">
-              <input
-                type="date"
-                value={formatDateInput(searchParams.FROM_DT)}
-                onChange={(e) => setSearchParams({...searchParams, FROM_DT: formatDateApi(e.target.value)})}
-                className="flex-1 min-w-0 px-2 py-1.5 text-sm border border-gray-300 rounded bg-white"
-                style={{ colorScheme: 'light' }}
-              />
+              <div className="relative flex-1 min-w-0">
+                <input
+                  type="date"
+                  value={formatDateInput(searchParams.FROM_DT)}
+                  onChange={(e) => setSearchParams({...searchParams, FROM_DT: formatDateApi(e.target.value)})}
+                  className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                />
+                <div className="px-2 py-1.5 text-sm border border-gray-300 rounded bg-white pointer-events-none">
+                  {formatDateDot(searchParams.FROM_DT)}
+                </div>
+              </div>
               <span className="text-gray-400 flex-shrink-0">~</span>
-              <input
-                type="date"
-                value={formatDateInput(searchParams.TO_DT)}
-                onChange={(e) => setSearchParams({...searchParams, TO_DT: formatDateApi(e.target.value)})}
-                className="flex-1 min-w-0 px-2 py-1.5 text-sm border border-gray-300 rounded bg-white"
-                style={{ colorScheme: 'light' }}
-              />
+              <div className="relative flex-1 min-w-0">
+                <input
+                  type="date"
+                  value={formatDateInput(searchParams.TO_DT)}
+                  onChange={(e) => setSearchParams({...searchParams, TO_DT: formatDateApi(e.target.value)})}
+                  className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                />
+                <div className="px-2 py-1.5 text-sm border border-gray-300 rounded bg-white pointer-events-none">
+                  {formatDateDot(searchParams.TO_DT)}
+                </div>
+              </div>
             </div>
           </div>
           {/* 고객ID (한 줄) */}
