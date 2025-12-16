@@ -3919,3 +3919,43 @@ export const updateInstallLocation = async (params: {
 };
 // Alias exports for backward compatibility
 export const getWrkrHaveEqtList = getWorkerEquipmentList;
+
+// ==================== 범용 API 요청 함수 ====================
+
+/**
+ * 범용 API 요청 함수 (직접 호출용)
+ * @param endpoint API 엔드포인트 (예: '/customer/equipment/getStatus')
+ * @param method HTTP 메서드
+ * @param body 요청 본문
+ * @returns API 응답
+ */
+export const apiRequest = async (endpoint: string, method: 'GET' | 'POST' = 'POST', body?: any): Promise<any> => {
+  console.log(`📡 [API 직접호출] ${method} ${endpoint}`, body);
+
+  try {
+    const origin = typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000';
+    const url = endpoint.startsWith('http') ? endpoint : `${API_BASE}${endpoint}`;
+
+    const options: RequestInit = {
+      method,
+      headers: {
+        'Content-Type': 'application/json',
+        'Origin': origin
+      },
+      credentials: 'include',
+    };
+
+    if (body && method !== 'GET') {
+      options.body = JSON.stringify(body);
+    }
+
+    const response = await fetch(url, options);
+    const result = await response.json();
+
+    console.log(`📡 [API 직접호출] ${endpoint} 응답:`, result);
+    return result;
+  } catch (error: any) {
+    console.error(`❌ [API 직접호출] ${endpoint} 실패:`, error);
+    throw error;
+  }
+};
