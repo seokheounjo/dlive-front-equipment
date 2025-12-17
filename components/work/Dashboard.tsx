@@ -475,10 +475,10 @@ const Dashboard: React.FC<DashboardProps> = ({
   }, [workOrders]);
 
   return (
-    <div>
+    <div className="h-[calc(100vh-64px)] flex flex-col bg-gray-50 overflow-hidden">
       {/* Shadcn Tabs */}
-      <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
-        <div className="sticky top-16 z-40 bg-white border-b border-gray-200">
+      <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full h-full flex flex-col">
+        <div className="flex-shrink-0 bg-white border-b border-gray-200 z-40">
           <TabsList ref={tabListRef} className="w-full justify-start bg-white rounded-none h-auto py-2 px-3 overflow-x-auto border-none">
             {workManagementTabs.map((tab, idx) => (
               <TabsTrigger 
@@ -493,7 +493,7 @@ const Dashboard: React.FC<DashboardProps> = ({
           </TabsList>
         </div>
         
-        <TabsContent value="work-receipt" className="px-3 pt-1">
+        <TabsContent value="work-receipt" className="flex-1 overflow-y-auto px-3 pt-1">
 
       {/* 안전점검 경고 배너 */}
       {safetyCheckWarning && !dismissedSafetyWarning && (
@@ -724,12 +724,12 @@ const Dashboard: React.FC<DashboardProps> = ({
         </TabsContent>
 
         {/* 안전점검 탭 */}
-        <TabsContent value="safety-check" className="px-3 pt-1">
+        <TabsContent value="safety-check" className="flex-1 overflow-y-auto px-3 pt-1">
           <SafetyCheckList onBack={onNavigateToMenu} userInfo={userInfo} showToast={showToast} />
         </TabsContent>
 
         {/* 작업결과신호현황 탭 */}
-        <TabsContent value="work-result-signal" className="px-3 pt-1">
+        <TabsContent value="work-result-signal" className="flex-1 overflow-y-auto px-3 pt-1">
           <WorkResultSignalList onBack={onNavigateToMenu} />
         </TabsContent>
 

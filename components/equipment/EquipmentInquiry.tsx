@@ -380,22 +380,14 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
   const selectedCount = equipmentList.filter(item => item.CHK).length;
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* 헤더 - 작업관리 스타일 */}
-      <div className="bg-gradient-to-br from-blue-500 to-blue-600 px-4 py-4 shadow-lg sticky top-0 z-50">
-        <div className="flex items-center justify-between">
-          <h1 className="text-xl font-bold text-white">장비처리</h1>
-          <button
-            onClick={onBack}
-            className="text-sm text-white/80 hover:text-white transition-colors"
-            style={{ WebkitTapHighlightColor: 'transparent' }}
-          >
-            ← 뒤로
-          </button>
-        </div>
+    <div className="h-full flex flex-col bg-gray-50 overflow-hidden">
+      {/* 헤더 - 고정 */}
+      <div className="flex-shrink-0 bg-gradient-to-br from-blue-500 to-blue-600 px-4 py-3 shadow-lg z-40">
+        <h1 className="text-lg font-bold text-white">장비처리</h1>
       </div>
 
-      <div className="px-4 pt-4 pb-4 space-y-3">
+      {/* 콘텐츠 - 스크롤 영역 */}
+      <div className="flex-1 overflow-y-auto px-4 py-4 space-y-3">
         {/* 검색 조건 선택 박스 (상단 배치) - 라디오 버튼 없이 박스 클릭으로 선택 */}
         <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-3">
           <div className="grid grid-cols-3 gap-2">

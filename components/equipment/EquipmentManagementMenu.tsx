@@ -57,13 +57,14 @@ const EquipmentManagementMenu: React.FC<EquipmentManagementMenuProps> = ({ onNav
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="h-[calc(100vh-64px)] flex flex-col bg-gray-50 overflow-hidden">
       <ScrollableTabMenu
         tabs={tabs}
         activeTab={activeTab}
         onTabChange={handleTabChange}
+        className="flex-shrink-0"
       />
-      <div>
+      <div className="flex-1 overflow-hidden">
         {renderContent()}
       </div>
     </div>

@@ -208,11 +208,11 @@ const WorkOrderDetail: React.FC<WorkOrderDetailProps> = ({
   };
 
   return (
-    <div className="max-w-4xl mx-auto">
+    <div className="h-full flex flex-col bg-gray-50 overflow-hidden">
       {/* 스크롤 가능한 콘텐츠 영역 */}
-      <div className="pb-40" style={{ minHeight: 'calc(100vh - 80px)' }}>
+      <div className="flex-1 overflow-y-auto pb-40">
       {/* 메인 카드 */}
-      <div className="bg-white overflow-hidden">
+      <div className="bg-white overflow-hidden max-w-4xl mx-auto">
         {/* 상단 헤더 - 심플한 블루 디자인 */}
         <div className="bg-blue-600 px-4 py-4 text-white">
 

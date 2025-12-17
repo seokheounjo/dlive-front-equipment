@@ -607,7 +607,14 @@ const WorkCompleteForm: React.FC<WorkCompleteFormProps> = ({ order, onBack, onSu
   };
 
   return (
-    <div className="px-2 sm:px-4 py-4 sm:py-6 bg-gray-50 min-h-screen">
+    <div className="h-full flex flex-col bg-gray-50 overflow-hidden">
+      {/* 헤더 - 고정 */}
+      <div className="flex-shrink-0 bg-gradient-to-r from-blue-500 to-blue-600 px-4 py-3 shadow-lg z-40">
+        <h1 className="text-lg font-bold text-white">{isWorkCompleted ? '작업 완료 내역' : '작업 완료'}</h1>
+      </div>
+
+      {/* 콘텐츠 - 스크롤 영역 */}
+      <div className="flex-1 overflow-y-auto px-2 sm:px-4 py-4 sm:py-6">
       <div className="max-w-2xl mx-auto">
         <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-3 sm:p-5">
           {/* 폼 */}
@@ -955,6 +962,7 @@ const WorkCompleteForm: React.FC<WorkCompleteFormProps> = ({ order, onBack, onSu
         showToast={showToast}
         readOnly={isWorkCompleted}
       />
+      </div>
     </div>
   );
 };
