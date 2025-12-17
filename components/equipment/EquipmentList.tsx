@@ -490,10 +490,6 @@ const EquipmentList: React.FC<EquipmentListProps> = ({ onBack, showToast }) => {
 
           {/* 검색 입력 */}
           <div>
-            <label className="block text-xs font-medium text-gray-600 mb-1">
-              {searchType === 'SN' ? '장비 S/N 또는 바코드 스캔' : 'MAC 주소'}
-              {isMultiScanMode && <span className="text-orange-500 ml-1">(스캔 시 자동 추가)</span>}
-            </label>
             <input
               ref={inputRef}
               type="text"
