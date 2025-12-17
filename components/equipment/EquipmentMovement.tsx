@@ -340,14 +340,7 @@ const EquipmentMovement: React.FC<EquipmentMovementProps> = ({ onBack }) => {
   const handleCheckItem = (index: number, checked: boolean) => { const newList = [...eqtTrnsList]; newList[index].CHK = checked; setEqtTrnsList(newList); };
 
   return (
-    <div className="h-full flex flex-col bg-gray-50 overflow-hidden">
-      {/* 헤더 - 고정 */}
-      <div className="flex-shrink-0 bg-gradient-to-br from-blue-500 to-blue-600 px-4 py-3 shadow-lg z-40">
-        <h1 className="text-lg font-bold text-white">기사간 장비이동</h1>
-      </div>
-
-      {/* 콘텐츠 - 스크롤 영역 */}
-      <div className="flex-1 overflow-y-auto px-4 py-4 space-y-3">
+    <div className="h-full overflow-y-auto bg-gray-50 px-4 py-4 space-y-3">
         {/* 이관기사 (로그인한 사용자 = 인수받는 사람) */}
         <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4">
           <div className="flex items-center justify-between">
@@ -470,7 +463,6 @@ const EquipmentMovement: React.FC<EquipmentMovementProps> = ({ onBack }) => {
         )}
 
         <WorkerSearchModal isOpen={workerModalOpen} onClose={() => setWorkerModalOpen(false)} onSelect={(worker) => setSearchParams({...searchParams, WRKR_ID: worker.USR_ID, WRKR_NM: worker.USR_NM})} workers={searchedWorkers} title="보유기사 선택" />
-      </div>
     </div>
   );
 };

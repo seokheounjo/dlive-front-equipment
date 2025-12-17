@@ -260,14 +260,7 @@ const EquipmentAssignment: React.FC<EquipmentAssignmentProps> = ({ onBack, showT
   };
 
   return (
-    <div className="h-full flex flex-col bg-gray-50 overflow-hidden">
-      {/* 헤더 - 고정 */}
-      <div className="flex-shrink-0 bg-gradient-to-br from-blue-500 to-blue-600 px-4 py-3 shadow-lg z-40">
-        <h1 className="text-lg font-bold text-white">장비할당</h1>
-      </div>
-
-      {/* 콘텐츠 - 스크롤 영역 */}
-      <div className="flex-1 overflow-y-auto px-4 py-4 space-y-3">
+    <div className="h-full overflow-y-auto bg-gray-50 px-4 py-4 space-y-3">
         {/* 검색 영역 */}
         <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4">
           <div className="space-y-3">
@@ -553,8 +546,6 @@ const EquipmentAssignment: React.FC<EquipmentAssignmentProps> = ({ onBack, showT
             </div>
           </div>
         )}
-
-      </div>
 
       {/* 장비 상세 모달 */}
       <BaseModal

@@ -407,21 +407,7 @@ const EquipmentList: React.FC<EquipmentListProps> = ({ onBack, showToast }) => {
   }, [scanTimeout]);
 
   return (
-    <div className="h-full flex flex-col bg-gray-50 overflow-hidden">
-      {/* 헤더 - 고정 */}
-      <div className="flex-shrink-0 bg-gradient-to-br from-blue-500 to-blue-600 px-4 py-3 shadow-lg z-40">
-        <div className="flex items-center justify-between">
-          <h1 className="text-lg font-bold text-white">장비조회</h1>
-          {isLoadingMyEquipments ? (
-            <span className="text-xs text-white/70">로딩 중...</span>
-          ) : myEquipments.length > 0 ? (
-            <span className="text-xs text-white/80 bg-white/20 px-2 py-0.5 rounded">보유 {myEquipments.length}건</span>
-          ) : null}
-        </div>
-      </div>
-
-      {/* 콘텐츠 - 스크롤 영역 */}
-      <div className="flex-1 overflow-y-auto px-4 py-4 space-y-3">
+    <div className="h-full overflow-y-auto bg-gray-50 px-4 py-4 space-y-3">
 
         {/* 복수 스캔 모드 토글 */}
         <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4">
@@ -737,7 +723,6 @@ const EquipmentList: React.FC<EquipmentListProps> = ({ onBack, showToast }) => {
             </details>
           </div>
         )}
-      </div>
     </div>
   );
 };

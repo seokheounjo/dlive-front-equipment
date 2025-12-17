@@ -380,14 +380,7 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
   const selectedCount = equipmentList.filter(item => item.CHK).length;
 
   return (
-    <div className="h-full flex flex-col bg-gray-50 overflow-hidden">
-      {/* 헤더 - 고정 */}
-      <div className="flex-shrink-0 bg-gradient-to-br from-blue-500 to-blue-600 px-4 py-3 shadow-lg z-40">
-        <h1 className="text-lg font-bold text-white">장비처리</h1>
-      </div>
-
-      {/* 콘텐츠 - 스크롤 영역 */}
-      <div className="flex-1 overflow-y-auto px-4 py-4 space-y-3">
+    <div className="h-full overflow-y-auto bg-gray-50 px-4 py-4 space-y-3">
         {/* 검색 조건 선택 박스 (상단 배치) - 라디오 버튼 없이 박스 클릭으로 선택 */}
         <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-3">
           <div className="grid grid-cols-3 gap-2">
@@ -661,7 +654,6 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
             </button>
           )}
         </div>
-      </div>
 
       {/* 장비반납 모달 */}
       <BaseModal
