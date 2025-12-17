@@ -342,7 +342,7 @@ const EquipmentMovement: React.FC<EquipmentMovementProps> = ({ onBack }) => {
   return (
     <div className="min-h-screen bg-gray-50">
       {/* 헤더 - 작업관리 스타일 */}
-      <div className="bg-gradient-to-br from-blue-500 to-blue-600 px-4 pt-6 pb-8 shadow-lg">
+      <div className="bg-gradient-to-br from-blue-500 to-blue-600 px-4 py-4 shadow-lg sticky top-0 z-50">
         <div className="flex items-center justify-between">
           <h1 className="text-xl font-bold text-white">기사간 장비이동</h1>
           <button
@@ -355,7 +355,7 @@ const EquipmentMovement: React.FC<EquipmentMovementProps> = ({ onBack }) => {
         </div>
       </div>
 
-      <div className="px-4 -mt-4 pb-4 space-y-3">
+      <div className="px-4 pt-4 pb-4 space-y-3">
         {/* 이관기사 (로그인한 사용자 = 인수받는 사람) */}
         <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4">
           <div className="flex items-center justify-between">
