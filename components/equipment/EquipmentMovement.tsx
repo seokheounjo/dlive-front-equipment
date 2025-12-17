@@ -397,11 +397,13 @@ const EquipmentMovement: React.FC<EquipmentMovementProps> = ({ onBack }) => {
               <input type="text" value={searchParams.EQT_SERNO} onChange={(e) => setSearchParams({...searchParams, EQT_SERNO: e.target.value.toUpperCase()})} className="flex-1 px-3 py-2 text-sm border border-gray-200 rounded-lg uppercase focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all" placeholder="일련번호" />
             </div>
             {/* 보유기사 */}
-            <div className="flex items-center gap-2">
-              <label className="text-xs font-medium text-gray-600 w-16 flex-shrink-0">보유기사 <span className="text-red-500">*</span></label>
-              <input type="text" value={searchParams.WRKR_NM} readOnly className="flex-1 px-3 py-2 text-sm border border-gray-200 rounded-lg bg-gray-50" placeholder="기사명" />
-              <button onClick={handleWorkerSearch} className="flex-shrink-0 px-3 py-2 text-sm border border-gray-200 rounded-lg bg-white hover:bg-gray-50 active:scale-[0.98] transition-all touch-manipulation" title="검색" style={{ WebkitTapHighlightColor: 'transparent' }}>🔍</button>
-              <input type="text" value={searchParams.WRKR_ID} readOnly className="w-20 px-3 py-2 text-xs border border-gray-200 rounded-lg bg-gray-50" placeholder="ID" />
+            <div>
+              <label className="block text-xs font-medium text-gray-600 mb-1.5">보유기사 <span className="text-red-500">*</span></label>
+              <div className="flex items-center gap-2">
+                <input type="text" value={searchParams.WRKR_NM} readOnly className="flex-1 min-w-0 px-3 py-2 text-sm border border-gray-200 rounded-lg bg-gray-50" placeholder="기사명" />
+                <button onClick={handleWorkerSearch} className="flex-shrink-0 px-3 py-2 text-sm border border-gray-200 rounded-lg bg-white hover:bg-gray-50 active:scale-[0.98] transition-all touch-manipulation" title="검색" style={{ WebkitTapHighlightColor: 'transparent' }}>🔍</button>
+                <input type="text" value={searchParams.WRKR_ID} readOnly className="w-16 sm:w-20 px-2 py-2 text-xs border border-gray-200 rounded-lg bg-gray-50 flex-shrink-0" placeholder="ID" />
+              </div>
             </div>
             {/* 조회 버튼 */}
             <button
