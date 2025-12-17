@@ -58,12 +58,15 @@ const EquipmentManagementMenu: React.FC<EquipmentManagementMenuProps> = ({ onNav
 
   return (
     <div className="h-[calc(100vh-64px)] flex flex-col bg-gray-50 overflow-hidden">
-      <ScrollableTabMenu
-        tabs={tabs}
-        activeTab={activeTab}
-        onTabChange={handleTabChange}
-        className="flex-shrink-0"
-      />
+      {/* 탭 메뉴 - Dashboard와 동일한 패턴 */}
+      <div className="flex-shrink-0 bg-white border-b border-gray-200 z-40">
+        <ScrollableTabMenu
+          tabs={tabs}
+          activeTab={activeTab}
+          onTabChange={handleTabChange}
+        />
+      </div>
+      {/* 콘텐츠 영역 - flex-1로 남은 공간 채움, 내부 스크롤 */}
       <div className="flex-1 overflow-hidden">
         {renderContent()}
       </div>

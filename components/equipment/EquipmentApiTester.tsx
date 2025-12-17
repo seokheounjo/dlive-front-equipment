@@ -313,7 +313,7 @@ const EquipmentApiTester: React.FC = () => {
   const filteredApis = filter === 'all' ? EQUIPMENT_APIS : EQUIPMENT_APIS.filter(api => api.apiStatus === filter);
 
   return (
-    <div className="min-h-screen bg-gray-100">
+    <div className="h-full overflow-y-auto bg-gray-100">
       {/* 헤더 */}
       <div className="bg-white shadow">
         <div className="max-w-7xl mx-auto px-4 py-4">

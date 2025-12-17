@@ -66,7 +66,7 @@ const Header: React.FC<HeaderProps> = ({ onLogout, onNavigateHome, onNavigateBac
   const isHome = currentView === 'today-work' || currentView === 'menu' || !currentView;
 
   return (
-    <header className="bg-white shadow-sm sticky top-0 z-[100] border-b border-gray-200">
+    <header className="bg-white shadow-sm fixed top-0 left-0 right-0 z-[100] border-b border-gray-200">
       <div className="max-w-7xl mx-auto px-2 sm:px-4 lg:px-6">
         <div className="flex items-center h-16">
           {/* 왼쪽 영역 - 고정 너비 */}

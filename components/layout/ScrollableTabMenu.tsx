@@ -27,7 +27,7 @@ const ScrollableTabMenu: React.FC<ScrollableTabMenuProps> = ({
   return (
     <div
       className={`
-        bg-white border-b border-gray-200 z-40
+        bg-white
         ${className}
       `}
     >

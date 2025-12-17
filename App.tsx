@@ -407,7 +407,7 @@ const App: React.FC = () => {
             currentView={currentView}
             userInfo={userInfo}
           />
-          <main className="max-w-7xl mx-auto">
+          <main className="pt-16">
             {renderContent()}
           </main>
           <BottomNavigation currentView={currentView} onSelectMenu={navigateToView} />
