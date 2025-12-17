@@ -380,199 +380,206 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
   const selectedCount = equipmentList.filter(item => item.CHK).length;
 
   return (
-    <div className="p-2">
-      {/* 헤더 */}
-      <div className="flex items-center justify-between mb-3">
-        <h2 className="text-lg font-bold text-gray-900">장비처리</h2>
-        <button
-          onClick={onBack}
-          className="text-sm text-gray-600 hover:text-gray-800"
-        >
-          ← 뒤로
-        </button>
-      </div>
-
-      {/* 검색 조건 선택 박스 (상단 배치) - 라디오 버튼 없이 박스 클릭으로 선택 */}
-      <div className="mb-3 bg-white rounded-lg shadow-sm border border-gray-200 p-3">
-        <div className="grid grid-cols-3 gap-2">
+    <div className="min-h-screen bg-gray-50">
+      {/* 헤더 - 작업관리 스타일 */}
+      <div className="bg-gradient-to-br from-blue-500 to-blue-600 px-4 pt-6 pb-8 shadow-lg">
+        <div className="flex items-center justify-between">
+          <h1 className="text-xl font-bold text-white">장비처리</h1>
           <button
-            type="button"
-            onClick={() => setSearchCondition('OWNED')}
-            className={`p-3 rounded-lg border-2 transition-all text-center ${
-              searchCondition === 'OWNED'
-                ? 'bg-orange-50 border-orange-500 text-orange-700 shadow-sm'
-                : 'border-gray-200 hover:bg-gray-50 text-gray-600'
-            }`}
+            onClick={onBack}
+            className="text-sm text-white/80 hover:text-white transition-colors"
+            style={{ WebkitTapHighlightColor: 'transparent' }}
           >
-            <div className="text-sm font-bold">보유</div>
-            <div className="text-[10px] text-gray-500 mt-0.5">내 장비 목록</div>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setSearchCondition('RETURN_REQUESTED')}
-            className={`p-3 rounded-lg border-2 transition-all text-center ${
-              searchCondition === 'RETURN_REQUESTED'
-                ? 'bg-orange-50 border-orange-500 text-orange-700 shadow-sm'
-                : 'border-gray-200 hover:bg-gray-50 text-gray-600'
-            }`}
-          >
-            <div className="text-sm font-bold">반납요청</div>
-            <div className="text-[10px] text-gray-500 mt-0.5">반납 진행중</div>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setSearchCondition('INSPECTION_WAITING')}
-            className={`p-3 rounded-lg border-2 transition-all text-center ${
-              searchCondition === 'INSPECTION_WAITING'
-                ? 'bg-orange-50 border-orange-500 text-orange-700 shadow-sm'
-                : 'border-gray-200 hover:bg-gray-50 text-gray-600'
-            }`}
-          >
-            <div className="text-sm font-bold">검사대기</div>
-            <div className="text-[10px] text-gray-500 mt-0.5">검사 대기중</div>
+            ← 뒤로
           </button>
         </div>
       </div>
 
-      {/* 검색 필터 영역 - 키-값 한줄 레이아웃 */}
-      <div className="mb-3 bg-white rounded-lg shadow-sm border border-gray-200 p-3">
-        <div className="space-y-2">
-          {/* 지점 (한 줄) */}
-          <div className="flex items-center gap-2">
-            <label className="text-xs font-medium text-gray-600 w-16 flex-shrink-0">지점</label>
-            <select
-              value={selectedSoId}
-              onChange={(e) => setSelectedSoId(e.target.value)}
-              className="flex-1 px-2 py-1.5 text-sm border border-gray-300 rounded"
+      <div className="px-4 -mt-4 pb-4 space-y-3">
+        {/* 검색 조건 선택 박스 (상단 배치) - 라디오 버튼 없이 박스 클릭으로 선택 */}
+        <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-3">
+          <div className="grid grid-cols-3 gap-2">
+            <button
+              type="button"
+              onClick={() => setSearchCondition('OWNED')}
+              className={`p-3 rounded-lg border-2 transition-all text-center active:scale-[0.98] touch-manipulation ${
+                searchCondition === 'OWNED'
+                  ? 'bg-blue-50 border-blue-500 text-blue-700 shadow-sm'
+                  : 'border-gray-200 hover:bg-gray-50 text-gray-600'
+              }`}
+              style={{ WebkitTapHighlightColor: 'transparent' }}
             >
-              <option value="">전체</option>
-              {soList.map((item) => (
-                <option key={item.SO_ID} value={item.SO_ID}>{item.SO_NM}</option>
-              ))}
-            </select>
-          </div>
-          {/* 구분 (한 줄) */}
-          <div className="flex items-center gap-2">
-            <label className="text-xs font-medium text-gray-600 w-16 flex-shrink-0">구분</label>
-            <select
-              value={selectedCategory}
-              onChange={(e) => setSelectedCategory(e.target.value)}
-              className="flex-1 px-2 py-1.5 text-sm border border-gray-300 rounded"
+              <div className="text-sm font-bold">보유</div>
+              <div className="text-[10px] text-gray-500 mt-0.5">내 장비 목록</div>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setSearchCondition('RETURN_REQUESTED')}
+              className={`p-3 rounded-lg border-2 transition-all text-center active:scale-[0.98] touch-manipulation ${
+                searchCondition === 'RETURN_REQUESTED'
+                  ? 'bg-blue-50 border-blue-500 text-blue-700 shadow-sm'
+                  : 'border-gray-200 hover:bg-gray-50 text-gray-600'
+              }`}
+              style={{ WebkitTapHighlightColor: 'transparent' }}
             >
-              <option value="">전체</option>
-              <option value="Y">임대</option>
-              <option value="N">판매</option>
-              <option value="31">할부</option>
-            </select>
-          </div>
-          {/* 장비종류 (한 줄) */}
-          <div className="flex items-center gap-2">
-            <label className="text-xs font-medium text-gray-600 w-16 flex-shrink-0">장비종류</label>
-            <select
-              value={selectedItemMidCd}
-              onChange={(e) => setSelectedItemMidCd(e.target.value)}
-              className="flex-1 px-2 py-1.5 text-sm border border-gray-300 rounded"
+              <div className="text-sm font-bold">반납요청</div>
+              <div className="text-[10px] text-gray-500 mt-0.5">반납 진행중</div>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setSearchCondition('INSPECTION_WAITING')}
+              className={`p-3 rounded-lg border-2 transition-all text-center active:scale-[0.98] touch-manipulation ${
+                searchCondition === 'INSPECTION_WAITING'
+                  ? 'bg-blue-50 border-blue-500 text-blue-700 shadow-sm'
+                  : 'border-gray-200 hover:bg-gray-50 text-gray-600'
+              }`}
+              style={{ WebkitTapHighlightColor: 'transparent' }}
             >
-              {itemMidList.map((item) => (
-                <option key={item.COMMON_CD} value={item.COMMON_CD}>{item.COMMON_CD_NM}</option>
-              ))}
-            </select>
-          </div>
-          {/* S/N (한 줄) */}
-          <div className="flex items-center gap-2">
-            <label className="text-xs font-medium text-gray-600 w-16 flex-shrink-0">S/N</label>
-            <input
-              type="text"
-              value={eqtSerno}
-              onChange={(e) => setEqtSerno(e.target.value.toUpperCase())}
-              className="flex-1 px-2 py-1.5 text-sm border border-gray-300 rounded uppercase"
-              placeholder="바코드 또는 일련번호"
-            />
+              <div className="text-sm font-bold">검사대기</div>
+              <div className="text-[10px] text-gray-500 mt-0.5">검사 대기중</div>
+            </button>
           </div>
         </div>
 
-        {/* 조회 버튼 */}
-        <button
-          onClick={handleSearch}
-          disabled={isLoading}
-          className="w-full mt-3 bg-orange-500 hover:bg-orange-600 disabled:bg-gray-400 text-white py-2.5 rounded font-medium text-sm shadow-md transition-all flex items-center justify-center gap-2"
-        >
-          {isLoading ? (
-            <>
-              <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24">
-                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
-                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-              </svg>
-              조회 중...
-            </>
-          ) : (
-            '조회'
-          )}
-        </button>
-      </div>
-
-      {/* 장비 리스트 */}
-      {equipmentList.length > 0 && (
-        <div className="mb-3">
-          {/* 전체 선택 & 카운트 */}
-          <div className="flex items-center justify-between mb-2">
-            <label className="flex items-center gap-2 cursor-pointer">
+        {/* 검색 필터 영역 - 키-값 한줄 레이아웃 */}
+        <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4">
+          <div className="space-y-3">
+            {/* 지점 (한 줄) */}
+            <div className="flex items-center gap-2">
+              <label className="text-xs font-medium text-gray-600 w-16 flex-shrink-0">지점</label>
+              <select
+                value={selectedSoId}
+                onChange={(e) => setSelectedSoId(e.target.value)}
+                className="flex-1 px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+              >
+                <option value="">전체</option>
+                {soList.map((item) => (
+                  <option key={item.SO_ID} value={item.SO_ID}>{item.SO_NM}</option>
+                ))}
+              </select>
+            </div>
+            {/* 구분 (한 줄) */}
+            <div className="flex items-center gap-2">
+              <label className="text-xs font-medium text-gray-600 w-16 flex-shrink-0">구분</label>
+              <select
+                value={selectedCategory}
+                onChange={(e) => setSelectedCategory(e.target.value)}
+                className="flex-1 px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+              >
+                <option value="">전체</option>
+                <option value="Y">임대</option>
+                <option value="N">판매</option>
+                <option value="31">할부</option>
+              </select>
+            </div>
+            {/* 장비종류 (한 줄) */}
+            <div className="flex items-center gap-2">
+              <label className="text-xs font-medium text-gray-600 w-16 flex-shrink-0">장비종류</label>
+              <select
+                value={selectedItemMidCd}
+                onChange={(e) => setSelectedItemMidCd(e.target.value)}
+                className="flex-1 px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+              >
+                {itemMidList.map((item) => (
+                  <option key={item.COMMON_CD} value={item.COMMON_CD}>{item.COMMON_CD_NM}</option>
+                ))}
+              </select>
+            </div>
+            {/* S/N (한 줄) */}
+            <div className="flex items-center gap-2">
+              <label className="text-xs font-medium text-gray-600 w-16 flex-shrink-0">S/N</label>
               <input
-                type="checkbox"
-                onChange={(e) => handleCheckAll(e.target.checked)}
-                checked={equipmentList.length > 0 && equipmentList.every(item => item.CHK)}
-                className="w-4 h-4 text-orange-500 rounded focus:ring-orange-500"
+                type="text"
+                value={eqtSerno}
+                onChange={(e) => setEqtSerno(e.target.value.toUpperCase())}
+                className="flex-1 px-3 py-2 text-sm border border-gray-200 rounded-lg uppercase focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                placeholder="바코드 또는 일련번호"
               />
-              <span className="text-sm font-medium text-gray-700">전체선택</span>
-            </label>
-            <span className="text-xs text-gray-500">
-              {equipmentList.length}건 (선택: {equipmentList.filter(item => item.CHK).length}건)
-            </span>
+            </div>
           </div>
 
-          {/* 장비 리스트 테이블 */}
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+          {/* 조회 버튼 */}
+          <button
+            onClick={handleSearch}
+            disabled={isLoading}
+            className="w-full mt-4 bg-blue-500 hover:bg-blue-600 disabled:bg-gray-400 text-white py-2.5 rounded-lg font-semibold text-sm shadow-sm transition-all flex items-center justify-center gap-2 active:scale-[0.98] touch-manipulation"
+            style={{ WebkitTapHighlightColor: 'transparent' }}
+          >
+            {isLoading ? (
+              <>
+                <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                </svg>
+                조회 중...
+              </>
+            ) : (
+              '조회'
+            )}
+          </button>
+        </div>
+
+        {/* 장비 리스트 */}
+        {equipmentList.length > 0 && (
+          <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
+            {/* 전체 선택 & 카운트 헤더 */}
+            <div className="px-4 py-3 bg-gradient-to-r from-gray-50 to-white border-b border-gray-100 flex items-center justify-between">
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  onChange={(e) => handleCheckAll(e.target.checked)}
+                  checked={equipmentList.length > 0 && equipmentList.every(item => item.CHK)}
+                  className="w-4 h-4 text-blue-500 rounded focus:ring-blue-500"
+                />
+                <span className="text-sm font-semibold text-gray-800">전체선택</span>
+              </label>
+              <span className="text-xs text-gray-500">
+                {equipmentList.length}건 (선택: {equipmentList.filter(item => item.CHK).length}건)
+              </span>
+            </div>
+
+            {/* 장비 리스트 테이블 */}
             <div className="max-h-64 overflow-y-auto">
               <table className="w-full text-xs">
                 <thead className="bg-gray-50 sticky top-0 z-10">
                   <tr>
-                    <th className="px-2 py-2 text-center border-b w-8">선택</th>
-                    <th className="px-2 py-2 text-center text-xs font-semibold text-gray-700 border-b">요청</th>
-                    <th className="px-2 py-2 text-left text-xs font-semibold text-gray-700 border-b">장비유형</th>
-                    <th className="px-2 py-2 text-left text-xs font-semibold text-gray-700 border-b">장비일련번호</th>
-                    <th className="px-2 py-2 text-left text-xs font-semibold text-gray-700 border-b">M/A</th>
+                    <th className="px-2 py-2.5 text-center border-b border-gray-100 w-8">선택</th>
+                    <th className="px-2 py-2.5 text-center text-xs font-semibold text-gray-600 border-b border-gray-100">요청</th>
+                    <th className="px-2 py-2.5 text-left text-xs font-semibold text-gray-600 border-b border-gray-100">장비유형</th>
+                    <th className="px-2 py-2.5 text-left text-xs font-semibold text-gray-600 border-b border-gray-100">장비일련번호</th>
+                    <th className="px-2 py-2.5 text-left text-xs font-semibold text-gray-600 border-b border-gray-100">M/A</th>
                   </tr>
                 </thead>
                 <tbody>
                   {equipmentList.map((item, idx) => (
                     <tr
                       key={idx}
-                      className={`${item.CHK ? 'bg-orange-50' : 'hover:bg-gray-50'} transition-colors`}
+                      className={`${item.CHK ? 'bg-blue-50' : 'hover:bg-blue-50/50'} transition-colors`}
                     >
-                      <td className="px-2 py-2 text-center border-b">
+                      <td className="px-2 py-2.5 text-center border-b border-gray-50">
                         <input
                           type="checkbox"
                           checked={item.CHK || false}
                           onChange={(e) => handleCheckItem(idx, e.target.checked)}
-                          className="w-4 h-4 text-orange-500 rounded focus:ring-orange-500"
+                          className="w-4 h-4 text-blue-500 rounded focus:ring-blue-500"
                         />
                       </td>
-                      <td className="px-2 py-2 text-center border-b">
+                      <td className="px-2 py-2.5 text-center border-b border-gray-50">
                         {item.PROC_STAT === 'R' && (
-                          <span className="text-orange-600 font-bold">●</span>
+                          <span className="text-blue-600 font-bold">●</span>
                         )}
                       </td>
-                      <td className="px-2 py-2 border-b">
+                      <td className="px-2 py-2.5 border-b border-gray-50">
                         <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${getItemColor(item.ITEM_MID_CD)}`}>
                           {item.EQT_CL_NM || item.ITEM_MID_NM || '장비'}
                         </span>
                       </td>
-                      <td className="px-2 py-2 text-xs text-gray-900 border-b font-mono">
+                      <td className="px-2 py-2.5 text-xs text-gray-900 border-b border-gray-50 font-mono">
                         {item.EQT_SERNO || '-'}
                       </td>
-                      <td className="px-2 py-2 text-xs text-gray-500 border-b font-mono truncate max-w-[80px]">
+                      <td className="px-2 py-2.5 text-xs text-gray-500 border-b border-gray-50 font-mono truncate max-w-[80px]">
                         {item.MAC_ADDRESS || '-'}
                       </td>
                     </tr>
@@ -581,79 +588,87 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
               </table>
             </div>
           </div>
-        </div>
-      )}
+        )}
 
-      {/* 빈 상태 */}
-      {equipmentList.length === 0 && !isLoading && (
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-8">
-          <div className="text-center">
-            <div className="text-4xl mb-3">📦</div>
-            <p className="text-gray-600 text-sm mb-1">조회된 장비가 없습니다</p>
-            <p className="text-gray-400 text-xs">검색 조건을 설정하고 조회 버튼을 눌러주세요</p>
+        {/* 빈 상태 */}
+        {equipmentList.length === 0 && !isLoading && (
+          <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-8">
+            <div className="text-center">
+              <div className="w-16 h-16 mx-auto mb-4 bg-blue-100 rounded-full flex items-center justify-center">
+                <svg className="w-8 h-8 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+                </svg>
+              </div>
+              <p className="text-gray-500 text-sm mb-1">조회된 장비가 없습니다</p>
+              <p className="text-gray-400 text-xs">검색 조건을 설정하고 조회 버튼을 눌러주세요</p>
+            </div>
           </div>
-        </div>
-      )}
+        )}
 
-      {/* 하단 버튼 영역 - 검색조건별 필요한 버튼만 표시 */}
-      <div className="mt-3 flex gap-2">
-        {/* 보유: 장비반납, 분실처리 */}
-        {searchCondition === 'OWNED' && (
-          <>
+        {/* 하단 버튼 영역 - 검색조건별 필요한 버튼만 표시 */}
+        <div className="flex gap-2">
+          {/* 보유: 장비반납, 분실처리 */}
+          {searchCondition === 'OWNED' && (
+            <>
+              <button
+                onClick={handleReturnClick}
+                disabled={selectedCount === 0}
+                className={`flex-1 py-2.5 rounded-lg font-semibold text-sm shadow-sm transition-all active:scale-[0.98] touch-manipulation ${
+                  selectedCount > 0
+                    ? 'bg-blue-500 hover:bg-blue-600 text-white'
+                    : 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                }`}
+                style={{ WebkitTapHighlightColor: 'transparent' }}
+              >
+                장비반납
+              </button>
+              <button
+                onClick={handleLossClick}
+                disabled={selectedCount === 0}
+                className={`flex-1 py-2.5 rounded-lg font-semibold text-sm shadow-sm transition-all active:scale-[0.98] touch-manipulation ${
+                  selectedCount > 0
+                    ? 'bg-red-500 hover:bg-red-600 text-white'
+                    : 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                }`}
+                style={{ WebkitTapHighlightColor: 'transparent' }}
+              >
+                분실처리
+              </button>
+            </>
+          )}
+
+          {/* 반납요청중: 반납취소 */}
+          {searchCondition === 'RETURN_REQUESTED' && (
             <button
               onClick={handleReturnClick}
               disabled={selectedCount === 0}
-              className={`flex-1 py-2.5 rounded font-medium text-sm shadow-md transition-all ${
+              className={`flex-1 py-2.5 rounded-lg font-semibold text-sm shadow-sm transition-all active:scale-[0.98] touch-manipulation ${
                 selectedCount > 0
-                  ? 'bg-blue-600 hover:bg-blue-700 text-white'
+                  ? 'bg-amber-500 hover:bg-amber-600 text-white'
                   : 'bg-gray-200 text-gray-400 cursor-not-allowed'
               }`}
+              style={{ WebkitTapHighlightColor: 'transparent' }}
             >
-              장비반납
+              반납취소
             </button>
+          )}
+
+          {/* 검사대기: 사용가능변경 */}
+          {searchCondition === 'INSPECTION_WAITING' && (
             <button
-              onClick={handleLossClick}
+              onClick={handleStatusChangeClick}
               disabled={selectedCount === 0}
-              className={`flex-1 py-2.5 rounded font-medium text-sm shadow-md transition-all ${
+              className={`flex-1 py-2.5 rounded-lg font-semibold text-sm shadow-sm transition-all active:scale-[0.98] touch-manipulation ${
                 selectedCount > 0
-                  ? 'bg-red-600 hover:bg-red-700 text-white'
+                  ? 'bg-green-500 hover:bg-green-600 text-white'
                   : 'bg-gray-200 text-gray-400 cursor-not-allowed'
               }`}
+              style={{ WebkitTapHighlightColor: 'transparent' }}
             >
-              분실처리
+              사용가능변경
             </button>
-          </>
-        )}
-
-        {/* 반납요청중: 반납취소 */}
-        {searchCondition === 'RETURN_REQUESTED' && (
-          <button
-            onClick={handleReturnClick}
-            disabled={selectedCount === 0}
-            className={`flex-1 py-2.5 rounded font-medium text-sm shadow-md transition-all ${
-              selectedCount > 0
-                ? 'bg-orange-600 hover:bg-orange-700 text-white'
-                : 'bg-gray-200 text-gray-400 cursor-not-allowed'
-            }`}
-          >
-            반납취소
-          </button>
-        )}
-
-        {/* 검사대기: 사용가능변경 */}
-        {searchCondition === 'INSPECTION_WAITING' && (
-          <button
-            onClick={handleStatusChangeClick}
-            disabled={selectedCount === 0}
-            className={`flex-1 py-2.5 rounded font-medium text-sm shadow-md transition-all ${
-              selectedCount > 0
-                ? 'bg-green-600 hover:bg-green-700 text-white'
-                : 'bg-gray-200 text-gray-400 cursor-not-allowed'
-            }`}
-          >
-            사용가능변경
-          </button>
-        )}
+          )}
+        </div>
       </div>
 
       {/* 장비반납 모달 */}
@@ -717,21 +732,24 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
           <div className="flex gap-2">
             <button
               onClick={() => setShowReturnModal(false)}
-              className="flex-1 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded font-medium text-sm"
+              className="flex-1 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg font-semibold text-sm transition-all active:scale-[0.98] touch-manipulation"
+              style={{ WebkitTapHighlightColor: 'transparent' }}
             >
               재선택
             </button>
             {searchCondition === 'OWNED' ? (
               <button
                 onClick={() => handleReturnRequest('RETURN')}
-                className="flex-1 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded font-medium text-sm"
+                className="flex-1 py-2.5 bg-blue-500 hover:bg-blue-600 text-white rounded-lg font-semibold text-sm transition-all active:scale-[0.98] touch-manipulation"
+                style={{ WebkitTapHighlightColor: 'transparent' }}
               >
                 반납요청
               </button>
             ) : (
               <button
                 onClick={() => handleReturnRequest('CANCEL')}
-                className="flex-1 py-2 bg-orange-600 hover:bg-orange-700 text-white rounded font-medium text-sm"
+                className="flex-1 py-2.5 bg-amber-500 hover:bg-amber-600 text-white rounded-lg font-semibold text-sm transition-all active:scale-[0.98] touch-manipulation"
+                style={{ WebkitTapHighlightColor: 'transparent' }}
               >
                 요청취소
               </button>
@@ -785,13 +803,15 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
             <div className="flex gap-2">
               <button
                 onClick={() => { setShowLossModal(false); setSelectedEquipment(null); }}
-                className="flex-1 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded font-medium text-sm"
+                className="flex-1 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg font-semibold text-sm transition-all active:scale-[0.98] touch-manipulation"
+                style={{ WebkitTapHighlightColor: 'transparent' }}
               >
                 취소
               </button>
               <button
                 onClick={handleLossProcess}
-                className="flex-1 py-2 bg-red-600 hover:bg-red-700 text-white rounded font-medium text-sm"
+                className="flex-1 py-2.5 bg-red-500 hover:bg-red-600 text-white rounded-lg font-semibold text-sm transition-all active:scale-[0.98] touch-manipulation"
+                style={{ WebkitTapHighlightColor: 'transparent' }}
               >
                 분실처리
               </button>

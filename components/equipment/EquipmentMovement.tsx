@@ -78,26 +78,33 @@ const WorkerSearchModal: React.FC<{
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-lg shadow-xl w-80 max-h-96 overflow-hidden">
-        <div className="p-3 border-b bg-gray-50">
-          <h3 className="font-semibold text-gray-800">{title}</h3>
-          <p className="text-xs text-gray-500 mt-1">{workers.length}명 검색됨</p>
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-xl shadow-xl w-full max-w-sm max-h-[80vh] overflow-hidden">
+        <div className="p-4 border-b border-gray-100 bg-gradient-to-r from-blue-500 to-blue-600">
+          <h3 className="font-semibold text-white">{title}</h3>
+          <p className="text-xs text-white/80 mt-1">{workers.length}명 검색됨</p>
         </div>
         <div className="max-h-64 overflow-y-auto">
           {workers.map((worker, idx) => (
             <button
               key={idx}
               onClick={() => { onSelect(worker); onClose(); }}
-              className="w-full px-3 py-2 text-left hover:bg-blue-50 border-b border-gray-100 flex justify-between items-center"
+              className="w-full px-4 py-3 text-left hover:bg-blue-50 border-b border-gray-50 flex justify-between items-center transition-colors active:bg-blue-100 touch-manipulation"
+              style={{ WebkitTapHighlightColor: 'transparent' }}
             >
               <span className="font-medium text-gray-900">{worker.USR_NM}</span>
-              <span className="text-xs text-gray-500">{worker.USR_ID}</span>
+              <span className="text-xs text-gray-500 bg-gray-100 px-2 py-0.5 rounded">{worker.USR_ID}</span>
             </button>
           ))}
         </div>
-        <div className="p-2 border-t bg-gray-50">
-          <button onClick={onClose} className="w-full py-2 text-sm text-gray-600 hover:bg-gray-100 rounded">닫기</button>
+        <div className="p-3 border-t border-gray-100 bg-gray-50">
+          <button
+            onClick={onClose}
+            className="w-full py-2.5 text-sm text-gray-600 hover:bg-gray-200 rounded-lg font-medium transition-colors active:scale-[0.98] touch-manipulation"
+            style={{ WebkitTapHighlightColor: 'transparent' }}
+          >
+            닫기
+          </button>
         </div>
       </div>
     </div>
@@ -333,115 +340,143 @@ const EquipmentMovement: React.FC<EquipmentMovementProps> = ({ onBack }) => {
   const handleCheckItem = (index: number, checked: boolean) => { const newList = [...eqtTrnsList]; newList[index].CHK = checked; setEqtTrnsList(newList); };
 
   return (
-    <div className="p-2">
-      <div className="flex items-center justify-between mb-3">
-        <h2 className="text-lg font-bold text-gray-900">기사간 장비이동</h2>
-        <button onClick={onBack} className="text-sm text-gray-600 hover:text-gray-800">← 뒤로</button>
-      </div>
-
-      {/* 이관기사 (로그인한 사용자 = 인수받는 사람) */}
-      <div className="mb-3 bg-blue-50 rounded-lg border border-blue-200 p-3">
+    <div className="min-h-screen bg-gray-50">
+      {/* 헤더 - 작업관리 스타일 */}
+      <div className="bg-gradient-to-br from-blue-500 to-blue-600 px-4 pt-6 pb-8 shadow-lg">
         <div className="flex items-center justify-between">
-          <span className="text-xs font-medium text-blue-700">이관기사 (나)</span>
-          <span className="text-sm font-bold text-blue-900">{loggedInUser.userName} ({loggedInUser.userId})</span>
+          <h1 className="text-xl font-bold text-white">기사간 장비이동</h1>
+          <button
+            onClick={onBack}
+            className="text-sm text-white/80 hover:text-white transition-colors"
+            style={{ WebkitTapHighlightColor: 'transparent' }}
+          >
+            ← 뒤로
+          </button>
         </div>
       </div>
 
-      {/* 보유기사 조회 영역 */}
-      <div className="mb-3 bg-white rounded-lg shadow-sm border border-gray-200 p-3">
-        <div className="mb-2">
-          <h3 className="text-sm font-semibold text-gray-700">보유기사 조회</h3>
-          <p className="text-[10px] text-gray-500">장비를 넘겨받을 기사를 검색하세요</p>
+      <div className="px-4 -mt-4 pb-4 space-y-3">
+        {/* 이관기사 (로그인한 사용자 = 인수받는 사람) */}
+        <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-medium text-blue-600">이관기사 (나)</span>
+            <span className="text-sm font-bold text-gray-900">{loggedInUser.userName} ({loggedInUser.userId})</span>
+          </div>
         </div>
-        <div className="space-y-2">
-          {/* 지점 + 협력업체 (한 줄) */}
-          <div className="flex items-center gap-2">
-            <label className="text-xs font-medium text-gray-600 w-16 flex-shrink-0">지점 <span className="text-red-500">*</span></label>
-            <select value={searchParams.SO_ID} onChange={(e) => setSearchParams({...searchParams, SO_ID: e.target.value})} className="flex-1 px-2 py-1.5 text-sm border border-gray-300 rounded">
-              <option value="">선택</option>
-              {soList.map((item) => (<option key={item.SO_ID} value={item.SO_ID}>{item.SO_NM}</option>))}
-            </select>
-          </div>
-          <div className="flex items-center gap-2">
-            <label className="text-xs font-medium text-gray-600 w-16 flex-shrink-0">협력업체 <span className="text-red-500">*</span></label>
-            <select value={searchParams.CRR_ID} onChange={(e) => setSearchParams({...searchParams, CRR_ID: e.target.value})} className="flex-1 px-2 py-1.5 text-sm border border-gray-300 rounded">
-              <option value="">선택</option>
-              {corpList.map((item) => (<option key={item.CRR_ID} value={item.CRR_ID}>{item.CORP_NM}</option>))}
-            </select>
-          </div>
-          {/* 장비종류 (한 줄) */}
-          <div className="flex items-center gap-2">
-            <label className="text-xs font-medium text-gray-600 w-16 flex-shrink-0">장비</label>
-            <select value={searchParams.ITEM_MID_CD} onChange={(e) => setSearchParams({...searchParams, ITEM_MID_CD: e.target.value})} className="flex-1 px-2 py-1.5 text-sm border border-gray-300 rounded">
-              <option value="">중분류</option>
-              {itemMidList.map((item) => (<option key={item.COMMON_CD} value={item.COMMON_CD}>{item.COMMON_CD_NM}</option>))}
-            </select>
-            <select value={searchParams.EQT_CL_CD} onChange={(e) => setSearchParams({...searchParams, EQT_CL_CD: e.target.value})} className="flex-1 px-2 py-1.5 text-sm border border-gray-300 rounded">
-              <option value="">클래스</option>
-              {eqtClList.map((item) => (<option key={item.COMMON_CD} value={item.COMMON_CD}>{item.COMMON_CD_NM}</option>))}
-            </select>
-          </div>
-          {/* S/N (한 줄) */}
-          <div className="flex items-center gap-2">
-            <label className="text-xs font-medium text-gray-600 w-16 flex-shrink-0">S/N</label>
-            <input type="text" value={searchParams.EQT_SERNO} onChange={(e) => setSearchParams({...searchParams, EQT_SERNO: e.target.value.toUpperCase()})} className="flex-1 px-2 py-1.5 text-sm border border-gray-300 rounded uppercase" placeholder="일련번호" />
-          </div>
-          {/* 보유기사 (한 줄) */}
-          <div className="flex items-center gap-2">
-            <label className="text-xs font-medium text-gray-600 w-16 flex-shrink-0">보유기사 <span className="text-red-500">*</span></label>
-            <input type="text" value={searchParams.WRKR_NM} readOnly className="flex-1 px-2 py-1.5 text-sm border border-gray-300 rounded bg-gray-50" placeholder="기사명" />
-            <button onClick={handleWorkerSearch} className="flex-shrink-0 px-3 py-1.5 text-sm border border-gray-300 rounded bg-white hover:bg-gray-50" title="검색">🔍</button>
-            <input type="text" value={searchParams.WRKR_ID} readOnly className="w-20 px-2 py-1.5 text-sm border border-gray-300 rounded bg-gray-50 text-xs" placeholder="ID" />
-          </div>
-          <button onClick={handleSearch} disabled={isLoading || !searchParams.WRKR_ID} className="w-full bg-orange-500 hover:bg-orange-600 disabled:bg-gray-300 text-white py-2 rounded font-medium text-sm shadow-md transition-all">{isLoading ? '조회 중...' : '조회'}</button>
-        </div>
-      </div>
 
-      {eqtTrnsList.length > 0 ? (
-        <>
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden mb-3">
-            <div className="px-3 py-2 bg-gray-50 border-b">
-              <span className="text-sm font-medium text-gray-700">조회 결과: {eqtTrnsList.length}건</span>
-              <span className="text-sm text-blue-600 ml-2">(선택: {eqtTrnsList.filter(item => item.CHK).length}건)</span>
+        {/* 보유기사 조회 영역 */}
+        <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4">
+          <div className="mb-3">
+            <h3 className="text-sm font-semibold text-gray-800">보유기사 조회</h3>
+            <p className="text-xs text-gray-500 mt-0.5">장비를 넘겨받을 기사를 검색하세요</p>
+          </div>
+          <div className="space-y-3">
+            {/* 지점 */}
+            <div className="flex items-center gap-2">
+              <label className="text-xs font-medium text-gray-600 w-16 flex-shrink-0">지점 <span className="text-red-500">*</span></label>
+              <select value={searchParams.SO_ID} onChange={(e) => setSearchParams({...searchParams, SO_ID: e.target.value})} className="flex-1 px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all">
+                <option value="">선택</option>
+                {soList.map((item) => (<option key={item.SO_ID} value={item.SO_ID}>{item.SO_NM}</option>))}
+              </select>
             </div>
-            <div className="max-h-96 overflow-x-auto">
-              <table className="w-full text-xs">
-                <thead className="bg-gray-50 sticky top-0">
-                  <tr>
-                    <th className="px-2 py-2 border-b"><input type="checkbox" onChange={(e) => handleCheckAll(e.target.checked)} checked={eqtTrnsList.length > 0 && eqtTrnsList.every(item => item.CHK)} /></th>
-                    <th className="px-2 py-2 text-left text-xs font-semibold text-gray-700 border-b">일련번호</th>
-                    <th className="px-2 py-2 text-left text-xs font-semibold text-gray-700 border-b">유형</th>
-                    <th className="px-2 py-2 text-left text-xs font-semibold text-gray-700 border-b">중분류</th>
-                    <th className="px-2 py-2 text-left text-xs font-semibold text-gray-700 border-b">기사</th>
-                    <th className="px-2 py-2 text-left text-xs font-semibold text-gray-700 border-b">MAC</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {eqtTrnsList.map((item, idx) => (
-                    <tr key={idx} className="hover:bg-gray-50">
-                      <td className="px-2 py-2 border-b text-center"><input type="checkbox" checked={item.CHK || false} onChange={(e) => handleCheckItem(idx, e.target.checked)} /></td>
-                      <td className="px-2 py-2 text-xs text-gray-900 border-b">{item.EQT_SERNO}</td>
-                      <td className="px-2 py-2 text-xs text-gray-900 border-b">{item.EQT_CL_NM}</td>
-                      <td className="px-2 py-2 text-xs text-gray-900 border-b">{item.ITEM_MID_NM}</td>
-                      <td className="px-2 py-2 text-xs text-gray-900 border-b">{item.WRKR_NM}</td>
-                      <td className="px-2 py-2 text-xs text-gray-900 border-b">{item.MAC_ADDRESS}</td>
+            {/* 협력업체 */}
+            <div className="flex items-center gap-2">
+              <label className="text-xs font-medium text-gray-600 w-16 flex-shrink-0">협력업체 <span className="text-red-500">*</span></label>
+              <select value={searchParams.CRR_ID} onChange={(e) => setSearchParams({...searchParams, CRR_ID: e.target.value})} className="flex-1 px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all">
+                <option value="">선택</option>
+                {corpList.map((item) => (<option key={item.CRR_ID} value={item.CRR_ID}>{item.CORP_NM}</option>))}
+              </select>
+            </div>
+            {/* 장비종류 */}
+            <div className="flex items-center gap-2">
+              <label className="text-xs font-medium text-gray-600 w-16 flex-shrink-0">장비</label>
+              <select value={searchParams.ITEM_MID_CD} onChange={(e) => setSearchParams({...searchParams, ITEM_MID_CD: e.target.value})} className="flex-1 px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all">
+                <option value="">중분류</option>
+                {itemMidList.map((item) => (<option key={item.COMMON_CD} value={item.COMMON_CD}>{item.COMMON_CD_NM}</option>))}
+              </select>
+              <select value={searchParams.EQT_CL_CD} onChange={(e) => setSearchParams({...searchParams, EQT_CL_CD: e.target.value})} className="flex-1 px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all">
+                <option value="">클래스</option>
+                {eqtClList.map((item) => (<option key={item.COMMON_CD} value={item.COMMON_CD}>{item.COMMON_CD_NM}</option>))}
+              </select>
+            </div>
+            {/* S/N */}
+            <div className="flex items-center gap-2">
+              <label className="text-xs font-medium text-gray-600 w-16 flex-shrink-0">S/N</label>
+              <input type="text" value={searchParams.EQT_SERNO} onChange={(e) => setSearchParams({...searchParams, EQT_SERNO: e.target.value.toUpperCase()})} className="flex-1 px-3 py-2 text-sm border border-gray-200 rounded-lg uppercase focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all" placeholder="일련번호" />
+            </div>
+            {/* 보유기사 */}
+            <div className="flex items-center gap-2">
+              <label className="text-xs font-medium text-gray-600 w-16 flex-shrink-0">보유기사 <span className="text-red-500">*</span></label>
+              <input type="text" value={searchParams.WRKR_NM} readOnly className="flex-1 px-3 py-2 text-sm border border-gray-200 rounded-lg bg-gray-50" placeholder="기사명" />
+              <button onClick={handleWorkerSearch} className="flex-shrink-0 px-3 py-2 text-sm border border-gray-200 rounded-lg bg-white hover:bg-gray-50 active:scale-[0.98] transition-all touch-manipulation" title="검색" style={{ WebkitTapHighlightColor: 'transparent' }}>🔍</button>
+              <input type="text" value={searchParams.WRKR_ID} readOnly className="w-20 px-3 py-2 text-xs border border-gray-200 rounded-lg bg-gray-50" placeholder="ID" />
+            </div>
+            {/* 조회 버튼 */}
+            <button
+              onClick={handleSearch}
+              disabled={isLoading || !searchParams.WRKR_ID}
+              className="w-full bg-blue-500 hover:bg-blue-600 disabled:bg-gray-300 text-white py-2.5 rounded-lg font-semibold text-sm shadow-sm transition-all active:scale-[0.98] touch-manipulation"
+              style={{ WebkitTapHighlightColor: 'transparent' }}
+            >
+              {isLoading ? '조회 중...' : '조회'}
+            </button>
+          </div>
+        </div>
+
+        {eqtTrnsList.length > 0 ? (
+          <>
+            {/* 조회 결과 테이블 */}
+            <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
+              <div className="px-4 py-3 bg-gradient-to-r from-gray-50 to-white border-b border-gray-100">
+                <span className="text-sm font-semibold text-gray-800">조회 결과: {eqtTrnsList.length}건</span>
+                <span className="text-sm text-blue-600 ml-2 font-medium">(선택: {eqtTrnsList.filter(item => item.CHK).length}건)</span>
+              </div>
+              <div className="max-h-96 overflow-x-auto">
+                <table className="w-full text-xs">
+                  <thead className="bg-gray-50 sticky top-0">
+                    <tr>
+                      <th className="px-3 py-2.5 border-b border-gray-100"><input type="checkbox" onChange={(e) => handleCheckAll(e.target.checked)} checked={eqtTrnsList.length > 0 && eqtTrnsList.every(item => item.CHK)} className="rounded" /></th>
+                      <th className="px-3 py-2.5 text-left text-xs font-semibold text-gray-600 border-b border-gray-100">일련번호</th>
+                      <th className="px-3 py-2.5 text-left text-xs font-semibold text-gray-600 border-b border-gray-100">유형</th>
+                      <th className="px-3 py-2.5 text-left text-xs font-semibold text-gray-600 border-b border-gray-100">중분류</th>
+                      <th className="px-3 py-2.5 text-left text-xs font-semibold text-gray-600 border-b border-gray-100">기사</th>
+                      <th className="px-3 py-2.5 text-left text-xs font-semibold text-gray-600 border-b border-gray-100">MAC</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody>
+                    {eqtTrnsList.map((item, idx) => (
+                      <tr key={idx} className="hover:bg-blue-50/50 transition-colors">
+                        <td className="px-3 py-2.5 border-b border-gray-50 text-center"><input type="checkbox" checked={item.CHK || false} onChange={(e) => handleCheckItem(idx, e.target.checked)} className="rounded" /></td>
+                        <td className="px-3 py-2.5 text-xs text-gray-900 border-b border-gray-50 font-medium">{item.EQT_SERNO}</td>
+                        <td className="px-3 py-2.5 text-xs text-gray-700 border-b border-gray-50">{item.EQT_CL_NM}</td>
+                        <td className="px-3 py-2.5 text-xs text-gray-700 border-b border-gray-50">{item.ITEM_MID_NM}</td>
+                        <td className="px-3 py-2.5 text-xs text-gray-700 border-b border-gray-50">{item.WRKR_NM}</td>
+                        <td className="px-3 py-2.5 text-xs text-gray-500 border-b border-gray-50 font-mono">{item.MAC_ADDRESS}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             </div>
+            {/* 장비인수 버튼 */}
+            <div className="flex justify-end">
+              <button
+                onClick={handleTransfer}
+                className="bg-blue-500 hover:bg-blue-600 text-white py-2.5 px-8 rounded-lg font-semibold text-sm shadow-sm transition-all active:scale-[0.98] touch-manipulation"
+                style={{ WebkitTapHighlightColor: 'transparent' }}
+              >
+                장비인수
+              </button>
+            </div>
+          </>
+        ) : (
+          <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-8">
+            <p className="text-center text-gray-500 text-sm">{isLoading ? '장비 조회 중...' : '조회 버튼을 눌러 장비를 조회하세요'}</p>
           </div>
-          <div className="flex justify-end">
-            <button onClick={handleTransfer} className="bg-green-600 hover:bg-green-700 text-white py-2 px-6 rounded font-medium text-sm shadow-md transition-all">장비인수</button>
-          </div>
-        </>
-      ) : (
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-          <p className="text-center text-gray-500 text-sm">{isLoading ? '장비 조회 중...' : '조회 버튼을 눌러 장비를 조회하세요'}</p>
-        </div>
-      )}
+        )}
 
-      <WorkerSearchModal isOpen={workerModalOpen} onClose={() => setWorkerModalOpen(false)} onSelect={(worker) => setSearchParams({...searchParams, WRKR_ID: worker.USR_ID, WRKR_NM: worker.USR_NM})} workers={searchedWorkers} title="보유기사 선택" />
+        <WorkerSearchModal isOpen={workerModalOpen} onClose={() => setWorkerModalOpen(false)} onSelect={(worker) => setSearchParams({...searchParams, WRKR_ID: worker.USR_ID, WRKR_NM: worker.USR_NM})} workers={searchedWorkers} title="보유기사 선택" />
+      </div>
     </div>
   );
 };

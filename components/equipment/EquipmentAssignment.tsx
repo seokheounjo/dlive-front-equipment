@@ -260,297 +260,309 @@ const EquipmentAssignment: React.FC<EquipmentAssignmentProps> = ({ onBack, showT
   };
 
   return (
-    <div className="p-2">
-      {/* 헤더 */}
-      <div className="flex items-center justify-between mb-3">
-        <h2 className="text-lg font-bold text-gray-900">장비할당</h2>
-        <button
-          onClick={onBack}
-          className="text-sm text-gray-600 hover:text-gray-800"
-        >
-          ← 뒤로
-        </button>
-      </div>
-
-      {/* 검색 영역 */}
-      <div className="mb-3 bg-white rounded-lg shadow-sm border border-gray-200 p-3">
-        <div className="space-y-2">
-          {/* 출고일자 범위 - 한 줄 레이아웃 */}
-          <div className="flex items-center gap-1.5">
-            <label className="text-xs font-medium text-gray-600 w-14 flex-shrink-0">출고일자</label>
-            <div className="flex-1 flex items-center gap-1 min-w-0">
-              <div className="relative flex-1 min-w-0">
-                <input
-                  type="date"
-                  value={formatDateForInput(fromDate)}
-                  onChange={(e) => setFromDate(formatDateForApi(e.target.value))}
-                  className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
-                />
-                <div className="flex items-center px-2 py-1.5 text-sm border border-gray-300 rounded bg-white pointer-events-none">
-                  <span className="flex-1">{formatDateDot(fromDate)}</span>
-                  <svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                  </svg>
-                </div>
-              </div>
-              <span className="text-gray-400 flex-shrink-0">~</span>
-              <div className="relative flex-1 min-w-0">
-                <input
-                  type="date"
-                  value={formatDateForInput(toDate)}
-                  onChange={(e) => setToDate(formatDateForApi(e.target.value))}
-                  className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
-                />
-                <div className="flex items-center px-2 py-1.5 text-sm border border-gray-300 rounded bg-white pointer-events-none">
-                  <span className="flex-1">{formatDateDot(toDate)}</span>
-                  <svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                  </svg>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* 지점 선택 - 한 줄 레이아웃 */}
-          <div className="flex items-center gap-2">
-            <label className="text-xs font-medium text-gray-600 w-14 flex-shrink-0">지점</label>
-            <select
-              value={selectedSoId}
-              onChange={(e) => setSelectedSoId(e.target.value)}
-              className="flex-1 px-2 py-1.5 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
-            >
-              <option value="">전체</option>
-              {soList.map((item) => (
-                <option key={item.SO_ID} value={item.SO_ID}>{item.SO_NM}</option>
-              ))}
-            </select>
-          </div>
-
-          {/* 조회 버튼 */}
+    <div className="min-h-screen bg-gray-50">
+      {/* 헤더 - 작업관리 스타일 */}
+      <div className="bg-gradient-to-br from-blue-500 to-blue-600 px-4 pt-6 pb-8 shadow-lg">
+        <div className="flex items-center justify-between">
+          <h1 className="text-xl font-bold text-white">장비할당</h1>
           <button
-            onClick={handleSearch}
-            disabled={isLoading}
-            className="w-full bg-orange-500 hover:bg-orange-600 disabled:bg-gray-400 text-white py-2.5 rounded font-medium text-sm shadow-md transition-all flex items-center justify-center gap-2"
+            onClick={onBack}
+            className="text-sm text-white/80 hover:text-white transition-colors"
+            style={{ WebkitTapHighlightColor: 'transparent' }}
           >
-            {isLoading ? (
-              <>
-                <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-                </svg>
-                조회 중...
-              </>
-            ) : (
-              '조회'
-            )}
+            ← 뒤로
           </button>
         </div>
       </div>
 
-      {/* 출고 리스트 */}
-      {eqtOutList.length > 0 && (
-        <div className="mb-3">
-          <div className="flex items-center justify-between mb-2">
-            <h3 className="text-sm font-semibold text-gray-700">출고 리스트 (파트너사 → 기사)</h3>
-            <span className="text-xs text-gray-500">{eqtOutList.length}건</span>
-          </div>
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
-            <div className="max-h-48 overflow-y-auto">
-              <table className="w-full text-xs">
-                <thead className="bg-gray-50 sticky top-0 z-10">
-                  <tr>
-                    <th className="px-2 py-2 text-center text-xs font-semibold text-gray-700 border-b whitespace-nowrap">출고일</th>
-                    <th className="px-2 py-2 text-left text-xs font-semibold text-gray-700 border-b">협력업체</th>
-                    <th className="px-2 py-2 text-left text-xs font-semibold text-gray-700 border-b">지점</th>
-                    <th className="px-2 py-2 text-center text-xs font-semibold text-gray-700 border-b">상태</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {eqtOutList.map((item, idx) => (
-                    <tr
-                      key={idx}
-                      onClick={() => handleEqtOutSelect(item)}
-                      className={`cursor-pointer transition-colors ${
-                        selectedEqtOut?.OUT_REQ_NO === item.OUT_REQ_NO
-                          ? 'bg-orange-100 border-l-4 border-orange-500'
-                          : 'hover:bg-orange-50'
-                      }`}
-                    >
-                      <td className="px-2 py-2.5 text-xs text-center text-gray-900 border-b whitespace-nowrap">
-                        {formatOutDttm(item.OUT_DTTM || item.OUT_REQ_DT)}
-                      </td>
-                      <td className="px-2 py-2.5 text-xs text-gray-900 border-b truncate max-w-[100px]">
-                        {item.CRR_NM || '-'}
-                      </td>
-                      <td className="px-2 py-2.5 text-xs text-gray-900 border-b">
-                        {item.SO_NM || '-'}
-                      </td>
-                      <td className="px-2 py-2.5 text-xs text-center border-b">
-                        <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${
-                          item.PROC_STAT === 'C' ? 'bg-green-100 text-green-700' :
-                          item.PROC_STAT === 'P' ? 'bg-yellow-100 text-yellow-700' :
-                          'bg-gray-100 text-gray-700'
-                        }`}>
-                          {item.PROC_STAT_NM || (item.PROC_STAT === 'C' ? '완료' : item.PROC_STAT === 'P' ? '진행중' : '대기')}
-                        </span>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* 선택된 출고 정보 요약 */}
-      {selectedEqtOut && (
-        <div className="mb-3 bg-gradient-to-r from-orange-50 to-yellow-50 rounded-lg border border-orange-200 p-3">
-          <div className="flex items-center gap-2 mb-2">
-            <span className="text-orange-600">📦</span>
-            <span className="text-sm font-semibold text-gray-800">선택된 출고</span>
-          </div>
-          <div className="grid grid-cols-2 gap-2 text-xs">
-            <div>
-              <span className="text-gray-500">출고번호:</span>
-              <span className="ml-1 font-medium">{selectedEqtOut.OUT_REQ_NO}</span>
-            </div>
-            <div>
-              <span className="text-gray-500">출고일:</span>
-              <span className="ml-1 font-medium">{formatOutDttm(selectedEqtOut.OUT_DTTM || selectedEqtOut.OUT_REQ_DT)}</span>
-            </div>
-            <div>
-              <span className="text-gray-500">협력업체:</span>
-              <span className="ml-1 font-medium">{selectedEqtOut.CRR_NM || '-'}</span>
-            </div>
-            <div>
-              <span className="text-gray-500">할당기사:</span>
-              <span className="ml-1 font-medium">{selectedEqtOut.OUT_REQ_UID_NM || '-'}</span>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* 입고 대상 장비 리스트 */}
-      {selectedEqtOut && (
-        <div className="mb-3">
-          <div className="flex items-center justify-between mb-2">
-            <h3 className="text-sm font-semibold text-gray-700">입고 대상 장비</h3>
-            {outTgtEqtList.length > 0 && (
-              <span className="text-xs text-gray-500">{outTgtEqtList.length}개</span>
-            )}
-          </div>
-
-          {isLoadingDetail ? (
-            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 flex items-center justify-center">
-              <svg className="animate-spin h-6 w-6 text-orange-500 mr-2" viewBox="0 0 24 24">
-                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
-                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-              </svg>
-              <span className="text-sm text-gray-600">장비 목록 조회 중...</span>
-            </div>
-          ) : outTgtEqtList.length > 0 ? (
-            <>
-              <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
-                {/* 전체 선택 */}
-                <div className="bg-gray-50 px-3 py-2 border-b flex items-center gap-2">
+      <div className="px-4 -mt-4 pb-4 space-y-3">
+        {/* 검색 영역 */}
+        <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4">
+          <div className="space-y-3">
+            {/* 출고일자 범위 */}
+            <div className="flex items-center gap-2">
+              <label className="text-xs font-medium text-gray-600 w-14 flex-shrink-0">출고일자</label>
+              <div className="flex-1 flex items-center gap-2 min-w-0">
+                <div className="relative flex-1 min-w-0">
                   <input
-                    type="checkbox"
-                    id="checkAll"
-                    onChange={(e) => handleCheckAll(e.target.checked)}
-                    checked={outTgtEqtList.length > 0 && outTgtEqtList.every(item => item.CHK)}
-                    className="w-4 h-4 text-orange-500 rounded focus:ring-orange-500"
+                    type="date"
+                    value={formatDateForInput(fromDate)}
+                    onChange={(e) => setFromDate(formatDateForApi(e.target.value))}
+                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
                   />
-                  <label htmlFor="checkAll" className="text-xs text-gray-600 cursor-pointer">전체 선택</label>
+                  <div className="flex items-center px-3 py-2 text-sm border border-gray-200 rounded-lg bg-white pointer-events-none">
+                    <span className="flex-1">{formatDateDot(fromDate)}</span>
+                    <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                    </svg>
+                  </div>
                 </div>
+                <span className="text-gray-400 flex-shrink-0">~</span>
+                <div className="relative flex-1 min-w-0">
+                  <input
+                    type="date"
+                    value={formatDateForInput(toDate)}
+                    onChange={(e) => setToDate(formatDateForApi(e.target.value))}
+                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+                  />
+                  <div className="flex items-center px-3 py-2 text-sm border border-gray-200 rounded-lg bg-white pointer-events-none">
+                    <span className="flex-1">{formatDateDot(toDate)}</span>
+                    <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                    </svg>
+                  </div>
+                </div>
+              </div>
+            </div>
 
-                {/* 장비 카드 리스트 */}
-                <div className="max-h-64 overflow-y-auto divide-y divide-gray-100">
-                  {outTgtEqtList.map((item, idx) => (
-                    <div
-                      key={idx}
-                      className={`p-3 ${item.CHK ? 'bg-orange-50' : 'hover:bg-gray-50'} transition-colors`}
-                    >
-                      <div className="flex items-start gap-3">
-                        {/* 체크박스 */}
-                        <input
-                          type="checkbox"
-                          checked={item.CHK || false}
-                          onChange={(e) => handleCheckItem(idx, e.target.checked)}
-                          className="w-4 h-4 mt-0.5 text-orange-500 rounded focus:ring-orange-500"
-                        />
+            {/* 지점 선택 */}
+            <div className="flex items-center gap-2">
+              <label className="text-xs font-medium text-gray-600 w-14 flex-shrink-0">지점</label>
+              <select
+                value={selectedSoId}
+                onChange={(e) => setSelectedSoId(e.target.value)}
+                className="flex-1 px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+              >
+                <option value="">전체</option>
+                {soList.map((item) => (
+                  <option key={item.SO_ID} value={item.SO_ID}>{item.SO_NM}</option>
+                ))}
+              </select>
+            </div>
 
-                        {/* 장비 정보 (약식) */}
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2 mb-1">
-                            <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${getItemColor(item.ITEM_MID_CD)}`}>
-                              {item.ITEM_MID_CD_NM || item.ITEM_MAX_CD_NM || '장비'}
-                            </span>
-                            <span className="text-sm font-medium text-gray-900 truncate">
-                              {item.EQT_CL_NM || '-'}
-                            </span>
-                          </div>
-                          <div className="text-xs text-gray-500 space-y-0.5">
-                            <div className="flex items-center gap-2">
-                              <span>S/N: {item.EQT_SERNO || '-'}</span>
-                              {item.MAC_ADDRESS && (
-                                <span className="text-gray-400">| MAC: {item.MAC_ADDRESS}</span>
-                              )}
-                            </div>
-                            <div className="flex items-center gap-2">
-                              <span>수량: {item.OUT_QTY || 1}</span>
-                              <span className={`${item.PROC_YN === 'Y' ? 'text-green-600' : 'text-yellow-600'}`}>
-                                {item.PROC_YN === 'Y' ? '✓ 처리완료' : '○ 미처리'}
+            {/* 조회 버튼 */}
+            <button
+              onClick={handleSearch}
+              disabled={isLoading}
+              className="w-full bg-blue-500 hover:bg-blue-600 disabled:bg-gray-400 text-white py-2.5 rounded-lg font-semibold text-sm shadow-sm transition-all active:scale-[0.98] touch-manipulation flex items-center justify-center gap-2"
+              style={{ WebkitTapHighlightColor: 'transparent' }}
+            >
+              {isLoading ? (
+                <>
+                  <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                  </svg>
+                  조회 중...
+                </>
+              ) : (
+                '조회'
+              )}
+            </button>
+          </div>
+        </div>
+
+        {/* 출고 리스트 */}
+        {eqtOutList.length > 0 && (
+          <div>
+            <div className="flex items-center justify-between mb-2">
+              <h3 className="text-sm font-semibold text-gray-700">출고 리스트 (파트너사 → 기사)</h3>
+              <span className="text-xs text-gray-500">{eqtOutList.length}건</span>
+            </div>
+            <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
+              <div className="max-h-48 overflow-y-auto">
+                <table className="w-full text-xs">
+                  <thead className="bg-gray-50 sticky top-0 z-10">
+                    <tr>
+                      <th className="px-3 py-2.5 text-center text-xs font-semibold text-gray-600 border-b border-gray-100 whitespace-nowrap">출고일</th>
+                      <th className="px-3 py-2.5 text-left text-xs font-semibold text-gray-600 border-b border-gray-100">협력업체</th>
+                      <th className="px-3 py-2.5 text-left text-xs font-semibold text-gray-600 border-b border-gray-100">지점</th>
+                      <th className="px-3 py-2.5 text-center text-xs font-semibold text-gray-600 border-b border-gray-100">상태</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {eqtOutList.map((item, idx) => (
+                      <tr
+                        key={idx}
+                        onClick={() => handleEqtOutSelect(item)}
+                        className={`cursor-pointer transition-colors ${
+                          selectedEqtOut?.OUT_REQ_NO === item.OUT_REQ_NO
+                            ? 'bg-blue-50 border-l-4 border-blue-500'
+                            : 'hover:bg-blue-50/50'
+                        }`}
+                      >
+                        <td className="px-3 py-2.5 text-xs text-center text-gray-900 border-b border-gray-50 whitespace-nowrap">
+                          {formatOutDttm(item.OUT_DTTM || item.OUT_REQ_DT)}
+                        </td>
+                        <td className="px-3 py-2.5 text-xs text-gray-700 border-b border-gray-50 truncate max-w-[100px]">
+                          {item.CRR_NM || '-'}
+                        </td>
+                        <td className="px-3 py-2.5 text-xs text-gray-700 border-b border-gray-50">
+                          {item.SO_NM || '-'}
+                        </td>
+                        <td className="px-3 py-2.5 text-xs text-center border-b border-gray-50">
+                          <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${
+                            item.PROC_STAT === 'C' ? 'bg-green-100 text-green-700' :
+                            item.PROC_STAT === 'P' ? 'bg-yellow-100 text-yellow-700' :
+                            'bg-gray-100 text-gray-700'
+                          }`}>
+                            {item.PROC_STAT_NM || (item.PROC_STAT === 'C' ? '완료' : item.PROC_STAT === 'P' ? '진행중' : '대기')}
+                          </span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* 선택된 출고 정보 요약 */}
+        {selectedEqtOut && (
+          <div className="bg-gradient-to-r from-blue-50 to-blue-100/50 rounded-xl border border-blue-200 p-4">
+            <div className="flex items-center gap-2 mb-3">
+              <span className="text-blue-600">📦</span>
+              <span className="text-sm font-semibold text-gray-800">선택된 출고</span>
+            </div>
+            <div className="grid grid-cols-2 gap-2 text-xs">
+              <div>
+                <span className="text-gray-500">출고번호:</span>
+                <span className="ml-1 font-medium">{selectedEqtOut.OUT_REQ_NO}</span>
+              </div>
+              <div>
+                <span className="text-gray-500">출고일:</span>
+                <span className="ml-1 font-medium">{formatOutDttm(selectedEqtOut.OUT_DTTM || selectedEqtOut.OUT_REQ_DT)}</span>
+              </div>
+              <div>
+                <span className="text-gray-500">협력업체:</span>
+                <span className="ml-1 font-medium">{selectedEqtOut.CRR_NM || '-'}</span>
+              </div>
+              <div>
+                <span className="text-gray-500">할당기사:</span>
+                <span className="ml-1 font-medium">{selectedEqtOut.OUT_REQ_UID_NM || '-'}</span>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* 입고 대상 장비 리스트 */}
+        {selectedEqtOut && (
+          <div>
+            <div className="flex items-center justify-between mb-2">
+              <h3 className="text-sm font-semibold text-gray-700">입고 대상 장비</h3>
+              {outTgtEqtList.length > 0 && (
+                <span className="text-xs text-gray-500">{outTgtEqtList.length}개</span>
+              )}
+            </div>
+
+            {isLoadingDetail ? (
+              <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-6 flex items-center justify-center">
+                <svg className="animate-spin h-6 w-6 text-blue-500 mr-2" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                </svg>
+                <span className="text-sm text-gray-600">장비 목록 조회 중...</span>
+              </div>
+            ) : outTgtEqtList.length > 0 ? (
+              <>
+                <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
+                  {/* 전체 선택 */}
+                  <div className="bg-gray-50 px-4 py-3 border-b border-gray-100 flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      id="checkAll"
+                      onChange={(e) => handleCheckAll(e.target.checked)}
+                      checked={outTgtEqtList.length > 0 && outTgtEqtList.every(item => item.CHK)}
+                      className="w-4 h-4 text-blue-500 rounded focus:ring-blue-500"
+                    />
+                    <label htmlFor="checkAll" className="text-xs text-gray-600 cursor-pointer">전체 선택</label>
+                  </div>
+
+                  {/* 장비 카드 리스트 */}
+                  <div className="max-h-64 overflow-y-auto divide-y divide-gray-50">
+                    {outTgtEqtList.map((item, idx) => (
+                      <div
+                        key={idx}
+                        className={`p-4 ${item.CHK ? 'bg-blue-50' : 'hover:bg-gray-50'} transition-colors`}
+                      >
+                        <div className="flex items-start gap-3">
+                          {/* 체크박스 */}
+                          <input
+                            type="checkbox"
+                            checked={item.CHK || false}
+                            onChange={(e) => handleCheckItem(idx, e.target.checked)}
+                            className="w-4 h-4 mt-0.5 text-blue-500 rounded focus:ring-blue-500"
+                          />
+
+                          {/* 장비 정보 */}
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 mb-1">
+                              <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${getItemColor(item.ITEM_MID_CD)}`}>
+                                {item.ITEM_MID_CD_NM || item.ITEM_MAX_CD_NM || '장비'}
+                              </span>
+                              <span className="text-sm font-medium text-gray-900 truncate">
+                                {item.EQT_CL_NM || '-'}
                               </span>
                             </div>
+                            <div className="text-xs text-gray-500 space-y-0.5">
+                              <div className="flex items-center gap-2">
+                                <span className="font-mono">S/N: {item.EQT_SERNO || '-'}</span>
+                                {item.MAC_ADDRESS && (
+                                  <span className="text-gray-400 font-mono">| MAC: {item.MAC_ADDRESS}</span>
+                                )}
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <span>수량: {item.OUT_QTY || 1}</span>
+                                <span className={`${item.PROC_YN === 'Y' ? 'text-green-600' : 'text-yellow-600'}`}>
+                                  {item.PROC_YN === 'Y' ? '✓ 처리완료' : '○ 미처리'}
+                                </span>
+                              </div>
+                            </div>
                           </div>
+
+                          {/* 상세보기 버튼 */}
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleShowDetail(item);
+                            }}
+                            className="px-3 py-1.5 text-xs text-blue-600 hover:bg-blue-100 rounded-lg transition-colors"
+                          >
+                            상세
+                          </button>
                         </div>
-
-                        {/* 상세보기 버튼 */}
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleShowDetail(item);
-                          }}
-                          className="px-2 py-1 text-xs text-orange-600 hover:bg-orange-100 rounded transition-colors"
-                        >
-                          상세
-                        </button>
                       </div>
-                    </div>
-                  ))}
+                    ))}
+                  </div>
                 </div>
-              </div>
 
-              {/* 입고처리 버튼 */}
-              <div className="mt-3 flex justify-end gap-2">
-                <button
-                  onClick={handleCheckAccept}
-                  disabled={!outTgtEqtList.some(item => item.CHK)}
-                  className="btn btn-success shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  선택 장비 입고처리 ({outTgtEqtList.filter(item => item.CHK).length}건)
-                </button>
+                {/* 입고처리 버튼 */}
+                <div className="mt-3 flex justify-end gap-2">
+                  <button
+                    onClick={handleCheckAccept}
+                    disabled={!outTgtEqtList.some(item => item.CHK)}
+                    className="bg-blue-500 hover:bg-blue-600 disabled:bg-gray-300 text-white py-2.5 px-6 rounded-lg font-semibold text-sm shadow-sm transition-all active:scale-[0.98] touch-manipulation disabled:cursor-not-allowed"
+                    style={{ WebkitTapHighlightColor: 'transparent' }}
+                  >
+                    선택 장비 입고처리 ({outTgtEqtList.filter(item => item.CHK).length}건)
+                  </button>
+                </div>
+              </>
+            ) : (
+              <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-6">
+                <p className="text-center text-gray-500 text-sm">출고된 장비 내역이 없습니다</p>
               </div>
-            </>
-          ) : (
-            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-              <p className="text-center text-gray-500 text-sm">출고된 장비 내역이 없습니다</p>
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* 빈 상태 */}
-      {eqtOutList.length === 0 && !isLoading && (
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-8">
-          <div className="text-center">
-            <div className="text-4xl mb-3">📦</div>
-            <p className="text-gray-600 text-sm mb-1">출고 리스트가 없습니다</p>
-            <p className="text-gray-400 text-xs">검색 조건을 설정하고 조회 버튼을 눌러주세요</p>
+            )}
           </div>
-        </div>
-      )}
+        )}
+
+        {/* 빈 상태 */}
+        {eqtOutList.length === 0 && !isLoading && (
+          <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-8">
+            <div className="text-center">
+              <div className="w-16 h-16 mx-auto mb-4 bg-blue-100 rounded-full flex items-center justify-center">
+                <svg className="w-8 h-8 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+                </svg>
+              </div>
+              <p className="text-gray-600 text-sm mb-1">출고 리스트가 없습니다</p>
+              <p className="text-gray-400 text-xs">검색 조건을 설정하고 조회 버튼을 눌러주세요</p>
+            </div>
+          </div>
+        )}
+
+      </div>
 
       {/* 장비 상세 모달 */}
       <BaseModal

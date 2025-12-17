@@ -100,114 +100,140 @@ const EquipmentRecovery: React.FC<EquipmentRecoveryProps> = ({ onBack }) => {
   };
 
   return (
-    <div className="p-2">
-      <div className="flex items-center justify-between mb-3">
-        <h2 className="text-lg font-bold text-gray-900">미회수장비</h2>
-        <button onClick={onBack} className="text-sm text-gray-600 hover:text-gray-800">← 뒤로</button>
-      </div>
-
-      {/* 검색 영역 - 키-값 한줄 레이아웃 */}
-      <div className="mb-3 bg-white rounded-lg shadow-sm border border-gray-200 p-3">
-        <div className="space-y-2">
-          {/* 해지일자 (한 줄) - 반응형 레이아웃 */}
-          <div className="flex items-center gap-1.5">
-            <label className="text-xs font-medium text-gray-600 w-14 flex-shrink-0">해지일자</label>
-            <div className="flex-1 flex items-center gap-1 min-w-0">
-              <div className="relative flex-1 min-w-0">
-                <input
-                  type="date"
-                  value={formatDateInput(searchParams.FROM_DT)}
-                  onChange={(e) => setSearchParams({...searchParams, FROM_DT: formatDateApi(e.target.value)})}
-                  className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
-                />
-                <div className="flex items-center px-2 py-1.5 text-sm border border-gray-300 rounded bg-white pointer-events-none">
-                  <span className="flex-1">{formatDateDot(searchParams.FROM_DT)}</span>
-                  <svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                  </svg>
-                </div>
-              </div>
-              <span className="text-gray-400 flex-shrink-0">~</span>
-              <div className="relative flex-1 min-w-0">
-                <input
-                  type="date"
-                  value={formatDateInput(searchParams.TO_DT)}
-                  onChange={(e) => setSearchParams({...searchParams, TO_DT: formatDateApi(e.target.value)})}
-                  className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
-                />
-                <div className="flex items-center px-2 py-1.5 text-sm border border-gray-300 rounded bg-white pointer-events-none">
-                  <span className="flex-1">{formatDateDot(searchParams.TO_DT)}</span>
-                  <svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                  </svg>
-                </div>
-              </div>
-            </div>
-          </div>
-          {/* 고객ID (한 줄) */}
-          <div className="flex items-center gap-2">
-            <label className="text-xs font-medium text-gray-600 w-16 flex-shrink-0">고객ID</label>
-            <input
-              type="text"
-              value={searchParams.CUST_ID}
-              onChange={(e) => setSearchParams({...searchParams, CUST_ID: e.target.value})}
-              className="flex-1 px-2 py-1.5 text-sm border border-gray-300 rounded"
-              placeholder="고객ID 입력"
-            />
-          </div>
-          {/* 고객명 (한 줄) */}
-          <div className="flex items-center gap-2">
-            <label className="text-xs font-medium text-gray-600 w-16 flex-shrink-0">고객명</label>
-            <input
-              type="text"
-              value={searchParams.CUST_NM}
-              onChange={(e) => setSearchParams({...searchParams, CUST_NM: e.target.value})}
-              className="flex-1 px-2 py-1.5 text-sm border border-gray-300 rounded"
-              placeholder="고객명 입력"
-            />
-          </div>
+    <div className="min-h-screen bg-gray-50">
+      {/* 헤더 - 작업관리 스타일 */}
+      <div className="bg-gradient-to-br from-blue-500 to-blue-600 px-4 pt-6 pb-8 shadow-lg">
+        <div className="flex items-center justify-between">
+          <h1 className="text-xl font-bold text-white">미회수장비</h1>
           <button
-            onClick={handleSearch}
-            className="w-full bg-orange-500 hover:bg-orange-600 text-white py-2 rounded font-medium text-sm shadow-md transition-all"
+            onClick={onBack}
+            className="text-sm text-white/80 hover:text-white transition-colors"
+            style={{ WebkitTapHighlightColor: 'transparent' }}
           >
-            조회
+            ← 뒤로
           </button>
         </div>
       </div>
 
-      {/* 미회수 장비 목록 */}
-      {unreturnedList.length > 0 ? (
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
-          <div className="max-h-96 overflow-y-auto">
-            <table className="w-full">
-              <thead className="bg-gray-50 sticky top-0">
-                <tr>
-                  <th className="px-2 py-2 text-left text-xs font-semibold text-gray-700 border-b">고객명</th>
-                  <th className="px-2 py-2 text-left text-xs font-semibold text-gray-700 border-b">장비명</th>
-                  <th className="px-2 py-2 text-left text-xs font-semibold text-gray-700 border-b">S/N</th>
-                  <th className="px-2 py-2 text-center text-xs font-semibold text-gray-700 border-b">해지일</th>
-                  <th className="px-2 py-2 text-center text-xs font-semibold text-gray-700 border-b">회수요청</th>
-                </tr>
-              </thead>
-              <tbody>
-                {unreturnedList.map((item, idx) => (
-                  <tr key={idx} className="hover:bg-gray-50">
-                    <td className="px-2 py-2 text-xs text-gray-900 border-b">{item.CUST_NM}</td>
-                    <td className="px-2 py-2 text-xs text-gray-900 border-b">{item.EQT_CL_NM}</td>
-                    <td className="px-2 py-2 text-xs text-gray-900 border-b">{item.EQT_SERNO}</td>
-                    <td className="px-2 py-2 text-xs text-center text-gray-900 border-b">{item.TRML_DT}</td>
-                    <td className="px-2 py-2 text-xs text-center text-gray-900 border-b">{item.RETN_REQ_YN}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+      <div className="px-4 -mt-4 pb-4 space-y-3">
+        {/* 검색 영역 */}
+        <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4">
+          <div className="space-y-3">
+            {/* 해지일자 */}
+            <div className="flex items-center gap-2">
+              <label className="text-xs font-medium text-gray-600 w-14 flex-shrink-0">해지일자</label>
+              <div className="flex-1 flex items-center gap-2 min-w-0">
+                <div className="relative flex-1 min-w-0">
+                  <input
+                    type="date"
+                    value={formatDateInput(searchParams.FROM_DT)}
+                    onChange={(e) => setSearchParams({...searchParams, FROM_DT: formatDateApi(e.target.value)})}
+                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+                  />
+                  <div className="flex items-center px-3 py-2 text-sm border border-gray-200 rounded-lg bg-white pointer-events-none">
+                    <span className="flex-1">{formatDateDot(searchParams.FROM_DT)}</span>
+                    <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                    </svg>
+                  </div>
+                </div>
+                <span className="text-gray-400 flex-shrink-0">~</span>
+                <div className="relative flex-1 min-w-0">
+                  <input
+                    type="date"
+                    value={formatDateInput(searchParams.TO_DT)}
+                    onChange={(e) => setSearchParams({...searchParams, TO_DT: formatDateApi(e.target.value)})}
+                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+                  />
+                  <div className="flex items-center px-3 py-2 text-sm border border-gray-200 rounded-lg bg-white pointer-events-none">
+                    <span className="flex-1">{formatDateDot(searchParams.TO_DT)}</span>
+                    <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                    </svg>
+                  </div>
+                </div>
+              </div>
+            </div>
+            {/* 고객ID */}
+            <div className="flex items-center gap-2">
+              <label className="text-xs font-medium text-gray-600 w-14 flex-shrink-0">고객ID</label>
+              <input
+                type="text"
+                value={searchParams.CUST_ID}
+                onChange={(e) => setSearchParams({...searchParams, CUST_ID: e.target.value})}
+                className="flex-1 px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                placeholder="고객ID 입력"
+              />
+            </div>
+            {/* 고객명 */}
+            <div className="flex items-center gap-2">
+              <label className="text-xs font-medium text-gray-600 w-14 flex-shrink-0">고객명</label>
+              <input
+                type="text"
+                value={searchParams.CUST_NM}
+                onChange={(e) => setSearchParams({...searchParams, CUST_NM: e.target.value})}
+                className="flex-1 px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                placeholder="고객명 입력"
+              />
+            </div>
+            <button
+              onClick={handleSearch}
+              className="w-full bg-blue-500 hover:bg-blue-600 text-white py-2.5 rounded-lg font-semibold text-sm shadow-sm transition-all active:scale-[0.98] touch-manipulation"
+              style={{ WebkitTapHighlightColor: 'transparent' }}
+            >
+              조회
+            </button>
           </div>
         </div>
-      ) : (
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-          <p className="text-center text-gray-500 text-sm">미회수 장비가 없습니다</p>
-        </div>
-      )}
+
+        {/* 미회수 장비 목록 */}
+        {unreturnedList.length > 0 ? (
+          <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
+            <div className="px-4 py-3 bg-gradient-to-r from-gray-50 to-white border-b border-gray-100">
+              <span className="text-sm font-semibold text-gray-800">조회 결과: {unreturnedList.length}건</span>
+            </div>
+            <div className="max-h-96 overflow-y-auto">
+              <table className="w-full">
+                <thead className="bg-gray-50 sticky top-0">
+                  <tr>
+                    <th className="px-3 py-2.5 text-left text-xs font-semibold text-gray-600 border-b border-gray-100">고객명</th>
+                    <th className="px-3 py-2.5 text-left text-xs font-semibold text-gray-600 border-b border-gray-100">장비명</th>
+                    <th className="px-3 py-2.5 text-left text-xs font-semibold text-gray-600 border-b border-gray-100">S/N</th>
+                    <th className="px-3 py-2.5 text-center text-xs font-semibold text-gray-600 border-b border-gray-100">해지일</th>
+                    <th className="px-3 py-2.5 text-center text-xs font-semibold text-gray-600 border-b border-gray-100">회수요청</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {unreturnedList.map((item, idx) => (
+                    <tr key={idx} className="hover:bg-blue-50/50 transition-colors">
+                      <td className="px-3 py-2.5 text-xs text-gray-900 border-b border-gray-50">{item.CUST_NM}</td>
+                      <td className="px-3 py-2.5 text-xs text-gray-700 border-b border-gray-50">{item.EQT_CL_NM}</td>
+                      <td className="px-3 py-2.5 text-xs text-gray-700 border-b border-gray-50 font-mono">{item.EQT_SERNO}</td>
+                      <td className="px-3 py-2.5 text-xs text-center text-gray-700 border-b border-gray-50">{item.TRML_DT}</td>
+                      <td className="px-3 py-2.5 text-xs text-center border-b border-gray-50">
+                        <span className={`px-2 py-0.5 rounded text-xs ${item.RETN_REQ_YN === 'Y' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600'}`}>
+                          {item.RETN_REQ_YN === 'Y' ? '요청됨' : '미요청'}
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        ) : (
+          <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-8">
+            <div className="text-center">
+              <div className="w-16 h-16 mx-auto mb-4 bg-blue-100 rounded-full flex items-center justify-center">
+                <svg className="w-8 h-8 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                </svg>
+              </div>
+              <p className="text-gray-500 text-sm">미회수 장비가 없습니다</p>
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   );
 };
