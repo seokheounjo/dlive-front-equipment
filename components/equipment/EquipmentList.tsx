@@ -517,7 +517,7 @@ const EquipmentList: React.FC<EquipmentListProps> = ({ onBack, showToast }) => {
                 조회 중...
               </>
             ) : isMultiScanMode ? (
-              '스캔 추가'
+              '스캔'
             ) : (
               '조회'
             )}
