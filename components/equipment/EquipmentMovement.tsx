@@ -196,18 +196,47 @@ const EquipmentMovement: React.FC<EquipmentMovementProps> = ({ onBack }) => {
     // API 결과가 없으면 로그인한 사용자 정보 기반으로 설정
     if (soMapSize === 0 || crrMapSize === 0) {
       const userInfo = localStorage.getItem('userInfo');
+      const branchList = localStorage.getItem('branchList');
       if (userInfo) {
         try {
           const user = JSON.parse(userInfo);
-          if (soMapSize === 0 && user.soId) {
-            const displayName = user.soNm || `지점(${user.soId})`;
-            setSoList([{ SO_ID: user.soId, SO_NM: displayName }]);
-            console.log('⚠️ [장비이동] 지점 API 실패, 사용자 정보 사용:', user.soId);
+
+          // 지점 목록: authSoList 또는 branchList 사용
+          if (soMapSize === 0) {
+            let soListData: { SO_ID: string; SO_NM: string }[] = [];
+
+            // 1순위: authSoList (로그인 응답에서)
+            if (user.authSoList && Array.isArray(user.authSoList) && user.authSoList.length > 0) {
+              soListData = user.authSoList;
+              console.log('✅ [장비이동] authSoList에서 지점 목록 사용:', soListData.length, '건');
+            }
+            // 2순위: localStorage branchList
+            else if (branchList) {
+              try {
+                const parsed = JSON.parse(branchList);
+                if (Array.isArray(parsed) && parsed.length > 0) {
+                  soListData = parsed;
+                  console.log('✅ [장비이동] branchList에서 지점 목록 사용:', soListData.length, '건');
+                }
+              } catch (e) { }
+            }
+            // 3순위: 단일 지점 (soNm 있으면 사용)
+            if (soListData.length === 0 && user.soId) {
+              const displayName = user.soNm || `지점(${user.soId})`;
+              soListData = [{ SO_ID: user.soId, SO_NM: displayName }];
+              console.log('⚠️ [장비이동] 단일 지점 사용:', displayName);
+            }
+
+            if (soListData.length > 0) {
+              setSoList(soListData.map(so => ({ SO_ID: so.SO_ID, SO_NM: so.SO_NM })));
+            }
           }
+
+          // 협력업체: crrNm 사용
           if (crrMapSize === 0 && user.crrId) {
             const displayName = user.crrNm || `협력업체(${user.crrId})`;
             setCorpList([{ CRR_ID: user.crrId, CORP_NM: displayName }]);
-            console.log('⚠️ [장비이동] 협력업체 API 실패, 사용자 정보 사용:', user.crrId);
+            console.log('⚠️ [장비이동] 협력업체 사용:', displayName);
           }
         } catch (e) {
           console.warn('사용자 정보 파싱 실패:', e);

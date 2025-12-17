@@ -112,21 +112,35 @@ const App: React.FC = () => {
   // Zustand persist가 자동으로 currentView를 localStorage에 저장
   // SESSION_KEYS.ACTIVE_VIEW 수동 저장 불필요
 
-  const handleLogin = (userId?: string, userName?: string, userRole?: string, crrId?: string, soId?: string, mstSoId?: string) => {
+  const handleLogin = (userId?: string, userName?: string, userRole?: string, crrId?: string, soId?: string, mstSoId?: string, crrNm?: string, soNm?: string, authSoList?: Array<{ SO_ID: string; SO_NM: string }>) => {
     setIsAuthenticated(true);
     setCurrentView('today-work');
     if (userId) {
+      // AUTH_SO_List에서 soNm 찾기 (직접 soNm이 없는 경우)
+      let finalSoNm = soNm;
+      if (!finalSoNm && authSoList && soId) {
+        const found = authSoList.find(so => so.SO_ID === soId);
+        if (found) finalSoNm = found.SO_NM;
+      }
+
       const userInfoData = {
         userId,
         userName: userName || '작업자',
         userRole: userRole || '전산작업자',
         crrId,
+        crrNm,
         soId,
-        mstSoId
+        soNm: finalSoNm,
+        mstSoId,
+        authSoList
       };
       setUserInfo(userInfoData);
       // localStorage에도 저장 (EquipmentManagement에서 사용)
       localStorage.setItem('userInfo', JSON.stringify(userInfoData));
+      // 지점 목록도 별도 저장
+      if (authSoList) {
+        localStorage.setItem('branchList', JSON.stringify(authSoList));
+      }
     }
 
     const today = new Date().toISOString().split('T')[0];

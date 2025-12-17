@@ -413,8 +413,11 @@ export const login = async (userId: string, password: string): Promise<{
   userName?: string;
   userRole?: string;
   crrId?: string;
+  crrNm?: string;
   soId?: string;
+  soNm?: string;
   mstSoId?: string;
+  AUTH_SO_List?: Array<{ SO_ID: string; SO_NM: string }>;
 }> => {
   const origin = typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000';
 
