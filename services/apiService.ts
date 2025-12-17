@@ -414,6 +414,7 @@ export const login = async (userId: string, password: string): Promise<{
   userRole?: string;
   crrId?: string;
   crrNm?: string;
+  corpNm?: string;  // 협력업체명 (crrNm이 없을 때 사용)
   soId?: string;
   soNm?: string;
   mstSoId?: string;

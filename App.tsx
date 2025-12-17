@@ -112,7 +112,7 @@ const App: React.FC = () => {
   // Zustand persist가 자동으로 currentView를 localStorage에 저장
   // SESSION_KEYS.ACTIVE_VIEW 수동 저장 불필요
 
-  const handleLogin = (userId?: string, userName?: string, userRole?: string, crrId?: string, soId?: string, mstSoId?: string, crrNm?: string, soNm?: string, authSoList?: Array<{ SO_ID: string; SO_NM: string }>) => {
+  const handleLogin = (userId?: string, userName?: string, userRole?: string, crrId?: string, soId?: string, mstSoId?: string, crrNm?: string, soNm?: string, authSoList?: Array<{ SO_ID: string; SO_NM: string }>, corpNm?: string) => {
     setIsAuthenticated(true);
     setCurrentView('today-work');
     if (userId) {
@@ -129,6 +129,7 @@ const App: React.FC = () => {
         userRole: userRole || '전산작업자',
         crrId,
         crrNm,
+        corpNm,  // corpNm 추가 (협력업체명 - crrNm이 없을 때 사용)
         soId,
         soNm: finalSoNm,
         mstSoId,

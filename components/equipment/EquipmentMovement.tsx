@@ -232,9 +232,10 @@ const EquipmentMovement: React.FC<EquipmentMovementProps> = ({ onBack }) => {
             }
           }
 
-          // 협력업체: crrNm 사용
+          // 협력업체: crrNm 또는 corpNm 사용
           if (crrMapSize === 0 && user.crrId) {
-            const displayName = user.crrNm || `협력업체(${user.crrId})`;
+            // crrNm이 없으면 corpNm 사용 (로그인 응답에서 corpNm은 있음)
+            const displayName = user.crrNm || user.corpNm || `협력업체(${user.crrId})`;
             setCorpList([{ CRR_ID: user.crrId, CORP_NM: displayName }]);
             console.log('⚠️ [장비이동] 협력업체 사용:', displayName);
           }
