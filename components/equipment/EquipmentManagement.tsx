@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { ArrowDown, ArrowUp, CheckCircle2, XCircle, Loader2, Radio, RotateCcw, Camera } from 'lucide-react';
+import { ArrowDown, ArrowUp, CheckCircle2, XCircle, Loader2, Radio, RotateCcw, Camera, ScanBarcode } from 'lucide-react';
 import { WorkItem, Equipment } from '../../types';
 import { getTechnicianEquipments, EquipmentInfo, updateEquipmentComposition, checkStbServerConnection } from '../../services/apiService';
 import EquipmentModelChangeModal from '../equipment/EquipmentModelChangeModal';
@@ -1649,6 +1649,22 @@ const EquipmentManagement: React.FC<EquipmentManagementProps> = ({ workItem, onS
             </div>
           </div>
         </div>
+      )}
+
+      {/* 바코드 스캔 플로팅 버튼 - 우측 하단 고정 */}
+      {!isWorkCompleted && (
+        <button
+          onClick={handleBarcodeScan}
+          disabled={isBarcodeScanning}
+          className={`fixed bottom-24 right-4 z-40 w-14 h-14 sm:w-16 sm:h-16 rounded-full shadow-lg flex items-center justify-center transition-all active:scale-95 ${
+            isBarcodeScanning
+              ? 'bg-blue-600 text-white'
+              : 'bg-blue-500 hover:bg-blue-600 text-white'
+          }`}
+          title="바코드 스캔"
+        >
+          <ScanBarcode className="w-7 h-7 sm:w-8 sm:h-8" />
+        </button>
       )}
     </div>
   );
