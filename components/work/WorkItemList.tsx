@@ -87,14 +87,18 @@ const WorkItemList: React.FC<WorkItemListProps> = ({ direction, onBack, onNaviga
       CUST_NM: item.CUST_NM,
       PROD_NM: item.PROD_NM
     });
-    
-    // 실제 API 데이터를 WorkOrder 형태로 변환
+
+    // 실제 API 데이터를 WorkOrder 형태로 변환 (handleSelectItem)
     const convertedItem: WorkItem = {
       id: item.WRK_ID || item.id,
       directionId: item.WRK_DRCTN_ID || item.directionId,
       type: item.WRK_CD_NM === 'A/S' ? 'A/S' as any : 'Installation' as any,
       typeDisplay: item.WRK_CD_NM || item.typeDisplay || '기타',
-      status: item.WRK_STAT_CD_NM === '할당' ? '진행중' as any : (item.WRK_STAT_CD_NM || item.status || '진행중') as any,
+      // WRK_STAT_CD: 1=접수, 2=할당, 3=취소, 4=완료, 7=장비철거완료
+      status: item.WRK_STAT_CD === '3' ? '취소' as any
+            : (item.WRK_STAT_CD === '4' || item.WRK_STAT_CD === '7') ? '완료' as any
+            : (item.WRK_STAT_CD === '1' || item.WRK_STAT_CD === '2') ? '진행중' as any
+            : (item.WRK_STAT_CD_NM || item.status || '진행중') as any,
       scheduledAt: item.WRK_HOPE_DTTM ?
         `${item.WRK_HOPE_DTTM.slice(0,4)}-${item.WRK_HOPE_DTTM.slice(4,6)}-${item.WRK_HOPE_DTTM.slice(6,8)}T${item.WRK_HOPE_DTTM.slice(8,10)}:${item.WRK_HOPE_DTTM.slice(10,12)}:00` :
         item.scheduledAt || new Date().toISOString(),
@@ -137,7 +141,14 @@ const WorkItemList: React.FC<WorkItemListProps> = ({ direction, onBack, onNaviga
 
       // 계약정보 - 약정정보 (API 응답에 있는 필드)
       APLYMONTH: item.APLYMONTH,        // 약정개월 (36 등)
+      PROM_CNT: item.PROM_CNT,          // 프로모션 개월수
+      CTRT_APLY_STRT_DT: item.CTRT_APLY_STRT_DT, // 약정시작일
+      CTRT_APLY_END_DT: item.CTRT_APLY_END_DT,   // 약정종료일
       VOIP_TEL_NO: item.VOIP_TEL_NO,    // VoIP 번호
+
+      // 계약정보 - 단체정보
+      GRP_ID: item.GRP_ID,              // 단체ID
+      GRP_NM: item.GRP_NM,              // 단체명
 
       // 기타 유용한 정보
       MSO_NM: item.MSO_NM,              // 지점명 (송파지점 등)
@@ -146,6 +157,8 @@ const WorkItemList: React.FC<WorkItemListProps> = ({ direction, onBack, onNaviga
       PROD_GRP_NM: item.PROD_GRP_NM,    // 상품그룹명
       WRKR_NM: item.WRKR_NM,            // 작업자명
       ACNT_PYM_MTHD: item.ACNT_PYM_MTHD, // 납부방법코드 (01 등)
+      KPI_PROD_GRP_CD: item.KPI_PROD_GRP_CD, // KPI 상품그룹코드 (인입선로 철거관리 조건)
+      VOIP_CTX: item.VOIP_CTX,          // VoIP 컨텍스트 (T/R이면 인입선로 제외)
 
       // 작업 완료일자 (완료된 작업인 경우)
       WRKR_CMPL_DT: item.WRKR_CMPL_DT,  // 작업자 완료일자 (YYYYMMDD)
@@ -173,6 +186,20 @@ const WorkItemList: React.FC<WorkItemListProps> = ({ direction, onBack, onNaviga
       TAB_LBL: item.TAB_LBL,            // TAB 라벨
       CVT_LBL: item.CVT_LBL,            // CVT 라벨
       STB_LBL: item.STB_LBL,            // STB 라벨
+
+      // 작업완료 입력값 (완료된 작업 조회 시 사용)
+      CUST_REL: item.CUST_REL,          // 고객관계 코드
+      UP_CTRL_CL: item.UP_CTRL_CL,      // 상향제어 코드
+      PSN_USE_CORP: item.PSN_USE_CORP,  // 인터넷이용 코드
+      VOIP_USE_CORP: item.VOIP_USE_CORP, // VoIP이용 코드
+      DTV_USE_CORP: item.DTV_USE_CORP,  // 디지털방송이용 코드
+      VIEW_MOD_CD: item.VIEW_MOD_CD,    // 시청모드 코드
+      VIEW_MOD_NM: item.VIEW_MOD_NM,    // 시청모드명
+      MEMO: item.MEMO,                  // 작업비고
+
+      // 해지작업용 희망일 필드 (Hot Bill 시뮬레이션에 필요)
+      TERM_HOPE_DT: item.TERM_HOPE_DT,  // 해지희망일 (YYYYMMDD)
+      HOPE_DT: item.HOPE_DT,            // 희망일 (YYYYMMDD)
     };
 
     console.log('✅ 변환된 작업 데이터:', convertedItem);
@@ -192,13 +219,17 @@ const WorkItemList: React.FC<WorkItemListProps> = ({ direction, onBack, onNaviga
   const handleCompleteWork = (item: any) => {
     console.log('🔍 진행 버튼 클릭 - 원본 데이터:', item);
 
-    // handleSelectItem과 동일하게 작업 상세 화면으로 이동
+    // handleSelectItem과 동일하게 작업 상세 화면으로 이동 (handleCompleteWork)
     const convertedItem: WorkItem = {
       id: item.WRK_ID || item.id,
       directionId: item.WRK_DRCTN_ID || item.directionId,
       type: item.WRK_CD_NM === 'A/S' ? 'A/S' as any : 'Installation' as any,
       typeDisplay: item.WRK_CD_NM || item.typeDisplay || '기타',
-      status: item.WRK_STAT_CD_NM === '할당' ? '진행중' as any : (item.WRK_STAT_CD_NM || item.status || '진행중') as any,
+      // WRK_STAT_CD: 1=접수, 2=할당, 3=취소, 4=완료, 7=장비철거완료
+      status: item.WRK_STAT_CD === '3' ? '취소' as any
+            : (item.WRK_STAT_CD === '4' || item.WRK_STAT_CD === '7') ? '완료' as any
+            : (item.WRK_STAT_CD === '1' || item.WRK_STAT_CD === '2') ? '진행중' as any
+            : (item.WRK_STAT_CD_NM || item.status || '진행중') as any,
       scheduledAt: item.WRK_HOPE_DTTM ?
         `${item.WRK_HOPE_DTTM.slice(0,4)}-${item.WRK_HOPE_DTTM.slice(4,6)}-${item.WRK_HOPE_DTTM.slice(6,8)}T${item.WRK_HOPE_DTTM.slice(8,10)}:${item.WRK_HOPE_DTTM.slice(10,12)}:00` :
         item.scheduledAt || new Date().toISOString(),
@@ -241,7 +272,14 @@ const WorkItemList: React.FC<WorkItemListProps> = ({ direction, onBack, onNaviga
 
       // 계약정보 - 약정정보 (API 응답에 있는 필드)
       APLYMONTH: item.APLYMONTH,        // 약정개월 (36 등)
+      PROM_CNT: item.PROM_CNT,          // 프로모션 개월수
+      CTRT_APLY_STRT_DT: item.CTRT_APLY_STRT_DT, // 약정시작일
+      CTRT_APLY_END_DT: item.CTRT_APLY_END_DT,   // 약정종료일
       VOIP_TEL_NO: item.VOIP_TEL_NO,    // VoIP 번호
+
+      // 계약정보 - 단체정보
+      GRP_ID: item.GRP_ID,              // 단체ID
+      GRP_NM: item.GRP_NM,              // 단체명
 
       // 기타 유용한 정보
       MSO_NM: item.MSO_NM,              // 지점명 (송파지점 등)
@@ -250,6 +288,8 @@ const WorkItemList: React.FC<WorkItemListProps> = ({ direction, onBack, onNaviga
       PROD_GRP_NM: item.PROD_GRP_NM,    // 상품그룹명
       WRKR_NM: item.WRKR_NM,            // 작업자명
       ACNT_PYM_MTHD: item.ACNT_PYM_MTHD, // 납부방법코드 (01 등)
+      KPI_PROD_GRP_CD: item.KPI_PROD_GRP_CD, // KPI 상품그룹코드 (인입선로 철거관리 조건)
+      VOIP_CTX: item.VOIP_CTX,          // VoIP 컨텍스트 (T/R이면 인입선로 제외)
 
       // 작업 완료일자 (완료된 작업인 경우)
       WRKR_CMPL_DT: item.WRKR_CMPL_DT,  // 작업자 완료일자 (YYYYMMDD)
@@ -277,6 +317,20 @@ const WorkItemList: React.FC<WorkItemListProps> = ({ direction, onBack, onNaviga
       TAB_LBL: item.TAB_LBL,            // TAB 라벨
       CVT_LBL: item.CVT_LBL,            // CVT 라벨
       STB_LBL: item.STB_LBL,            // STB 라벨
+
+      // 작업완료 입력값 (완료된 작업 조회 시 사용)
+      CUST_REL: item.CUST_REL,          // 고객관계 코드
+      UP_CTRL_CL: item.UP_CTRL_CL,      // 상향제어 코드
+      PSN_USE_CORP: item.PSN_USE_CORP,  // 인터넷이용 코드
+      VOIP_USE_CORP: item.VOIP_USE_CORP, // VoIP이용 코드
+      DTV_USE_CORP: item.DTV_USE_CORP,  // 디지털방송이용 코드
+      VIEW_MOD_CD: item.VIEW_MOD_CD,    // 시청모드 코드
+      VIEW_MOD_NM: item.VIEW_MOD_NM,    // 시청모드명
+      MEMO: item.MEMO,                  // 작업비고
+
+      // 해지작업용 희망일 필드 (Hot Bill 시뮬레이션에 필요)
+      TERM_HOPE_DT: item.TERM_HOPE_DT,  // 해지희망일 (YYYYMMDD)
+      HOPE_DT: item.HOPE_DT,            // 희망일 (YYYYMMDD)
     };
 
     console.log('✅ 진행 - 작업 프로세스로 이동:', convertedItem);
@@ -290,15 +344,19 @@ const WorkItemList: React.FC<WorkItemListProps> = ({ direction, onBack, onNaviga
 
   const handleCancelWork = (item: any) => {
     console.log('🔍 취소 버튼 클릭 - 원본 데이터:', item);
-    
-    // 실제 API 데이터를 WorkOrder 형태로 변환
+
+    // 실제 API 데이터를 WorkOrder 형태로 변환 (handleCancelWork)
     const convertedItem = {
       id: item.WRK_ID || item.id,
       directionId: item.WRK_DRCTN_ID || item.directionId,
       type: item.WRK_CD_NM === 'A/S' ? 'A/S' as any : 'Installation' as any,
       typeDisplay: item.WRK_CD_NM || item.typeDisplay || '기타',
-      status: item.WRK_STAT_CD_NM === '할당' ? '진행중' as any : (item.WRK_STAT_CD_NM || '진행중') as any,
-      scheduledAt: item.WRK_HOPE_DTTM ? 
+      // WRK_STAT_CD: 1=접수, 2=할당, 3=취소, 4=완료, 7=장비철거완료
+      status: item.WRK_STAT_CD === '3' ? '취소' as any
+            : (item.WRK_STAT_CD === '4' || item.WRK_STAT_CD === '7') ? '완료' as any
+            : (item.WRK_STAT_CD === '1' || item.WRK_STAT_CD === '2') ? '진행중' as any
+            : (item.WRK_STAT_CD_NM || '진행중') as any,
+      scheduledAt: item.WRK_HOPE_DTTM ?
         `${item.WRK_HOPE_DTTM.slice(0,4)}-${item.WRK_HOPE_DTTM.slice(4,6)}-${item.WRK_HOPE_DTTM.slice(6,8)}T${item.WRK_HOPE_DTTM.slice(8,10)}:${item.WRK_HOPE_DTTM.slice(10,12)}:00` :
         new Date().toISOString(),
       customer: {
@@ -310,7 +368,7 @@ const WorkItemList: React.FC<WorkItemListProps> = ({ direction, onBack, onNaviga
       details: item.REQ_CTX || item.MEMO || '작업 취소 요청',
       assignedEquipment: []
     };
-    
+
     console.log('✅ 취소 - 변환된 데이터:', convertedItem);
     setCancelTarget(convertedItem);
     setShowCancelModal(true);
@@ -364,63 +422,45 @@ const WorkItemList: React.FC<WorkItemListProps> = ({ direction, onBack, onNaviga
   // 작업 상세 화면들은 이제 App.tsx에서 처리됨
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* 작업 정보 헤더 - 강조된 스타일 */}
-      <div className="bg-gradient-to-br from-blue-500 to-blue-600 px-4 pt-6 pb-8 shadow-lg">
-        <div className="space-y-4">
-          {/* 고객명과 상태 */}
-          <div className="flex items-center justify-between gap-3">
-            <div className="flex items-center gap-3 flex-1 min-w-0">
-              <div className="flex-shrink-0 w-12 h-12 rounded-xl bg-white/20 backdrop-blur-sm flex items-center justify-center">
-                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-7 h-7 text-white">
-                  <path d="M15 21v-8a1 1 0 0 0-1-1h-4a1 1 0 0 0-1 1v8"></path>
-                  <path d="M3 10a2 2 0 0 1 .709-1.528l7-6a2 2 0 0 1 2.582 0l7 6A2 2 0 0 1 21 10v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
-                </svg>
-              </div>
-              <div className="flex items-center gap-2 flex-1 min-w-0">
-                <h1 className="text-xl font-bold text-white truncate">{direction.customer.name}</h1>
-              </div>
-            </div>
-            <span className="inline-flex items-center px-3 py-1.5 rounded-full text-sm font-bold flex-shrink-0 bg-yellow-400 text-yellow-900 shadow-md">
-              진행중
-            </span>
-          </div>
-
-          {/* 작업 타입과 일정 */}
-          <div className="flex items-center justify-between gap-3 pb-3 border-b border-white/20">
-            <span className="inline-flex items-center px-3 py-1.5 rounded-lg text-sm font-semibold bg-white/20 backdrop-blur-sm text-white border border-white/30">
+    <div className="h-[calc(100vh-64px)] flex flex-col bg-gray-50 overflow-hidden">
+      {/* 작업 정보 헤더 - 고정 */}
+      <div className="flex-shrink-0 bg-gradient-to-r from-blue-500 to-blue-600 px-4 py-3 shadow-md z-40">
+        <div className="flex items-center justify-between gap-3">
+          {/* 왼쪽: 고객명 + 작업유형 */}
+          <div className="flex items-center gap-2 flex-1 min-w-0">
+            <h1 className="text-base font-bold text-white truncate">{direction.customer.name}</h1>
+            <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold bg-white/20 text-white border border-white/30 flex-shrink-0">
               {direction.typeDisplay}
             </span>
-            <div className="text-right flex items-center gap-1.5">
-              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor" className="w-4 h-4 text-white/90">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 11.25v7.5"></path>
-              </svg>
-              <span className="text-sm font-semibold text-white">
-                {new Date(direction.scheduledAt).toLocaleString('ko-KR', {
-                  month: 'long',
-                  day: 'numeric',
-                  hour: '2-digit',
-                  minute: '2-digit',
-                  hour12: false
-                })}
-              </span>
-            </div>
           </div>
-
-          {/* 주소 */}
-          <div className="flex items-start gap-2 pt-1">
-            <svg className="w-5 h-5 text-white/80 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+          {/* 오른쪽: 일정 */}
+          <div className="flex items-center gap-1 text-white/90 flex-shrink-0">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor" className="w-3.5 h-3.5">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
             </svg>
-            <span className="text-sm font-medium text-white/95 leading-relaxed">{direction.customer.address}</span>
+            <span className="text-xs font-medium">
+              {new Date(direction.scheduledAt).toLocaleString('ko-KR', {
+                month: 'numeric',
+                day: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit',
+                hour12: false
+              })}
+            </span>
           </div>
+        </div>
+        {/* 주소 - 한 줄로 */}
+        <div className="flex items-center gap-1.5 mt-1.5">
+          <svg className="w-3.5 h-3.5 text-white/70 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+          </svg>
+          <span className="text-xs text-white/80 truncate">{direction.customer.address}</span>
         </div>
       </div>
 
-      {/* 작업 목록 */}
-      <div className="px-4 py-6">
-        <h2 className="text-base font-bold text-gray-900 mb-4">작업 목록</h2>
+      {/* 작업 목록 - 스크롤 영역 */}
+      <div className="flex-1 overflow-y-auto px-4 py-4">
         {isLoading ? (
           <LoadingSpinner size="medium" message="작업 목록을 불러오는 중..." />
         ) : error ? (
@@ -437,7 +477,7 @@ const WorkItemList: React.FC<WorkItemListProps> = ({ direction, onBack, onNaviga
             <h4 className="text-sm sm:text-base font-bold text-gray-900 mb-2 whitespace-nowrap">기간내에 작업이 없습니다</h4>
           </div>
         ) : (
-          <div className="space-y-3 pb-6">
+          <div className="space-y-3 pb-20">
             {workItems.map((item, index) => (
               <WorkItemCard
                 key={item.WRK_ID || item.id || index}
