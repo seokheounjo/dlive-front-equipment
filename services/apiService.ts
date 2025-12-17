@@ -2824,6 +2824,7 @@ export const getEquipmentOutList = async (params: {
     const result = await response.json();
     console.log('✅ 기사 할당 장비 조회 성공:', result);
 
+    if (!result) return [];
     return Array.isArray(result) ? result : result.output1 || [];
   } catch (error: any) {
     console.error('❌ 기사 할당 장비 조회 실패:', error);
@@ -2934,6 +2935,7 @@ export const getEquipmentReturnRequestList = async (params: {
     const result = await response.json();
     console.log('✅ 기사 장비 조회 성공:', result);
 
+    if (!result) return [];
     return Array.isArray(result) ? result : result.output1 || [];
   } catch (error: any) {
     console.error('❌ 기사 장비 조회 실패:', error);
@@ -3047,6 +3049,7 @@ export const getWorkerEquipmentList = async (params: {
     const result = await response.json();
     console.log('✅ 작업자 장비 조회 성공:', result);
 
+    if (!result) return [];
     return Array.isArray(result) ? result : result.output1 || [];
   } catch (error: any) {
     console.error('❌ 작업자 장비 조회 실패:', error);
@@ -3262,6 +3265,12 @@ export const findUserList = async (params: {
     const result = await response.json();
     console.log('✅ 기사 검색 성공:', result);
 
+    // null 체크 추가
+    if (!result) {
+      console.log('⚠️ 기사 검색 결과 없음 (null 반환)');
+      return [];
+    }
+
     return Array.isArray(result) ? result : result.output1 || [];
   } catch (error: any) {
     console.error('❌ 기사 검색 실패:', error);
@@ -3422,6 +3431,7 @@ export const getUnreturnedEquipmentList = async (params: {
     const result = await response.json();
     console.log('✅ 미회수 장비 조회 성공:', result);
 
+    if (!result) return [];
     return Array.isArray(result) ? result : result.output1 || [];
   } catch (error: any) {
     console.error('❌ 미회수 장비 조회 실패:', error);

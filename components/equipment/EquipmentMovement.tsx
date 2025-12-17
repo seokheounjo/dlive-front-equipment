@@ -152,15 +152,16 @@ const EquipmentMovement: React.FC<EquipmentMovementProps> = ({ onBack }) => {
   };
 
   const loadDropdownData = async () => {
+    let soMapSize = 0;
+    let crrMapSize = 0;
+
     try {
-      // 지점 목록 - 타기사 조회 API로 지점 정보 수집
       console.log('📋 [장비이동] 지점/협력업체 목록 로드 시작');
 
       // 기사 조회를 통해 지점 목록 수집 시도
-      const userResult = await findUserList({ USR_NM: '' }); // 빈 검색어로 전체 조회 시도
+      const userResult = await findUserList({ USR_NM: '' });
 
       if (Array.isArray(userResult) && userResult.length > 0) {
-        // 결과에서 고유한 지점 목록 추출
         const soMap = new Map<string, string>();
         const crrMap = new Map<string, string>();
 
@@ -172,6 +173,9 @@ const EquipmentMovement: React.FC<EquipmentMovementProps> = ({ onBack }) => {
             crrMap.set(user.CRR_ID, user.CRR_NM);
           }
         });
+
+        soMapSize = soMap.size;
+        crrMapSize = crrMap.size;
 
         if (soMap.size > 0) {
           const soListFromApi = Array.from(soMap.entries()).map(([id, nm]) => ({ SO_ID: id, SO_NM: nm }));
@@ -185,53 +189,48 @@ const EquipmentMovement: React.FC<EquipmentMovementProps> = ({ onBack }) => {
           console.log('✅ [장비이동] 협력업체 목록 로드 성공:', crrListFromApi.length, '건');
         }
       }
-
-      // API 결과가 없으면 로그인한 사용자 정보 기반으로 설정
-      if (soList.length === 0) {
-        const userInfo = localStorage.getItem('userInfo');
-        if (userInfo) {
-          const user = JSON.parse(userInfo);
-          if (user.soId) {
-            setSoList([{ SO_ID: user.soId, SO_NM: user.soNm || user.soId }]);
-          }
-          if (user.crrId) {
-            setCorpList([{ CRR_ID: user.crrId, CORP_NM: user.crrNm || user.crrId }]);
-          }
-        }
-      }
-
-      // 장비 중분류
-      setItemMidList([
-        { COMMON_CD: '', COMMON_CD_NM: '전체' },
-        { COMMON_CD: '03', COMMON_CD_NM: '추가장비' },
-        { COMMON_CD: '04', COMMON_CD_NM: '모뎀' },
-        { COMMON_CD: '05', COMMON_CD_NM: '셋톱박스' },
-        { COMMON_CD: '07', COMMON_CD_NM: '특수장비' }
-      ]);
-
-      // 장비 클래스
-      setEqtClList([
-        { COMMON_CD: '', COMMON_CD_NM: '전체' },
-        { COMMON_CD: 'MDM01', COMMON_CD_NM: '케이블모뎀 3.0' },
-        { COMMON_CD: 'STB01', COMMON_CD_NM: 'HD 셋톱박스' },
-        { COMMON_CD: 'STB02', COMMON_CD_NM: 'UHD 셋톱박스' }
-      ]);
     } catch (error) {
       console.error('드롭다운 데이터 로드 실패:', error);
-      // 로그인한 사용자 정보 기반 폴백
+    }
+
+    // API 결과가 없으면 로그인한 사용자 정보 기반으로 설정
+    if (soMapSize === 0 || crrMapSize === 0) {
       const userInfo = localStorage.getItem('userInfo');
       if (userInfo) {
-        const user = JSON.parse(userInfo);
-        if (user.soId) {
-          setSoList([{ SO_ID: user.soId, SO_NM: user.soNm || user.soId }]);
-        }
-        if (user.crrId) {
-          setCorpList([{ CRR_ID: user.crrId, CORP_NM: user.crrNm || user.crrId }]);
+        try {
+          const user = JSON.parse(userInfo);
+          if (soMapSize === 0 && user.soId) {
+            const displayName = user.soNm || `지점(${user.soId})`;
+            setSoList([{ SO_ID: user.soId, SO_NM: displayName }]);
+            console.log('⚠️ [장비이동] 지점 API 실패, 사용자 정보 사용:', user.soId);
+          }
+          if (crrMapSize === 0 && user.crrId) {
+            const displayName = user.crrNm || `협력업체(${user.crrId})`;
+            setCorpList([{ CRR_ID: user.crrId, CORP_NM: displayName }]);
+            console.log('⚠️ [장비이동] 협력업체 API 실패, 사용자 정보 사용:', user.crrId);
+          }
+        } catch (e) {
+          console.warn('사용자 정보 파싱 실패:', e);
         }
       }
-      setItemMidList([{ COMMON_CD: '04', COMMON_CD_NM: '모뎀' }, { COMMON_CD: '05', COMMON_CD_NM: '셋톱박스' }]);
-      setEqtClList([{ COMMON_CD: 'STB01', COMMON_CD_NM: 'HD 셋톱박스' }]);
     }
+
+    // 장비 중분류
+    setItemMidList([
+      { COMMON_CD: '', COMMON_CD_NM: '전체' },
+      { COMMON_CD: '03', COMMON_CD_NM: '추가장비' },
+      { COMMON_CD: '04', COMMON_CD_NM: '모뎀' },
+      { COMMON_CD: '05', COMMON_CD_NM: '셋톱박스' },
+      { COMMON_CD: '07', COMMON_CD_NM: '특수장비' }
+    ]);
+
+    // 장비 클래스
+    setEqtClList([
+      { COMMON_CD: '', COMMON_CD_NM: '전체' },
+      { COMMON_CD: 'MDM01', COMMON_CD_NM: '케이블모뎀 3.0' },
+      { COMMON_CD: 'STB01', COMMON_CD_NM: 'HD 셋톱박스' },
+      { COMMON_CD: 'STB02', COMMON_CD_NM: 'UHD 셋톱박스' }
+    ]);
   };
 
   const handleSearch = async () => {
