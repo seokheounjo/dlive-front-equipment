@@ -5,7 +5,8 @@ import {
   addEquipmentReturnRequest,
   processEquipmentLoss,
   setEquipmentCheckStandby,
-  getCommonCodes
+  getCommonCodes,
+  getEquipmentHistoryInfo
 } from '../../services/apiService';
 import BaseModal from '../common/BaseModal';
 import { debugApiCall } from './equipmentDebug';
@@ -149,73 +150,88 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
 
       let result: any[] = [];
 
-      // 검색 조건에 따라 다른 API 호출 또는 필터링
-      const baseParams: any = {
-        WRKR_ID: userInfo.userId,
-        SO_ID: selectedSoId || userInfo.soId || undefined,
-        ITEM_MID_CD: selectedItemMidCd || undefined,
-        EQT_SERNO: eqtSerno || undefined,
-      };
+      // S/N 또는 MAC 입력 시: getEquipmentHistoryInfo API 사용 (DB 직접 검색)
+      if (eqtSerno && eqtSerno.trim().length > 0) {
+        console.log('🔍 [장비조회] S/N 검색 모드 - getEquipmentHistoryInfo 사용');
+        const historyParams = {
+          EQT_SERNO: eqtSerno.trim(),
+          SO_ID: selectedSoId || userInfo.soId || undefined,
+          WRKR_ID: userInfo.userId,
+        };
 
-      // 검색조건별 파라미터 설정
-      switch (searchCondition) {
-        case 'OWNED':
-          // 보유: EQT_STAT_CD = '10' (재고있음), EQT_LOC_TP_CD = '3' (작업기사 소유)
-          // 반납요청중, 미회수, 검사대기 제외
-          baseParams.EQT_STAT_CD = '10';
-          baseParams.EQT_LOC_TP_CD = '3';
-          baseParams.EXCLUDE_STAT = ['40', '60', '50']; // 반납요청중, 미회수, 검사대기 제외
-          break;
-        case 'RETURN_REQUESTED':
-          // 반납요청중: EQT_STAT_CD = '40'
-          baseParams.EQT_STAT_CD = '40';
-          break;
-        case 'INSPECTION_WAITING':
-          // 검사대기: EQT_STAT_CD = '50'
-          baseParams.EQT_STAT_CD = '50';
-          break;
-      }
-
-      // getEquipmentReturnRequestList 또는 getWorkerEquipmentList 호출
-      // 보유/반납요청중에는 getEquipmentReturnRequestList 사용
-      const apiParams = {
-        WRKR_ID: userInfo.userId,
-        SO_ID: selectedSoId || userInfo.soId || undefined,
-        ...baseParams
-      };
-
-      if (searchCondition === 'OWNED' || searchCondition === 'RETURN_REQUESTED') {
-        result = await debugApiCall(
+        const historyResult = await debugApiCall(
           'EquipmentInquiry',
-          'getEquipmentReturnRequestList',
-          () => getEquipmentReturnRequestList(apiParams),
-          apiParams
+          'getEquipmentHistoryInfo',
+          () => getEquipmentHistoryInfo(historyParams),
+          historyParams
         );
+
+        // 단일 결과 또는 배열 처리
+        if (historyResult) {
+          result = Array.isArray(historyResult) ? historyResult : [historyResult];
+        }
+        console.log('🔍 [장비조회] S/N 검색 결과:', result.length, '건');
       } else {
-        // 검사대기는 getWorkerEquipmentList 사용
-        result = await debugApiCall(
-          'EquipmentInquiry',
-          'getWorkerEquipmentList',
-          () => getWorkerEquipmentList(apiParams),
-          apiParams
-        );
+        // 일반 조회: 기존 API 사용
+        const baseParams: any = {
+          WRKR_ID: userInfo.userId,
+          SO_ID: selectedSoId || userInfo.soId || undefined,
+          ITEM_MID_CD: selectedItemMidCd || undefined,
+        };
+
+        // 검색조건별 파라미터 설정
+        switch (searchCondition) {
+          case 'OWNED':
+            baseParams.EQT_STAT_CD = '10';
+            baseParams.EQT_LOC_TP_CD = '3';
+            baseParams.EXCLUDE_STAT = ['40', '60', '50'];
+            break;
+          case 'RETURN_REQUESTED':
+            baseParams.EQT_STAT_CD = '40';
+            break;
+          case 'INSPECTION_WAITING':
+            baseParams.EQT_STAT_CD = '50';
+            break;
+        }
+
+        const apiParams = {
+          WRKR_ID: userInfo.userId,
+          SO_ID: selectedSoId || userInfo.soId || undefined,
+          ...baseParams
+        };
+
+        if (searchCondition === 'OWNED' || searchCondition === 'RETURN_REQUESTED') {
+          result = await debugApiCall(
+            'EquipmentInquiry',
+            'getEquipmentReturnRequestList',
+            () => getEquipmentReturnRequestList(apiParams),
+            apiParams
+          );
+        } else {
+          result = await debugApiCall(
+            'EquipmentInquiry',
+            'getWorkerEquipmentList',
+            () => getWorkerEquipmentList(apiParams),
+            apiParams
+          );
+        }
       }
 
-      // 결과 변환 및 필터링
+      // 결과 변환
       const transformedList: EquipmentItem[] = (Array.isArray(result) ? result : []).map((item: any) => ({
         CHK: false,
         EQT_NO: item.EQT_NO || '',
         EQT_SERNO: item.EQT_SERNO || item.SERIAL_NO || '',
-        MAC_ADDRESS: item.MAC_ADDRESS || item.MAC || '',
+        MAC_ADDRESS: item.MAC_ADDRESS || item.MAC || item.TA_MAC_ADDRESS || '',
         EQT_CL_CD: item.EQT_CL_CD || '',
         EQT_CL_NM: item.EQT_CL_NM || item.EQT_TYPE || '',
         ITEM_MID_CD: item.ITEM_MID_CD || '',
         ITEM_MID_NM: item.ITEM_MID_NM || '',
-        ITEM_NM: item.ITEM_NM || '',
+        ITEM_NM: item.ITEM_NM || item.ITEM_MODEL || '',
         SO_ID: item.SO_ID || selectedSoId,
         SO_NM: item.SO_NM || '',
         EQT_STAT_CD: item.EQT_STAT_CD || item.STATUS || '',
-        EQT_STAT_NM: item.EQT_STAT_NM || item.STATUS_NM || '',
+        EQT_STAT_NM: item.EQT_STAT_NM || item.STATUS_NM || item.EQT_STAT_CD_NM || '',
         PROC_STAT: item.PROC_STAT || '',
         PROC_STAT_NM: item.PROC_STAT_NM || '',
         WRKR_ID: item.WRKR_ID || userInfo.userId,
@@ -224,13 +240,13 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
         CTRT_ID: item.CTRT_ID || '',
         EQT_USE_END_DT: item.EQT_USE_END_DT || '',
         RETN_RESN_CD: item.RETN_RESN_CD || '',
-        RETN_RESN_NM: item.RETN_RESN_NM || '',
+        RETN_RESN_NM: item.RETN_RESN_NM || item.RETN_RESN_CD_NM || '',
       }));
 
-      // 추가 필터링 (S/N)
+      // 장비 종류 필터링 (S/N 검색에서도 적용)
       let filteredList = transformedList;
-      if (eqtSerno) {
-        filteredList = filteredList.filter(item => item.EQT_SERNO?.toUpperCase().includes(eqtSerno.toUpperCase()));
+      if (selectedItemMidCd) {
+        filteredList = filteredList.filter(item => item.ITEM_MID_CD === selectedItemMidCd);
       }
 
       setEquipmentList(filteredList);
