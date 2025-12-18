@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { getUnreturnedEquipmentList } from '../../services/apiService';
+import { debugApiCall } from './equipmentDebug';
 
 interface EquipmentRecoveryProps {
   onBack: () => void;
@@ -83,14 +84,19 @@ const EquipmentRecovery: React.FC<EquipmentRecoveryProps> = ({ onBack }) => {
 
   const handleSearch = async () => {
     try {
-      const result = await getUnreturnedEquipmentList({
+      const params = {
         FROM_DT: searchParams.FROM_DT,
         TO_DT: searchParams.TO_DT,
         CUST_ID: searchParams.CUST_ID || undefined,
         CUST_NM: searchParams.CUST_NM || undefined,
         EQT_SERNO: undefined
-      });
-      console.log('✅ 미회수 장비 조회 성공:', result);
+      };
+      const result = await debugApiCall(
+        'EquipmentRecovery',
+        'getUnreturnedEquipmentList',
+        () => getUnreturnedEquipmentList(params),
+        params
+      );
       setUnreturnedList(result);
     } catch (error) {
       console.error('❌ 미회수 장비 조회 실패:', error);

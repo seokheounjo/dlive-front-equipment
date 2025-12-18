@@ -4,6 +4,7 @@ import { WorkItem, Equipment } from '../../types';
 import { getTechnicianEquipments, EquipmentInfo, updateEquipmentComposition, checkStbServerConnection } from '../../services/apiService';
 import EquipmentModelChangeModal from '../equipment/EquipmentModelChangeModal';
 import { useWorkProcessStore } from '../../stores/workProcessStore';
+import { debugApiCall } from './equipmentDebug';
 
 interface EquipmentManagementProps {
   workItem: WorkItem;
@@ -252,10 +253,12 @@ const EquipmentManagement: React.FC<EquipmentManagementProps> = ({ workItem, onS
           PROD_CD: workItem.PROD_CD || null,
         };
 
-        console.log('\n[장비관리] EquipmentManagement - 장비 데이터 로드 (API 호출)');
-        console.log('[장비관리] 요청:', requestPayload);
-
-        apiResponse = await getTechnicianEquipments(requestPayload);
+        apiResponse = await debugApiCall(
+          'EquipmentManagement',
+          'getTechnicianEquipments',
+          () => getTechnicianEquipments(requestPayload),
+          requestPayload
+        );
       }
 
       console.log('[장비관리] 응답:');
@@ -726,13 +729,19 @@ const EquipmentManagement: React.FC<EquipmentManagementProps> = ({ workItem, onS
       });
 
       // 레거시 호환: 누적 파라미터 + equipments 동시 전송
-      const result = await updateEquipmentComposition({
+      const params = {
         WRK_ID: workItem.id,
         RCPT_ID: workItem.RCPT_ID || '',
         CTRT_ID: workItem.CTRT_ID || '',
         PROM_CNT: _selectedPromotionCount || '',
         equipments
-      });
+      };
+      const result = await debugApiCall(
+        'EquipmentManagement',
+        'updateEquipmentComposition',
+        () => updateEquipmentComposition(params),
+        params
+      );
 
       if ((result as any).MSGCODE === 'SUCCESS' || (result as any).MSGCODE === '0' || (result as any).code === 'SUCCESS') {
         showToast?.('장비 모델이 변경되었습니다.', 'success');
@@ -880,18 +889,12 @@ const EquipmentManagement: React.FC<EquipmentManagementProps> = ({ workItem, onS
         modemEqtNo
       };
 
-      console.log('[신호처리] API 호출 파라미터:', apiParams);
-
-      const result = await checkStbServerConnection(
-        regUid,
-        workItem.CTRT_ID || '',
-        workItem.id,
-        'SMR03',
-        stbEqtNo,
-        modemEqtNo
+      const result = await debugApiCall(
+        'EquipmentManagement',
+        'checkStbServerConnection',
+        () => checkStbServerConnection(regUid, workItem.CTRT_ID || '', workItem.id, 'SMR03', stbEqtNo, modemEqtNo),
+        apiParams
       );
-
-      console.log('[신호처리] API 응답:', result);
 
       // O_IFSVC_RESULT가 "TRUE"로 시작하면 성공으로 처리
       if (result.O_IFSVC_RESULT && result.O_IFSVC_RESULT.startsWith('TRUE')) {

@@ -8,6 +8,7 @@ import {
   getCommonCodes
 } from '../../services/apiService';
 import BaseModal from '../common/BaseModal';
+import { debugApiCall } from './equipmentDebug';
 
 interface EquipmentInquiryProps {
   onBack: () => void;
@@ -177,22 +178,28 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
 
       // getEquipmentReturnRequestList 또는 getWorkerEquipmentList 호출
       // 보유/반납요청중에는 getEquipmentReturnRequestList 사용
+      const apiParams = {
+        WRKR_ID: userInfo.userId,
+        SO_ID: selectedSoId || userInfo.soId || undefined,
+        ...baseParams
+      };
+
       if (searchCondition === 'OWNED' || searchCondition === 'RETURN_REQUESTED') {
-        result = await getEquipmentReturnRequestList({
-          WRKR_ID: userInfo.userId,
-          SO_ID: selectedSoId || userInfo.soId || undefined,
-          ...baseParams
-        });
+        result = await debugApiCall(
+          'EquipmentInquiry',
+          'getEquipmentReturnRequestList',
+          () => getEquipmentReturnRequestList(apiParams),
+          apiParams
+        );
       } else {
         // 검사대기는 getWorkerEquipmentList 사용
-        result = await getWorkerEquipmentList({
-          WRKR_ID: userInfo.userId,
-          SO_ID: selectedSoId || userInfo.soId || undefined,
-          ...baseParams
-        });
+        result = await debugApiCall(
+          'EquipmentInquiry',
+          'getWorkerEquipmentList',
+          () => getWorkerEquipmentList(apiParams),
+          apiParams
+        );
       }
-
-      console.log('✅ [장비처리] 결과:', result);
 
       // 결과 변환 및 필터링
       const transformedList: EquipmentItem[] = (Array.isArray(result) ? result : []).map((item: any) => ({
@@ -283,17 +290,22 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
     }
 
     try {
-      const result = await addEquipmentReturnRequest({
+      const params = {
         WRKR_ID: userInfo?.userId || '',
         equipmentList: checkedItems.map(item => ({
           EQT_NO: item.EQT_NO,
           EQT_SERNO: item.EQT_SERNO,
           ACTION: action,
-          RETN_RESN_CD: returnReason || '01', // 기본: 사용기간 만료
+          RETN_RESN_CD: returnReason || '01',
         })),
-      });
+      };
 
-      console.log('✅ 반납 처리 결과:', result);
+      const result = await debugApiCall(
+        'EquipmentInquiry',
+        'addEquipmentReturnRequest',
+        () => addEquipmentReturnRequest(params),
+        params
+      );
       showToast?.(
         action === 'RETURN'
           ? `${checkedItems.length}건의 장비 반납 요청이 완료되었습니다.`
@@ -329,13 +341,18 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
     if (!selectedEquipment) return;
 
     try {
-      const result = await processEquipmentLoss({
+      const params = {
         EQT_NO: selectedEquipment.EQT_NO,
         WRKR_ID: userInfo?.userId || '',
         LOSS_REASON: lossReason || undefined,
-      });
+      };
 
-      console.log('✅ 분실 처리 결과:', result);
+      const result = await debugApiCall(
+        'EquipmentInquiry',
+        'processEquipmentLoss',
+        () => processEquipmentLoss(params),
+        params
+      );
       showToast?.('장비 분실 처리가 완료되었습니다.', 'success');
       setShowLossModal(false);
       setSelectedEquipment(null);
@@ -363,9 +380,13 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
 
     try {
       for (const item of checkedItems) {
-        await setEquipmentCheckStandby({
-          EQT_NO: item.EQT_NO,
-        });
+        const params = { EQT_NO: item.EQT_NO };
+        await debugApiCall(
+          'EquipmentInquiry',
+          'setEquipmentCheckStandby',
+          () => setEquipmentCheckStandby(params),
+          params
+        );
       }
 
       showToast?.(`${checkedItems.length}건의 장비 상태가 '사용가능'으로 변경되었습니다.`, 'success');

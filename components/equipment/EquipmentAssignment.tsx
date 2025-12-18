@@ -6,6 +6,7 @@ import {
   addEquipmentQuota
 } from '../../services/apiService';
 import BaseModal from '../common/BaseModal';
+import { debugApiCall } from './equipmentDebug';
 
 interface UserInfo {
   userId: string;
@@ -139,19 +140,18 @@ const EquipmentAssignment: React.FC<EquipmentAssignmentProps> = ({ onBack, showT
   const handleSearch = async () => {
     setIsLoading(true);
     try {
-      console.log('🔍 [장비할당] 조회 시작:', {
-        FROM_OUT_REQ_DT: fromDate,
-        TO_OUT_REQ_DT: toDate,
-        SO_ID: selectedSoId
-      });
-
-      const result = await getEquipmentOutList({
+      const params = {
         FROM_OUT_REQ_DT: fromDate,
         TO_OUT_REQ_DT: toDate,
         SO_ID: selectedSoId || undefined
-      });
+      };
 
-      console.log('✅ [장비할당] 조회 결과:', result);
+      const result = await debugApiCall(
+        'EquipmentAssignment',
+        'getEquipmentOutList',
+        () => getEquipmentOutList(params),
+        params
+      );
       setEqtOutList(result || []);
       setSelectedEqtOut(null);
       setOutTgtEqtList([]);
@@ -174,13 +174,14 @@ const EquipmentAssignment: React.FC<EquipmentAssignmentProps> = ({ onBack, showT
     setIsLoadingDetail(true);
 
     try {
-      console.log('📦 [장비할당] 출고 장비 상세 조회:', item.OUT_REQ_NO);
+      const params = { OUT_REQ_NO: item.OUT_REQ_NO };
 
-      const result = await checkEquipmentProc({
-        OUT_REQ_NO: item.OUT_REQ_NO
-      });
-
-      console.log('✅ [장비할당] 출고 장비 조회 결과:', result);
+      const result = await debugApiCall(
+        'EquipmentAssignment',
+        'checkEquipmentProc',
+        () => checkEquipmentProc(params),
+        params
+      );
 
       const equipmentList = Array.isArray(result) ? result : (result.output1 || []);
       setOutTgtEqtList(equipmentList.map((eq: any) => ({
@@ -213,10 +214,17 @@ const EquipmentAssignment: React.FC<EquipmentAssignmentProps> = ({ onBack, showT
     }
 
     try {
-      await addEquipmentQuota({
+      const params = {
         OUT_REQ_NO: selectedEqtOut.OUT_REQ_NO,
         equipmentList: checkedItems
-      });
+      };
+
+      await debugApiCall(
+        'EquipmentAssignment',
+        'addEquipmentQuota',
+        () => addEquipmentQuota(params),
+        params
+      );
 
       showToast?.(`${checkedItems.length}건의 장비 입고처리가 완료되었습니다.`, 'success');
       await handleSearch();

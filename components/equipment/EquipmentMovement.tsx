@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { findUserList, getWrkrHaveEqtList, changeEquipmentWorker } from '../../services/apiService';
+import { debugApiCall } from './equipmentDebug';
 
 interface EquipmentMovementProps {
   onBack: () => void;
@@ -232,7 +233,8 @@ const EquipmentMovement: React.FC<EquipmentMovementProps> = ({ onBack }) => {
     if (!searchParams.WRKR_ID) { alert('보유기사를 선택해주세요.'); return; }
     setIsLoading(true);
     try {
-      const result = await getWrkrHaveEqtList({ WRKR_ID: searchParams.WRKR_ID, SO_ID: searchParams.SO_ID, EQT_SEL: '0', EQT_CL: 'ALL' });
+      const params = { WRKR_ID: searchParams.WRKR_ID, SO_ID: searchParams.SO_ID, EQT_SEL: '0', EQT_CL: 'ALL' };
+      const result = await debugApiCall('EquipmentMovement', 'getWrkrHaveEqtList', () => getWrkrHaveEqtList(params), params);
       if (Array.isArray(result) && result.length > 0) {
         const transformedList: EqtTrns[] = result.map((item: any) => ({
           CHK: false, EQT_NO: item.EQT_NO || '', ITEM_MAX_NM: item.ITEM_MAX_NM || '', ITEM_MID_NM: item.ITEM_MID_NM || '',
@@ -257,7 +259,7 @@ const EquipmentMovement: React.FC<EquipmentMovementProps> = ({ onBack }) => {
     try {
       const isIdSearch = /^\d+$/.test(keyword);
       const searchParam = isIdSearch ? { USR_ID: keyword } : { USR_NM: keyword };
-      const result = await findUserList(searchParam);
+      const result = await debugApiCall('EquipmentMovement', 'findUserList', () => findUserList(searchParam), searchParam);
       if (!result || result.length === 0) { alert('검색 결과가 없습니다.'); return; }
       if (result.length === 1) {
         setSearchParams({ ...searchParams, WRKR_ID: result[0].USR_ID, WRKR_NM: result[0].USR_NM });
@@ -275,11 +277,12 @@ const EquipmentMovement: React.FC<EquipmentMovementProps> = ({ onBack }) => {
       let successCount = 0;
       for (const item of checkedItems) {
         try {
-          await changeEquipmentWorker({
+          const params = {
             EQT_NO: item.EQT_NO,
-            FROM_WRKR_ID: searchParams.WRKR_ID,  // 보유기사 (장비를 내놓는 사람)
-            TO_WRKR_ID: loggedInUser.userId       // 이관기사 = 로그인한 사람 (인수받는 사람)
-          });
+            FROM_WRKR_ID: searchParams.WRKR_ID,
+            TO_WRKR_ID: loggedInUser.userId
+          };
+          await debugApiCall('EquipmentMovement', 'changeEquipmentWorker', () => changeEquipmentWorker(params), params);
           successCount++;
         } catch (err) {
           console.error('장비 인수 실패:', item.EQT_SERNO, err);

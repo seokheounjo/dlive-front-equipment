@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { getEquipmentHistoryInfo, apiRequest, getWrkrHaveEqtList } from '../../services/apiService';
+import { debugApiCall } from './equipmentDebug';
 
 interface EquipmentListProps {
   onBack: () => void;
@@ -151,9 +152,13 @@ const EquipmentList: React.FC<EquipmentListProps> = ({ onBack, showToast }) => {
 
       setIsLoadingMyEquipments(true);
       try {
-        console.log('📦 [장비목록] 내 보유 장비 로드 중... WRKR_ID:', wrkrId);
-        const result = await getWrkrHaveEqtList({ WRKR_ID: wrkrId });
-        console.log('📦 [장비목록] 내 보유 장비 응답:', result);
+        const params = { WRKR_ID: wrkrId };
+        const result = await debugApiCall(
+          'EquipmentList',
+          'getWrkrHaveEqtList',
+          () => getWrkrHaveEqtList(params),
+          params
+        );
 
         if (Array.isArray(result)) {
           setMyEquipments(result);
