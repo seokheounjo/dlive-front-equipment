@@ -159,96 +159,54 @@ const EquipmentMovement: React.FC<EquipmentMovementProps> = ({ onBack }) => {
   };
 
   const loadDropdownData = async () => {
-    let soMapSize = 0;
-    let crrMapSize = 0;
+    console.log('📋 [장비이동] 지점/협력업체 목록 로드 시작');
 
-    try {
-      console.log('📋 [장비이동] 지점/협력업체 목록 로드 시작');
+    // 로그인한 사용자 정보 기반으로 지점/협력업체 설정
+    // (빈 문자열로 기사 검색 API 호출하면 결과가 없으므로 제거)
+    const userInfo = localStorage.getItem('userInfo');
+    const branchList = localStorage.getItem('branchList');
+    if (userInfo) {
+      try {
+        const user = JSON.parse(userInfo);
 
-      // 기사 조회를 통해 지점 목록 수집 시도
-      const userResult = await findUserList({ USR_NM: '' });
+        // 지점 목록: authSoList 또는 branchList 사용
+        let soListData: { SO_ID: string; SO_NM: string }[] = [];
 
-      if (Array.isArray(userResult) && userResult.length > 0) {
-        const soMap = new Map<string, string>();
-        const crrMap = new Map<string, string>();
-
-        userResult.forEach((user: any) => {
-          if (user.SO_ID && user.SO_NM) {
-            soMap.set(user.SO_ID, user.SO_NM);
-          }
-          if (user.CRR_ID && user.CRR_NM) {
-            crrMap.set(user.CRR_ID, user.CRR_NM);
-          }
-        });
-
-        soMapSize = soMap.size;
-        crrMapSize = crrMap.size;
-
-        if (soMap.size > 0) {
-          const soListFromApi = Array.from(soMap.entries()).map(([id, nm]) => ({ SO_ID: id, SO_NM: nm }));
-          setSoList(soListFromApi);
-          console.log('✅ [장비이동] 지점 목록 로드 성공:', soListFromApi.length, '건');
+        // 1순위: authSoList (로그인 응답에서)
+        if (user.authSoList && Array.isArray(user.authSoList) && user.authSoList.length > 0) {
+          soListData = user.authSoList;
+          console.log('✅ [장비이동] authSoList에서 지점 목록 사용:', soListData.length, '건');
+        }
+        // 2순위: localStorage branchList
+        else if (branchList) {
+          try {
+            const parsed = JSON.parse(branchList);
+            if (Array.isArray(parsed) && parsed.length > 0) {
+              soListData = parsed;
+              console.log('✅ [장비이동] branchList에서 지점 목록 사용:', soListData.length, '건');
+            }
+          } catch (e) { }
+        }
+        // 3순위: 단일 지점 (soNm 있으면 사용)
+        if (soListData.length === 0 && user.soId) {
+          const displayName = user.soNm || `지점(${user.soId})`;
+          soListData = [{ SO_ID: user.soId, SO_NM: displayName }];
+          console.log('⚠️ [장비이동] 단일 지점 사용:', displayName);
         }
 
-        if (crrMap.size > 0) {
-          const crrListFromApi = Array.from(crrMap.entries()).map(([id, nm]) => ({ CRR_ID: id, CORP_NM: nm }));
-          setCorpList(crrListFromApi);
-          console.log('✅ [장비이동] 협력업체 목록 로드 성공:', crrListFromApi.length, '건');
+        if (soListData.length > 0) {
+          setSoList(soListData.map(so => ({ SO_ID: so.SO_ID, SO_NM: so.SO_NM })));
         }
-      }
-    } catch (error) {
-      console.error('드롭다운 데이터 로드 실패:', error);
-    }
 
-    // API 결과가 없으면 로그인한 사용자 정보 기반으로 설정
-    if (soMapSize === 0 || crrMapSize === 0) {
-      const userInfo = localStorage.getItem('userInfo');
-      const branchList = localStorage.getItem('branchList');
-      if (userInfo) {
-        try {
-          const user = JSON.parse(userInfo);
-
-          // 지점 목록: authSoList 또는 branchList 사용
-          if (soMapSize === 0) {
-            let soListData: { SO_ID: string; SO_NM: string }[] = [];
-
-            // 1순위: authSoList (로그인 응답에서)
-            if (user.authSoList && Array.isArray(user.authSoList) && user.authSoList.length > 0) {
-              soListData = user.authSoList;
-              console.log('✅ [장비이동] authSoList에서 지점 목록 사용:', soListData.length, '건');
-            }
-            // 2순위: localStorage branchList
-            else if (branchList) {
-              try {
-                const parsed = JSON.parse(branchList);
-                if (Array.isArray(parsed) && parsed.length > 0) {
-                  soListData = parsed;
-                  console.log('✅ [장비이동] branchList에서 지점 목록 사용:', soListData.length, '건');
-                }
-              } catch (e) { }
-            }
-            // 3순위: 단일 지점 (soNm 있으면 사용)
-            if (soListData.length === 0 && user.soId) {
-              const displayName = user.soNm || `지점(${user.soId})`;
-              soListData = [{ SO_ID: user.soId, SO_NM: displayName }];
-              console.log('⚠️ [장비이동] 단일 지점 사용:', displayName);
-            }
-
-            if (soListData.length > 0) {
-              setSoList(soListData.map(so => ({ SO_ID: so.SO_ID, SO_NM: so.SO_NM })));
-            }
-          }
-
-          // 협력업체: crrNm 또는 corpNm 사용
-          if (crrMapSize === 0 && user.crrId) {
-            // crrNm이 없으면 corpNm 사용 (로그인 응답에서 corpNm은 있음)
-            const displayName = user.crrNm || user.corpNm || `협력업체(${user.crrId})`;
-            setCorpList([{ CRR_ID: user.crrId, CORP_NM: displayName }]);
-            console.log('⚠️ [장비이동] 협력업체 사용:', displayName);
-          }
-        } catch (e) {
-          console.warn('사용자 정보 파싱 실패:', e);
+        // 협력업체: crrNm 또는 corpNm 사용
+        if (user.crrId) {
+          // crrNm이 없으면 corpNm 사용 (로그인 응답에서 corpNm은 있음)
+          const displayName = user.crrNm || user.corpNm || `협력업체(${user.crrId})`;
+          setCorpList([{ CRR_ID: user.crrId, CORP_NM: displayName }]);
+          console.log('✅ [장비이동] 협력업체 사용:', displayName);
         }
+      } catch (e) {
+        console.warn('사용자 정보 파싱 실패:', e);
       }
     }
 
