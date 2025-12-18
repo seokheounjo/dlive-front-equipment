@@ -280,15 +280,72 @@ export const fetchWithRetry = async (
         if (response.status >= 400 && response.status < 500) {
           // 404, 401 등 클라이언트 에러는 Circuit Breaker에 실패 기록
           circuitBreaker.recordFailure(url);
+
+          // 4xx 에러에서도 디버그 로그를 추출하여 표시
+          try {
+            const errorBody = await response.clone().json();
+            if (errorBody?.debugLogs && Array.isArray(errorBody.debugLogs)) {
+              console.group(`🔧 [백엔드 디버그 로그 - ${response.status} 에러]`);
+              errorBody.debugLogs.forEach((log: string) => {
+                if (log.includes('SUCCESS')) {
+                  console.log('%c' + log, 'color: #22c55e; font-weight: bold;');
+                } else if (log.includes('ERROR') || log.includes('FAILED')) {
+                  console.log('%c' + log, 'color: #ef4444;');
+                } else if (log.includes('FALLBACK') || log.includes('SKIP')) {
+                  console.log('%c' + log, 'color: #f59e0b;');
+                } else {
+                  console.log('%c' + log, 'color: #6b7280;');
+                }
+              });
+              console.groupEnd();
+            }
+            if (errorBody?.error) {
+              console.error('❌ [백엔드 에러 메시지]:', errorBody.error);
+            }
+          } catch (parseError) {
+            // JSON 파싱 실패 시 무시
+          }
+
           throw new NetworkError(
             getErrorMessage(response.status),
             response.status
           );
         }
 
-        // 5xx 에러는 재시도
+        // 5xx 에러는 재시도 (하지만 먼저 디버그 로그 추출 시도)
         if (response.status >= 500) {
           circuitBreaker.recordFailure(url);
+
+          // 500 에러에서도 디버그 로그를 추출하여 표시
+          try {
+            const errorBody = await response.clone().json();
+            if (errorBody?.debugLogs && Array.isArray(errorBody.debugLogs)) {
+              console.group('🔧 [백엔드 디버그 로그 - 500 에러]');
+              errorBody.debugLogs.forEach((log: string) => {
+                if (log.includes('SUCCESS')) {
+                  console.log('%c' + log, 'color: #22c55e; font-weight: bold;');
+                } else if (log.includes('ERROR') || log.includes('FAILED')) {
+                  console.log('%c' + log, 'color: #ef4444;');
+                } else if (log.includes('FALLBACK') || log.includes('SKIP')) {
+                  console.log('%c' + log, 'color: #f59e0b;');
+                } else {
+                  console.log('%c' + log, 'color: #6b7280;');
+                }
+              });
+              console.groupEnd();
+            }
+            // 에러 메시지도 표시
+            if (errorBody?.error) {
+              console.error('❌ [백엔드 에러 메시지]:', errorBody.error);
+            }
+            if (errorBody?.message) {
+              console.error('❌ [백엔드 메시지]:', errorBody.message);
+            }
+          } catch (parseError) {
+            // JSON 파싱 실패 시 무시 (HTML 응답 등)
+            console.warn('⚠️ 500 에러 응답 파싱 실패:', parseError);
+          }
+
           throw new NetworkError(
             getErrorMessage(response.status),
             response.status
