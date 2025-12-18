@@ -4,7 +4,7 @@ import { LockClosedIcon } from '../icons/LockClosedIcon';
 import { EyeIcon } from '../icons/EyeIcon';
 import { EyeSlashIcon } from '../icons/EyeSlashIcon';
 import { TestTube } from 'lucide-react';
-import { login } from '../../services/apiService';
+import { login, getUserExtendedInfo } from '../../services/apiService';
 
 interface LoginProps {
   onLogin: (userId?: string, userName?: string, userRole?: string, crrId?: string, soId?: string, mstSoId?: string, crrNm?: string, soNm?: string, authSoList?: Array<{ SO_ID: string; SO_NM: string }>, corpNm?: string) => void;
@@ -29,7 +29,28 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
       if (result.ok) {
         // 실제 로그인 시 더미 모드 해제
         localStorage.removeItem('demoMode');
-        onLogin(result.userId, result.userName, result.userRole, result.crrId, result.soId, result.mstSoId, result.crrNm, result.soNm, result.AUTH_SO_List, result.corpNm);
+
+        // 로그인 응답에 AUTH_SO_List가 없으면 추가 API로 조회
+        let authSoList = result.AUTH_SO_List;
+        let soNm = result.soNm;
+        let crrNm = result.crrNm;
+
+        if (!authSoList || authSoList.length === 0) {
+          try {
+            console.log('[Login] AUTH_SO_List 없음, getUserExtendedInfo 호출...');
+            const extendedInfo = await getUserExtendedInfo(result.userId || username);
+            if (extendedInfo.ok) {
+              authSoList = extendedInfo.AUTH_SO_List;
+              soNm = extendedInfo.soNm || soNm;
+              crrNm = extendedInfo.crrNm || crrNm;
+              console.log('[Login] getUserExtendedInfo 성공:', extendedInfo);
+            }
+          } catch (extErr) {
+            console.warn('[Login] getUserExtendedInfo 실패 (무시):', extErr);
+          }
+        }
+
+        onLogin(result.userId, result.userName, result.userRole, result.crrId, result.soId, result.mstSoId, crrNm, soNm, authSoList, result.corpNm);
       } else {
         setError('로그인에 실패했습니다.');
       }

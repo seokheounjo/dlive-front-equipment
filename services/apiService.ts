@@ -447,6 +447,39 @@ export const login = async (userId: string, password: string): Promise<{
   }
 };
 
+// 로그인 후 추가 사용자 정보 조회 API (AUTH_SO_List, soNm, crrNm)
+// TaskAuthController 수정 없이 equipment 컨트롤러에서 처리
+export const getUserExtendedInfo = async (userId: string): Promise<{
+  ok: boolean;
+  soId?: string;
+  soNm?: string;
+  crrNm?: string;
+  AUTH_SO_List?: Array<{ SO_ID: string; SO_NM: string }>;
+}> => {
+  const origin = typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000';
+
+  try {
+    const response = await fetchWithRetry(`${API_BASE}/customer/equipment/getUserExtendedInfo`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Origin': origin
+      },
+      credentials: 'include',
+      body: JSON.stringify({
+        USR_ID: userId
+      }),
+    }, 1);
+
+    const result = await response.json();
+    return result;
+  } catch (error) {
+    console.error('getUserExtendedInfo API 호출 실패:', error);
+    // 실패해도 로그인은 유지 - 빈 결과 반환
+    return { ok: false };
+  }
+};
+
 
 // 더미 모드 확인 함수
 export const checkDemoMode = (): boolean => {
