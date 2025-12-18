@@ -3222,8 +3222,39 @@ export const getEquipmentHistoryInfo = async (params: {
     });
 
     const result = await response.json();
-    console.log('✅ 장비 조회 성공:', result);
 
+    // 백엔드 디버그 로그 출력
+    if (result?.debugLogs && Array.isArray(result.debugLogs)) {
+      console.group('🔧 [백엔드 디버그 로그]');
+      result.debugLogs.forEach((log: string) => {
+        if (log.includes('SUCCESS')) {
+          console.log('%c' + log, 'color: #22c55e; font-weight: bold;');
+        } else if (log.includes('ERROR') || log.includes('FAILED')) {
+          console.log('%c' + log, 'color: #ef4444;');
+        } else if (log.includes('NULL') || log.includes('NOT_FOUND')) {
+          console.log('%c' + log, 'color: #f59e0b;');
+        } else {
+          console.log(log);
+        }
+      });
+      console.groupEnd();
+    }
+
+    // 성공 여부 확인
+    if (result?.success === true) {
+      console.log('✅ 장비 조회 성공 - 사용된 메소드:', result.method);
+      console.log('📦 데이터:', result.data);
+      return result.data;
+    }
+
+    // 에러 응답 처리
+    if (result?.code === 'EQT_HISTORY_ERROR') {
+      console.error('❌ 장비 조회 실패:', result.message);
+      console.log('시도한 메소드 수:', result.triedMethods, '빈 수:', result.triedBeans);
+      throw new NetworkError(result.message);
+    }
+
+    console.log('✅ 장비 조회 완료:', result);
     return Array.isArray(result) ? result[0] : result;
   } catch (error: any) {
     console.error('❌ 장비 조회 실패:', error);
