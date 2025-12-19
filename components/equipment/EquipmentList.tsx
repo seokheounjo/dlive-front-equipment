@@ -2,6 +2,58 @@ import React, { useState, useEffect } from 'react';
 import { getEquipmentHistoryInfo, apiRequest, getWrkrHaveEqtList } from '../../services/apiService';
 import { debugApiCall } from './equipmentDebug';
 
+// 장비 상태 코드 매핑 (CMEP301)
+const EQT_STAT_CODE_MAP: Record<string, string> = {
+  '10': '양호',
+  '11': '사용불가(불량)',
+  '20': '설치완료',
+  '35': '검수대기',
+  '50': '폐기대기입고',
+  '60': '폐품',
+  '70': '분실',
+  '71': '도난',
+  '72': '분실',
+  '73': 'AS업체보유',
+  '74': '고객분실',
+  '75': '분실예정',
+  '80': '자가진단불량',
+  '81': '고객판매',
+  '82': '고객소비자판매',
+  '83': '고객분실판매',
+  '84': '업체분실판매',
+  '90': '미등록중'
+};
+
+// 장비 위치 코드 매핑 (CMEP306)
+const EQT_LOC_TP_CODE_MAP: Record<string, string> = {
+  '1': 'SO(직영대리점)',
+  '2': '협력업체',
+  '3': '작업기사',
+  '4': '고객'
+};
+
+// 코드 이름 변환 헬퍼 함수
+const getEqtStatName = (code: string): string => EQT_STAT_CODE_MAP[code] || code;
+const getEqtLocTpName = (code: string): string => EQT_LOC_TP_CODE_MAP[code] || code;
+
+// 장비 데이터에 코드명 추가
+const enrichEquipmentData = <T extends Record<string, any>>(data: T): T => {
+  const result = { ...data };
+  // 장비 상태 코드명 추가
+  if (result.EQT_STAT_CD && !result.EQT_STAT_CD_NM) {
+    result.EQT_STAT_CD_NM = getEqtStatName(result.EQT_STAT_CD);
+  }
+  // 장비 위치 코드명 추가
+  if (result.EQT_LOC_TP_CD && !result.EQT_LOC_TP_CD_NM) {
+    result.EQT_LOC_TP_CD_NM = getEqtLocTpName(result.EQT_LOC_TP_CD);
+  }
+  // 이전 위치 코드명 추가
+  if (result.OLD_EQT_LOC_TP_CD && !result.OLD_EQT_LOC_TP_CD_NM) {
+    result.OLD_EQT_LOC_TP_CD_NM = getEqtLocTpName(result.OLD_EQT_LOC_TP_CD);
+  }
+  return result;
+};
+
 interface EquipmentListProps {
   onBack: () => void;
   showToast?: (message: string, type: 'success' | 'error' | 'warning' | 'info') => void;
@@ -237,7 +289,7 @@ const EquipmentList: React.FC<EquipmentListProps> = ({ onBack, showToast }) => {
           setSearchValue(''); // 입력 초기화
         } else {
           // 단일 조회 모드
-          setEquipmentDetail(equipment);
+          setEquipmentDetail(enrichEquipmentData(equipment));
           setRawResponse({ successApi: 'myEquipments', data: foundInMy, source: '내 보유 장비' });
           showToast?.('장비 정보를 조회했습니다.', 'success');
         }
@@ -314,7 +366,7 @@ const EquipmentList: React.FC<EquipmentListProps> = ({ onBack, showToast }) => {
                 setSearchValue(''); // 입력 초기화
               } else {
                 // 단일 조회 모드
-                setEquipmentDetail(equipment);
+                setEquipmentDetail(enrichEquipmentData(equipment));
                 setRawResponse({ successApi: attempt.name, data: result, allAttempts: allResponses });
                 showToast?.('장비 정보를 조회했습니다.', 'success');
               }
@@ -710,7 +762,7 @@ const EquipmentList: React.FC<EquipmentListProps> = ({ onBack, showToast }) => {
                     style={{ WebkitTapHighlightColor: 'transparent' }}
                     onClick={() => {
                       setSearchValue(eq.EQT_SERNO || eq.SERIAL_NO || eq.MAC_ADDRESS || eq.MAC || '');
-                      setEquipmentDetail(eq);
+                      setEquipmentDetail(enrichEquipmentData(eq));
                       setRawResponse({ source: '내 보유 장비 목록에서 선택', data: eq });
                     }}
                   >

@@ -27,6 +27,40 @@ interface UserInfo {
 // 장비 상태 타입 (미회수 제외 - 미회수장비 메뉴에서 처리)
 type EquipmentSearchCondition = 'OWNED' | 'RETURN_REQUESTED' | 'INSPECTION_WAITING';
 
+// 장비 상태 코드 매핑 (CMEP301)
+const EQT_STAT_CODE_MAP: Record<string, string> = {
+  '10': '양호',
+  '11': '사용불가(불량)',
+  '20': '설치완료',
+  '35': '검수대기',
+  '50': '폐기대기입고',
+  '60': '폐품',
+  '70': '분실',
+  '71': '도난',
+  '72': '분실',
+  '73': 'AS업체보유',
+  '74': '고객분실',
+  '75': '분실예정',
+  '80': '자가진단불량',
+  '81': '고객판매',
+  '82': '고객소비자판매',
+  '83': '고객분실판매',
+  '84': '업체분실판매',
+  '90': '미등록중'
+};
+
+// 장비 위치 코드 매핑 (CMEP306)
+const EQT_LOC_TP_CODE_MAP: Record<string, string> = {
+  '1': 'SO(직영대리점)',
+  '2': '협력업체',
+  '3': '작업기사',
+  '4': '고객'
+};
+
+// 코드 이름 변환 헬퍼 함수
+const getEqtStatName = (code: string): string => EQT_STAT_CODE_MAP[code] || code;
+const getEqtLocTpName = (code: string): string => EQT_LOC_TP_CODE_MAP[code] || code;
+
 // 장비 아이템 인터페이스
 interface EquipmentItem {
   CHK: boolean;
@@ -42,6 +76,8 @@ interface EquipmentItem {
   SO_NM: string;
   EQT_STAT_CD: string;
   EQT_STAT_NM: string;
+  EQT_LOC_TP_CD?: string;
+  EQT_LOC_TP_NM?: string;
   PROC_STAT?: string;
   PROC_STAT_NM?: string;
   WRKR_ID?: string;
@@ -283,7 +319,9 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
         SO_ID: item.SO_ID || selectedSoId,
         SO_NM: item.SO_NM || '',
         EQT_STAT_CD: item.EQT_STAT_CD || item.STATUS || '',
-        EQT_STAT_NM: item.EQT_STAT_NM || item.STATUS_NM || item.EQT_STAT_CD_NM || '',
+        EQT_STAT_NM: item.EQT_STAT_NM || item.STATUS_NM || item.EQT_STAT_CD_NM || getEqtStatName(item.EQT_STAT_CD || item.STATUS || ''),
+        EQT_LOC_TP_CD: item.EQT_LOC_TP_CD || '',
+        EQT_LOC_TP_NM: item.EQT_LOC_TP_NM || item.EQT_LOC_TP_CD_NM || getEqtLocTpName(item.EQT_LOC_TP_CD || ''),
         PROC_STAT: item.PROC_STAT || '',
         PROC_STAT_NM: item.PROC_STAT_NM || '',
         WRKR_ID: item.WRKR_ID || userInfo.userId,
