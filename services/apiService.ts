@@ -871,7 +871,7 @@ export const API_BASE = typeof window !== 'undefined' ? (() => {
 
   if (hostname === 'localhost' || hostname === '127.0.0.1') {
     // 로컬 개발 → EC2 프록시 서버 사용 (레거시 서버 직접 호출 시 세션 문제)
-    return '/api';
+    return 'http://52.63.232.141/api';
   } else if (hostname === '52.63.232.141') {
     // EC2 환경: 상대 경로로 같은 서버의 프록시 사용
     return '/api';
