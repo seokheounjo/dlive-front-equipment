@@ -99,8 +99,8 @@ export interface WorkItem {
   installLocation?: string; // 설치위치
 
   // 작업 분기처리 필드
-  WRK_CD?: string;         // 작업코드 (01:개통, 02:해지, 03:AS, 04:이전, 05:상품변경, 06:정지, 07:철거(이전), 08:철거(해지), 09:기타, 0410:일시정지, 0420:일시정지해제)
-  WRK_CD_NM?: string;      // 작업코드명 (설치, 해지, A/S, 이전, 상품변경 등 - 백엔드 CMWT000 코드 테이블 값)
+  WRK_CD?: string;         // 작업코드 (01:설치, 02:철거, 03:AS, 04:정지, 05:상품변경, 06:댁내이전, 07:이전설치, 08:이전철거, 09:부가상품) - CMWT000
+  WRK_CD_NM?: string;      // 작업코드명 (설치, 철거, A/S, 정지, 상품변경 등 - 백엔드 CMWT000 코드 테이블 값)
   WRK_DTL_TCD?: string;    // 작업 세부 유형 코드
   WRK_STAT_CD?: string;    // 작업 상태 코드 (1:접수, 2:할당, 3:취소, 4:완료, 7:부분완료, 9:삭제)
   WRK_DRCTN_ID?: string;   // 작업지시 ID (directionId와 동일하지만 API 호출 시 필요)
@@ -116,6 +116,8 @@ export interface WorkItem {
   // 상품 정보
   PROD_NM?: string;        // 상품명
   PROD_GRP?: string;       // 상품 그룹 (D:DTV, V:VoIP, I:Internet, C:Cable)
+  KPI_PROD_GRP_CD?: string; // KPI 상품그룹코드 (C:번들, D:DTV, I:인터넷) - 인입선로 철거관리 조건에 사용
+  VOIP_CTX?: string;       // VoIP 컨텍스트 (T/R인 경우 인입선로 모달 제외)
 
   // 납부방법/약정정보
   PYM_MTHD?: string;       // 납부방법
@@ -163,13 +165,13 @@ export interface WorkItem {
   asDetailCode?: string;     // A/S 접수 상세 유형 (WRK_RCPT_CL_DTL)
   rcType?: string;           // RC 유형
 
-  // 해지 작업 관련 (WRK_CD = '02')
-  termReasonCode?: string;   // 해지 사유 코드
-  termFee?: number;          // 해지 위약금
+  // 철거 작업 관련 (WRK_CD = '02') - 해지(0210), 직권해지(0220) 포함
+  termReasonCode?: string;   // 철거(해지) 사유 코드
+  termFee?: number;          // 철거(해지) 위약금
   promYn?: string;           // 프로모션 적용 여부 (Y/N)
   promCnt?: number;          // 프로모션 개월 수
 
-  // 일시정지 관련 (WRK_CD = '0410', '0420')
+  // 일시정지 관련 (WRK_CD='04', WRK_DTL_TCD='0430':일시철거, '0440':일시정지해제)
   mmtSusCd?: string;         // 일시정지 사유 코드
   susHopeDd?: string;        // 정지 희망일 (YYYYMMDD)
   mmtSusHopeDd?: string;     // 재개 희망일 (YYYYMMDD)
@@ -207,6 +209,20 @@ export interface WorkItem {
   TAB_LBL?: string;          // TAB 라벨
   CVT_LBL?: string;          // CVT 라벨
   STB_LBL?: string;          // STB 라벨
+
+  // 작업완료 입력값 (완료된 작업 조회 시 사용)
+  CUST_REL?: string;         // 고객관계 코드
+  UP_CTRL_CL?: string;       // 상향제어 코드
+  PSN_USE_CORP?: string;     // 인터넷이용 코드
+  VOIP_USE_CORP?: string;    // VoIP이용 코드
+  DTV_USE_CORP?: string;     // 디지털방송이용 코드
+  VIEW_MOD_CD?: string;      // 시청모드 코드
+  VIEW_MOD_NM?: string;      // 시청모드명
+  MEMO?: string;             // 작업비고
+
+  // 작업 완료일자
+  WRKR_CMPL_DT?: string;     // 작업자 완료일자 (YYYYMMDD)
+  WRK_END_DTTM?: string;     // 작업 종료일시
 }
 
 // AS 이력 인터페이스
@@ -515,3 +531,79 @@ export interface MapMarkerData {
   lat?: number;
   lng?: number;
 }
+
+// ============ SMS/문자 발송 관련 타입 정의 ============
+
+// 방문안내 문자 발송 요청
+export interface VisitSmsRequest {
+  SMS_EML_TYPE: string;     // 메시지 유형 코드 (020: 방문안내, 021: 작업지연, 027: 전화부재, 028: 방문완료)
+  SO_ID: string;            // 사업소 ID
+  USER_SMS: string;         // 수신 전화번호 (고객)
+  SEND_SMS: string;         // 발신 전화번호 (작업자)
+  USER_ID: string;          // 고객 ID
+  USER_NAME: string;        // 고객명
+  MAP01: string;            // 메시지 내용
+  KKO_MSG_ID: string;       // 카카오톡 템플릿 ID
+  REG_UID: string;          // 등록자 ID (작업자)
+  TRANS_YN?: string;        // 전송 여부 (default: N)
+  SMS_EML_CL?: string;      // 메시지 분류 (20: SMS)
+}
+
+// 문자 메시지 유형
+export interface SmsMessageType {
+  code: string;             // 메시지 유형 코드
+  name: string;             // 메시지 유형명
+  template: string;         // 메시지 템플릿
+  kkoMsgId: string;         // 카카오톡 템플릿 ID
+  refCode: string;          // 참조 코드 (WK: 작업, AS: AS)
+}
+
+// SMS 발송용 데이터 (컴포넌트에서 모달로 전달)
+export interface SmsSendData {
+  SO_ID: string;            // 사업소 ID
+  SO_NM?: string;           // 사업소명
+  CUST_ID: string;          // 고객 ID
+  CUST_NM: string;          // 고객명
+  SMS_RCV_TEL: string;      // 수신 전화번호 (고객 휴대폰)
+  SMS_SEND_TEL: string;     // 발신 전화번호 (작업자)
+  WRK_HOPE_DTTM?: string;   // 작업 예정 시간
+  WRKR_NM?: string;         // 작업자명 (한글)
+  WRKR_NM_EN?: string;      // 작업자명 (영문)
+  WRK_CD?: string;          // 작업 코드
+  WRK_CD_NM?: string;       // 작업 코드명
+  WRK_DRCTN_ID?: string;    // 작업 지시 ID
+  RCPT_ID?: string;         // 접수 ID
+}
+
+// SMS 메시지 유형 상수 (레거시 mowoa01p01.xml ds_msg_id 기준)
+// Legacy mowoa01p01.xml ds_msg_id
+export const SMS_MESSAGE_TYPES: SmsMessageType[] = [
+  {
+    code: '020',
+    name: '방문안내문자',
+    template: '[$1]',
+    kkoMsgId: 'KKO020_003',
+    refCode: 'WK'
+  },
+  {
+    code: '021',
+    name: '지연양해문자',
+    template: '[$1] 앞작업의 지연으로 약속시간보다 늦겠사오니 양해바랍니다.',
+    kkoMsgId: 'KKO021_001',
+    refCode: 'WK'
+  },
+  {
+    code: '027',
+    name: '전화부재안내',
+    template: '[$1] 시경에 [$2]기사가 방문시간 안내 차 전화드렸습니다.(부재안내)',
+    kkoMsgId: 'KKO027_001',
+    refCode: 'WK'
+  },
+  {
+    code: '028',
+    name: '방문부재안내',
+    template: '[$1] 시경에 [$2] 기사 방문시 부재로 [$3] 처리를 못하고 갑니다.',
+    kkoMsgId: 'KKO028_001',
+    refCode: 'WK'
+  }
+];

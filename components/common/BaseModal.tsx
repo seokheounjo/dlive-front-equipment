@@ -37,13 +37,29 @@ const BaseModal: React.FC<BaseModalProps> = ({
   footer,
   subHeader,
 }) => {
-  // 모달 오픈 시 백그라운드 스크롤 잠금
+  // 모달 오픈 시 백그라운드 스크롤 잠금 (iOS Safari 대응)
   useEffect(() => {
     if (isOpen) {
-      const originalOverflow = document.body.style.overflow;
+      const scrollY = window.scrollY;
+      const originalStyle = {
+        overflow: document.body.style.overflow,
+        position: document.body.style.position,
+        top: document.body.style.top,
+        width: document.body.style.width,
+      };
+
+      // iOS Safari에서는 position: fixed가 필요
       document.body.style.overflow = 'hidden';
+      document.body.style.position = 'fixed';
+      document.body.style.top = `-${scrollY}px`;
+      document.body.style.width = '100%';
+
       return () => {
-        document.body.style.overflow = originalOverflow;
+        document.body.style.overflow = originalStyle.overflow;
+        document.body.style.position = originalStyle.position;
+        document.body.style.top = originalStyle.top;
+        document.body.style.width = originalStyle.width;
+        window.scrollTo(0, scrollY);
       };
     }
   }, [isOpen]);

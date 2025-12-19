@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { WorkOrder, WorkOrderStatus } from '../../types';
+import { WorkOrder, WorkOrderStatus, SmsSendData } from '../../types';
 import { getWorkTypeIcon, getWorkTypeIconColor } from '../../utils/workTypeIcons';
 import VipCounter from '../common/VipCounter';
 import VipBadge from '../common/VipBadge';
@@ -7,6 +7,7 @@ import LoadingSpinner from '../common/LoadingSpinner';
 import ErrorMessage from '../common/ErrorMessage';
 import FloatingMapButton from '../common/FloatingMapButton';
 import WorkMapView from './WorkMapView';
+import VisitSmsModal from '../modal/VisitSmsModal';
 import { Calendar, Clock, Phone, MapPin, ChevronRight } from 'lucide-react';
 import { useWorkOrders } from '../../hooks/queries/useWorkOrders';
 import { useUIStore } from '../../stores/uiStore';
@@ -34,6 +35,9 @@ const TodayWork: React.FC<TodayWorkProps> = ({
   const { setSelectedWorkItem, setSelectedWorkDirection } = useUIStore();
   // 지도 보기 상태
   const [showMapView, setShowMapView] = useState(false);
+  // SMS 모달 상태
+  const [showSmsModal, setShowSmsModal] = useState(false);
+  const [smsData, setSmsData] = useState<SmsSendData | null>(null);
   // Get today's date in YYYY-MM-DD format
   const getTodayString = () => {
     const today = new Date();
@@ -98,6 +102,30 @@ const TodayWork: React.FC<TodayWorkProps> = ({
       const encodedAddress = encodeURIComponent(address);
       window.open(`https://map.kakao.com/link/search/${encodedAddress}`, '_blank');
     }
+  };
+
+  // Handle SMS modal open
+  const handleSms = (e: React.MouseEvent, order: WorkOrder) => {
+    e.stopPropagation();
+
+    // Build SMS data from WorkOrder
+    const data: SmsSendData = {
+      SO_ID: (order as any).SO_ID || '328',
+      CUST_ID: (order as any).CUST_ID || order.customer.id || '',
+      CUST_NM: order.customer.name || '',
+      SMS_RCV_TEL: order.customer.phone || '',
+      SMS_SEND_TEL: '',  // VisitSmsModal에서 localStorage userInfo.telNo2로 설정됨
+      WRK_HOPE_DTTM: order.scheduledAt || '',
+      WRKR_NM: userInfo?.userName || '',
+      WRKR_NM_EN: userInfo?.userName || '',
+      WRK_CD: (order as any).WRK_CD || '',
+      WRK_CD_NM: order.typeDisplay || '',
+      WRK_DRCTN_ID: (order as any).WRK_DRCTN_ID || order.id || '',
+      RCPT_ID: (order as any).RCPT_ID || ''
+    };
+
+    setSmsData(data);
+    setShowSmsModal(true);
   };
 
   // Get status badge styling
@@ -189,12 +217,7 @@ const TodayWork: React.FC<TodayWorkProps> = ({
             </button>
 
             <button
-              onClick={(e) => {
-                e.stopPropagation();
-                if (order.customer.phone) {
-                  window.location.href = `sms:${order.customer.phone}`;
-                }
-              }}
+              onClick={(e) => handleSms(e, order)}
               className="flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg bg-green-500 text-white hover:bg-green-600 transition-colors text-sm font-medium flex-1"
             >
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -206,7 +229,7 @@ const TodayWork: React.FC<TodayWorkProps> = ({
             <button
               onClick={(e) => {
                 e.stopPropagation();
-                console.log('작업자보정 클릭:', order.id);
+                // TODO: 작업자보정 기능 구현
               }}
               className="flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg bg-gray-100 text-gray-700 hover:bg-gray-200 transition-colors text-sm font-medium flex-1"
             >
@@ -343,7 +366,7 @@ const TodayWork: React.FC<TodayWorkProps> = ({
 
       {/* Summary Footer */}
       {!isLoading && !error && workOrders.length > 0 && (
-        <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 shadow-lg px-4 py-3">
+        <div className="flex-shrink-0 bg-white border-t border-gray-200 shadow-lg px-4 py-3">
           <div className="flex items-center justify-around text-center max-w-2xl mx-auto">
             <div className="flex-1">
               <div className="text-2xl font-bold text-blue-600">{groupedOrders.pending.length}</div>
@@ -382,6 +405,14 @@ const TodayWork: React.FC<TodayWorkProps> = ({
           }}
         />
       )}
+
+      {/* SMS 모달 */}
+      <VisitSmsModal
+        isOpen={showSmsModal}
+        onClose={() => setShowSmsModal(false)}
+        smsData={smsData}
+        userId={userInfo?.userId || ''}
+      />
     </div>
   );
 };

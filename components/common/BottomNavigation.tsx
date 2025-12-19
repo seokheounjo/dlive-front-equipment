@@ -42,9 +42,12 @@ const BottomNavigation: React.FC<BottomNavigationProps> = ({
   ];
 
   return (
-    <div className="fixed bottom-0 left-0 right-0 bg-white shadow-lg border-t border-gray-200 z-50 pb-safe">
+    <div
+      className="fixed bottom-0 left-0 right-0 bg-white shadow-lg border-t border-gray-200 z-50"
+      style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}
+    >
       <div className="max-w-7xl mx-auto">
-        <div className="flex h-[68px]">
+        <div className="flex h-[52px]">
           {navItems.map((item) => {
             const isActive = currentView === item.id;
             const IconComponent = item.icon;
@@ -53,13 +56,13 @@ const BottomNavigation: React.FC<BottomNavigationProps> = ({
               <button
                 key={item.id}
                 onClick={() => handleNavigation(item.id)}
-                className="flex-1 flex flex-col items-center justify-center gap-1 px-2 py-2 transition-all duration-200 active:scale-95 touch-manipulation"
+                className="flex-1 flex flex-col items-center justify-center gap-0.5 px-2 py-1 transition-all duration-200 active:scale-95 touch-manipulation"
               >
                 <IconComponent
                   className={`
                     transition-all duration-200
                     ${isActive
-                      ? 'h-6 w-6 text-blue-600'
+                      ? 'h-5 w-5 text-blue-600'
                       : 'h-5 w-5 text-gray-500'
                     }
                   `}

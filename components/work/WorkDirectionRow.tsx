@@ -1,7 +1,5 @@
 import React from 'react';
 import { WorkOrder, WorkOrderStatus } from '../../types';
-import { ChevronRightIcon } from '../icons/ChevronRightIcon';
-import { getWorkTypeIcon, getWorkTypeIconColor } from '../../utils/workTypeIcons';
 import VipBadge from '../common/VipBadge';
 import { formatDateTimeFromISO } from '../../utils/dateFormatter';
 import { WorkStatusCounts } from '../../services/apiService';
@@ -9,44 +7,15 @@ import { WorkStatusCounts } from '../../services/apiService';
 interface WorkDirectionRowProps {
   direction: WorkOrder;
   onSelect: (direction: WorkOrder) => void;
-  workStatusCounts?: WorkStatusCounts; // 상태별 작업개수 (선택적)
-  index?: number; // 시퀀스 번호 (1부터 시작)
+  onSms?: (direction: WorkOrder) => void;
+  workStatusCounts?: WorkStatusCounts;
+  index?: number;
 }
 
-const getStatusBadge = (status: WorkOrderStatus) => {
-  switch (status) {
-    case WorkOrderStatus.Pending:
-      return 'bg-blue-50 text-blue-700 border-blue-200';
-    case WorkOrderStatus.Completed:
-      return 'bg-green-50 text-green-700 border-green-200';
-    case WorkOrderStatus.Cancelled:
-      return 'bg-red-50 text-red-700 border-red-200';
-    default:
-      return 'bg-gray-50 text-gray-700 border-gray-200';
-  }
-};
-
-const getShortStatus = (status: WorkOrderStatus) => {
-  switch (status) {
-    case WorkOrderStatus.Pending:
-      return '진행중';
-    case WorkOrderStatus.Completed:
-      return '완료';
-    case WorkOrderStatus.Cancelled:
-      return '취소';
-    default:
-      return status;
-  }
-};
-
-const WorkDirectionRow: React.FC<WorkDirectionRowProps> = ({ direction, onSelect, workStatusCounts, index }) => {
-  const WorkTypeIcon = getWorkTypeIcon(direction.typeDisplay);
-  const iconColorClass = getWorkTypeIconColor(direction.typeDisplay);
-
-  // 상태별 작업개수 또는 기본값
+const WorkDirectionRow: React.FC<WorkDirectionRowProps> = ({ direction, onSelect, onSms, workStatusCounts, index }) => {
   const statusCounts = workStatusCounts || {
-    total: direction.typeDisplay.includes('A/S') ? 3 : direction.typeDisplay.includes('신규') ? 2 : 1,
-    pending: 0,
+    total: 1,
+    pending: 1,
     completed: 0,
     cancelled: 0
   };
@@ -87,11 +56,10 @@ const WorkDirectionRow: React.FC<WorkDirectionRowProps> = ({ direction, onSelect
     }
   };
 
-  const handleMap = (e: React.MouseEvent) => {
+  const handleSms = (e: React.MouseEvent) => {
     e.stopPropagation();
-    if (direction.customer.address) {
-      const address = encodeURIComponent(direction.customer.address);
-      window.open(`https://map.kakao.com/link/search/${address}`, '_blank');
+    if (onSms) {
+      onSms(direction);
     }
   };
 
@@ -102,7 +70,7 @@ const WorkDirectionRow: React.FC<WorkDirectionRowProps> = ({ direction, onSelect
       style={{ WebkitTapHighlightColor: 'transparent' }}
     >
       <div className="p-4">
-        {/* 헤더: 고객명 + 상태 + 작업수 */}
+        {/* 헤더: 고객명 + 상태 배지 */}
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-2 flex-1 min-w-0">
             {/* 시퀀스 번호 */}
@@ -121,28 +89,26 @@ const WorkDirectionRow: React.FC<WorkDirectionRowProps> = ({ direction, onSelect
           </div>
         </div>
 
-        {/* 작업 유형 */}
-        <div className="mb-3">
+        {/* 작업 유형 + 날짜 */}
+        <div className="flex items-center gap-3 mb-3">
           <span className="inline-flex items-center px-3 py-1.5 rounded-lg text-sm font-medium bg-blue-50 text-blue-700 border border-blue-200">
             {direction.typeDisplay}
           </span>
+          <div className="flex items-center gap-1.5 text-sm text-gray-600">
+            <svg className="w-4 h-4 text-gray-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            <span>{formatDateTimeFromISO(direction.scheduledAt)}</span>
+          </div>
         </div>
 
         {/* 주소 */}
-        <div className="flex items-start gap-2 mb-2">
+        <div className="flex items-start gap-2 mb-4">
           <svg className="w-4 h-4 text-gray-400 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
           </svg>
           <p className="text-sm text-gray-600 leading-relaxed">{direction.customer.address || '주소 정보 없음'}</p>
-        </div>
-
-        {/* 날짜 */}
-        <div className="flex items-center gap-2 mb-4">
-          <svg className="w-4 h-4 text-gray-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-          </svg>
-          <p className="text-sm text-gray-600">{formatDateTimeFromISO(direction.scheduledAt)}</p>
         </div>
 
         {/* 액션 버튼 */}
@@ -157,23 +123,22 @@ const WorkDirectionRow: React.FC<WorkDirectionRowProps> = ({ direction, onSelect
             전화
           </button>
 
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              console.log('문자발송 클릭');
-            }}
-            className="flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg bg-green-500 text-white hover:bg-green-600 transition-colors text-sm font-medium flex-1"
-          >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
-            </svg>
-            문자
-          </button>
+          {onSms && (
+            <button
+              onClick={handleSms}
+              className="flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg bg-green-500 text-white hover:bg-green-600 transition-colors text-sm font-medium flex-1"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
+              </svg>
+              문자
+            </button>
+          )}
 
           <button
             onClick={(e) => {
               e.stopPropagation();
-              console.log('작업자보정 클릭');
+              // TODO: 작업자보정 기능 구현
             }}
             className="flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg bg-gray-100 text-gray-700 hover:bg-gray-200 transition-colors text-sm font-medium flex-1"
           >

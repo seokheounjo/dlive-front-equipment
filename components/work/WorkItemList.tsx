@@ -3,12 +3,13 @@ import { WorkOrder, WorkItem, WorkOrderStatus } from '../../types';
 import { getMockWorkItems } from '../../utils/mockData';
 import WorkItemCard from '../work/WorkItemCard';
 import WorkOrderDetail from '../work/WorkOrderDetail';
-import WorkCompleteDetail from '../work/WorkCompleteDetail';
+import WorkCompletionResult from '../work/WorkCompletionResult';
 import WorkCancelModal from '../work/WorkCancelModal';
 import { cancelWork, getWorkReceipts, NetworkError } from '../../services/apiService';
 import LoadingSpinner from '../common/LoadingSpinner';
 import ErrorMessage from '../common/ErrorMessage';
 import { ClipboardList } from 'lucide-react';
+import { useWorkProcessStore } from '../../stores/workProcessStore';
 
 interface WorkItemListProps {
   direction: WorkOrder;
@@ -26,6 +27,9 @@ const WorkItemList: React.FC<WorkItemListProps> = ({ direction, onBack, onNaviga
   const [cancelTarget, setCancelTarget] = useState<WorkItem | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // 작업 선택 시 이전 작업 draft 삭제를 위한 store
+  const clearPreviousWorkDraft = useWorkProcessStore((state) => state.clearPreviousWorkDraft);
 
   // 실제 API에서 작업 목록 가져오기
   useEffect(() => {
@@ -88,6 +92,10 @@ const WorkItemList: React.FC<WorkItemListProps> = ({ direction, onBack, onNaviga
       PROD_NM: item.PROD_NM
     });
 
+    // 이전 작업의 draft 삭제 (다른 작업 선택 시)
+    const newWorkId = item.WRK_ID || item.id;
+    clearPreviousWorkDraft(newWorkId);
+
     // 실제 API 데이터를 WorkOrder 형태로 변환 (handleSelectItem)
     const convertedItem: WorkItem = {
       id: item.WRK_ID || item.id,
@@ -112,7 +120,7 @@ const WorkItemList: React.FC<WorkItemListProps> = ({ direction, onBack, onNaviga
       assignedEquipment: item.assignedEquipment || [],
 
       // 작업 유형별 분기처리를 위한 필드 추가
-      WRK_CD: item.WRK_CD,              // 작업코드 (01:개통, 02:해지, 03:AS 등)
+      WRK_CD: item.WRK_CD,              // 작업코드 (01:설치, 02:철거, 03:AS, 04:정지, 05:상품변경, 06:댁내이전, 07:이전설치, 08:이전철거, 09:부가상품)
       WRK_DTL_TCD: item.WRK_DTL_TCD,    // 작업 세부 유형 코드
       WRK_STAT_CD: item.WRK_STAT_CD,    // 작업 상태 코드
       WRK_DRCTN_ID: item.WRK_DRCTN_ID,  // 작업지시 ID
@@ -219,6 +227,10 @@ const WorkItemList: React.FC<WorkItemListProps> = ({ direction, onBack, onNaviga
   const handleCompleteWork = (item: any) => {
     console.log('🔍 진행 버튼 클릭 - 원본 데이터:', item);
 
+    // 이전 작업의 draft 삭제 (다른 작업 선택 시)
+    const newWorkId = item.WRK_ID || item.id;
+    clearPreviousWorkDraft(newWorkId);
+
     // handleSelectItem과 동일하게 작업 상세 화면으로 이동 (handleCompleteWork)
     const convertedItem: WorkItem = {
       id: item.WRK_ID || item.id,
@@ -243,7 +255,7 @@ const WorkItemList: React.FC<WorkItemListProps> = ({ direction, onBack, onNaviga
       assignedEquipment: item.assignedEquipment || [],
 
       // 작업 유형별 분기처리를 위한 필드 추가
-      WRK_CD: item.WRK_CD,              // 작업코드 (01:개통, 02:해지, 03:AS 등)
+      WRK_CD: item.WRK_CD,              // 작업코드 (01:설치, 02:철거, 03:AS, 04:정지, 05:상품변경, 06:댁내이전, 07:이전설치, 08:이전철거, 09:부가상품)
       WRK_DTL_TCD: item.WRK_DTL_TCD,    // 작업 세부 유형 코드
       WRK_STAT_CD: item.WRK_STAT_CD,    // 작업 상태 코드
       WRK_DRCTN_ID: item.WRK_DRCTN_ID,  // 작업지시 ID
@@ -344,7 +356,7 @@ const WorkItemList: React.FC<WorkItemListProps> = ({ direction, onBack, onNaviga
 
   const handleCancelWork = (item: any) => {
     console.log('🔍 취소 버튼 클릭 - 원본 데이터:', item);
-
+    
     // 실제 API 데이터를 WorkOrder 형태로 변환 (handleCancelWork)
     const convertedItem = {
       id: item.WRK_ID || item.id,
@@ -356,7 +368,7 @@ const WorkItemList: React.FC<WorkItemListProps> = ({ direction, onBack, onNaviga
             : (item.WRK_STAT_CD === '4' || item.WRK_STAT_CD === '7') ? '완료' as any
             : (item.WRK_STAT_CD === '1' || item.WRK_STAT_CD === '2') ? '진행중' as any
             : (item.WRK_STAT_CD_NM || '진행중') as any,
-      scheduledAt: item.WRK_HOPE_DTTM ?
+      scheduledAt: item.WRK_HOPE_DTTM ? 
         `${item.WRK_HOPE_DTTM.slice(0,4)}-${item.WRK_HOPE_DTTM.slice(4,6)}-${item.WRK_HOPE_DTTM.slice(6,8)}T${item.WRK_HOPE_DTTM.slice(8,10)}:${item.WRK_HOPE_DTTM.slice(10,12)}:00` :
         new Date().toISOString(),
       customer: {
@@ -368,7 +380,7 @@ const WorkItemList: React.FC<WorkItemListProps> = ({ direction, onBack, onNaviga
       details: item.REQ_CTX || item.MEMO || '작업 취소 요청',
       assignedEquipment: []
     };
-
+    
     console.log('✅ 취소 - 변환된 데이터:', convertedItem);
     setCancelTarget(convertedItem);
     setShowCancelModal(true);
@@ -477,7 +489,7 @@ const WorkItemList: React.FC<WorkItemListProps> = ({ direction, onBack, onNaviga
             <h4 className="text-sm sm:text-base font-bold text-gray-900 mb-2 whitespace-nowrap">기간내에 작업이 없습니다</h4>
           </div>
         ) : (
-          <div className="space-y-3 pb-20">
+          <div className="space-y-3 pb-4">
             {workItems.map((item, index) => (
               <WorkItemCard
                 key={item.WRK_ID || item.id || index}

@@ -38,7 +38,7 @@ const LoadingSpinner: React.FC<LoadingSpinnerProps> = ({
   };
 
   const spinnerElement = (
-    <div className="flex flex-col items-center justify-center gap-3">
+    <div className="flex flex-col items-center justify-center gap-2 sm:gap-3">
       {/* 스피너 */}
       <div
         className={`

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import Select from '../ui/Select';
 import BaseModal from '../common/BaseModal';
-import { updateInstallLocation, getCommonCodes } from '../../services/apiService';
+import { getCommonCodes } from '../../services/apiService';
 import '../../styles/buttons.css';
 
 interface InstallLocationModalProps {
@@ -69,8 +69,6 @@ const InstallLocationModal: React.FC<InstallLocationModalProps> = ({
   const [instlLocText, setInstlLocText] = useState(''); // 직접입력 텍스트 (기타 선택 시)
   const [viewModCd, setViewModCd] = useState(''); // 시청모드 코드
   const [viewModOptions, setViewModOptions] = useState(defaultViewModOptions); // 시청모드 옵션 (API에서 로드)
-
-  const [saving, setSaving] = useState(false);
 
   // DTV 상품 여부
   const isDtvProduct = prodGrp === 'D';
@@ -174,47 +172,21 @@ const InstallLocationModal: React.FC<InstallLocationModalProps> = ({
       ? `${instlLocLabel}¶${viewModCd}`
       : instlLocLabel;
 
-    setSaving(true);
-
-    try {
-      // API 호출하여 DB 저장
-      const result = await updateInstallLocation({
-        WRK_ID: workId,
-        CTRT_ID: ctrtId,
-        INSTL_LOC: instlLocFull,
-      });
-
-      if (result.code === 'SUCCESS') {
-        if (showToast) {
-          showToast('저장되었습니다.', 'success');
-        }
-
-        // 부모 컴포넌트에 데이터 전달
-        onSave({
-          INSTL_LOC: instlLocLabel,
-          VIEW_MOD_CD: viewModCd,
-          VIEW_MOD_NM: viewModNm,
-          INSTL_LOC_FULL: instlLocFull,
-        });
-
-        onClose();
-      } else {
-        if (showToast) {
-          showToast(result.message || '저장에 실패했습니다.', 'error');
-        } else {
-          alert(result.message || '저장에 실패했습니다.');
-        }
-      }
-    } catch (error) {
-      console.error('[InstallLocationModal] 저장 실패:', error);
-      if (showToast) {
-        showToast('저장 중 오류가 발생했습니다.', 'error');
-      } else {
-        alert('저장 중 오류가 발생했습니다.');
-      }
-    } finally {
-      setSaving(false);
+    // 레거시 방식: 별도 API 호출 없이 로컬에만 저장
+    // 작업완료(modWorkComplete) 시 INSTL_LOC 파라미터로 함께 전송됨
+    if (showToast) {
+      showToast('설정되었습니다.', 'success');
     }
+
+    // 부모 컴포넌트에 데이터 전달 (로컬 저장용)
+    onSave({
+      INSTL_LOC: instlLocLabel,
+      VIEW_MOD_CD: viewModCd,
+      VIEW_MOD_NM: viewModNm,
+      INSTL_LOC_FULL: instlLocFull,
+    });
+
+    onClose();
   };
 
   if (!isOpen) return null;
@@ -229,7 +201,7 @@ const InstallLocationModal: React.FC<InstallLocationModalProps> = ({
       <div className="space-y-5 p-4">
         {/* 설치위치 */}
         <div>
-          <label className="block text-sm font-semibold text-gray-900 mb-2">
+          <label className="block text-xs sm:text-sm font-semibold text-gray-900 mb-1.5 sm:mb-2">
             설치위치 {!readOnly && <span className="text-red-500">*</span>}
           </label>
           <Select
@@ -250,7 +222,7 @@ const InstallLocationModal: React.FC<InstallLocationModalProps> = ({
 
         {/* 작업주소 상세위치 (기타 선택 시) */}
         <div>
-          <label className="block text-sm font-semibold text-gray-900 mb-2">
+          <label className="block text-xs sm:text-sm font-semibold text-gray-900 mb-1.5 sm:mb-2">
             작업주소 상세위치 {!readOnly && instlLocCode === '99' && <span className="text-red-500">*</span>}
           </label>
           <textarea
@@ -260,7 +232,7 @@ const InstallLocationModal: React.FC<InstallLocationModalProps> = ({
             disabled={readOnly || instlLocCode !== '99'}
             maxLength={512}
             rows={3}
-            className={`w-full px-4 py-3 border rounded-lg text-base resize-none
+            className={`w-full px-3 sm:px-4 py-2 sm:py-3 border rounded-lg text-sm sm:text-base resize-none
               ${readOnly
                 ? 'border-gray-200 bg-gray-100 text-gray-700 cursor-not-allowed'
                 : instlLocCode === '99'
@@ -277,7 +249,7 @@ const InstallLocationModal: React.FC<InstallLocationModalProps> = ({
 
         {/* 시청모드 (DTV 상품일 때만) */}
         <div>
-          <label className="block text-sm font-semibold text-gray-900 mb-2">
+          <label className="block text-xs sm:text-sm font-semibold text-gray-900 mb-1.5 sm:mb-2">
             시청모드 {!readOnly && isDtvProduct && <span className="text-red-500">*</span>}
           </label>
           <Select
@@ -297,11 +269,11 @@ const InstallLocationModal: React.FC<InstallLocationModalProps> = ({
       </div>
 
       {/* 버튼 영역 */}
-      <div className="flex gap-3 p-4 border-t border-gray-200 bg-gray-50">
+      <div className="flex gap-2 sm:gap-3 p-3 sm:p-4 border-t border-gray-200 bg-gray-50">
         <button
           type="button"
           onClick={onClose}
-          className={`py-3 px-4 font-semibold rounded-lg transition-colors ${
+          className={`py-2 sm:py-3 px-3 sm:px-4 font-semibold rounded-lg transition-colors text-sm sm:text-base ${
             readOnly
               ? 'flex-1 bg-gray-200 text-gray-700 hover:bg-gray-300'
               : 'flex-1 bg-gray-200 text-gray-700 hover:bg-gray-300'
@@ -313,10 +285,9 @@ const InstallLocationModal: React.FC<InstallLocationModalProps> = ({
           <button
             type="button"
             onClick={handleSave}
-            disabled={saving}
-            className="flex-1 py-3 px-4 bg-cyan-600 text-white font-semibold rounded-lg hover:bg-cyan-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            className="flex-1 py-2 sm:py-3 px-3 sm:px-4 bg-cyan-600 text-white font-semibold rounded-lg hover:bg-cyan-700 transition-colors text-sm sm:text-base"
           >
-            {saving ? '저장 중...' : '저장'}
+            저장
           </button>
         )}
       </div>

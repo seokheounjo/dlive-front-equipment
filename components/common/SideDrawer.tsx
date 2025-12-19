@@ -94,7 +94,7 @@ const SideDrawer: React.FC<SideDrawerProps> = ({
               <div className="bg-white rounded-lg p-3 shadow-sm">
                 <div className="flex items-center justify-between">
                   <span className="text-xs text-gray-600">오늘의 작업</span>
-                  <div className="flex gap-3">
+                  <div className="flex gap-2 sm:gap-3">
                     <div className="text-right">
                       <span className="text-xs text-gray-500">진행중</span>
                       <p className="text-sm font-bold text-blue-600">{stats.todayInProgress}</p>
@@ -130,66 +130,66 @@ const SideDrawer: React.FC<SideDrawerProps> = ({
             <ul className="space-y-1">
               <li>
                 <button
-                  className="w-full flex items-center gap-3 px-4 py-3 text-gray-700 hover:bg-blue-50 rounded-lg transition-colors"
+                  className="w-full flex items-center gap-2 sm:gap-3 px-3 sm:px-4 py-2.5 sm:py-3 text-gray-700 hover:bg-blue-50 rounded-lg transition-colors"
                   onClick={() => handleMenuClick('today-work')}
                 >
                   <Calendar className="w-5 h-5 text-blue-600" />
-                  <span className="font-medium">오늘의 작업</span>
+                  <span className="font-medium text-sm sm:text-base">오늘의 작업</span>
                 </button>
               </li>
               <li>
                 <button
-                  className="w-full flex items-center gap-3 px-4 py-3 text-gray-700 hover:bg-blue-50 rounded-lg transition-colors"
+                  className="w-full flex items-center gap-2 sm:gap-3 px-3 sm:px-4 py-2.5 sm:py-3 text-gray-700 hover:bg-blue-50 rounded-lg transition-colors"
                   onClick={() => handleMenuClick('work-management')}
                 >
                   <ClipboardList className="w-5 h-5 text-blue-600" />
-                  <span className="font-medium">작업관리</span>
+                  <span className="font-medium text-sm sm:text-base">작업관리</span>
                 </button>
               </li>
               <li>
                 <button
-                  className="w-full flex items-center gap-3 px-4 py-3 text-gray-700 hover:bg-blue-50 rounded-lg transition-colors"
+                  className="w-full flex items-center gap-2 sm:gap-3 px-3 sm:px-4 py-2.5 sm:py-3 text-gray-700 hover:bg-blue-50 rounded-lg transition-colors"
                   onClick={() => handleMenuClick('customer-management')}
                 >
                   <Users className="w-5 h-5 text-blue-600" />
-                  <span className="font-medium">고객관리</span>
+                  <span className="font-medium text-sm sm:text-base">고객관리</span>
                 </button>
               </li>
               <li>
                 <button
-                  className="w-full flex items-center gap-3 px-4 py-3 text-gray-700 hover:bg-blue-50 rounded-lg transition-colors"
+                  className="w-full flex items-center gap-2 sm:gap-3 px-3 sm:px-4 py-2.5 sm:py-3 text-gray-700 hover:bg-blue-50 rounded-lg transition-colors"
                   onClick={() => handleMenuClick('equipment-management')}
                 >
                   <Package className="w-5 h-5 text-blue-600" />
-                  <span className="font-medium">장비관리</span>
+                  <span className="font-medium text-sm sm:text-base">장비관리</span>
                 </button>
               </li>
               <li>
                 <button
-                  className="w-full flex items-center gap-3 px-4 py-3 text-gray-700 hover:bg-blue-50 rounded-lg transition-colors"
+                  className="w-full flex items-center gap-2 sm:gap-3 px-3 sm:px-4 py-2.5 sm:py-3 text-gray-700 hover:bg-blue-50 rounded-lg transition-colors"
                   onClick={() => handleMenuClick('other-management')}
                 >
                   <MoreHorizontal className="w-5 h-5 text-blue-600" />
-                  <span className="font-medium">기타관리</span>
+                  <span className="font-medium text-sm sm:text-base">기타관리</span>
                 </button>
               </li>
               <li>
                 <button
-                  className="w-full flex items-center gap-3 px-4 py-3 text-gray-700 hover:bg-blue-50 rounded-lg transition-colors"
+                  className="w-full flex items-center gap-2 sm:gap-3 px-3 sm:px-4 py-2.5 sm:py-3 text-gray-700 hover:bg-blue-50 rounded-lg transition-colors"
                   onClick={() => handleMenuClick('settings')}
                 >
                   <Settings className="w-5 h-5 text-blue-600" />
-                  <span className="font-medium">설정</span>
+                  <span className="font-medium text-sm sm:text-base">설정</span>
                 </button>
               </li>
             </ul>
           </nav>
 
           {/* 하단 로그아웃 버튼 */}
-          <div className="p-4 border-t border-gray-200">
+          <div className="p-3 sm:p-4 border-t border-gray-200">
             <button
               onClick={handleLogout}
-              className="w-full flex items-center justify-center gap-3 px-4 py-3 bg-red-50 text-red-600 hover:bg-red-100 rounded-lg transition-colors font-medium"
+              className="w-full flex items-center justify-center gap-2 sm:gap-3 px-3 sm:px-4 py-2.5 sm:py-3 bg-red-50 text-red-600 hover:bg-red-100 rounded-lg transition-colors font-medium text-sm sm:text-base"
             >
               <LogOut className="w-5 h-5" />
               <span>로그아웃</span>

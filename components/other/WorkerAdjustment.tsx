@@ -229,7 +229,7 @@ const WorkerAdjustment: React.FC<WorkerAdjustmentProps> = ({
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
-      <div className="bg-gradient-to-r from-blue-500 to-cyan-600 text-white p-4 shadow-lg sticky top-0 z-10">
+      <div className="bg-gradient-to-r from-blue-500 to-cyan-600 text-white p-4 shadow-lg">
         <div className="flex items-center gap-3">
           <button
             onClick={onBack}
@@ -509,7 +509,7 @@ const WorkerAdjustment: React.FC<WorkerAdjustmentProps> = ({
           </div>
 
           {/* Submit Buttons */}
-          <div className="flex gap-3 sticky bottom-4">
+          <div className="flex gap-3 mt-4">
             <button
               type="button"
               onClick={onBack}

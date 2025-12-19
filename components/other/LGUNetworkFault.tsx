@@ -79,13 +79,13 @@ const LGUNetworkFault: React.FC<LGUNetworkFaultProps> = ({ onBack, userInfo, sho
   return (
     <div>
       {/* 헤더 */}
-      <div className="mb-3">
-        <h2 className="text-lg font-bold text-gray-900">(LGU) 망장애이관리스트</h2>
+      <div className="mb-2 sm:mb-3">
+        <h2 className="text-base sm:text-lg font-bold text-gray-900">(LGU) 망장애이관리스트</h2>
       </div>
 
       {/* 폼 */}
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
-        <form onSubmit={handleSubmit} className="space-y-3">
+      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-3 sm:p-4">
+        <form onSubmit={handleSubmit} className="space-y-2 sm:space-y-3">
           <div>
             <label className="block text-xs font-medium text-gray-600 mb-1">
               계약 ID <span className="text-red-500">*</span>
@@ -140,11 +140,11 @@ const LGUNetworkFault: React.FC<LGUNetworkFaultProps> = ({ onBack, userInfo, sho
           </div>
 
           {/* 버튼 */}
-          <div className="grid grid-cols-2 gap-2 mt-4">
+          <div className="grid grid-cols-2 gap-1.5 sm:gap-2 mt-3 sm:mt-4">
             <button
               type="submit"
               disabled={isSubmitting}
-              className="px-4 py-2.5 bg-orange-500 hover:bg-orange-600 text-white rounded-lg font-medium text-sm shadow-md transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+              className="px-3 sm:px-4 py-2 sm:py-2.5 bg-orange-500 hover:bg-orange-600 text-white rounded-lg font-medium text-xs sm:text-sm shadow-md transition-all disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {isSubmitting ? '처리 중...' : '망장애 처리'}
             </button>
@@ -155,7 +155,7 @@ const LGUNetworkFault: React.FC<LGUNetworkFaultProps> = ({ onBack, userInfo, sho
                 setResult(null);
                 clearSession(SESSION_KEYS.LGU_NETWORK_FAULT_FORM);
               }}
-              className="px-4 py-2.5 bg-gray-500 hover:bg-gray-600 text-white rounded-lg font-medium text-sm shadow-md transition-all"
+              className="px-3 sm:px-4 py-2 sm:py-2.5 bg-gray-500 hover:bg-gray-600 text-white rounded-lg font-medium text-xs sm:text-sm shadow-md transition-all"
             >
               초기화
             </button>
@@ -165,13 +165,13 @@ const LGUNetworkFault: React.FC<LGUNetworkFaultProps> = ({ onBack, userInfo, sho
 
       {/* 결과 표시 */}
       {result && (
-        <div className="mt-3 bg-white rounded-lg shadow-sm border border-gray-200 p-3">
-          <div className="mb-2">
-            <span className={`text-sm font-semibold flex items-center gap-1 ${result.success ? 'text-green-600' : 'text-red-600'}`}>
-              {result.success ? <><CheckCircle size={16} /> 처리 완료</> : <><AlertCircle size={16} /> 처리 실패</>}
+        <div className="mt-2 sm:mt-3 bg-white rounded-lg shadow-sm border border-gray-200 p-2.5 sm:p-3">
+          <div className="mb-1.5 sm:mb-2">
+            <span className={`text-xs sm:text-sm font-semibold flex items-center gap-1 ${result.success ? 'text-green-600' : 'text-red-600'}`}>
+              {result.success ? <><CheckCircle size={14} className="sm:w-4 sm:h-4" /> 처리 완료</> : <><AlertCircle size={14} className="sm:w-4 sm:h-4" /> 처리 실패</>}
             </span>
           </div>
-          <div className="bg-gray-50 rounded p-2">
+          <div className="bg-gray-50 rounded p-1.5 sm:p-2">
             <pre className="text-xs text-gray-700 overflow-x-auto whitespace-pre-wrap break-words">
               {JSON.stringify(result.success ? result.data : result.error, null, 2)}
             </pre>

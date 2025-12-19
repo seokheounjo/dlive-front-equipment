@@ -121,9 +121,9 @@ const WorkCancelModal: React.FC<WorkCancelModalProps> = ({
 
     // WRK_CD에 따른 refcode 매핑
     if (wrkCd === '05' || wrkCd === '06' || wrkCd === '07' || wrkCd === '09') {
-      return '01'; // 개통 계열
+      return '01'; // 설치 계열
     } else if (wrkCd === '08') {
-      return '02'; // 해지 계열
+      return '02'; // 철거 계열
     } else if (wrkCd === '03') {
       return '03'; // AS
     } else {

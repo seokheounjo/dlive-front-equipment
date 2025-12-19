@@ -15,8 +15,8 @@ const InfoRow: React.FC<{ label: string; value?: string; highlight?: boolean }> 
 );
 
 const SuspensionWorkDetails: React.FC<SuspensionWorkDetailsProps> = ({ order }) => {
-  const isTempSuspension = isTempSuspensionWork(order.WRK_CD);
-  const isSuspensionRelease = isSuspensionReleaseWork(order.WRK_CD);
+  const isTempSuspension = isTempSuspensionWork(order.WRK_CD, order.WRK_DTL_TCD);
+  const isSuspensionRelease = isSuspensionReleaseWork(order.WRK_CD, order.WRK_DTL_TCD);
 
   return (
     <div className="space-y-4">
@@ -154,12 +154,12 @@ const SuspensionWorkDetails: React.FC<SuspensionWorkDetailsProps> = ({ order }) 
         </div>
       )}
 
-      {/* 일반 정지 (WRK_CD = '06') */}
+      {/* 댁내설치 (WRK_CD = '06') */}
       {order.WRK_CD === '06' && (
         <div className="bg-gradient-to-r from-gray-50 to-slate-50 border border-gray-200 rounded-lg p-4">
           <h3 className="text-sm font-semibold text-gray-800 mb-3 flex items-center">
-            <span className="mr-2">⏸️</span>
-            정지 작업 정보
+            <span className="mr-2">🏠</span>
+            댁내설치 작업 정보
           </h3>
           <div className="bg-white rounded-lg border border-gray-100 divide-y divide-gray-100">
             <InfoRow
@@ -167,7 +167,7 @@ const SuspensionWorkDetails: React.FC<SuspensionWorkDetailsProps> = ({ order }) 
               value={order.WRK_DTL_TCD === '0610' ? '설치보류' : order.WRK_DTL_TCD === '0620' ? '부재변경' : order.WRK_DTL_TCD || '미확인'}
             />
             <InfoRow
-              label="정지 사유"
+              label="작업 내용"
               value={order.details || '미입력'}
             />
           </div>

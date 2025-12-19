@@ -11,19 +11,20 @@ import {
  * 작업 유형별 검증 로직
  */
 
-// 작업 유형 코드 상수
+// 작업 유형 코드 상수 (CMWT000 코드 테이블 기준)
 export const WORK_TYPE_CODES = {
-  INSTALLATION: '01',     // 개통
-  TERMINATION: '02',      // 해지
+  INSTALLATION: '01',     // 설치
+  REMOVAL: '02',          // 철거 (WRK_DTL_TCD: 0210=해지, 0220=직권해지)
   AS: '03',               // A/S
-  RELOCATION: '04',       // 이전
+  SUSPENSION: '04',       // 정지 (WRK_DTL_TCD: 0430=일시철거, 0440=일시철거복구)
   PRODUCT_CHANGE: '05',   // 상품변경
-  SUSPENSION: '06',       // 정지
-  REMOVAL_MOVE: '07',     // 철거(이전)
-  REMOVAL_TERM: '08',     // 철거(해지)
-  ETC: '09',              // 기타
-  TEMP_SUSPENSION: '0410', // 일시정지
-  SUSPENSION_RELEASE: '0420' // 일시정지 해제
+  HOME_RELOCATION: '06',  // 댁내이전
+  RELOCATION_INSTALL: '07', // 이전설치
+  RELOCATION_REMOVAL: '08', // 이전철거
+  ADDITIONAL_PRODUCT: '09', // 부가상품
+  // 이하 WRK_DTL_TCD (작업 세부 유형)
+  TEMP_REMOVAL: '0430',       // 일시철거 (WRK_CD='04') - 단순이전
+  TEMP_REMOVAL_RESTORE: '0440' // 일시철거복구 (WRK_CD='04') - 정지해제
 } as const;
 
 // 계약 상태 코드 상수
@@ -56,36 +57,58 @@ export const isASWork = (wrkCd?: string): boolean => {
   return wrkCd === WORK_TYPE_CODES.AS;
 };
 
-export const isTerminationWork = (wrkCd?: string): boolean => {
-  return wrkCd === WORK_TYPE_CODES.TERMINATION;
-};
-
+// 철거 작업 (WRK_CD='02') - 해지(0210), 직권해지(0220) 포함
 export const isRemovalWork = (wrkCd?: string): boolean => {
-  return wrkCd === WORK_TYPE_CODES.REMOVAL_MOVE ||
-         wrkCd === WORK_TYPE_CODES.REMOVAL_TERM;
+  return wrkCd === WORK_TYPE_CODES.REMOVAL;
+};
+// 이전 호환성을 위한 별칭 (deprecated - isRemovalWork 사용 권장)
+export const isTerminationWork = isRemovalWork;
+
+// 이전 작업 (WRK_CD='07' 이전설치 또는 '08' 이전철거)
+export const isRelocationWork = (wrkCd?: string): boolean => {
+  return wrkCd === WORK_TYPE_CODES.RELOCATION_INSTALL ||
+         wrkCd === WORK_TYPE_CODES.RELOCATION_REMOVAL;
 };
 
 export const isProductChangeWork = (wrkCd?: string): boolean => {
   return wrkCd === WORK_TYPE_CODES.PRODUCT_CHANGE;
 };
 
-export const isRelocationWork = (wrkCd?: string): boolean => {
-  return wrkCd === WORK_TYPE_CODES.RELOCATION;
+// 이전설치 작업 (WRK_CD='07')
+export const isRelocationInstallWork = (wrkCd?: string): boolean => {
+  return wrkCd === WORK_TYPE_CODES.RELOCATION_INSTALL;
 };
 
+// 이전철거 작업 (WRK_CD='08')
+export const isRelocationRemovalWork = (wrkCd?: string): boolean => {
+  return wrkCd === WORK_TYPE_CODES.RELOCATION_REMOVAL;
+};
+
+// 댁내이전 작업 (WRK_CD='06')
+export const isHomeRelocationWork = (wrkCd?: string): boolean => {
+  return wrkCd === WORK_TYPE_CODES.HOME_RELOCATION;
+};
+// 이전 호환성을 위한 별칭 (deprecated - isHomeRelocationWork 사용 권장)
+export const isHomeInstallWork = isHomeRelocationWork;
+
+// 정지 작업 (WRK_CD='04') - WRK_DTL_TCD로 세부 구분
 export const isSuspensionWork = (wrkCd?: string): boolean => {
-  return wrkCd === WORK_TYPE_CODES.SUSPENSION ||
-         wrkCd === WORK_TYPE_CODES.TEMP_SUSPENSION ||
-         wrkCd === WORK_TYPE_CODES.SUSPENSION_RELEASE;
+  return wrkCd === WORK_TYPE_CODES.SUSPENSION;
 };
 
-export const isTempSuspensionWork = (wrkCd?: string): boolean => {
-  return wrkCd === WORK_TYPE_CODES.TEMP_SUSPENSION;
+// 일시철거 작업 (WRK_CD='04' + WRK_DTL_TCD='0430')
+export const isTempRemovalWork = (wrkCd?: string, wrkDtlTcd?: string): boolean => {
+  return wrkCd === WORK_TYPE_CODES.SUSPENSION && wrkDtlTcd === WORK_TYPE_CODES.TEMP_REMOVAL;
 };
+// 이전 호환성을 위한 별칭 (deprecated - isTempRemovalWork 사용 권장)
+export const isTempSuspensionWork = isTempRemovalWork;
 
-export const isSuspensionReleaseWork = (wrkCd?: string): boolean => {
-  return wrkCd === WORK_TYPE_CODES.SUSPENSION_RELEASE;
+// 일시철거복구 작업 (WRK_CD='04' + WRK_DTL_TCD='0440')
+export const isTempRemovalRestoreWork = (wrkCd?: string, wrkDtlTcd?: string): boolean => {
+  return wrkCd === WORK_TYPE_CODES.SUSPENSION && wrkDtlTcd === WORK_TYPE_CODES.TEMP_REMOVAL_RESTORE;
 };
+// 이전 호환성을 위한 별칭 (deprecated - isTempRemovalRestoreWork 사용 권장)
+export const isSuspensionReleaseWork = isTempRemovalRestoreWork;
 
 /**
  * 작업 유형별 계약 상태 검증
@@ -102,11 +125,11 @@ export const isValidContractStatus = (wrkCd: string, ctrtStat: string): boolean 
   }
 
   switch (wrkCd) {
-    case WORK_TYPE_CODES.INSTALLATION: // 01: 개통
+    case WORK_TYPE_CODES.INSTALLATION: // 01: 설치
       // 설치예정 상태만 허용
       return ctrtStat === CONTRACT_STATUS_CODES.INSTALL_SCHEDULED;
 
-    case WORK_TYPE_CODES.TERMINATION: // 02: 해지
+    case WORK_TYPE_CODES.REMOVAL: // 02: 철거 (해지0210, 직권해지0220 포함)
       // 정상 또는 일시정지 상태만 허용 (해지완료 제외)
       return ctrtStat === CONTRACT_STATUS_CODES.ACTIVE ||
              ctrtStat === CONTRACT_STATUS_CODES.SUSPENDED ||
@@ -116,19 +139,19 @@ export const isValidContractStatus = (wrkCd: string, ctrtStat: string): boolean 
       // 해지완료 제외 모든 상태 허용
       return ctrtStat !== CONTRACT_STATUS_CODES.TERMINATED;
 
-    case WORK_TYPE_CODES.TEMP_SUSPENSION: // 0410: 일시정지
+    case WORK_TYPE_CODES.TEMP_REMOVAL: // 0430: 일시철거
       // 정상 상태만 허용
       return ctrtStat === CONTRACT_STATUS_CODES.ACTIVE;
 
-    case WORK_TYPE_CODES.SUSPENSION_RELEASE: // 0420: 정지해제
+    case WORK_TYPE_CODES.TEMP_REMOVAL_RESTORE: // 0440: 일시철거복구
       // 일시정지 상태만 허용
       return ctrtStat === CONTRACT_STATUS_CODES.SUSPENDED ||
              ctrtStat === CONTRACT_STATUS_CODES.SUSPENDED_SPECIFIC;
 
-    case WORK_TYPE_CODES.RELOCATION: // 04: 이전
+    case WORK_TYPE_CODES.HOME_RELOCATION: // 06: 댁내이전
     case WORK_TYPE_CODES.PRODUCT_CHANGE: // 05: 상품변경
-    case WORK_TYPE_CODES.REMOVAL_MOVE: // 07: 철거(이전)
-    case WORK_TYPE_CODES.REMOVAL_TERM: // 08: 철거(해지)
+    case WORK_TYPE_CODES.RELOCATION_INSTALL: // 07: 이전설치
+    case WORK_TYPE_CODES.RELOCATION_REMOVAL: // 08: 이전철거
       // 정상 상태만 허용
       return ctrtStat === CONTRACT_STATUS_CODES.ACTIVE;
 
@@ -160,16 +183,16 @@ export const validateContractStatus = (
 
   switch (wrkCd) {
     case WORK_TYPE_CODES.INSTALLATION:
-      message = '개통 작업은 설치예정 상태에서만 가능합니다.';
+      message = '설치 작업은 설치예정 상태에서만 가능합니다.';
       break;
-    case WORK_TYPE_CODES.TERMINATION:
-      message = '해지 작업은 정상 또는 일시정지 상태에서만 가능합니다.';
+    case WORK_TYPE_CODES.REMOVAL:
+      message = '철거 작업은 정상 또는 일시정지 상태에서만 가능합니다.';
       break;
-    case WORK_TYPE_CODES.TEMP_SUSPENSION:
-      message = '일시정지는 정상 상태에서만 가능합니다.';
+    case WORK_TYPE_CODES.TEMP_REMOVAL:
+      message = '일시철거는 정상 상태에서만 가능합니다.';
       break;
-    case WORK_TYPE_CODES.SUSPENSION_RELEASE:
-      message = '정지해제는 일시정지 상태에서만 가능합니다.';
+    case WORK_TYPE_CODES.TEMP_REMOVAL_RESTORE:
+      message = '일시철거복구는 일시정지 상태에서만 가능합니다.';
       break;
     case WORK_TYPE_CODES.AS:
       message = 'A/S 작업은 해지완료 상태에서는 불가능합니다.';
@@ -331,7 +354,7 @@ export const validateWorkComplete = (order: WorkOrder, data: WorkCompleteData): 
 
   // 작업 유형별 필수 항목 검증
   switch (order.WRK_CD) {
-    case WORK_TYPE_CODES.INSTALLATION: // 개통 (신규설치)
+    case WORK_TYPE_CODES.INSTALLATION: // 01: 설치
       if (!data.installEquipments || data.installEquipments.length === 0) {
         errors.push('설치 장비를 입력해야 합니다.');
       }
@@ -340,46 +363,46 @@ export const validateWorkComplete = (order: WorkOrder, data: WorkCompleteData): 
       }
       break;
 
-    case WORK_TYPE_CODES.AS: // A/S
+    case WORK_TYPE_CODES.AS: // 03: A/S
       if (!data.installEquipments || data.installEquipments.length === 0) {
         errors.push('교체/수리한 장비 정보를 입력해야 합니다.');
       }
       break;
 
-    case WORK_TYPE_CODES.TERMINATION: // 해지
+    case WORK_TYPE_CODES.REMOVAL: // 02: 철거 (해지0210, 직권해지0220 포함)
       if (!data.removeEquipments || data.removeEquipments.length === 0) {
         errors.push('회수한 장비 정보를 입력해야 합니다.');
       }
       if (!order.termReasonCode && !data.workInfo?.TERM_RESN_CD) {
-        errors.push('해지 사유를 선택해야 합니다.');
+        errors.push('철거(해지) 사유를 선택해야 합니다.');
       }
       break;
 
-    case WORK_TYPE_CODES.REMOVAL_MOVE: // 철거(이전)
-    case WORK_TYPE_CODES.REMOVAL_TERM: // 철거(해지)
+    case WORK_TYPE_CODES.RELOCATION_INSTALL: // 07: 이전설치
+    case WORK_TYPE_CODES.RELOCATION_REMOVAL: // 08: 이전철거
       if (!data.removeEquipments || data.removeEquipments.length === 0) {
         errors.push('철거한 장비 정보를 입력해야 합니다.');
       }
       break;
 
-    case WORK_TYPE_CODES.PRODUCT_CHANGE: // 상품변경
+    case WORK_TYPE_CODES.PRODUCT_CHANGE: // 05: 상품변경
       if (!order.newProduct && !data.workInfo?.NEW_PROD_CD) {
         errors.push('변경할 상품을 선택해야 합니다.');
       }
       break;
 
-    case WORK_TYPE_CODES.TEMP_SUSPENSION: // 일시정지
+    case WORK_TYPE_CODES.TEMP_REMOVAL: // 0430: 일시철거
       if (!order.mmtSusCd && !data.workInfo?.MMT_SUS_CD) {
-        errors.push('일시정지 사유를 선택해야 합니다.');
+        errors.push('일시철거 사유를 선택해야 합니다.');
       }
       if (!order.susHopeDd || !order.mmtSusHopeDd) {
         if (!data.workInfo?.SUS_HOPE_DD || !data.workInfo?.MMT_SUS_HOPE_DD) {
-          errors.push('정지 및 재개 희망일을 입력해야 합니다.');
+          errors.push('철거 및 복구 희망일을 입력해야 합니다.');
         }
       }
       break;
 
-    case WORK_TYPE_CODES.RELOCATION: // 이전
+    case WORK_TYPE_CODES.HOME_RELOCATION: // 06: 댁내이전
       if (!data.installEquipments || data.installEquipments.length === 0) {
         errors.push('이전 설치할 장비 정보를 입력해야 합니다.');
       }
@@ -428,8 +451,8 @@ export const validateWorkCancel = (
     }
   }
 
-  // 철거 작업의 특수 취소 사유 처리
-  if (order.WRK_CD === WORK_TYPE_CODES.REMOVAL_MOVE && cancelReasonCode === '0136') {
+  // 이전설치 작업의 특수 취소 사유 처리
+  if (order.WRK_CD === WORK_TYPE_CODES.RELOCATION_INSTALL && cancelReasonCode === '0136') {
     // 특수 취소 사유 - 추가 검증 필요 시 여기에 추가
   }
 
@@ -483,22 +506,27 @@ export const getValidationErrorMessage = (
  */
 export const getCompleteButtonText = (wrkCd?: string): string => {
   switch (wrkCd) {
-    case WORK_TYPE_CODES.INSTALLATION:
+    case WORK_TYPE_CODES.INSTALLATION: // 01: 설치
       return '설치 완료';
-    case WORK_TYPE_CODES.AS:
+    case WORK_TYPE_CODES.AS: // 03: A/S
       return 'A/S 완료';
-    case WORK_TYPE_CODES.TERMINATION:
-      return '해지 완료';
-    case WORK_TYPE_CODES.REMOVAL_MOVE:
-    case WORK_TYPE_CODES.REMOVAL_TERM:
+    case WORK_TYPE_CODES.REMOVAL: // 02: 철거
       return '철거 완료';
-    case WORK_TYPE_CODES.PRODUCT_CHANGE:
+    case WORK_TYPE_CODES.RELOCATION_INSTALL: // 07: 이전설치
+      return '이전설치 완료';
+    case WORK_TYPE_CODES.RELOCATION_REMOVAL: // 08: 이전철거
+      return '이전철거 완료';
+    case WORK_TYPE_CODES.PRODUCT_CHANGE: // 05: 상품변경
       return '상품변경 완료';
-    case WORK_TYPE_CODES.SUSPENSION:
-    case WORK_TYPE_CODES.TEMP_SUSPENSION:
+    case WORK_TYPE_CODES.SUSPENSION: // 04: 정지
+    case WORK_TYPE_CODES.TEMP_REMOVAL: // 0430: 일시철거
       return '정지처리 완료';
-    case WORK_TYPE_CODES.SUSPENSION_RELEASE:
+    case WORK_TYPE_CODES.TEMP_REMOVAL_RESTORE: // 0440: 일시철거복구
       return '정지해제 완료';
+    case WORK_TYPE_CODES.HOME_RELOCATION: // 06: 댁내이전
+      return '댁내이전 완료';
+    case WORK_TYPE_CODES.ADDITIONAL_PRODUCT: // 09: 부가상품
+      return '부가상품 완료';
     default:
       return '작업 완료';
   }
@@ -509,23 +537,27 @@ export const getCompleteButtonText = (wrkCd?: string): string => {
  */
 export const getWorkTypeGuideMessage = (wrkCd?: string): string => {
   switch (wrkCd) {
-    case WORK_TYPE_CODES.INSTALLATION:
-      return '신규 설치 작업입니다. 장비 설치 및 약관 동의를 완료해주세요.';
-    case WORK_TYPE_CODES.AS:
-      return 'A/S 작업입니다. 고장 원인을 확인하고 장비를 교체/수리해주세요.';
-    case WORK_TYPE_CODES.TERMINATION:
-      return '해지 작업입니다. 모든 장비를 회수하고 위약금을 안내해주세요.';
-    case WORK_TYPE_CODES.REMOVAL_MOVE:
-      return '이전을 위한 철거 작업입니다. 장비를 안전하게 철거해주세요.';
-    case WORK_TYPE_CODES.REMOVAL_TERM:
-      return '해지를 위한 철거 작업입니다. 모든 장비를 회수해주세요.';
-    case WORK_TYPE_CODES.PRODUCT_CHANGE:
-      return '상품 변경 작업입니다. 고객에게 변경 내용을 안내해주세요.';
-    case WORK_TYPE_CODES.SUSPENSION:
-    case WORK_TYPE_CODES.TEMP_SUSPENSION:
-      return '일시정지 작업입니다. 고객 요청 사유를 확인해주세요.';
-    case WORK_TYPE_CODES.SUSPENSION_RELEASE:
-      return '정지 해제 작업입니다. 서비스를 재개해주세요.';
+    case WORK_TYPE_CODES.INSTALLATION: // 01: 설치
+      return '신규 설치 작업입니다.';
+    case WORK_TYPE_CODES.AS: // 03: A/S
+      return 'A/S 작업입니다.';
+    case WORK_TYPE_CODES.REMOVAL: // 02: 철거
+      return '철거 작업입니다.';
+    case WORK_TYPE_CODES.RELOCATION_INSTALL: // 07: 이전설치
+      return '이전설치 작업입니다.';
+    case WORK_TYPE_CODES.RELOCATION_REMOVAL: // 08: 이전철거
+      return '이전철거 작업입니다.';
+    case WORK_TYPE_CODES.PRODUCT_CHANGE: // 05: 상품변경
+      return '상품변경 작업입니다.';
+    case WORK_TYPE_CODES.SUSPENSION: // 04: 정지
+    case WORK_TYPE_CODES.TEMP_REMOVAL: // 0430: 일시철거
+      return '일시철거 작업입니다.';
+    case WORK_TYPE_CODES.TEMP_REMOVAL_RESTORE: // 0440: 일시철거복구
+      return '일시철거복구 작업입니다.';
+    case WORK_TYPE_CODES.HOME_RELOCATION: // 06: 댁내이전
+      return '댁내이전 작업입니다.';
+    case WORK_TYPE_CODES.ADDITIONAL_PRODUCT: // 09: 부가상품
+      return '부가상품 작업입니다.';
     default:
       return '작업을 진행해주세요.';
   }

@@ -63,75 +63,76 @@ const OtherManagement: React.FC<OtherManagementProps> = ({
   };
 
   return (
-    <div className="h-full overflow-hidden">
-      <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full h-full flex flex-col">
-        <div className="sticky top-16 z-40 bg-white border-b border-gray-200 flex-shrink-0">
-          <TabsList ref={tabListRef} className="w-full justify-start bg-white rounded-none h-auto py-2 px-3 overflow-x-auto scrollbar-hide border-none">
-            {otherManagementTabs.map((tab, idx) => (
-              <TabsTrigger
-                key={tab.id}
-                value={tab.id}
-                ref={(el) => (tabButtonRefs.current[idx] = el)}
-                className="data-[state=active]:bg-blue-500 data-[state=active]:text-white data-[state=inactive]:text-gray-600 rounded-full px-4 py-2 text-sm font-medium flex-shrink-0 mx-1 transition-colors"
-              >
-                {tab.title}
-              </TabsTrigger>
-            ))}
-          </TabsList>
+    <div className="w-full">
+      <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
+        <div className="bg-white border-b border-gray-200">
+          <div
+            ref={tabListRef}
+            className="w-full overflow-x-auto scrollbar-hide"
+          >
+            <TabsList className="inline-flex justify-start bg-white rounded-none h-auto py-2 px-3 border-none min-w-max overflow-visible">
+              {otherManagementTabs.map((tab, idx) => (
+                <TabsTrigger
+                  key={tab.id}
+                  value={tab.id}
+                  ref={(el) => (tabButtonRefs.current[idx] = el)}
+                  className="data-[state=active]:bg-blue-500 data-[state=active]:text-white data-[state=inactive]:text-gray-600 rounded-full px-4 py-2 text-sm font-medium flex-shrink-0 mx-1 transition-colors whitespace-nowrap"
+                >
+                  {tab.title}
+                </TabsTrigger>
+              ))}
+            </TabsList>
+          </div>
         </div>
 
         {/* 시간외근무신청 탭 */}
-        <TabsContent value="time-request" className="px-3 pt-1 flex-1 overflow-y-auto">
+        <TabsContent value="time-request" className="px-3 pt-1">
           <ComingSoon
             onNavigateToMenu={onNavigateToMenu}
             title="시간외근무신청"
             description="시간외근무 신청 기능이 준비 중입니다."
-            category="other-management"
           />
         </TabsContent>
 
         {/* 시간외근무실적입력 탭 */}
-        <TabsContent value="time-record" className="px-3 pt-1 flex-1 overflow-y-auto">
+        <TabsContent value="time-record" className="px-3 pt-1">
           <ComingSoon
             onNavigateToMenu={onNavigateToMenu}
             title="시간외근무실적입력"
             description="시간외근무 실적 입력 기능이 준비 중입니다."
-            category="other-management"
           />
         </TabsContent>
 
         {/* 공지사항 탭 */}
-        <TabsContent value="notice" className="px-3 pt-1 flex-1 overflow-y-auto">
+        <TabsContent value="notice" className="px-3 pt-1">
           <ComingSoon
             onNavigateToMenu={onNavigateToMenu}
             title="공지사항"
             description="공지사항 기능이 준비 중입니다."
-            category="other-management"
           />
         </TabsContent>
 
         {/* 신호연동관리 탭 */}
-        <TabsContent value="signal-interlock" className="px-3 pt-1 flex-1 overflow-y-auto">
+        <TabsContent value="signal-interlock" className="px-3 pt-1">
           <SignalHistoryList onBack={onNavigateToMenu} />
         </TabsContent>
 
         {/* LGU 공사요청진행정보 탭 */}
-        <TabsContent value="lgu-construction" className="px-3 pt-1 flex-1 overflow-y-auto">
+        <TabsContent value="lgu-construction" className="px-3 pt-1">
           <LGUConstructionRequest onBack={onNavigateToMenu} userInfo={userInfo} showToast={showToast} />
         </TabsContent>
 
         {/* LGU 망장애이관리스트 탭 */}
-        <TabsContent value="lgu-network-fault" className="px-3 pt-1 flex-1 overflow-y-auto">
+        <TabsContent value="lgu-network-fault" className="px-3 pt-1">
           <LGUNetworkFault onBack={onNavigateToMenu} userInfo={userInfo} showToast={showToast} />
         </TabsContent>
 
         {/* 업무자동확봇 탭 */}
-        <TabsContent value="auto-confirm" className="px-3 pt-1 flex-1 overflow-y-auto">
+        <TabsContent value="auto-confirm" className="px-3 pt-1">
           <ComingSoon
             onNavigateToMenu={onNavigateToMenu}
             title="업무자동확봇"
             description="업무자동확봇 기능이 준비 중입니다."
-            category="other-management"
           />
         </TabsContent>
       </Tabs>

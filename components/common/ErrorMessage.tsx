@@ -108,7 +108,7 @@ const ErrorMessage: React.FC<ErrorMessageProps> = ({
         ${className}
       `}
     >
-      <div className="flex items-start gap-3">
+      <div className="flex items-start gap-2 sm:gap-3">
         {/* 아이콘 */}
         <div className={`${styles.iconBg} ${styles.iconColor} rounded-full p-2 flex-shrink-0`}>
           {renderIcon()}

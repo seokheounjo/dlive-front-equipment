@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { API_BASE } from '../../services/apiService';
 import BaseModal from '../common/BaseModal';
+import { formatId } from '../../utils/dateFormatter';
 import '../../styles/buttons.css';
 
 interface IntegrationHistoryModalProps {
@@ -128,7 +129,7 @@ const IntegrationHistoryModal: React.FC<IntegrationHistoryModalProps> = ({
   // SubHeader 컨텐츠
   const subHeader = (
     <div className="text-xs text-gray-700 space-y-0.5">
-      <div><span className="text-gray-600">계약ID:</span> <span className="font-medium text-blue-700">{ctrtId}</span></div>
+      <div className="whitespace-nowrap"><span className="text-gray-600">계약ID:</span> <span className="font-medium text-blue-700">{formatId(ctrtId)}</span></div>
       <div className="text-gray-600">조회기간: 최근 7일</div>
     </div>
   );
@@ -191,8 +192,8 @@ const IntegrationHistoryModal: React.FC<IntegrationHistoryModalProps> = ({
 
                     {/* 계약ID */}
                     <div className="bg-white rounded px-2.5 py-1.5 border border-gray-100">
-                      <div className="text-xs text-gray-900 font-medium">
-                        <span className="text-gray-600 font-normal">계약ID:</span> {record.ctrt_id || '-'}
+                      <div className="text-xs text-gray-900 font-medium whitespace-nowrap">
+                        <span className="text-gray-600 font-normal">계약ID:</span> {formatId(record.ctrt_id)}
                       </div>
                     </div>
 

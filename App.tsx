@@ -9,11 +9,11 @@ import MainMenu from './components/layout/MainMenu';
 import ComingSoon from './components/layout/ComingSoon';
 import BottomNavigation from './components/common/BottomNavigation';
 import WorkOrderDetail from './components/work/WorkOrderDetail';
-import WorkCompleteForm from './components/work/WorkCompleteForm';
-import WorkCompleteDetail from './components/work/WorkCompleteDetail';
+import WorkCompleteRouter from './components/work/process/complete';
+import WorkCompletionResult from './components/work/WorkCompletionResult';
 import WorkItemList from './components/work/WorkItemList';
 import TodayWork from './components/work/TodayWork';
-import WorkProcessFlow from './components/work/WorkProcessFlow';
+import WorkProcessFlow from './components/work/process/WorkProcessFlow';
 import Toast, { ToastType } from './components/common/Toast';
 import SideDrawer from './components/common/SideDrawer';
 import ErrorBoundary from './components/common/ErrorBoundary';
@@ -112,36 +112,22 @@ const App: React.FC = () => {
   // Zustand persist가 자동으로 currentView를 localStorage에 저장
   // SESSION_KEYS.ACTIVE_VIEW 수동 저장 불필요
 
-  const handleLogin = (userId?: string, userName?: string, userRole?: string, crrId?: string, soId?: string, mstSoId?: string, crrNm?: string, soNm?: string, authSoList?: Array<{ SO_ID: string; SO_NM: string }>, corpNm?: string) => {
+  const handleLogin = (userId?: string, userName?: string, userRole?: string, crrId?: string, soId?: string, mstSoId?: string, telNo2?: string) => {
     setIsAuthenticated(true);
     setCurrentView('today-work');
     if (userId) {
-      // AUTH_SO_List에서 soNm 찾기 (직접 soNm이 없는 경우)
-      let finalSoNm = soNm;
-      if (!finalSoNm && authSoList && soId) {
-        const found = authSoList.find(so => so.SO_ID === soId);
-        if (found) finalSoNm = found.SO_NM;
-      }
-
       const userInfoData = {
         userId,
         userName: userName || '작업자',
         userRole: userRole || '전산작업자',
         crrId,
-        crrNm,
-        corpNm,  // corpNm 추가 (협력업체명 - crrNm이 없을 때 사용)
         soId,
-        soNm: finalSoNm,
         mstSoId,
-        authSoList
+        telNo2  // SMS 발신번호
       };
       setUserInfo(userInfoData);
       // localStorage에도 저장 (EquipmentManagement에서 사용)
       localStorage.setItem('userInfo', JSON.stringify(userInfoData));
-      // 지점 목록도 별도 저장
-      if (authSoList) {
-        localStorage.setItem('branchList', JSON.stringify(authSoList));
-      }
     }
 
     const today = new Date().toISOString().split('T')[0];
@@ -297,6 +283,7 @@ const App: React.FC = () => {
       case 'work-order-detail':
         return selectedWorkItem ? (
           <WorkOrderDetail
+            key={selectedWorkItem.id}
             order={selectedWorkItem}
             onBack={navigateBack}
             onStartWorkProcess={(order) => {
@@ -324,7 +311,7 @@ const App: React.FC = () => {
         ) : <div>작업 정보를 찾을 수 없습니다.</div>;
       case 'work-complete-form':
         return selectedWorkItem ? (
-          <WorkCompleteForm
+          <WorkCompleteRouter
             order={selectedWorkItem}
             onBack={navigateBack}
             onSuccess={() => {
@@ -336,11 +323,11 @@ const App: React.FC = () => {
         ) : <div>작업 정보를 찾을 수 없습니다.</div>;
       case 'work-complete-detail':
         return selectedWorkItem ? (
-          <WorkCompleteDetail
+          <WorkCompletionResult
             order={selectedWorkItem}
             onBack={() => {
               setSelectedWorkItem(null);
-              setCurrentView('work-management');
+              setCurrentView('work-item-list');
             }}
           />
         ) : <div>작업 정보를 찾을 수 없습니다.</div>;
@@ -389,7 +376,7 @@ const App: React.FC = () => {
   return (
     <QueryClientProvider client={queryClient}>
       <ErrorBoundary>
-        <div className="min-h-screen bg-white font-sans pb-20">
+        <div className="h-[100dvh] bg-white font-sans overflow-hidden flex flex-col">
           <SideDrawer
             isOpen={isDrawerOpen}
             onClose={closeDrawer}
@@ -406,8 +393,9 @@ const App: React.FC = () => {
             onMenuClick={openDrawer}
             currentView={currentView}
             userInfo={userInfo}
+            selectedWorkItem={selectedWorkItem}
           />
-          <main className="pt-16">
+          <main className="flex-1 w-full max-w-7xl mx-auto pt-12 pb-[calc(52px+env(safe-area-inset-bottom,0px))] flex flex-col overflow-hidden">
             {renderContent()}
           </main>
           <BottomNavigation currentView={currentView} onSelectMenu={navigateToView} />

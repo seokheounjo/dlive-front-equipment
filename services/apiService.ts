@@ -194,42 +194,9 @@ const getErrorMessage = (statusCode: number, defaultMessage: string = '오류가
   }
 };
 
-// ============ API 로깅 통합 ============
-
-// API 로그 타입 (apiDebugger.ts와 동기화)
-interface ApiLogEntry {
-  api: string;
-  method: string;
-  request: any;
-  response: any;
-  status: 'success' | 'error' | 'timeout';
-  duration: number;
-  error?: string;
-}
-
-// 글로벌 로그 저장소 (apiDebugger.ts에서 관리)
-const emitApiLog = (log: ApiLogEntry) => {
-  // apiDebugger.ts의 addApiLog 함수 호출 (동적 import 방지를 위해 이벤트 사용)
-  if (typeof window !== 'undefined') {
-    try {
-      // 직접 import하면 순환 참조 문제가 생길 수 있으므로 이벤트로 전달
-      window.dispatchEvent(new CustomEvent('api-call-complete', { detail: log }));
-
-      // 콘솔에도 간략히 출력
-      const emoji = log.status === 'success' ? '✅' : log.status === 'timeout' ? '⏱️' : '❌';
-      console.log(
-        `%c${emoji} [${log.method}] ${log.api} (${log.duration}ms)`,
-        `color: ${log.status === 'success' ? '#10B981' : log.status === 'timeout' ? '#F59E0B' : '#EF4444'}; font-weight: bold`
-      );
-    } catch (e) {
-      // 로깅 실패는 무시
-    }
-  }
-};
-
 // ============ API 호출 헬퍼 (재시도 로직 포함) ============
 
-export const fetchWithRetry = async (
+const fetchWithRetry = async (
   url: string,
   options: RequestInit,
   maxRetries: number = 3,
@@ -280,72 +247,15 @@ export const fetchWithRetry = async (
         if (response.status >= 400 && response.status < 500) {
           // 404, 401 등 클라이언트 에러는 Circuit Breaker에 실패 기록
           circuitBreaker.recordFailure(url);
-
-          // 4xx 에러에서도 디버그 로그를 추출하여 표시
-          try {
-            const errorBody = await response.clone().json();
-            if (errorBody?.debugLogs && Array.isArray(errorBody.debugLogs)) {
-              console.group(`🔧 [백엔드 디버그 로그 - ${response.status} 에러]`);
-              errorBody.debugLogs.forEach((log: string) => {
-                if (log.includes('SUCCESS')) {
-                  console.log('%c' + log, 'color: #22c55e; font-weight: bold;');
-                } else if (log.includes('ERROR') || log.includes('FAILED')) {
-                  console.log('%c' + log, 'color: #ef4444;');
-                } else if (log.includes('FALLBACK') || log.includes('SKIP')) {
-                  console.log('%c' + log, 'color: #f59e0b;');
-                } else {
-                  console.log('%c' + log, 'color: #6b7280;');
-                }
-              });
-              console.groupEnd();
-            }
-            if (errorBody?.error) {
-              console.error('❌ [백엔드 에러 메시지]:', errorBody.error);
-            }
-          } catch (parseError) {
-            // JSON 파싱 실패 시 무시
-          }
-
           throw new NetworkError(
             getErrorMessage(response.status),
             response.status
           );
         }
 
-        // 5xx 에러는 재시도 (하지만 먼저 디버그 로그 추출 시도)
+        // 5xx 에러는 재시도
         if (response.status >= 500) {
           circuitBreaker.recordFailure(url);
-
-          // 500 에러에서도 디버그 로그를 추출하여 표시
-          try {
-            const errorBody = await response.clone().json();
-            if (errorBody?.debugLogs && Array.isArray(errorBody.debugLogs)) {
-              console.group('🔧 [백엔드 디버그 로그 - 500 에러]');
-              errorBody.debugLogs.forEach((log: string) => {
-                if (log.includes('SUCCESS')) {
-                  console.log('%c' + log, 'color: #22c55e; font-weight: bold;');
-                } else if (log.includes('ERROR') || log.includes('FAILED')) {
-                  console.log('%c' + log, 'color: #ef4444;');
-                } else if (log.includes('FALLBACK') || log.includes('SKIP')) {
-                  console.log('%c' + log, 'color: #f59e0b;');
-                } else {
-                  console.log('%c' + log, 'color: #6b7280;');
-                }
-              });
-              console.groupEnd();
-            }
-            // 에러 메시지도 표시
-            if (errorBody?.error) {
-              console.error('❌ [백엔드 에러 메시지]:', errorBody.error);
-            }
-            if (errorBody?.message) {
-              console.error('❌ [백엔드 메시지]:', errorBody.message);
-            }
-          } catch (parseError) {
-            // JSON 파싱 실패 시 무시 (HTML 응답 등)
-            console.warn('⚠️ 500 에러 응답 파싱 실패:', parseError);
-          }
-
           throw new NetworkError(
             getErrorMessage(response.status),
             response.status
@@ -463,20 +373,38 @@ const getDummyWorkOrders = (startDate: string, endDate: string): WorkOrder[] => 
   return dummyOrders;
 };
 
-// 로그인 API
-export const login = async (userId: string, password: string): Promise<{
+// 로그인 API 응답 타입 (레거시 gds_user 필드 + AUTH_SO_List)
+export interface LoginResponse {
   ok: boolean;
   userId?: string;
   userName?: string;
+  userNameEn?: string;
   userRole?: string;
+  corpNm?: string;
   crrId?: string;
-  crrNm?: string;
-  corpNm?: string;  // 협력업체명 (crrNm이 없을 때 사용)
   soId?: string;
   soNm?: string;
   mstSoId?: string;
-  AUTH_SO_List?: Array<{ SO_ID: string; SO_NM: string }>;
-}> => {
+  telNo?: string;
+  telNo2?: string;   // SMS 발신번호 (레거시 gds_user.TEL_NO2)
+  telNo3?: string;
+  soYn?: string;
+  deptCd?: string;
+  deptNm?: string;
+  empNo?: string;
+  eml?: string;
+  partnerYn?: string;
+  rno?: string;
+  position?: string;
+  AUTH_SO_List?: Array<{
+    SO_ID: string;
+    SO_NM: string;
+    MST_SO_ID: string;
+  }>;
+}
+
+// 로그인 API
+export const login = async (userId: string, password: string): Promise<LoginResponse> => {
   const origin = typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000';
 
   try {
@@ -501,41 +429,6 @@ export const login = async (userId: string, password: string): Promise<{
       throw error;
     }
     throw new NetworkError('로그인 중 오류가 발생했습니다. 다시 시도해주세요.');
-  }
-};
-
-// 로그인 후 추가 사용자 정보 조회 API (AUTH_SO_List, soNm, crrNm)
-// TaskAuthController 수정 없이 equipment 컨트롤러에서 처리
-export const getUserExtendedInfo = async (userId: string): Promise<{
-  ok: boolean;
-  soId?: string;
-  soNm?: string;
-  crrNm?: string;
-  AUTH_SO_List?: Array<{ SO_ID: string; SO_NM: string }>;
-}> => {
-  const origin = typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000';
-
-  try {
-    // /customer/equipment/* 는 레거시 equipmentController로 라우팅됨
-    // /statistics/equipment/* 는 EquipmentManagementController로 라우팅됨
-    const response = await fetchWithRetry(`${API_BASE}/statistics/equipment/getUserExtendedInfo`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Origin': origin
-      },
-      credentials: 'include',
-      body: JSON.stringify({
-        USR_ID: userId
-      }),
-    }, 1);
-
-    const result = await response.json();
-    return result;
-  } catch (error) {
-    console.error('getUserExtendedInfo API 호출 실패:', error);
-    // 실패해도 로그인은 유지 - 빈 결과 반환
-    return { ok: false };
   }
 };
 
@@ -754,14 +647,15 @@ export const getWorkStatusCountsForDirection = async (directionId: string): Prom
     };
 
     items.forEach((item: any) => {
-      // WRK_STAT_CD: 1:접수, 2:할당, 3:취소, 4:완료, 7:부분완료, 9:삭제
+      // WRK_STAT_CD: 1:접수, 2:할당, 3:취소, 4:완료, 7:장비철거완료, 9:삭제
       const statCd = item.WRK_STAT_CD || item.status;
-      if (statCd === '4' || statCd === '완료') {
+      if (statCd === '4' || statCd === '7' || statCd === '완료') {
+        // 4: 완료, 7: 장비철거완료 모두 완료 처리
         counts.completed++;
       } else if (statCd === '3' || statCd === '취소') {
         counts.cancelled++;
       } else {
-        counts.pending++; // 그 외는 진행중
+        counts.pending++; // 그 외는 진행중 (1:접수, 2:할당)
       }
     });
 
@@ -774,20 +668,12 @@ export const getWorkStatusCountsForDirection = async (directionId: string): Prom
 
 // 작업 상세 목록 조회 API (receipts + directionId)
 export const getWorkReceipts = async (directionId: string): Promise<any[]> => {
-  console.log(`📋 Fetching work receipts for direction: ${directionId}...`);
-  console.log('[작업목록 API] 현재 더미 모드:', checkDemoMode() ? 'ON' : 'OFF');
-
   // 더미 모드 체크
   const isDemoMode = checkDemoMode();
 
   if (isDemoMode) {
-    console.log('[작업목록 API] 더미 모드 활성화: 실제 API 대신 더미 작업 데이터 반환');
     return getMockWorkItems(directionId);
   }
-
-  console.log('[작업목록 API] 실제 receipts API 호출 시작');
-  console.log('[작업목록 API] API_BASE:', API_BASE);
-  console.log('📋 요청 파라미터 (receipts + directionId):', { WRK_DRCTN_ID: directionId });
 
   try {
     const origin = typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000';
@@ -803,21 +689,10 @@ export const getWorkReceipts = async (directionId: string): Promise<any[]> => {
       }),
     });
 
-    console.log('[작업목록 API] receipts API 응답 상태:', response.status, response.statusText);
-
     const apiData = await response.json();
-    console.log('[작업목록 API] Receipts API 성공 - 작업 개수:', apiData.length);
-    console.log('[작업목록 API] 첫 번째 작업:', apiData[0]?.WRK_ID, apiData[0]?.WRK_CD_NM, apiData[0]?.CUST_NM);
-    console.log('[작업목록 API] 전체 작업 목록:', apiData.map(item => ({
-      WRK_ID: item.WRK_ID,
-      WRK_CD_NM: item.WRK_CD_NM,
-      PROD_NM: item.PROD_NM,
-      WRK_STAT_CD_NM: item.WRK_STAT_CD_NM
-    })));
     return apiData;
 
   } catch (error) {
-    console.error('[작업목록 API] receipts API 호출 실패:', error);
     if (error instanceof NetworkError) {
       throw error;
     }
@@ -862,22 +737,19 @@ export const cancelWork = async (cancelData: any): Promise<{ code: string; messa
 };
 
 // API 엔드포인트: 환경별 최적화
-// 모든 환경에서 EC2 프록시를 통해 API 호출 (세션 쿠키 공유를 위해)
 export const API_BASE = typeof window !== 'undefined' ? (() => {
   const hostname = window.location.hostname;
   const protocol = window.location.protocol;
 
-  console.log('[API] 현재 환경:', { hostname, protocol });
+  console.log('[작업상세 API] 현재 환경:', { hostname, protocol });
 
   if (hostname === 'localhost' || hostname === '127.0.0.1') {
-    // 로컬 개발 → EC2 프록시 서버 사용 (레거시 서버 직접 호출 시 세션 문제)
-    return '/api';
-  } else if (hostname === '52.63.232.141') {
-    // EC2 환경: 상대 경로로 같은 서버의 프록시 사용
-    return '/api';
+    return 'http://58.143.140.222:8080/api';  // 로컬 → 딜라이브 내부서버
+  } else if (hostname === '52.63.131.157') {
+    // EC2 환경: Express 프록시 사용 (딜라이브 내부에서도 8080 포트 접근 문제)
+    return '/api';  // EC2 Express 서버의 프록시 사용
   } else {
-    // 기타 환경 (Vercel 등)
-    return '/api';
+    return '/api';  // Vercel 프록시
   }
 })() : '/api';
 
@@ -892,8 +764,21 @@ const mapWorkOrderType = (apiType: string): WorkOrderType => {
     }
 };
 
-// Helper function to map API's work status string to our enum
-const mapWorkOrderStatus = (apiStatus: string): WorkOrderStatus => {
+// Helper function to map API's work status to our enum
+// WRK_STAT_CD: 1:접수, 2:할당, 3:취소, 4:완료, 7:장비철거완료, 9:삭제
+const mapWorkOrderStatus = (apiStatus: string, wrkStatCd?: string): WorkOrderStatus => {
+    // WRK_STAT_CD 기반 매핑 (우선)
+    if (wrkStatCd) {
+        if (wrkStatCd === '4' || wrkStatCd === '7') {
+            return WorkOrderStatus.Completed; // 4: 완료, 7: 장비철거완료
+        } else if (wrkStatCd === '3') {
+            return WorkOrderStatus.Cancelled;
+        } else if (wrkStatCd === '1' || wrkStatCd === '2') {
+            return WorkOrderStatus.Pending; // 1: 접수, 2: 할당
+        }
+    }
+
+    // WRK_STAT 문자열 기반 매핑 (fallback)
     switch (apiStatus) {
         case '진행중': return WorkOrderStatus.Pending;
         case '완료': return WorkOrderStatus.Completed;
@@ -964,11 +849,12 @@ export const getWorkOrders = async ({ startDate, endDate }: { startDate: string,
         id: apiOrder.WRK_DRCTN_ID,
         type: mapWorkOrderType(apiOrder.WRK_CD_NM),
         typeDisplay: apiOrder.WRK_CD_NM || '기타',
-        status: mapWorkOrderStatus(apiOrder.WRK_STAT),
+        status: mapWorkOrderStatus(apiOrder.WRK_STAT, apiOrder.MIN_WRK_STAT_CD || apiOrder.WRK_STAT_CD),
         scheduledAt: scheduledAt,
         customer: {
           id: apiOrder.CUST_ID,
           name: apiOrder.CUST_NM,
+          phone: apiOrder.CUST_TEL_NO || apiOrder.REQ_CUST_TEL_NO || '',  // 고객 전화번호
           address: apiOrder.ADDR,
         },
         details: apiOrder.REQ_CTX,
@@ -978,7 +864,7 @@ export const getWorkOrders = async ({ startDate, endDate }: { startDate: string,
         installLocation: apiOrder.INSTL_LOC || '',
         // 필터링을 위한 작업 코드 추가
         WRK_CD: apiOrder.WRK_CD,              // 작업 코드 (예: '01', '02', '03')
-        WRK_CD_NM: apiOrder.WRK_CD_NM,        // 작업 코드명 (예: '설치', '해지')
+        WRK_CD_NM: apiOrder.WRK_CD_NM,        // 작업 코드명 (예: '설치', '철거', 'A/S' - CMWT000 코드 테이블 값)
         WRK_DTL_TCD: apiOrder.WRK_DTL_TCD,    // 작업 상세 유형 코드
         // 상품/계약 정보 (장비정보변경 모달에서 사용)
         PROD_CD: apiOrder.PROD_CD,            // 상품 코드
@@ -1009,6 +895,122 @@ export const getWorkOrders = async ({ startDate, endDate }: { startDate: string,
       throw error;
     }
     throw new NetworkError('작업 목록을 불러오는데 실패했습니다.');
+  }
+};
+
+/**
+ * 작업 상세 정보 조회 (getWorkReceiptList)
+ * 레거시: /customer/work/getWorkReceiptList.req
+ * 완료된 작업의 상세 정보(CUST_REL, NET_CL, WRNG_TP 등)를 조회
+ */
+export interface WorkReceiptDetail {
+  // 기본 정보
+  WRK_ID: string;
+  WRK_DRCTN_ID: string;
+  RCPT_ID: string;
+  CUST_ID: string;
+  CUST_NM: string;
+  CTRT_ID: string;
+  WRK_CD: string;
+  WRK_CD_NM: string;
+  WRK_DTL_TCD: string;
+  WRK_STAT_CD: string;
+  WRK_STAT_CD_NM: string;
+  // 완료 정보
+  CUST_REL: string;           // 고객과의 관계
+  MEMO: string;               // 처리내용
+  WRKR_CMPL_DT: string;       // 작업완료일
+  // 설치/철거 정보
+  NET_CL: string;             // 망구분 코드
+  NET_CL_NM: string;          // 망구분명
+  WRNG_TP: string;            // 배선유형
+  WRNG_TP_NM: string;         // 배선유형명
+  INSTL_TP: string;           // 설치유형
+  CB_WRNG_TP: string;         // 콤보배선유형
+  CB_INSTL_TP: string;        // 콤보설치유형
+  CUT_YN: string;             // 절단여부
+  INOUT_LINE_TP: string;      // 인입선유형
+  INOUT_LEN: string;          // 인입선길이
+  BFR_LINE_YN: string;        // 기설선사용여부
+  RCV_STS: string;            // 수신상태
+  AV_JOIN_TP: string;
+  RF_JOIN_TP: string;
+  TAB_LBL: string;
+  CVT_LBL: string;
+  STB_LBL: string;
+  SUBTAP_ID: string;
+  PORT_NUM: string;
+  EXTN_TP: string;            // 연장유형
+  DVDR_YN: string;            // 분배기여부
+  TERM_NO: string;            // 단자번호
+  // 이용구분
+  UP_CTRL_CL: string;         // 상향제어
+  PSN_USE_CORP: string;       // 인터넷 이용
+  VOIP_USE_CORP: string;      // VoIP 이용
+  DTV_USE_CORP: string;       // DTV 이용
+  VIEW_MOD_CD: string;        // 시청모드 코드
+  VIEW_MOD_NM: string;        // 시청모드명
+  INSTL_LOC: string;          // 설치위치
+  TV_TYPE: string;
+  // 기타
+  PROD_CD: string;
+  PROD_NM: string;
+  PROD_GRP: string;
+  SO_ID: string;
+  SO_NM: string;
+  CRR_ID: string;
+}
+
+export const getWorkReceiptDetail = async (params: {
+  WRK_DRCTN_ID: string;
+  WRK_ID?: string;
+  SO_ID?: string;
+}): Promise<WorkReceiptDetail | null> => {
+  // 더미 모드 체크
+  if (checkDemoMode()) {
+    console.log('[작업상세 API] 더미 모드: 빈 데이터 반환');
+    return null;
+  }
+
+  try {
+    const origin = typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000';
+
+    const requestBody = {
+      PROC_CL: 'A02',
+      WRK_DRCTN_ID: params.WRK_DRCTN_ID,
+      WRK_ID: params.WRK_ID || '',
+      SO_ID: params.SO_ID || ''
+    };
+
+    console.log('[getWorkReceiptDetail] Requesting with:', requestBody);
+
+    const response = await fetch(`${API_BASE}/work/receipts`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Origin': origin
+      },
+      credentials: 'include',
+      body: JSON.stringify(requestBody),
+    });
+
+    if (!response.ok) {
+      console.error('[getWorkReceiptDetail] HTTP Error:', response.status);
+      return null;
+    }
+
+    const apiData = await response.json();
+    console.log('[getWorkReceiptDetail] Response:', apiData);
+
+    // API 응답이 배열이고 데이터가 있으면 첫 번째 항목 반환
+    if (Array.isArray(apiData) && apiData.length > 0) {
+      return apiData[0] as WorkReceiptDetail;
+    }
+
+    return null;
+  } catch (error) {
+    console.error('[getWorkReceiptDetail] Error:', error);
+    return null;
   }
 };
 
@@ -1664,9 +1666,9 @@ export const getTechnicianEquipments = async (params: {
       PROD_GRP: promotionInfo.PROD_GRP,
     });
 
-    // 철거 작업 여부 확인 (CRR_TSK_CL='02' 또는 WRK_CD='02','08')
+    // 철거 작업 여부 확인 (CRR_TSK_CL='02' 또는 WRK_CD='02','07','08','09')
     const isRemovalWork = requestParams.CRR_TSK_CL === '02' ||
-                          ['02', '08'].includes(requestParams.WRK_CD || '');
+                          ['02', '07', '08', '09'].includes(requestParams.WRK_CD || '');
 
     if (isRemovalWork) {
       console.log('[장비조회 API] 🔴 철거 작업 감지 - output4를 회수장비로 처리');
@@ -2920,7 +2922,6 @@ export const getEquipmentOutList = async (params: {
     const result = await response.json();
     console.log('✅ 기사 할당 장비 조회 성공:', result);
 
-    if (!result) return [];
     return Array.isArray(result) ? result : result.output1 || [];
   } catch (error: any) {
     console.error('❌ 기사 할당 장비 조회 실패:', error);
@@ -3031,7 +3032,6 @@ export const getEquipmentReturnRequestList = async (params: {
     const result = await response.json();
     console.log('✅ 기사 장비 조회 성공:', result);
 
-    if (!result) return [];
     return Array.isArray(result) ? result : result.output1 || [];
   } catch (error: any) {
     console.error('❌ 기사 장비 조회 실패:', error);
@@ -3392,12 +3392,6 @@ export const findUserList = async (params: {
     const result = await response.json();
     console.log('✅ 기사 검색 성공:', result);
 
-    // null 체크 추가
-    if (!result) {
-      console.log('⚠️ 기사 검색 결과 없음 (null 반환)');
-      return [];
-    }
-
     return Array.isArray(result) ? result : result.output1 || [];
   } catch (error: any) {
     console.error('❌ 기사 검색 실패:', error);
@@ -3537,6 +3531,7 @@ export const getUnreturnedEquipmentList = async (params: {
   FROM_DT?: string;
   TO_DT?: string;
   CUST_ID?: string;
+  CTRT_ID?: string;
   CUST_NM?: string;
   EQT_SERNO?: string;
 }): Promise<any[]> => {
@@ -3558,7 +3553,6 @@ export const getUnreturnedEquipmentList = async (params: {
     const result = await response.json();
     console.log('✅ 미회수 장비 조회 성공:', result);
 
-    if (!result) return [];
     return Array.isArray(result) ? result : result.output1 || [];
   } catch (error: any) {
     console.error('❌ 미회수 장비 조회 실패:', error);
@@ -3571,13 +3565,22 @@ export const getUnreturnedEquipmentList = async (params: {
 
 /**
  * 미회수 장비 회수 처리
+ * Legacy: PCMWK_NOT_REV_EQT procedure
+ * PROC_CL: 1=회수완료, 2=망실처리, 3=고객분실
  * @param params 회수 정보
  * @returns 처리 결과
  */
 export const processEquipmentRecovery = async (params: {
   EQT_NO: string;
-  CTRT_ID: string;
+  PROC_CL: string;       // Required: 1=회수완료, 2=망실처리, 3=고객분실
+  CTRT_ID?: string;
+  CUST_ID?: string;
+  SO_ID?: string;
+  WRKR_ID?: string;
+  CRR_ID?: string;
   WRK_ID?: string;
+  EQT_SERNO?: string;
+  CHG_UID?: string;
 }): Promise<any> => {
   console.log('✅ [회수처리] API 호출:', params);
 
@@ -3993,40 +3996,52 @@ export const sendPortResetSignal = async (params: Omit<MetroSignalParams, 'msg_i
   }
 };
 
+// ============ 인입선로 철거관리 API (Removal Line Management) ============
+
 /**
- * 설치위치 정보 업데이트 (updateInstlLocFrWrk)
- * - 레거시 customer/equipment/updateInstlLocFrWrk.req 호출
- * - INSTL_LOC 형식: "설치위치텍스트¶시청모드코드" (DTV일 경우) 또는 "설치위치텍스트" (기타)
+ * 인입선로 철거상태 저장 (insertWorkRemoveStat)
+ * - 레거시 customer/work/insertWorkRemoveStat.req 호출
+ * - 철거배선상태, 철거상태, 미철거 사유 저장
+ *
+ * @param params.WRK_ID 작업 ID (필수)
+ * @param params.REMOVE_LINE_TP 철거배선상태 (1:간선공용, 2:1:1배선, 3:공동인입, 4:단독인입)
+ * @param params.REMOVE_GB 철거상태 (1:미철거, 4:완전철거)
+ * @param params.REMOVE_STAT 미철거 사유 (5:출입불가, 6:2층1인, 7:특수지역)
+ * @param params.REG_UID 등록자 ID
+ * @returns 저장 결과
  */
-export const updateInstallLocation = async (params: {
+export const insertWorkRemoveStat = async (params: {
   WRK_ID: string;
-  CTRT_ID: string;
-  INSTL_LOC: string;
+  REMOVE_LINE_TP: string;
+  REMOVE_GB: string;
+  REMOVE_STAT?: string;
+  REG_UID?: string;
 }): Promise<{ code: string; message: string }> => {
-  console.log('[설치위치 API] updateInstallLocation 호출:', params);
+  console.log('[철거관리 API] insertWorkRemoveStat 호출:', params);
 
   // 더미 모드 체크
   if (checkDemoMode()) {
-    console.log('[설치위치 API] 더미 모드: 설치위치 저장 시뮬레이션');
+    console.log('[철거관리 API] 더미 모드: 철거상태 저장 시뮬레이션');
     await new Promise(resolve => setTimeout(resolve, 500));
-    return { code: 'SUCCESS', message: '설치위치가 저장되었습니다 (더미)' };
+    return { code: 'SUCCESS', message: '철거상태가 저장되었습니다 (더미)' };
   }
 
   try {
     const userInfo = localStorage.getItem('userInfo');
     const user = userInfo ? JSON.parse(userInfo) : {};
-    const userId = user.userId || 'SYSTEM';
+    const userId = params.REG_UID || user.userId || 'A20130708';
 
     const requestData = {
       WRK_ID: params.WRK_ID,
-      CTRT_ID: params.CTRT_ID,
-      INSTL_LOC: params.INSTL_LOC,
+      REMOVE_LINE_TP: params.REMOVE_LINE_TP,
+      REMOVE_GB: params.REMOVE_GB,
+      REMOVE_STAT: params.REMOVE_STAT || '',
       REG_UID: userId,
     };
 
-    console.log('[설치위치 API] 요청 데이터:', requestData);
+    console.log('[철거관리 API] 요청 데이터:', requestData);
 
-    const response = await fetch(`${API_BASE}/customer/equipment/updateInstlLocFrWrk`, {
+    const response = await fetch(`${API_BASE}/customer/work/insertWorkRemoveStat`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -4036,36 +4051,622 @@ export const updateInstallLocation = async (params: {
     });
 
     const result = await response.json();
-    console.log('[설치위치 API] 응답:', result);
+    console.log('[철거관리 API] 응답:', result);
 
-    if (result.code === 'SUCCESS' || result.success === true) {
-      return { code: 'SUCCESS', message: '저장되었습니다.' };
+    // 서버 응답이 배열이거나 성공 코드인 경우 성공으로 처리
+    if (Array.isArray(result) || result.code === 'SUCCESS' || result.success === true) {
+      return { code: 'SUCCESS', message: '철거상태가 저장되었습니다.' };
     } else {
       return {
         code: 'ERROR',
-        message: result.message || result.msg || '설치위치 저장에 실패했습니다.'
+        message: result.message || result.msg || '철거상태 저장에 실패했습니다.'
       };
     }
   } catch (error: any) {
-    console.error('[설치위치 API] 오류:', error);
+    console.error('[철거관리 API] 오류:', error);
     return {
       code: 'ERROR',
-      message: error.message || '설치위치 저장 중 오류가 발생했습니다.',
+      message: error.message || '철거상태 저장 중 오류가 발생했습니다.',
     };
   }
 };
-// Alias exports for backward compatibility
-export const getWrkrHaveEqtList = getWorkerEquipmentList;
-
-// ==================== 범용 API 요청 함수 ====================
 
 /**
- * 범용 API 요청 함수 (직접 호출용)
- * @param endpoint API 엔드포인트 (예: '/customer/equipment/getStatus')
- * @param method HTTP 메서드
- * @param body 요청 본문
- * @returns API 응답
+ * AS할당 (modAsPdaReceipt)
+ * - 레거시 customer/work/modAsPdaReceipt.req 호출
+ * - 미철거 시 AS작업 할당
+ *
+ * @param params AS할당 정보
+ * @returns 저장 결과
  */
+export const modAsPdaReceipt = async (params: {
+  CUST_ID: string;
+  RCPT_ID?: string;
+  WRK_DTL_TCD: string;       // AS작업상세 (0380: 선로철거)
+  WRK_RCPT_CL: string;       // AS접수유형 (JH: CS(전화회수))
+  WRK_RCPT_CL_DTL: string;   // AS접수상세 (JHA:출입불가, JHB:2층1인, JHC:특수지역)
+  WRK_HOPE_DTTM: string;     // 작업희망일시 (YYYYMMDDHHmm)
+  MEMO?: string;
+  EMRG_YN?: string;
+  HOLY_YN?: string;
+  CRR_ID?: string;
+  WRKR_ID?: string;
+  REG_UID?: string;
+}): Promise<{ code: string; message: string }> => {
+  console.log('[AS할당 API] modAsPdaReceipt 호출:', params);
+
+  // 더미 모드 체크
+  if (checkDemoMode()) {
+    console.log('[AS할당 API] 더미 모드: AS할당 시뮬레이션');
+    await new Promise(resolve => setTimeout(resolve, 500));
+    return { code: 'SUCCESS', message: 'AS가 할당되었습니다 (더미)' };
+  }
+
+  try {
+    const userInfo = localStorage.getItem('userInfo');
+    const user = userInfo ? JSON.parse(userInfo) : {};
+    const userId = params.REG_UID || user.userId || 'A20130708';
+    const crrId = params.CRR_ID || user.crrId || '01';
+
+    const requestData = {
+      CUST_ID: params.CUST_ID,
+      RCPT_ID: params.RCPT_ID || '',
+      WRK_DTL_TCD: params.WRK_DTL_TCD,
+      WRK_RCPT_CL: params.WRK_RCPT_CL,
+      WRK_RCPT_CL_DTL: params.WRK_RCPT_CL_DTL,
+      WRK_HOPE_DTTM: params.WRK_HOPE_DTTM,
+      MEMO: params.MEMO || '',
+      EMRG_YN: params.EMRG_YN || 'N',
+      HOLY_YN: params.HOLY_YN || 'N',
+      CRR_ID: crrId,
+      WRKR_ID: params.WRKR_ID || userId,
+      REG_UID: userId,
+    };
+
+    console.log('[AS할당 API] 요청 데이터:', requestData);
+
+    const response = await fetch(`${API_BASE}/customer/work/modAsPdaReceipt`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      credentials: 'include',
+      body: JSON.stringify(requestData),
+    });
+
+    const result = await response.json();
+    console.log('[AS할당 API] 응답:', result);
+
+    // 서버 응답이 배열이거나 성공 코드인 경우 성공으로 처리
+    if (Array.isArray(result) || result.code === 'SUCCESS' || result.success === true) {
+      return { code: 'SUCCESS', message: 'AS가 할당되었습니다.' };
+    } else {
+      return {
+        code: 'ERROR',
+        message: result.message || result.msg || 'AS할당에 실패했습니다.'
+      };
+    }
+  } catch (error: any) {
+    console.error('[AS할당 API] 오류:', error);
+    return {
+      code: 'ERROR',
+      message: error.message || 'AS할당 중 오류가 발생했습니다.',
+    };
+  }
+};
+
+// ============ Hot Bill (즉납) API ============
+
+/**
+ * Hot Bill 상세 정보
+ */
+export interface HotbillDetail {
+  BILL_SEQ_NO: string;      // 청구 순번
+  PROD_GRP: string;         // 상품그룹
+  SO_ID: string;            // SO ID
+  CHG_NM: string;           // 요금명
+  BILL_AMT: number;         // 청구금액
+  PYM_AMT: number;          // 납부금액
+  UPYM_AMT: number;         // 미납금액
+  BILL_DT?: string;         // 청구일
+  PYM_DT?: string;          // 납부일
+  CTRT_ID?: string;         // 계약 ID
+  // 레거시 필드 (mocir23m01)
+  SVC_NM?: string;          // 서비스명
+  CHRG_ITM_NM?: string;     // 요금항목명
+  RATE_ITM_TYP_CD?: string; // 요금항목유형코드
+}
+
+/**
+ * Hot Bill 환불 정보
+ */
+export interface HotbillRefund {
+  TOT_RFND_AMT: number;     // 총 환불금액
+  RFND_RSN?: string;        // 환불 사유
+}
+
+/**
+ * Hot Bill 요약 정보 (상세 + 환불)
+ */
+export interface HotbillSummary {
+  details: HotbillDetail[];
+  refund: HotbillRefund | null;
+  totalAmount: number;      // 총 청구금액
+  paidAmount: number;       // 납부금액
+  unpaidAmount: number;     // 미납금액
+  refundAmount: number;     // 환불금액
+}
+
+/**
+ * Hot Bill 상세 조회
+ * @param custId 고객 ID
+ * @param rcptId 접수 ID
+ */
+export const getHotbillDetail = async (custId: string, rcptId: string): Promise<HotbillDetail[]> => {
+  console.log('[Hotbill API] getHotbillDetail 호출:', { custId, rcptId });
+
+  // 더미 모드 체크
+  if (checkDemoMode()) {
+    console.log('[Hotbill API] 더미 모드: Hotbill 상세 시뮬레이션');
+    await new Promise(resolve => setTimeout(resolve, 500));
+    return [
+      {
+        BILL_SEQ_NO: '202412001',
+        PROD_GRP: 'DTV',
+        SO_ID: '01',
+        CHG_NM: 'DTV 기본료',
+        BILL_AMT: 15000,
+        PYM_AMT: 15000,
+        UPYM_AMT: 0,
+      },
+      {
+        BILL_SEQ_NO: '202412002',
+        PROD_GRP: 'ISP',
+        SO_ID: '01',
+        CHG_NM: '인터넷 기본료',
+        BILL_AMT: 25000,
+        PYM_AMT: 0,
+        UPYM_AMT: 25000,
+      },
+    ];
+  }
+
+  try {
+    const response = await fetch(`${API_BASE}/hotbill/detail`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      credentials: 'include',
+      body: JSON.stringify({ CUST_ID: custId, RCPT_ID: rcptId }),
+    });
+
+    const result = await response.json();
+    console.log('[Hotbill API] getHotbillDetail 응답:', result);
+
+    if (Array.isArray(result)) {
+      return result.map(item => ({
+        ...item,
+        BILL_AMT: Number(item.BILL_AMT) || 0,
+        PYM_AMT: Number(item.PYM_AMT) || 0,
+        UPYM_AMT: Number(item.UPYM_AMT) || 0,
+      }));
+    }
+
+    return [];
+  } catch (error: any) {
+    console.error('[Hotbill API] getHotbillDetail 오류:', error);
+    throw error;
+  }
+};
+
+/**
+ * Hot Bill 환불금액 조회
+ * @param rcptId 접수 ID
+ */
+export const getHotbillRefund = async (rcptId: string): Promise<HotbillRefund | null> => {
+  console.log('[Hotbill API] getHotbillRefund 호출:', { rcptId });
+
+  // 더미 모드 체크
+  if (checkDemoMode()) {
+    console.log('[Hotbill API] 더미 모드: Hotbill 환불 시뮬레이션');
+    await new Promise(resolve => setTimeout(resolve, 300));
+    return {
+      TOT_RFND_AMT: 5000,
+      RFND_RSN: '해지 환불',
+    };
+  }
+
+  try {
+    const response = await fetch(`${API_BASE}/hotbill/refund`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      credentials: 'include',
+      body: JSON.stringify({ RCPT_ID: rcptId }),
+    });
+
+    const result = await response.json();
+    console.log('[Hotbill API] getHotbillRefund 응답:', result);
+
+    if (Array.isArray(result) && result.length > 0) {
+      return {
+        ...result[0],
+        TOT_RFND_AMT: Number(result[0].TOT_RFND_AMT) || 0,
+      };
+    }
+
+    return null;
+  } catch (error: any) {
+    console.error('[Hotbill API] getHotbillRefund 오류:', error);
+    throw error;
+  }
+};
+
+/**
+ * Hot Bill 요약 조회 (상세 + 환불 + 집계)
+ * @param custId 고객 ID
+ * @param rcptId 접수 ID
+ */
+export const getHotbillSummary = async (custId: string, rcptId: string): Promise<HotbillSummary> => {
+  console.log('[Hotbill API] getHotbillSummary 호출:', { custId, rcptId });
+
+  // 더미 모드 체크
+  if (checkDemoMode()) {
+    console.log('[Hotbill API] 더미 모드: Hotbill 요약 시뮬레이션');
+    await new Promise(resolve => setTimeout(resolve, 500));
+    return {
+      details: [
+        {
+          BILL_SEQ_NO: '202412001',
+          PROD_GRP: 'DTV',
+          SO_ID: '01',
+          CHG_NM: 'DTV 기본료',
+          BILL_AMT: 15000,
+          PYM_AMT: 15000,
+          UPYM_AMT: 0,
+        },
+        {
+          BILL_SEQ_NO: '202412002',
+          PROD_GRP: 'ISP',
+          SO_ID: '01',
+          CHG_NM: '인터넷 기본료',
+          BILL_AMT: 25000,
+          PYM_AMT: 0,
+          UPYM_AMT: 25000,
+        },
+      ],
+      refund: {
+        TOT_RFND_AMT: 5000,
+        RFND_RSN: '해지 환불',
+      },
+      totalAmount: 40000,
+      paidAmount: 15000,
+      unpaidAmount: 25000,
+      refundAmount: 5000,
+    };
+  }
+
+  try {
+    const response = await fetch(`${API_BASE}/hotbill/summary`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      credentials: 'include',
+      body: JSON.stringify({ CUST_ID: custId, RCPT_ID: rcptId }),
+    });
+
+    // 404 등 에러 응답 체크
+    if (!response.ok) {
+      console.error('[Hotbill API] HTTP 오류:', response.status);
+      throw new Error(`Hot Bill API가 아직 배포되지 않았습니다. (HTTP ${response.status})`);
+    }
+
+    // Content-Type 체크 (HTML 응답 방지)
+    const contentType = response.headers.get('content-type');
+    if (!contentType || !contentType.includes('application/json')) {
+      console.error('[Hotbill API] 잘못된 응답 형식:', contentType);
+      throw new Error('Hot Bill API가 아직 배포되지 않았습니다.');
+    }
+
+    const result = await response.json();
+    console.log('[Hotbill API] getHotbillSummary 응답:', result);
+
+    return {
+      details: Array.isArray(result.details) ? result.details.map((item: any) => ({
+        ...item,
+        BILL_AMT: Number(item.BILL_AMT) || 0,
+        PYM_AMT: Number(item.PYM_AMT) || 0,
+        UPYM_AMT: Number(item.UPYM_AMT) || 0,
+      })) : [],
+      refund: result.refund ? {
+        ...result.refund,
+        TOT_RFND_AMT: Number(result.refund.TOT_RFND_AMT) || 0,
+      } : null,
+      totalAmount: Number(result.totalAmount) || 0,
+      paidAmount: Number(result.paidAmount) || 0,
+      unpaidAmount: Number(result.unpaidAmount) || 0,
+      refundAmount: Number(result.refundAmount) || 0,
+    };
+  } catch (error: any) {
+    console.error('[Hotbill API] getHotbillSummary 오류:', error);
+    throw error;
+  }
+};
+
+/**
+ * Hot Bill 시뮬레이션 실행 (calcHotbillSumul)
+ *
+ * IMPORTANT: 이 API는 getHotbillSummary 호출 전에 반드시 먼저 실행해야 함!
+ * - TBLIV_SIMULATION_BILL 테이블에 청구금액 데이터를 생성함
+ * - 시뮬레이션 없이 조회하면 0원이 반환됨
+ *
+ * @param params 시뮬레이션 파라미터
+ * @returns 시뮬레이션 결과 (RCPT_ID 포함)
+ */
+export interface HotbillSimulateParams {
+  CUST_ID: string;      // 고객 ID (필수)
+  CTRT_ID: string;      // 계약 ID (필수)
+  SO_ID: string;        // SO ID (필수)
+  HOPE_DT: string;      // 해지희망일 YYYYMMDD (필수)
+  CLC_WRK_CL?: string;  // 정산유형: "2"=해지, "6"=상품변경 (레거시 기준, 기본값: "2")
+  RCPT_ID?: string;     // 접수 ID (없으면 자동 생성)
+  IS_NEW?: string;      // 신규 시뮬레이션 여부 (기본값: "false")
+  PNTY_EXMP_YN?: string; // 위약금 면제 여부: "Y"=면제, "N"=미면제 (기본값: "N")
+}
+
+export interface HotbillSimulateResult {
+  code: string;
+  RCPT_ID: string;
+  message: string;
+  simulatedCount?: number;
+}
+
+export const runHotbillSimulation = async (params: HotbillSimulateParams): Promise<HotbillSimulateResult> => {
+  console.log('[Hotbill API] runHotbillSimulation 호출:', params);
+
+  // 더미 모드 체크
+  if (checkDemoMode()) {
+    console.log('[Hotbill API] 더미 모드: Hotbill 시뮬레이션 스킵');
+    await new Promise(resolve => setTimeout(resolve, 300));
+    return {
+      code: 'SUCCESS',
+      RCPT_ID: params.RCPT_ID || '1044931550',
+      message: 'OK (Demo)',
+      simulatedCount: 1,
+    };
+  }
+
+  try {
+    const requestBody = {
+      CUST_ID: params.CUST_ID,
+      CTRT_ID: params.CTRT_ID,
+      SO_ID: params.SO_ID,
+      HOPE_DT: params.HOPE_DT,
+      CLC_WRK_CL: params.CLC_WRK_CL || '2',  // 레거시 기준: 2=해지
+      RCPT_ID: params.RCPT_ID || '',
+      IS_NEW: params.IS_NEW || 'false',
+      PNTY_EXMP_YN: params.PNTY_EXMP_YN || 'N',  // 위약금 면제 여부
+    };
+
+    const response = await fetch(`${API_BASE}/hotbill/simulate`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      credentials: 'include',
+      body: JSON.stringify(requestBody),
+    });
+
+    // 404 등 에러 응답 체크
+    if (!response.ok) {
+      console.error('[Hotbill API] HTTP 오류:', response.status);
+      throw new Error(`Hot Bill 시뮬레이션 API 오류 (HTTP ${response.status})`);
+    }
+
+    const result = await response.json();
+    console.log('[Hotbill API] runHotbillSimulation 응답:', result);
+
+    return {
+      code: result.code || 'ERROR',
+      RCPT_ID: result.RCPT_ID || '',
+      message: result.message || '',
+      simulatedCount: result.simulatedCount || 0,
+    };
+  } catch (error: any) {
+    console.error('[Hotbill API] runHotbillSimulation 오류:', error);
+    throw error;
+  }
+};
+
+// ============ SMS/문자 발송 API ============
+
+import { VisitSmsRequest } from '../types';
+
+/**
+ * 방문안내 문자 발송 API (saveENSSendHist)
+ * Legacy: customer/sigtrans/saveENSSendHist.req
+ *
+ * @param data 문자 발송 요청 데이터
+ * @returns 발송 결과
+ */
+export const sendVisitSms = async (data: VisitSmsRequest): Promise<{ code: string; message: string }> => {
+  console.log('[SMS API] sendVisitSms 호출:', data);
+
+  // 더미 모드 체크
+  if (checkDemoMode()) {
+    console.log('[SMS API] 더미 모드: SMS 발송 스킵');
+    await new Promise(resolve => setTimeout(resolve, 500));
+    return {
+      code: 'SUCCESS',
+      message: '문자 발송이 완료되었습니다. (Demo)',
+    };
+  }
+
+  try {
+    const requestBody = {
+      SMS_EML_TYPE: data.SMS_EML_TYPE,
+      SO_ID: data.SO_ID,
+      USER_SMS: data.USER_SMS.replace(/-/g, '').replace(/\s/g, ''),  // 하이픈, 공백 제거
+      SEND_SMS: data.SEND_SMS.replace(/-/g, '').replace(/\s/g, ''),  // 하이픈, 공백 제거
+      USER_ID: data.USER_ID,
+      USER_NAME: data.USER_NAME,
+      MAP01: data.MAP01,
+      KKO_MSG_ID: data.KKO_MSG_ID,
+      REG_UID: data.REG_UID,
+      TRANS_YN: data.TRANS_YN || 'N',
+      SMS_EML_CL: data.SMS_EML_CL || '20',  // 20: SMS
+    };
+
+    const response = await fetch(`${API_BASE}/customer/sigtrans/saveENSSendHist`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      credentials: 'include',
+      body: JSON.stringify(requestBody),
+    });
+
+    // HTTP 에러 체크
+    if (!response.ok) {
+      console.error('[SMS API] HTTP 오류:', response.status);
+      throw new Error(`문자 발송 API 오류 (HTTP ${response.status})`);
+    }
+
+    const result = await response.json();
+    console.log('[SMS API] sendVisitSms 응답:', result);
+
+    // 응답 코드 확인
+    if (result.MSGCODE === 'SUCCESS' || result.code === 'SUCCESS') {
+      return {
+        code: 'SUCCESS',
+        message: result.MESSAGE || result.message || '문자 발송이 완료되었습니다.',
+      };
+    } else {
+      return {
+        code: result.MSGCODE || result.code || 'ERROR',
+        message: result.MESSAGE || result.message || '문자 발송에 실패했습니다.',
+      };
+    }
+  } catch (error: any) {
+    console.error('[SMS API] sendVisitSms 오류:', error);
+    throw error;
+  }
+};
+
+// ============ 정지기간 관리 API ============
+
+/**
+ * 정지기간 정보 조회 API (getMmtSusInfo)
+ * Legacy: /customer/etc/getMmtSusInfo.req
+ *
+ * @param params RCPT_ID, CTRT_ID
+ * @returns 정지기간 정보
+ */
+export const getMmtSusInfo = async (params: {
+  RCPT_ID: string;
+  CTRT_ID: string;
+}): Promise<{
+  SUS_HOPE_DD: string;      // 정지시작일 (YYYYMMDD)
+  MMT_SUS_HOPE_DD: string;  // 정지종료일 (YYYYMMDD)
+  VALID_SUS_DAYS: string;   // 유효 정지일수
+  MMT_SUS_CD: string;       // 정지 사유 코드
+  WRK_DTL_TCD: string;      // 작업 상세 유형 코드
+} | null> => {
+  console.log('[정지기간 API] getMmtSusInfo 호출:', params);
+
+  try {
+    const response = await fetch(`${API_BASE}/customer/etc/getMmtSusInfo`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      credentials: 'include',
+      body: JSON.stringify(params),
+    });
+
+    if (!response.ok) {
+      console.error('[정지기간 API] HTTP 오류:', response.status);
+      throw new Error(`정지기간 조회 API 오류 (HTTP ${response.status})`);
+    }
+
+    const result = await response.json();
+    console.log('[정지기간 API] getMmtSusInfo 응답:', result);
+
+    // 응답 데이터 반환
+    if (result && (result.SUS_HOPE_DD || result.output)) {
+      const data = result.output ? result.output[0] : result;
+      return {
+        SUS_HOPE_DD: data.SUS_HOPE_DD || '',
+        MMT_SUS_HOPE_DD: data.MMT_SUS_HOPE_DD || '',
+        VALID_SUS_DAYS: data.VALID_SUS_DAYS || '',
+        MMT_SUS_CD: data.MMT_SUS_CD || '',
+        WRK_DTL_TCD: data.WRK_DTL_TCD || '',
+      };
+    }
+
+    return null;
+  } catch (error: any) {
+    console.error('[정지기간 API] getMmtSusInfo 오류:', error);
+    throw error;
+  }
+};
+
+/**
+ * 정지기간 수정 API (modMmtSusInfo)
+ * Legacy: /customer/etc/modMmtSusInfo.req
+ *
+ * @param params 정지기간 수정 데이터
+ * @returns 처리 결과
+ */
+export const modMmtSusInfo = async (params: {
+  CTRT_ID: string;          // 계약 ID
+  RCPT_ID: string;          // 접수 ID
+  SUS_HOPE_DD: string;      // 정지시작일 (YYYYMMDD)
+  MMT_SUS_HOPE_DD: string;  // 정지종료일 (YYYYMMDD)
+  SUS_DD_NUM: string;       // 정지일수
+  REG_UID: string;          // 등록자 ID
+}): Promise<{ code: string; message: string }> => {
+  console.log('[정지기간 API] modMmtSusInfo 호출:', params);
+
+  try {
+    const response = await fetch(`${API_BASE}/customer/etc/modMmtSusInfo`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      credentials: 'include',
+      body: JSON.stringify(params),
+    });
+
+    if (!response.ok) {
+      console.error('[정지기간 API] HTTP 오류:', response.status);
+      throw new Error(`정지기간 수정 API 오류 (HTTP ${response.status})`);
+    }
+
+    const result = await response.json();
+    console.log('[정지기간 API] modMmtSusInfo 응답:', result);
+
+    if (result.MSGCODE === 'SUCCESS' || result.code === 'SUCCESS') {
+      return {
+        code: 'SUCCESS',
+        message: result.MESSAGE || result.message || '이용정지기간이 수정되었습니다.',
+      };
+    } else {
+      return {
+        code: result.MSGCODE || result.code || 'ERROR',
+        message: result.MESSAGE || result.message || '정지기간 수정에 실패했습니다.',
+      };
+    }
+  } catch (error: any) {
+    console.error('[정지기간 API] modMmtSusInfo 오류:', error);
+    throw error;
+  }
+};
+// ==================== 장비관리 API Aliases ====================
+export const getWrkrHaveEqtList = getWorkerEquipmentList;
 export const apiRequest = async (endpoint: string, method: 'GET' | 'POST' = 'POST', body?: any): Promise<any> => {
   console.log(`📡 [API 직접호출] ${method} ${endpoint}`, body);
 

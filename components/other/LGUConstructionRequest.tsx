@@ -108,31 +108,31 @@ const LGUConstructionRequest: React.FC<LGUConstructionRequestProps> = ({ onBack,
   return (
     <div>
       {/* 헤더 */}
-      <div className="mb-3 flex items-center justify-between">
+      <div className="mb-2 sm:mb-3 flex items-center justify-between gap-2">
         <div>
-          <h2 className="text-lg font-bold text-gray-900">(LGU) 공사요청진행정보</h2>
+          <h2 className="text-base sm:text-lg font-bold text-gray-900">(LGU) 공사요청진행정보</h2>
         </div>
         <button
           onClick={fetchList}
           disabled={isLoading}
-          className="flex items-center gap-1 px-3 py-1.5 bg-gray-100 hover:bg-gray-200 rounded text-sm text-gray-700 disabled:opacity-50"
+          className="flex items-center gap-1 px-2.5 sm:px-3 py-1 sm:py-1.5 bg-gray-100 hover:bg-gray-200 rounded text-xs sm:text-sm text-gray-700 disabled:opacity-50"
         >
-          <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
+          <RefreshCw className={`w-3.5 h-3.5 sm:w-4 sm:h-4 ${isLoading ? 'animate-spin' : ''}`} />
           새로고침
         </button>
       </div>
 
       {isLoading ? (
-        <div className="text-center p-10">
-          <div className="inline-block animate-spin rounded-full h-8 w-8 border-4 border-orange-500 border-t-transparent"></div>
-          <p className="mt-2 text-gray-600">로딩 중...</p>
+        <div className="text-center p-6 sm:p-10">
+          <div className="inline-block animate-spin rounded-full h-6 w-6 sm:h-8 sm:w-8 border-4 border-orange-500 border-t-transparent"></div>
+          <p className="mt-2 text-gray-600 text-sm sm:text-base">로딩 중...</p>
         </div>
       ) : error ? (
-        <div className="text-center p-10 bg-white rounded-lg shadow-sm border border-red-200">
-          <p className="text-red-500">{error}</p>
+        <div className="text-center p-6 sm:p-10 bg-white rounded-lg shadow-sm border border-red-200">
+          <p className="text-red-500 text-sm sm:text-base">{error}</p>
           <button
             onClick={fetchList}
-            className="mt-4 px-4 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600"
+            className="mt-3 sm:mt-4 px-3 sm:px-4 py-1.5 sm:py-2 bg-orange-500 text-white text-sm rounded-lg hover:bg-orange-600"
           >
             다시 시도
           </button>
@@ -140,16 +140,16 @@ const LGUConstructionRequest: React.FC<LGUConstructionRequestProps> = ({ onBack,
       ) : (
         <>
           {/* 상단: 공사요청 목록 Grid */}
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden mb-3">
+          <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden mb-2 sm:mb-3">
             {list.length > 0 ? (
-              <div className="max-h-48 overflow-y-auto">
+              <div className="max-h-40 sm:max-h-48 overflow-y-auto">
                 <table className="w-full">
                   <thead className="bg-gray-50 sticky top-0">
                     <tr>
-                      <th className="px-3 py-2 text-left text-xs font-semibold text-gray-700 border-b">공사요청번호</th>
-                      <th className="px-3 py-2 text-left text-xs font-semibold text-gray-700 border-b">계약ID</th>
-                      <th className="px-3 py-2 text-left text-xs font-semibold text-gray-700 border-b">담당자명</th>
-                      <th className="px-3 py-2 text-left text-xs font-semibold text-gray-700 border-b">완료예정일</th>
+                      <th className="px-2 sm:px-3 py-1.5 sm:py-2 text-left text-xs font-semibold text-gray-700 border-b">공사요청번호</th>
+                      <th className="px-2 sm:px-3 py-1.5 sm:py-2 text-left text-xs font-semibold text-gray-700 border-b">계약ID</th>
+                      <th className="px-2 sm:px-3 py-1.5 sm:py-2 text-left text-xs font-semibold text-gray-700 border-b">담당자명</th>
+                      <th className="px-2 sm:px-3 py-1.5 sm:py-2 text-left text-xs font-semibold text-gray-700 border-b">완료예정일</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -161,17 +161,17 @@ const LGUConstructionRequest: React.FC<LGUConstructionRequestProps> = ({ onBack,
                           selectedItem === item ? 'bg-orange-100' : ''
                         }`}
                       >
-                        <td className="px-3 py-2 text-xs text-gray-900 border-b">{item.CONSREQNO || '-'}</td>
-                        <td className="px-3 py-2 text-xs text-gray-900 border-b">{item.CTRT_ID || '-'}</td>
-                        <td className="px-3 py-2 text-xs text-gray-900 border-b">{item.CONSCHRRNM || '-'}</td>
-                        <td className="px-3 py-2 text-xs text-gray-900 border-b">{item.CONSFNSHSCDLDT || '-'}</td>
+                        <td className="px-2 sm:px-3 py-1.5 sm:py-2 text-xs text-gray-900 border-b">{item.CONSREQNO || '-'}</td>
+                        <td className="px-2 sm:px-3 py-1.5 sm:py-2 text-xs text-gray-900 border-b">{item.CTRT_ID || '-'}</td>
+                        <td className="px-2 sm:px-3 py-1.5 sm:py-2 text-xs text-gray-900 border-b">{item.CONSCHRRNM || '-'}</td>
+                        <td className="px-2 sm:px-3 py-1.5 sm:py-2 text-xs text-gray-900 border-b">{item.CONSFNSHSCDLDT || '-'}</td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
               </div>
             ) : (
-              <div className="p-6 text-center text-gray-500 text-sm">
+              <div className="p-4 sm:p-6 text-center text-gray-500 text-xs sm:text-sm">
                 조회된 공사요청 내역이 없습니다
               </div>
             )}
@@ -179,8 +179,8 @@ const LGUConstructionRequest: React.FC<LGUConstructionRequestProps> = ({ onBack,
 
           {/* 하단: 선택된 항목 상세정보 */}
           {selectedItem && (
-            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 space-y-3">
-              <div className="grid grid-cols-2 gap-3">
+            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-3 sm:p-4 space-y-2 sm:space-y-3">
+              <div className="grid grid-cols-2 gap-2 sm:gap-3">
                 <div>
                   <label className="block text-xs font-medium text-gray-600 mb-1">공사요청번호</label>
                   <input
@@ -221,7 +221,7 @@ const LGUConstructionRequest: React.FC<LGUConstructionRequestProps> = ({ onBack,
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-2 gap-2 sm:gap-3">
                 <div>
                   <label className="block text-xs font-medium text-gray-600 mb-1">완료예정일</label>
                   <input
@@ -262,7 +262,7 @@ const LGUConstructionRequest: React.FC<LGUConstructionRequestProps> = ({ onBack,
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-2 gap-2 sm:gap-3">
                 <div>
                   <label className="block text-xs font-medium text-gray-600 mb-1">불가처리일</label>
                   <input
@@ -306,22 +306,22 @@ const LGUConstructionRequest: React.FC<LGUConstructionRequestProps> = ({ onBack,
           )}
 
           {/* 하단 버튼 */}
-          <div className="mt-4 grid grid-cols-3 gap-2">
+          <div className="mt-3 sm:mt-4 grid grid-cols-3 gap-1.5 sm:gap-2">
             <button
               onClick={handleRequest}
-              className="px-4 py-2.5 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white rounded-lg font-medium text-sm shadow-md transition-all"
+              className="px-3 sm:px-4 py-2 sm:py-2.5 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white rounded-lg font-medium text-xs sm:text-sm shadow-md transition-all"
             >
               요청
             </button>
             <button
               onClick={handleModify}
-              className="px-4 py-2.5 bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white rounded-lg font-medium text-sm shadow-md transition-all"
+              className="px-3 sm:px-4 py-2 sm:py-2.5 bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white rounded-lg font-medium text-xs sm:text-sm shadow-md transition-all"
             >
               수정
             </button>
             <button
               onClick={handleDelete}
-              className="px-4 py-2.5 bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white rounded-lg font-medium text-sm shadow-md transition-all"
+              className="px-3 sm:px-4 py-2 sm:py-2.5 bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white rounded-lg font-medium text-xs sm:text-sm shadow-md transition-all"
             >
               삭제
             </button>

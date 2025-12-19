@@ -18,14 +18,14 @@ const InfoRow: React.FC<{ label: string; value?: string; children?: React.ReactN
 const TerminationWorkDetails: React.FC<TerminationWorkDetailsProps> = ({ order }) => {
   return (
     <div className="space-y-4">
-      {/* 해지 작업 특화 정보 */}
+      {/* 철거 작업 특화 정보 (WRK_CD='02') */}
       <div className="bg-gradient-to-r from-red-50 to-pink-50 border border-red-200 rounded-lg p-4">
         <h3 className="text-sm font-semibold text-red-800 mb-2 flex items-center">
           <span className="inline-block w-2 h-2 bg-red-500 rounded-full mr-2"></span>
-          해지 작업 정보
+          철거 작업 정보
         </h3>
         <div className="space-y-1">
-          <InfoRow label="해지 사유" value={order.termReasonCode || '고객 요청'} />
+          <InfoRow label="철거(해지) 사유" value={order.termReasonCode || '고객 요청'} />
           <InfoRow label="위약금" value={order.termFee ? `${order.termFee.toLocaleString()}원` : '없음'} />
           <InfoRow label="계약 ID" value={order.CTRT_ID} />
           <InfoRow label="접수 ID" value={order.RCPT_ID} />
@@ -60,11 +60,11 @@ const TerminationWorkDetails: React.FC<TerminationWorkDetailsProps> = ({ order }
         </div>
       </div>
 
-      {/* 해지 처리 안내 */}
+      {/* 철거 처리 안내 */}
       <div className="bg-red-50 border border-red-200 rounded-lg p-3">
         <h4 className="text-xs font-semibold text-red-800 mb-2 flex items-center gap-1">
           <AlertTriangle size={14} />
-          해지 작업 완료 시 필수 입력 사항
+          철거 작업 완료 시 필수 입력 사항
         </h4>
         <ul className="text-xs text-red-700 space-y-1">
           <li className="flex items-start">
@@ -73,7 +73,7 @@ const TerminationWorkDetails: React.FC<TerminationWorkDetailsProps> = ({ order }
           </li>
           <li className="flex items-start">
             <span className="mr-2">•</span>
-            <span>해지 사유 선택 및 상세 내용 기재</span>
+            <span>철거(해지) 사유 선택 및 상세 내용 기재</span>
           </li>
           <li className="flex items-start">
             <span className="mr-2">•</span>
@@ -81,7 +81,7 @@ const TerminationWorkDetails: React.FC<TerminationWorkDetailsProps> = ({ order }
           </li>
           <li className="flex items-start">
             <span className="mr-2">•</span>
-            <span>해지 완료 서명 받기</span>
+            <span>철거 완료 서명 받기</span>
           </li>
         </ul>
       </div>

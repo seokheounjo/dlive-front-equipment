@@ -1,0 +1,344 @@
+.work-process-flow {
+  background: white;
+  min-height: 100dvh; /* iOS 동적 뷰포트 */
+  min-height: 100vh; /* 폴백 */
+  position: relative;
+}
+
+/* iOS Safe Area 하단 패딩 */
+.pb-safe {
+  padding-bottom: env(safe-area-inset-bottom, 20px);
+  padding-bottom: max(env(safe-area-inset-bottom), 20px);
+}
+
+/* Sticky 헤더 영역: 이전/다음 버튼 + 단계 인디케이터 */
+.process-sticky-header {
+  position: sticky;
+  top: 64px; /* 헤더 높이 (h-16 = 64px) */
+  z-index: 100;
+  background: white;
+  border-bottom: 2px solid #e0e0e0;
+}
+
+.process-nav {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  background: white;
+  padding: 12px 15px;
+  border-bottom: 1px solid #e0e0e0;
+}
+
+.nav-buttons {
+  display: flex;
+  gap: 8px;
+}
+
+/* 기본 버튼 톤에 맞춰 최소 스타일 (프로젝트 전역 버튼 클래스와 조화) */
+.process-nav .btn {
+  padding: 8px 14px;
+  border-radius: 8px;
+  font-weight: 600;
+  white-space: nowrap;
+  border: none;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+/* 비활성화된 버튼 */
+.process-nav .btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+  background: #d3d3d3 !important;
+  color: #888 !important;
+}
+
+.process-nav .btn:disabled:hover {
+  transform: none;
+  box-shadow: none;
+}
+
+/* 작업목록 버튼 (화살표만) */
+.process-nav .btn-list {
+  background: #6c757d;
+  color: white;
+  width: 36px;
+  min-width: 36px;
+  max-width: 36px;
+  padding: 6px;
+  flex-shrink: 0;
+  flex-grow: 0;
+  font-size: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.process-nav .btn-list:hover:not(:disabled) {
+  background: #5a6268;
+}
+
+/* 이전 버튼 - 파란색 */
+.process-nav .btn-secondary {
+  background: #007bff;
+  color: white;
+  flex: 1;
+}
+
+.process-nav .btn-secondary:hover:not(:disabled) {
+  background: #0056b3;
+}
+
+/* 다음 단계 버튼 */
+.process-nav .btn-primary {
+  background: #007bff;
+  color: white;
+  flex: 1;
+}
+
+.process-nav .btn-primary:hover:not(:disabled) {
+  background: #0056b3;
+}
+
+.process-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 30px;
+}
+
+.process-header h2 {
+  margin: 0;
+  font-size: 24px;
+  color: #333;
+}
+
+.work-type-badge {
+  padding: 8px 16px;
+  background: #007bff;
+  color: white;
+  border-radius: 20px;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+/* Step Indicator */
+.step-indicator {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: white;
+  padding: 15px;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.step {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  flex: 1;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+/* 완료된 단계 - 초록색 */
+.step.completed .step-number {
+  background: #28a745;
+  color: white;
+}
+
+/* 활성 단계 - 파란색 (completed보다 우선) */
+.step.active .step-number {
+  background: #007bff;
+  color: white;
+  transform: scale(1.1);
+  box-shadow: 0 4px 12px rgba(0, 123, 255, 0.3);
+}
+
+.step-number {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: #e0e0e0;
+  color: #666;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: bold;
+  font-size: 16px;
+  margin-bottom: 8px;
+  transition: all 0.3s ease;
+}
+
+.step-title {
+  font-size: 13px;
+  color: #666;
+  font-weight: 500;
+  text-align: center;
+}
+
+/* 완료된 단계 타이틀 - 초록색 */
+.step.completed .step-title {
+  color: #28a745;
+}
+
+/* 활성 단계 타이틀 - 파란색 (completed보다 우선) */
+.step.active .step-title {
+  color: #007bff;
+  font-weight: 600;
+}
+
+.step-connector {
+  flex: 1;
+  height: 2px;
+  background: #e0e0e0;
+  margin: 0 10px;
+  margin-bottom: 32px;
+  transition: all 0.3s ease;
+}
+
+.step-connector.completed {
+  background: #28a745;
+}
+
+/* Process Content */
+.process-content {
+  background: white;
+  padding: 15px;
+  min-height: calc(100dvh - 200px); /* iOS 동적 뷰포트 */
+  min-height: calc(100vh - 200px); /* 폴백 */
+  padding-bottom: 100px;
+}
+
+/* 자식 컴포넌트 하단 로컬 네비게이션 버튼은 본 화면 상단 네비게이션으로 대체 */
+.work-process-flow .action-buttons {
+  display: none;
+}
+
+/* Step 4 - Signal Check and Complete */
+.step-4-container {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+}
+
+.signal-check-section {
+  padding: 12px;
+  background: white;
+  border-radius: 8px;
+  border: 1px solid #e0e0e0;
+}
+
+.signal-check-section .section-title {
+  font-size: 16px;
+  margin-bottom: 6px;
+  color: #333;
+  word-break: break-word;
+}
+
+.signal-check-section .section-description {
+  display: none;
+}
+
+.signal-check-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 12px;
+}
+
+.complete-form-section {
+  /* Inherits from WorkCompleteForm styles */
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .work-process-flow {
+    background: white;
+  }
+
+  .process-sticky-header {
+    top: 64px; /* 헤더 높이 유지 */
+  }
+
+  .process-nav {
+    justify-content: stretch;
+    padding: 10px;
+  }
+
+  .nav-buttons {
+    width: 100%;
+  }
+
+  .process-nav .btn {
+    font-size: 12px;
+    padding: 8px 10px;
+  }
+
+  .process-nav .btn-list {
+    width: 32px;
+    min-width: 32px;
+    max-width: 32px;
+    padding: 6px;
+    font-size: 16px;
+  }
+
+  .process-nav .btn-secondary,
+  .process-nav .btn-primary {
+    flex: 1;
+  }
+
+  .step-indicator {
+    padding: 12px 10px;
+    gap: 4px;
+  }
+
+  .step {
+    min-width: 0;
+    flex: 1;
+  }
+
+  .step-title {
+    font-size: 10px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 100%;
+  }
+
+  .step-number {
+    width: 32px;
+    height: 32px;
+    font-size: 13px;
+    margin-bottom: 4px;
+  }
+
+  .step-connector {
+    margin: 0 4px;
+    margin-bottom: 22px;
+    min-width: 12px;
+  }
+
+  .process-content {
+    padding: 12px 10px;
+    min-height: 300px;
+  }
+
+  .step-4-container {
+    gap: 12px;
+  }
+
+  .signal-check-section {
+    padding: 10px;
+  }
+
+  .signal-check-section .section-title {
+    font-size: 14px;
+    margin-bottom: 8px;
+  }
+
+  .signal-check-grid {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+}

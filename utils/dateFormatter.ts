@@ -102,3 +102,22 @@ export const formatDateTimeFromISO = (isoString: string): string => {
     return '시간 정보 없음';
   }
 };
+
+/**
+ * 10자리 ID를 xxx-xxx-xxxx 형식으로 포맷팅
+ * @param id - 10자리 숫자 ID (예: "1234567890")
+ * @returns 포맷된 ID 문자열 (예: "123-456-7890")
+ */
+export const formatId = (id: string | number | undefined | null): string => {
+  if (!id) return '-';
+
+  const idStr = String(id).replace(/\D/g, ''); // 숫자만 추출
+
+  if (idStr.length !== 10) {
+    // 10자리가 아니면 원본 반환
+    return String(id);
+  }
+
+  // 3-3-4 형식으로 포맷팅
+  return `${idStr.slice(0, 3)}-${idStr.slice(3, 6)}-${idStr.slice(6, 10)}`;
+};

@@ -51,12 +51,12 @@ const CustomerInfo: React.FC<CustomerInfoProps> = ({ onBack }) => {
 
   return (
     <div>
-      <div className="mb-3">
-        <h2 className="text-lg font-bold text-gray-900">고객정보조회</h2>
+      <div className="mb-2 sm:mb-3">
+        <h2 className="text-base sm:text-lg font-bold text-gray-900">고객정보조회</h2>
       </div>
 
       {/* 검색 영역 */}
-      <div className="mb-3 bg-white rounded-lg shadow-sm border border-gray-200 p-3">
+      <div className="mb-2 sm:mb-3 bg-white rounded-lg shadow-sm border border-gray-200 p-2.5 sm:p-3">
         <div className="space-y-2">
           <div>
             <label className="block text-xs font-medium text-gray-600 mb-1">고객번호</label>
@@ -66,12 +66,12 @@ const CustomerInfo: React.FC<CustomerInfoProps> = ({ onBack }) => {
                 value={custId}
                 onChange={(e) => setCustId(e.target.value)}
                 maxLength={10}
-                className="flex-1 px-2 py-1.5 text-sm border border-gray-300 rounded"
+                className="flex-1 px-2 py-1.5 sm:py-2 text-sm border border-gray-300 rounded"
                 placeholder="고객번호 입력"
               />
               <button
                 onClick={handleSearch}
-                className="px-4 py-1.5 bg-orange-500 hover:bg-orange-600 text-white text-sm rounded font-medium shadow-md transition-all"
+                className="px-3 sm:px-4 py-1.5 sm:py-2 bg-orange-500 hover:bg-orange-600 text-white text-sm rounded font-medium shadow-md transition-all"
               >
                 조회
               </button>
@@ -82,7 +82,7 @@ const CustomerInfo: React.FC<CustomerInfoProps> = ({ onBack }) => {
 
       {/* 고객 기본정보 */}
       {custInfo && (
-        <div className="mb-3 bg-white rounded-lg shadow-sm border border-gray-200 p-3 space-y-2">
+        <div className="mb-2 sm:mb-3 bg-white rounded-lg shadow-sm border border-gray-200 p-2.5 sm:p-3 space-y-2">
           <div>
             <label className="block text-xs font-medium text-gray-600 mb-1">고객명</label>
             <input
@@ -119,10 +119,10 @@ const CustomerInfo: React.FC<CustomerInfoProps> = ({ onBack }) => {
       {/* 계약정보 목록 */}
       {ctrtInfoList.length > 0 && (
         <>
-          <div className="mb-2">
-            <h3 className="text-sm font-semibold text-gray-700">계약정보</h3>
+          <div className="mb-1.5 sm:mb-2">
+            <h3 className="text-xs sm:text-sm font-semibold text-gray-700">계약정보</h3>
           </div>
-          <div className="mb-3 bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+          <div className="mb-2 sm:mb-3 bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
             <div className="max-h-64 overflow-y-auto">
               <table className="w-full text-xs">
                 <thead className="bg-gray-50 sticky top-0">
@@ -152,8 +152,8 @@ const CustomerInfo: React.FC<CustomerInfoProps> = ({ onBack }) => {
       {/* 납부계정정보 목록 */}
       {pymAcntInfoList.length > 0 && (
         <>
-          <div className="mb-2">
-            <h3 className="text-sm font-semibold text-gray-700">납부계정정보</h3>
+          <div className="mb-1.5 sm:mb-2">
+            <h3 className="text-xs sm:text-sm font-semibold text-gray-700">납부계정정보</h3>
           </div>
           <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
             <div className="max-h-48 overflow-y-auto">
@@ -183,8 +183,8 @@ const CustomerInfo: React.FC<CustomerInfoProps> = ({ onBack }) => {
       )}
 
       {!custInfo && (
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-          <p className="text-center text-gray-500 text-sm">고객번호를 입력하고 조회 버튼을 눌러주세요</p>
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 sm:p-6">
+          <p className="text-center text-gray-500 text-xs sm:text-sm">고객번호를 입력하고 조회 버튼을 눌러주세요</p>
         </div>
       )}
     </div>

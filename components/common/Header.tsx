@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { Menu, User } from 'lucide-react';
 import { DliveLogo } from '../common/DliveLogo';
 import { View } from '../../App';
+import { WorkOrder } from '../../types';
 
 interface UserInfo {
   name: string;
@@ -16,9 +17,11 @@ interface HeaderProps {
   onMenuClick?: () => void;
   currentView?: View;
   userInfo?: UserInfo | null;
+  selectedWorkItem?: WorkOrder | null;
 }
 
-const Header: React.FC<HeaderProps> = ({ onLogout, onNavigateHome, onNavigateBack, onMenuClick, currentView, userInfo }) => {
+
+const Header: React.FC<HeaderProps> = ({ onLogout, onNavigateHome, onNavigateBack, onMenuClick, currentView, userInfo, selectedWorkItem }) => {
   const [showUserMenu, setShowUserMenu] = useState(false);
   const userMenuRef = useRef<HTMLDivElement>(null);
 
@@ -33,30 +36,33 @@ const Header: React.FC<HeaderProps> = ({ onLogout, onNavigateHome, onNavigateBac
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  const getViewTitle = (view?: View) => {
+  const getViewTitle = (view?: View): { title: string; workType?: string } | null => {
+    // WRK_CD_NM 우선 사용, 없으면 typeDisplay 사용 (예: '설치', '철거', 'A/S' 등 - CMWT000 코드 값)
+    const workTypeName = selectedWorkItem?.WRK_CD_NM || selectedWorkItem?.typeDisplay || '';
+
     switch (view) {
       case 'today-work':
-        return '오늘의 작업';
+        return { title: '오늘의 작업' };
       case 'work-management':
-        return '작업관리';
+        return { title: '작업관리' };
       case 'work-order-detail':
-        return '작업 상세';
+        return { title: '작업상세' };
       case 'work-complete-form':
-        return '작업 완료';
+        return { title: '작업완료', workType: workTypeName };
       case 'work-complete-detail':
-        return '작업 완료';
+        return { title: '작업완료', workType: workTypeName };
       case 'work-item-list':
-        return '작업 목록';
+        return { title: '작업목록' };
       case 'work-process-flow':
-        return '작업 진행';
+        return { title: '작업진행', workType: workTypeName };
       case 'customer-management':
-        return '고객관리';
+        return { title: '고객관리' };
       case 'equipment-management':
-        return '장비관리';
+        return { title: '장비관리' };
       case 'other-management':
-        return '기타관리';
+        return { title: '기타관리' };
       case 'coming-soon':
-        return '준비중';
+        return { title: '준비중' };
       default:
         return null;
     }
@@ -68,17 +74,17 @@ const Header: React.FC<HeaderProps> = ({ onLogout, onNavigateHome, onNavigateBac
   return (
     <header className="bg-white shadow-sm fixed top-0 left-0 right-0 z-[100] border-b border-gray-200">
       <div className="max-w-7xl mx-auto px-2 sm:px-4 lg:px-6">
-        <div className="flex items-center h-16">
+        <div className="flex items-center h-12">
           {/* 왼쪽 영역 - 고정 너비 */}
           <div className="flex items-center gap-0 w-24 flex-shrink-0">
             {/* 뒤로가기 버튼 - 홈이 아닐 때만 */}
             {!isHome && (
               <button
                 onClick={onNavigateBack || onNavigateHome}
-                className="p-2 text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded-lg transition-colors duration-200"
+                className="p-1.5 text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded-lg transition-colors duration-200"
                 aria-label="뒤로가기"
               >
-                <svg className="w-7 h-7" fill="currentColor" viewBox="0 0 20 20">
+                <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
                   <path fillRule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clipRule="evenodd" />
                 </svg>
               </button>
@@ -87,10 +93,10 @@ const Header: React.FC<HeaderProps> = ({ onLogout, onNavigateHome, onNavigateBac
             {onMenuClick && (
               <button
                 onClick={onMenuClick}
-                className="p-2 text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded-lg transition-colors duration-200"
+                className="p-1.5 text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded-lg transition-colors duration-200"
                 aria-label="메뉴 열기"
               >
-                <Menu className="w-7 h-7" />
+                <Menu className="w-5 h-5" />
               </button>
             )}
           </div>
@@ -99,10 +105,15 @@ const Header: React.FC<HeaderProps> = ({ onLogout, onNavigateHome, onNavigateBac
           <div className="flex-1 flex items-center justify-center">
             {isHome ? (
               <button onClick={onNavigateHome} className="flex items-center cursor-pointer" aria-label="메인 메뉴로 이동">
-                <DliveLogo className="text-2xl text-blue-600" />
+                <DliveLogo className="text-xl text-blue-600" />
               </button>
             ) : viewTitle ? (
-              <span className="text-lg font-bold text-gray-900">{viewTitle}</span>
+              <span className="text-sm font-bold text-gray-900">
+                {viewTitle.title}
+                {viewTitle.workType && (
+                  <span className="text-blue-600">({viewTitle.workType})</span>
+                )}
+              </span>
             ) : null}
           </div>
 
@@ -111,17 +122,17 @@ const Header: React.FC<HeaderProps> = ({ onLogout, onNavigateHome, onNavigateBac
           <div className="relative" ref={userMenuRef}>
             <button
               onClick={() => setShowUserMenu(!showUserMenu)}
-              className={`flex flex-col items-center p-2 rounded-lg transition-colors duration-200 ${showUserMenu ? 'text-blue-700 bg-blue-50' : 'text-blue-600 hover:text-blue-700 hover:bg-blue-50'}`}
+              className={`flex flex-col items-center p-1.5 rounded-lg transition-colors duration-200 ${showUserMenu ? 'text-blue-700 bg-blue-50' : 'text-blue-600 hover:text-blue-700 hover:bg-blue-50'}`}
               aria-label="사용자 메뉴"
             >
-              <User className="w-5 h-5" />
-              <span className="text-[10px] mt-0.5 truncate max-w-[60px]">
+              <User className="w-4 h-4" />
+              <span className="text-[9px] mt-0.5 truncate max-w-[60px]">
                 {userInfo ? `${userInfo.userName || '작업자'}` : '작업자'}
               </span>
             </button>
             {/* 드롭다운 메뉴 */}
             {showUserMenu && (
-              <div className="fixed right-2 top-16 w-48 bg-white rounded-lg shadow-lg border border-gray-200 py-2 z-[9999]">
+              <div className="fixed right-2 top-12 w-48 bg-white rounded-lg shadow-lg border border-gray-200 py-2 z-[9999]">
                 <div className="px-4 py-2 border-b border-gray-100">
                   <p className="text-sm font-medium text-gray-900">
                     {userInfo?.userName || '작업자'}

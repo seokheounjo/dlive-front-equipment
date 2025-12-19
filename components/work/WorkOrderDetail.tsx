@@ -10,15 +10,14 @@ import { ChevronDownIcon } from '../icons/ChevronDownIcon';
 import { cancelWork, getTechnicianEquipments } from '../../services/apiService';
 import WorkCancelModal from '../work/WorkCancelModal';
 import { getWorkTypeIcon, getWorkTypeIconColor } from '../../utils/workTypeIcons';
-import { formatDate, formatTime, formatDateTimeFromISO } from '../../utils/dateFormatter';
+import { formatDate, formatTime, formatDateTimeFromISO, formatId } from '../../utils/dateFormatter';
 import {
   isInstallWork,
   isASWork,
-  isTerminationWork,
-  isRemovalWork,
-  isSuspensionWork,
-  isProductChangeWork,
-  isRelocationWork,
+  isRemovalWork,          // WRK_CD='02' 철거
+  isSuspensionWork,       // WRK_CD='04' 정지
+  isProductChangeWork,    // WRK_CD='05' 상품변경
+  isRelocationWork,       // WRK_CD='07','08' 이전설치/이전철거
   getCompleteButtonText,
   getWorkTypeGuideMessage,
   validateContractStatus,
@@ -199,8 +198,8 @@ const WorkOrderDetail: React.FC<WorkOrderDetailProps> = ({
 
     if (isInstallWork(wrkCd)) return 'bg-green-600';
     if (isASWork(wrkCd)) return 'bg-orange-500';
-    if (isTerminationWork(wrkCd) || isRemovalWork(wrkCd)) return 'bg-red-600';
-    if (isRelocationWork(wrkCd)) return 'bg-blue-600';
+    if (isRemovalWork(wrkCd)) return 'bg-red-600';  // WRK_CD='02' 철거
+    if (isRelocationWork(wrkCd)) return 'bg-blue-600';  // WRK_CD='07','08' 이전설치/이전철거
     if (isProductChangeWork(wrkCd)) return 'bg-purple-600';
     if (isSuspensionWork(wrkCd)) return 'bg-gray-600';
 
@@ -208,11 +207,11 @@ const WorkOrderDetail: React.FC<WorkOrderDetailProps> = ({
   };
 
   return (
-    <div className="h-full flex flex-col bg-gray-50 overflow-hidden">
+    <div className="max-w-4xl mx-auto">
       {/* 스크롤 가능한 콘텐츠 영역 */}
-      <div className="flex-1 overflow-y-auto pb-40">
+      <div className="pb-40" style={{ minHeight: 'calc(100vh - 80px)' }}>
       {/* 메인 카드 */}
-      <div className="bg-white overflow-hidden max-w-4xl mx-auto">
+      <div className="bg-white overflow-hidden">
         {/* 상단 헤더 - 심플한 블루 디자인 */}
         <div className="bg-blue-600 px-4 py-4 text-white">
 
@@ -293,17 +292,17 @@ const WorkOrderDetail: React.FC<WorkOrderDetailProps> = ({
                 {/* 작지서ID & 작업ID */}
                 <InfoRow
                   label="작지서ID"
-                  value={order.directionId || order.id}
+                  value={formatId(order.directionId || order.id)}
                   icon={<InformationCircleIcon className="w-4 h-4" />}
                 />
                 <InfoRow
                   label="작업ID"
-                  value={order.id}
+                  value={formatId(order.id)}
                   icon={<InformationCircleIcon className="w-4 h-4" />}
                 />
                 <InfoRow
                   label="접수ID"
-                  value={order.RCPT_ID || '-'}
+                  value={formatId(order.RCPT_ID)}
                   icon={<InformationCircleIcon className="w-4 h-4" />}
                 />
 
@@ -355,7 +354,7 @@ const WorkOrderDetail: React.FC<WorkOrderDetailProps> = ({
                 {order.CTRT_ID && (
                   <InfoRow
                     label="계약ID"
-                    value={order.CTRT_ID}
+                    value={formatId(order.CTRT_ID)}
                     icon={<InformationCircleIcon className="w-4 h-4" />}
                   />
                 )}
@@ -453,8 +452,8 @@ const WorkOrderDetail: React.FC<WorkOrderDetailProps> = ({
               </div>
 
               {/* 작업 유형별 특화 정보 - 분기처리 */}
-              {(isASWork(order.WRK_CD) || isInstallWork(order.WRK_CD) || isTerminationWork(order.WRK_CD) ||
-                isRemovalWork(order.WRK_CD) || isSuspensionWork(order.WRK_CD) || isProductChangeWork(order.WRK_CD) ||
+              {(isASWork(order.WRK_CD) || isInstallWork(order.WRK_CD) || isRemovalWork(order.WRK_CD) ||
+                isSuspensionWork(order.WRK_CD) || isProductChangeWork(order.WRK_CD) ||
                 isRelocationWork(order.WRK_CD)) && (
                 <div className="mt-6 pt-6 border-t-2 border-gray-200">
                   <h3 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
@@ -463,7 +462,7 @@ const WorkOrderDetail: React.FC<WorkOrderDetailProps> = ({
                   </h3>
                   {isASWork(order.WRK_CD) && <ASWorkDetails order={order} />}
                   {isInstallWork(order.WRK_CD) && <InstallWorkDetails order={order} />}
-                  {(isTerminationWork(order.WRK_CD) || isRemovalWork(order.WRK_CD)) && <TerminationWorkDetails order={order} />}
+                  {isRemovalWork(order.WRK_CD) && <TerminationWorkDetails order={order} />}
                   {isSuspensionWork(order.WRK_CD) && <SuspensionWorkDetails order={order} />}
                   {isProductChangeWork(order.WRK_CD) && <ProductChangeWorkDetails order={order} />}
                   {isRelocationWork(order.WRK_CD) && <RelocationWorkDetails order={order} />}
@@ -815,7 +814,7 @@ const WorkOrderDetail: React.FC<WorkOrderDetailProps> = ({
 
       {/* 고정 하단 액션 바 - 모바일 최적화 */}
       {order.status === WorkOrderStatus.Pending && (
-        <div className="fixed left-0 right-0 bg-white border-t border-gray-200 shadow-2xl z-50" style={{ bottom: '68px' }}>
+        <div className="bg-white border-t border-gray-200 shadow-2xl mt-4">
           <div className="max-w-4xl mx-auto px-3 py-2">
             <div className="flex items-center gap-2.5">
               {/* 작업취소 버튼 */}

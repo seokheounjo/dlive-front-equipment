@@ -164,7 +164,7 @@ const RelocationWorkDetails: React.FC<RelocationWorkDetailsProps> = ({ order }) 
         <h4 className="text-sm font-semibold text-gray-800 mb-2">🔗 연관 작업 정보</h4>
         <div className="bg-gray-50 border border-gray-200 rounded p-3">
           <p className="text-xs text-gray-600 mb-2">
-            이전 작업(WRK_CD='04')은 철거 작업과 연관되어 있을 수 있습니다:
+            이전 작업(WRK_CD='07')은 철거 작업과 연관되어 있을 수 있습니다:
           </p>
           <ul className="text-xs text-gray-600 space-y-1">
             <li>• <span className="font-semibold">철거(이전)</span> WRK_CD='07': 이전하기 전에 기존 위치에서 장비 철거</li>

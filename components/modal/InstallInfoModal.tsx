@@ -4,6 +4,7 @@ import { saveInstallInfo, getCommonCodes } from '../../services/apiService';
 import { CommonCodeItem } from '../../types';
 import Select from '../ui/Select';
 import BaseModal from '../common/BaseModal';
+import { formatId } from '../../utils/dateFormatter';
 import '../../styles/buttons.css';
 
 interface InstallInfoModalProps {
@@ -216,7 +217,7 @@ const InstallInfoModal: React.FC<InstallInfoModalProps> = ({
         }
       }
     } else if (WRK_CD === '04') {
-      // Relocation work
+      // 정지 작업 (WRK_DTL_TCD: 0430=일시철거, 0440=일시정지해제)
       if (WRK_DTL_TCD === '0440') {
         filteredInstlTp = instlTpList.filter(item =>
           pos(item.ref_code, KPI_PROD_GRP_CD || '') > -1 &&
@@ -257,12 +258,17 @@ const InstallInfoModal: React.FC<InstallInfoModalProps> = ({
         }
       }
     } else {
-      // Default case
-      filteredInstlTp = instlTpList.filter(item =>
-        pos(item.ref_code, KPI_PROD_GRP_CD || '') > -1 &&
-        (item.ref_code3 || '') >= '20090901' &&
-        item.code === '77'
-      );
+      // Default case - 철거 작업 (WRK_CD='02', '08', '09' 등)
+      // code='77' (철거)만 표시, KPI_PROD_GRP_CD 필터는 있을 때만 적용
+      filteredInstlTp = instlTpList.filter(item => {
+        const matchesCode77 = item.code === '77';
+        const matchesDate = (item.ref_code3 || '') >= '20090901';
+        // KPI_PROD_GRP_CD가 있으면 ref_code 필터도 적용, 없으면 code=77만 필터링
+        const matchesRefCode = KPI_PROD_GRP_CD
+          ? pos(item.ref_code, KPI_PROD_GRP_CD) > -1
+          : true;
+        return matchesCode77 && matchesDate && matchesRefCode;
+      });
 
       if (PROD_GRP === 'C') {
         filteredCbInstlTp = cbInstlTpList.filter(item =>
@@ -350,11 +356,24 @@ const InstallInfoModal: React.FC<InstallInfoModalProps> = ({
         console.log('🔍 [InstallInfoModal] 배선형태(BLST014) 두 번째 항목:', wrngTp[1]);
       }
 
-      // Apply initial filters only if essential filtering data is available
-      if (kpiProdGrpCd && workType) {
+      // Apply initial filters
+      // 철거 작업(WRK_CD='02', '08')은 kpiProdGrpCd 없이도 code='77' 필터링 적용
+      const isRemovalWork = workType === '02' || workType === '08';
+      if (workType && (kpiProdGrpCd || isRemovalWork)) {
         const filtered = applyInitialFilters(instlTp, wrngTp, cbInstlTp, cbWrngTp);
         setNetClCodes(netCl);
-        setWrngTpCodes(filtered.filteredWrngTp);
+
+        // 철거 작업(WRK_CD='02', '08')이면 배선형태도 ref_code2에 '77' 포함된 것만 필터링
+        // 레거시: ds_wrng_tp.Filter("pos(ref_code2,'77') > -1 && ...")
+        if (isRemovalWork) {
+          const wrngTpFiltered = wrngTp.filter(item =>
+            pos(item.ref_code2, '77') > -1
+          );
+          console.log('🔍 [Filter] 철거 작업 - 배선형태 ref_code2=77 필터링:', wrngTpFiltered.length, '개');
+          setWrngTpCodes(wrngTpFiltered);
+        } else {
+          setWrngTpCodes(filtered.filteredWrngTp);
+        }
         setWrngTpCodesOriginal(wrngTp);
         setInstlTpCodes(filtered.filteredInstlTp);
         setCbWrngTpCodes(filtered.filteredCbWrngTp);
@@ -560,17 +579,17 @@ const InstallInfoModal: React.FC<InstallInfoModalProps> = ({
   // SubHeader - 고객 정보
   const subHeader = loading ? null : (
     <div className="install-subheader">
-      <div className="info-row">
+      <div className="info-row whitespace-nowrap">
         <span className="info-label">고객ID:</span>
-        <span className="info-value">{customerId || '-'}</span>
+        <span className="info-value">{formatId(customerId)}</span>
       </div>
-      <div className="info-row">
+      <div className="info-row whitespace-nowrap">
         <span className="info-label">고객명:</span>
         <span className="info-value">{customerName || '-'}</span>
       </div>
-      <div className="info-row">
+      <div className="info-row whitespace-nowrap">
         <span className="info-label">계약ID:</span>
-        <span className="info-value">{contractId || '-'}</span>
+        <span className="info-value">{formatId(contractId)}</span>
       </div>
     </div>
   );
@@ -597,7 +616,7 @@ const InstallInfoModal: React.FC<InstallInfoModalProps> = ({
     <BaseModal
       isOpen={isOpen}
       onClose={onClose}
-      title="설치정보"
+      title={workType === '02' || workType === '08' || workType === '09' ? '철거정보' : '설치정보'}
       size="medium"
       subHeader={subHeader}
       footer={footer}
@@ -699,7 +718,8 @@ const InstallInfoModal: React.FC<InstallInfoModalProps> = ({
                   </div>
                 </div>
 
-                {/* 분배기여부 + 기존선로여부 (같은 줄) */}
+                {/* 분배기여부 + 기존선로여부/절단여부 (같은 줄) */}
+                {/* 레거시: WRK_CD 02/08일 때 기존선로여부 숨기고 절단여부 표시 */}
                 <div className="install-form-row-inline">
                   <label className="install-checkbox-label">
                     <input
@@ -710,15 +730,27 @@ const InstallInfoModal: React.FC<InstallInfoModalProps> = ({
                     />
                     <span>분배기여부</span>
                   </label>
-                  <label className="install-checkbox-label">
-                    <input
-                      type="checkbox"
-                      checked={formData.BFR_LINE_YN === 'Y'}
-                      onChange={(e) => handleChange('BFR_LINE_YN', e.target.checked ? 'Y' : 'N')}
-                      disabled={readOnly}
-                    />
-                    <span>기존선로여부</span>
-                  </label>
+                  {workType === '02' || workType === '08' ? (
+                    <label className="install-checkbox-label">
+                      <input
+                        type="checkbox"
+                        checked={formData.CUT_YN === 'Y'}
+                        onChange={(e) => handleChange('CUT_YN', e.target.checked ? 'Y' : 'N')}
+                        disabled={readOnly}
+                      />
+                      <span>절단여부</span>
+                    </label>
+                  ) : (
+                    <label className="install-checkbox-label">
+                      <input
+                        type="checkbox"
+                        checked={formData.BFR_LINE_YN === 'Y'}
+                        onChange={(e) => handleChange('BFR_LINE_YN', e.target.checked ? 'Y' : 'N')}
+                        disabled={readOnly}
+                      />
+                      <span>기존선로여부</span>
+                    </label>
+                  )}
                 </div>
               </div>
             </>
