@@ -516,7 +516,9 @@ export const getUserExtendedInfo = async (userId: string): Promise<{
   const origin = typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000';
 
   try {
-    const response = await fetchWithRetry(`${API_BASE}/customer/equipment/getUserExtendedInfo`, {
+    // /customer/equipment/* 는 레거시 equipmentController로 라우팅됨
+    // /statistics/equipment/* 는 EquipmentManagementController로 라우팅됨
+    const response = await fetchWithRetry(`${API_BASE}/statistics/equipment/getUserExtendedInfo`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
