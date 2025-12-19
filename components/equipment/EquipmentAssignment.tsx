@@ -86,13 +86,60 @@ const formatDateDot = (dateStr: string): string => {
   return dateStr;
 };
 
-// 지점 목록 (실제로는 API에서 가져와야 함)
-const DEFAULT_SO_LIST: SoListItem[] = [
-  { SO_ID: '209', SO_NM: '송파지점' },
-  { SO_ID: '210', SO_NM: '강남지점' },
-  { SO_ID: '211', SO_NM: '서초지점' },
-  { SO_ID: '212', SO_NM: '강동지점' },
-];
+// API Base URL
+const API_BASE = typeof window !== 'undefined' && window.location.hostname !== 'localhost'
+  ? `${window.location.protocol}//${window.location.hostname}:8080/api`
+  : 'http://52.63.232.141:8080/api';
+
+// 지점 목록 API 호출 (백엔드에서 AUTH_SO_List 가져오기)
+const fetchAuthSoList = async (): Promise<SoListItem[]> => {
+  try {
+    // 1순위: localStorage의 branchList
+    const branchList = localStorage.getItem('branchList');
+    if (branchList) {
+      const parsed = JSON.parse(branchList);
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        console.log('✅ [장비할당] branchList에서 지점 목록 로드:', parsed.length, '건');
+        return parsed;
+      }
+    }
+
+    // 2순위: userInfo의 authSoList
+    const userInfo = localStorage.getItem('userInfo');
+    if (userInfo) {
+      const user = JSON.parse(userInfo);
+      if (user.authSoList && Array.isArray(user.authSoList) && user.authSoList.length > 0) {
+        console.log('✅ [장비할당] authSoList에서 지점 목록 로드:', user.authSoList.length, '건');
+        return user.authSoList;
+      }
+    }
+
+    // 3순위: API 호출 (/statistics/equipment/getAuthSoList)
+    console.log('🔍 [장비할당] API에서 지점 목록 로드 시도...');
+    const response = await fetch(`${API_BASE}/statistics/equipment/getAuthSoList`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify({ USR_ID: userInfo ? JSON.parse(userInfo).userId : '' })
+    });
+
+    if (response.ok) {
+      const data = await response.json();
+      if (Array.isArray(data) && data.length > 0) {
+        console.log('✅ [장비할당] API에서 지점 목록 로드:', data.length, '건');
+        // localStorage에 캐시
+        localStorage.setItem('branchList', JSON.stringify(data));
+        return data;
+      }
+    }
+
+    console.log('⚠️ [장비할당] 지점 목록 없음 - 전체 조회 모드');
+    return [];
+  } catch (error) {
+    console.error('❌ [장비할당] 지점 목록 로드 실패:', error);
+    return [];
+  }
+};
 
 const EquipmentAssignment: React.FC<EquipmentAssignmentProps> = ({ onBack, showToast }) => {
   // localStorage에서 userInfo 가져오기
@@ -116,7 +163,16 @@ const EquipmentAssignment: React.FC<EquipmentAssignmentProps> = ({ onBack, showT
   const [eqtOutList, setEqtOutList] = useState<EqtOut[]>([]);
   const [selectedEqtOut, setSelectedEqtOut] = useState<EqtOut | null>(null);
   const [outTgtEqtList, setOutTgtEqtList] = useState<OutTgtEqt[]>([]);
-  const [soList] = useState<SoListItem[]>(DEFAULT_SO_LIST);
+  const [soList, setSoList] = useState<SoListItem[]>([]);
+
+  // 지점 목록 로드 (컴포넌트 마운트 시)
+  useEffect(() => {
+    const loadSoList = async () => {
+      const list = await fetchAuthSoList();
+      setSoList(list);
+    };
+    loadSoList();
+  }, []);
 
   // UI 상태
   const [isLoading, setIsLoading] = useState(false);

@@ -63,14 +63,59 @@ interface ItemMidItem {
   COMMON_CD_NM: string;
 }
 
-// 기본 지점 목록
-const DEFAULT_SO_LIST: SoListItem[] = [
-  { SO_ID: '209', SO_NM: '송파지점' },
-  { SO_ID: '210', SO_NM: '강남지점' },
-  { SO_ID: '211', SO_NM: '서초지점' },
-  { SO_ID: '212', SO_NM: '강동지점' },
-  { SO_ID: '100', SO_NM: '동서울지점' },
-];
+// API Base URL
+const API_BASE = typeof window !== 'undefined' && window.location.hostname !== 'localhost'
+  ? `${window.location.protocol}//${window.location.hostname}:8080/api`
+  : 'http://52.63.232.141:8080/api';
+
+// 지점 목록 API 호출 (백엔드에서 AUTH_SO_List 가져오기)
+const fetchAuthSoList = async (): Promise<SoListItem[]> => {
+  try {
+    // 1순위: localStorage의 branchList
+    const branchList = localStorage.getItem('branchList');
+    if (branchList) {
+      const parsed = JSON.parse(branchList);
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        console.log('✅ [장비처리] branchList에서 지점 목록 로드:', parsed.length, '건');
+        return parsed;
+      }
+    }
+
+    // 2순위: userInfo의 authSoList
+    const userInfo = localStorage.getItem('userInfo');
+    if (userInfo) {
+      const user = JSON.parse(userInfo);
+      if (user.authSoList && Array.isArray(user.authSoList) && user.authSoList.length > 0) {
+        console.log('✅ [장비처리] authSoList에서 지점 목록 로드:', user.authSoList.length, '건');
+        return user.authSoList;
+      }
+    }
+
+    // 3순위: API 호출 (/statistics/equipment/getAuthSoList)
+    console.log('🔍 [장비처리] API에서 지점 목록 로드 시도...');
+    const response = await fetch(`${API_BASE}/statistics/equipment/getAuthSoList`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify({ USR_ID: userInfo ? JSON.parse(userInfo).userId : '' })
+    });
+
+    if (response.ok) {
+      const data = await response.json();
+      if (Array.isArray(data) && data.length > 0) {
+        console.log('✅ [장비처리] API에서 지점 목록 로드:', data.length, '건');
+        localStorage.setItem('branchList', JSON.stringify(data));
+        return data;
+      }
+    }
+
+    console.log('⚠️ [장비처리] 지점 목록 없음 - 전체 조회 모드');
+    return [];
+  } catch (error) {
+    console.error('❌ [장비처리] 지점 목록 로드 실패:', error);
+    return [];
+  }
+};
 
 // 장비 중분류 목록
 const DEFAULT_ITEM_MID_LIST: ItemMidItem[] = [
@@ -105,8 +150,17 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
 
   // 데이터
   const [equipmentList, setEquipmentList] = useState<EquipmentItem[]>([]);
-  const [soList, setSoList] = useState<SoListItem[]>(DEFAULT_SO_LIST);
+  const [soList, setSoList] = useState<SoListItem[]>([]);
   const [itemMidList] = useState<ItemMidItem[]>(DEFAULT_ITEM_MID_LIST);
+
+  // 지점 목록 로드 (컴포넌트 마운트 시)
+  useEffect(() => {
+    const loadSoList = async () => {
+      const list = await fetchAuthSoList();
+      setSoList(list);
+    };
+    loadSoList();
+  }, []);
 
   // UI 상태
   const [isLoading, setIsLoading] = useState(false);
@@ -122,11 +176,9 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
   }, []);
 
   const loadDropdownData = async () => {
-    // 지점 코드는 API가 올바른 데이터를 반환하지 않으므로 기본값 사용
-    // API 응답: {name: '선택', sort_no: '0', ...} 형태로 SO_ID/SO_NM 없음
-    // 추후 백엔드에서 지점코드 API 추가 시 연동 가능
-    console.log('📋 [지점코드] 기본값 사용 (API 미지원)');
-    setSoList(DEFAULT_SO_LIST);
+    // 지점 목록은 useEffect의 fetchAuthSoList()에서 이미 로드됨
+    // 이 함수는 다른 드롭다운 데이터가 필요할 경우를 위해 유지
+    console.log('📋 [드롭다운] 초기화 완료');
   };
 
   // 장비 조회
