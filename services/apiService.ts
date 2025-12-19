@@ -4087,10 +4087,48 @@ export const apiRequest = async (endpoint: string, method: 'GET' | 'POST' = 'POS
     const response = await fetch(url, options);
     const result = await response.json();
 
+    // 백엔드 디버그 로그 콘솔 출력 (성공/실패 모두)
+    printBackendDebugLogs(endpoint, result, response.ok);
+
     console.log(`📡 [API 직접호출] ${endpoint} 응답:`, result);
     return result;
   } catch (error: any) {
     console.error(`❌ [API 직접호출] ${endpoint} 실패:`, error);
     throw error;
   }
+};
+
+/**
+ * 백엔드 디버그 로그를 콘솔에 출력하는 헬퍼 함수
+ * 서버 로그 파일에는 쓰지 않고 프론트엔드 콘솔에서만 확인 가능
+ */
+const printBackendDebugLogs = (endpoint: string, result: any, isSuccess: boolean): void => {
+  if (!result?.debugLogs || !Array.isArray(result.debugLogs) || result.debugLogs.length === 0) {
+    return;
+  }
+
+  const status = isSuccess ? '✅ 성공' : '❌ 실패';
+  console.group(`🔧 [백엔드 디버그 로그 - ${status}] ${endpoint}`);
+
+  result.debugLogs.forEach((log: string) => {
+    if (log.includes('SUCCESS') || log.includes('API_CALL_SUCCESS')) {
+      console.log('%c' + log, 'color: #22c55e; font-weight: bold;');
+    } else if (log.includes('ERROR') || log.includes('FAILED') || log.includes('Exception')) {
+      console.log('%c' + log, 'color: #ef4444; font-weight: bold;');
+    } else if (log.includes('FALLBACK') || log.includes('SKIP') || log.includes('Warning')) {
+      console.log('%c' + log, 'color: #f97316;');
+    } else if (log.includes('API_CALL_START') || log.includes('========')) {
+      console.log('%c' + log, 'color: #3b82f6; font-weight: bold;');
+    } else if (log.includes('[METHOD]') || log.includes('[URI]') || log.includes('[TIMESTAMP]')) {
+      console.log('%c' + log, 'color: #8b5cf6;');
+    } else if (log.includes('PARAMETER') || log.includes('Required:') || log.includes('Optional:')) {
+      console.log('%c' + log, 'color: #6366f1;');
+    } else if (log.includes('invokeFlexible') || log.includes('findMethod')) {
+      console.log('%c' + log, 'color: #0891b2;');
+    } else {
+      console.log(log);
+    }
+  });
+
+  console.groupEnd();
 };
