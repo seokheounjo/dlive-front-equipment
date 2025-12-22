@@ -1001,6 +1001,8 @@ const EquipmentList: React.FC<EquipmentListProps> = ({ onBack, showToast }) => {
           isOpen={showBarcodeScanner}
           onClose={() => setShowBarcodeScanner(false)}
           onScan={handleBarcodeScan}
+          isMultiScanMode={isMultiScanMode}
+          scanCount={scannedItems.length}
         />
     </div>
   );

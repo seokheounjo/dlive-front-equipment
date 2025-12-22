@@ -18,14 +18,14 @@ interface BarcodeScannerProps {
   isOpen: boolean;
   onClose: () => void;
   onScan: (barcode: string) => void;
+  isMultiScanMode?: boolean;
+  scanCount?: number;
 }
 
-const BarcodeScanner: React.FC<BarcodeScannerProps> = ({ isOpen, onClose, onScan }) => {
+const BarcodeScanner: React.FC<BarcodeScannerProps> = ({ isOpen, onClose, onScan, isMultiScanMode = false, scanCount = 0 }) => {
   const scannerRef = useRef<Html5Qrcode | null>(null);
   const [isScanning, setIsScanning] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [cameras, setCameras] = useState<Array<{ id: string; label: string }>>([]);
-  const [selectedCamera, setSelectedCamera] = useState<string>('');
   const [isRetrying, setIsRetrying] = useState(false);
 
   // Load html5-qrcode dynamically
@@ -71,26 +71,8 @@ const BarcodeScanner: React.FC<BarcodeScannerProps> = ({ isOpen, onClose, onScan
         return;
       }
 
-      // Get available cameras
-      const devices = await Html5QrcodeClass.getCameras();
-      setCameras(devices);
-
-      if (devices.length === 0) {
-        setError('카메라를 찾을 수 없습니다.');
-        return;
-      }
-
-      // Prefer back camera for mobile
-      const backCamera = devices.find((d: any) =>
-        d.label.toLowerCase().includes('back') ||
-        d.label.toLowerCase().includes('rear') ||
-        d.label.toLowerCase().includes('environment')
-      );
-      const cameraId = backCamera?.id || devices[0].id;
-      setSelectedCamera(cameraId);
-
-      // Start scanning
-      await startScanner(cameraId);
+      // Start scanning with back camera only
+      await startScanner();
     } catch (err: any) {
       console.error('Camera init error:', err);
       if (err.name === 'NotAllowedError' || err.message?.includes('Permission')) {
@@ -103,7 +85,7 @@ const BarcodeScanner: React.FC<BarcodeScannerProps> = ({ isOpen, onClose, onScan
     }
   };
 
-  const startScanner = async (cameraId?: string) => {
+  const startScanner = async () => {
     try {
       const Html5QrcodeClass = (window as any).Html5Qrcode;
       if (!Html5QrcodeClass) return;
@@ -131,12 +113,8 @@ const BarcodeScanner: React.FC<BarcodeScannerProps> = ({ isOpen, onClose, onScan
         aspectRatio: 1.777778, // 16:9
       };
 
-      const cameraConfig = cameraId
-        ? cameraId
-        : { facingMode: 'environment' }; // Back camera
-
       await scannerRef.current.start(
-        cameraConfig,
+        { facingMode: 'environment' }, // Back camera only
         config,
         (decodedText: string) => {
           console.log('Barcode scanned:', decodedText);
@@ -145,7 +123,10 @@ const BarcodeScanner: React.FC<BarcodeScannerProps> = ({ isOpen, onClose, onScan
             navigator.vibrate(100);
           }
           onScan(decodedText);
-          handleClose();
+          // Multi-scan mode: keep scanner open
+          if (!isMultiScanMode) {
+            handleClose();
+          }
         },
         (errorMessage: string) => {
           // Ignore scan errors (continuous scanning)
@@ -193,11 +174,6 @@ const BarcodeScanner: React.FC<BarcodeScannerProps> = ({ isOpen, onClose, onScan
     setIsRetrying(false);
   };
 
-  const handleCameraChange = (cameraId: string) => {
-    setSelectedCamera(cameraId);
-    startScanner(cameraId);
-  };
-
   if (!isOpen) return null;
 
   return (
@@ -211,7 +187,14 @@ const BarcodeScanner: React.FC<BarcodeScannerProps> = ({ isOpen, onClose, onScan
         style={{ paddingTop: 'calc(16px + env(safe-area-inset-top, 0px))' }}
       >
         <div className="flex items-center justify-between">
-          <h2 className="text-white font-bold text-lg">바코드 스캔</h2>
+          <div className="flex items-center gap-3">
+            <h2 className="text-white font-bold text-lg">바코드 스캔</h2>
+            {isMultiScanMode && (
+              <span className="px-2.5 py-1 bg-blue-500 text-white text-sm font-bold rounded-full">
+                {scanCount}건
+              </span>
+            )}
+          </div>
           <button
             onClick={handleClose}
             className="p-2 rounded-full bg-white/20 hover:bg-white/30 transition-colors active:scale-95"
@@ -221,23 +204,6 @@ const BarcodeScanner: React.FC<BarcodeScannerProps> = ({ isOpen, onClose, onScan
             </svg>
           </button>
         </div>
-
-        {/* Camera selector */}
-        {cameras.length > 1 && (
-          <div className="mt-2">
-            <select
-              value={selectedCamera}
-              onChange={(e) => handleCameraChange(e.target.value)}
-              className="w-full px-3 py-2 text-sm bg-white/10 text-white border border-white/20 rounded-lg"
-            >
-              {cameras.map((camera) => (
-                <option key={camera.id} value={camera.id} className="text-black">
-                  {camera.label || `Camera ${camera.id}`}
-                </option>
-              ))}
-            </select>
-          </div>
-        )}
       </div>
 
       {/* Scanner area - 중앙 */}
@@ -293,7 +259,9 @@ const BarcodeScanner: React.FC<BarcodeScannerProps> = ({ isOpen, onClose, onScan
               장비 바코드를 화면 중앙에 맞춰주세요
             </p>
             <p className="text-white/50 text-xs">
-              S/N 바코드가 자동으로 인식됩니다
+              {isMultiScanMode
+                ? '연속 스캔 모드 - 여러 장비를 계속 스캔하세요'
+                : 'S/N 바코드가 자동으로 인식됩니다'}
             </p>
           </div>
         )}
