@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { getEquipmentHistoryInfo, apiRequest, getWrkrHaveEqtList } from '../../services/apiService';
 import { debugApiCall } from './equipmentDebug';
+import BarcodeScanner from './BarcodeScanner';
 
 // 장비 상태 코드 매핑 (CMEP301)
 const EQT_STAT_CODE_MAP: Record<string, string> = {
@@ -192,6 +193,9 @@ const EquipmentList: React.FC<EquipmentListProps> = ({ onBack, showToast }) => {
   // 뷰 모드: simple(간단히), medium(중간), detail(자세히)
   const [viewMode, setViewMode] = useState<'simple' | 'medium' | 'detail'>('simple');
 
+  // 바코드 스캐너 모달
+  const [showBarcodeScanner, setShowBarcodeScanner] = useState(false);
+
   // 바코드 스캔 입력 참조
   const inputRef = React.useRef<HTMLInputElement>(null);
 
@@ -265,6 +269,19 @@ const EquipmentList: React.FC<EquipmentListProps> = ({ onBack, showToast }) => {
     }
 
     return null;
+  };
+
+  // 바코드 스캔 핸들러
+  const handleBarcodeScan = (barcode: string) => {
+    console.log('Barcode scanned:', barcode);
+    setSearchValue(barcode.toUpperCase());
+    setShowBarcodeScanner(false);
+    showToast?.(`바코드 스캔 완료: ${barcode}`, 'success');
+    // 자동 조회
+    setTimeout(() => {
+      const fakeEvent = { key: 'Enter' } as React.KeyboardEvent;
+      handleSearch();
+    }, 300);
   };
 
   const handleSearch = async () => {
@@ -558,27 +575,40 @@ const EquipmentList: React.FC<EquipmentListProps> = ({ onBack, showToast }) => {
               />
             </div>
 
-            {/* 조회 버튼 */}
-            <button
-              onClick={handleSearch}
-              disabled={isLoading}
-              className="w-full bg-blue-500 hover:bg-blue-600 disabled:bg-gray-400 text-white py-2.5 rounded-lg font-semibold text-sm shadow-sm transition-all active:scale-[0.98] touch-manipulation flex items-center justify-center gap-2"
-              style={{ WebkitTapHighlightColor: 'transparent' }}
-            >
-              {isLoading ? (
-                <>
-                  <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-                  </svg>
-                  조회 중...
-                </>
-              ) : isMultiScanMode ? (
-                '스캔'
-              ) : (
-                '조회'
-              )}
-            </button>
+            {/* 조회 + 바코드 버튼 */}
+            <div className="flex gap-2">
+              <button
+                onClick={handleSearch}
+                disabled={isLoading}
+                className="flex-1 bg-blue-500 hover:bg-blue-600 disabled:bg-gray-400 text-white py-2.5 rounded-lg font-semibold text-sm shadow-sm transition-all active:scale-[0.98] touch-manipulation flex items-center justify-center gap-2"
+                style={{ WebkitTapHighlightColor: 'transparent' }}
+              >
+                {isLoading ? (
+                  <>
+                    <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                    </svg>
+                    조회 중...
+                  </>
+                ) : isMultiScanMode ? (
+                  '스캔'
+                ) : (
+                  '조회'
+                )}
+              </button>
+              <button
+                onClick={() => setShowBarcodeScanner(true)}
+                disabled={isLoading}
+                className="flex-1 py-2.5 rounded-lg font-semibold text-sm shadow-sm transition-all flex items-center justify-center gap-2 active:scale-[0.98] touch-manipulation bg-gray-800 hover:bg-gray-900 disabled:bg-gray-400 text-white"
+                style={{ WebkitTapHighlightColor: 'transparent' }}
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z" />
+                </svg>
+                바코드
+              </button>
+            </div>
           </div>
         </div>
 
@@ -945,6 +975,13 @@ const EquipmentList: React.FC<EquipmentListProps> = ({ onBack, showToast }) => {
             </details>
           </div>
         )}
+
+        {/* Barcode Scanner */}
+        <BarcodeScanner
+          isOpen={showBarcodeScanner}
+          onClose={() => setShowBarcodeScanner(false)}
+          onScan={handleBarcodeScan}
+        />
     </div>
   );
 };
