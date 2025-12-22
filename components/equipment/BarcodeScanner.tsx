@@ -95,8 +95,10 @@ const BarcodeScanner: React.FC<BarcodeScannerProps> = ({ isOpen, onClose, onScan
       console.error('Camera init error:', err);
       if (err.name === 'NotAllowedError' || err.message?.includes('Permission')) {
         setError('카메라 접근 권한이 필요합니다.\n설정에서 카메라 권한을 허용해주세요.');
+      } else if (err.message?.includes('secure context') || err.message?.includes('https')) {
+        setError('카메라는 HTTPS 또는 localhost에서만 사용 가능합니다.\n\n수동으로 S/N을 입력해주세요.');
       } else {
-        setError('카메라를 초기화할 수 없습니다: ' + (err.message || err));
+        setError('카메라를 초기화할 수 없습니다:\n' + (err.message || err));
       }
     }
   };
