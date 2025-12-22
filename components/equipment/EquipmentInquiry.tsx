@@ -10,6 +10,7 @@ import {
 } from '../../services/apiService';
 import BaseModal from '../common/BaseModal';
 import { debugApiCall } from './equipmentDebug';
+import BarcodeScanner from './BarcodeScanner';
 
 interface EquipmentInquiryProps {
   onBack: () => void;
@@ -24,8 +25,12 @@ interface UserInfo {
   mstSoId?: string;
 }
 
-// 장비 상태 타입 (미회수 제외 - 미회수장비 메뉴에서 처리)
-type EquipmentSearchCondition = 'OWNED' | 'RETURN_REQUESTED' | 'INSPECTION_WAITING';
+// 검색 조건 체크박스 상태 (복수 선택 가능)
+interface SearchConditions {
+  OWNED: boolean;           // 보유장비
+  RETURN_REQUESTED: boolean; // 반납요청
+  INSPECTION_WAITING: boolean; // 검사대기
+}
 
 // 장비 상태 코드 매핑 (CMEP301)
 const EQT_STAT_CODE_MAP: Record<string, string> = {
@@ -181,8 +186,20 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
   const [selectedItemMidCd, setSelectedItemMidCd] = useState<string>('');
   const [eqtSerno, setEqtSerno] = useState<string>('705KVQS022868'); // 테스트용 고정값
 
-  // 검색 조건 - 보유, 반납요청중, 검사대기 (미회수 제외 - 별도 메뉴에서 처리)
-  const [searchCondition, setSearchCondition] = useState<EquipmentSearchCondition>('OWNED');
+  // 검색 조건 - 체크박스로 복수 선택 가능 (처음에는 모두 체크)
+  const [searchConditions, setSearchConditions] = useState<SearchConditions>({
+    OWNED: true,
+    RETURN_REQUESTED: true,
+    INSPECTION_WAITING: true,
+  });
+  
+  // 체크박스 토글 핸들러
+  const toggleCondition = (condition: keyof SearchConditions) => {
+    setSearchConditions(prev => ({
+      ...prev,
+      [condition]: !prev[condition]
+    }));
+  };
 
   // 데이터
   const [equipmentList, setEquipmentList] = useState<EquipmentItem[]>([]);
@@ -208,6 +225,9 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
 
   // 뷰 모드: simple(간단히), medium(중간), detail(자세히)
   const [viewMode, setViewMode] = useState<'simple' | 'medium' | 'detail'>('simple');
+
+  // Barcode scanner state
+  const [showBarcodeScanner, setShowBarcodeScanner] = useState(false);
 
   // 초기 데이터 로드
   useEffect(() => {
@@ -244,7 +264,7 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
 
     try {
       console.log('🔍 [장비처리] 시작:', {
-        searchCondition,
+        searchConditions,
         SO_ID: selectedSoId,
         WRKR_ID: userInfo.userId,
         ITEM_MID_CD: selectedItemMidCd,
@@ -254,6 +274,7 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
       let result: any[] = [];
 
       // S/N 또는 MAC 입력 시: getEquipmentHistoryInfo API 사용 (DB 직접 검색)
+      // S/N 검색은 보유장비만 조회 (반납요청/검사대기 장비는 제외)
       if (eqtSerno && eqtSerno.trim().length > 0) {
         console.log('🔍 [장비조회] S/N 검색 모드 - getEquipmentHistoryInfo 사용');
         const historyParams = {
@@ -275,59 +296,81 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
         }
         console.log('🔍 [장비조회] S/N 검색 결과:', result.length, '건');
       } else {
-        // 일반 조회: 기존 API 사용
+        // 일반 조회: 체크된 조건에 따라 여러 API 호출 후 합치기
         const baseParams: any = {
           WRKR_ID: userInfo.userId,
           SO_ID: selectedSoId || userInfo.soId || undefined,
           ITEM_MID_CD: selectedItemMidCd || undefined,
         };
 
-        // 검색조건별 파라미터 설정
-        switch (searchCondition) {
-          case 'OWNED':
-            baseParams.EQT_STAT_CD = '10';
-            baseParams.EQT_LOC_TP_CD = '3';
-            baseParams.EXCLUDE_STAT = ['40', '60', '50'];
-            break;
-          case 'RETURN_REQUESTED':
-            baseParams.EQT_STAT_CD = '40';
-            break;
-          case 'INSPECTION_WAITING':
-            baseParams.EQT_STAT_CD = '50';
-            break;
+        // 체크된 조건에 따라 API 호출
+        const allResults: any[] = [];
+
+        // 보유장비 체크 시
+        if (searchConditions.OWNED) {
+          const ownedParams = {
+            ...baseParams,
+            EQT_STAT_CD: '10',
+            EQT_LOC_TP_CD: '3',
+          };
+          try {
+            const ownedResult = await debugApiCall(
+              'EquipmentInquiry',
+              'getWorkerEquipmentList (보유)',
+              () => getWorkerEquipmentList(ownedParams),
+              ownedParams
+            );
+            if (Array.isArray(ownedResult)) {
+              allResults.push(...ownedResult);
+            }
+          } catch (e) {
+            console.log('보유장비 조회 실패:', e);
+          }
         }
 
-        const apiParams = {
-          WRKR_ID: userInfo.userId,
-          SO_ID: selectedSoId || userInfo.soId || undefined,
-          ...baseParams
-        };
-
-        if (searchCondition === 'OWNED') {
-          // 보유장비: getWorkerEquipmentList (= getWrkrHaveEqtList) 호출
-          result = await debugApiCall(
-            'EquipmentInquiry',
-            'getWorkerEquipmentList',
-            () => getWorkerEquipmentList(apiParams),
-            apiParams
-          );
-        } else if (searchCondition === 'RETURN_REQUESTED') {
-          // 반납요청: getEquipmentReturnRequestList 호출
-          result = await debugApiCall(
-            'EquipmentInquiry',
-            'getEquipmentReturnRequestList',
-            () => getEquipmentReturnRequestList(apiParams),
-            apiParams
-          );
-        } else {
-          // 검사대기: getWorkerEquipmentList 호출
-          result = await debugApiCall(
-            'EquipmentInquiry',
-            'getWorkerEquipmentList',
-            () => getWorkerEquipmentList(apiParams),
-            apiParams
-          );
+        // 반납요청 체크 시
+        if (searchConditions.RETURN_REQUESTED) {
+          const returnParams = {
+            ...baseParams,
+            EQT_STAT_CD: '40',
+          };
+          try {
+            const returnResult = await debugApiCall(
+              'EquipmentInquiry',
+              'getEquipmentReturnRequestList (반납요청)',
+              () => getEquipmentReturnRequestList(returnParams),
+              returnParams
+            );
+            if (Array.isArray(returnResult)) {
+              allResults.push(...returnResult);
+            }
+          } catch (e) {
+            console.log('반납요청 조회 실패:', e);
+          }
         }
+
+        // 검사대기 체크 시
+        if (searchConditions.INSPECTION_WAITING) {
+          const inspectionParams = {
+            ...baseParams,
+            EQT_STAT_CD: '50',
+          };
+          try {
+            const inspectionResult = await debugApiCall(
+              'EquipmentInquiry',
+              'getWorkerEquipmentList (검사대기)',
+              () => getWorkerEquipmentList(inspectionParams),
+              inspectionParams
+            );
+            if (Array.isArray(inspectionResult)) {
+              allResults.push(...inspectionResult);
+            }
+          } catch (e) {
+            console.log('검사대기 조회 실패:', e);
+          }
+        }
+
+        result = allResults;
       }
 
       // 결과 변환
@@ -528,54 +571,102 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
     }
   };
 
+  // 바코드 스캔 핸들러
+  const handleBarcodeScan = (barcode: string) => {
+    console.log('Barcode scanned:', barcode);
+    setEqtSerno(barcode.toUpperCase());
+    setShowBarcodeScanner(false);
+    showToast?.(`바코드 스캔 완료: ${barcode}`, 'success');
+    // Auto search after scan
+    setTimeout(() => {
+      handleSearch();
+    }, 300);
+  };
+
   // 선택된 장비 수
   const selectedCount = equipmentList.filter(item => item.CHK).length;
 
   return (
     <div className="h-full overflow-y-auto bg-gray-50 px-4 py-4 space-y-3">
-        {/* 검색 조건 선택 박스 (상단 배치) - 라디오 버튼 없이 박스 클릭으로 선택 */}
+        {/* 검색 조건 선택 박스 - 체크박스로 복수 선택 가능 */}
         <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-3">
           <div className="grid grid-cols-3 gap-2">
+            {/* 보유장비 체크박스 */}
             <button
               type="button"
-              onClick={() => setSearchCondition('OWNED')}
+              onClick={() => toggleCondition('OWNED')}
               className={`p-3 rounded-lg border-2 transition-all text-center active:scale-[0.98] touch-manipulation ${
-                searchCondition === 'OWNED'
-                  ? 'bg-blue-50 border-blue-500 text-blue-700 shadow-sm'
-                  : 'border-gray-200 hover:bg-gray-50 text-gray-600'
+                searchConditions.OWNED
+                  ? 'bg-green-50 border-green-500 text-green-700 shadow-sm'
+                  : 'border-gray-200 hover:bg-gray-50 text-gray-400'
               }`}
               style={{ WebkitTapHighlightColor: 'transparent' }}
             >
-              <div className="text-sm font-bold">보유</div>
-              <div className="text-[10px] text-gray-500 mt-0.5">내 장비 목록</div>
+              <div className="flex items-center justify-center gap-1.5 mb-1">
+                <div className={`w-4 h-4 rounded border-2 flex items-center justify-center ${
+                  searchConditions.OWNED ? 'bg-green-500 border-green-500' : 'border-gray-300'
+                }`}>
+                  {searchConditions.OWNED && (
+                    <svg className="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                    </svg>
+                  )}
+                </div>
+                <span className="text-sm font-bold">보유</span>
+              </div>
+              <div className="text-[10px] text-gray-500">내 장비</div>
             </button>
 
+            {/* 반납요청 체크박스 */}
             <button
               type="button"
-              onClick={() => setSearchCondition('RETURN_REQUESTED')}
+              onClick={() => toggleCondition('RETURN_REQUESTED')}
               className={`p-3 rounded-lg border-2 transition-all text-center active:scale-[0.98] touch-manipulation ${
-                searchCondition === 'RETURN_REQUESTED'
-                  ? 'bg-blue-50 border-blue-500 text-blue-700 shadow-sm'
-                  : 'border-gray-200 hover:bg-gray-50 text-gray-600'
+                searchConditions.RETURN_REQUESTED
+                  ? 'bg-amber-50 border-amber-500 text-amber-700 shadow-sm'
+                  : 'border-gray-200 hover:bg-gray-50 text-gray-400'
               }`}
               style={{ WebkitTapHighlightColor: 'transparent' }}
             >
-              <div className="text-sm font-bold">반납요청</div>
-              <div className="text-[10px] text-gray-500 mt-0.5">반납 진행중</div>
+              <div className="flex items-center justify-center gap-1.5 mb-1">
+                <div className={`w-4 h-4 rounded border-2 flex items-center justify-center ${
+                  searchConditions.RETURN_REQUESTED ? 'bg-amber-500 border-amber-500' : 'border-gray-300'
+                }`}>
+                  {searchConditions.RETURN_REQUESTED && (
+                    <svg className="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                    </svg>
+                  )}
+                </div>
+                <span className="text-sm font-bold">반납요청</span>
+              </div>
+              <div className="text-[10px] text-gray-500">반납 진행</div>
             </button>
 
+            {/* 검사대기 체크박스 */}
             <button
               type="button"
-              onClick={() => setSearchCondition('INSPECTION_WAITING')}
+              onClick={() => toggleCondition('INSPECTION_WAITING')}
               className={`p-3 rounded-lg border-2 transition-all text-center active:scale-[0.98] touch-manipulation ${
-                searchCondition === 'INSPECTION_WAITING'
-                  ? 'bg-blue-50 border-blue-500 text-blue-700 shadow-sm'
-                  : 'border-gray-200 hover:bg-gray-50 text-gray-600'
+                searchConditions.INSPECTION_WAITING
+                  ? 'bg-purple-50 border-purple-500 text-purple-700 shadow-sm'
+                  : 'border-gray-200 hover:bg-gray-50 text-gray-400'
               }`}
               style={{ WebkitTapHighlightColor: 'transparent' }}
             >
-              <div className="text-sm font-bold">검사대기</div>
-              <div className="text-[10px] text-gray-500 mt-0.5">검사 대기중</div>
+              <div className="flex items-center justify-center gap-1.5 mb-1">
+                <div className={`w-4 h-4 rounded border-2 flex items-center justify-center ${
+                  searchConditions.INSPECTION_WAITING ? 'bg-purple-500 border-purple-500' : 'border-gray-300'
+                }`}>
+                  {searchConditions.INSPECTION_WAITING && (
+                    <svg className="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                    </svg>
+                  )}
+                </div>
+                <span className="text-sm font-bold">검사대기</span>
+              </div>
+              <div className="text-[10px] text-gray-500">검사 대기</div>
             </button>
           </div>
         </div>
@@ -637,25 +728,38 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
             </div>
           </div>
 
-          {/* 조회 버튼 */}
-          <button
-            onClick={handleSearch}
-            disabled={isLoading}
-            className="w-full mt-4 bg-blue-500 hover:bg-blue-600 disabled:bg-gray-400 text-white py-2.5 rounded-lg font-semibold text-sm shadow-sm transition-all flex items-center justify-center gap-2 active:scale-[0.98] touch-manipulation"
-            style={{ WebkitTapHighlightColor: 'transparent' }}
-          >
-            {isLoading ? (
-              <>
-                <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-                </svg>
-                조회 중...
-              </>
-            ) : (
-              '조회'
-            )}
-          </button>
+          {/* 조회 + 바코드 버튼 */}
+          <div className="flex gap-2 mt-4">
+            <button
+              onClick={handleSearch}
+              disabled={isLoading}
+              className="flex-1 bg-blue-500 hover:bg-blue-600 disabled:bg-gray-400 text-white py-2.5 rounded-lg font-semibold text-sm shadow-sm transition-all flex items-center justify-center gap-2 active:scale-[0.98] touch-manipulation"
+              style={{ WebkitTapHighlightColor: 'transparent' }}
+            >
+              {isLoading ? (
+                <>
+                  <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                  </svg>
+                  조회 중...
+                </>
+              ) : (
+                '조회'
+              )}
+            </button>
+            <button
+              onClick={() => setShowBarcodeScanner(true)}
+              disabled={isLoading}
+              className="flex-1 py-2.5 rounded-lg font-semibold text-sm shadow-sm transition-all flex items-center justify-center gap-2 active:scale-[0.98] touch-manipulation bg-gray-800 hover:bg-gray-900 disabled:bg-gray-400 text-white"
+              style={{ WebkitTapHighlightColor: 'transparent' }}
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z" />
+              </svg>
+              바코드
+            </button>
+          </div>
         </div>
 
         {/* 장비 리스트 */}
@@ -918,15 +1022,15 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
           </div>
         )}
 
-        {/* 하단 버튼 영역 - 검색조건별 필요한 버튼만 표시 */}
-        <div className="flex gap-2">
-          {/* 보유: 장비반납, 분실처리 */}
-          {searchCondition === 'OWNED' && (
+        {/* 하단 버튼 영역 - 체크된 조건에 따라 버튼 표시 */}
+        <div className="flex gap-2 flex-wrap">
+          {/* 보유장비 체크 시: 장비반납, 분실처리 */}
+          {searchConditions.OWNED && (
             <>
               <button
                 onClick={handleReturnClick}
                 disabled={selectedCount === 0}
-                className={`flex-1 py-2.5 rounded-lg font-semibold text-sm shadow-sm transition-all active:scale-[0.98] touch-manipulation ${
+                className={`flex-1 min-w-[100px] py-2.5 rounded-lg font-semibold text-sm shadow-sm transition-all active:scale-[0.98] touch-manipulation ${
                   selectedCount > 0
                     ? 'bg-blue-500 hover:bg-blue-600 text-white'
                     : 'bg-gray-200 text-gray-400 cursor-not-allowed'
@@ -938,7 +1042,7 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
               <button
                 onClick={handleLossClick}
                 disabled={selectedCount === 0}
-                className={`flex-1 py-2.5 rounded-lg font-semibold text-sm shadow-sm transition-all active:scale-[0.98] touch-manipulation ${
+                className={`flex-1 min-w-[100px] py-2.5 rounded-lg font-semibold text-sm shadow-sm transition-all active:scale-[0.98] touch-manipulation ${
                   selectedCount > 0
                     ? 'bg-red-500 hover:bg-red-600 text-white'
                     : 'bg-gray-200 text-gray-400 cursor-not-allowed'
@@ -950,12 +1054,12 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
             </>
           )}
 
-          {/* 반납요청중: 반납취소 */}
-          {searchCondition === 'RETURN_REQUESTED' && (
+          {/* 반납요청 체크 시: 반납취소 */}
+          {searchConditions.RETURN_REQUESTED && (
             <button
-              onClick={handleReturnClick}
+              onClick={() => handleReturnRequest('CANCEL')}
               disabled={selectedCount === 0}
-              className={`flex-1 py-2.5 rounded-lg font-semibold text-sm shadow-sm transition-all active:scale-[0.98] touch-manipulation ${
+              className={`flex-1 min-w-[100px] py-2.5 rounded-lg font-semibold text-sm shadow-sm transition-all active:scale-[0.98] touch-manipulation ${
                 selectedCount > 0
                   ? 'bg-amber-500 hover:bg-amber-600 text-white'
                   : 'bg-gray-200 text-gray-400 cursor-not-allowed'
@@ -966,12 +1070,12 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
             </button>
           )}
 
-          {/* 검사대기: 사용가능변경 */}
-          {searchCondition === 'INSPECTION_WAITING' && (
+          {/* 검사대기 체크 시: 사용가능변경 */}
+          {searchConditions.INSPECTION_WAITING && (
             <button
               onClick={handleStatusChangeClick}
               disabled={selectedCount === 0}
-              className={`flex-1 py-2.5 rounded-lg font-semibold text-sm shadow-sm transition-all active:scale-[0.98] touch-manipulation ${
+              className={`flex-1 min-w-[100px] py-2.5 rounded-lg font-semibold text-sm shadow-sm transition-all active:scale-[0.98] touch-manipulation ${
                 selectedCount > 0
                   ? 'bg-green-500 hover:bg-green-600 text-white'
                   : 'bg-gray-200 text-gray-400 cursor-not-allowed'
@@ -1049,23 +1153,13 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
             >
               재선택
             </button>
-            {searchCondition === 'OWNED' ? (
-              <button
-                onClick={() => handleReturnRequest('RETURN')}
-                className="flex-1 py-2.5 bg-blue-500 hover:bg-blue-600 text-white rounded-lg font-semibold text-sm transition-all active:scale-[0.98] touch-manipulation"
-                style={{ WebkitTapHighlightColor: 'transparent' }}
-              >
-                반납요청
-              </button>
-            ) : (
-              <button
-                onClick={() => handleReturnRequest('CANCEL')}
-                className="flex-1 py-2.5 bg-amber-500 hover:bg-amber-600 text-white rounded-lg font-semibold text-sm transition-all active:scale-[0.98] touch-manipulation"
-                style={{ WebkitTapHighlightColor: 'transparent' }}
-              >
-                요청취소
-              </button>
-            )}
+            <button
+              onClick={() => handleReturnRequest('RETURN')}
+              className="flex-1 py-2.5 bg-blue-500 hover:bg-blue-600 text-white rounded-lg font-semibold text-sm transition-all active:scale-[0.98] touch-manipulation"
+              style={{ WebkitTapHighlightColor: 'transparent' }}
+            >
+              반납요청
+            </button>
           </div>
         </div>
       </BaseModal>
@@ -1131,6 +1225,13 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
           </div>
         )}
       </BaseModal>
+
+      {/* Barcode Scanner */}
+      <BarcodeScanner
+        isOpen={showBarcodeScanner}
+        onClose={() => setShowBarcodeScanner(false)}
+        onScan={handleBarcodeScan}
+      />
     </div>
   );
 };
