@@ -26,15 +26,19 @@ const BarcodeScanner: React.FC<BarcodeScannerProps> = ({ isOpen, onClose, onScan
   const [error, setError] = useState<string | null>(null);
   const [cameras, setCameras] = useState<Array<{ id: string; label: string }>>([]);
   const [selectedCamera, setSelectedCamera] = useState<string>('');
+  const [isRetrying, setIsRetrying] = useState(false);
 
   // Load html5-qrcode dynamically
   useEffect(() => {
     if (!isOpen) return;
 
+    setError(null);
+    setIsScanning(false);
+
     const loadScript = async () => {
       // Check if already loaded
       if ((window as any).Html5Qrcode) {
-        initScanner();
+        await initScanner();
         return;
       }
 
@@ -60,6 +64,7 @@ const BarcodeScanner: React.FC<BarcodeScannerProps> = ({ isOpen, onClose, onScan
 
   const initScanner = async () => {
     try {
+      setError(null);
       const Html5QrcodeClass = (window as any).Html5Qrcode;
       if (!Html5QrcodeClass) {
         setError('Html5Qrcode not loaded');
@@ -85,10 +90,14 @@ const BarcodeScanner: React.FC<BarcodeScannerProps> = ({ isOpen, onClose, onScan
       setSelectedCamera(cameraId);
 
       // Start scanning
-      startScanner(cameraId);
+      await startScanner(cameraId);
     } catch (err: any) {
       console.error('Camera init error:', err);
-      setError('카메라 접근 권한이 필요합니다.');
+      if (err.name === 'NotAllowedError' || err.message?.includes('Permission')) {
+        setError('카메라 접근 권한이 필요합니다.\n설정에서 카메라 권한을 허용해주세요.');
+      } else {
+        setError('카메라를 초기화할 수 없습니다: ' + (err.message || err));
+      }
     }
   };
 
@@ -105,7 +114,11 @@ const BarcodeScanner: React.FC<BarcodeScannerProps> = ({ isOpen, onClose, onScan
         } catch (e) {
           // Ignore
         }
+        scannerRef.current = null;
       }
+
+      // Wait for DOM element
+      await new Promise(resolve => setTimeout(resolve, 100));
 
       // Create new scanner
       scannerRef.current = new Html5QrcodeClass('barcode-reader');
@@ -141,7 +154,7 @@ const BarcodeScanner: React.FC<BarcodeScannerProps> = ({ isOpen, onClose, onScan
       setError(null);
     } catch (err: any) {
       console.error('Scanner start error:', err);
-      setError('카메라를 시작할 수 없습니다. 권한을 확인해주세요.');
+      setError('카메라를 시작할 수 없습니다.\n' + (err.message || '권한을 확인해주세요.'));
     }
   };
 
@@ -163,6 +176,21 @@ const BarcodeScanner: React.FC<BarcodeScannerProps> = ({ isOpen, onClose, onScan
     onClose();
   };
 
+  const handleRetry = async () => {
+    setIsRetrying(true);
+    setError(null);
+
+    // Stop any existing scanner
+    await stopScanner();
+
+    // Wait a moment
+    await new Promise(resolve => setTimeout(resolve, 300));
+
+    // Try to reinitialize
+    await initScanner();
+    setIsRetrying(false);
+  };
+
   const handleCameraChange = (cameraId: string) => {
     setSelectedCamera(cameraId);
     startScanner(cameraId);
@@ -171,14 +199,20 @@ const BarcodeScanner: React.FC<BarcodeScannerProps> = ({ isOpen, onClose, onScan
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 bg-black">
-      {/* Header */}
-      <div className="absolute top-0 left-0 right-0 z-10 bg-gradient-to-b from-black/80 to-transparent p-4">
+    <div
+      className="fixed inset-0 bg-black"
+      style={{ zIndex: 99999 }}
+    >
+      {/* Header - safe area 적용 */}
+      <div
+        className="absolute top-0 left-0 right-0 bg-black/90 px-4 py-3"
+        style={{ paddingTop: 'max(12px, env(safe-area-inset-top))' }}
+      >
         <div className="flex items-center justify-between">
           <h2 className="text-white font-bold text-lg">바코드 스캔</h2>
           <button
             onClick={handleClose}
-            className="p-2 rounded-full bg-white/20 hover:bg-white/30 transition-colors"
+            className="p-2 rounded-full bg-white/20 hover:bg-white/30 transition-colors active:scale-95"
           >
             <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -188,7 +222,7 @@ const BarcodeScanner: React.FC<BarcodeScannerProps> = ({ isOpen, onClose, onScan
 
         {/* Camera selector */}
         {cameras.length > 1 && (
-          <div className="mt-3">
+          <div className="mt-2">
             <select
               value={selectedCamera}
               onChange={(e) => handleCameraChange(e.target.value)}
@@ -204,26 +238,56 @@ const BarcodeScanner: React.FC<BarcodeScannerProps> = ({ isOpen, onClose, onScan
         )}
       </div>
 
-      {/* Scanner area */}
-      <div className="h-full flex items-center justify-center">
-        <div id="barcode-reader" className="w-full max-w-lg"></div>
+      {/* Scanner area - 중앙 */}
+      <div className="absolute inset-0 flex items-center justify-center" style={{ top: '80px', bottom: '180px' }}>
+        <div id="barcode-reader" className="w-full max-w-sm mx-4"></div>
       </div>
 
-      {/* Instructions */}
-      <div className="absolute bottom-0 left-0 right-0 z-10 bg-gradient-to-t from-black/80 to-transparent p-6">
+      {/* Scan overlay */}
+      {isScanning && (
+        <div className="absolute inset-0 pointer-events-none flex items-center justify-center">
+          <div className="w-64 h-40 relative">
+            {/* Corner markers */}
+            <div className="absolute top-0 left-0 w-8 h-8 border-t-4 border-l-4 border-green-400 rounded-tl-lg"></div>
+            <div className="absolute top-0 right-0 w-8 h-8 border-t-4 border-r-4 border-green-400 rounded-tr-lg"></div>
+            <div className="absolute bottom-0 left-0 w-8 h-8 border-b-4 border-l-4 border-green-400 rounded-bl-lg"></div>
+            <div className="absolute bottom-0 right-0 w-8 h-8 border-b-4 border-r-4 border-green-400 rounded-br-lg"></div>
+
+            {/* Scan line animation */}
+            <div className="absolute left-2 right-2 h-0.5 bg-gradient-to-r from-transparent via-green-400 to-transparent animate-scan"></div>
+          </div>
+        </div>
+      )}
+
+      {/* Footer - safe area 적용 */}
+      <div
+        className="absolute bottom-0 left-0 right-0 bg-black/90 px-4 py-4"
+        style={{ paddingBottom: 'max(16px, env(safe-area-inset-bottom))' }}
+      >
         {error ? (
-          <div className="bg-red-500/20 border border-red-500/50 rounded-lg p-4 mb-4">
-            <p className="text-red-200 text-sm text-center">{error}</p>
+          <div className="bg-red-500/20 border border-red-500/50 rounded-lg p-4 mb-3">
+            <p className="text-red-200 text-sm text-center whitespace-pre-line">{error}</p>
             <button
-              onClick={() => initScanner()}
-              className="w-full mt-3 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg text-sm font-medium"
+              onClick={handleRetry}
+              disabled={isRetrying}
+              className="w-full mt-3 py-2.5 bg-red-500 hover:bg-red-600 disabled:bg-red-400 text-white rounded-lg text-sm font-medium flex items-center justify-center gap-2"
             >
-              다시 시도
+              {isRetrying ? (
+                <>
+                  <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                  </svg>
+                  권한 요청 중...
+                </>
+              ) : (
+                '다시 시도'
+              )}
             </button>
           </div>
         ) : (
-          <div className="text-center">
-            <p className="text-white/80 text-sm mb-2">
+          <div className="text-center mb-3">
+            <p className="text-white/80 text-sm mb-1">
               장비 바코드를 화면 중앙에 맞춰주세요
             </p>
             <p className="text-white/50 text-xs">
@@ -235,27 +299,11 @@ const BarcodeScanner: React.FC<BarcodeScannerProps> = ({ isOpen, onClose, onScan
         {/* Manual input button */}
         <button
           onClick={handleClose}
-          className="w-full mt-4 py-3 bg-white/10 hover:bg-white/20 text-white rounded-lg font-medium transition-colors"
+          className="w-full py-3 bg-white/20 hover:bg-white/30 text-white rounded-lg font-medium transition-colors active:scale-[0.98]"
         >
           수동 입력으로 돌아가기
         </button>
       </div>
-
-      {/* Scan overlay */}
-      {isScanning && (
-        <div className="absolute inset-0 pointer-events-none flex items-center justify-center">
-          <div className="w-64 h-40 relative">
-            {/* Corner markers */}
-            <div className="absolute top-0 left-0 w-8 h-8 border-t-4 border-l-4 border-blue-400 rounded-tl-lg"></div>
-            <div className="absolute top-0 right-0 w-8 h-8 border-t-4 border-r-4 border-blue-400 rounded-tr-lg"></div>
-            <div className="absolute bottom-0 left-0 w-8 h-8 border-b-4 border-l-4 border-blue-400 rounded-bl-lg"></div>
-            <div className="absolute bottom-0 right-0 w-8 h-8 border-b-4 border-r-4 border-blue-400 rounded-br-lg"></div>
-
-            {/* Scan line animation */}
-            <div className="absolute left-2 right-2 h-0.5 bg-gradient-to-r from-transparent via-blue-400 to-transparent animate-scan"></div>
-          </div>
-        </div>
-      )}
 
       <style>{`
         @keyframes scan {
@@ -268,17 +316,34 @@ const BarcodeScanner: React.FC<BarcodeScannerProps> = ({ isOpen, onClose, onScan
         }
         #barcode-reader {
           border: none !important;
+          background: transparent !important;
         }
         #barcode-reader video {
           border-radius: 12px !important;
+          object-fit: cover !important;
         }
         #barcode-reader__scan_region {
           background: transparent !important;
         }
+        #barcode-reader__dashboard {
+          display: none !important;
+        }
         #barcode-reader__dashboard_section {
           display: none !important;
         }
+        #barcode-reader__dashboard_section_swaplink {
+          display: none !important;
+        }
+        #barcode-reader__dashboard_section_csr {
+          display: none !important;
+        }
         #barcode-reader__status_span {
+          display: none !important;
+        }
+        #barcode-reader__header_message {
+          display: none !important;
+        }
+        #barcode-reader > div:last-child {
           display: none !important;
         }
       `}</style>
