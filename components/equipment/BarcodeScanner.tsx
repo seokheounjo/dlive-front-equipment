@@ -207,8 +207,8 @@ const BarcodeScanner: React.FC<BarcodeScannerProps> = ({ isOpen, onClose, onScan
     >
       {/* Header - safe area 적용 */}
       <div
-        className="absolute top-0 left-0 right-0 bg-black/90 px-4 py-3"
-        style={{ paddingTop: 'max(12px, env(safe-area-inset-top))' }}
+        className="absolute top-0 left-0 right-0 bg-black px-4 py-4 z-20"
+        style={{ paddingTop: 'calc(16px + env(safe-area-inset-top, 0px))' }}
       >
         <div className="flex items-center justify-between">
           <h2 className="text-white font-bold text-lg">바코드 스캔</h2>
@@ -319,30 +319,40 @@ const BarcodeScanner: React.FC<BarcodeScannerProps> = ({ isOpen, onClose, onScan
         #barcode-reader {
           border: none !important;
           background: transparent !important;
+          width: 100% !important;
         }
         #barcode-reader video {
-          border-radius: 12px !important;
+          width: 100% !important;
+          height: auto !important;
           object-fit: cover !important;
         }
         #barcode-reader__scan_region {
           background: transparent !important;
+          min-height: 300px !important;
         }
-        #barcode-reader__dashboard {
+        #barcode-reader__scan_region img {
           display: none !important;
         }
-        #barcode-reader__dashboard_section {
+        #barcode-reader__scan_region br {
           display: none !important;
         }
-        #barcode-reader__dashboard_section_swaplink {
-          display: none !important;
+        /* Hide the qrbox border */
+        #barcode-reader__scan_region > div {
+          border: none !important;
+          box-shadow: none !important;
         }
-        #barcode-reader__dashboard_section_csr {
-          display: none !important;
+        #qr-shaded-region {
+          border: none !important;
         }
-        #barcode-reader__status_span {
-          display: none !important;
-        }
-        #barcode-reader__header_message {
+        /* Hide all library UI elements */
+        #barcode-reader__dashboard,
+        #barcode-reader__dashboard_section,
+        #barcode-reader__dashboard_section_swaplink,
+        #barcode-reader__dashboard_section_csr,
+        #barcode-reader__status_span,
+        #barcode-reader__header_message,
+        #barcode-reader img[alt="Info icon"],
+        #barcode-reader a {
           display: none !important;
         }
         #barcode-reader > div:last-child {
