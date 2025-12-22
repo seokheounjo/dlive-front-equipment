@@ -272,14 +272,34 @@ const EquipmentList: React.FC<EquipmentListProps> = ({ onBack, showToast }) => {
   };
 
   // 바코드 스캔 핸들러
-  const handleBarcodeScan = (barcode: string) => {
+  const handleBarcodeScan = async (barcode: string) => {
     console.log('Barcode scanned:', barcode);
-    setSearchValue(barcode.toUpperCase());
-    setShowBarcodeScanner(false);
-    showToast?.(`바코드 스캔 완료: ${barcode}`, 'success');
+    const normalizedBarcode = barcode.toUpperCase();
+
+    // 복수 스캔 모드: 중복 체크 먼저
+    if (isMultiScanMode) {
+      const isDuplicate = scannedItems.some(
+        item => (item.EQT_SERNO || '').toUpperCase() === normalizedBarcode ||
+                (item.MAC_ADDRESS || '').toUpperCase().replace(/[:-]/g, '') === normalizedBarcode.replace(/[:-]/g, '')
+      );
+      if (isDuplicate) {
+        showToast?.('이미 스캔된 장비입니다.', 'warning');
+        // 복수 스캔 모드에서는 스캐너 열린 상태 유지
+        return;
+      }
+    }
+
+    setSearchValue(normalizedBarcode);
+
+    // 복수 스캔 모드가 아닐 때만 스캐너 닫기
+    if (!isMultiScanMode) {
+      setShowBarcodeScanner(false);
+    }
+
+    showToast?.(`바코드 스캔: ${barcode}`, 'success');
+
     // 자동 조회
     setTimeout(() => {
-      const fakeEvent = { key: 'Enter' } as React.KeyboardEvent;
       handleSearch();
     }, 300);
   };
