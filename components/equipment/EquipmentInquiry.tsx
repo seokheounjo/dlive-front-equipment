@@ -179,7 +179,7 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
   const [selectedSoId, setSelectedSoId] = useState<string>(userInfo?.soId || '');
   const [selectedCategory, setSelectedCategory] = useState<string>('');
   const [selectedItemMidCd, setSelectedItemMidCd] = useState<string>('');
-  const [eqtSerno, setEqtSerno] = useState<string>('');
+  const [eqtSerno, setEqtSerno] = useState<string>('705KVQS022868'); // 테스트용 고정값
 
   // 검색 조건 - 보유, 반납요청중, 검사대기 (미회수 제외 - 별도 메뉴에서 처리)
   const [searchCondition, setSearchCondition] = useState<EquipmentSearchCondition>('OWNED');
@@ -206,10 +206,25 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
   const [returnReason, setReturnReason] = useState<string>('');
   const [lossReason, setLossReason] = useState<string>('');
 
+  // 뷰 모드: simple(간단히), medium(중간), detail(자세히)
+  const [viewMode, setViewMode] = useState<'simple' | 'medium' | 'detail'>('simple');
+
   // 초기 데이터 로드
   useEffect(() => {
     loadDropdownData();
   }, []);
+
+  // 테스트용: 컴포넌트 마운트 시 자동 조회 (S/N 고정값 설정된 경우)
+  useEffect(() => {
+    if (eqtSerno === '705KVQS022868' && userInfo?.userId) {
+      console.log('🚀 [자동조회] S/N 고정값으로 자동 조회 시작...');
+      // 지점 목록 로드 완료 후 조회
+      const timer = setTimeout(() => {
+        handleSearch();
+      }, 500);
+      return () => clearTimeout(timer);
+    }
+  }, [userInfo?.userId]);
 
   const loadDropdownData = async () => {
     // 지점 목록은 useEffect의 fetchAuthSoList()에서 이미 로드됨
@@ -288,7 +303,16 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
           ...baseParams
         };
 
-        if (searchCondition === 'OWNED' || searchCondition === 'RETURN_REQUESTED') {
+        if (searchCondition === 'OWNED') {
+          // 보유장비: getWorkerEquipmentList (= getWrkrHaveEqtList) 호출
+          result = await debugApiCall(
+            'EquipmentInquiry',
+            'getWorkerEquipmentList',
+            () => getWorkerEquipmentList(apiParams),
+            apiParams
+          );
+        } else if (searchCondition === 'RETURN_REQUESTED') {
+          // 반납요청: getEquipmentReturnRequestList 호출
           result = await debugApiCall(
             'EquipmentInquiry',
             'getEquipmentReturnRequestList',
@@ -296,6 +320,7 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
             apiParams
           );
         } else {
+          // 검사대기: getWorkerEquipmentList 호출
           result = await debugApiCall(
             'EquipmentInquiry',
             'getWorkerEquipmentList',
@@ -636,69 +661,245 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
         {/* 장비 리스트 */}
         {equipmentList.length > 0 && (
           <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
-            {/* 전체 선택 & 카운트 헤더 */}
-            <div className="px-4 py-3 bg-gradient-to-r from-gray-50 to-white border-b border-gray-100 flex items-center justify-between">
-              <label className="flex items-center gap-2 cursor-pointer">
-                <input
-                  type="checkbox"
-                  onChange={(e) => handleCheckAll(e.target.checked)}
-                  checked={equipmentList.length > 0 && equipmentList.every(item => item.CHK)}
-                  className="w-4 h-4 text-blue-500 rounded focus:ring-blue-500"
-                />
-                <span className="text-sm font-semibold text-gray-800">전체선택</span>
-              </label>
-              <span className="text-xs text-gray-500">
-                {equipmentList.length}건 (선택: {equipmentList.filter(item => item.CHK).length}건)
-              </span>
+            {/* 헤더: 전체 선택 + 뷰 모드 선택 */}
+            <div className="px-4 py-3 bg-gradient-to-r from-gray-50 to-white border-b border-gray-100">
+              <div className="flex items-center justify-between mb-2">
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    onChange={(e) => handleCheckAll(e.target.checked)}
+                    checked={equipmentList.length > 0 && equipmentList.every(item => item.CHK)}
+                    className="w-4 h-4 text-blue-500 rounded focus:ring-blue-500"
+                  />
+                  <span className="text-sm font-semibold text-gray-800">전체선택</span>
+                </label>
+                <span className="text-xs text-gray-500">
+                  {equipmentList.length}건 (선택: {equipmentList.filter(item => item.CHK).length}건)
+                </span>
+              </div>
+              {/* 뷰 모드 선택 버튼 */}
+              <div className="flex gap-1 bg-gray-100 p-1 rounded-lg">
+                <button
+                  onClick={() => setViewMode('simple')}
+                  className={`flex-1 py-1.5 px-2 text-xs font-medium rounded-md transition-all ${
+                    viewMode === 'simple'
+                      ? 'bg-white text-blue-600 shadow-sm'
+                      : 'text-gray-500 hover:text-gray-700'
+                  }`}
+                >
+                  간단히
+                </button>
+                <button
+                  onClick={() => setViewMode('medium')}
+                  className={`flex-1 py-1.5 px-2 text-xs font-medium rounded-md transition-all ${
+                    viewMode === 'medium'
+                      ? 'bg-white text-blue-600 shadow-sm'
+                      : 'text-gray-500 hover:text-gray-700'
+                  }`}
+                >
+                  중간
+                </button>
+                <button
+                  onClick={() => setViewMode('detail')}
+                  className={`flex-1 py-1.5 px-2 text-xs font-medium rounded-md transition-all ${
+                    viewMode === 'detail'
+                      ? 'bg-white text-blue-600 shadow-sm'
+                      : 'text-gray-500 hover:text-gray-700'
+                  }`}
+                >
+                  자세히
+                </button>
+              </div>
             </div>
 
-            {/* 장비 리스트 테이블 */}
-            <div className="max-h-64 overflow-y-auto">
-              <table className="w-full text-xs">
-                <thead className="bg-gray-50 sticky top-0 z-10">
-                  <tr>
-                    <th className="px-2 py-2.5 text-center border-b border-gray-100 w-8">선택</th>
-                    <th className="px-2 py-2.5 text-center text-xs font-semibold text-gray-600 border-b border-gray-100">요청</th>
-                    <th className="px-2 py-2.5 text-left text-xs font-semibold text-gray-600 border-b border-gray-100">장비유형</th>
-                    <th className="px-2 py-2.5 text-left text-xs font-semibold text-gray-600 border-b border-gray-100">장비일련번호</th>
-                    <th className="px-2 py-2.5 text-left text-xs font-semibold text-gray-600 border-b border-gray-100">M/A</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {equipmentList.map((item, idx) => (
-                    <tr
-                      key={idx}
-                      className={`${item.CHK ? 'bg-blue-50' : 'hover:bg-blue-50/50'} transition-colors`}
-                    >
-                      <td className="px-2 py-2.5 text-center border-b border-gray-50">
-                        <input
-                          type="checkbox"
-                          checked={item.CHK || false}
-                          onChange={(e) => handleCheckItem(idx, e.target.checked)}
-                          className="w-4 h-4 text-blue-500 rounded focus:ring-blue-500"
-                        />
-                      </td>
-                      <td className="px-2 py-2.5 text-center border-b border-gray-50">
-                        {item.PROC_STAT === 'R' && (
-                          <span className="text-blue-600 font-bold">●</span>
-                        )}
-                      </td>
-                      <td className="px-2 py-2.5 border-b border-gray-50">
-                        <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${getItemColor(item.ITEM_MID_CD)}`}>
-                          {item.EQT_CL_NM || item.ITEM_MID_NM || '장비'}
-                        </span>
-                      </td>
-                      <td className="px-2 py-2.5 text-xs text-gray-900 border-b border-gray-50 font-mono">
-                        {item.EQT_SERNO || '-'}
-                      </td>
-                      <td className="px-2 py-2.5 text-xs text-gray-500 border-b border-gray-50 font-mono truncate max-w-[80px]">
-                        {item.MAC_ADDRESS || '-'}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+            {/* 간단히 보기: 품목명 + 상태만 */}
+            {viewMode === 'simple' && (
+              <div className="max-h-80 overflow-y-auto p-3 space-y-2">
+                {equipmentList.map((item, idx) => (
+                  <div
+                    key={idx}
+                    onClick={() => handleCheckItem(idx, !item.CHK)}
+                    className={`flex items-center justify-between p-3 rounded-lg border-2 cursor-pointer transition-all ${
+                      item.CHK
+                        ? 'bg-blue-50 border-blue-400'
+                        : 'bg-gray-50 border-transparent hover:border-gray-200'
+                    }`}
+                  >
+                    <div className="flex items-center gap-3">
+                      <input
+                        type="checkbox"
+                        checked={item.CHK || false}
+                        onChange={(e) => { e.stopPropagation(); handleCheckItem(idx, e.target.checked); }}
+                        className="w-5 h-5 text-blue-500 rounded focus:ring-blue-500"
+                      />
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <span className={`px-2 py-0.5 rounded text-xs font-bold ${getItemColor(item.ITEM_MID_CD)}`}>
+                            {item.ITEM_NM || item.EQT_CL_NM || item.ITEM_MID_NM || '장비'}
+                          </span>
+                          {item.PROC_STAT === 'R' && (
+                            <span className="text-blue-500 text-xs">● 요청중</span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                    <div className="flex flex-col items-end">
+                      <span className={`px-2 py-1 rounded-full text-xs font-semibold ${
+                        item.EQT_STAT_CD === '10' ? 'bg-green-100 text-green-700' :
+                        item.EQT_STAT_CD === '20' ? 'bg-blue-100 text-blue-700' :
+                        item.EQT_STAT_CD === '40' ? 'bg-amber-100 text-amber-700' :
+                        item.EQT_STAT_CD === '50' ? 'bg-purple-100 text-purple-700' :
+                        'bg-gray-100 text-gray-700'
+                      }`}>
+                        {item.EQT_STAT_NM || getEqtStatName(item.EQT_STAT_CD)}
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* 중간 보기: 품목명 + 상태 + S/N + MAC */}
+            {viewMode === 'medium' && (
+              <div className="max-h-80 overflow-y-auto p-3 space-y-2">
+                {equipmentList.map((item, idx) => (
+                  <div
+                    key={idx}
+                    onClick={() => handleCheckItem(idx, !item.CHK)}
+                    className={`p-3 rounded-lg border-2 cursor-pointer transition-all ${
+                      item.CHK
+                        ? 'bg-blue-50 border-blue-400'
+                        : 'bg-gray-50 border-transparent hover:border-gray-200'
+                    }`}
+                  >
+                    <div className="flex items-start gap-3">
+                      <input
+                        type="checkbox"
+                        checked={item.CHK || false}
+                        onChange={(e) => { e.stopPropagation(); handleCheckItem(idx, e.target.checked); }}
+                        className="w-5 h-5 text-blue-500 rounded focus:ring-blue-500 mt-0.5"
+                      />
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center justify-between mb-2">
+                          <div className="flex items-center gap-2">
+                            <span className={`px-2 py-0.5 rounded text-xs font-bold ${getItemColor(item.ITEM_MID_CD)}`}>
+                              {item.ITEM_NM || item.EQT_CL_NM || item.ITEM_MID_NM || '장비'}
+                            </span>
+                            {item.PROC_STAT === 'R' && (
+                              <span className="text-blue-500 text-xs">● 요청</span>
+                            )}
+                          </div>
+                          <span className={`px-2 py-1 rounded-full text-xs font-semibold ${
+                            item.EQT_STAT_CD === '10' ? 'bg-green-100 text-green-700' :
+                            item.EQT_STAT_CD === '20' ? 'bg-blue-100 text-blue-700' :
+                            item.EQT_STAT_CD === '40' ? 'bg-amber-100 text-amber-700' :
+                            item.EQT_STAT_CD === '50' ? 'bg-purple-100 text-purple-700' :
+                            'bg-gray-100 text-gray-700'
+                          }`}>
+                            {item.EQT_STAT_NM || getEqtStatName(item.EQT_STAT_CD)}
+                          </span>
+                        </div>
+                        <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs">
+                          <div className="flex items-center gap-1">
+                            <span className="text-gray-400 w-10">S/N</span>
+                            <span className="font-mono text-gray-800 truncate">{item.EQT_SERNO || '-'}</span>
+                          </div>
+                          <div className="flex items-center gap-1">
+                            <span className="text-gray-400 w-10">MAC</span>
+                            <span className="font-mono text-gray-600 truncate">{item.MAC_ADDRESS || '-'}</span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* 자세히 보기: 테이블 형식으로 모든 정보 */}
+            {viewMode === 'detail' && (
+              <div className="max-h-80 overflow-y-auto p-3 space-y-2">
+                {equipmentList.map((item, idx) => (
+                  <div
+                    key={idx}
+                    onClick={() => handleCheckItem(idx, !item.CHK)}
+                    className={`p-3 rounded-lg border-2 cursor-pointer transition-all ${
+                      item.CHK
+                        ? 'bg-blue-50 border-blue-400'
+                        : 'bg-white border-gray-100 hover:border-gray-300'
+                    }`}
+                  >
+                    <div className="flex items-start gap-3">
+                      <input
+                        type="checkbox"
+                        checked={item.CHK || false}
+                        onChange={(e) => { e.stopPropagation(); handleCheckItem(idx, e.target.checked); }}
+                        className="w-5 h-5 text-blue-500 rounded focus:ring-blue-500 mt-0.5"
+                      />
+                      <div className="flex-1 min-w-0">
+                        {/* 상단: 품목명 + 상태 */}
+                        <div className="flex items-center justify-between mb-3">
+                          <div className="flex items-center gap-2">
+                            <span className={`px-2 py-0.5 rounded text-xs font-bold ${getItemColor(item.ITEM_MID_CD)}`}>
+                              {item.ITEM_NM || item.EQT_CL_NM || '장비'}
+                            </span>
+                            <span className="text-xs text-gray-400">{item.ITEM_MID_NM}</span>
+                            {item.PROC_STAT === 'R' && (
+                              <span className="bg-blue-500 text-white text-[10px] px-1.5 py-0.5 rounded">요청중</span>
+                            )}
+                          </div>
+                          <span className={`px-2 py-1 rounded-full text-xs font-semibold ${
+                            item.EQT_STAT_CD === '10' ? 'bg-green-100 text-green-700' :
+                            item.EQT_STAT_CD === '20' ? 'bg-blue-100 text-blue-700' :
+                            item.EQT_STAT_CD === '40' ? 'bg-amber-100 text-amber-700' :
+                            item.EQT_STAT_CD === '50' ? 'bg-purple-100 text-purple-700' :
+                            'bg-gray-100 text-gray-700'
+                          }`}>
+                            {item.EQT_STAT_NM || getEqtStatName(item.EQT_STAT_CD)}
+                          </span>
+                        </div>
+
+                        {/* 상세 정보 그리드 */}
+                        <div className="bg-gray-50 rounded-lg p-2.5 space-y-2">
+                          <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 text-xs">
+                            <div className="flex">
+                              <span className="text-gray-400 w-14 flex-shrink-0">S/N</span>
+                              <span className="font-mono text-gray-900 font-medium truncate">{item.EQT_SERNO || '-'}</span>
+                            </div>
+                            <div className="flex">
+                              <span className="text-gray-400 w-14 flex-shrink-0">MAC</span>
+                              <span className="font-mono text-gray-700 truncate">{item.MAC_ADDRESS || '-'}</span>
+                            </div>
+                            <div className="flex">
+                              <span className="text-gray-400 w-14 flex-shrink-0">지점</span>
+                              <span className="text-gray-700 truncate">{item.SO_NM || item.SO_ID || '-'}</span>
+                            </div>
+                            <div className="flex">
+                              <span className="text-gray-400 w-14 flex-shrink-0">위치</span>
+                              <span className="text-gray-700">{item.EQT_LOC_TP_NM || getEqtLocTpName(item.EQT_LOC_TP_CD || '') || '-'}</span>
+                            </div>
+                            <div className="flex">
+                              <span className="text-gray-400 w-14 flex-shrink-0">담당자</span>
+                              <span className="text-gray-700">{item.WRKR_NM || '-'}</span>
+                            </div>
+                            <div className="flex">
+                              <span className="text-gray-400 w-14 flex-shrink-0">장비번호</span>
+                              <span className="font-mono text-gray-600 text-[10px]">{item.EQT_NO || '-'}</span>
+                            </div>
+                          </div>
+                          {item.RETN_RESN_NM && (
+                            <div className="pt-1.5 border-t border-gray-200">
+                              <span className="text-gray-400 text-xs">반납사유: </span>
+                              <span className="text-amber-600 text-xs font-medium">{item.RETN_RESN_NM}</span>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         )}
 
