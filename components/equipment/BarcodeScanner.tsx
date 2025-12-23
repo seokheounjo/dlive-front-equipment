@@ -211,10 +211,13 @@ const BarcodeScanner: React.FC<BarcodeScannerProps> = ({ isOpen, onClose, onScan
       className="fixed inset-0 bg-black"
       style={{ zIndex: 99999 }}
     >
-      {/* Header - 위쪽 카메라 영역 완전히 덮기 */}
+      {/* 최상단 검은 커버 - 카메라 위 완전히 덮기 */}
+      <div className="absolute top-0 left-0 right-0 h-32 bg-black z-30" />
+
+      {/* Header */}
       <div
-        className="absolute top-0 left-0 right-0 bg-black px-4 pb-4 z-20"
-        style={{ paddingTop: 'max(60px, calc(env(safe-area-inset-top, 0px) + 40px))' }}
+        className="absolute left-0 right-0 bg-black px-4 pb-4 z-20"
+        style={{ top: '80px' }}
       >
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
@@ -237,7 +240,7 @@ const BarcodeScanner: React.FC<BarcodeScannerProps> = ({ isOpen, onClose, onScan
       </div>
 
       {/* Scanner area - 중앙 */}
-      <div className="absolute inset-0 flex items-center justify-center" style={{ top: '110px', bottom: '220px' }}>
+      <div className="absolute inset-0 flex items-center justify-center" style={{ top: '140px', bottom: '250px' }}>
         <div id="barcode-reader" className="w-full max-w-sm mx-4"></div>
       </div>
 
@@ -257,10 +260,9 @@ const BarcodeScanner: React.FC<BarcodeScannerProps> = ({ isOpen, onClose, onScan
         </div>
       )}
 
-      {/* Footer - 하단 여백 충분히 */}
+      {/* Footer - 하단 여백 충분히 (100px 고정) */}
       <div
-        className="absolute bottom-0 left-0 right-0 bg-black/90 px-4 pt-4"
-        style={{ paddingBottom: 'max(60px, calc(env(safe-area-inset-bottom, 0px) + 40px))' }}
+        className="absolute bottom-0 left-0 right-0 bg-black px-4 pt-4 pb-24 z-20"
       >
         {error ? (
           <div className="bg-red-500/20 border border-red-500/50 rounded-lg p-4 mb-3">
