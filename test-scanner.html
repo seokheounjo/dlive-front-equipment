@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>Barcode Scanner Test</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    body { margin: 0; padding: 0; }
+  </style>
+</head>
+<body>
+  <!-- Barcode Scanner UI -->
+  <div class="fixed inset-0 bg-black" style="z-index: 99999;">
+
+    <!-- Header - 위쪽 카메라 영역 덮기 (더 크게) -->
+    <div
+      class="absolute top-0 left-0 right-0 bg-black px-4 pb-4 z-20"
+      style="padding-top: calc(env(safe-area-inset-top, 20px) + 16px);"
+    >
+      <div class="flex items-center justify-between">
+        <div class="flex items-center gap-3">
+          <h2 class="text-white font-bold text-lg">바코드 스캔</h2>
+          <span class="px-2.5 py-1 bg-blue-500 text-white text-sm font-bold rounded-full">3건</span>
+        </div>
+        <button class="p-2 rounded-full bg-white/20 hover:bg-white/30 transition-colors">
+          <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+          </svg>
+        </button>
+      </div>
+    </div>
+
+    <!-- Scanner area - 중앙 (카메라 영역 시뮬레이션) -->
+    <div class="absolute inset-0 flex items-center justify-center" style="top: 80px; bottom: 200px;">
+      <div class="w-full max-w-sm mx-4 bg-gray-800 rounded-lg" style="height: 300px;">
+        <div class="w-full h-full flex items-center justify-center text-gray-500">
+          [카메라 영역]
+        </div>
+      </div>
+    </div>
+
+    <!-- Scan overlay - 녹색 코너 -->
+    <div class="absolute inset-0 pointer-events-none flex items-center justify-center">
+      <div class="w-64 h-40 relative">
+        <!-- Corner markers -->
+        <div class="absolute top-0 left-0 w-8 h-8 border-t-4 border-l-4 border-green-400 rounded-tl-lg"></div>
+        <div class="absolute top-0 right-0 w-8 h-8 border-t-4 border-r-4 border-green-400 rounded-tr-lg"></div>
+        <div class="absolute bottom-0 left-0 w-8 h-8 border-b-4 border-l-4 border-green-400 rounded-bl-lg"></div>
+        <div class="absolute bottom-0 right-0 w-8 h-8 border-b-4 border-r-4 border-green-400 rounded-br-lg"></div>
+
+        <!-- Scan line -->
+        <div class="absolute left-2 right-2 h-0.5 bg-gradient-to-r from-transparent via-green-400 to-transparent" style="top: 50%;"></div>
+      </div>
+    </div>
+
+    <!-- Footer - 버튼 더 아래로 -->
+    <div
+      class="absolute bottom-0 left-0 right-0 bg-black/90 px-4 pt-4"
+      style="padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 24px);"
+    >
+      <div class="text-center mb-3">
+        <p class="text-white/80 text-sm mb-1">장비 바코드를 화면 중앙에 맞춰주세요</p>
+        <p class="text-white/50 text-xs">연속 스캔 모드 - 여러 장비를 계속 스캔하세요</p>
+      </div>
+      <button class="w-full py-3 bg-white/20 hover:bg-white/30 text-white rounded-lg font-medium transition-colors">
+        수동 입력으로 돌아가기
+      </button>
+    </div>
+  </div>
+</body>
+</html>
