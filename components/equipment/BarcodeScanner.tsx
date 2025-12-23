@@ -208,7 +208,7 @@ const BarcodeScanner: React.FC<BarcodeScannerProps> = ({ isOpen, onClose, onScan
 
   return (
     <div
-      className="fixed inset-0 bg-black"
+      className="fixed inset-0 bg-black barcode-scanner-container"
       style={{ zIndex: 99999 }}
     >
       {/* X 닫기 버튼만 (우상단 플로팅) */}
@@ -351,6 +351,18 @@ const BarcodeScanner: React.FC<BarcodeScannerProps> = ({ isOpen, onClose, onScan
         }
         #barcode-reader > div:last-child {
           display: none !important;
+        }
+        /* 가로 모드일 때 세로로 강제 회전 */
+        @media screen and (orientation: landscape) {
+          .barcode-scanner-container {
+            transform: rotate(-90deg);
+            transform-origin: left top;
+            width: 100vh !important;
+            height: 100vw !important;
+            position: fixed !important;
+            top: 100% !important;
+            left: 0 !important;
+          }
         }
       `}</style>
     </div>

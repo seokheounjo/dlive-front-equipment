@@ -188,8 +188,10 @@ const EquipmentList: React.FC<EquipmentListProps> = ({ onBack, showToast }) => {
 
   // 복수 스캔 누적 조회 기능
   const [scannedItems, setScannedItems] = useState<EquipmentDetail[]>([]);
-  const [scannedBarcodes, setScannedBarcodes] = useState<Set<string>>(new Set()); // 스캔된 바코드 값 추적
   const [isMultiScanMode, setIsMultiScanMode] = useState(false);
+
+  // 스캔된 바코드 추적 (useRef로 즉시 동기 체크)
+  const scannedBarcodesRef = React.useRef<Set<string>>(new Set());
 
   // 뷰 모드: simple(간단히), medium(중간), detail(자세히)
   const [viewMode, setViewMode] = useState<'simple' | 'medium' | 'detail'>('simple');
@@ -277,14 +279,14 @@ const EquipmentList: React.FC<EquipmentListProps> = ({ onBack, showToast }) => {
     console.log('Barcode scanned:', barcode);
     const normalizedBarcode = barcode.toUpperCase().replace(/[:-]/g, '');
 
-    // 복수 스캔 모드: 바코드 값 기준 중복 체크 (즉시 체크)
+    // 복수 스캔 모드: 바코드 값 기준 중복 체크 (useRef로 즉시 동기 체크)
     if (isMultiScanMode) {
-      if (scannedBarcodes.has(normalizedBarcode)) {
+      if (scannedBarcodesRef.current.has(normalizedBarcode)) {
         showToast?.('이미 스캔된 바코드입니다.', 'warning');
         return;
       }
-      // 바코드 즉시 추가 (중복 방지)
-      setScannedBarcodes(prev => new Set(prev).add(normalizedBarcode));
+      // 바코드 즉시 추가 (동기적으로 즉시 반영됨)
+      scannedBarcodesRef.current.add(normalizedBarcode);
     }
 
     setSearchValue(barcode.toUpperCase());
@@ -460,13 +462,9 @@ const EquipmentList: React.FC<EquipmentListProps> = ({ onBack, showToast }) => {
   const handleRemoveScannedItem = (index: number) => {
     const removedItem = scannedItems[index];
     if (removedItem) {
-      // 해당 바코드도 세트에서 제거
+      // 해당 바코드도 ref에서 제거
       const barcode = (removedItem.EQT_SERNO || removedItem.MAC_ADDRESS || '').toUpperCase().replace(/[:-]/g, '');
-      setScannedBarcodes(prev => {
-        const newSet = new Set(prev);
-        newSet.delete(barcode);
-        return newSet;
-      });
+      scannedBarcodesRef.current.delete(barcode);
     }
     setScannedItems(prev => prev.filter((_, i) => i !== index));
   };
@@ -474,7 +472,7 @@ const EquipmentList: React.FC<EquipmentListProps> = ({ onBack, showToast }) => {
   // 스캔 목록 초기화
   const handleClearScannedItems = () => {
     setScannedItems([]);
-    setScannedBarcodes(new Set()); // 바코드 추적도 초기화
+    scannedBarcodesRef.current.clear(); // 바코드 추적도 초기화
     setEquipmentDetail(null);
     showToast?.('스캔 목록이 초기화되었습니다.', 'info');
   };
