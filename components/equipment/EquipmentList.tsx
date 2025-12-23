@@ -196,6 +196,9 @@ const EquipmentList: React.FC<EquipmentListProps> = ({ onBack, showToast }) => {
   // 뷰 모드: simple(간단히), medium(중간), detail(자세히)
   const [viewMode, setViewMode] = useState<'simple' | 'medium' | 'detail'>('simple');
 
+  // 일괄 조회 모드
+  const [showBulkView, setShowBulkView] = useState(false);
+
   // 바코드 스캐너 모달
   const [showBarcodeScanner, setShowBarcodeScanner] = useState(false);
 
@@ -642,12 +645,24 @@ const EquipmentList: React.FC<EquipmentListProps> = ({ onBack, showToast }) => {
         {/* 복수 스캔 모드: 스캔된 장비 목록 */}
         {isMultiScanMode && scannedItems.length > 0 && (
           <div className="bg-white rounded-xl border border-blue-200 shadow-sm p-4">
-            <h3 className="text-sm font-bold text-blue-700 mb-3 flex items-center gap-2">
-              <span>스캔된 장비 목록</span>
-              <span className="bg-blue-100 text-blue-600 px-2 py-0.5 rounded-full text-xs">
-                {scannedItems.length}건
-              </span>
-            </h3>
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-sm font-bold text-blue-700 flex items-center gap-2">
+                <span>스캔된 장비 목록</span>
+                <span className="bg-blue-100 text-blue-600 px-2 py-0.5 rounded-full text-xs">
+                  {scannedItems.length}건
+                </span>
+              </h3>
+              <button
+                onClick={() => setShowBulkView(!showBulkView)}
+                className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                  showBulkView
+                    ? 'bg-blue-500 text-white'
+                    : 'bg-blue-100 text-blue-700 hover:bg-blue-200'
+                }`}
+              >
+                {showBulkView ? '목록 보기' : '일괄 조회'}
+              </button>
+            </div>
             <div className="space-y-2 max-h-48 overflow-y-auto">
               {scannedItems.map((item, index) => (
                 <div
@@ -702,6 +717,69 @@ const EquipmentList: React.FC<EquipmentListProps> = ({ onBack, showToast }) => {
           </div>
         )}
 
+        {/* 일괄 조회 결과 */}
+        {isMultiScanMode && showBulkView && scannedItems.length > 0 && (
+          <div className="bg-white rounded-xl border border-green-200 shadow-sm p-4">
+            <h3 className="text-sm font-bold text-green-700 mb-4 flex items-center gap-2">
+              <span>📋</span>
+              <span>일괄 조회 결과</span>
+              <span className="bg-green-100 text-green-600 px-2 py-0.5 rounded-full text-xs">
+                {scannedItems.length}건
+              </span>
+            </h3>
+            <div className="space-y-4 max-h-[60vh] overflow-y-auto">
+              {scannedItems.map((item, index) => {
+                const enrichedItem = enrichEquipmentData(item);
+                return (
+                  <div key={index} className="bg-gray-50 rounded-lg p-4 border border-gray-200">
+                    <div className="flex items-center justify-between mb-3">
+                      <div className="flex items-center gap-2">
+                        <span className="bg-blue-500 text-white text-xs font-bold px-2 py-1 rounded">
+                          #{index + 1}
+                        </span>
+                        <span className="font-bold text-gray-800">
+                          {enrichedItem.EQT_CL_NM || enrichedItem.ITEM_NM || '장비'}
+                        </span>
+                      </div>
+                      <span className={`px-2 py-1 rounded-full text-xs font-semibold ${
+                        enrichedItem.EQT_STAT_CD === '10' ? 'bg-green-100 text-green-700' :
+                        enrichedItem.EQT_STAT_CD === '20' ? 'bg-blue-100 text-blue-700' :
+                        'bg-gray-100 text-gray-700'
+                      }`}>
+                        {enrichedItem.EQT_STAT_CD_NM || '-'}
+                      </span>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2 text-xs">
+                      <div>
+                        <span className="text-gray-500">S/N:</span>
+                        <span className="ml-1 font-mono text-gray-800">{enrichedItem.EQT_SERNO || '-'}</span>
+                      </div>
+                      <div>
+                        <span className="text-gray-500">MAC:</span>
+                        <span className="ml-1 font-mono text-gray-800">{enrichedItem.MAC_ADDRESS || '-'}</span>
+                      </div>
+                      <div>
+                        <span className="text-gray-500">장비번호:</span>
+                        <span className="ml-1 font-mono text-gray-800">{enrichedItem.EQT_NO || '-'}</span>
+                      </div>
+                      <div>
+                        <span className="text-gray-500">위치:</span>
+                        <span className="ml-1 text-gray-800">{enrichedItem.EQT_LOC_TP_CD_NM || '-'}</span>
+                      </div>
+                      {enrichedItem.EQT_LOC_NM && (
+                        <div className="col-span-2">
+                          <span className="text-gray-500">보유자:</span>
+                          <span className="ml-1 text-gray-800">{enrichedItem.EQT_LOC_NM}</span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
         {/* 에러 메시지 */}
         {error && (
           <div className="bg-red-50 border border-red-200 rounded-xl p-4">
@@ -709,8 +787,8 @@ const EquipmentList: React.FC<EquipmentListProps> = ({ onBack, showToast }) => {
           </div>
         )}
 
-        {/* 장비 상세 정보 */}
-        {equipmentDetail && (
+        {/* 장비 상세 정보 (단일 조회 또는 일괄 조회가 아닐 때) */}
+        {equipmentDetail && !showBulkView && (
           <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
             {/* 헤더 + 뷰 모드 선택 */}
             <div className="p-4 border-b border-gray-100">
