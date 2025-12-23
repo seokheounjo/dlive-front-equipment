@@ -192,6 +192,8 @@ const EquipmentList: React.FC<EquipmentListProps> = ({ onBack, showToast }) => {
 
   // 스캔된 바코드 추적 (useRef로 즉시 동기 체크)
   const scannedBarcodesRef = React.useRef<Set<string>>(new Set());
+  // 스캔 시도 횟수 (UI 표시용)
+  const [scanAttemptCount, setScanAttemptCount] = useState(0);
 
   // 뷰 모드: simple(간단히), medium(중간), detail(자세히)
   const [viewMode, setViewMode] = useState<'simple' | 'medium' | 'detail'>('simple');
@@ -290,6 +292,8 @@ const EquipmentList: React.FC<EquipmentListProps> = ({ onBack, showToast }) => {
       }
       // 바코드 즉시 추가 (동기적으로 즉시 반영됨)
       scannedBarcodesRef.current.add(normalizedBarcode);
+      // 스캔 카운트 증가 (UI 표시용)
+      setScanAttemptCount(scannedBarcodesRef.current.size);
     }
 
     setSearchValue(barcode.toUpperCase());
@@ -476,6 +480,7 @@ const EquipmentList: React.FC<EquipmentListProps> = ({ onBack, showToast }) => {
   const handleClearScannedItems = () => {
     setScannedItems([]);
     scannedBarcodesRef.current.clear(); // 바코드 추적도 초기화
+    setScanAttemptCount(0); // 스캔 카운트도 초기화
     setEquipmentDetail(null);
     showToast?.('스캔 목록이 초기화되었습니다.', 'info');
   };
@@ -1103,7 +1108,7 @@ const EquipmentList: React.FC<EquipmentListProps> = ({ onBack, showToast }) => {
           onClose={() => setShowBarcodeScanner(false)}
           onScan={handleBarcodeScan}
           isMultiScanMode={isMultiScanMode}
-          scanCount={scannedItems.length}
+          scanCount={scanAttemptCount}
         />
     </div>
   );
