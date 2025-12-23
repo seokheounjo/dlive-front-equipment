@@ -181,10 +181,16 @@ const BarcodeScanner: React.FC<BarcodeScannerProps> = ({ isOpen, onClose, onScan
       className="fixed inset-0 bg-black"
       style={{ zIndex: 99999 }}
     >
-      {/* Header - safe area 적용 */}
+      {/* Top black cover - safe area 위쪽 완전히 덮기 */}
       <div
-        className="absolute top-0 left-0 right-0 bg-black px-4 py-4 z-20"
-        style={{ paddingTop: 'calc(16px + env(safe-area-inset-top, 0px))' }}
+        className="absolute top-0 left-0 right-0 bg-black z-30"
+        style={{ height: 'env(safe-area-inset-top, 0px)' }}
+      />
+
+      {/* Header */}
+      <div
+        className="absolute left-0 right-0 bg-black px-4 py-4 z-20"
+        style={{ top: 'env(safe-area-inset-top, 0px)' }}
       >
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
