@@ -188,6 +188,7 @@ const EquipmentList: React.FC<EquipmentListProps> = ({ onBack, showToast }) => {
 
   // 복수 스캔 누적 조회 기능
   const [scannedItems, setScannedItems] = useState<EquipmentDetail[]>([]);
+  const [scannedBarcodes, setScannedBarcodes] = useState<Set<string>>(new Set()); // 스캔된 바코드 값 추적
   const [isMultiScanMode, setIsMultiScanMode] = useState(false);
 
   // 뷰 모드: simple(간단히), medium(중간), detail(자세히)
@@ -274,22 +275,19 @@ const EquipmentList: React.FC<EquipmentListProps> = ({ onBack, showToast }) => {
   // 바코드 스캔 핸들러
   const handleBarcodeScan = async (barcode: string) => {
     console.log('Barcode scanned:', barcode);
-    const normalizedBarcode = barcode.toUpperCase();
+    const normalizedBarcode = barcode.toUpperCase().replace(/[:-]/g, '');
 
-    // 복수 스캔 모드: 중복 체크 먼저
+    // 복수 스캔 모드: 바코드 값 기준 중복 체크 (즉시 체크)
     if (isMultiScanMode) {
-      const isDuplicate = scannedItems.some(
-        item => (item.EQT_SERNO || '').toUpperCase() === normalizedBarcode ||
-                (item.MAC_ADDRESS || '').toUpperCase().replace(/[:-]/g, '') === normalizedBarcode.replace(/[:-]/g, '')
-      );
-      if (isDuplicate) {
-        showToast?.('이미 스캔된 장비입니다.', 'warning');
-        // 복수 스캔 모드에서는 스캐너 열린 상태 유지
+      if (scannedBarcodes.has(normalizedBarcode)) {
+        showToast?.('이미 스캔된 바코드입니다.', 'warning');
         return;
       }
+      // 바코드 즉시 추가 (중복 방지)
+      setScannedBarcodes(prev => new Set(prev).add(normalizedBarcode));
     }
 
-    setSearchValue(normalizedBarcode);
+    setSearchValue(barcode.toUpperCase());
 
     // 복수 스캔 모드가 아닐 때만 스캐너 닫기
     if (!isMultiScanMode) {
@@ -460,12 +458,23 @@ const EquipmentList: React.FC<EquipmentListProps> = ({ onBack, showToast }) => {
 
   // 스캔 아이템 삭제
   const handleRemoveScannedItem = (index: number) => {
+    const removedItem = scannedItems[index];
+    if (removedItem) {
+      // 해당 바코드도 세트에서 제거
+      const barcode = (removedItem.EQT_SERNO || removedItem.MAC_ADDRESS || '').toUpperCase().replace(/[:-]/g, '');
+      setScannedBarcodes(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(barcode);
+        return newSet;
+      });
+    }
     setScannedItems(prev => prev.filter((_, i) => i !== index));
   };
 
   // 스캔 목록 초기화
   const handleClearScannedItems = () => {
     setScannedItems([]);
+    setScannedBarcodes(new Set()); // 바코드 추적도 초기화
     setEquipmentDetail(null);
     showToast?.('스캔 목록이 초기화되었습니다.', 'info');
   };
@@ -647,7 +656,10 @@ const EquipmentList: React.FC<EquipmentListProps> = ({ onBack, showToast }) => {
                   key={index}
                   className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border border-gray-100"
                 >
-                  <div className="flex-1">
+                  <div
+                    className="flex-1 cursor-pointer active:bg-gray-100 rounded-lg -m-1 p-1"
+                    onClick={() => setEquipmentDetail(enrichEquipmentData(item))}
+                  >
                     <div className="flex items-center gap-2">
                       <span className="text-xs font-medium text-gray-800">
                         {item.EQT_CL_NM || item.ITEM_NM || '장비'}
@@ -665,14 +677,27 @@ const EquipmentList: React.FC<EquipmentListProps> = ({ onBack, showToast }) => {
                       })()}
                     </div>
                   </div>
-                  <button
-                    onClick={() => handleRemoveScannedItem(index)}
-                    className="text-red-400 hover:text-red-600 p-1.5 hover:bg-red-50 rounded-lg transition-colors"
-                  >
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                    </svg>
-                  </button>
+                  <div className="flex items-center gap-1">
+                    <button
+                      onClick={() => setEquipmentDetail(enrichEquipmentData(item))}
+                      className="text-blue-500 hover:text-blue-700 p-1.5 hover:bg-blue-50 rounded-lg transition-colors"
+                      title="상세 조회"
+                    >
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                      </svg>
+                    </button>
+                    <button
+                      onClick={() => handleRemoveScannedItem(index)}
+                      className="text-red-400 hover:text-red-600 p-1.5 hover:bg-red-50 rounded-lg transition-colors"
+                      title="삭제"
+                    >
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                      </svg>
+                    </button>
+                  </div>
                 </div>
               ))}
             </div>

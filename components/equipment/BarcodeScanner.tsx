@@ -28,6 +28,36 @@ const BarcodeScanner: React.FC<BarcodeScannerProps> = ({ isOpen, onClose, onScan
   const [error, setError] = useState<string | null>(null);
   const [isRetrying, setIsRetrying] = useState(false);
 
+  // 화면 회전 잠금 (세로 모드 고정)
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const lockOrientation = async () => {
+      try {
+        // Screen Orientation API
+        if (screen.orientation && (screen.orientation as any).lock) {
+          await (screen.orientation as any).lock('portrait');
+        }
+      } catch (e) {
+        // 지원하지 않는 브라우저는 무시
+        console.log('Screen orientation lock not supported');
+      }
+    };
+
+    lockOrientation();
+
+    return () => {
+      // 스캐너 닫을 때 회전 잠금 해제
+      try {
+        if (screen.orientation && (screen.orientation as any).unlock) {
+          (screen.orientation as any).unlock();
+        }
+      } catch (e) {
+        // 무시
+      }
+    };
+  }, [isOpen]);
+
   // Load html5-qrcode dynamically
   useEffect(() => {
     if (!isOpen) return;
