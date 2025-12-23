@@ -211,37 +211,30 @@ const BarcodeScanner: React.FC<BarcodeScannerProps> = ({ isOpen, onClose, onScan
       className="fixed inset-0 bg-black"
       style={{ zIndex: 99999 }}
     >
-      {/* 최상단 검은 커버 - 카메라 위 완전히 덮기 */}
-      <div className="absolute top-0 left-0 right-0 h-32 bg-black z-30" />
-
-      {/* Header */}
-      <div
-        className="absolute left-0 right-0 bg-black px-4 pb-4 z-20"
-        style={{ top: '80px' }}
+      {/* X 닫기 버튼만 (우상단 플로팅) */}
+      <button
+        onClick={handleClose}
+        className="absolute top-4 right-4 z-30 p-3 rounded-full bg-black/50 hover:bg-black/70 transition-colors active:scale-95"
+        style={{ marginTop: 'env(safe-area-inset-top, 0px)' }}
       >
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <h2 className="text-white font-bold text-lg">바코드 스캔</h2>
-            {isMultiScanMode && (
-              <span className="px-2.5 py-1 bg-blue-500 text-white text-sm font-bold rounded-full">
-                {scanCount}건
-              </span>
-            )}
-          </div>
-          <button
-            onClick={handleClose}
-            className="p-2 rounded-full bg-white/20 hover:bg-white/30 transition-colors active:scale-95"
-          >
-            <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </button>
-        </div>
-      </div>
+        <svg className="w-7 h-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+        </svg>
+      </button>
 
-      {/* Scanner area - 중앙 */}
-      <div className="absolute inset-0 flex items-center justify-center" style={{ top: '140px', bottom: '250px' }}>
-        <div id="barcode-reader" className="w-full max-w-sm mx-4"></div>
+      {/* 스캔 카운터 (복수 스캔 모드) */}
+      {isMultiScanMode && (
+        <div
+          className="absolute top-4 left-4 z-30 px-3 py-2 bg-blue-500 text-white text-sm font-bold rounded-full"
+          style={{ marginTop: 'env(safe-area-inset-top, 0px)' }}
+        >
+          {scanCount}건
+        </div>
+      )}
+
+      {/* Scanner area - 전체 화면 */}
+      <div className="absolute inset-0 flex items-center justify-center" style={{ top: '60px', bottom: '160px' }}>
+        <div id="barcode-reader" className="w-full max-w-md mx-4"></div>
       </div>
 
       {/* Scan overlay */}
@@ -260,9 +253,10 @@ const BarcodeScanner: React.FC<BarcodeScannerProps> = ({ isOpen, onClose, onScan
         </div>
       )}
 
-      {/* Footer - 하단 여백 충분히 (100px 고정) */}
+      {/* Footer */}
       <div
-        className="absolute bottom-0 left-0 right-0 bg-black px-4 pt-4 pb-24 z-20"
+        className="absolute bottom-0 left-0 right-0 bg-black/80 px-4 pt-3 z-20"
+        style={{ paddingBottom: '10px' }}
       >
         {error ? (
           <div className="bg-red-500/20 border border-red-500/50 rounded-lg p-4 mb-3">
