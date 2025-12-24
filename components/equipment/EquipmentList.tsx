@@ -654,7 +654,7 @@ const EquipmentList: React.FC<EquipmentListProps> = ({ onBack, showToast }) => {
                 )}
                 {failedBarcodes.length > 0 && (
                   <span className="text-xs text-red-500 font-medium">
-                    실패: {failedBarcodes.length}건
+                    미등록: {failedBarcodes.length}건
                   </span>
                 )}
               </div>
@@ -1189,13 +1189,13 @@ const EquipmentList: React.FC<EquipmentListProps> = ({ onBack, showToast }) => {
           </div>
         )}
 
-        {/* 조회 실패 항목 (DB에 없는 장비) */}
+        {/* 등록되지 않은 장비 */}
         {failedBarcodes.length > 0 && (
           <div className="bg-red-50 rounded-xl border border-red-200 shadow-sm p-4">
             <div className="flex items-center justify-between mb-3">
               <h3 className="text-sm font-bold text-red-700 flex items-center gap-2">
                 <span>⚠️</span>
-                <span>조회 실패</span>
+                <span>등록되지 않은 장비</span>
                 <span className="bg-red-100 text-red-600 px-2 py-0.5 rounded-full text-xs">
                   {failedBarcodes.length}건
                 </span>
@@ -1216,7 +1216,7 @@ const EquipmentList: React.FC<EquipmentListProps> = ({ onBack, showToast }) => {
                   className="flex items-center justify-between p-2 bg-white rounded-lg border border-red-100"
                 >
                   <span className="text-xs font-mono text-red-800">{sn}</span>
-                  <span className="text-xs text-red-500">DB에 없음</span>
+                  <span className="text-xs text-red-500">미등록</span>
                 </div>
               ))}
             </div>
