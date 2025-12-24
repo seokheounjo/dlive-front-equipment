@@ -664,7 +664,7 @@ export const getReturnRequestEquipmentList = async (params: {
       RETURN_TP: params.RETURN_TP || '2'
     };
 
-    const response = await fetchWithRetry(`${API_BASE}/customer/phoneNumber/getOwnEqtLstForMobile_3`, {
+    const response = await fetchWithRetry(`${API_BASE}/customer/equipment/getOwnEqtLstForMobile_3`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
