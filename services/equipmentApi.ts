@@ -553,3 +553,244 @@ export const addEquipmentQuota = async (params: {
     throw new NetworkError('장비 쿼터 추가에 실패했습니다.');
   }
 };
+
+// ============ 장비처리 3가지 카테고리 API (20251223 기준) ============
+
+/**
+ * 1. 보유장비 목록 조회 (getWrkrHaveEqtList_All)
+ * 기사가 현재 보유 중인 장비 목록
+ * SQL 조건: EQT_STAT_CD='10' (재고), EQT_LOC_TP_CD='3' (작업기사 위치)
+ */
+export const getMyEquipmentList = async (params: {
+  WRKR_ID: string;
+  CRR_ID?: string;
+  SO_ID?: string;
+  EQT_SERNO?: string;
+}): Promise<Equipment[]> => {
+  console.log('[보유장비 API] 보유장비 목록 조회:', params);
+
+  const isDemoMode = checkDemoMode();
+
+  if (isDemoMode) {
+    console.log('[보유장비 API] 더미 모드: 보유장비 데이터 반환');
+    await new Promise(resolve => setTimeout(resolve, 500));
+    return [
+      {
+        EQT_NO: 'EQT001',
+        EQT_SERNO: 'RSM100001',
+        ITEM_MID_NM: '모뎀',
+        EQT_CL_NM: 'RS-M100',
+        ITEM_MID_CD: '04',
+        EQT_STAT_CD: '10',
+        EQT_LOC_TP_CD: '3',
+        WRKR_ID: params.WRKR_ID
+      },
+      {
+        EQT_NO: 'EQT002',
+        EQT_SERNO: 'DTV100001',
+        ITEM_MID_NM: '셋톱박스',
+        EQT_CL_NM: 'DTV-STB100',
+        ITEM_MID_CD: '05',
+        EQT_STAT_CD: '10',
+        EQT_LOC_TP_CD: '3',
+        WRKR_ID: params.WRKR_ID
+      }
+    ];
+  }
+
+  try {
+    const origin = typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000';
+
+    const response = await fetchWithRetry(`${API_BASE}/customer/equipment/getWrkrHaveEqtList_All`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Origin': origin
+      },
+      credentials: 'include',
+      body: JSON.stringify(params),
+    });
+
+    const result = await response.json();
+    console.log('[보유장비 API] 조회 성공:', result?.length || 0, '개');
+    return result || [];
+  } catch (error) {
+    console.error('[보유장비 API] 조회 실패:', error);
+    if (error instanceof NetworkError) {
+      throw error;
+    }
+    throw new NetworkError('보유장비 목록을 불러오는데 실패했습니다.');
+  }
+};
+
+/**
+ * 2. 반납요청 장비 목록 조회 (getOwnEqtLstForMobile_3)
+ * 반납 처리가 필요한 장비 목록
+ * SQL 조건: EQT_USE_ARR_YN in ('Y','A'), OWNER_TP_CD<>'3'
+ *          RETURN_TP=1 → EQT_LOC_TP_CD='2' (반납창고)
+ *          RETURN_TP=2 → EQT_LOC_TP_CD='3' (작업기사)
+ */
+export const getReturnRequestEquipmentList = async (params: {
+  WRKR_ID: string;
+  CRR_ID: string;
+  SO_ID?: string;
+  RETURN_TP?: string;  // '1': 반납창고, '2': 작업기사, '3': CRR_ID 직접
+  ITEM_MID_CD?: string;
+  EQT_CL_CD?: string;
+}): Promise<Equipment[]> => {
+  console.log('[반납요청 API] 반납요청 장비 목록 조회:', params);
+
+  const isDemoMode = checkDemoMode();
+
+  if (isDemoMode) {
+    console.log('[반납요청 API] 더미 모드: 반납요청 데이터 반환');
+    await new Promise(resolve => setTimeout(resolve, 500));
+    return [
+      {
+        EQT_SERNO: 'RSM100005',
+        EQT_CL_NM: 'RS-M100 (반납대기)',
+        ITEM_MID_CD: '04',
+        EQT_USE_ARR_YN: 'Y'
+      }
+    ];
+  }
+
+  try {
+    const origin = typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000';
+
+    // 기본 RETURN_TP: '2' (작업기사)
+    const requestParams = {
+      ...params,
+      RETURN_TP: params.RETURN_TP || '2'
+    };
+
+    const response = await fetchWithRetry(`${API_BASE}/customer/phoneNumber/getOwnEqtLstForMobile_3`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Origin': origin
+      },
+      credentials: 'include',
+      body: JSON.stringify(requestParams),
+    });
+
+    const result = await response.json();
+    console.log('[반납요청 API] 조회 성공:', result?.length || 0, '개');
+    return result || [];
+  } catch (error) {
+    console.error('[반납요청 API] 조회 실패:', error);
+    if (error instanceof NetworkError) {
+      throw error;
+    }
+    throw new NetworkError('반납요청 장비 목록을 불러오는데 실패했습니다.');
+  }
+};
+
+/**
+ * 3. 검사대기 장비 목록 조회 (getEquipmentChkStndByA_All)
+ * 검사가 필요한 장비 목록 (모뎀만)
+ * SQL 조건: ITEM_MID_CD='04'(모뎀), EQT_USE_ARR_YN='A'(검사대기), EQT_LOC_TP_CD='3'(기사위치)
+ */
+export const getInspectionPendingEquipmentList = async (params: {
+  WRKR_ID: string;
+  SO_ID?: string;
+  EQT_SERNO?: string;
+}): Promise<Equipment[]> => {
+  console.log('[검사대기 API] 검사대기 장비 목록 조회:', params);
+
+  const isDemoMode = checkDemoMode();
+
+  if (isDemoMode) {
+    console.log('[검사대기 API] 더미 모드: 검사대기 데이터 반환');
+    await new Promise(resolve => setTimeout(resolve, 500));
+    return [
+      {
+        EQT_NO: 'EQT003',
+        EQT_SERNO: 'RSM100003',
+        ITEM_MID_NM: '모뎀',
+        EQT_CL_NM: 'RS-M100 (검사대기)',
+        ITEM_MID_CD: '04',
+        EQT_USE_ARR_YN: 'A',
+        EQT_LOC_TP_CD: '3',
+        WRKR_ID: params.WRKR_ID,
+        CUST_ID: 'C001',
+        CTRT_ID: 'CT001'
+      }
+    ];
+  }
+
+  try {
+    const origin = typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000';
+
+    const response = await fetchWithRetry(`${API_BASE}/customer/equipment/getEquipmentChkStndByA_All`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Origin': origin
+      },
+      credentials: 'include',
+      body: JSON.stringify(params),
+    });
+
+    const result = await response.json();
+    console.log('[검사대기 API] 조회 성공:', result?.length || 0, '개');
+    return result || [];
+  } catch (error) {
+    console.error('[검사대기 API] 조회 실패:', error);
+    if (error instanceof NetworkError) {
+      throw error;
+    }
+    throw new NetworkError('검사대기 장비 목록을 불러오는데 실패했습니다.');
+  }
+};
+
+/**
+ * 검사대기 장비 검사완료 처리 (setEquipmentChkStndByY)
+ * 검사대기(A) → 정상(Y) 상태 변경
+ */
+export const completeEquipmentInspection = async (params: {
+  SO_ID: string;
+  EQT_NO: string;
+  EQT_SERNO: string;
+  USER_ID: string;
+  CRR_ID: string;
+  WRKR_ID: string;
+  CUST_ID?: string;
+  WRK_ID?: string;
+  CTRT_ID?: string;
+  CTRT_STAT?: string;
+  PROG_GB?: string;
+}): Promise<{ MSGCODE: string; MESSAGE: string }> => {
+  console.log('[검사완료 API] 검사완료 처리:', params);
+
+  const isDemoMode = checkDemoMode();
+
+  if (isDemoMode) {
+    await new Promise(resolve => setTimeout(resolve, 1000));
+    return { MSGCODE: '0', MESSAGE: '검사완료 처리되었습니다 (더미)' };
+  }
+
+  try {
+    const origin = typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000';
+
+    const response = await fetchWithRetry(`${API_BASE}/customer/equipment/setEquipmentChkStndByY`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Origin': origin
+      },
+      credentials: 'include',
+      body: JSON.stringify(params),
+    });
+
+    const result = await response.json();
+    console.log('[검사완료 API] 처리 성공:', result);
+    return result;
+  } catch (error) {
+    console.error('[검사완료 API] 처리 실패:', error);
+    if (error instanceof NetworkError) {
+      throw error;
+    }
+    throw new NetworkError('검사완료 처리에 실패했습니다.');
+  }
+};

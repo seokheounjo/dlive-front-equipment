@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { getEquipmentHistoryInfo, apiRequest, getWrkrHaveEqtList } from '../../services/apiService';
+import { getWrkrHaveEqtList } from '../../services/apiService';
 import { debugApiCall } from './equipmentDebug';
 import BarcodeScanner from './BarcodeScanner';
 
@@ -208,12 +208,22 @@ const EquipmentList: React.FC<EquipmentListProps> = ({ onBack, showToast }) => {
   const inputRef = React.useRef<HTMLInputElement>(null);
 
   // 로그인한 사용자 정보 가져오기
-  const getLoggedInUser = () => {
+  const getLoggedInUser = (): {
+    userId: string;
+    soId: string | null;
+    authSoList: Array<{ SO_ID: string; SO_NM: string }> | null;
+  } | null => {
     try {
       const userStr = localStorage.getItem('user');
       if (userStr) {
         const user = JSON.parse(userStr);
-        return user.USR_ID || user.WRKR_ID || null;
+        const userId = user.USR_ID || user.WRKR_ID || user.userId || null;
+        // 본사 직원: soId가 있음, 타사 직원: soId가 없고 AUTH_SO_List만 있음
+        const soId = user.soId || user.SO_ID || null;
+        const authSoList = user.AUTH_SO_List || null;
+
+        console.log('[장비처리] 사용자 정보:', { userId, soId: soId || '(없음)', authSoListCount: authSoList?.length || 0 });
+        return userId ? { userId, soId, authSoList } : null;
       }
     } catch (e) {
       console.warn('사용자 정보 파싱 실패:', e);
@@ -224,24 +234,67 @@ const EquipmentList: React.FC<EquipmentListProps> = ({ onBack, showToast }) => {
   // 내 보유 장비 목록 로드
   useEffect(() => {
     const loadMyEquipments = async () => {
-      const wrkrId = getLoggedInUser();
-      if (!wrkrId) return;
+      const userInfo = getLoggedInUser();
+      if (!userInfo) return;
 
       setIsLoadingMyEquipments(true);
       try {
-        const params = { WRKR_ID: wrkrId };
-        const result = await debugApiCall(
-          'EquipmentList',
-          'getWrkrHaveEqtList',
-          () => getWrkrHaveEqtList(params),
-          params
-        );
+        let allEquipments: any[] = [];
 
-        if (Array.isArray(result)) {
-          setMyEquipments(result);
-        } else if (result && Array.isArray(result.data)) {
-          setMyEquipments(result.data);
+        if (userInfo.soId) {
+          // 본사 직원: soId가 있으면 그것으로 조회
+          const params = { WRKR_ID: userInfo.userId, SO_ID: userInfo.soId };
+          console.log('[장비처리] 본사직원 - SO_ID로 조회:', params);
+          const result = await debugApiCall(
+            'EquipmentList',
+            'getWrkrHaveEqtList',
+            () => getWrkrHaveEqtList(params),
+            params
+          );
+          allEquipments = Array.isArray(result) ? result : result?.data || [];
+        } else if (userInfo.authSoList && userInfo.authSoList.length > 0) {
+          // 타사 직원: AUTH_SO_List의 각 SO_ID로 조회
+          console.log('[장비처리] 타사직원 - AUTH_SO_List로 조회:', userInfo.authSoList);
+          for (const so of userInfo.authSoList) {
+            try {
+              const params = { WRKR_ID: userInfo.userId, SO_ID: so.SO_ID };
+              const result = await debugApiCall(
+                'EquipmentList',
+                `getWrkrHaveEqtList(SO_ID=${so.SO_ID})`,
+                () => getWrkrHaveEqtList(params),
+                params
+              );
+              const items = Array.isArray(result) ? result : result?.data || [];
+              // 본인 장비만 필터링
+              const myItems = items.filter((e: any) => e.WRKR_ID === userInfo.userId || e.ID === userInfo.userId);
+              allEquipments = [...allEquipments, ...myItems];
+            } catch (e) {
+              console.warn(`SO_ID ${so.SO_ID} 조회 실패:`, e);
+            }
+          }
+          // 중복 제거 (EQT_SERNO 기준)
+          const uniqueMap = new Map();
+          allEquipments.forEach(e => {
+            if (e.EQT_SERNO && !uniqueMap.has(e.EQT_SERNO)) {
+              uniqueMap.set(e.EQT_SERNO, e);
+            }
+          });
+          allEquipments = Array.from(uniqueMap.values());
+          console.log('[장비처리] 타사직원 최종 장비:', allEquipments.length, '건');
+        } else {
+          // 기본: SO_ID 없이 조회
+          const params = { WRKR_ID: userInfo.userId };
+          console.log('[장비처리] 기본 조회 (SO_ID 없음):', params);
+          const result = await debugApiCall(
+            'EquipmentList',
+            'getWrkrHaveEqtList',
+            () => getWrkrHaveEqtList(params),
+            params
+          );
+          allEquipments = Array.isArray(result) ? result : result?.data || [];
         }
+
+        setMyEquipments(allEquipments);
       } catch (err) {
         console.warn('내 보유 장비 로드 실패:', err);
       } finally {
@@ -356,101 +409,24 @@ const EquipmentList: React.FC<EquipmentListProps> = ({ onBack, showToast }) => {
       allResponses.push({ api: 'myEquipments', status: 'not_found' });
     }
 
-    // 2. API를 통한 검색 시도
-    const apiAttempts = [
-      // 1. 장비 이력 조회 API (statistics)
-      {
-        name: 'getEquipmentHistoryInfo',
-        call: () => getEquipmentHistoryInfo(
-          searchType === 'SN' ? { EQT_SERNO: searchVal } : { MAC_ADDRESS: searchVal }
-        )
-      },
-      // 2. EQT_NO로 직접 조회
-      {
-        name: 'getEquipmentHistoryInfo (EQT_NO)',
-        call: () => apiRequest('/statistics/equipment/getEquipmentHistoryInfo', 'POST', {
-          EQT_NO: searchVal
-        })
-      },
-      // 3. 직접 API 호출 - SERIAL_NO 파라미터
-      {
-        name: 'getEquipmentHistoryInfo (SERIAL_NO)',
-        call: () => apiRequest('/statistics/equipment/getEquipmentHistoryInfo', 'POST', {
-          SERIAL_NO: searchVal
-        })
-      },
-      // 4. 직접 API 호출 - MAC_ADDR 파라미터
-      {
-        name: 'getEquipmentHistoryInfo (MAC_ADDR)',
-        call: () => apiRequest('/statistics/equipment/getEquipmentHistoryInfo', 'POST', {
-          MAC_ADDR: searchVal
-        })
-      },
-      // 5. 장비 상태 조회 API
-      {
-        name: 'getEquipmentStatus',
-        call: () => apiRequest('/customer/equipment/getStatus', 'POST', {
-          EQT_SERNO: searchVal,
-          SERIAL_NO: searchVal,
-          EQT_NO: searchVal
-        })
-      },
-    ];
+    // 2. 장비 처리 화면에서는 보유장비만 검색 가능
+    // (모든 장비 조회는 [장비 조회] 메뉴에서 가능)
+    console.log('[장비처리] 보유장비에서 찾지 못함 - 장비 처리는 보유장비만 가능');
 
-    for (const attempt of apiAttempts) {
-      try {
-        console.log(`🔍 [장비목록] ${attempt.name} 시도...`);
-        const result = await attempt.call();
-        console.log(`✅ [장비목록] ${attempt.name} 응답:`, result);
-
-        allResponses.push({ api: attempt.name, response: result });
-
-        // 유효한 응답인지 확인
-        if (result && typeof result === 'object') {
-          // 에러 응답이 아니고 데이터가 있으면 성공
-          if (!result.code || result.code === 'SUCCESS') {
-            // 배열이면 첫 번째 항목 사용
-            const data = Array.isArray(result) ? result[0] : result;
-            if (data && Object.keys(data).length > 0 && !data.code) {
-              const equipment = data as EquipmentDetail;
-
-              if (isMultiScanMode) {
-                // 복수 스캔 모드: 목록에 추가
-                const added = handleAddToScannedList(equipment);
-                if (added) {
-                  showToast?.(`장비가 추가되었습니다. (${scannedItems.length + 1}건)`, 'success');
-                }
-                setSearchValue(''); // 입력 초기화
-              } else {
-                // 단일 조회 모드
-                setEquipmentDetail(enrichEquipmentData(equipment));
-                setRawResponse({ successApi: attempt.name, data: result, allAttempts: allResponses });
-                showToast?.('장비 정보를 조회했습니다.', 'success');
-              }
-              setIsLoading(false);
-              return;
-            }
-          }
-        }
-      } catch (err: any) {
-        console.warn(`⚠️ [장비목록] ${attempt.name} 실패:`, err.message);
-        allResponses.push({ api: attempt.name, error: err.message });
-      }
-    }
-
-    // 모든 시도 실패
     if (isMultiScanMode) {
-      setSearchValue(''); // 입력 초기화
-      showToast?.('장비를 찾을 수 없습니다. S/N을 확인해주세요.', 'error');
+      // 복수 스캔 모드: 스캔된 바코드 제거 (실패한 스캔)
+      scannedBarcodesRef.current.delete(searchVal);
+      setScanAttemptCount(scannedBarcodesRef.current.size);
+      setSearchValue('');
+      showToast?.('보유장비에서 찾을 수 없습니다.', 'error');
     } else {
-      setRawResponse({ allAttempts: allResponses });
-      setError('장비 정보를 찾을 수 없습니다. S/N 또는 MAC 주소를 확인해주세요.\n\n참고: 현재 장비 원장 조회 API가 정상 동작하지 않습니다. 내 보유 장비에서만 검색이 가능합니다.');
-      showToast?.('장비 정보를 찾을 수 없습니다.', 'error');
+      setError('보유장비에서 찾을 수 없습니다. 장비 처리는 본인이 보유한 장비만 가능합니다. 모든 장비 조회는 [장비 조회] 메뉴를 이용해주세요.');
+      showToast?.('보유장비에서 찾을 수 없습니다.', 'error');
     }
     setIsLoading(false);
   };
 
-  // 정보 필드 렌더링 헬퍼
+    // 정보 필드 렌더링 헬퍼
   const InfoRow: React.FC<{ label: string; value: string | number | undefined | null }> = ({ label, value }) => (
     <div className="flex border-b border-gray-100 py-1.5">
       <span className="w-28 flex-shrink-0 text-xs text-gray-500">{label}</span>
