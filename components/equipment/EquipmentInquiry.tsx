@@ -273,6 +273,7 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
         searchConditions,
         SO_ID: selectedSoId,
         WRKR_ID: userInfo.userId,
+            CRR_ID: userInfo.userId, // CRR_ID = WRKR_ID (기사 본인)
         ITEM_MID_CD: selectedItemMidCd,
         EQT_SERNO: eqtSerno
       });
@@ -287,6 +288,7 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
           EQT_SERNO: eqtSerno.trim(),
           SO_ID: selectedSoId || userInfo.soId || undefined,
           WRKR_ID: userInfo.userId,
+            CRR_ID: userInfo.userId, // CRR_ID = WRKR_ID (기사 본인)
         };
 
         const historyResult = await debugApiCall(
@@ -305,6 +307,7 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
         // 일반 조회: 체크된 조건에 따라 여러 API 호출 후 합치기
         const baseParams: any = {
           WRKR_ID: userInfo.userId,
+            CRR_ID: userInfo.userId, // CRR_ID = WRKR_ID (기사 본인)
           SO_ID: selectedSoId || userInfo.soId || undefined,
           ITEM_MID_CD: selectedItemMidCd || undefined,
         };
@@ -316,6 +319,7 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
         if (searchConditions.OWNED) {
           const ownedParams = {
             WRKR_ID: userInfo.userId,
+            CRR_ID: userInfo.userId, // CRR_ID = WRKR_ID (기사 본인)
             SO_ID: selectedSoId || userInfo.soId || undefined,
             ITEM_MID_CD: selectedItemMidCd || undefined,
             EQT_CL_CD: selectedCategory || undefined, // 구분 (임대/판매/할부)
@@ -341,10 +345,11 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
         if (searchConditions.RETURN_REQUESTED) {
           const returnParams = {
             WRKR_ID: userInfo.userId,
+            CRR_ID: userInfo.userId, // CRR_ID = WRKR_ID (기사 본인)
             SO_ID: selectedSoId || userInfo.soId || undefined,
             ITEM_MID_CD: selectedItemMidCd || undefined,
             EQT_CL_CD: selectedCategory || undefined, // 구분 (임대/판매/할부)
-            RETURN_TP: 'R', // 반납요청 상태
+            RETURN_TP: '2', // '1'=반납센터, '2'=기사위치, '3'=직접
           };
           try {
             const returnResult = await debugApiCall(
@@ -366,6 +371,7 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
         if (searchConditions.INSPECTION_WAITING) {
           const inspectionParams = {
             WRKR_ID: userInfo.userId,
+            CRR_ID: userInfo.userId, // CRR_ID = WRKR_ID (기사 본인)
             SO_ID: selectedSoId || userInfo.soId || undefined,
             EQT_SERNO: undefined, // 전체 조회
           };
