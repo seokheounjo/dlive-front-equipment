@@ -3157,6 +3157,142 @@ export const getWorkerEquipmentList = async (params: {
 };
 
 /**
+ * 작업자(기사) 보유 장비 전체 조회 (All statuses/locations)
+ * Backend: getWrkrHaveEqtList_All -> getOwnerEquipmentList (parameterized SQL)
+ * @param params 검색 조건
+ * @returns 장비 리스트
+ */
+export const getWrkrHaveEqtListAll = async (params: {
+  WRKR_ID: string;
+  SO_ID?: string;
+  ITEM_MID_CD?: string;
+  EQT_SERNO?: string;
+  EQT_STAT_CD?: string;
+  EQT_LOC_TP_CD?: string;
+}): Promise<any[]> => {
+  console.log('🔧 [보유장비전체조회] API 호출:', params);
+
+  try {
+    const origin = typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000';
+
+    const response = await fetchWithRetry(`${API_BASE}/customer/equipment/getWrkrHaveEqtList_All`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Origin': origin
+      },
+      credentials: 'include',
+      body: JSON.stringify(params),
+    });
+
+    const result = await response.json();
+    console.log('✅ 보유장비 전체 조회 성공:', result);
+
+    if (!result) return [];
+    // 백엔드 응답: { data: [...], debugLogs: [...] }
+    if (result.data && Array.isArray(result.data)) {
+      return result.data;
+    }
+    return Array.isArray(result) ? result : result.output1 || [];
+  } catch (error: any) {
+    console.error('❌ 보유장비 전체 조회 실패:', error);
+    if (error instanceof NetworkError) {
+      throw error;
+    }
+    throw new NetworkError('보유장비 전체 조회에 실패했습니다.');
+  }
+};
+
+/**
+ * 반납요청 장비 조회
+ * Backend: getOwnEqtLstForMobile_3 -> getEquipmentReturnRequestList
+ * @param params 검색 조건
+ * @returns 반납요청 장비 리스트
+ */
+export const getOwnEqtLstForMobile3 = async (params: {
+  WRKR_ID: string;
+  SO_ID?: string;
+  RETURN_TP?: string;  // 1=반납위치, 2=기사위치, 3=기사본인
+  ITEM_MID_CD?: string;
+  EQT_CL_CD?: string;
+}): Promise<any[]> => {
+  console.log('🔧 [반납요청장비조회] API 호출:', params);
+
+  try {
+    const origin = typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000';
+
+    const response = await fetchWithRetry(`${API_BASE}/customer/equipment/getOwnEqtLstForMobile_3`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Origin': origin
+      },
+      credentials: 'include',
+      body: JSON.stringify(params),
+    });
+
+    const result = await response.json();
+    console.log('✅ 반납요청 장비 조회 성공:', result);
+
+    if (!result) return [];
+    if (result.data && Array.isArray(result.data)) {
+      return result.data;
+    }
+    return Array.isArray(result) ? result : result.output1 || [];
+  } catch (error: any) {
+    console.error('❌ 반납요청 장비 조회 실패:', error);
+    if (error instanceof NetworkError) {
+      throw error;
+    }
+    throw new NetworkError('반납요청 장비 조회에 실패했습니다.');
+  }
+};
+
+/**
+ * 검사대기 장비 전체 조회
+ * Backend: getEquipmentChkStndByA_All
+ * SQL Conditions: EQT_USE_ARR_YN='A', EQT_LOC_TP_CD='3', ITEM_MID_CD='04'
+ * @param params 검색 조건
+ * @returns 검사대기 장비 리스트
+ */
+export const getEquipmentChkStndByAAll = async (params: {
+  WRKR_ID: string;
+  SO_ID?: string;
+  EQT_SERNO?: string;
+}): Promise<any[]> => {
+  console.log('🔧 [검사대기장비조회] API 호출:', params);
+
+  try {
+    const origin = typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000';
+
+    const response = await fetchWithRetry(`${API_BASE}/customer/equipment/getEquipmentChkStndByA_All`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Origin': origin
+      },
+      credentials: 'include',
+      body: JSON.stringify(params),
+    });
+
+    const result = await response.json();
+    console.log('✅ 검사대기 장비 조회 성공:', result);
+
+    if (!result) return [];
+    if (result.data && Array.isArray(result.data)) {
+      return result.data;
+    }
+    return Array.isArray(result) ? result : result.output1 || [];
+  } catch (error: any) {
+    console.error('❌ 검사대기 장비 조회 실패:', error);
+    if (error instanceof NetworkError) {
+      throw error;
+    }
+    throw new NetworkError('검사대기 장비 조회에 실패했습니다.');
+  }
+};
+
+/**
  * 장비 분실 처리
  * @param params 분실 정보
  * @returns 처리 결과

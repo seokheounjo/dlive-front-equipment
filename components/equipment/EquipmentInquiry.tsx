@@ -6,7 +6,11 @@ import {
   processEquipmentLoss,
   setEquipmentCheckStandby,
   getCommonCodes,
-  getEquipmentHistoryInfo
+  getEquipmentHistoryInfo,
+  // 새 API 함수 (받은문서 20251223 분석 기반)
+  getWrkrHaveEqtListAll,      // 보유장비 전체 조회
+  getOwnEqtLstForMobile3,     // 반납요청 장비 조회
+  getEquipmentChkStndByAAll   // 검사대기 장비 조회
 } from '../../services/apiService';
 import BaseModal from '../common/BaseModal';
 import { debugApiCall } from './equipmentDebug';
@@ -92,6 +96,8 @@ interface EquipmentItem {
   EQT_USE_END_DT?: string;
   RETN_RESN_CD?: string;
   RETN_RESN_NM?: string;
+  // 카테고리 구분용 (OWNED, RETURN_REQUESTED, INSPECTION_WAITING)
+  _category?: 'OWNED' | 'RETURN_REQUESTED' | 'INSPECTION_WAITING';
 }
 
 interface SoListItem {
@@ -306,64 +312,73 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
         // 체크된 조건에 따라 API 호출
         const allResults: any[] = [];
 
-        // 보유장비 체크 시
+        // 보유장비 체크 시 - getWrkrHaveEqtList_All API 사용
         if (searchConditions.OWNED) {
           const ownedParams = {
-            ...baseParams,
-            EQT_STAT_CD: '10',
-            EQT_LOC_TP_CD: '3',
+            WRKR_ID: userInfo.userId,
+            SO_ID: selectedSoId || userInfo.soId || undefined,
+            ITEM_MID_CD: selectedItemMidCd || undefined,
+            EQT_CL_CD: selectedCategory || undefined, // 구분 (임대/판매/할부)
+            // 백엔드에서 EQT_STAT_CD, EQT_LOC_TP_CD 자동 설정
           };
           try {
             const ownedResult = await debugApiCall(
               'EquipmentInquiry',
-              'getWorkerEquipmentList (보유)',
-              () => getWorkerEquipmentList(ownedParams),
+              'getWrkrHaveEqtListAll (보유)',
+              () => getWrkrHaveEqtListAll(ownedParams),
               ownedParams
             );
             if (Array.isArray(ownedResult)) {
-              allResults.push(...ownedResult);
+              // 보유장비 표시용 태그 추가
+              allResults.push(...ownedResult.map(item => ({ ...item, _category: 'OWNED' })));
             }
           } catch (e) {
             console.log('보유장비 조회 실패:', e);
           }
         }
 
-        // 반납요청 체크 시
+        // 반납요청 체크 시 - getOwnEqtLstForMobile_3 API 사용
         if (searchConditions.RETURN_REQUESTED) {
           const returnParams = {
-            ...baseParams,
-            EQT_STAT_CD: '40',
+            WRKR_ID: userInfo.userId,
+            SO_ID: selectedSoId || userInfo.soId || undefined,
+            ITEM_MID_CD: selectedItemMidCd || undefined,
+            EQT_CL_CD: selectedCategory || undefined, // 구분 (임대/판매/할부)
+            RETURN_TP: 'R', // 반납요청 상태
           };
           try {
             const returnResult = await debugApiCall(
               'EquipmentInquiry',
-              'getEquipmentReturnRequestList (반납요청)',
-              () => getEquipmentReturnRequestList(returnParams),
+              'getOwnEqtLstForMobile3 (반납요청)',
+              () => getOwnEqtLstForMobile3(returnParams),
               returnParams
             );
             if (Array.isArray(returnResult)) {
-              allResults.push(...returnResult);
+              // 반납요청 표시용 태그 추가
+              allResults.push(...returnResult.map(item => ({ ...item, _category: 'RETURN_REQUESTED' })));
             }
           } catch (e) {
             console.log('반납요청 조회 실패:', e);
           }
         }
 
-        // 검사대기 체크 시
+        // 검사대기 체크 시 - getEquipmentChkStndByA_All API 사용
         if (searchConditions.INSPECTION_WAITING) {
           const inspectionParams = {
-            ...baseParams,
-            EQT_STAT_CD: '50',
+            WRKR_ID: userInfo.userId,
+            SO_ID: selectedSoId || userInfo.soId || undefined,
+            EQT_SERNO: undefined, // 전체 조회
           };
           try {
             const inspectionResult = await debugApiCall(
               'EquipmentInquiry',
-              'getWorkerEquipmentList (검사대기)',
-              () => getWorkerEquipmentList(inspectionParams),
+              'getEquipmentChkStndByAAll (검사대기)',
+              () => getEquipmentChkStndByAAll(inspectionParams),
               inspectionParams
             );
             if (Array.isArray(inspectionResult)) {
-              allResults.push(...inspectionResult);
+              // 검사대기 표시용 태그 추가
+              allResults.push(...inspectionResult.map(item => ({ ...item, _category: 'INSPECTION_WAITING' })));
             }
           } catch (e) {
             console.log('검사대기 조회 실패:', e);
@@ -399,6 +414,8 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
         EQT_USE_END_DT: item.EQT_USE_END_DT || '',
         RETN_RESN_CD: item.RETN_RESN_CD || '',
         RETN_RESN_NM: item.RETN_RESN_NM || item.RETN_RESN_CD_NM || '',
+        // 카테고리 유지 (API 호출시 추가된 _category)
+        _category: item._category || undefined,
       }));
 
       // 장비 종류 필터링 (S/N 검색에서도 적용)
@@ -406,6 +423,18 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
       if (selectedItemMidCd) {
         filteredList = filteredList.filter(item => item.ITEM_MID_CD === selectedItemMidCd);
       }
+
+      // 카테고리별 정렬 (보유 -> 반납요청 -> 검사대기, 그 다음 장비종류별)
+      filteredList.sort((a, b) => {
+        const categoryOrder = { 'OWNED': 1, 'RETURN_REQUESTED': 2, 'INSPECTION_WAITING': 3 };
+        const catA = categoryOrder[a._category || 'OWNED'] || 4;
+        const catB = categoryOrder[b._category || 'OWNED'] || 4;
+        if (catA !== catB) return catA - catB;
+        // 같은 카테고리 내에서 장비종류별 정렬
+        const midA = a.ITEM_MID_CD || '';
+        const midB = b.ITEM_MID_CD || '';
+        return midA.localeCompare(midB);
+      });
 
       setEquipmentList(filteredList);
 
@@ -586,6 +615,23 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
   // 선택된 장비 수
   const selectedCount = equipmentList.filter(item => item.CHK).length;
 
+  // 카테고리별 선택된 장비 수 (버튼 활성화용)
+  const selectedOwned = equipmentList.filter(item => item.CHK && item._category === 'OWNED').length;
+  const selectedReturn = equipmentList.filter(item => item.CHK && item._category === 'RETURN_REQUESTED').length;
+  const selectedInspection = equipmentList.filter(item => item.CHK && item._category === 'INSPECTION_WAITING').length;
+
+  // 카테고리별 전체 장비 수 (그룹화 표시용)
+  const totalOwned = equipmentList.filter(item => item._category === 'OWNED').length;
+  const totalReturn = equipmentList.filter(item => item._category === 'RETURN_REQUESTED').length;
+  const totalInspection = equipmentList.filter(item => item._category === 'INSPECTION_WAITING').length;
+
+  // 카테고리별 전체 선택 핸들러
+  const handleCheckCategory = (category: 'OWNED' | 'RETURN_REQUESTED' | 'INSPECTION_WAITING', checked: boolean) => {
+    setEquipmentList(equipmentList.map(item =>
+      item._category === category ? { ...item, CHK: checked } : item
+    ));
+  };
+
   return (
     <div className="h-full overflow-y-auto bg-gray-50 px-4 py-4 space-y-3">
         {/* 검색 조건 선택 박스 - 체크박스로 복수 선택 가능 */}
@@ -765,7 +811,7 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
         {/* 장비 리스트 */}
         {equipmentList.length > 0 && (
           <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
-            {/* 헤더: 전체 선택 + 뷰 모드 선택 */}
+            {/* 헤더: 전체 선택 + 카테고리별 선택 + 뷰 모드 선택 */}
             <div className="px-4 py-3 bg-gradient-to-r from-gray-50 to-white border-b border-gray-100">
               <div className="flex items-center justify-between mb-2">
                 <label className="flex items-center gap-2 cursor-pointer">
@@ -778,8 +824,44 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
                   <span className="text-sm font-semibold text-gray-800">전체선택</span>
                 </label>
                 <span className="text-xs text-gray-500">
-                  {equipmentList.length}건 (선택: {equipmentList.filter(item => item.CHK).length}건)
+                  {equipmentList.length}건 (선택: {selectedCount}건)
                 </span>
+              </div>
+              {/* 카테고리별 전체 선택 */}
+              <div className="flex gap-2 mb-2 flex-wrap">
+                {totalOwned > 0 && (
+                  <label className="flex items-center gap-1.5 px-2 py-1 bg-green-50 rounded-lg cursor-pointer border border-green-200">
+                    <input
+                      type="checkbox"
+                      onChange={(e) => handleCheckCategory('OWNED', e.target.checked)}
+                      checked={totalOwned > 0 && selectedOwned === totalOwned}
+                      className="w-3.5 h-3.5 text-green-500 rounded focus:ring-green-500"
+                    />
+                    <span className="text-xs font-medium text-green-700">보유 ({selectedOwned}/{totalOwned})</span>
+                  </label>
+                )}
+                {totalReturn > 0 && (
+                  <label className="flex items-center gap-1.5 px-2 py-1 bg-amber-50 rounded-lg cursor-pointer border border-amber-200">
+                    <input
+                      type="checkbox"
+                      onChange={(e) => handleCheckCategory('RETURN_REQUESTED', e.target.checked)}
+                      checked={totalReturn > 0 && selectedReturn === totalReturn}
+                      className="w-3.5 h-3.5 text-amber-500 rounded focus:ring-amber-500"
+                    />
+                    <span className="text-xs font-medium text-amber-700">반납요청 ({selectedReturn}/{totalReturn})</span>
+                  </label>
+                )}
+                {totalInspection > 0 && (
+                  <label className="flex items-center gap-1.5 px-2 py-1 bg-purple-50 rounded-lg cursor-pointer border border-purple-200">
+                    <input
+                      type="checkbox"
+                      onChange={(e) => handleCheckCategory('INSPECTION_WAITING', e.target.checked)}
+                      checked={totalInspection > 0 && selectedInspection === totalInspection}
+                      className="w-3.5 h-3.5 text-purple-500 rounded focus:ring-purple-500"
+                    />
+                    <span className="text-xs font-medium text-purple-700">검사대기 ({selectedInspection}/{totalInspection})</span>
+                  </label>
+                )}
               </div>
               {/* 뷰 모드 선택 버튼 */}
               <div className="flex gap-1 bg-gray-100 p-1 rounded-lg">
@@ -816,7 +898,7 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
               </div>
             </div>
 
-            {/* 간단히 보기: 품목명 + 상태만 */}
+            {/* 간단히 보기: 품목명 + 상태 + 카테고리 */}
             {viewMode === 'simple' && (
               <div className="max-h-80 overflow-y-auto p-3 space-y-2">
                 {equipmentList.map((item, idx) => (
@@ -826,6 +908,9 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
                     className={`flex items-center justify-between p-3 rounded-lg border-2 cursor-pointer transition-all ${
                       item.CHK
                         ? 'bg-blue-50 border-blue-400'
+                        : item._category === 'OWNED' ? 'bg-green-50/50 border-green-200 hover:border-green-300'
+                        : item._category === 'RETURN_REQUESTED' ? 'bg-amber-50/50 border-amber-200 hover:border-amber-300'
+                        : item._category === 'INSPECTION_WAITING' ? 'bg-purple-50/50 border-purple-200 hover:border-purple-300'
                         : 'bg-gray-50 border-transparent hover:border-gray-200'
                     }`}
                   >
@@ -838,12 +923,20 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
                       />
                       <div>
                         <div className="flex items-center gap-2">
+                          {/* 카테고리 배지 */}
+                          <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold ${
+                            item._category === 'OWNED' ? 'bg-green-500 text-white' :
+                            item._category === 'RETURN_REQUESTED' ? 'bg-amber-500 text-white' :
+                            item._category === 'INSPECTION_WAITING' ? 'bg-purple-500 text-white' :
+                            'bg-gray-400 text-white'
+                          }`}>
+                            {item._category === 'OWNED' ? '보유' :
+                             item._category === 'RETURN_REQUESTED' ? '반납' :
+                             item._category === 'INSPECTION_WAITING' ? '검사' : '-'}
+                          </span>
                           <span className={`px-2 py-0.5 rounded text-xs font-bold ${getItemColor(item.ITEM_MID_CD)}`}>
                             {item.ITEM_NM || item.EQT_CL_NM || item.ITEM_MID_NM || '장비'}
                           </span>
-                          {item.PROC_STAT === 'R' && (
-                            <span className="text-blue-500 text-xs">● 요청중</span>
-                          )}
                         </div>
                       </div>
                     </div>
@@ -863,7 +956,7 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
               </div>
             )}
 
-            {/* 중간 보기: 품목명 + 상태 + S/N + MAC */}
+            {/* 중간 보기: 품목명 + 상태 + S/N + MAC + 카테고리 */}
             {viewMode === 'medium' && (
               <div className="max-h-80 overflow-y-auto p-3 space-y-2">
                 {equipmentList.map((item, idx) => (
@@ -873,6 +966,9 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
                     className={`p-3 rounded-lg border-2 cursor-pointer transition-all ${
                       item.CHK
                         ? 'bg-blue-50 border-blue-400'
+                        : item._category === 'OWNED' ? 'bg-green-50/50 border-green-200 hover:border-green-300'
+                        : item._category === 'RETURN_REQUESTED' ? 'bg-amber-50/50 border-amber-200 hover:border-amber-300'
+                        : item._category === 'INSPECTION_WAITING' ? 'bg-purple-50/50 border-purple-200 hover:border-purple-300'
                         : 'bg-gray-50 border-transparent hover:border-gray-200'
                     }`}
                   >
@@ -886,12 +982,20 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center justify-between mb-2">
                           <div className="flex items-center gap-2">
+                            {/* 카테고리 배지 */}
+                            <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold ${
+                              item._category === 'OWNED' ? 'bg-green-500 text-white' :
+                              item._category === 'RETURN_REQUESTED' ? 'bg-amber-500 text-white' :
+                              item._category === 'INSPECTION_WAITING' ? 'bg-purple-500 text-white' :
+                              'bg-gray-400 text-white'
+                            }`}>
+                              {item._category === 'OWNED' ? '보유' :
+                               item._category === 'RETURN_REQUESTED' ? '반납' :
+                               item._category === 'INSPECTION_WAITING' ? '검사' : '-'}
+                            </span>
                             <span className={`px-2 py-0.5 rounded text-xs font-bold ${getItemColor(item.ITEM_MID_CD)}`}>
                               {item.ITEM_NM || item.EQT_CL_NM || item.ITEM_MID_NM || '장비'}
                             </span>
-                            {item.PROC_STAT === 'R' && (
-                              <span className="text-blue-500 text-xs">● 요청</span>
-                            )}
                           </div>
                           <span className={`px-2 py-1 rounded-full text-xs font-semibold ${
                             item.EQT_STAT_CD === '10' ? 'bg-green-100 text-green-700' :
@@ -920,7 +1024,7 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
               </div>
             )}
 
-            {/* 자세히 보기: 테이블 형식으로 모든 정보 */}
+            {/* 자세히 보기: 테이블 형식으로 모든 정보 + 카테고리 */}
             {viewMode === 'detail' && (
               <div className="max-h-80 overflow-y-auto p-3 space-y-2">
                 {equipmentList.map((item, idx) => (
@@ -930,6 +1034,9 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
                     className={`p-3 rounded-lg border-2 cursor-pointer transition-all ${
                       item.CHK
                         ? 'bg-blue-50 border-blue-400'
+                        : item._category === 'OWNED' ? 'bg-green-50/30 border-green-200 hover:border-green-300'
+                        : item._category === 'RETURN_REQUESTED' ? 'bg-amber-50/30 border-amber-200 hover:border-amber-300'
+                        : item._category === 'INSPECTION_WAITING' ? 'bg-purple-50/30 border-purple-200 hover:border-purple-300'
                         : 'bg-white border-gray-100 hover:border-gray-300'
                     }`}
                   >
@@ -941,16 +1048,24 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
                         className="w-5 h-5 text-blue-500 rounded focus:ring-blue-500 mt-0.5"
                       />
                       <div className="flex-1 min-w-0">
-                        {/* 상단: 품목명 + 상태 */}
+                        {/* 상단: 카테고리 + 품목명 + 상태 */}
                         <div className="flex items-center justify-between mb-3">
                           <div className="flex items-center gap-2">
+                            {/* 카테고리 배지 */}
+                            <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold ${
+                              item._category === 'OWNED' ? 'bg-green-500 text-white' :
+                              item._category === 'RETURN_REQUESTED' ? 'bg-amber-500 text-white' :
+                              item._category === 'INSPECTION_WAITING' ? 'bg-purple-500 text-white' :
+                              'bg-gray-400 text-white'
+                            }`}>
+                              {item._category === 'OWNED' ? '보유' :
+                               item._category === 'RETURN_REQUESTED' ? '반납' :
+                               item._category === 'INSPECTION_WAITING' ? '검사' : '-'}
+                            </span>
                             <span className={`px-2 py-0.5 rounded text-xs font-bold ${getItemColor(item.ITEM_MID_CD)}`}>
                               {item.ITEM_NM || item.EQT_CL_NM || '장비'}
                             </span>
                             <span className="text-xs text-gray-400">{item.ITEM_MID_NM}</span>
-                            {item.PROC_STAT === 'R' && (
-                              <span className="bg-blue-500 text-white text-[10px] px-1.5 py-0.5 rounded">요청중</span>
-                            )}
                           </div>
                           <span className={`px-2 py-1 rounded-full text-xs font-semibold ${
                             item.EQT_STAT_CD === '10' ? 'bg-green-100 text-green-700' :
@@ -1022,67 +1137,67 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
           </div>
         )}
 
-        {/* 하단 버튼 영역 - 체크된 조건에 따라 버튼 표시 */}
+        {/* 하단 버튼 영역 - 선택된 장비의 실제 카테고리에 따라 버튼 활성화 */}
         <div className="flex gap-2 flex-wrap">
-          {/* 보유장비 체크 시: 장비반납, 분실처리 */}
-          {searchConditions.OWNED && (
+          {/* 보유장비가 선택되었을 때만: 장비반납, 분실처리 */}
+          {totalOwned > 0 && (
             <>
               <button
                 onClick={handleReturnClick}
-                disabled={selectedCount === 0}
+                disabled={selectedOwned === 0}
                 className={`flex-1 min-w-[100px] py-2.5 rounded-lg font-semibold text-sm shadow-sm transition-all active:scale-[0.98] touch-manipulation ${
-                  selectedCount > 0
+                  selectedOwned > 0
                     ? 'bg-blue-500 hover:bg-blue-600 text-white'
                     : 'bg-gray-200 text-gray-400 cursor-not-allowed'
                 }`}
                 style={{ WebkitTapHighlightColor: 'transparent' }}
               >
-                장비반납
+                장비반납 {selectedOwned > 0 && `(${selectedOwned})`}
               </button>
               <button
                 onClick={handleLossClick}
-                disabled={selectedCount === 0}
+                disabled={selectedOwned === 0}
                 className={`flex-1 min-w-[100px] py-2.5 rounded-lg font-semibold text-sm shadow-sm transition-all active:scale-[0.98] touch-manipulation ${
-                  selectedCount > 0
+                  selectedOwned > 0
                     ? 'bg-red-500 hover:bg-red-600 text-white'
                     : 'bg-gray-200 text-gray-400 cursor-not-allowed'
                 }`}
                 style={{ WebkitTapHighlightColor: 'transparent' }}
               >
-                분실처리
+                분실처리 {selectedOwned > 0 && `(${selectedOwned})`}
               </button>
             </>
           )}
 
-          {/* 반납요청 체크 시: 반납취소 */}
-          {searchConditions.RETURN_REQUESTED && (
+          {/* 반납요청 장비가 선택되었을 때만: 반납취소 */}
+          {totalReturn > 0 && (
             <button
               onClick={() => handleReturnRequest('CANCEL')}
-              disabled={selectedCount === 0}
+              disabled={selectedReturn === 0}
               className={`flex-1 min-w-[100px] py-2.5 rounded-lg font-semibold text-sm shadow-sm transition-all active:scale-[0.98] touch-manipulation ${
-                selectedCount > 0
+                selectedReturn > 0
                   ? 'bg-amber-500 hover:bg-amber-600 text-white'
                   : 'bg-gray-200 text-gray-400 cursor-not-allowed'
               }`}
               style={{ WebkitTapHighlightColor: 'transparent' }}
             >
-              반납취소
+              반납취소 {selectedReturn > 0 && `(${selectedReturn})`}
             </button>
           )}
 
-          {/* 검사대기 체크 시: 사용가능변경 */}
-          {searchConditions.INSPECTION_WAITING && (
+          {/* 검사대기 장비가 선택되었을 때만: 사용가능변경 */}
+          {totalInspection > 0 && (
             <button
               onClick={handleStatusChangeClick}
-              disabled={selectedCount === 0}
+              disabled={selectedInspection === 0}
               className={`flex-1 min-w-[100px] py-2.5 rounded-lg font-semibold text-sm shadow-sm transition-all active:scale-[0.98] touch-manipulation ${
-                selectedCount > 0
+                selectedInspection > 0
                   ? 'bg-green-500 hover:bg-green-600 text-white'
                   : 'bg-gray-200 text-gray-400 cursor-not-allowed'
               }`}
               style={{ WebkitTapHighlightColor: 'transparent' }}
             >
-              사용가능변경
+              사용가능변경 {selectedInspection > 0 && `(${selectedInspection})`}
             </button>
           )}
         </div>
