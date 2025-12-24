@@ -417,6 +417,14 @@ const EquipmentList: React.FC<EquipmentListProps> = ({ onBack, showToast }) => {
             const scannedSNs = Array.from(scannedBarcodesRef.current).join(', ');
             setSearchValue(scannedSNs);
             showToast?.(`장비가 추가되었습니다. (${scannedItems.length + 1}건)`, 'success');
+          } else {
+            // EQT_NO 기준 중복 - 바코드 ref에서 제거
+            const normalizedBarcode = searchVal.toUpperCase().replace(/[\s:-]/g, '');
+            scannedBarcodesRef.current.delete(normalizedBarcode);
+            setScanAttemptCount(scannedBarcodesRef.current.size);
+            // 기존 스캔 목록 표시
+            const scannedSNs = Array.from(scannedBarcodesRef.current).join(', ');
+            setSearchValue(scannedSNs || '');
           }
         } else {
           // 단일 조회 모드
@@ -460,6 +468,14 @@ const EquipmentList: React.FC<EquipmentListProps> = ({ onBack, showToast }) => {
             const scannedSNs = Array.from(scannedBarcodesRef.current).join(', ');
             setSearchValue(scannedSNs);
             showToast?.(`장비가 추가되었습니다. (${scannedItems.length + 1}건)`, 'success');
+          } else {
+            // EQT_NO 기준 중복 - 바코드 ref에서 제거
+            const normalizedBarcode = searchVal.toUpperCase().replace(/[\s:-]/g, '');
+            scannedBarcodesRef.current.delete(normalizedBarcode);
+            setScanAttemptCount(scannedBarcodesRef.current.size);
+            // 기존 스캔 목록 표시
+            const scannedSNs = Array.from(scannedBarcodesRef.current).join(', ');
+            setSearchValue(scannedSNs || '');
           }
         } else {
           // 단일 조회 모드
@@ -530,12 +546,16 @@ const EquipmentList: React.FC<EquipmentListProps> = ({ onBack, showToast }) => {
 
   // 복수 스캔 모드에서 장비 추가
   const handleAddToScannedList = (equipment: EquipmentDetail) => {
-    // 중복 체크
+    // 중복 체크: EQT_SERNO, EQT_NO, MAC_ADDRESS 모두 확인
+    // 같은 장비를 S/N으로 스캔하고 MAC으로 다시 스캔해도 중복 처리
     const isDuplicate = scannedItems.some(
-      item => item.EQT_SERNO === equipment.EQT_SERNO || item.EQT_NO === equipment.EQT_NO
+      item =>
+        item.EQT_SERNO === equipment.EQT_SERNO ||
+        item.EQT_NO === equipment.EQT_NO ||
+        (item.MAC_ADDRESS && equipment.MAC_ADDRESS && item.MAC_ADDRESS === equipment.MAC_ADDRESS)
     );
     if (isDuplicate) {
-      showToast?.('이미 스캔된 장비입니다.', 'warning');
+      showToast?.('이미 스캔된 장비입니다. (동일 장비번호)', 'warning');
       return false;
     }
     setScannedItems(prev => [...prev, equipment]);
@@ -779,7 +799,14 @@ const EquipmentList: React.FC<EquipmentListProps> = ({ onBack, showToast }) => {
               {scannedItems.map((item, index) => {
                 const enrichedItem = enrichEquipmentData(item);
                 return (
-                  <div key={index} className="bg-gray-50 rounded-lg p-4 border border-gray-200">
+                  <div
+                    key={index}
+                    className="bg-gray-50 rounded-lg p-4 border border-gray-200 cursor-pointer hover:bg-blue-50 hover:border-blue-300 transition-all active:scale-[0.99]"
+                    onClick={() => {
+                      setEquipmentDetail(enrichedItem);
+                      setShowBulkView(false);
+                    }}
+                  >
                     <div className="flex items-center justify-between mb-3">
                       <div className="flex items-center gap-2">
                         <span className="bg-blue-500 text-white text-xs font-bold px-2 py-1 rounded">
@@ -789,13 +816,18 @@ const EquipmentList: React.FC<EquipmentListProps> = ({ onBack, showToast }) => {
                           {enrichedItem.EQT_CL_NM || enrichedItem.ITEM_NM || '장비'}
                         </span>
                       </div>
-                      <span className={`px-2 py-1 rounded-full text-xs font-semibold ${
-                        enrichedItem.EQT_STAT_CD === '10' ? 'bg-green-100 text-green-700' :
-                        enrichedItem.EQT_STAT_CD === '20' ? 'bg-blue-100 text-blue-700' :
-                        'bg-gray-100 text-gray-700'
-                      }`}>
-                        {enrichedItem.EQT_STAT_CD_NM || '-'}
-                      </span>
+                      <div className="flex items-center gap-2">
+                        <span className={`px-2 py-1 rounded-full text-xs font-semibold ${
+                          enrichedItem.EQT_STAT_CD === '10' ? 'bg-green-100 text-green-700' :
+                          enrichedItem.EQT_STAT_CD === '20' ? 'bg-blue-100 text-blue-700' :
+                          'bg-gray-100 text-gray-700'
+                        }`}>
+                          {enrichedItem.EQT_STAT_CD_NM || '-'}
+                        </span>
+                        <span className="text-xs text-blue-500 hover:text-blue-700">
+                          상세보기 →
+                        </span>
+                      </div>
                     </div>
                     <div className="grid grid-cols-2 gap-2 text-xs">
                       <div>
