@@ -177,8 +177,7 @@ const parseWorkerFromLocNm = (locNm: string | undefined | null): { name: string;
 };
 
 const EquipmentList: React.FC<EquipmentListProps> = ({ onBack, showToast }) => {
-  const [searchType, setSearchType] = useState<'SN' | 'MAC'>('SN');
-  const [searchValue, setSearchValue] = useState('705KVQS022868'); // 테스트용 하드코딩
+  const [searchValue, setSearchValue] = useState(''); // 검색어 (S/N 또는 MAC)
   const [isLoading, setIsLoading] = useState(false);
   const [equipmentDetail, setEquipmentDetail] = useState<EquipmentDetail | null>(null);
   const [rawResponse, setRawResponse] = useState<any>(null);
@@ -198,8 +197,8 @@ const EquipmentList: React.FC<EquipmentListProps> = ({ onBack, showToast }) => {
   // 조회 실패한 S/N 목록 (DB에 없는 장비)
   const [failedBarcodes, setFailedBarcodes] = useState<string[]>([]);
 
-  // 문의 전화번호
-  const INQUIRY_PHONE = '1588-9112';
+  // 문의 전화번호 (D'Live 고객센터)
+  const INQUIRY_PHONE = '1644-1100';
 
   // 뷰 모드: simple(간단히), medium(중간), detail(자세히)
   const [viewMode, setViewMode] = useState<'simple' | 'medium' | 'detail'>('simple');
@@ -403,7 +402,7 @@ const EquipmentList: React.FC<EquipmentListProps> = ({ onBack, showToast }) => {
       return;
     }
 
-    console.log('🔍 [장비조회] 검색 시작:', { searchType, searchValue: searchVal, isMultiScanMode });
+    console.log('🔍 [장비조회] 검색 시작:', { searchValue: searchVal, isMultiScanMode });
 
     const allResponses: any[] = [];
 
@@ -672,32 +671,6 @@ const EquipmentList: React.FC<EquipmentListProps> = ({ onBack, showToast }) => {
         {/* 검색 영역 */}
         <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4">
           <div className="space-y-3">
-            {/* 검색 타입 선택 */}
-            <div className="flex gap-2">
-              <button
-                onClick={() => setSearchType('SN')}
-                className={`flex-1 py-2.5 rounded-lg text-sm font-medium transition-all active:scale-[0.98] touch-manipulation ${
-                  searchType === 'SN'
-                    ? 'bg-blue-500 text-white shadow-sm'
-                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                }`}
-                style={{ WebkitTapHighlightColor: 'transparent' }}
-              >
-                S/N (바코드)
-              </button>
-              <button
-                onClick={() => setSearchType('MAC')}
-                className={`flex-1 py-2.5 rounded-lg text-sm font-medium transition-all active:scale-[0.98] touch-manipulation ${
-                  searchType === 'MAC'
-                    ? 'bg-blue-500 text-white shadow-sm'
-                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                }`}
-                style={{ WebkitTapHighlightColor: 'transparent' }}
-              >
-                MAC 주소
-              </button>
-            </div>
-
             {/* 검색 입력 */}
             <div>
               <input
@@ -706,8 +679,8 @@ const EquipmentList: React.FC<EquipmentListProps> = ({ onBack, showToast }) => {
                 value={searchValue}
                 onChange={(e) => handleBarcodeInput(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
-                className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent uppercase font-mono transition-all"
-                placeholder={searchType === 'SN' ? (isMultiScanMode ? '바코드 스캔하면 자동 추가됩니다' : '바코드 스캔 또는 S/N 입력') : '예: 481B40B6F453'}
+                className="w-full px-4 py-3 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent uppercase font-mono transition-all"
+                placeholder={isMultiScanMode ? '바코드 스캔하면 자동 추가됩니다' : 'S/N 또는 MAC 주소 입력'}
                 autoFocus
               />
             </div>
