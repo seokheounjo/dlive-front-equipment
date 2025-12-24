@@ -195,6 +195,12 @@ const EquipmentList: React.FC<EquipmentListProps> = ({ onBack, showToast }) => {
   // 스캔 시도 횟수 (UI 표시용)
   const [scanAttemptCount, setScanAttemptCount] = useState(0);
 
+  // 조회 실패한 S/N 목록 (DB에 없는 장비)
+  const [failedBarcodes, setFailedBarcodes] = useState<string[]>([]);
+
+  // 문의 전화번호
+  const INQUIRY_PHONE = '1588-9112';
+
   // 뷰 모드: simple(간단히), medium(중간), detail(자세히)
   const [viewMode, setViewMode] = useState<'simple' | 'medium' | 'detail'>('simple');
 
@@ -498,6 +504,13 @@ const EquipmentList: React.FC<EquipmentListProps> = ({ onBack, showToast }) => {
     if (isMultiScanMode) {
       scannedBarcodesRef.current.delete(searchVal);
       setScanAttemptCount(scannedBarcodesRef.current.size);
+      // 실패한 S/N 목록에 추가 (중복 방지)
+      setFailedBarcodes(prev => {
+        if (!prev.includes(searchVal)) {
+          return [...prev, searchVal];
+        }
+        return prev;
+      });
       // 실패해도 기존 스캔 목록은 유지
       const scannedSNs = Array.from(scannedBarcodesRef.current).join(', ');
       setSearchValue(scannedSNs);
@@ -538,10 +551,27 @@ const EquipmentList: React.FC<EquipmentListProps> = ({ onBack, showToast }) => {
   // 스캔 목록 초기화
   const handleClearScannedItems = () => {
     setScannedItems([]);
+    setFailedBarcodes([]); // 실패 목록도 초기화
     scannedBarcodesRef.current.clear(); // 바코드 추적도 초기화
     setScanAttemptCount(0); // 스캔 카운트도 초기화
     setEquipmentDetail(null);
+    setShowBulkView(false);
     showToast?.('스캔 목록이 초기화되었습니다.', 'info');
+  };
+
+  // 바코드 스캐너 닫기 핸들러 (일괄 조회 자동 표시)
+  const handleCloseBarcodeScanner = () => {
+    setShowBarcodeScanner(false);
+    // 스캔된 장비가 있으면 일괄 조회 모드로 자동 전환
+    if (isMultiScanMode && (scannedItems.length > 0 || failedBarcodes.length > 0)) {
+      setShowBulkView(true);
+      setEquipmentDetail(null);
+    }
+  };
+
+  // 전화 걸기
+  const handleCallInquiry = () => {
+    window.location.href = `tel:${INQUIRY_PHONE}`;
   };
 
   // 복수 스캔 모드에서 장비 추가
@@ -615,11 +645,20 @@ const EquipmentList: React.FC<EquipmentListProps> = ({ onBack, showToast }) => {
               />
             </button>
           </div>
-          {isMultiScanMode && scannedItems.length > 0 && (
+          {isMultiScanMode && (scannedItems.length > 0 || failedBarcodes.length > 0) && (
             <div className="mt-3 flex items-center justify-between pt-3 border-t border-gray-100">
-              <span className="text-xs text-blue-600 font-medium">
-                스캔된 장비: {scannedItems.length}건
-              </span>
+              <div className="flex items-center gap-2">
+                {scannedItems.length > 0 && (
+                  <span className="text-xs text-blue-600 font-medium">
+                    성공: {scannedItems.length}건
+                  </span>
+                )}
+                {failedBarcodes.length > 0 && (
+                  <span className="text-xs text-red-500 font-medium">
+                    실패: {failedBarcodes.length}건
+                  </span>
+                )}
+              </div>
               <button
                 onClick={handleClearScannedItems}
                 className="text-xs text-red-500 hover:text-red-700 transition-colors"
@@ -1177,13 +1216,64 @@ const EquipmentList: React.FC<EquipmentListProps> = ({ onBack, showToast }) => {
           </div>
         )}
 
+        {/* 조회 실패 항목 (DB에 없는 장비) */}
+        {failedBarcodes.length > 0 && (
+          <div className="bg-red-50 rounded-xl border border-red-200 shadow-sm p-4">
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-sm font-bold text-red-700 flex items-center gap-2">
+                <span>⚠️</span>
+                <span>조회 실패</span>
+                <span className="bg-red-100 text-red-600 px-2 py-0.5 rounded-full text-xs">
+                  {failedBarcodes.length}건
+                </span>
+              </h3>
+              <button
+                onClick={() => setFailedBarcodes([])}
+                className="text-xs text-red-500 hover:text-red-700"
+              >
+                목록 삭제
+              </button>
+            </div>
+
+            {/* 실패한 S/N 목록 */}
+            <div className="space-y-2 mb-4">
+              {failedBarcodes.map((sn, index) => (
+                <div
+                  key={index}
+                  className="flex items-center justify-between p-2 bg-white rounded-lg border border-red-100"
+                >
+                  <span className="text-xs font-mono text-red-800">{sn}</span>
+                  <span className="text-xs text-red-500">DB에 없음</span>
+                </div>
+              ))}
+            </div>
+
+            {/* 문의 안내 */}
+            <div className="bg-white rounded-lg p-3 border border-red-100">
+              <p className="text-xs text-gray-600 mb-3 text-center">
+                등록되지 않은 장비입니다.<br />
+                장비 등록 문의는 아래 번호로 연락해주세요.
+              </p>
+              <button
+                onClick={handleCallInquiry}
+                className="w-full py-3 bg-red-500 hover:bg-red-600 text-white rounded-lg font-semibold text-sm transition-all active:scale-[0.98] flex items-center justify-center gap-2"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
+                </svg>
+                {INQUIRY_PHONE} 전화하기
+              </button>
+            </div>
+          </div>
+        )}
+
         {/* Barcode Scanner */}
         <BarcodeScanner
           isOpen={showBarcodeScanner}
-          onClose={() => setShowBarcodeScanner(false)}
+          onClose={handleCloseBarcodeScanner}
           onScan={handleBarcodeScan}
           isMultiScanMode={isMultiScanMode}
-          scanCount={scanAttemptCount}
+          scanCount={scannedItems.length + failedBarcodes.length}
         />
     </div>
   );
