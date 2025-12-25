@@ -984,23 +984,23 @@ const EquipmentList: React.FC<EquipmentListProps> = ({ onBack, showToast }) => {
                 </div>
 
                 {/* 핵심 정보 그리드 */}
-                <div className="bg-gray-50 rounded-lg p-3 space-y-2">
-                  <div className="grid grid-cols-2 gap-3 text-xs">
-                    <div>
-                      <span className="text-gray-400 block mb-0.5">S/N (일련번호)</span>
-                      <span className="font-mono text-gray-900 font-medium">{equipmentDetail.EQT_SERNO || '-'}</span>
+                <div className="bg-gray-50 rounded-lg p-3 space-y-1">
+                  <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs">
+                    <div className="flex">
+                      <span className="text-gray-400 w-16 flex-shrink-0">S/N</span>
+                      <span className="font-mono text-gray-900 font-medium truncate">{equipmentDetail.EQT_SERNO || '-'}</span>
                     </div>
-                    <div>
-                      <span className="text-gray-400 block mb-0.5">MAC 주소</span>
-                      <span className="font-mono text-gray-700">{equipmentDetail.MAC_ADDRESS || '-'}</span>
+                    <div className="flex">
+                      <span className="text-gray-400 w-16 flex-shrink-0">MAC</span>
+                      <span className="font-mono text-gray-700 truncate">{equipmentDetail.MAC_ADDRESS || '-'}</span>
                     </div>
-                    <div>
-                      <span className="text-gray-400 block mb-0.5">현재 위치</span>
-                      <span className="text-gray-700">{equipmentDetail.EQT_LOC_TP_CD_NM || getEqtLocTpName(equipmentDetail.EQT_LOC_TP_CD) || '-'}</span>
+                    <div className="flex">
+                      <span className="text-gray-400 w-16 flex-shrink-0">위치</span>
+                      <span className="text-gray-700 truncate">{equipmentDetail.EQT_LOC_TP_CD_NM || getEqtLocTpName(equipmentDetail.EQT_LOC_TP_CD) || '-'}</span>
                     </div>
-                    <div>
-                      <span className="text-gray-400 block mb-0.5">보유기사</span>
-                      <span className="text-gray-700">
+                    <div className="flex">
+                      <span className="text-gray-400 w-16 flex-shrink-0">보유기사</span>
+                      <span className="text-gray-700 truncate">
                         {(() => {
                           const worker = parseWorkerFromLocNm(equipmentDetail.EQT_LOC_NM);
                           if (worker.id) {
@@ -1010,13 +1010,13 @@ const EquipmentList: React.FC<EquipmentListProps> = ({ onBack, showToast }) => {
                         })()}
                       </span>
                     </div>
-                    <div>
-                      <span className="text-gray-400 block mb-0.5">지점</span>
-                      <span className="text-gray-700">{equipmentDetail.SO_NM || equipmentDetail.SO_ID || '-'}</span>
+                    <div className="flex">
+                      <span className="text-gray-400 w-16 flex-shrink-0">지점</span>
+                      <span className="text-gray-700 truncate">{equipmentDetail.SO_NM || equipmentDetail.SO_ID || '-'}</span>
                     </div>
-                    <div>
-                      <span className="text-gray-400 block mb-0.5">사용상태</span>
-                      <span className="text-gray-700">{equipmentDetail.EQT_USE_STAT_CD_NM || equipmentDetail.EQT_USE_ARR_YN_NM || '-'}</span>
+                    <div className="flex">
+                      <span className="text-gray-400 w-16 flex-shrink-0">사용상태</span>
+                      <span className="text-gray-700 truncate">{equipmentDetail.EQT_USE_STAT_CD_NM || equipmentDetail.EQT_USE_ARR_YN_NM || '-'}</span>
                     </div>
                   </div>
                 </div>
