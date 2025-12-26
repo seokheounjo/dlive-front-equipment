@@ -176,6 +176,9 @@ const parseWorkerFromLocNm = (locNm: string | undefined | null): { name: string;
   return { name: locNm, id: '' };
 };
 
+// 조회 모드 타입
+type ScanMode = 'single' | 'multi' | 'manual';
+
 const EquipmentList: React.FC<EquipmentListProps> = ({ onBack, showToast }) => {
   const [searchValue, setSearchValue] = useState(''); // 검색어 (S/N 또는 MAC)
   const [isLoading, setIsLoading] = useState(false);
@@ -185,9 +188,13 @@ const EquipmentList: React.FC<EquipmentListProps> = ({ onBack, showToast }) => {
   const [myEquipments, setMyEquipments] = useState<any[]>([]);
   const [isLoadingMyEquipments, setIsLoadingMyEquipments] = useState(false);
 
+  // 조회 모드: single(단일스캔), multi(복수스캔), manual(장비번호 입력)
+  const [scanMode, setScanMode] = useState<ScanMode>('single');
+
   // 복수 스캔 누적 조회 기능
   const [scannedItems, setScannedItems] = useState<EquipmentDetail[]>([]);
-  const [isMultiScanMode, setIsMultiScanMode] = useState(false);
+  // isMultiScanMode는 scanMode === 'multi'로 대체
+  const isMultiScanMode = scanMode === 'multi';
 
   // 스캔된 바코드 추적 (useRef로 즉시 동기 체크)
   const scannedBarcodesRef = React.useRef<Set<string>>(new Set());
@@ -385,8 +392,8 @@ const EquipmentList: React.FC<EquipmentListProps> = ({ onBack, showToast }) => {
     setRawResponse(null);
 
     // 콤마로 구분된 모든 값 추출 (중복 제거)
-    const rawValue = valueToSearch;
-    const searchValues: string[] = rawValue.includes(',')
+    const rawValue = String(valueToSearch || '');
+    const searchValues: string[] = (typeof rawValue === 'string' && rawValue.includes(','))
       ? [...new Set(rawValue.split(',').map(s => s.trim().toUpperCase().replace(/[\s:-]/g, '')).filter(s => s.length > 0))]
       : [rawValue.toUpperCase().replace(/[\s:-]/g, '')].filter(s => s.length > 0);
 
@@ -448,7 +455,10 @@ const EquipmentList: React.FC<EquipmentListProps> = ({ onBack, showToast }) => {
         }
 
         if (notFoundItems.length > 0) {
-          setFailedBarcodes(prev => [...prev, ...notFoundItems.filter(sn => !prev.includes(sn))]);
+          setFailedBarcodes(prev => {
+            const arr = Array.isArray(prev) ? prev : [];
+            return [...arr, ...notFoundItems.filter(sn => !arr.includes(sn))];
+          });
         }
 
         setShowBulkView(true);
@@ -456,7 +466,10 @@ const EquipmentList: React.FC<EquipmentListProps> = ({ onBack, showToast }) => {
         setSearchValue('');
         showToast?.(`${newItems.length}건 조회 완료${notFoundItems.length > 0 ? `, ${notFoundItems.length}건 미등록` : ''}`, 'success');
       } else {
-        setFailedBarcodes(prev => [...prev, ...notFoundItems.filter(sn => !prev.includes(sn))]);
+        setFailedBarcodes(prev => {
+          const arr = Array.isArray(prev) ? prev : [];
+          return [...arr, ...notFoundItems.filter(sn => !arr.includes(sn))];
+        });
         setError('입력한 장비를 모두 찾을 수 없습니다.');
         showToast?.('장비를 찾을 수 없습니다.', 'error');
       }
@@ -495,8 +508,9 @@ const EquipmentList: React.FC<EquipmentListProps> = ({ onBack, showToast }) => {
         scannedBarcodesRef.current.delete(searchVal);
         setScanAttemptCount(scannedBarcodesRef.current.size);
         setFailedBarcodes(prev => {
-          if (!prev.includes(searchVal)) return [...prev, searchVal];
-          return prev;
+          const arr = Array.isArray(prev) ? prev : [];
+          if (!arr.includes(searchVal)) return [...arr, searchVal];
+          return arr;
         });
         const scannedSNs = Array.from(scannedBarcodesRef.current).join(', ');
         setSearchValue(scannedSNs);
@@ -612,28 +626,46 @@ const EquipmentList: React.FC<EquipmentListProps> = ({ onBack, showToast }) => {
   return (
     <div className="h-full overflow-y-auto bg-gray-50 px-4 py-4 space-y-3">
 
-        {/* 복수 스캔 모드 토글 */}
+        {/* 조회 모드 선택 */}
         <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <span className="text-sm font-medium text-gray-700">복수 스캔 모드</span>
-              <span className="text-xs text-gray-500">(바코드 연속 스캔)</span>
-            </div>
+          <div className="flex items-center gap-2 mb-3">
+            <span className="text-sm font-semibold text-gray-800">조회 방식</span>
+          </div>
+          <div className="grid grid-cols-3 gap-2">
             <button
-              onClick={() => setIsMultiScanMode(!isMultiScanMode)}
-              className={`relative w-12 h-6 rounded-full transition-colors ${
-                isMultiScanMode ? 'bg-blue-500' : 'bg-gray-300'
+              onClick={() => setScanMode('single')}
+              className={`py-3 px-2 rounded-lg text-sm font-medium transition-all ${
+                scanMode === 'single'
+                  ? 'bg-blue-500 text-white shadow-sm'
+                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
               }`}
-              style={{ WebkitTapHighlightColor: 'transparent' }}
             >
-              <span
-                className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${
-                  isMultiScanMode ? 'translate-x-6' : ''
-                }`}
-              />
+              단일스캔
+            </button>
+            <button
+              onClick={() => setScanMode('multi')}
+              className={`py-3 px-2 rounded-lg text-sm font-medium transition-all ${
+                scanMode === 'multi'
+                  ? 'bg-purple-500 text-white shadow-sm'
+                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+              }`}
+            >
+              복수스캔
+            </button>
+            <button
+              onClick={() => setScanMode('manual')}
+              className={`py-3 px-2 rounded-lg text-sm font-medium transition-all ${
+                scanMode === 'manual'
+                  ? 'bg-green-500 text-white shadow-sm'
+                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+              }`}
+            >
+              장비번호
             </button>
           </div>
-          {isMultiScanMode && (scannedItems.length > 0 || failedBarcodes.length > 0 || scanAttemptCount > 0) && (
+
+          {/* 복수스캔 모드 결과 표시 */}
+          {scanMode === 'multi' && (scannedItems.length > 0 || failedBarcodes.length > 0 || scanAttemptCount > 0) && (
             <div className="mt-3 flex items-center justify-between pt-3 border-t border-gray-100">
               <div className="flex items-center gap-2">
                 {scannedItems.length > 0 && (
@@ -657,25 +689,40 @@ const EquipmentList: React.FC<EquipmentListProps> = ({ onBack, showToast }) => {
           )}
         </div>
 
-        {/* 검색 영역 */}
-        <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4">
-          <div className="space-y-3">
-            {/* 검색 입력 */}
-            <div>
-              <input
-                ref={inputRef}
-                type="text"
-                value={searchValue}
-                onChange={(e) => handleBarcodeInput(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
-                className="w-full px-4 py-3 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent uppercase font-mono transition-all"
-                placeholder={isMultiScanMode ? '바코드 스캔하면 자동 추가됩니다' : 'S/N 또는 MAC 주소 입력'}
-                autoFocus
-              />
-            </div>
+        {/* 스캔 버튼 (단일/복수스캔 모드) */}
+        {(scanMode === 'single' || scanMode === 'multi') && (
+          <button
+            onClick={() => setShowBarcodeScanner(true)}
+            className={`w-full py-4 rounded-xl font-semibold text-base shadow-lg flex items-center justify-center gap-3 active:scale-[0.98] transition-all touch-manipulation ${
+              scanMode === 'single'
+                ? 'bg-gradient-to-r from-blue-500 to-blue-600 text-white'
+                : 'bg-gradient-to-r from-purple-500 to-purple-600 text-white'
+            }`}
+          >
+            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z" />
+            </svg>
+            {scanMode === 'single' ? '바코드 스캔 (1건)' : '바코드 연속 스캔'}
+          </button>
+        )}
 
-            {/* 조회 + 바코드 버튼 */}
-            <div className="flex gap-2">
+        {/* 장비번호 입력 영역 (manual 모드) */}
+        {scanMode === 'manual' && (
+          <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4">
+            <div className="space-y-3">
+              <div>
+                <label className="block text-xs font-medium text-gray-600 mb-1.5">장비번호 (S/N 또는 MAC)</label>
+                <input
+                  ref={inputRef}
+                  type="text"
+                  value={searchValue}
+                  onChange={(e) => setSearchValue(e.target.value.toUpperCase())}
+                  onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
+                  className="w-full px-4 py-3 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent uppercase font-mono transition-all"
+                  placeholder="S/N 또는 MAC 주소 입력"
+                  autoFocus
+                />
+              </div>
               <button
                 onClick={handleSearch}
                 disabled={isLoading}
@@ -697,7 +744,7 @@ const EquipmentList: React.FC<EquipmentListProps> = ({ onBack, showToast }) => {
               <button
                 onClick={() => setShowBarcodeScanner(true)}
                 disabled={isLoading}
-                className="flex-1 py-2.5 rounded-lg font-semibold text-sm shadow-sm transition-all flex items-center justify-center gap-2 active:scale-[0.98] touch-manipulation bg-gray-800 hover:bg-gray-900 disabled:bg-gray-400 text-white"
+                className="w-full py-2.5 rounded-lg font-semibold text-sm shadow-sm transition-all flex items-center justify-center gap-2 active:scale-[0.98] touch-manipulation bg-gray-800 hover:bg-gray-900 disabled:bg-gray-400 text-white"
                 style={{ WebkitTapHighlightColor: 'transparent' }}
               >
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -707,7 +754,7 @@ const EquipmentList: React.FC<EquipmentListProps> = ({ onBack, showToast }) => {
               </button>
             </div>
           </div>
-        </div>
+        )}
 
         {/* 복수 스캔 모드: 스캔된 장비 목록 */}
         {isMultiScanMode && scannedItems.length > 0 && (

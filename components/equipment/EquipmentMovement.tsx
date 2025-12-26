@@ -1,7 +1,11 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { findUserList, getWrkrHaveEqtListAll as getWrkrHaveEqtList, changeEquipmentWorker, getEquipmentHistoryInfo } from '../../services/apiService';
 import { debugApiCall } from './equipmentDebug';
-import { Scan, Search, ChevronDown, ChevronUp, Check, X } from 'lucide-react';
+import { Scan, Search, ChevronDown, ChevronUp, Check, X, User } from 'lucide-react';
+import BarcodeScanner from './BarcodeScanner';
+
+// Scan mode type
+type ScanMode = 'single' | 'multi' | 'worker';
 
 interface EquipmentMovementProps {
   onBack: () => void;
@@ -36,6 +40,12 @@ interface SoListItem {
 interface CorpListItem {
   CRR_ID: string;
   CORP_NM: string;
+}
+
+// Transfer result interface
+interface TransferResult {
+  success: { EQT_SERNO: string; EQT_NO: string; ITEM_NM: string }[];
+  failed: { EQT_SERNO: string; EQT_NO: string; ITEM_NM: string; error: string }[];
 }
 
 // 기사 검색 결과 모달
@@ -77,73 +87,6 @@ const WorkerSearchModal: React.FC<{
   );
 };
 
-// 바코드 스캔 모달
-const BarcodeScanModal: React.FC<{
-  isOpen: boolean;
-  onClose: () => void;
-  onScan: (serialNo: string) => void;
-}> = ({ isOpen, onClose, onScan }) => {
-  const [inputValue, setInputValue] = useState('');
-  const inputRef = useRef<HTMLInputElement>(null);
-
-  useEffect(() => {
-    if (isOpen && inputRef.current) {
-      inputRef.current.focus();
-    }
-  }, [isOpen]);
-
-  if (!isOpen) return null;
-
-  const handleSubmit = () => {
-    if (inputValue.trim()) {
-      onScan(inputValue.trim().toUpperCase());
-      setInputValue('');
-      onClose();
-    }
-  };
-
-  return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-xl shadow-xl w-full max-w-sm overflow-hidden">
-        <div className="p-4 border-b border-gray-100 bg-gradient-to-r from-purple-500 to-purple-600">
-          <div className="flex items-center gap-2">
-            <Scan className="w-5 h-5 text-white" />
-            <h3 className="font-semibold text-white">바코드 스캔</h3>
-          </div>
-          <p className="text-xs text-white/80 mt-1">장비 S/N을 스캔하거나 입력하세요</p>
-        </div>
-        <div className="p-4 space-y-4">
-          <input
-            ref={inputRef}
-            type="text"
-            value={inputValue}
-            onChange={(e) => setInputValue(e.target.value.toUpperCase())}
-            onKeyDown={(e) => e.key === 'Enter' && handleSubmit()}
-            placeholder="S/N 입력 또는 스캔"
-            className="w-full px-4 py-3 text-lg border-2 border-purple-200 rounded-lg focus:border-purple-500 focus:ring-2 focus:ring-purple-200 uppercase font-mono text-center"
-            autoComplete="off"
-          />
-          <div className="flex gap-2">
-            <button
-              onClick={onClose}
-              className="flex-1 py-2.5 text-sm text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-lg font-medium transition-colors"
-            >
-              취소
-            </button>
-            <button
-              onClick={handleSubmit}
-              disabled={!inputValue.trim()}
-              className="flex-1 py-2.5 text-sm text-white bg-purple-500 hover:bg-purple-600 disabled:bg-gray-300 rounded-lg font-medium transition-colors"
-            >
-              조회
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-};
-
 const EquipmentMovement: React.FC<EquipmentMovementProps> = ({ onBack }) => {
   // 로그인한 사용자 = 이관기사 (장비를 인수받는 사람)
   const [loggedInUser, setLoggedInUser] = useState<{ userId: string; userName: string; soId: string; crrId: string }>({
@@ -152,7 +95,7 @@ const EquipmentMovement: React.FC<EquipmentMovementProps> = ({ onBack }) => {
 
   // 보유기사 정보 (타 기사 = 장비를 넘겨주는 사람)
   const [workerInfo, setWorkerInfo] = useState<{ WRKR_ID: string; WRKR_NM: string; SO_ID: string; CRR_ID: string }>({
-    WRKR_ID: 'A20130708', WRKR_NM: '유영무', SO_ID: '', CRR_ID: ''  // 테스트용 타기사
+    WRKR_ID: '', WRKR_NM: '', SO_ID: '', CRR_ID: ''
   });
 
   const [eqtTrnsList, setEqtTrnsList] = useState<EqtTrns[]>([]);
@@ -162,8 +105,15 @@ const EquipmentMovement: React.FC<EquipmentMovementProps> = ({ onBack }) => {
   const [scannedSerials, setScannedSerials] = useState<string[]>([]); // 스캔된 S/N 목록
 
   const [workerModalOpen, setWorkerModalOpen] = useState(false);
-  const [scanModalOpen, setScanModalOpen] = useState(false);
+  const [showBarcodeScanner, setShowBarcodeScanner] = useState(false);
   const [searchedWorkers, setSearchedWorkers] = useState<{ USR_ID: string; USR_NM: string }[]>([]);
+
+  // 조회 모드: single(단일스캔), multi(복수스캔), worker(보유기사)
+  const [scanMode, setScanMode] = useState<ScanMode>('single');
+
+  // 이동 결과
+  const [transferResult, setTransferResult] = useState<TransferResult | null>(null);
+  const [showResultModal, setShowResultModal] = useState(false);
 
   // 종류별 접기/펼치기 상태
   const [collapsedCategories, setCollapsedCategories] = useState<Set<string>>(new Set());
@@ -222,12 +172,20 @@ const EquipmentMovement: React.FC<EquipmentMovementProps> = ({ onBack }) => {
 
   // 바코드 스캔 시 - 장비 정보로 기사 조회
   const handleBarcodeScan = async (serialNo: string) => {
+    const normalizedSN = serialNo.toUpperCase().replace(/[:-]/g, '');
+
+    // 이미 스캔된 장비인지 확인
+    if (scannedSerials.includes(normalizedSN)) {
+      alert('이미 스캔된 장비입니다.');
+      return;
+    }
+
     setIsLoading(true);
     try {
       // 1. 장비 정보 조회
       const eqtResult = await debugApiCall('EquipmentMovement', 'getEquipmentHistoryInfo',
-        () => getEquipmentHistoryInfo({ EQT_SERNO: serialNo }),
-        { EQT_SERNO: serialNo }
+        () => getEquipmentHistoryInfo({ EQT_SERNO: normalizedSN }),
+        { EQT_SERNO: normalizedSN }
       );
 
       if (eqtResult && eqtResult.length > 0) {
@@ -237,16 +195,33 @@ const EquipmentMovement: React.FC<EquipmentMovementProps> = ({ onBack }) => {
 
         if (ownerWrkrId) {
           // 2. 스캔된 S/N 저장
-          setScannedSerials(prev => [...new Set([serialNo, ...prev])]);
+          setScannedSerials(prev => [...new Set([normalizedSN, ...prev])]);
 
-          // 3. 기사 정보 설정 및 보유장비 조회
-          setWorkerInfo(prev => ({ ...prev, WRKR_ID: ownerWrkrId, WRKR_NM: ownerWrkrNm }));
-          await searchEquipmentByWorker(ownerWrkrId, ownerWrkrNm, serialNo);
+          // 3. 복수스캔 모드: 같은 기사의 장비만 추가 / 단일스캔 모드: 스캐너 닫고 조회
+          if (scanMode === 'multi') {
+            // 복수스캔: 같은 기사의 장비인지 확인
+            if (workerInfo.WRKR_ID && workerInfo.WRKR_ID !== ownerWrkrId) {
+              alert(`다른 기사(${ownerWrkrNm})의 장비입니다. 복수스캔은 같은 기사의 장비만 가능합니다.`);
+              setScannedSerials(prev => prev.filter(sn => sn !== normalizedSN));
+              return;
+            }
+            // 기사 정보 설정 및 보유장비 조회
+            if (!workerInfo.WRKR_ID) {
+              setWorkerInfo(prev => ({ ...prev, WRKR_ID: ownerWrkrId, WRKR_NM: ownerWrkrNm }));
+            }
+            await searchEquipmentByWorker(ownerWrkrId, ownerWrkrNm, normalizedSN);
+            // 복수스캔 모드에서는 스캐너 유지
+          } else {
+            // 단일스캔 모드
+            setShowBarcodeScanner(false);
+            setWorkerInfo(prev => ({ ...prev, WRKR_ID: ownerWrkrId, WRKR_NM: ownerWrkrNm }));
+            await searchEquipmentByWorker(ownerWrkrId, ownerWrkrNm, normalizedSN);
+          }
         } else {
-          alert(`장비(${serialNo})의 보유기사 정보가 없습니다.`);
+          alert(`장비(${normalizedSN})의 보유기사 정보가 없습니다.`);
         }
       } else {
-        alert(`장비(${serialNo})를 찾을 수 없습니다.`);
+        alert(`장비(${normalizedSN})를 찾을 수 없습니다.`);
       }
     } catch (error) {
       console.error('바코드 스캔 처리 실패:', error);
@@ -337,8 +312,10 @@ const EquipmentMovement: React.FC<EquipmentMovementProps> = ({ onBack }) => {
     if (!loggedInUser.userId) { alert('로그인 정보가 없습니다.'); return; }
     if (!confirm(`${workerInfo.WRKR_NM}(${workerInfo.WRKR_ID})의 장비 ${checkedItems.length}건을 인수하시겠습니까?`)) return;
 
+    setIsLoading(true);
+    const results: TransferResult = { success: [], failed: [] };
+
     try {
-      let successCount = 0;
       for (const item of checkedItems) {
         try {
           const params = {
@@ -347,21 +324,39 @@ const EquipmentMovement: React.FC<EquipmentMovementProps> = ({ onBack }) => {
             TO_WRKR_ID: loggedInUser.userId
           };
           await debugApiCall('EquipmentMovement', 'changeEquipmentWorker', () => changeEquipmentWorker(params), params);
-          successCount++;
-        } catch (err) {
+          results.success.push({
+            EQT_SERNO: item.EQT_SERNO,
+            EQT_NO: item.EQT_NO,
+            ITEM_NM: item.ITEM_NM || item.EQT_CL_NM
+          });
+        } catch (err: any) {
           console.error('장비 이동 실패:', item.EQT_SERNO, err);
+          results.failed.push({
+            EQT_SERNO: item.EQT_SERNO,
+            EQT_NO: item.EQT_NO,
+            ITEM_NM: item.ITEM_NM || item.EQT_CL_NM,
+            error: err?.message || '알 수 없는 오류'
+          });
         }
       }
-      if (successCount > 0) {
-        alert(`${successCount}건의 장비 이동이 완료되었습니다.`);
-        setScannedSerials([]);
-        setEqtTrnsList([]);
-      } else {
-        throw new Error('장비 이동에 실패했습니다.');
+
+      // 결과 표시
+      setTransferResult(results);
+      setShowResultModal(true);
+
+      if (results.success.length > 0) {
+        // 성공한 장비는 목록에서 제거
+        const successNos = new Set(results.success.map(r => r.EQT_NO));
+        setEqtTrnsList(prev => prev.filter(item => !successNos.has(item.EQT_NO)));
+        setScannedSerials(prev => prev.filter(sn =>
+          !results.success.some(r => r.EQT_SERNO === sn)
+        ));
       }
     } catch (error) {
       console.error('장비 이동 실패:', error);
       alert('장비 이동에 실패했습니다.');
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -402,6 +397,13 @@ const EquipmentMovement: React.FC<EquipmentMovementProps> = ({ onBack }) => {
 
   const categories = Object.keys(groupedEquipment);
 
+  // 스캔 초기화
+  const handleClearScanned = () => {
+    setScannedSerials([]);
+    setEqtTrnsList([]);
+    setWorkerInfo({ WRKR_ID: '', WRKR_NM: '', SO_ID: workerInfo.SO_ID, CRR_ID: '' });
+  };
+
   return (
     <div className="h-full overflow-y-auto bg-gray-50 px-4 py-4 space-y-3">
       {/* 이관기사 (로그인한 사용자 = 인수받는 사람) */}
@@ -412,72 +414,144 @@ const EquipmentMovement: React.FC<EquipmentMovementProps> = ({ onBack }) => {
         </div>
       </div>
 
-      {/* 바코드 스캔 버튼 */}
-      <button
-        onClick={() => setScanModalOpen(true)}
-        className="w-full bg-gradient-to-r from-purple-500 to-purple-600 text-white py-4 rounded-xl font-semibold text-base shadow-lg flex items-center justify-center gap-3 active:scale-[0.98] transition-all touch-manipulation"
-      >
-        <Scan className="w-6 h-6" />
-        바코드 스캔으로 장비 조회
-      </button>
-
-      {/* 보유기사 조회 영역 */}
+      {/* 조회 모드 선택 */}
       <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4">
-        <div className="mb-3">
-          <h3 className="text-sm font-semibold text-gray-800">보유기사 직접 조회</h3>
-          <p className="text-xs text-gray-500 mt-0.5">기사를 검색하여 보유 장비를 조회합니다</p>
+        <div className="flex items-center gap-2 mb-3">
+          <span className="text-sm font-semibold text-gray-800">조회 방식</span>
         </div>
-        <div className="space-y-3">
-          {/* 지점 */}
-          <div className="flex items-center gap-2">
-            <label className="text-xs font-medium text-gray-600 w-16 flex-shrink-0">지점</label>
-            <select
-              value={workerInfo.SO_ID}
-              onChange={(e) => setWorkerInfo({...workerInfo, SO_ID: e.target.value})}
-              className="flex-1 px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500"
-            >
-              <option value="">선택</option>
-              {soList.map((item) => (<option key={item.SO_ID} value={item.SO_ID}>{item.SO_NM}</option>))}
-            </select>
-          </div>
-
-          {/* 보유기사 */}
-          <div>
-            <label className="block text-xs font-medium text-gray-600 mb-1.5">보유기사 <span className="text-red-500">*</span></label>
-            <div className="flex items-center gap-2">
-              <input
-                type="text"
-                value={workerInfo.WRKR_NM}
-                onChange={(e) => setWorkerInfo({...workerInfo, WRKR_NM: e.target.value})}
-                className="flex-1 min-w-0 px-3 py-2 text-sm border border-gray-200 rounded-lg"
-                placeholder="기사명"
-              />
-              <button
-                onClick={handleWorkerSearch}
-                className="flex-shrink-0 px-3 py-2 text-sm border border-gray-200 rounded-lg bg-white hover:bg-gray-50 active:scale-[0.98] transition-all"
-              >
-                <Search className="w-4 h-4" />
-              </button>
-              <input
-                type="text"
-                value={workerInfo.WRKR_ID}
-                onChange={(e) => setWorkerInfo({...workerInfo, WRKR_ID: e.target.value})}
-                className="w-24 px-2 py-2 text-xs border border-gray-200 rounded-lg flex-shrink-0"
-                placeholder="ID"
-              />
-            </div>
-          </div>
-
-          {/* 조회 버튼 */}
+        <div className="grid grid-cols-3 gap-2">
           <button
-            onClick={handleSearch}
-            disabled={isLoading || !workerInfo.WRKR_ID}
-            className="w-full bg-blue-500 hover:bg-blue-600 disabled:bg-gray-300 text-white py-2.5 rounded-lg font-semibold text-sm shadow-sm transition-all active:scale-[0.98]"
+            onClick={() => setScanMode('single')}
+            className={`py-3 px-2 rounded-lg text-sm font-medium transition-all ${
+              scanMode === 'single'
+                ? 'bg-blue-500 text-white shadow-sm'
+                : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+            }`}
           >
-            {isLoading ? '조회 중...' : '조회'}
+            단일스캔
+          </button>
+          <button
+            onClick={() => setScanMode('multi')}
+            className={`py-3 px-2 rounded-lg text-sm font-medium transition-all ${
+              scanMode === 'multi'
+                ? 'bg-purple-500 text-white shadow-sm'
+                : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+            }`}
+          >
+            복수스캔
+          </button>
+          <button
+            onClick={() => setScanMode('worker')}
+            className={`py-3 px-2 rounded-lg text-sm font-medium transition-all ${
+              scanMode === 'worker'
+                ? 'bg-green-500 text-white shadow-sm'
+                : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+            }`}
+          >
+            보유기사
           </button>
         </div>
+
+        {/* 복수스캔 모드 결과 표시 */}
+        {scanMode === 'multi' && scannedSerials.length > 0 && (
+          <div className="mt-3 flex items-center justify-between pt-3 border-t border-gray-100">
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-purple-600 font-medium">
+                스캔: {scannedSerials.length}건
+              </span>
+              {workerInfo.WRKR_NM && (
+                <span className="text-xs text-gray-500">
+                  ({workerInfo.WRKR_NM})
+                </span>
+              )}
+            </div>
+            <button
+              onClick={handleClearScanned}
+              className="text-xs text-red-500 hover:text-red-700 transition-colors"
+            >
+              초기화
+            </button>
+          </div>
+        )}
       </div>
+
+      {/* 스캔 버튼 (단일/복수스캔 모드) */}
+      {(scanMode === 'single' || scanMode === 'multi') && (
+        <button
+          onClick={() => setShowBarcodeScanner(true)}
+          className={`w-full py-4 rounded-xl font-semibold text-base shadow-lg flex items-center justify-center gap-3 active:scale-[0.98] transition-all touch-manipulation ${
+            scanMode === 'single'
+              ? 'bg-gradient-to-r from-blue-500 to-blue-600 text-white'
+              : 'bg-gradient-to-r from-purple-500 to-purple-600 text-white'
+          }`}
+        >
+          <Scan className="w-6 h-6" />
+          {scanMode === 'single' ? '바코드 스캔 (1건)' : '바코드 연속 스캔'}
+        </button>
+      )}
+
+      {/* 보유기사 조회 영역 (worker 모드) */}
+      {scanMode === 'worker' && (
+        <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4">
+          <div className="mb-3">
+            <h3 className="text-sm font-semibold text-gray-800 flex items-center gap-2">
+              <User className="w-4 h-4" />
+              보유기사 검색
+            </h3>
+            <p className="text-xs text-gray-500 mt-0.5">기사를 검색하여 보유 장비를 조회합니다</p>
+          </div>
+          <div className="space-y-3">
+            {/* 지점 */}
+            <div className="flex items-center gap-2">
+              <label className="text-xs font-medium text-gray-600 w-16 flex-shrink-0">지점</label>
+              <select
+                value={workerInfo.SO_ID}
+                onChange={(e) => setWorkerInfo({...workerInfo, SO_ID: e.target.value})}
+                className="flex-1 px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-green-500"
+              >
+                <option value="">선택</option>
+                {soList.map((item) => (<option key={item.SO_ID} value={item.SO_ID}>{item.SO_NM}</option>))}
+              </select>
+            </div>
+
+            {/* 보유기사 */}
+            <div>
+              <label className="block text-xs font-medium text-gray-600 mb-1.5">보유기사 <span className="text-red-500">*</span></label>
+              <div className="flex items-center gap-2">
+                <input
+                  type="text"
+                  value={workerInfo.WRKR_NM}
+                  onChange={(e) => setWorkerInfo({...workerInfo, WRKR_NM: e.target.value})}
+                  className="flex-1 min-w-0 px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-green-500"
+                  placeholder="기사명"
+                />
+                <button
+                  onClick={handleWorkerSearch}
+                  className="flex-shrink-0 px-3 py-2 text-sm border border-gray-200 rounded-lg bg-white hover:bg-gray-50 active:scale-[0.98] transition-all"
+                >
+                  <Search className="w-4 h-4" />
+                </button>
+                <input
+                  type="text"
+                  value={workerInfo.WRKR_ID}
+                  onChange={(e) => setWorkerInfo({...workerInfo, WRKR_ID: e.target.value})}
+                  className="w-24 px-2 py-2 text-xs border border-gray-200 rounded-lg flex-shrink-0 focus:ring-2 focus:ring-green-500"
+                  placeholder="ID"
+                />
+              </div>
+            </div>
+
+            {/* 조회 버튼 */}
+            <button
+              onClick={handleSearch}
+              disabled={isLoading || !workerInfo.WRKR_ID}
+              className="w-full bg-green-500 hover:bg-green-600 disabled:bg-gray-300 text-white py-2.5 rounded-lg font-semibold text-sm shadow-sm transition-all active:scale-[0.98]"
+            >
+              {isLoading ? '조회 중...' : '조회'}
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* 스캔된 장비 표시 */}
       {scannedSerials.length > 0 && (
@@ -631,11 +705,93 @@ const EquipmentMovement: React.FC<EquipmentMovementProps> = ({ onBack }) => {
         title="보유기사 선택"
       />
 
-      <BarcodeScanModal
-        isOpen={scanModalOpen}
-        onClose={() => setScanModalOpen(false)}
+      {/* 바코드 스캐너 */}
+      <BarcodeScanner
+        isOpen={showBarcodeScanner}
+        onClose={() => setShowBarcodeScanner(false)}
         onScan={handleBarcodeScan}
+        isMultiScanMode={scanMode === 'multi'}
+        scanCount={scannedSerials.length}
       />
+
+      {/* 이동 결과 모달 */}
+      {showResultModal && transferResult && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-md max-h-[80vh] overflow-hidden">
+            {/* 헤더 */}
+            <div className={`p-4 ${
+              transferResult.failed.length === 0
+                ? 'bg-gradient-to-r from-green-500 to-green-600'
+                : transferResult.success.length === 0
+                  ? 'bg-gradient-to-r from-red-500 to-red-600'
+                  : 'bg-gradient-to-r from-amber-500 to-amber-600'
+            }`}>
+              <h3 className="font-semibold text-white text-lg">
+                {transferResult.failed.length === 0 ? '이동 완료' :
+                 transferResult.success.length === 0 ? '이동 실패' : '부분 성공'}
+              </h3>
+              <p className="text-white/80 text-sm mt-1">
+                성공: {transferResult.success.length}건 / 실패: {transferResult.failed.length}건
+              </p>
+            </div>
+
+            {/* 내용 */}
+            <div className="p-4 max-h-96 overflow-y-auto space-y-4">
+              {/* 성공 목록 */}
+              {transferResult.success.length > 0 && (
+                <div>
+                  <h4 className="text-sm font-semibold text-green-700 mb-2 flex items-center gap-2">
+                    <Check className="w-4 h-4" />
+                    성공 ({transferResult.success.length}건)
+                  </h4>
+                  <div className="space-y-1">
+                    {transferResult.success.map((item, idx) => (
+                      <div key={idx} className="flex items-center justify-between p-2 bg-green-50 rounded-lg text-xs">
+                        <span className="font-mono text-green-800">{item.EQT_SERNO}</span>
+                        <span className="text-green-600">{item.ITEM_NM}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* 실패 목록 */}
+              {transferResult.failed.length > 0 && (
+                <div>
+                  <h4 className="text-sm font-semibold text-red-700 mb-2 flex items-center gap-2">
+                    <X className="w-4 h-4" />
+                    실패 ({transferResult.failed.length}건)
+                  </h4>
+                  <div className="space-y-1">
+                    {transferResult.failed.map((item, idx) => (
+                      <div key={idx} className="p-2 bg-red-50 rounded-lg text-xs">
+                        <div className="flex items-center justify-between">
+                          <span className="font-mono text-red-800">{item.EQT_SERNO}</span>
+                          <span className="text-red-600">{item.ITEM_NM}</span>
+                        </div>
+                        <div className="text-red-500 mt-1">{item.error}</div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* 닫기 버튼 */}
+            <div className="p-4 border-t border-gray-100 bg-gray-50">
+              <button
+                onClick={() => {
+                  setShowResultModal(false);
+                  setTransferResult(null);
+                }}
+                className="w-full py-2.5 bg-gray-800 hover:bg-gray-900 text-white rounded-lg font-medium transition-colors"
+              >
+                확인
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
