@@ -211,15 +211,16 @@ const BarcodeScanner: React.FC<BarcodeScannerProps> = ({ isOpen, onClose, onScan
       className="fixed inset-0 bg-black barcode-scanner-container"
       style={{ zIndex: 99999 }}
     >
-      {/* X 닫기 버튼만 (우상단 플로팅) */}
+      {/* 조회하기 버튼 (우상단) */}
       <button
         onClick={handleClose}
-        className="absolute top-4 right-4 z-30 p-3 rounded-full bg-black/50 hover:bg-black/70 transition-colors active:scale-95"
+        className="absolute top-4 right-4 z-30 px-4 py-2 rounded-lg bg-blue-500 hover:bg-blue-600 transition-colors active:scale-95 flex items-center gap-2"
         style={{ marginTop: 'env(safe-area-inset-top, 0px)' }}
       >
-        <svg className="w-7 h-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+        <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
         </svg>
+        <span className="text-white font-medium text-sm">조회하기</span>
       </button>
 
       {/* 스캔 카운터 (복수 스캔 모드) */}

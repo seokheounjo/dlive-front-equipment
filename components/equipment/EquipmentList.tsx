@@ -701,8 +701,6 @@ const EquipmentList: React.FC<EquipmentListProps> = ({ onBack, showToast }) => {
                     </svg>
                     조회 중...
                   </>
-                ) : isMultiScanMode ? (
-                  '스캔'
                 ) : (
                   '조회'
                 )}
@@ -1246,7 +1244,7 @@ const EquipmentList: React.FC<EquipmentListProps> = ({ onBack, showToast }) => {
           onClose={handleCloseBarcodeScanner}
           onScan={handleBarcodeScan}
           isMultiScanMode={isMultiScanMode}
-          scanCount={scannedItems.length + failedBarcodes.length}
+          scanCount={scanAttemptCount}
         />
     </div>
   );
