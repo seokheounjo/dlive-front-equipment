@@ -112,7 +112,7 @@ const App: React.FC = () => {
   // Zustand persist가 자동으로 currentView를 localStorage에 저장
   // SESSION_KEYS.ACTIVE_VIEW 수동 저장 불필요
 
-  const handleLogin = (userId?: string, userName?: string, userRole?: string, crrId?: string, soId?: string, mstSoId?: string, telNo2?: string) => {
+  const handleLogin = (userId?: string, userName?: string, userRole?: string, crrId?: string, soId?: string, mstSoId?: string, telNo2?: string, authSoList?: Array<{SO_ID: string; SO_NM: string; MST_SO_ID: string}>) => {
     setIsAuthenticated(true);
     setCurrentView('today-work');
     if (userId) {
@@ -123,11 +123,26 @@ const App: React.FC = () => {
         crrId,
         soId,
         mstSoId,
-        telNo2  // SMS 발신번호
+        telNo2,  // SMS 발신번호
+        authSoList: authSoList || []  // 지점 목록 (타사 직원용)
       };
       setUserInfo(userInfoData);
       // localStorage에도 저장 (EquipmentManagement에서 사용)
       localStorage.setItem('userInfo', JSON.stringify(userInfoData));
+      // 'user' 키에도 저장 (EquipmentList에서 AUTH_SO_List 읽음)
+      localStorage.setItem('user', JSON.stringify({
+        USR_ID: userId,
+        WRKR_ID: userId,
+        userId: userId,
+        soId: soId,
+        SO_ID: soId,
+        AUTH_SO_List: authSoList || []
+      }));
+      // branchList도 별도로 저장 (EquipmentInquiry에서 사용)
+      if (authSoList && authSoList.length > 0) {
+        localStorage.setItem('branchList', JSON.stringify(authSoList));
+        console.log('[App] AUTH_SO_List 저장:', authSoList.length, '개 지점');
+      }
     }
 
     const today = new Date().toISOString().split('T')[0];
@@ -148,6 +163,8 @@ const App: React.FC = () => {
     setUserInfo(null);
     // 로그아웃 시 모든 세션 데이터 및 userInfo 삭제
     localStorage.removeItem('userInfo');
+    localStorage.removeItem('user');
+    localStorage.removeItem('branchList');
     clearAllSessions();
   };
 

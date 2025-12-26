@@ -7,7 +7,7 @@ import { TestTube } from 'lucide-react';
 import { login } from '../../services/apiService';
 
 interface LoginProps {
-  onLogin: (userId?: string, userName?: string, userRole?: string, crrId?: string, soId?: string, mstSoId?: string, telNo2?: string) => void;
+  onLogin: (userId?: string, userName?: string, userRole?: string, crrId?: string, soId?: string, mstSoId?: string, telNo2?: string, authSoList?: Array<{SO_ID: string; SO_NM: string; MST_SO_ID: string}>) => void;
 }
 
 const Login: React.FC<LoginProps> = ({ onLogin }) => {
@@ -31,7 +31,7 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
       if (result.ok) {
         // 실제 로그인 시 더미 모드 해제
         localStorage.removeItem('demoMode');
-        onLogin(result.userId, result.userName, result.userRole, result.crrId, result.soId, result.mstSoId, result.telNo2);
+        onLogin(result.userId, result.userName, result.userRole, result.crrId, result.soId, result.mstSoId, result.telNo2, result.AUTH_SO_List);
       } else {
         setError('로그인에 실패했습니다.');
       }
