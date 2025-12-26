@@ -211,7 +211,7 @@ async function handleProxy(req, res) {
     const parsedUrl = url.parse(targetUrl);
 
     let postData = null;
-    let contentType = 'application/json';
+    let contentType = 'application/json; charset=utf-8';
 
     if (req.method === 'POST' || req.method === 'PUT') {
       if (isLegacyReq && req.body) {
@@ -241,7 +241,7 @@ async function handleProxy(req, res) {
     };
 
     if (postData) {
-      options.headers['Content-Length'] = Buffer.byteLength(postData);
+      options.headers['Content-Length'] = Buffer.byteLength(postData, 'utf8');
     }
 
     if (req.headers.cookie) {
