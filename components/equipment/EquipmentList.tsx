@@ -800,57 +800,54 @@ const EquipmentList: React.FC<EquipmentListProps> = ({ onBack, showToast }) => {
                 return (
                   <div
                     key={index}
-                    className="bg-gray-50 rounded-lg p-4 border border-gray-200 cursor-pointer hover:bg-blue-50 hover:border-blue-300 transition-all active:scale-[0.99]"
+                    className="bg-gray-50 rounded-lg p-3 border border-gray-200 cursor-pointer hover:bg-blue-50 hover:border-blue-300 transition-all active:scale-[0.99]"
                     onClick={() => {
                       setEquipmentDetail(enrichedItem);
                       setShowBulkView(false);
                     }}
                   >
-                    <div className="flex items-center justify-between mb-3">
-                      <div className="flex items-center gap-2">
-                        <span className="bg-blue-500 text-white text-xs font-bold px-2 py-1 rounded">
+                    {/* 헤더: 번호 + 장비명 + 상태 + 화살표 */}
+                    <div className="flex items-start justify-between gap-2 mb-2">
+                      <div className="flex items-center gap-2 min-w-0 flex-1">
+                        <span className="bg-blue-500 text-white text-xs font-bold px-1.5 py-0.5 rounded flex-shrink-0">
                           #{index + 1}
                         </span>
-                        <span className="font-bold text-gray-800">
+                        <span className="font-bold text-gray-800 text-sm truncate">
                           {enrichedItem.EQT_CL_NM || enrichedItem.ITEM_NM || '장비'}
                         </span>
                       </div>
-                      <div className="flex items-center gap-2">
-                        <span className={`px-2 py-1 rounded-full text-xs font-semibold ${
+                      <div className="flex items-center gap-1.5 flex-shrink-0">
+                        <span className={`px-1.5 py-0.5 rounded text-[10px] font-semibold whitespace-nowrap ${
                           enrichedItem.EQT_STAT_CD === '10' ? 'bg-green-100 text-green-700' :
                           enrichedItem.EQT_STAT_CD === '20' ? 'bg-blue-100 text-blue-700' :
                           'bg-gray-100 text-gray-700'
                         }`}>
                           {enrichedItem.EQT_STAT_CD_NM || '-'}
                         </span>
-                        <span className="text-xs text-blue-500 hover:text-blue-700">
-                          상세보기 →
-                        </span>
+                        <span className="text-[10px] text-blue-500 whitespace-nowrap">→</span>
                       </div>
                     </div>
-                    <div className="grid grid-cols-2 gap-2 text-xs">
-                      <div>
-                        <span className="text-gray-500">S/N:</span>
-                        <span className="ml-1 font-mono text-gray-800">{enrichedItem.EQT_SERNO || '-'}</span>
+                    {/* 상세 정보 */}
+                    <div className="space-y-1 text-xs">
+                      <div className="flex">
+                        <span className="text-gray-400 w-8 flex-shrink-0">S/N</span>
+                        <span className="font-mono text-gray-800 truncate">{enrichedItem.EQT_SERNO || '-'}</span>
                       </div>
-                      <div>
-                        <span className="text-gray-500">MAC:</span>
-                        <span className="ml-1 font-mono text-gray-800">{enrichedItem.MAC_ADDRESS || '-'}</span>
+                      <div className="flex">
+                        <span className="text-gray-400 w-8 flex-shrink-0">MAC</span>
+                        <span className="font-mono text-gray-700 truncate">{enrichedItem.MAC_ADDRESS || '-'}</span>
                       </div>
-                      <div>
-                        <span className="text-gray-500">장비번호:</span>
-                        <span className="ml-1 font-mono text-gray-800">{enrichedItem.EQT_NO || '-'}</span>
+                      <div className="flex">
+                        <span className="text-gray-400 w-8 flex-shrink-0">No.</span>
+                        <span className="font-mono text-gray-700 truncate">{enrichedItem.EQT_NO || '-'}</span>
                       </div>
-                      <div>
-                        <span className="text-gray-500">위치:</span>
-                        <span className="ml-1 text-gray-800">{enrichedItem.EQT_LOC_TP_CD_NM || '-'}</span>
+                      <div className="flex">
+                        <span className="text-gray-400 w-8 flex-shrink-0">위치</span>
+                        <span className="text-gray-700">{enrichedItem.EQT_LOC_TP_CD_NM || '-'}</span>
+                        {enrichedItem.EQT_LOC_NM && (
+                          <span className="text-gray-500 ml-1 truncate">· {enrichedItem.EQT_LOC_NM}</span>
+                        )}
                       </div>
-                      {enrichedItem.EQT_LOC_NM && (
-                        <div className="col-span-2">
-                          <span className="text-gray-500">보유자:</span>
-                          <span className="ml-1 text-gray-800">{enrichedItem.EQT_LOC_NM}</span>
-                        </div>
-                      )}
                     </div>
                   </div>
                 );
