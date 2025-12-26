@@ -13,6 +13,8 @@ import {
   getEquipmentChkStndByAAll   // 검사대기 장비 조회
 } from '../../services/apiService';
 import BaseModal from '../common/BaseModal';
+// getCustProdInfo 활용 API (테스트 완료: 기사보유장비 조회)
+import { getTechnicianEquipmentFromWork } from '../../services/equipmentWorkApi';
 import { debugApiCall } from './equipmentDebug';
 import BarcodeScanner from './BarcodeScanner';
 
@@ -280,31 +282,10 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
 
       let result: any[] = [];
 
-      // S/N 또는 MAC 입력 시: getEquipmentHistoryInfo API 사용 (DB 직접 검색)
-      // S/N 검색은 보유장비만 조회 (반납요청/검사대기 장비는 제외)
-      if (eqtSerno && eqtSerno.trim().length > 0) {
-        console.log('🔍 [장비조회] S/N 검색 모드 - getEquipmentHistoryInfo 사용');
-        const historyParams = {
-          EQT_SERNO: eqtSerno.trim(),
-          SO_ID: selectedSoId || userInfo.soId || undefined,
-          WRKR_ID: userInfo.userId,
-            CRR_ID: userInfo.userId, // CRR_ID = WRKR_ID (기사 본인)
-        };
-
-        const historyResult = await debugApiCall(
-          'EquipmentInquiry',
-          'getEquipmentHistoryInfo',
-          () => getEquipmentHistoryInfo(historyParams),
-          historyParams
-        );
-
-        // 단일 결과 또는 배열 처리
-        if (historyResult) {
-          result = Array.isArray(historyResult) ? historyResult : [historyResult];
-        }
-        console.log('🔍 [장비조회] S/N 검색 결과:', result.length, '건');
-      } else {
-        // 일반 조회: 체크된 조건에 따라 여러 API 호출 후 합치기
+      // 장비처리: 항상 보유장비/반납요청/검사대기 API 사용 (S/N 입력 시 결과에서 필터링)
+      // S/N 입력 시에도 보유장비만 조회됨 (getEquipmentHistoryInfo 사용 금지)
+      {
+        //// 일반 조회: 체크된 조건에 따라 여러 API 호출 후 합치기
         const baseParams: any = {
           WRKR_ID: userInfo.userId,
             CRR_ID: userInfo.userId, // CRR_ID = WRKR_ID (기사 본인)
@@ -315,29 +296,30 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
         // 체크된 조건에 따라 API 호출
         const allResults: any[] = [];
 
-        // 보유장비 체크 시 - getWrkrHaveEqtList_All API 사용
+        // 보유장비 체크 시 - getCustProdInfo API 사용 (테스트 완료: 1건 반환)
         if (searchConditions.OWNED) {
-          const ownedParams = {
-            WRKR_ID: userInfo.userId,
-            CRR_ID: userInfo.userId, // CRR_ID = WRKR_ID (기사 본인)
-            SO_ID: selectedSoId || userInfo.soId || undefined,
-            ITEM_MID_CD: selectedItemMidCd || undefined,
-            EQT_CL_CD: selectedCategory || undefined, // 구분 (임대/판매/할부)
-            // 백엔드에서 EQT_STAT_CD, EQT_LOC_TP_CD 자동 설정
-          };
           try {
             const ownedResult = await debugApiCall(
               'EquipmentInquiry',
-              'getWrkrHaveEqtListAll (보유)',
-              () => getWrkrHaveEqtListAll(ownedParams),
-              ownedParams
+              'getTechnicianEquipmentFromWork (보유-getCustProdInfo)',
+              () => getTechnicianEquipmentFromWork({
+                WRKR_ID: userInfo.userId,
+                SO_ID: selectedSoId || userInfo.soId || undefined,
+                CRR_ID: userInfo.userId,
+              }),
+              { WRKR_ID: userInfo.userId }
             );
             if (Array.isArray(ownedResult)) {
+              // ITEM_MID_CD 필터 적용 (프론트엔드에서)
+              let filtered = ownedResult;
+              if (selectedItemMidCd) {
+                filtered = ownedResult.filter((item: any) => item.ITEM_MID_CD === selectedItemMidCd);
+              }
               // 보유장비 표시용 태그 추가
-              allResults.push(...ownedResult.map(item => ({ ...item, _category: 'OWNED' })));
+              allResults.push(...filtered.map((item: any) => ({ ...item, _category: 'OWNED' })));
             }
           } catch (e) {
-            console.log('보유장비 조회 실패:', e);
+            console.log('보유장비 조회 실패 (getCustProdInfo):', e);
           }
         }
 
@@ -392,6 +374,17 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
         }
 
         result = allResults;
+
+        // S/N 입력 시 결과에서 필터링 (보유장비 중에서만 검색)
+        if (eqtSerno && eqtSerno.trim().length > 0) {
+          const searchSerno = eqtSerno.trim().toUpperCase();
+          result = result.filter((item: any) => {
+            const itemSerno = (item.EQT_SERNO || '').toUpperCase();
+            const itemMac = (item.MAC_ADDRESS || '').toUpperCase();
+            return itemSerno.includes(searchSerno) || itemMac.includes(searchSerno);
+          });
+          console.log('🔍 [장비처리] S/N 필터 후:', result.length, '건 (검색어:', searchSerno, ')');
+        }
       }
 
       // 결과 변환
@@ -588,18 +581,41 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
     }
 
     try {
+      let successCount = 0;
       for (const item of checkedItems) {
-        const params = { EQT_NO: item.EQT_NO };
-        await debugApiCall(
-          'EquipmentInquiry',
-          'setEquipmentCheckStandby',
-          () => setEquipmentCheckStandby(params),
-          params
-        );
+        // setEquipmentChkStndByY requires full parameters from equipment data
+        const params = {
+          EQT_NO: item.EQT_NO,
+          SO_ID: item.SO_ID || userInfo.soId || '',
+          EQT_SERNO: item.EQT_SERNO || '',
+          USER_ID: userInfo.userId || '',
+          CRR_ID: item.CRR_ID || userInfo.crrId || '',
+          WRKR_ID: userInfo.userId || '',
+          CUST_ID: item.CUST_ID || '',
+          WRK_ID: item.WRK_ID || '',
+          CTRT_ID: item.CTRT_ID || '',
+          CTRT_STAT: item.CTRT_STAT || '',
+          PROG_GB: 'Y'  // Y = change to usable
+        };
+        try {
+          await debugApiCall(
+            'EquipmentInquiry',
+            'setEquipmentCheckStandby',
+            () => setEquipmentCheckStandby(params),
+            params
+          );
+          successCount++;
+        } catch (err) {
+          console.error('장비 상태 변경 실패:', item.EQT_SERNO, err);
+        }
       }
 
-      showToast?.(`${checkedItems.length}건의 장비 상태가 '사용가능'으로 변경되었습니다.`, 'success');
-      await handleSearch(); // 리스트 새로고침
+      if (successCount > 0) {
+        showToast?.(`${successCount}건의 장비 상태가 '사용가능'으로 변경되었습니다.`, 'success');
+        await handleSearch(); // 리스트 새로고침
+      } else {
+        throw new Error('장비 상태 변경에 실패했습니다.');
+      }
     } catch (error: any) {
       console.error('❌ 상태 변경 실패:', error);
       showToast?.(error.message || '상태 변경에 실패했습니다.', 'error');
