@@ -382,142 +382,129 @@ const EquipmentList: React.FC<EquipmentListProps> = ({ onBack, showToast }) => {
     }
     setRawResponse(null);
 
-    // 콤마로 구분된 경우 마지막 값만 추출, 공백 및 특수문자 제거
+    // 콤마로 구분된 모든 값 추출 (중복 제거)
     const rawValue = searchValue.trim();
-    let searchVal: string;
+    const searchValues: string[] = rawValue.includes(',')
+      ? [...new Set(rawValue.split(',').map(s => s.trim().toUpperCase().replace(/[\s:-]/g, '')).filter(s => s.length > 0))]
+      : [rawValue.toUpperCase().replace(/[\s:-]/g, '')].filter(s => s.length > 0);
 
-    if (rawValue.includes(',')) {
-      // 콤마로 split하고 마지막 비어있지 않은 값 추출
-      const parts = rawValue.split(',').map(s => s.trim().toUpperCase().replace(/[\s:-]/g, '')).filter(s => s.length > 0);
-      searchVal = parts.length > 0 ? parts[parts.length - 1] : '';
-      console.log('🔍 [장비조회] 콤마 구분 입력 - 마지막 값 사용:', { 전체: rawValue, 추출값: searchVal });
-    } else {
-      // 단일 값: 공백 및 특수문자 제거
-      searchVal = rawValue.toUpperCase().replace(/[\s:-]/g, '');
-    }
-
-    if (!searchVal) {
+    if (searchValues.length === 0) {
       showToast?.('검색할 S/N을 입력해주세요.', 'warning');
       setIsLoading(false);
       return;
     }
 
-    console.log('🔍 [장비조회] 검색 시작:', { searchValue: searchVal, isMultiScanMode });
-
-    const allResponses: any[] = [];
-
-    // 1. 먼저 내 보유 장비에서 검색 시도
-    if (myEquipments.length > 0) {
-      console.log('🔍 [장비조회] 내 보유 장비에서 검색 시도...');
-      const foundInMy = searchInMyEquipments(searchVal);
-      if (foundInMy) {
-        console.log('✅ [장비조회] 내 보유 장비에서 발견:', foundInMy);
-        const equipment = foundInMy as EquipmentDetail;
-
-        if (isMultiScanMode) {
-          // 복수 스캔 모드: 목록에 추가
-          const added = handleAddToScannedList(equipment);
-          if (added) {
-            // 스캔된 S/N 콤마로 표시
-            const scannedSNs = Array.from(scannedBarcodesRef.current).join(', ');
-            setSearchValue(scannedSNs);
-            showToast?.(`장비가 추가되었습니다. (${scannedItems.length + 1}건)`, 'success');
-          } else {
-            // EQT_NO 기준 중복 - 바코드 ref에서 제거
-            const normalizedBarcode = searchVal.toUpperCase().replace(/[\s:-]/g, '');
-            scannedBarcodesRef.current.delete(normalizedBarcode);
-            setScanAttemptCount(scannedBarcodesRef.current.size);
-            // 기존 스캔 목록 표시
-            const scannedSNs = Array.from(scannedBarcodesRef.current).join(', ');
-            setSearchValue(scannedSNs || '');
-          }
-        } else {
-          // 단일 조회 모드
-          setEquipmentDetail(enrichEquipmentData(equipment));
-          setRawResponse({ successApi: 'myEquipments', data: foundInMy, source: '내 보유 장비' });
-          showToast?.('장비 정보를 조회했습니다.', 'success');
-        }
-        setIsLoading(false);
-        return;
+    // 단일 장비 검색 헬퍼 함수
+    const searchSingleEquipment = async (val: string): Promise<{ found: boolean; equipment?: EquipmentDetail; source?: string }> => {
+      if (myEquipments.length > 0) {
+        const foundInMy = searchInMyEquipments(val);
+        if (foundInMy) return { found: true, equipment: foundInMy as EquipmentDetail, source: 'myEquipments' };
       }
-      allResponses.push({ api: 'myEquipments', status: 'not_found' });
-    }
-
-    // 2. 보유장비에서 못 찾으면 getEquipmentHistoryInfo API로 전체 장비 검색
-    console.log('[장비처리] 보유장비에서 못 찾음 - getEquipmentHistoryInfo API로 전체 검색');
-
-    try {
-      const userInfo = getLoggedInUser();
-      const historyParams = {
-        EQT_SERNO: searchVal,
-        SO_ID: userInfo?.soId || undefined,
-        WRKR_ID: userInfo?.userId,
-      };
-
-      const historyResult = await debugApiCall(
-        'EquipmentList',
-        'getEquipmentHistoryInfo',
-        () => getEquipmentHistoryInfo(historyParams),
-        historyParams
-      );
-
-      if (historyResult && (Array.isArray(historyResult) ? historyResult.length > 0 : true)) {
-        const equipment = Array.isArray(historyResult) ? historyResult[0] : historyResult;
-        console.log('[장비처리] getEquipmentHistoryInfo로 발견:', equipment);
-
-        if (isMultiScanMode) {
-          // 복수 스캔 모드: 목록에 추가
-          const added = handleAddToScannedList(equipment as EquipmentDetail);
-          if (added) {
-            // 스캔된 S/N 콤마로 표시
-            const scannedSNs = Array.from(scannedBarcodesRef.current).join(', ');
-            setSearchValue(scannedSNs);
-            showToast?.(`장비가 추가되었습니다. (${scannedItems.length + 1}건)`, 'success');
-          } else {
-            // EQT_NO 기준 중복 - 바코드 ref에서 제거
-            const normalizedBarcode = searchVal.toUpperCase().replace(/[\s:-]/g, '');
-            scannedBarcodesRef.current.delete(normalizedBarcode);
-            setScanAttemptCount(scannedBarcodesRef.current.size);
-            // 기존 스캔 목록 표시
-            const scannedSNs = Array.from(scannedBarcodesRef.current).join(', ');
-            setSearchValue(scannedSNs || '');
-          }
-        } else {
-          // 단일 조회 모드
-          setEquipmentDetail(enrichEquipmentData(equipment as EquipmentDetail));
-          setRawResponse({ successApi: 'getEquipmentHistoryInfo', data: equipment, source: '전체 장비 검색' });
-          showToast?.('장비 정보를 조회했습니다.', 'success');
+      try {
+        const userInfo = getLoggedInUser();
+        const historyParams = { EQT_SERNO: val, SO_ID: userInfo?.soId || undefined, WRKR_ID: userInfo?.userId };
+        const historyResult = await debugApiCall('EquipmentList', 'getEquipmentHistoryInfo', () => getEquipmentHistoryInfo(historyParams), historyParams);
+        if (historyResult && (Array.isArray(historyResult) ? historyResult.length > 0 : true)) {
+          const equipment = Array.isArray(historyResult) ? historyResult[0] : historyResult;
+          return { found: true, equipment: equipment as EquipmentDetail, source: 'getEquipmentHistoryInfo' };
         }
-        setIsLoading(false);
-        return;
-      }
+      } catch (e) { console.error('[장비처리] 검색 에러:', val, e); }
+      return { found: false };
+    };
 
-      // API 결과도 없음
-      allResponses.push({ api: 'getEquipmentHistoryInfo', status: 'not_found' });
-    } catch (e) {
-      console.error('[장비처리] getEquipmentHistoryInfo 에러:', e);
-      allResponses.push({ api: 'getEquipmentHistoryInfo', status: 'error', error: e });
-    }
+    console.log('[장비조회] 검색 시작:', { searchValues, count: searchValues.length, isMultiScanMode });
 
-    // 최종 실패
-    if (isMultiScanMode) {
-      scannedBarcodesRef.current.delete(searchVal);
-      setScanAttemptCount(scannedBarcodesRef.current.size);
-      // 실패한 S/N 목록에 추가 (중복 방지)
-      setFailedBarcodes(prev => {
-        if (!prev.includes(searchVal)) {
-          return [...prev, searchVal];
-        }
-        return prev;
+    // 여러 값이 있으면 병렬로 모두 검색
+    if (searchValues.length > 1) {
+      const results = await Promise.all(searchValues.map(async (val) => ({ searchVal: val, ...(await searchSingleEquipment(val)) })));
+      const foundItems: EquipmentDetail[] = [];
+      const notFoundItems: string[] = [];
+      results.forEach(({ searchVal: sv, found, equipment }) => {
+        if (found && equipment) foundItems.push(equipment);
+        else notFoundItems.push(sv);
       });
-      // 실패해도 기존 스캔 목록은 유지
-      const scannedSNs = Array.from(scannedBarcodesRef.current).join(', ');
-      setSearchValue(scannedSNs);
-      showToast?.('장비를 찾을 수 없습니다.', 'error');
-    } else {
-      setError('장비를 찾을 수 없습니다. S/N 또는 MAC 주소를 확인해주세요.');
-      showToast?.('장비를 찾을 수 없습니다.', 'error');
+
+      console.log('[장비조회] 복수 검색 결과:', { found: foundItems.length, notFound: notFoundItems.length });
+
+      if (foundItems.length > 0) {
+        const newItems: EquipmentDetail[] = [];
+        foundItems.forEach(equipment => {
+          const isDuplicate = scannedItems.some(item =>
+            item.EQT_SERNO === equipment.EQT_SERNO || item.EQT_NO === equipment.EQT_NO ||
+            (item.MAC_ADDRESS && equipment.MAC_ADDRESS && item.MAC_ADDRESS === equipment.MAC_ADDRESS)
+          );
+          if (!isDuplicate) newItems.push(equipment);
+        });
+
+        if (newItems.length > 0) {
+          setScannedItems(prev => [...prev, ...newItems]);
+          newItems.forEach(eq => {
+            const barcode = (eq.EQT_SERNO || '').toUpperCase().replace(/[:-]/g, '');
+            if (barcode) scannedBarcodesRef.current.add(barcode);
+          });
+          setScanAttemptCount(scannedBarcodesRef.current.size);
+        }
+
+        if (notFoundItems.length > 0) {
+          setFailedBarcodes(prev => [...prev, ...notFoundItems.filter(sn => !prev.includes(sn))]);
+        }
+
+        setShowBulkView(true);
+        setEquipmentDetail(null);
+        setSearchValue('');
+        showToast?.(`${newItems.length}건 조회 완료${notFoundItems.length > 0 ? `, ${notFoundItems.length}건 미등록` : ''}`, 'success');
+      } else {
+        setFailedBarcodes(prev => [...prev, ...notFoundItems.filter(sn => !prev.includes(sn))]);
+        setError('입력한 장비를 모두 찾을 수 없습니다.');
+        showToast?.('장비를 찾을 수 없습니다.', 'error');
+      }
+
+      setIsLoading(false);
+      return;
     }
+
+    // 단일 값 검색
+    const searchVal = searchValues[0];
+    const result = await searchSingleEquipment(searchVal);
+
+    if (result.found && result.equipment) {
+      const equipment = result.equipment;
+
+      if (isMultiScanMode) {
+        const added = handleAddToScannedList(equipment);
+        if (added) {
+          const scannedSNs = Array.from(scannedBarcodesRef.current).join(', ');
+          setSearchValue(scannedSNs);
+          showToast?.(`장비가 추가되었습니다. (${scannedItems.length + 1}건)`, 'success');
+        } else {
+          const normalizedBarcode = searchVal.toUpperCase().replace(/[\s:-]/g, '');
+          scannedBarcodesRef.current.delete(normalizedBarcode);
+          setScanAttemptCount(scannedBarcodesRef.current.size);
+          const scannedSNs = Array.from(scannedBarcodesRef.current).join(', ');
+          setSearchValue(scannedSNs || '');
+        }
+      } else {
+        setEquipmentDetail(enrichEquipmentData(equipment));
+        setRawResponse({ successApi: result.source, data: equipment, source: result.source });
+        showToast?.('장비 정보를 조회했습니다.', 'success');
+      }
+    } else {
+      if (isMultiScanMode) {
+        scannedBarcodesRef.current.delete(searchVal);
+        setScanAttemptCount(scannedBarcodesRef.current.size);
+        setFailedBarcodes(prev => {
+          if (!prev.includes(searchVal)) return [...prev, searchVal];
+          return prev;
+        });
+        const scannedSNs = Array.from(scannedBarcodesRef.current).join(', ');
+        setSearchValue(scannedSNs);
+        showToast?.('장비를 찾을 수 없습니다.', 'error');
+      } else {
+        setError('장비를 찾을 수 없습니다. S/N 또는 MAC 주소를 확인해주세요.');
+        showToast?.('장비를 찾을 수 없습니다.', 'error');
+      }
+    }
+
     setIsLoading(false);
   };
 
