@@ -363,14 +363,16 @@ const EquipmentList: React.FC<EquipmentListProps> = ({ onBack, showToast }) => {
 
     showToast?.(`바코드 스캔: ${barcode}`, 'success');
 
-    // 자동 조회
+    // 자동 조회 - 바코드 값을 직접 전달 (상태 업데이트 지연 방지)
+    const barcodeValue = barcode.toUpperCase();
     setTimeout(() => {
-      handleSearch();
-    }, 300);
+      handleSearch(barcodeValue);
+    }, 100);
   };
 
-  const handleSearch = async () => {
-    if (!searchValue.trim()) {
+  const handleSearch = async (directValue?: string) => {
+    const valueToSearch = directValue || searchValue.trim();
+    if (!valueToSearch) {
       showToast?.('검색어를 입력해주세요.', 'warning');
       return;
     }
@@ -383,7 +385,7 @@ const EquipmentList: React.FC<EquipmentListProps> = ({ onBack, showToast }) => {
     setRawResponse(null);
 
     // 콤마로 구분된 모든 값 추출 (중복 제거)
-    const rawValue = searchValue.trim();
+    const rawValue = valueToSearch;
     const searchValues: string[] = rawValue.includes(',')
       ? [...new Set(rawValue.split(',').map(s => s.trim().toUpperCase().replace(/[\s:-]/g, '')).filter(s => s.length > 0))]
       : [rawValue.toUpperCase().replace(/[\s:-]/g, '')].filter(s => s.length > 0);
