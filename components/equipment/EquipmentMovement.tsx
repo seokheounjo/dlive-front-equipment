@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { findUserList, getWrkrHaveEqtList, changeEquipmentWorker, getEquipmentHistoryInfo } from '../../services/apiService';
+import { findUserList, getWrkrHaveEqtListAll as getWrkrHaveEqtList, changeEquipmentWorker, getEquipmentHistoryInfo } from '../../services/apiService';
 import { debugApiCall } from './equipmentDebug';
 import { Scan, Search, ChevronDown, ChevronUp, Check, X } from 'lucide-react';
 
