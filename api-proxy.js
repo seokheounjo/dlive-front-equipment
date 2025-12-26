@@ -297,7 +297,7 @@ async function handleProxy(req, res) {
     });
 
     if (postData) {
-      proxyReq.write(postData);
+      proxyReq.write(postData, 'utf8');
     }
 
     proxyReq.end();
