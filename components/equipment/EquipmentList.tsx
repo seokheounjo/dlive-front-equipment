@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { getWrkrHaveEqtList, getEquipmentHistoryInfo } from '../../services/apiService';
+import { getWrkrHaveEqtListAll as getWrkrHaveEqtList, getEquipmentHistoryInfo } from '../../services/apiService';
 import { debugApiCall } from './equipmentDebug';
 import BarcodeScanner from './BarcodeScanner';
 
