@@ -15,6 +15,53 @@ const PATH_MAPPING = {
   "/work/complete": "/api/work/complete"
 };
 
+// Routes that should go directly to legacy .req servlet (bypass our adapter)
+// NOTE: getEquipmentHistoryInfo removed - our adapter handles it with getEquipmentHistoryInfo_2
+const LEGACY_REQ_ROUTES = [
+
+  // Equipment Processing 3 APIs - Route directly to legacy .req servlet
+
+  "/customer/phoneNumber/getOwnEqtLstForMobile_3",  // 장비반납
+  // "/statistics/equipment/getEquipmentHistoryInfo"  // Now handled by our adapter
+];
+
+// Convert JSON to MiPlatform XML Dataset format
+function jsonToMiPlatformXML(datasetName, jsonData) {
+  // Build column info from JSON keys
+  const columns = Object.keys(jsonData);
+  let columnInfo = '';
+  columns.forEach(col => {
+    columnInfo += `<Column id="${col}" type="STRING" size="256"/>`;
+  });
+
+  // Build row data
+  let rowData = '<Row>';
+  columns.forEach(col => {
+    const value = jsonData[col] || '';
+    rowData += `<Col id="${col}">${escapeXml(value)}</Col>`;
+  });
+  rowData += '</Row>';
+
+  // Full XML structure
+  return `<?xml version="1.0" encoding="UTF-8"?>
+<Root xmlns="http://www.tobesoft.com/platform/dataset">
+<Dataset id="${datasetName}">
+<ColumnInfo>${columnInfo}</ColumnInfo>
+<Rows>${rowData}</Rows>
+</Dataset>
+</Root>`;
+}
+
+function escapeXml(str) {
+  if (!str) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&apos;');
+}
+
 // Proxy routes
 router.post('/login', handleProxy);
 router.post('/work/directions', handleProxy);
@@ -91,16 +138,25 @@ router.post('/customer/equipment/cmplEqtCustLossIndem', handleProxy);
 router.post('/customer/equipment/setEquipmentChkStndByY', handleProxy);
 router.post('/customer/equipment/changeEqtWrkr_3', handleProxy);
 router.post('/customer/equipment/updateInstlLocFrWrk', handleProxy);
-router.post('/customer/equipment/getTechnicianInventory', handleProxy);
-router.post('/customer/equipment/getStatus', handleProxy);
 router.post('/customer/equipment/getAuthSoList', handleProxy);
 router.post('/customer/equipment/getUserExtendedInfo', handleProxy);
+
+// Equipment Processing APIs (3 categories)
+router.post('/customer/equipment/getWrkrHaveEqtList_All', handleProxy);        // My Equipment
+router.post("/customer/equipment/getEquipmentChkStndByA_All", handleProxy);  // 검사대기
+router.post("/customer/phoneNumber/getOwnEqtLstForMobile_3", handleProxy);  // 장비반납
+router.post("/customer/equipment/getOwnEqtLstForMobile_3", handleProxy);  // 반납요청 (equipment 경로)
 
 // Statistics/Equipment API
 router.post('/statistics/equipment/getEquipmentHistoryInfo', handleProxy);
 
 // System/CM API
 router.post('/system/cm/getFindUsrList3', handleProxy);
+
+// Debug endpoints (GET)
+router.get('/debug/equipmentManager/methods', handleProxy);
+router.get('/debug/sigtransManagement/methods', handleProxy);
+router.get('/debug/workmanAssignManagement/methods', handleProxy);
 
 async function handleProxy(req, res) {
   try {
@@ -128,9 +184,16 @@ async function handleProxy(req, res) {
     // Our custom controllers are mapped under /api/* in web.xml
     let finalPath = apiPath;
 
+    // Check if this route should go directly to legacy .req servlet
+    let isLegacyReq = false;
+    if (LEGACY_REQ_ROUTES.includes(apiPath)) {
+      finalPath = apiPath + '.req';
+      isLegacyReq = true;
+      console.log('[PROXY] Legacy .req route: ' + apiPath + ' -> ' + finalPath);
+    }
     // For /login and /ping - keep as is (already mapped in web.xml)
     // For all other paths - add /api prefix to route to api-servlet
-    if (apiPath !== '/login' && apiPath !== '/ping' && !apiPath.startsWith('/api/')) {
+    else if (apiPath !== '/login' && apiPath !== '/ping' && !apiPath.startsWith('/api/')) {
       finalPath = '/api' + apiPath;
       console.log('[PROXY] Added /api prefix: ' + apiPath + ' -> ' + finalPath);
     }
@@ -147,9 +210,19 @@ async function handleProxy(req, res) {
 
     const parsedUrl = url.parse(targetUrl);
 
-    const postData = (req.method === 'POST' || req.method === 'PUT')
-      ? JSON.stringify(req.body)
-      : null;
+    let postData = null;
+    let contentType = 'application/json';
+
+    if (req.method === 'POST' || req.method === 'PUT') {
+      if (isLegacyReq && req.body) {
+        // Convert JSON to MiPlatform XML format for legacy .req endpoints
+        postData = jsonToMiPlatformXML('ds_request', req.body);
+        contentType = 'text/xml; charset=UTF-8';
+        console.log('[PROXY] Converted to MiPlatform XML:', postData.substring(0, 300));
+      } else {
+        postData = JSON.stringify(req.body);
+      }
+    }
 
     const options = {
       hostname: parsedUrl.hostname,
@@ -157,7 +230,7 @@ async function handleProxy(req, res) {
       path: parsedUrl.path,
       method: req.method,
       headers: {
-        'Content-Type': 'application/json',
+        'Content-Type': contentType,
         'Origin': req.headers.origin || 'http://52.63.232.141:8080',
         'User-Agent': 'EC2-Proxy/1.0',
         'Host': parsedUrl.host,
