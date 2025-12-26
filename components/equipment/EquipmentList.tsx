@@ -562,7 +562,7 @@ const EquipmentList: React.FC<EquipmentListProps> = ({ onBack, showToast }) => {
   const handleCloseBarcodeScanner = () => {
     setShowBarcodeScanner(false);
     // 스캔된 장비가 있으면 일괄 조회 모드로 자동 전환
-    if (isMultiScanMode && (scannedItems.length > 0 || failedBarcodes.length > 0)) {
+    if (isMultiScanMode && (scannedItems.length > 0 || failedBarcodes.length > 0 || scanAttemptCount > 0)) {
       setShowBulkView(true);
       setEquipmentDetail(null);
     }
@@ -644,7 +644,7 @@ const EquipmentList: React.FC<EquipmentListProps> = ({ onBack, showToast }) => {
               />
             </button>
           </div>
-          {isMultiScanMode && (scannedItems.length > 0 || failedBarcodes.length > 0) && (
+          {isMultiScanMode && (scannedItems.length > 0 || failedBarcodes.length > 0 || scanAttemptCount > 0) && (
             <div className="mt-3 flex items-center justify-between pt-3 border-t border-gray-100">
               <div className="flex items-center gap-2">
                 {scannedItems.length > 0 && (
