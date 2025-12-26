@@ -150,9 +150,9 @@ const EquipmentMovement: React.FC<EquipmentMovementProps> = ({ onBack }) => {
     userId: '', userName: '', soId: '', crrId: ''
   });
 
-  // 보유기사 정보
+  // 보유기사 정보 (타 기사 = 장비를 넘겨주는 사람)
   const [workerInfo, setWorkerInfo] = useState<{ WRKR_ID: string; WRKR_NM: string; SO_ID: string; CRR_ID: string }>({
-    WRKR_ID: 'A20117965', WRKR_NM: '오현민', SO_ID: '', CRR_ID: ''  // 하드코딩 기본값
+    WRKR_ID: 'A20130708', WRKR_NM: '유영무', SO_ID: '', CRR_ID: ''  // 테스트용 타기사
   });
 
   const [eqtTrnsList, setEqtTrnsList] = useState<EqtTrns[]>([]);
