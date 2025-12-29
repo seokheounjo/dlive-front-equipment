@@ -324,6 +324,8 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
           const returnParams = {
             WRKR_ID: userInfo.userId,
             SO_ID: selectedSoId || userInfo.soId || undefined,
+            RETURN_TP: '2',  // 작업기사 반납요청
+            CRR_ID: userInfo.userId,  // 기사 본인
           };
           try {
             const returnResult = await debugApiCall(

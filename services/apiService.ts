@@ -3013,6 +3013,8 @@ export const addEquipmentQuota = async (params: {
 export const getEquipmentReturnRequestList = async (params: {
   WRKR_ID: string;
   SO_ID?: string;
+  RETURN_TP?: string;  // '1':반납창고, '2':작업기사, '3':CRR_ID직접
+  CRR_ID?: string;
 }): Promise<any[]> => {
   console.log('📋 [기사장비조회] API 호출:', params);
 
