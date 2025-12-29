@@ -326,6 +326,7 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
             SO_ID: selectedSoId || userInfo.soId || undefined,
             RETURN_TP: '2',  // 작업기사 반납요청
             CRR_ID: userInfo.crrId,  // 기사 본인
+            RETURN_STAT: '2',  // 반납요청 있는 장비만 조회 (inner join)
           };
           try {
             const returnResult = await debugApiCall(
