@@ -3166,6 +3166,7 @@ export const getWorkerEquipmentList = async (params: {
  */
 export const getWrkrHaveEqtListAll = async (params: {
   WRKR_ID: string;
+  CRR_ID: string;  // 협력업체 ID (필수!)
   SO_ID?: string;
   ITEM_MID_CD?: string;
   EQT_SERNO?: string;

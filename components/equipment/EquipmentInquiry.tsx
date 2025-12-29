@@ -271,7 +271,7 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
         selectedCategory,
         SO_ID: selectedSoId,
         WRKR_ID: userInfo.userId,
-            CRR_ID: userInfo.userId, // CRR_ID = WRKR_ID (기사 본인)
+            CRR_ID: userInfo.crrId, // CRR_ID = WRKR_ID (기사 본인)
         ITEM_MID_CD: selectedItemMidCd,
         EQT_SERNO: eqtSerno
       });
@@ -284,7 +284,7 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
         //// 일반 조회: 체크된 조건에 따라 여러 API 호출 후 합치기
         const baseParams: any = {
           WRKR_ID: userInfo.userId,
-            CRR_ID: userInfo.userId, // CRR_ID = WRKR_ID (기사 본인)
+            CRR_ID: userInfo.crrId, // CRR_ID = WRKR_ID (기사 본인)
           SO_ID: selectedSoId || userInfo.soId || undefined,
           ITEM_MID_CD: selectedItemMidCd || undefined,
         };
@@ -292,18 +292,18 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
         // 체크된 조건에 따라 API 호출
         const allResults: any[] = [];
 
-        // 보유장비 선택 시
+        // 보유장비 선택 시 - getWrkrHaveEqtList_All 사용 (CRR_ID 필수!)
         if (selectedCategory === 'OWNED') {
           try {
             const ownedResult = await debugApiCall(
               'EquipmentInquiry',
-              'getTechnicianEquipmentFromWork (보유-getCustProdInfo)',
-              () => getTechnicianEquipmentFromWork({
+              'getWrkrHaveEqtListAll (보유장비)',
+              () => getWrkrHaveEqtListAll({
                 WRKR_ID: userInfo.userId,
+                CRR_ID: userInfo.crrId || '',  // 협력업체 ID (필수!)
                 SO_ID: selectedSoId || userInfo.soId || undefined,
-                CRR_ID: userInfo.userId,
               }),
-              { WRKR_ID: userInfo.userId }
+              { WRKR_ID: userInfo.userId, CRR_ID: userInfo.crrId }
             );
             if (Array.isArray(ownedResult)) {
               // ITEM_MID_CD 필터 적용 (프론트엔드에서)
@@ -325,7 +325,7 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
             WRKR_ID: userInfo.userId,
             SO_ID: selectedSoId || userInfo.soId || undefined,
             RETURN_TP: '2',  // 작업기사 반납요청
-            CRR_ID: userInfo.userId,  // 기사 본인
+            CRR_ID: userInfo.crrId,  // 기사 본인
           };
           try {
             const returnResult = await debugApiCall(
@@ -352,7 +352,7 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
         if (selectedCategory === 'INSPECTION_WAITING') {
           const inspectionParams = {
             WRKR_ID: userInfo.userId,
-            CRR_ID: userInfo.userId, // CRR_ID = WRKR_ID (기사 본인)
+            CRR_ID: userInfo.crrId, // CRR_ID = WRKR_ID (기사 본인)
             SO_ID: selectedSoId || userInfo.soId || undefined,
             EQT_SERNO: undefined, // 전체 조회
           };
