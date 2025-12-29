@@ -1289,14 +1289,20 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
                 <thead className="bg-gray-50 sticky top-0">
                   <tr>
                     <th className="px-2 py-1.5 text-left">장비유형</th>
-                    <th className="px-2 py-1.5 text-left">일련번호</th>
+                    <th className="px-2 py-1.5 text-left">S/N</th>
+                    <th className="px-2 py-1.5 text-left">상태</th>
                   </tr>
                 </thead>
                 <tbody>
                   {equipmentList.filter(item => item.CHK).map((item, idx) => (
                     <tr key={idx} className="border-t border-gray-100">
-                      <td className="px-2 py-1.5">{item.EQT_CL_NM}</td>
-                      <td className="px-2 py-1.5 font-mono">{item.EQT_SERNO}</td>
+                      <td className="px-2 py-1.5">{item.ITEM_NM || item.EQT_CL_NM}</td>
+                      <td className="px-2 py-1.5 font-mono text-[10px]">{item.EQT_SERNO}</td>
+                      <td className="px-2 py-1.5">
+                        <span className={`px-1 py-0.5 rounded text-[10px] ${item.EQT_USE_ARR_YN === 'Y' ? 'bg-green-100 text-green-700' : item.EQT_USE_ARR_YN === 'A' ? 'bg-amber-100 text-amber-700' : 'bg-gray-100 text-gray-600'}`}>
+                          {item.EQT_USE_ARR_YN === 'Y' ? '사용가능' : item.EQT_USE_ARR_YN === 'A' ? '검사대기' : '-'}
+                        </span>
+                      </td>
                     </tr>
                   ))}
                 </tbody>
@@ -1335,14 +1341,28 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
           <div className="space-y-4">
             {/* 장비 정보 */}
             <div className="bg-gray-50 rounded-lg p-3">
-              <div className="grid grid-cols-2 gap-2 text-xs">
-                <div>
-                  <span className="text-gray-500">장비유형:</span>
-                  <span className="ml-1 font-medium">{selectedEquipment.EQT_CL_NM}</span>
+              <div className="space-y-1.5 text-xs">
+                <div className="flex">
+                  <span className="text-gray-500 w-16">장비유형</span>
+                  <span className="font-medium">{selectedEquipment.ITEM_NM || selectedEquipment.EQT_CL_NM}</span>
                 </div>
-                <div>
-                  <span className="text-gray-500">일련번호:</span>
-                  <span className="ml-1 font-medium font-mono">{selectedEquipment.EQT_SERNO}</span>
+                <div className="flex">
+                  <span className="text-gray-500 w-16">S/N</span>
+                  <span className="font-medium font-mono">{selectedEquipment.EQT_SERNO}</span>
+                </div>
+                <div className="flex">
+                  <span className="text-gray-500 w-16">MAC</span>
+                  <span className="font-medium font-mono">{selectedEquipment.MAC_ADDRESS || '-'}</span>
+                </div>
+                <div className="flex">
+                  <span className="text-gray-500 w-16">장비상태</span>
+                  <span className={`font-medium ${selectedEquipment.EQT_STAT_CD === '10' ? 'text-green-600' : 'text-gray-600'}`}>{selectedEquipment.EQT_STAT_NM || '-'}</span>
+                </div>
+                <div className="flex">
+                  <span className="text-gray-500 w-16">사용가능</span>
+                  <span className={`font-medium ${selectedEquipment.EQT_USE_ARR_YN === 'Y' ? 'text-green-600' : selectedEquipment.EQT_USE_ARR_YN === 'A' ? 'text-amber-600' : 'text-gray-600'}`}>
+                    {selectedEquipment.EQT_USE_ARR_YN === 'Y' ? '사용가능' : selectedEquipment.EQT_USE_ARR_YN === 'A' ? '검사대기' : selectedEquipment.EQT_USE_ARR_YN === 'N' ? '사용불가' : '-'}
+                  </span>
                 </div>
               </div>
             </div>
