@@ -17,7 +17,7 @@ import WorkProcessFlow from './components/work/process/WorkProcessFlow';
 import Toast, { ToastType } from './components/common/Toast';
 import SideDrawer from './components/common/SideDrawer';
 import ErrorBoundary from './components/common/ErrorBoundary';
-import CustomerManagement from './components/customer/CustomerManagement';
+import CustomerManagementMenu from './components/customer/CustomerManagementMenu';
 import EquipmentManagementMenu from './components/equipment/EquipmentManagementMenu';
 import ApiExplorer from './components/equipment/ApiExplorer';
 import OtherManagement from './components/other/OtherManagement';
@@ -351,7 +351,7 @@ const App: React.FC = () => {
       case 'work-item-list':
         return selectedWorkDirection ? <WorkItemList direction={selectedWorkDirection} onBack={navigateBack} onNavigateToView={navigateToView} userId={userInfo?.userId} showToast={showToast} /> : <div>작업 목록을 찾을 수 없습니다.</div>;
       case 'customer-management':
-        return <CustomerManagement onNavigateToMenu={navigateToMenu} />;
+        return <CustomerManagementMenu onNavigateToMenu={navigateToMenu} showToast={showToast} />;
       case 'equipment-management':
         return <EquipmentManagementMenu onNavigateToMenu={navigateToMenu} />;
       case 'api-explorer':

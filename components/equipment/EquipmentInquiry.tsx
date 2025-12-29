@@ -16,7 +16,7 @@ import BaseModal from '../common/BaseModal';
 // getCustProdInfo 활용 API (테스트 완료: 기사보유장비 조회)
 import { getTechnicianEquipmentFromWork } from '../../services/equipmentWorkApi';
 import { debugApiCall } from './equipmentDebug';
-import BarcodeScanner from './BarcodeScanner';
+// BarcodeScanner removed - using S/N input instead
 
 interface EquipmentInquiryProps {
   onBack: () => void;
@@ -231,7 +231,7 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
   const [viewMode, setViewMode] = useState<'simple' | 'medium' | 'detail'>('simple');
 
   // Barcode scanner state
-  const [showBarcodeScanner, setShowBarcodeScanner] = useState(false);
+  // BarcodeScanner state removed
 
   // 초기 데이터 로드
   useEffect(() => {
@@ -736,81 +736,104 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
           </div>
         </div>
 
-        {/* 검색 필터 영역 - 키-값 한줄 레이아웃 */}
+        {/* 조회 버튼 */}
         <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4">
-          <div className="space-y-3">
-            {/* 지점 (한 줄) */}
-            <div className="flex items-center gap-2">
-              <label className="text-xs font-medium text-gray-600 w-16 flex-shrink-0">지점</label>
-              <select
-                value={selectedSoId}
-                onChange={(e) => setSelectedSoId(e.target.value)}
-                className="flex-1 px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
-              >
-                <option value="">전체</option>
-                {soList.map((item) => (
-                  <option key={item.SO_ID} value={item.SO_ID}>{item.SO_NM}</option>
-                ))}
-              </select>
-            </div>
-            {/* 장비종류 (한 줄) */}
-            <div className="flex items-center gap-2">
-              <label className="text-xs font-medium text-gray-600 w-16 flex-shrink-0">장비종류</label>
-              <select
-                value={selectedItemMidCd}
-                onChange={(e) => setSelectedItemMidCd(e.target.value)}
-                className="flex-1 px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
-              >
-                {itemMidList.map((item) => (
-                  <option key={item.COMMON_CD} value={item.COMMON_CD}>{item.COMMON_CD_NM}</option>
-                ))}
-              </select>
-            </div>
-            {/* S/N (한 줄) */}
-            <div className="flex items-center gap-2">
-              <label className="text-xs font-medium text-gray-600 w-16 flex-shrink-0">S/N</label>
-              <input
-                type="text"
-                value={eqtSerno}
-                onChange={(e) => setEqtSerno(e.target.value.toUpperCase())}
-                className="flex-1 px-3 py-2 text-sm border border-gray-200 rounded-lg uppercase focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
-                placeholder="바코드 또는 일련번호"
-              />
-            </div>
-          </div>
+          <button
+            onClick={handleSearch}
+            disabled={isLoading}
+            className="w-full bg-blue-500 hover:bg-blue-600 disabled:bg-gray-400 text-white py-4 rounded-xl font-bold text-base shadow-md transition-all flex items-center justify-center gap-2 active:scale-[0.98] touch-manipulation"
+            style={{ WebkitTapHighlightColor: 'transparent' }}
+          >
+            {isLoading ? (
+              <>
+                <svg className="animate-spin h-5 w-5" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                </svg>
+                조회 중...
+              </>
+            ) : (
+              <>
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                </svg>
+                조회
+              </>
+            )}
+          </button>
+        </div>
 
-          {/* 조회 + 바코드 버튼 */}
-          <div className="flex gap-2 mt-4">
-            <button
-              onClick={handleSearch}
-              disabled={isLoading}
-              className="flex-1 bg-blue-500 hover:bg-blue-600 disabled:bg-gray-400 text-white py-2.5 rounded-lg font-semibold text-sm shadow-sm transition-all flex items-center justify-center gap-2 active:scale-[0.98] touch-manipulation"
-              style={{ WebkitTapHighlightColor: 'transparent' }}
-            >
-              {isLoading ? (
-                <>
-                  <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-                  </svg>
-                  조회 중...
-                </>
-              ) : (
-                '조회'
-              )}
-            </button>
-            <button
-              onClick={() => setShowBarcodeScanner(true)}
-              disabled={isLoading}
-              className="flex-1 py-2.5 rounded-lg font-semibold text-sm shadow-sm transition-all flex items-center justify-center gap-2 active:scale-[0.98] touch-manipulation bg-gray-800 hover:bg-gray-900 disabled:bg-gray-400 text-white"
-              style={{ WebkitTapHighlightColor: 'transparent' }}
-            >
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z" />
+        {/* 상세 필터 영역 - 접기/펼치기 */}
+        <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
+          {/* 필터 헤더 (토글 버튼) */}
+          <button
+            onClick={() => setIsFilterOpen(!isFilterOpen)}
+            className="w-full px-4 py-3 flex items-center justify-between bg-gray-50 hover:bg-gray-100 transition-colors"
+          >
+            <div className="flex items-center gap-2">
+              <svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
               </svg>
-              바코드
-            </button>
-          </div>
+              <span className="text-sm font-semibold text-gray-700">상세 필터</span>
+              {(selectedSoId || selectedItemMidCd || eqtSerno) && (
+                <span className="px-1.5 py-0.5 bg-blue-500 text-white text-[10px] rounded-full font-medium">
+                  {[selectedSoId, selectedItemMidCd, eqtSerno].filter(Boolean).length}
+                </span>
+              )}
+            </div>
+            <svg
+              className={`w-5 h-5 text-gray-400 transition-transform duration-200 ${isFilterOpen ? 'rotate-180' : ''}`}
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+            </svg>
+          </button>
+
+          {/* 필터 내용 (접기/펼치기) */}
+          {isFilterOpen && (
+            <div className="p-4 border-t border-gray-100 space-y-3">
+              {/* 지점 */}
+              <div className="flex items-center gap-2">
+                <label className="text-xs font-medium text-gray-600 w-16 flex-shrink-0">지점</label>
+                <select
+                  value={selectedSoId}
+                  onChange={(e) => setSelectedSoId(e.target.value)}
+                  className="flex-1 px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                >
+                  <option value="">전체</option>
+                  {soList.map((item) => (
+                    <option key={item.SO_ID} value={item.SO_ID}>{item.SO_NM}</option>
+                  ))}
+                </select>
+              </div>
+              {/* 장비종류 */}
+              <div className="flex items-center gap-2">
+                <label className="text-xs font-medium text-gray-600 w-16 flex-shrink-0">장비종류</label>
+                <select
+                  value={selectedItemMidCd}
+                  onChange={(e) => setSelectedItemMidCd(e.target.value)}
+                  className="flex-1 px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                >
+                  {itemMidList.map((item) => (
+                    <option key={item.COMMON_CD} value={item.COMMON_CD}>{item.COMMON_CD_NM}</option>
+                  ))}
+                </select>
+              </div>
+              {/* S/N */}
+              <div className="flex items-center gap-2">
+                <label className="text-xs font-medium text-gray-600 w-16 flex-shrink-0">S/N</label>
+                <input
+                  type="text"
+                  value={eqtSerno}
+                  onChange={(e) => setEqtSerno(e.target.value.toUpperCase())}
+                  className="flex-1 px-3 py-2 text-sm border border-gray-200 rounded-lg uppercase focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                  placeholder="바코드 또는 일련번호"
+                />
+              </div>
+            </div>
+          )}
         </div>
 
         {/* 장비 리스트 */}
@@ -1346,12 +1369,7 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
         )}
       </BaseModal>
 
-      {/* Barcode Scanner */}
-      <BarcodeScanner
-        isOpen={showBarcodeScanner}
-        onClose={() => setShowBarcodeScanner(false)}
-        onScan={handleBarcodeScan}
-      />
+      {/* Barcode Scanner - removed, using S/N input instead */}
     </div>
   );
 };
