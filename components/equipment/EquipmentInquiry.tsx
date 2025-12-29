@@ -1123,32 +1123,32 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
                           </span>
                         </div>
 
-                        {/* 상세 정보 그리드 */}
-                        <div className="bg-gray-50 rounded-lg p-2.5 space-y-2">
-                          <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 text-xs">
+                        {/* 상세 정보 - 세로 배치로 전체 표시 */}
+                        <div className="bg-gray-50 rounded-lg p-3 space-y-2">
+                          <div className="space-y-1.5 text-xs">
                             <div className="flex">
-                              <span className="text-gray-400 w-14 flex-shrink-0">S/N</span>
-                              <span className="font-mono text-gray-900 font-medium truncate">{item.EQT_SERNO || '-'}</span>
+                              <span className="text-gray-400 w-20 flex-shrink-0">S/N</span>
+                              <span className="font-mono text-gray-900 font-medium">{item.EQT_SERNO || '-'}</span>
                             </div>
                             <div className="flex">
-                              <span className="text-gray-400 w-14 flex-shrink-0">MAC</span>
-                              <span className="font-mono text-gray-700 truncate">{item.MAC_ADDRESS || '-'}</span>
+                              <span className="text-gray-400 w-20 flex-shrink-0">MAC</span>
+                              <span className="font-mono text-gray-700">{item.MAC_ADDRESS || '-'}</span>
                             </div>
                             <div className="flex">
-                              <span className="text-gray-400 w-14 flex-shrink-0">지점</span>
-                              <span className="text-gray-700 truncate">{item.SO_NM || item.SO_ID || '-'}</span>
+                              <span className="text-gray-400 w-20 flex-shrink-0">지점</span>
+                              <span className="text-gray-700">{item.SO_NM || item.SO_ID || '-'}</span>
                             </div>
                             <div className="flex">
-                              <span className="text-gray-400 w-14 flex-shrink-0">위치</span>
+                              <span className="text-gray-400 w-20 flex-shrink-0">위치</span>
                               <span className="text-gray-700">{item.EQT_LOC_TP_NM || getEqtLocTpName(item.EQT_LOC_TP_CD || '') || '-'}</span>
                             </div>
                             <div className="flex">
-                              <span className="text-gray-400 w-14 flex-shrink-0">담당자</span>
-                              <span className="text-gray-700">{item.WRKR_NM || '-'}</span>
+                              <span className="text-gray-400 w-20 flex-shrink-0">장비상태</span>
+                              <span className={`font-medium ${item.EQT_STAT_CD === '10' ? 'text-green-600' : item.EQT_STAT_CD === '20' ? 'text-blue-600' : 'text-gray-600'}`}>{item.EQT_STAT_NM || getEqtStatName(item.EQT_STAT_CD) || '-'}</span>
                             </div>
                             <div className="flex">
-                              <span className="text-gray-400 w-14 flex-shrink-0">장비번호</span>
-                              <span className="font-mono text-gray-600 text-[10px]">{item.EQT_NO || '-'}</span>
+                              <span className="text-gray-400 w-20 flex-shrink-0">사용가능</span>
+                              <span className={`font-medium ${item.EQT_USE_ARR_YN === 'Y' ? 'text-green-600' : item.EQT_USE_ARR_YN === 'A' ? 'text-amber-600' : 'text-gray-600'}`}>{item.EQT_USE_ARR_YN === 'Y' ? '사용가능' : item.EQT_USE_ARR_YN === 'A' ? '검사대기' : item.EQT_USE_ARR_YN === 'N' ? '사용불가' : '-'}</span>
                             </div>
                           </div>
                           {item.RETN_RESN_NM && (
