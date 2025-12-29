@@ -196,7 +196,7 @@ const getErrorMessage = (statusCode: number, defaultMessage: string = '오류가
 
 // ============ API 호출 헬퍼 (재시도 로직 포함) ============
 
-const fetchWithRetry = async (
+export const fetchWithRetry = async (
   url: string,
   options: RequestInit,
   maxRetries: number = 3,
