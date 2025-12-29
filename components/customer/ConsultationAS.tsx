@@ -65,19 +65,180 @@ const ConsultationAS: React.FC<ConsultationASProps> = ({
   const [consultationCodes, setConsultationCodes] = useState<CodeItem[]>([]);
   const [asReasonCodes, setASReasonCodes] = useState<CodeItem[]>([]);
 
-  // 상담 등록 폼
+  // 상담 등록 폼 (와이어프레임 기준: 대/중/소분류)
   const [consultationForm, setConsultationForm] = useState({
-    cnslClCd: '',
+    cnslLClCd: '',      // 상담대분류
+    cnslMClCd: '',      // 상담중분류
+    cnslSClCd: '',      // 상담소분류
     reqCntn: '',
     transYn: 'N',
     transDeptCd: ''
   });
 
-  // AS 접수 폼
+  // 상담 분류 코드 데이터
+  const [cnslLCodes] = useState([
+    { CODE: '01', CODE_NM: '요금문의' },
+    { CODE: '02', CODE_NM: '서비스문의' },
+    { CODE: '03', CODE_NM: '장애문의' },
+    { CODE: '04', CODE_NM: '가입/해지' },
+    { CODE: '05', CODE_NM: '기타' }
+  ]);
+
+  const [cnslMCodes, setCnslMCodes] = useState<CodeItem[]>([]);
+  const [cnslSCodes, setCnslSCodes] = useState<CodeItem[]>([]);
+
+  // 상담대분류 변경 시 중분류 설정
+  const handleCnslLChange = (code: string) => {
+    setConsultationForm(prev => ({ ...prev, cnslLClCd: code, cnslMClCd: '', cnslSClCd: '' }));
+    setCnslSCodes([]);
+    const mCodes: Record<string, CodeItem[]> = {
+      '01': [
+        { CODE: '0101', CODE_NM: '청구금액' },
+        { CODE: '0102', CODE_NM: '납부방법' },
+        { CODE: '0103', CODE_NM: '미납/연체' }
+      ],
+      '02': [
+        { CODE: '0201', CODE_NM: '채널안내' },
+        { CODE: '0202', CODE_NM: 'VOD안내' },
+        { CODE: '0203', CODE_NM: '부가서비스' }
+      ],
+      '03': [
+        { CODE: '0301', CODE_NM: '화면장애' },
+        { CODE: '0302', CODE_NM: '음성장애' },
+        { CODE: '0303', CODE_NM: '인터넷장애' }
+      ],
+      '04': [
+        { CODE: '0401', CODE_NM: '신규가입' },
+        { CODE: '0402', CODE_NM: '해지신청' },
+        { CODE: '0403', CODE_NM: '상품변경' }
+      ],
+      '05': [
+        { CODE: '0501', CODE_NM: '기타문의' }
+      ]
+    };
+    setCnslMCodes(mCodes[code] || []);
+  };
+
+  // 상담중분류 변경 시 소분류 설정
+  const handleCnslMChange = (code: string) => {
+    setConsultationForm(prev => ({ ...prev, cnslMClCd: code, cnslSClCd: '' }));
+    const sCodes: Record<string, CodeItem[]> = {
+      '0101': [
+        { CODE: '010101', CODE_NM: '월청구금액 문의' },
+        { CODE: '010102', CODE_NM: '부가세 문의' }
+      ],
+      '0102': [
+        { CODE: '010201', CODE_NM: '자동이체 변경' },
+        { CODE: '010202', CODE_NM: '카드결제 변경' }
+      ],
+      '0103': [
+        { CODE: '010301', CODE_NM: '미납금 조회' },
+        { CODE: '010302', CODE_NM: '납부유예 요청' }
+      ],
+      '0301': [
+        { CODE: '030101', CODE_NM: '화면안나옴' },
+        { CODE: '030102', CODE_NM: '화면끊김' },
+        { CODE: '030103', CODE_NM: '화면깨짐' }
+      ],
+      '0302': [
+        { CODE: '030201', CODE_NM: '음성안나옴' },
+        { CODE: '030202', CODE_NM: '음성끊김' }
+      ],
+      '0303': [
+        { CODE: '030301', CODE_NM: '인터넷안됨' },
+        { CODE: '030302', CODE_NM: '속도느림' }
+      ],
+      '0401': [
+        { CODE: '040101', CODE_NM: '신규설치문의' },
+        { CODE: '040102', CODE_NM: '가입조건문의' }
+      ],
+      '0402': [
+        { CODE: '040201', CODE_NM: '해지절차문의' },
+        { CODE: '040202', CODE_NM: '위약금문의' }
+      ]
+    };
+    setCnslSCodes(sCodes[code] || [{ CODE: code + '01', CODE_NM: '일반' }]);
+  };
+
+  // AS 접수 폼 (와이어프레임 기준 확장)
   const [asForm, setASForm] = useState({
-    asResnCd: '',
-    asCntn: '',
-    schdDt: new Date().toISOString().split('T')[0]
+    asClCd: '',           // AS구분
+    asClDtlCd: '',        // 콤보상세
+    tripFeeCd: '',        // 출장비
+    asResnLCd: '',        // AS접수사유(대)
+    asResnMCd: '',        // AS접수사유(중)
+    asCntn: '',           // AS 내용
+    schdDt: new Date().toISOString().split('T')[0],  // 작업예정일
+    schdHour: '09',       // 작업예정시 (09~21)
+    schdMin: '00'         // 작업예정분 (10분 단위)
+  });
+
+  // AS 코드 데이터
+  const [asClCodes] = useState([
+    { CODE: '01', CODE_NM: 'A/S' },
+    { CODE: '02', CODE_NM: '재설치' },
+    { CODE: '03', CODE_NM: '철거' },
+    { CODE: '04', CODE_NM: '장비교체' }
+  ]);
+
+  const [asClDtlCodes] = useState([
+    { CODE: '01', CODE_NM: '화면불량' },
+    { CODE: '02', CODE_NM: '음성불량' },
+    { CODE: '03', CODE_NM: '인터넷불량' },
+    { CODE: '04', CODE_NM: '리모컨불량' },
+    { CODE: '05', CODE_NM: '기타' }
+  ]);
+
+  const [tripFeeCodes] = useState([
+    { CODE: '00', CODE_NM: '무료' },
+    { CODE: '01', CODE_NM: '유료' }
+  ]);
+
+  const [asResnLCodes] = useState([
+    { CODE: '01', CODE_NM: '장비장애' },
+    { CODE: '02', CODE_NM: '회선장애' },
+    { CODE: '03', CODE_NM: '고객요청' },
+    { CODE: '04', CODE_NM: '기타' }
+  ]);
+
+  const [asResnMCodes, setAsResnMCodes] = useState<CodeItem[]>([]);
+
+  // AS사유(대) 변경 시 중분류 설정
+  const handleAsResnLChange = (code: string) => {
+    setASForm(prev => ({ ...prev, asResnLCd: code, asResnMCd: '' }));
+    // 대분류에 따른 중분류 설정
+    const mCodes: Record<string, CodeItem[]> = {
+      '01': [
+        { CODE: '0101', CODE_NM: 'STB 불량' },
+        { CODE: '0102', CODE_NM: '모뎀 불량' },
+        { CODE: '0103', CODE_NM: '케이블 불량' }
+      ],
+      '02': [
+        { CODE: '0201', CODE_NM: '신호불량' },
+        { CODE: '0202', CODE_NM: '단선' },
+        { CODE: '0203', CODE_NM: '혼선' }
+      ],
+      '03': [
+        { CODE: '0301', CODE_NM: '위치변경' },
+        { CODE: '0302', CODE_NM: '추가설치' },
+        { CODE: '0303', CODE_NM: '해지요청' }
+      ],
+      '04': [
+        { CODE: '0401', CODE_NM: '기타' }
+      ]
+    };
+    setAsResnMCodes(mCodes[code] || []);
+  };
+
+  // 시간 옵션 생성
+  const hourOptions = Array.from({ length: 13 }, (_, i) => {
+    const hour = (9 + i).toString().padStart(2, '0');
+    return { value: hour, label: `${hour}시` };
+  });
+
+  const minOptions = Array.from({ length: 6 }, (_, i) => {
+    const min = (i * 10).toString().padStart(2, '0');
+    return { value: min, label: `${min}분` };
   });
 
   // 로딩 상태
@@ -147,8 +308,8 @@ const ConsultationAS: React.FC<ConsultationASProps> = ({
       return;
     }
 
-    if (!consultationForm.cnslClCd) {
-      showToast?.('상담 분류를 선택해주세요.', 'warning');
+    if (!consultationForm.cnslLClCd || !consultationForm.cnslMClCd || !consultationForm.cnslSClCd) {
+      showToast?.('상담 분류를 모두 선택해주세요.', 'warning');
       return;
     }
 
@@ -162,7 +323,9 @@ const ConsultationAS: React.FC<ConsultationASProps> = ({
       const params: ConsultationRequest = {
         CUST_ID: selectedCustomer.custId,
         CTRT_ID: selectedContract?.ctrtId,
-        CNSL_CL_CD: consultationForm.cnslClCd,
+        CNSL_L_CL_CD: consultationForm.cnslLClCd,
+        CNSL_M_CL_CD: consultationForm.cnslMClCd,
+        CNSL_CL_CD: consultationForm.cnslSClCd,  // 소분류 = 최종 상담분류코드
         REQ_CNTN: consultationForm.reqCntn,
         TRANS_YN: consultationForm.transYn,
         TRANS_DEPT_CD: consultationForm.transDeptCd || undefined
@@ -174,11 +337,15 @@ const ConsultationAS: React.FC<ConsultationASProps> = ({
         showToast?.('상담이 등록되었습니다.', 'success');
         // 폼 초기화
         setConsultationForm({
-          cnslClCd: '',
+          cnslLClCd: '',
+          cnslMClCd: '',
+          cnslSClCd: '',
           reqCntn: '',
           transYn: 'N',
           transDeptCd: ''
         });
+        setCnslMCodes([]);
+        setCnslSCodes([]);
         // 이력 새로고침
         loadHistory();
       } else {
@@ -204,8 +371,13 @@ const ConsultationAS: React.FC<ConsultationASProps> = ({
       return;
     }
 
-    if (!asForm.asResnCd) {
-      showToast?.('AS 사유를 선택해주세요.', 'warning');
+    if (!asForm.asClCd) {
+      showToast?.('AS구분을 선택해주세요.', 'warning');
+      return;
+    }
+
+    if (!asForm.asResnLCd || !asForm.asResnMCd) {
+      showToast?.('AS접수사유를 선택해주세요.', 'warning');
       return;
     }
 
@@ -223,9 +395,14 @@ const ConsultationAS: React.FC<ConsultationASProps> = ({
         CUST_ID: selectedCustomer.custId,
         CTRT_ID: selectedContract.ctrtId,
         INST_ADDR: selectedContract.instAddr,
-        AS_RESN_CD: asForm.asResnCd,
+        AS_CL_CD: asForm.asClCd,
+        AS_CL_DTL_CD: asForm.asClDtlCd,
+        TRIP_FEE_CD: asForm.tripFeeCd,
+        AS_RESN_L_CD: asForm.asResnLCd,
+        AS_RESN_M_CD: asForm.asResnMCd,
         AS_CNTN: asForm.asCntn,
         SCHD_DT: asForm.schdDt.replace(/-/g, ''),
+        SCHD_TM: asForm.schdHour + asForm.schdMin,
         WRKR_ID: userInfo.userId || ''
       };
 
@@ -235,10 +412,17 @@ const ConsultationAS: React.FC<ConsultationASProps> = ({
         showToast?.('AS가 접수되었습니다.', 'success');
         // 폼 초기화
         setASForm({
-          asResnCd: '',
+          asClCd: '',
+          asClDtlCd: '',
+          tripFeeCd: '',
+          asResnLCd: '',
+          asResnMCd: '',
           asCntn: '',
-          schdDt: new Date().toISOString().split('T')[0]
+          schdDt: new Date().toISOString().split('T')[0],
+          schdHour: '09',
+          schdMin: '00'
         });
+        setAsResnMCodes([]);
         // 이력 새로고침
         loadHistory();
       } else {
@@ -325,34 +509,51 @@ const ConsultationAS: React.FC<ConsultationASProps> = ({
               )}
             </div>
 
-            {/* 상담 분류 */}
-            <div>
-              <label className="block text-sm text-gray-600 mb-1">상담 분류 *</label>
-              <select
-                value={consultationForm.cnslClCd}
-                onChange={(e) => setConsultationForm(prev => ({
-                  ...prev,
-                  cnslClCd: e.target.value
-                }))}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              >
-                <option value="">선택</option>
-                {consultationCodes.map(code => (
-                  <option key={code.CODE} value={code.CODE}>
-                    {code.CODE_NM}
-                  </option>
-                ))}
-                {/* 기본 옵션 */}
-                {consultationCodes.length === 0 && (
-                  <>
-                    <option value="01">일반문의</option>
-                    <option value="02">요금문의</option>
-                    <option value="03">장애문의</option>
-                    <option value="04">해지문의</option>
-                    <option value="99">기타</option>
-                  </>
-                )}
-              </select>
+            {/* 상담 분류 (대/중/소) */}
+            <div className="space-y-3">
+              <div>
+                <label className="block text-sm text-gray-600 mb-1">상담대분류 *</label>
+                <select
+                  value={consultationForm.cnslLClCd}
+                  onChange={(e) => handleCnslLChange(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                >
+                  <option value="">선택</option>
+                  {cnslLCodes.map(code => (
+                    <option key={code.CODE} value={code.CODE}>{code.CODE_NM}</option>
+                  ))}
+                </select>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-sm text-gray-600 mb-1">상담중분류 *</label>
+                  <select
+                    value={consultationForm.cnslMClCd}
+                    onChange={(e) => handleCnslMChange(e.target.value)}
+                    disabled={!consultationForm.cnslLClCd}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100"
+                  >
+                    <option value="">선택</option>
+                    {cnslMCodes.map(code => (
+                      <option key={code.CODE} value={code.CODE}>{code.CODE_NM}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm text-gray-600 mb-1">상담소분류 *</label>
+                  <select
+                    value={consultationForm.cnslSClCd}
+                    onChange={(e) => setConsultationForm(prev => ({ ...prev, cnslSClCd: e.target.value }))}
+                    disabled={!consultationForm.cnslMClCd}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100"
+                  >
+                    <option value="">선택</option>
+                    {cnslSCodes.map(code => (
+                      <option key={code.CODE} value={code.CODE}>{code.CODE_NM}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
             </div>
 
             {/* 요청사항 */}
@@ -450,34 +651,80 @@ const ConsultationAS: React.FC<ConsultationASProps> = ({
                   </div>
                 </div>
 
-                {/* AS 사유 */}
+                {/* AS구분 & 콤보상세 */}
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-sm text-gray-600 mb-1">AS구분 *</label>
+                    <select
+                      value={asForm.asClCd}
+                      onChange={(e) => setASForm(prev => ({ ...prev, asClCd: e.target.value }))}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                    >
+                      <option value="">선택</option>
+                      {asClCodes.map(code => (
+                        <option key={code.CODE} value={code.CODE}>{code.CODE_NM}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm text-gray-600 mb-1">콤보상세</label>
+                    <select
+                      value={asForm.asClDtlCd}
+                      onChange={(e) => setASForm(prev => ({ ...prev, asClDtlCd: e.target.value }))}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                    >
+                      <option value="">선택</option>
+                      {asClDtlCodes.map(code => (
+                        <option key={code.CODE} value={code.CODE}>{code.CODE_NM}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
+                {/* 출장비 */}
                 <div>
-                  <label className="block text-sm text-gray-600 mb-1">AS 사유 *</label>
+                  <label className="block text-sm text-gray-600 mb-1">출장비</label>
                   <select
-                    value={asForm.asResnCd}
-                    onChange={(e) => setASForm(prev => ({
-                      ...prev,
-                      asResnCd: e.target.value
-                    }))}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                    value={asForm.tripFeeCd}
+                    onChange={(e) => setASForm(prev => ({ ...prev, tripFeeCd: e.target.value }))}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
                   >
                     <option value="">선택</option>
-                    {asReasonCodes.map(code => (
-                      <option key={code.CODE} value={code.CODE}>
-                        {code.CODE_NM}
-                      </option>
+                    {tripFeeCodes.map(code => (
+                      <option key={code.CODE} value={code.CODE}>{code.CODE_NM}</option>
                     ))}
-                    {/* 기본 옵션 */}
-                    {asReasonCodes.length === 0 && (
-                      <>
-                        <option value="01">화면불량</option>
-                        <option value="02">음성불량</option>
-                        <option value="03">인터넷불량</option>
-                        <option value="04">장비교체</option>
-                        <option value="99">기타</option>
-                      </>
-                    )}
                   </select>
+                </div>
+
+                {/* AS접수사유 (대/중) */}
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-sm text-gray-600 mb-1">AS접수사유(대) *</label>
+                    <select
+                      value={asForm.asResnLCd}
+                      onChange={(e) => handleAsResnLChange(e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                    >
+                      <option value="">선택</option>
+                      {asResnLCodes.map(code => (
+                        <option key={code.CODE} value={code.CODE}>{code.CODE_NM}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm text-gray-600 mb-1">AS접수사유(중) *</label>
+                    <select
+                      value={asForm.asResnMCd}
+                      onChange={(e) => setASForm(prev => ({ ...prev, asResnMCd: e.target.value }))}
+                      disabled={!asForm.asResnLCd}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 disabled:bg-gray-100"
+                    >
+                      <option value="">선택</option>
+                      {asResnMCodes.map(code => (
+                        <option key={code.CODE} value={code.CODE}>{code.CODE_NM}</option>
+                      ))}
+                    </select>
+                  </div>
                 </div>
 
                 {/* AS 내용 */}
@@ -485,29 +732,43 @@ const ConsultationAS: React.FC<ConsultationASProps> = ({
                   <label className="block text-sm text-gray-600 mb-1">AS 내용 *</label>
                   <textarea
                     value={asForm.asCntn}
-                    onChange={(e) => setASForm(prev => ({
-                      ...prev,
-                      asCntn: e.target.value
-                    }))}
+                    onChange={(e) => setASForm(prev => ({ ...prev, asCntn: e.target.value }))}
                     placeholder="AS 내용을 입력해주세요."
-                    rows={4}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 resize-none"
+                    rows={3}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 resize-none"
                   />
                 </div>
 
-                {/* 작업예정일 */}
+                {/* 작업예정일시 */}
                 <div>
-                  <label className="block text-sm text-gray-600 mb-1">작업예정일 *</label>
-                  <input
-                    type="date"
-                    value={asForm.schdDt}
-                    onChange={(e) => setASForm(prev => ({
-                      ...prev,
-                      schdDt: e.target.value
-                    }))}
-                    min={new Date().toISOString().split('T')[0]}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
-                  />
+                  <label className="block text-sm text-gray-600 mb-1">작업예정일시 *</label>
+                  <div className="flex gap-2">
+                    <input
+                      type="date"
+                      value={asForm.schdDt}
+                      onChange={(e) => setASForm(prev => ({ ...prev, schdDt: e.target.value }))}
+                      min={new Date().toISOString().split('T')[0]}
+                      className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                    />
+                    <select
+                      value={asForm.schdHour}
+                      onChange={(e) => setASForm(prev => ({ ...prev, schdHour: e.target.value }))}
+                      className="w-20 px-2 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                    >
+                      {hourOptions.map(opt => (
+                        <option key={opt.value} value={opt.value}>{opt.label}</option>
+                      ))}
+                    </select>
+                    <select
+                      value={asForm.schdMin}
+                      onChange={(e) => setASForm(prev => ({ ...prev, schdMin: e.target.value }))}
+                      className="w-20 px-2 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                    >
+                      {minOptions.map(opt => (
+                        <option key={opt.value} value={opt.value}>{opt.label}</option>
+                      ))}
+                    </select>
+                  </div>
                 </div>
 
                 {/* 접수 버튼 */}

@@ -144,24 +144,31 @@ export interface HPPayInfo {
   CTRT_STAT_NM: string;      // 계약상태
 }
 
-// 상담 등록 요청
+// 상담 등록 요청 (와이어프레임 기준: 대/중/소분류)
 export interface ConsultationRequest {
   CUST_ID: string;           // 고객ID
   CTRT_ID?: string;          // 계약ID (선택)
-  CNSL_CL_CD: string;        // 상담소분류코드
+  CNSL_L_CL_CD: string;      // 상담대분류코드
+  CNSL_M_CL_CD: string;      // 상담중분류코드
+  CNSL_CL_CD: string;        // 상담소분류코드 (최종코드)
   REQ_CNTN: string;          // 요청사항
   TRANS_YN: string;          // 전달처리여부 (Y/N)
   TRANS_DEPT_CD?: string;    // 전달지점코드
 }
 
-// AS 접수 요청
+// AS 접수 요청 (와이어프레임 기준 확장)
 export interface ASRequestParams {
   CUST_ID: string;           // 고객ID
   CTRT_ID: string;           // 계약ID (필수)
   INST_ADDR: string;         // 설치주소
-  AS_RESN_CD: string;        // AS사유코드
+  AS_CL_CD: string;          // AS구분코드
+  AS_CL_DTL_CD?: string;     // 콤보상세코드
+  TRIP_FEE_CD?: string;      // 출장비코드
+  AS_RESN_L_CD: string;      // AS접수사유(대)
+  AS_RESN_M_CD: string;      // AS접수사유(중)
   AS_CNTN: string;           // AS내용
-  SCHD_DT: string;           // 작업예정일
+  SCHD_DT: string;           // 작업예정일 (YYYYMMDD)
+  SCHD_TM: string;           // 작업예정시간 (HHMM)
   WRKR_ID: string;           // 작업자ID (로그인 사용자)
 }
 
