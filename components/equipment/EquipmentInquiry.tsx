@@ -491,8 +491,13 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
     }
 
     try {
+      // SQL Required: EQT_NO, RETURN_TP, MST_SO_ID, SO_ID, CRR_ID, RETN_PSN_ID, RETN_RESN_CD, PROC_STAT
       const params = {
         WRKR_ID: userInfo?.userId || '',
+        CRR_ID: userInfo?.crrId || '',           // 협력업체 ID (필수!)
+        SO_ID: selectedSoId || userInfo?.soId || '',
+        MST_SO_ID: userInfo?.mstSoId || userInfo?.soId || '',
+        RETURN_TP: '2',                          // 2 = 작업기사 반납
         equipmentList: checkedItems.map(item => ({
           EQT_NO: item.EQT_NO,
           EQT_SERNO: item.EQT_SERNO,
@@ -542,9 +547,19 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
     if (!selectedEquipment) return;
 
     try {
+      // Procedure PCMEP_EQT_CUST_LOSS_INS requires many params from equipment data
       const params = {
         EQT_NO: selectedEquipment.EQT_NO,
+        EQT_SERNO: selectedEquipment.EQT_SERNO || '',
         WRKR_ID: userInfo?.userId || '',
+        CRR_ID: userInfo?.crrId || '',           // 협력업체 ID (필수!)
+        SO_ID: selectedSoId || userInfo?.soId || '',
+        MST_SO_ID: userInfo?.mstSoId || userInfo?.soId || '',
+        ITEM_MID_CD: selectedEquipment.ITEM_MID_CD || '',
+        EQT_CL: selectedEquipment.EQT_CL_CD || selectedEquipment.EQT_CL || '',
+        ITEM_NM: selectedEquipment.ITEM_NM || '',
+        EQT_USE_ARR_YN: selectedEquipment.EQT_USE_ARR_YN || 'Y',
+        CHG_UID: userInfo?.userId || '',
         LOSS_REASON: lossReason || undefined,
       };
 

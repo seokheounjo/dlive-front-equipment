@@ -3088,12 +3088,38 @@ export const checkEquipmentReturn = async (params: {
  */
 export const addEquipmentReturnRequest = async (params: {
   WRKR_ID: string;
-  equipmentList: any[];
+  CRR_ID: string;           // 협력업체 ID (필수!)
+  SO_ID?: string;           // SO ID
+  MST_SO_ID?: string;       // MST SO ID
+  RETURN_TP?: string;       // 반납유형: 1=창고, 2=작업기사
+  equipmentList: Array<{
+    EQT_NO: string;
+    EQT_SERNO?: string;
+    RETN_RESN_CD?: string;
+    ACTION?: string;
+  }>;
 }): Promise<any> => {
-  console.log('📤 [반납요청] API 호출:', params);
+  console.log('[addEquipmentReturnRequest] API call:', params);
 
   try {
     const origin = typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000';
+
+    // Build request with all required SQL parameters
+    const requestBody = {
+      WRKR_ID: params.WRKR_ID,
+      CRR_ID: params.CRR_ID,
+      SO_ID: params.SO_ID || '',
+      MST_SO_ID: params.MST_SO_ID || params.SO_ID || '',
+      RETURN_TP: params.RETURN_TP || '2',      // Default: worker return
+      PROC_STAT: '1',                          // Default: pending
+      RETN_PSN_ID: params.WRKR_ID,             // Return person = worker
+      equipmentList: params.equipmentList.map(item => ({
+        EQT_NO: item.EQT_NO,
+        EQT_SERNO: item.EQT_SERNO || '',
+        RETN_RESN_CD: item.RETN_RESN_CD || '01',
+        ACTION: item.ACTION || 'RETURN',
+      })),
+    };
 
     const response = await fetchWithRetry(`${API_BASE}/customer/equipment/addEquipmentReturnRequest`, {
       method: 'POST',
@@ -3102,15 +3128,15 @@ export const addEquipmentReturnRequest = async (params: {
         'Origin': origin
       },
       credentials: 'include',
-      body: JSON.stringify(params),
+      body: JSON.stringify(requestBody),
     });
 
     const result = await response.json();
-    console.log('✅ 반납 요청 성공:', result);
+    console.log('[addEquipmentReturnRequest] Success:', result);
 
     return result;
-  } catch (error: any) {
-    console.error('❌ 반납 요청 실패:', error);
+  } catch (error) {
+    console.error('[addEquipmentReturnRequest] Failed:', error);
     if (error instanceof NetworkError) {
       throw error;
     }
@@ -3302,13 +3328,38 @@ export const getEquipmentChkStndByAAll = async (params: {
  */
 export const processEquipmentLoss = async (params: {
   EQT_NO: string;
+  EQT_SERNO?: string;
   WRKR_ID: string;
+  CRR_ID: string;           // 협력업체 ID (필수!)
+  SO_ID?: string;
+  MST_SO_ID?: string;
+  ITEM_MID_CD?: string;     // 품목중분류코드
+  EQT_CL?: string;          // 장비구분
+  ITEM_NM?: string;         // 품목명
+  EQT_USE_ARR_YN?: string;  // 장비사용도착여부
+  CHG_UID?: string;         // 변경자ID
   LOSS_REASON?: string;
 }): Promise<any> => {
-  console.log('⚠️ [분실처리] API 호출:', params);
+  console.log('[processEquipmentLoss] API call:', params);
 
   try {
     const origin = typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000';
+
+    // Build request with parameters from equipment data
+    const requestBody = {
+      EQT_NO: params.EQT_NO,
+      EQT_SERNO: params.EQT_SERNO || '',
+      WRKR_ID: params.WRKR_ID,
+      CRR_ID: params.CRR_ID,
+      SO_ID: params.SO_ID || '',
+      MST_SO_ID: params.MST_SO_ID || params.SO_ID || '',
+      ITEM_MID_CD: params.ITEM_MID_CD || '',
+      EQT_CL: params.EQT_CL || '',
+      ITEM_NM: params.ITEM_NM || '',
+      EQT_USE_ARR_YN: params.EQT_USE_ARR_YN || 'Y',
+      CHG_UID: params.CHG_UID || params.WRKR_ID,
+      LOSS_REASON: params.LOSS_REASON || '',
+    };
 
     const response = await fetchWithRetry(`${API_BASE}/customer/equipment/cmplEqtCustLossIndem`, {
       method: 'POST',
@@ -3317,15 +3368,15 @@ export const processEquipmentLoss = async (params: {
         'Origin': origin
       },
       credentials: 'include',
-      body: JSON.stringify(params),
+      body: JSON.stringify(requestBody),
     });
 
     const result = await response.json();
-    console.log('✅ 분실 처리 성공:', result);
+    console.log('[processEquipmentLoss] Success:', result);
 
     return result;
   } catch (error: any) {
-    console.error('❌ 분실 처리 실패:', error);
+    console.error('[processEquipmentLoss] Failed:', error);
     if (error instanceof NetworkError) {
       throw error;
     }
