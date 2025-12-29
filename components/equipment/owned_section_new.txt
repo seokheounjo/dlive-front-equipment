@@ -1,0 +1,26 @@
+        // 보유장비 체크 시 - getCustProdInfo API 사용 (테스트 완료: 1건 반환)
+        if (searchConditions.OWNED) {
+          try {
+            const ownedResult = await debugApiCall(
+              'EquipmentInquiry',
+              'getTechnicianEquipmentFromWork (보유-getCustProdInfo)',
+              () => getTechnicianEquipmentFromWork({
+                WRKR_ID: userInfo.userId,
+                SO_ID: selectedSoId || userInfo.soId || undefined,
+                CRR_ID: userInfo.userId,
+              }),
+              { WRKR_ID: userInfo.userId }
+            );
+            if (Array.isArray(ownedResult)) {
+              // ITEM_MID_CD 필터 적용 (프론트엔드에서)
+              let filtered = ownedResult;
+              if (selectedItemMidCd) {
+                filtered = ownedResult.filter((item: any) => item.ITEM_MID_CD === selectedItemMidCd);
+              }
+              // 보유장비 표시용 태그 추가
+              allResults.push(...filtered.map((item: any) => ({ ...item, _category: 'OWNED' })));
+            }
+          } catch (e) {
+            console.log('보유장비 조회 실패 (getCustProdInfo):', e);
+          }
+        }

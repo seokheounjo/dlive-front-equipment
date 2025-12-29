@@ -323,26 +323,27 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
           }
         }
 
-        // 반납요청 체크 시 - getOwnEqtLstForMobile_3 API 사용
+        // 반납요청 체크 시 - getEquipmentReturnRequestList API 사용 (실제 반납 요청된 장비)
         if (searchConditions.RETURN_REQUESTED) {
           const returnParams = {
             WRKR_ID: userInfo.userId,
-            CRR_ID: userInfo.userId, // CRR_ID = WRKR_ID (기사 본인)
             SO_ID: selectedSoId || userInfo.soId || undefined,
-            ITEM_MID_CD: selectedItemMidCd || undefined,
-            EQT_CL_CD: selectedCategory || undefined, // 구분 (임대/판매/할부)
-            RETURN_TP: '2', // '1'=반납센터, '2'=기사위치, '3'=직접
           };
           try {
             const returnResult = await debugApiCall(
               'EquipmentInquiry',
-              'getOwnEqtLstForMobile3 (반납요청)',
-              () => getOwnEqtLstForMobile3(returnParams),
+              'getEquipmentReturnRequestList (반납요청)',
+              () => getEquipmentReturnRequestList(returnParams),
               returnParams
             );
             if (Array.isArray(returnResult)) {
+              // ITEM_MID_CD 필터 적용 (프론트엔드에서)
+              let filtered = returnResult;
+              if (selectedItemMidCd) {
+                filtered = returnResult.filter((item: any) => item.ITEM_MID_CD === selectedItemMidCd);
+              }
               // 반납요청 표시용 태그 추가
-              allResults.push(...returnResult.map(item => ({ ...item, _category: 'RETURN_REQUESTED' })));
+              allResults.push(...filtered.map(item => ({ ...item, _category: 'RETURN_REQUESTED' })));
             }
           } catch (e) {
             console.log('반납요청 조회 실패:', e);
