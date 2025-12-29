@@ -31,12 +31,8 @@ interface UserInfo {
   mstSoId?: string;
 }
 
-// 검색 조건 체크박스 상태 (복수 선택 가능)
-interface SearchConditions {
-  OWNED: boolean;           // 보유장비
-  RETURN_REQUESTED: boolean; // 반납요청
-  INSPECTION_WAITING: boolean; // 검사대기
-}
+// 검색 카테고리 (단일 선택)
+type SearchCategory = 'OWNED' | 'RETURN_REQUESTED' | 'INSPECTION_WAITING';
 
 // 장비 상태 코드 매핑 (CMEP301)
 const EQT_STAT_CODE_MAP: Record<string, string> = {
@@ -190,23 +186,23 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
 
   // 검색 조건
   const [selectedSoId, setSelectedSoId] = useState<string>(userInfo?.soId || '');
-  const [selectedCategory, setSelectedCategory] = useState<string>('');
-  const [selectedItemMidCd, setSelectedItemMidCd] = useState<string>('');
-  const [eqtSerno, setEqtSerno] = useState<string>('705KVQS022868'); // 테스트용 고정값
-
-  // 검색 조건 - 체크박스로 복수 선택 가능 (처음에는 모두 체크)
-  const [searchConditions, setSearchConditions] = useState<SearchConditions>({
-    OWNED: true,
-    RETURN_REQUESTED: true,
-    INSPECTION_WAITING: true,
-  });
   
-  // 체크박스 토글 핸들러
-  const toggleCondition = (condition: keyof SearchConditions) => {
-    setSearchConditions(prev => ({
-      ...prev,
-      [condition]: !prev[condition]
-    }));
+  const [selectedItemMidCd, setSelectedItemMidCd] = useState<string>('');
+  const [eqtSerno, setEqtSerno] = useState<string>('');
+
+  // 검색 카테고리 - 라디오 버튼으로 단일 선택
+  const [selectedCategory, setSelectedCategory] = useState<SearchCategory>('OWNED');
+  
+  // 필터 패널 열림/닫힘 상태
+  const [isFilterOpen, setIsFilterOpen] = useState(false);
+  
+  // 필터 카운트 (적용된 필터 개수)
+  const getFilterCount = () => {
+    let count = 0;
+    if (selectedSoId) count++;
+    if (selectedItemMidCd) count++;
+    if (eqtSerno) count++;
+    return count;
   };
 
   // 데이터
@@ -272,7 +268,7 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
 
     try {
       console.log('🔍 [장비처리] 시작:', {
-        searchConditions,
+        selectedCategory,
         SO_ID: selectedSoId,
         WRKR_ID: userInfo.userId,
             CRR_ID: userInfo.userId, // CRR_ID = WRKR_ID (기사 본인)
@@ -296,8 +292,8 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
         // 체크된 조건에 따라 API 호출
         const allResults: any[] = [];
 
-        // 보유장비 체크 시 - getCustProdInfo API 사용 (테스트 완료: 1건 반환)
-        if (searchConditions.OWNED) {
+        // 보유장비 선택 시
+        if (selectedCategory === 'OWNED') {
           try {
             const ownedResult = await debugApiCall(
               'EquipmentInquiry',
@@ -323,8 +319,8 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
           }
         }
 
-        // 반납요청 체크 시 - getEquipmentReturnRequestList API 사용 (실제 반납 요청된 장비)
-        if (searchConditions.RETURN_REQUESTED) {
+        // 반납요청 선택 시
+        if (selectedCategory === 'RETURN_REQUESTED') {
           const returnParams = {
             WRKR_ID: userInfo.userId,
             SO_ID: selectedSoId || userInfo.soId || undefined,
@@ -350,8 +346,8 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
           }
         }
 
-        // 검사대기 체크 시 - getEquipmentChkStndByA_All API 사용
-        if (searchConditions.INSPECTION_WAITING) {
+        // 검사대기 선택 시
+        if (selectedCategory === 'INSPECTION_WAITING') {
           const inspectionParams = {
             WRKR_ID: userInfo.userId,
             CRR_ID: userInfo.userId, // CRR_ID = WRKR_ID (기사 본인)
@@ -663,19 +659,19 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
             {/* 보유장비 체크박스 */}
             <button
               type="button"
-              onClick={() => toggleCondition('OWNED')}
+              onClick={() => setSelectedCategory('OWNED')}
               className={`p-3 rounded-lg border-2 transition-all text-center active:scale-[0.98] touch-manipulation ${
-                searchConditions.OWNED
+                selectedCategory === 'OWNED'
                   ? 'bg-green-50 border-green-500 text-green-700 shadow-sm'
                   : 'border-gray-200 hover:bg-gray-50 text-gray-400'
               }`}
               style={{ WebkitTapHighlightColor: 'transparent' }}
             >
               <div className="flex items-center justify-center gap-1.5 mb-1">
-                <div className={`w-4 h-4 rounded border-2 flex items-center justify-center ${
-                  searchConditions.OWNED ? 'bg-green-500 border-green-500' : 'border-gray-300'
+                <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center ${
+                  selectedCategory === 'OWNED' ? 'bg-green-500 border-green-500' : 'border-gray-300'
                 }`}>
-                  {searchConditions.OWNED && (
+                  {selectedCategory === 'OWNED' && (
                     <svg className="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 20 20">
                       <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
                     </svg>
@@ -683,25 +679,25 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
                 </div>
                 <span className="text-sm font-bold">보유</span>
               </div>
-              <div className="text-[10px] text-gray-500">내 장비</div>
+              
             </button>
 
             {/* 반납요청 체크박스 */}
             <button
               type="button"
-              onClick={() => toggleCondition('RETURN_REQUESTED')}
+              onClick={() => setSelectedCategory('RETURN_REQUESTED')}
               className={`p-3 rounded-lg border-2 transition-all text-center active:scale-[0.98] touch-manipulation ${
-                searchConditions.RETURN_REQUESTED
+                selectedCategory === 'RETURN_REQUESTED'
                   ? 'bg-amber-50 border-amber-500 text-amber-700 shadow-sm'
                   : 'border-gray-200 hover:bg-gray-50 text-gray-400'
               }`}
               style={{ WebkitTapHighlightColor: 'transparent' }}
             >
               <div className="flex items-center justify-center gap-1.5 mb-1">
-                <div className={`w-4 h-4 rounded border-2 flex items-center justify-center ${
-                  searchConditions.RETURN_REQUESTED ? 'bg-amber-500 border-amber-500' : 'border-gray-300'
+                <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center ${
+                  selectedCategory === 'RETURN_REQUESTED' ? 'bg-amber-500 border-amber-500' : 'border-gray-300'
                 }`}>
-                  {searchConditions.RETURN_REQUESTED && (
+                  {selectedCategory === 'RETURN_REQUESTED' && (
                     <svg className="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 20 20">
                       <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
                     </svg>
@@ -709,25 +705,25 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
                 </div>
                 <span className="text-sm font-bold">반납요청</span>
               </div>
-              <div className="text-[10px] text-gray-500">반납 진행</div>
+              
             </button>
 
             {/* 검사대기 체크박스 */}
             <button
               type="button"
-              onClick={() => toggleCondition('INSPECTION_WAITING')}
+              onClick={() => setSelectedCategory('INSPECTION_WAITING')}
               className={`p-3 rounded-lg border-2 transition-all text-center active:scale-[0.98] touch-manipulation ${
-                searchConditions.INSPECTION_WAITING
+                selectedCategory === 'INSPECTION_WAITING'
                   ? 'bg-purple-50 border-purple-500 text-purple-700 shadow-sm'
                   : 'border-gray-200 hover:bg-gray-50 text-gray-400'
               }`}
               style={{ WebkitTapHighlightColor: 'transparent' }}
             >
               <div className="flex items-center justify-center gap-1.5 mb-1">
-                <div className={`w-4 h-4 rounded border-2 flex items-center justify-center ${
-                  searchConditions.INSPECTION_WAITING ? 'bg-purple-500 border-purple-500' : 'border-gray-300'
+                <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center ${
+                  selectedCategory === 'INSPECTION_WAITING' ? 'bg-purple-500 border-purple-500' : 'border-gray-300'
                 }`}>
-                  {searchConditions.INSPECTION_WAITING && (
+                  {selectedCategory === 'INSPECTION_WAITING' && (
                     <svg className="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 20 20">
                       <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
                     </svg>
@@ -735,7 +731,7 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
                 </div>
                 <span className="text-sm font-bold">검사대기</span>
               </div>
-              <div className="text-[10px] text-gray-500">검사 대기</div>
+              
             </button>
           </div>
         </div>
@@ -755,20 +751,6 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
                 {soList.map((item) => (
                   <option key={item.SO_ID} value={item.SO_ID}>{item.SO_NM}</option>
                 ))}
-              </select>
-            </div>
-            {/* 구분 (한 줄) */}
-            <div className="flex items-center gap-2">
-              <label className="text-xs font-medium text-gray-600 w-16 flex-shrink-0">구분</label>
-              <select
-                value={selectedCategory}
-                onChange={(e) => setSelectedCategory(e.target.value)}
-                className="flex-1 px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
-              >
-                <option value="">전체</option>
-                <option value="Y">임대</option>
-                <option value="N">판매</option>
-                <option value="31">할부</option>
               </select>
             </div>
             {/* 장비종류 (한 줄) */}
