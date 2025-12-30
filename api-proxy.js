@@ -100,6 +100,37 @@ router.post('/common/getCommonCodes', handleProxy);
 // Customer/Negociation API
 router.post('/customer/negociation/getCustomerCtrtInfo', handleProxy);
 
+// Customer Management APIs (Legacy CONA paths)
+// 1. Customer Search
+router.post('/customer/common/customercommon/getConditionalCustList2', handleProxy);
+router.post('/customer/negociation/getCustInfo', handleProxy);
+// 2. Contract Info
+router.post('/customer/negociation/getCustCtrtInfoListCnt_1', handleProxy);
+router.post('/customer/negociation/getCustCtrtAll', handleProxy);
+router.post('/customer/negociation/getCustSearchCtrt', handleProxy);
+router.post('/customer/work/getProdPromotionInfo', handleProxy);
+// 3. Payment/Billing Info
+router.post('/customer/negociation/getCustAccountInfo', handleProxy);
+router.post('/customer/negociation/getCustDpstInfo', handleProxy);
+router.post('/customer/negociation/getCustPymInfo', handleProxy);
+router.post('/customer/negociation/getHPPayList', handleProxy);
+router.post('/billing/unpayment/upreport/getUnpaymentNowList', handleProxy);
+router.post('/billing/unpayment/upreport/getUnpaymentNowDtlList', handleProxy);
+// 4. History
+router.post('/customer/negociation/getCallHistory', handleProxy);
+router.post('/customer/negociation/getCustWorkList', handleProxy);
+// 5. Info Change
+router.post('/customer/negociation/updateCustTelDetailInfo', handleProxy);
+router.post('/customer/etc/saveMargeAddrOrdInfo', handleProxy);
+router.post('/customer/customer/general/customerPymChgAddManager', handleProxy);
+// 6. Consultation/AS
+router.post('/customer/negociation/saveCnslRcptInfo', handleProxy);
+// 7. Customer Create
+router.post('/customer/customer/general/customerManager', handleProxy);
+// 8. Electronic Contract
+router.post('/customer/contract/requestElectronicSign', handleProxy);
+router.post('/customer/contract/getElectronicSignStatus', handleProxy);
+
 // Customer/Contract API
 router.post('/customer/contract/getContractInfo', handleProxy);
 router.post('/customer/contract/getBillingInfo', handleProxy);
