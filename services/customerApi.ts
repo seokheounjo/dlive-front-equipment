@@ -534,40 +534,41 @@ export const getElectronicSignStatus = async (ctrtId: string): Promise<ApiRespon
 };
 
 // ============ 공통 코드 API ============
+// Backend: TaskSystemController.java - /common/getCommonCodes (CODE_GROUP param)
 
 /**
  * 상담소분류 코드 조회
  */
 export const getConsultationCodes = async (): Promise<ApiResponse<any[]>> => {
-  return apiCall<any[]>('/common/getCodeList', { CODE_GRP: 'CNSL_CL' });
+  return apiCall<any[]>('/common/getCommonCodes', { CODE_GROUP: 'CNSL_CL' });
 };
 
 /**
  * AS사유 코드 조회
  */
 export const getASReasonCodes = async (): Promise<ApiResponse<any[]>> => {
-  return apiCall<any[]>('/common/getCodeList', { CODE_GRP: 'AS_RESN' });
+  return apiCall<any[]>('/common/getCommonCodes', { CODE_GROUP: 'AS_RESN' });
 };
 
 /**
  * 고객유형 코드 조회
  */
 export const getCustomerTypeCodes = async (): Promise<ApiResponse<any[]>> => {
-  return apiCall<any[]>('/common/getCodeList', { CODE_GRP: 'CUST_TP' });
+  return apiCall<any[]>('/common/getCommonCodes', { CODE_GROUP: 'CUST_TP' });
 };
 
 /**
  * 통신사 코드 조회
  */
 export const getTelecomCodes = async (): Promise<ApiResponse<any[]>> => {
-  return apiCall<any[]>('/common/getCodeList', { CODE_GRP: 'TEL_TP' });
+  return apiCall<any[]>('/common/getCommonCodes', { CODE_GROUP: 'TEL_TP' });
 };
 
 /**
  * 은행 코드 조회
  */
 export const getBankCodes = async (): Promise<ApiResponse<any[]>> => {
-  return apiCall<any[]>('/common/getCodeList', { CODE_GRP: 'BANK' });
+  return apiCall<any[]>('/common/getCommonCodes', { CODE_GROUP: 'BANK' });
 };
 
 // ============ 유틸리티 함수 ============
