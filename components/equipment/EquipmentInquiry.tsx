@@ -319,20 +319,19 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
           }
         }
 
-        // 반납요청 선택 시
+        // 반납요청 선택 시 - getOwnEqtLstForMobile3 사용 (phoneNumberManager)
         if (selectedCategory === 'RETURN_REQUESTED') {
           const returnParams = {
             WRKR_ID: userInfo.userId,
             SO_ID: selectedSoId || userInfo.soId || undefined,
             RETURN_TP: '2',  // 작업기사 반납요청
-            CRR_ID: userInfo.crrId,  // 기사 본인
-            RETURN_STAT: '2',  // 반납요청 있는 장비만 조회 (inner join)
+            CRR_ID: userInfo.crrId,  // 협력업체 ID
           };
           try {
             const returnResult = await debugApiCall(
               'EquipmentInquiry',
-              'getEquipmentReturnRequestList (반납요청)',
-              () => getEquipmentReturnRequestList(returnParams),
+              'getOwnEqtLstForMobile3 (반납요청)',
+              () => getOwnEqtLstForMobile3(returnParams),
               returnParams
             );
             if (Array.isArray(returnResult)) {
