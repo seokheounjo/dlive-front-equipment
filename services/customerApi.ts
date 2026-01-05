@@ -280,9 +280,11 @@ const apiCall = async <T>(
 /**
  * 고객 검색 (조건별)
  *
- * 검색 API:
- * - 고객ID/계약ID: getCustInfo (안정적)
- * - 전화번호/장비번호: getConditionalCustList2 (CUST_ID로 검색)
+ * 검색 API (negociationDao 사용):
+ * - 전화번호: /customer/negociation/getCustByPhnNo
+ * - 고객ID: /customer/negociation/getCustById
+ * - 계약ID: /customer/negociation/getCustByCtrtId
+ * - 장비번호: /customer/negociation/getCustByEqtNo
  *
  * 테스트용 고객 ID:
  * - 푸꾸옥: 1001857577
@@ -294,32 +296,30 @@ export const searchCustomer = async (params: CustomerSearchParams): Promise<ApiR
 
   switch (params.searchType) {
     case 'CUSTOMER_ID':
-      // 고객ID로 검색 - getCustInfo 사용
-      result = await apiCall<any>('/customer/negociation/getCustInfo', {
+      // 고객ID로 검색
+      result = await apiCall<any>('/customer/negociation/getCustById', {
         CUST_ID: params.customerId || ''
       });
       break;
 
     case 'CONTRACT_ID':
-      // 계약ID로 검색 - getConditionalCustList2 사용 (CUST_ID 파라미터로)
-      result = await apiCall<any>('/customer/common/customercommon/getConditionalCustList2', {
-        CUST_ID: params.contractId || ''
+      // 계약ID로 검색
+      result = await apiCall<any>('/customer/negociation/getCustByCtrtId', {
+        CTRT_ID: params.contractId || ''
       });
       break;
 
     case 'PHONE_NAME':
-      // 전화번호로 검색 - getConditionalCustList2 사용
-      // 주의: 현재 D'Live 서버에서 TEL_NO 검색 시 Timeout 발생 가능
-      result = await apiCall<any>('/customer/common/customercommon/getConditionalCustList2', {
+      // 전화번호로 검색
+      result = await apiCall<any>('/customer/negociation/getCustByPhnNo', {
         TEL_NO: params.phoneNumber || '',
         CUST_NM: params.customerName || ''
       });
       break;
 
     case 'EQUIPMENT_NO':
-      // 장비번호로 검색 - getConditionalCustList2 사용
-      // 주의: 현재 D'Live 서버에서 EQT_SERNO 검색 시 Timeout 발생 가능
-      result = await apiCall<any>('/customer/common/customercommon/getConditionalCustList2', {
+      // 장비번호로 검색
+      result = await apiCall<any>('/customer/negociation/getCustByEqtNo', {
         EQT_SERNO: params.equipmentNo || ''
       });
       break;

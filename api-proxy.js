@@ -101,9 +101,13 @@ router.post('/common/getCommonCodes', handleProxy);
 router.post('/customer/negociation/getCustomerCtrtInfo', handleProxy);
 
 // Customer Management APIs (Legacy CONA paths)
-// 1. Customer Search
+// 1. Customer Search - Multiple search types
 router.post('/customer/common/customercommon/getConditionalCustList2', handleProxy);
 router.post('/customer/negociation/getCustInfo', handleProxy);
+router.post('/customer/negociation/getCustByPhnNo', handleProxy);    // 전화번호 검색
+router.post('/customer/negociation/getCustById', handleProxy);       // 고객ID 검색
+router.post('/customer/negociation/getCustByCtrtId', handleProxy);   // 계약ID 검색
+router.post('/customer/negociation/getCustByEqtNo', handleProxy);    // 장비번호 검색
 // 2. Contract Info
 router.post('/customer/negociation/getCustCtrtInfoListCnt_1', handleProxy);
 router.post('/customer/negociation/getCustCtrtAll', handleProxy);
