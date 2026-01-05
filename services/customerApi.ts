@@ -280,11 +280,12 @@ const apiCall = async <T>(
 /**
  * 고객 검색 (조건별)
  *
- * 검색 API (negociationDao 사용):
- * - 전화번호: /customer/negociation/getCustByPhnNo
- * - 고객ID: /customer/negociation/getCustById
- * - 계약ID: /customer/negociation/getCustByCtrtId
- * - 장비번호: /customer/negociation/getCustByEqtNo
+ * 레거시 API: /customer/common/customercommon/getConditionalCustList2
+ *
+ * 중요! SERCH_GB 파라미터에 따라 다른 SQL이 호출됨:
+ * - SERCH_GB = "3": 전화번호/고객명/고객ID/계약ID/장비번호 검색
+ * - SERCH_GB = "5": 주소 검색
+ * - 없으면: 기본 getConditionalCustList2 (CUST_ID로만 검색)
  *
  * 테스트용 고객 ID:
  * - 푸꾸옥: 1001857577
@@ -292,41 +293,48 @@ const apiCall = async <T>(
  * - 가나다: 1001846265
  */
 export const searchCustomer = async (params: CustomerSearchParams): Promise<ApiResponse<CustomerInfo[]>> => {
-  let result: ApiResponse<any>;
+  let reqParams: Record<string, any> = {};
 
   switch (params.searchType) {
     case 'CUSTOMER_ID':
-      // 고객ID로 검색
-      result = await apiCall<any>('/customer/negociation/getCustById', {
+      // 고객ID로 검색 - SERCH_GB=3 사용
+      reqParams = {
+        SERCH_GB: '3',
         CUST_ID: params.customerId || ''
-      });
+      };
       break;
 
     case 'CONTRACT_ID':
-      // 계약ID로 검색
-      result = await apiCall<any>('/customer/negociation/getCustByCtrtId', {
+      // 계약ID로 검색 - SERCH_GB=3 사용
+      reqParams = {
+        SERCH_GB: '3',
         CTRT_ID: params.contractId || ''
-      });
+      };
       break;
 
     case 'PHONE_NAME':
-      // 전화번호로 검색
-      result = await apiCall<any>('/customer/negociation/getCustByPhnNo', {
+      // 전화번호/고객명으로 검색 - SERCH_GB=3 사용
+      reqParams = {
+        SERCH_GB: '3',
         TEL_NO: params.phoneNumber || '',
         CUST_NM: params.customerName || ''
-      });
+      };
       break;
 
     case 'EQUIPMENT_NO':
-      // 장비번호로 검색
-      result = await apiCall<any>('/customer/negociation/getCustByEqtNo', {
-        EQT_SERNO: params.equipmentNo || ''
-      });
+      // 장비번호로 검색 - SERCH_GB=3 사용
+      reqParams = {
+        SERCH_GB: '3',
+        EQT_SERNO: params.equipmentNo || '',
+        MAC_ADDR: ''
+      };
       break;
 
     default:
       return { success: false, message: '알 수 없는 검색 유형입니다.', data: [] };
   }
+
+  const result = await apiCall<any>('/customer/common/customercommon/getConditionalCustList2', reqParams);
 
   // 결과 처리 - 단일 객체를 배열로 변환
   if (result.success && result.data) {
