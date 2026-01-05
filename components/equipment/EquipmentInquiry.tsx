@@ -240,6 +240,10 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
   // 뷰 모드: simple(간단히), medium(중간), detail(자세히)
   const [viewMode, setViewMode] = useState<'simple' | 'medium' | 'detail'>('simple');
 
+  // 상태 변경 결과 (검사대기 다중처리용)
+  const [statusChangeResult, setStatusChangeResult] = useState<StatusChangeResult | null>(null);
+  const [showStatusChangeResult, setShowStatusChangeResult] = useState(false);
+
   // Barcode scanner state
   // BarcodeScanner state removed
 
