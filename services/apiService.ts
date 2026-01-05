@@ -3045,6 +3045,47 @@ export const getEquipmentReturnRequestList = async (params: {
 };
 
 /**
+ * 반납요청 장비 목록 조회 (All 버전)
+ * Backend: getEquipmentReturnRequestList_All
+ * @param params 검색 조건
+ * @returns 반납요청 장비 리스트
+ */
+export const getEquipmentReturnRequestListAll = async (params: {
+  WRKR_ID: string;
+  SO_ID?: string;
+  CRR_ID?: string;
+  PROC_STAT?: string;  // 반납요청 상태
+}): Promise<any[]> => {
+  console.log('📋 [반납요청조회_All] API 호출:', params);
+
+  try {
+    const origin = typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000';
+
+    const response = await fetchWithRetry(`${API_BASE}/customer/equipment/getEquipmentReturnRequestList_All`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Origin': origin
+      },
+      credentials: 'include',
+      body: JSON.stringify(params),
+    });
+
+    const result = await response.json();
+    console.log('✅ 반납요청 장비 조회 성공:', result);
+
+    return Array.isArray(result) ? result : result.output1 || result.data || [];
+  } catch (error: any) {
+    console.error('❌ 반납요청 장비 조회 실패:', error);
+    if (error instanceof NetworkError) {
+      throw error;
+    }
+    throw new NetworkError('반납요청 장비 조회에 실패했습니다.');
+  }
+};
+
+
+/**
  * 장비 반납 요청 확인
  * @param params 확인 조건
  * @returns 확인 결과

@@ -9,7 +9,7 @@ import {
   getEquipmentHistoryInfo,
   // 새 API 함수 (받은문서 20251223 분석 기반)
   getWrkrHaveEqtListAll,      // 보유장비 전체 조회
-  getOwnEqtLstForMobile3,     // 반납요청 장비 조회
+  getEquipmentReturnRequestListAll,  // 반납요청 장비 조회 (getEquipmentReturnRequestList_All)
   getEquipmentChkStndByAAll   // 검사대기 장비 조회
 } from '../../services/apiService';
 import BaseModal from '../common/BaseModal';
@@ -333,19 +333,18 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
           }
         }
 
-        // 반납요청 선택 시 - getOwnEqtLstForMobile3 사용 (phoneNumberManager)
+        // 반납요청 선택 시 - getEquipmentReturnRequestListAll 사용 (phoneNumberManager)
         if (selectedCategory === 'RETURN_REQUESTED') {
           const returnParams = {
             WRKR_ID: userInfo.userId,
             SO_ID: selectedSoId || userInfo.soId || undefined,
-            RETURN_TP: '2',  // 작업기사 반납요청
             CRR_ID: userInfo.crrId,  // 협력업체 ID
           };
           try {
             const returnResult = await debugApiCall(
               'EquipmentInquiry',
-              'getOwnEqtLstForMobile3 (반납요청)',
-              () => getOwnEqtLstForMobile3(returnParams),
+              'getEquipmentReturnRequestListAll (반납요청)',
+              () => getEquipmentReturnRequestListAll(returnParams),
               returnParams
             );
             if (Array.isArray(returnResult)) {
