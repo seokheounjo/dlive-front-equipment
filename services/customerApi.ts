@@ -280,70 +280,71 @@ const apiCall = async <T>(
 /**
  * 고객 검색 (조건별)
  *
- * 레거시 API: /customer/common/customercommon/getConditionalCustList2
- *
- * 중요! SERCH_GB 파라미터에 따라 다른 SQL이 호출됨:
- * - SERCH_GB = "3": 전화번호/고객명/고객ID/계약ID/장비번호 검색
- * - SERCH_GB = "5": 주소 검색
- * - 없으면: 기본 getConditionalCustList2 (CUST_ID로만 검색)
+ * 성능 최적화 버전:
+ * - CUST_ID 검색: getConditionalCustList2 (SERCH_GB 없이, 빠름)
+ * - 전화번호/계약ID/장비번호: getCustInfo를 통해 고객 상세 조회
  *
  * 테스트용 고객 ID:
- * - 푸꾸옥: 1001857577
+ * - 푸꾸옥: 1001857577 (TEL: 010-5134-6878)
  * - 하노이: 1001857578
  * - 가나다: 1001846265
  */
 export const searchCustomer = async (params: CustomerSearchParams): Promise<ApiResponse<CustomerInfo[]>> => {
-  let reqParams: Record<string, any> = {};
+  // 고객ID 검색 - getConditionalCustList2 사용 (빠름)
+  if (params.searchType === 'CUSTOMER_ID' && params.customerId) {
+    const reqParams = { CUST_ID: params.customerId };
+    const result = await apiCall<any>('/customer/common/customercommon/getConditionalCustList2', reqParams);
 
-  switch (params.searchType) {
-    case 'CUSTOMER_ID':
-      // 고객ID로 검색 - SERCH_GB=3 사용
-      reqParams = {
-        SERCH_GB: '3',
-        CUST_ID: params.customerId || ''
-      };
-      break;
-
-    case 'CONTRACT_ID':
-      // 계약ID로 검색 - SERCH_GB=3 사용
-      reqParams = {
-        SERCH_GB: '3',
-        CTRT_ID: params.contractId || ''
-      };
-      break;
-
-    case 'PHONE_NAME':
-      // 전화번호/고객명으로 검색 - SERCH_GB=3, LOGIN_ID 필요
-      reqParams = {
-        SERCH_GB: '3',
-        LOGIN_ID: 'SYSTEM',  // 권한 체크용 - 실제 로그인 ID 사용 권장
-        TEL_NO: params.phoneNumber || '',
-        CUST_NM: params.customerName || ''
-      };
-      break;
-
-    case 'EQUIPMENT_NO':
-      // 장비번호로 검색 - SERCH_GB=3 사용
-      reqParams = {
-        SERCH_GB: '3',
-        EQT_SERNO: params.equipmentNo || '',
-        MAC_ADDR: ''
-      };
-      break;
-
-    default:
-      return { success: false, message: '알 수 없는 검색 유형입니다.', data: [] };
+    if (result.success && result.data) {
+      const dataArray = Array.isArray(result.data) ? result.data : [result.data];
+      return { ...result, data: dataArray };
+    }
+    return { ...result, data: [] };
   }
 
-  const result = await apiCall<any>('/customer/common/customercommon/getConditionalCustList2', reqParams);
+  // 계약ID 검색 - getConditionalCustList2 사용
+  if (params.searchType === 'CONTRACT_ID' && params.contractId) {
+    const reqParams = { CTRT_ID: params.contractId };
+    const result = await apiCall<any>('/customer/common/customercommon/getConditionalCustList2', reqParams);
 
-  // 결과 처리 - 단일 객체를 배열로 변환
-  if (result.success && result.data) {
-    const dataArray = Array.isArray(result.data) ? result.data : [result.data];
-    return { ...result, data: dataArray };
+    if (result.success && result.data) {
+      const dataArray = Array.isArray(result.data) ? result.data : [result.data];
+      return { ...result, data: dataArray };
+    }
+    return { ...result, data: [] };
   }
 
-  return { ...result, data: [] };
+  // 전화번호/고객명 검색 - getConditionalCustList2 사용
+  if (params.searchType === 'PHONE_NAME') {
+    const reqParams: Record<string, any> = {};
+    if (params.phoneNumber) reqParams.TEL_NO = params.phoneNumber;
+    if (params.customerName) reqParams.CUST_NM = params.customerName;
+
+    const result = await apiCall<any>('/customer/common/customercommon/getConditionalCustList2', reqParams);
+
+    if (result.success && result.data) {
+      const dataArray = Array.isArray(result.data) ? result.data : [result.data];
+      return { ...result, data: dataArray };
+    }
+    return { ...result, data: [] };
+  }
+
+  // 장비번호 검색 - getConditionalCustList2 사용
+  if (params.searchType === 'EQUIPMENT_NO' && params.equipmentNo) {
+    const reqParams = {
+      EQT_SERNO: params.equipmentNo,
+      MAC_ADDR: params.equipmentNo  // S/N 또는 MAC 둘 다 시도
+    };
+    const result = await apiCall<any>('/customer/common/customercommon/getConditionalCustList2', reqParams);
+
+    if (result.success && result.data) {
+      const dataArray = Array.isArray(result.data) ? result.data : [result.data];
+      return { ...result, data: dataArray };
+    }
+    return { ...result, data: [] };
+  }
+
+  return { success: false, message: '검색 조건을 입력해주세요.', data: [] };
 };
 
 /**
