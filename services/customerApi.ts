@@ -279,10 +279,34 @@ const apiCall = async <T>(
 
 /**
  * 고객 검색 (조건별)
- * API: customer/negociation/getCustCntBySearchCust.req
- *      customer/common/customercommon/getConditionalCustList2.req
+ * API: customer/negociation/getCustInfo (고객ID/계약ID 검색 시)
+ *      customer/common/customercommon/getConditionalCustList2 (전화번호/장비번호 검색 시)
+ *
+ * 테스트용 고객 ID:
+ * - 푸꾸옥: 1001857577
+ * - 하노이: 1001857578
+ * - 가나다: 1001846265
  */
 export const searchCustomer = async (params: CustomerSearchParams): Promise<ApiResponse<CustomerInfo[]>> => {
+  // 고객ID나 계약ID로 검색할 경우 getCustInfo 사용 (더 안정적)
+  if (params.searchType === 'CUSTOMER_ID' && params.customerId) {
+    const result = await apiCall<CustomerInfo>('/customer/negociation/getCustInfo', { CUST_ID: params.customerId });
+    // 단일 결과를 배열로 변환
+    if (result.code === 'SUCCESS' && result.data) {
+      return { ...result, data: Array.isArray(result.data) ? result.data : [result.data] };
+    }
+    return { ...result, data: [] };
+  }
+
+  if (params.searchType === 'CONTRACT_ID' && params.contractId) {
+    const result = await apiCall<CustomerInfo>('/customer/negociation/getCustInfo', { CUST_ID: params.contractId });
+    if (result.code === 'SUCCESS' && result.data) {
+      return { ...result, data: Array.isArray(result.data) ? result.data : [result.data] };
+    }
+    return { ...result, data: [] };
+  }
+
+  // 전화번호/장비번호 검색은 getConditionalCustList2 사용
   const reqParams: Record<string, any> = {};
 
   switch (params.searchType) {
@@ -290,14 +314,6 @@ export const searchCustomer = async (params: CustomerSearchParams): Promise<ApiR
       reqParams.TEL_NO = params.phoneNumber;
       reqParams.CUST_NM = params.customerName;
       reqParams.SEARCH_TP = '1';
-      break;
-    case 'CUSTOMER_ID':
-      reqParams.CUST_ID = params.customerId;
-      reqParams.SEARCH_TP = '2';
-      break;
-    case 'CONTRACT_ID':
-      reqParams.CTRT_ID = params.contractId;
-      reqParams.SEARCH_TP = '3';
       break;
     case 'EQUIPMENT_NO':
       reqParams.EQT_SERNO = params.equipmentNo;

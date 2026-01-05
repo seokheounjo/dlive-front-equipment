@@ -18,13 +18,14 @@ type SearchType = 'PHONE_NAME' | 'CUSTOMER_ID' | 'CONTRACT_ID' | 'EQUIPMENT_NO';
  * 3. 장비번호 (S/N, MAC)
  */
 const CustomerSearch: React.FC<CustomerSearchProps> = ({ onCustomerSelect, showToast }) => {
-  // 검색 유형
-  const [searchType, setSearchType] = useState<SearchType>('PHONE_NAME');
+  // 검색 유형 - 기본값: 고객ID 검색
+  const [searchType, setSearchType] = useState<SearchType>('CUSTOMER_ID');
 
-  // 검색 입력값
+  // 검색 입력값 - 테스트용 기본값: 푸꾸옥 고객 ID
+  // 테스트용 고객: 푸꾸옥(1001857577), 하노이(1001857578), 가나다(1001846265)
   const [phoneNumber, setPhoneNumber] = useState('');
   const [customerName, setCustomerName] = useState('');
-  const [customerId, setCustomerId] = useState('');
+  const [customerId, setCustomerId] = useState('1001857577');
   const [contractId, setContractId] = useState('');
   const [equipmentNo, setEquipmentNo] = useState('');
 
