@@ -279,8 +279,11 @@ const apiCall = async <T>(
 
 /**
  * 고객 검색 (조건별)
- * API: customer/negociation/getCustInfo (고객ID/계약ID 검색 시)
- *      customer/common/customercommon/getConditionalCustList2 (전화번호/장비번호 검색 시)
+ * 각 검색 유형에 맞는 전용 API 사용:
+ * - 전화번호: /customer/negociation/getCustByPhnNo.req
+ * - 고객ID: /customer/negociation/getCustById.req
+ * - 계약ID: /customer/negociation/getCustByCtrtId.req
+ * - 장비번호: /customer/negociation/getCustByEqtNo.req
  *
  * 테스트용 고객 ID:
  * - 푸꾸옥: 1001857577
@@ -288,40 +291,49 @@ const apiCall = async <T>(
  * - 가나다: 1001846265
  */
 export const searchCustomer = async (params: CustomerSearchParams): Promise<ApiResponse<CustomerInfo[]>> => {
-  // 고객ID나 계약ID로 검색할 경우 getCustInfo 사용 (더 안정적)
-  if (params.searchType === 'CUSTOMER_ID' && params.customerId) {
-    const result = await apiCall<CustomerInfo>('/customer/negociation/getCustInfo', { CUST_ID: params.customerId });
-    // 단일 결과를 배열로 변환
-    if (result.code === 'SUCCESS' && result.data) {
-      return { ...result, data: Array.isArray(result.data) ? result.data : [result.data] };
-    }
-    return { ...result, data: [] };
-  }
-
-  if (params.searchType === 'CONTRACT_ID' && params.contractId) {
-    const result = await apiCall<CustomerInfo>('/customer/negociation/getCustInfo', { CUST_ID: params.contractId });
-    if (result.code === 'SUCCESS' && result.data) {
-      return { ...result, data: Array.isArray(result.data) ? result.data : [result.data] };
-    }
-    return { ...result, data: [] };
-  }
-
-  // 전화번호/장비번호 검색은 getConditionalCustList2 사용
-  const reqParams: Record<string, any> = {};
+  let result: ApiResponse<any>;
 
   switch (params.searchType) {
     case 'PHONE_NAME':
-      reqParams.TEL_NO = params.phoneNumber;
-      reqParams.CUST_NM = params.customerName;
-      reqParams.SEARCH_TP = '1';
+      // 전화번호로 검색
+      result = await apiCall<any>('/customer/negociation/getCustByPhnNo.req', {
+        TEL_NO: params.phoneNumber || '',
+        CUST_NM: params.customerName || ''
+      });
       break;
+
+    case 'CUSTOMER_ID':
+      // 고객ID로 검색
+      result = await apiCall<any>('/customer/negociation/getCustById.req', {
+        CUST_ID: params.customerId || ''
+      });
+      break;
+
+    case 'CONTRACT_ID':
+      // 계약ID로 검색
+      result = await apiCall<any>('/customer/negociation/getCustByCtrtId.req', {
+        CTRT_ID: params.contractId || ''
+      });
+      break;
+
     case 'EQUIPMENT_NO':
-      reqParams.EQT_SERNO = params.equipmentNo;
-      reqParams.SEARCH_TP = '4';
+      // 장비번호로 검색
+      result = await apiCall<any>('/customer/negociation/getCustByEqtNo.req', {
+        EQT_SERNO: params.equipmentNo || ''
+      });
       break;
+
+    default:
+      return { success: false, message: '알 수 없는 검색 유형입니다.', data: [] };
   }
 
-  return apiCall<CustomerInfo[]>('/customer/common/customercommon/getConditionalCustList2', reqParams);
+  // 결과 처리 - 단일 객체를 배열로 변환
+  if (result.success && result.data) {
+    const dataArray = Array.isArray(result.data) ? result.data : [result.data];
+    return { ...result, data: dataArray };
+  }
+
+  return { ...result, data: [] };
 };
 
 /**
