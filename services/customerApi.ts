@@ -302,46 +302,70 @@ export const searchCustomer = async (params: CustomerSearchParams): Promise<ApiR
     return { ...result, data: [] };
   }
 
-  // 계약ID 검색 - getConditionalCustList2 사용
+  // 계약ID 검색 - getCustomerCtrtInfo로 CUST_ID 획득 후 조회
   if (params.searchType === 'CONTRACT_ID' && params.contractId) {
-    const reqParams = { CTRT_ID: params.contractId };
-    const result = await apiCall<any>('/customer/common/customercommon/getConditionalCustList2', reqParams);
+    // 1단계: 계약ID로 고객ID 조회
+    const ctrtResult = await apiCall<any>('/customer/negociation/getCustomerCtrtInfo', { CTRT_ID: params.contractId });
 
-    if (result.success && result.data) {
-      const dataArray = Array.isArray(result.data) ? result.data : [result.data];
-      return { ...result, data: dataArray };
+    if (ctrtResult.success && ctrtResult.data) {
+      const ctrtData = Array.isArray(ctrtResult.data) ? ctrtResult.data[0] : ctrtResult.data;
+      const custId = ctrtData?.CUST_ID;
+
+      if (custId) {
+        // 2단계: 고객ID로 고객정보 조회
+        const result = await apiCall<any>('/customer/common/customercommon/getConditionalCustList2', { CUST_ID: custId });
+        if (result.success && result.data) {
+          const dataArray = Array.isArray(result.data) ? result.data : [result.data];
+          return { ...result, data: dataArray };
+        }
+      }
     }
-    return { ...result, data: [] };
+    return { success: false, message: '계약ID로 고객을 찾을 수 없습니다.', data: [] };
   }
 
-  // 전화번호/고객명 검색 - getConditionalCustList2 사용
+  // 전화번호/고객명 검색 - SERCH_GB=3 사용 (D'Live 서버 성능에 따라 Timeout 가능)
   if (params.searchType === 'PHONE_NAME') {
-    const reqParams: Record<string, any> = {};
+    if (!params.phoneNumber && !params.customerName) {
+      return { success: false, message: '전화번호 또는 고객명을 입력해주세요.', data: [] };
+    }
+
+    const reqParams: Record<string, any> = {
+      SERCH_GB: '3',
+      LOGIN_ID: 'SYSTEM'
+    };
     if (params.phoneNumber) reqParams.TEL_NO = params.phoneNumber;
     if (params.customerName) reqParams.CUST_NM = params.customerName;
 
-    const result = await apiCall<any>('/customer/common/customercommon/getConditionalCustList2', reqParams);
-
-    if (result.success && result.data) {
-      const dataArray = Array.isArray(result.data) ? result.data : [result.data];
-      return { ...result, data: dataArray };
+    try {
+      const result = await apiCall<any>('/customer/common/customercommon/getConditionalCustList2', reqParams);
+      if (result.success && result.data) {
+        const dataArray = Array.isArray(result.data) ? result.data : [result.data];
+        return { ...result, data: dataArray };
+      }
+      return { ...result, data: [] };
+    } catch (error) {
+      return { success: false, message: '전화번호 검색 시간이 초과되었습니다. 고객ID로 검색해주세요.', data: [] };
     }
-    return { ...result, data: [] };
   }
 
-  // 장비번호 검색 - getConditionalCustList2 사용
+  // 장비번호 검색 - SERCH_GB=3 사용 (D'Live 서버 성능에 따라 Timeout 가능)
   if (params.searchType === 'EQUIPMENT_NO' && params.equipmentNo) {
     const reqParams = {
+      SERCH_GB: '3',
       EQT_SERNO: params.equipmentNo,
-      MAC_ADDR: params.equipmentNo  // S/N 또는 MAC 둘 다 시도
+      MAC_ADDR: ''
     };
-    const result = await apiCall<any>('/customer/common/customercommon/getConditionalCustList2', reqParams);
 
-    if (result.success && result.data) {
-      const dataArray = Array.isArray(result.data) ? result.data : [result.data];
-      return { ...result, data: dataArray };
+    try {
+      const result = await apiCall<any>('/customer/common/customercommon/getConditionalCustList2', reqParams);
+      if (result.success && result.data) {
+        const dataArray = Array.isArray(result.data) ? result.data : [result.data];
+        return { ...result, data: dataArray };
+      }
+      return { ...result, data: [] };
+    } catch (error) {
+      return { success: false, message: '장비번호 검색 시간이 초과되었습니다. 고객ID로 검색해주세요.', data: [] };
     }
-    return { ...result, data: [] };
   }
 
   return { success: false, message: '검색 조건을 입력해주세요.', data: [] };
