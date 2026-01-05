@@ -1,11 +1,11 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { findUserList, getWrkrHaveEqtListAll as getWrkrHaveEqtList, changeEquipmentWorker, getEquipmentHistoryInfo } from '../../services/apiService';
 import { debugApiCall } from './equipmentDebug';
-import { Scan, Search, ChevronDown, ChevronUp, Check, X, User } from 'lucide-react';
+import { Scan, Search, ChevronDown, ChevronUp, Check, X, User, Hash } from 'lucide-react';
 import BarcodeScanner from './BarcodeScanner';
 
 // Scan mode type
-type ScanMode = 'single' | 'multi' | 'worker';
+type ScanMode = 'single' | 'multi' | 'serial' | 'worker';
 
 interface EquipmentMovementProps {
   onBack: () => void;
@@ -110,6 +110,9 @@ const EquipmentMovement: React.FC<EquipmentMovementProps> = ({ onBack }) => {
 
   // 조회 모드: single(단일스캔), multi(복수스캔), worker(보유기사)
   const [scanMode, setScanMode] = useState<ScanMode>('single');
+
+  // 장비번호 입력
+  const [serialInput, setSerialInput] = useState<string>('');
 
   // 이동 결과
   const [transferResult, setTransferResult] = useState<TransferResult | null>(null);
@@ -229,6 +232,18 @@ const EquipmentMovement: React.FC<EquipmentMovementProps> = ({ onBack }) => {
     } finally {
       setIsLoading(false);
     }
+  };
+
+  
+  // 장비번호 검색
+  const handleSerialSearch = async () => {
+    const normalizedSN = serialInput.trim().toUpperCase().replace(/[:-]/g, '');
+    if (!normalizedSN) {
+      alert('장비번호(S/N)를 입력해주세요.');
+      return;
+    }
+    await handleBarcodeScan(normalizedSN);
+    setSerialInput('');
   };
 
   // 기사 보유장비 조회
@@ -419,7 +434,7 @@ const EquipmentMovement: React.FC<EquipmentMovementProps> = ({ onBack }) => {
         <div className="flex items-center gap-2 mb-3">
           <span className="text-sm font-semibold text-gray-800">조회 방식</span>
         </div>
-        <div className="grid grid-cols-3 gap-2">
+        <div className="grid grid-cols-2 gap-2">
           <button
             onClick={() => setScanMode('single')}
             className={`py-3 px-2 rounded-lg text-sm font-medium transition-all ${
@@ -439,6 +454,16 @@ const EquipmentMovement: React.FC<EquipmentMovementProps> = ({ onBack }) => {
             }`}
           >
             복수스캔
+          </button>
+          <button
+            onClick={() => setScanMode('serial')}
+            className={`py-3 px-2 rounded-lg text-sm font-medium transition-all ${
+              scanMode === 'serial'
+                ? 'bg-amber-500 text-white shadow-sm'
+                : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+            }`}
+          >
+            장비번호
           </button>
           <button
             onClick={() => setScanMode('worker')}
@@ -488,6 +513,37 @@ const EquipmentMovement: React.FC<EquipmentMovementProps> = ({ onBack }) => {
           <Scan className="w-6 h-6" />
           {scanMode === 'single' ? '바코드 스캔 (1건)' : '바코드 연속 스캔'}
         </button>
+      )}
+
+      
+      {/* 장비번호 입력 영역 (serial 모드) */}
+      {scanMode === 'serial' && (
+        <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4">
+          <div className="mb-3">
+            <h3 className="text-sm font-semibold text-gray-800 flex items-center gap-2">
+              <Hash className="w-4 h-4" />
+              장비번호 입력
+            </h3>
+            <p className="text-xs text-gray-500 mt-0.5">장비 S/N을 입력하여 조회합니다</p>
+          </div>
+          <div className="flex items-center gap-2">
+            <input
+              type="text"
+              value={serialInput}
+              onChange={(e) => setSerialInput(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && handleSerialSearch()}
+              className="flex-1 px-3 py-2.5 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-amber-500 font-mono"
+              placeholder="S/N 입력 (예: S81Q889679)"
+            />
+            <button
+              onClick={handleSerialSearch}
+              disabled={isLoading || !serialInput.trim()}
+              className="px-4 py-2.5 bg-amber-500 hover:bg-amber-600 disabled:bg-gray-300 text-white rounded-lg font-semibold text-sm shadow-sm transition-all active:scale-[0.98]"
+            >
+              <Search className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
       )}
 
       {/* 보유기사 조회 영역 (worker 모드) */}
