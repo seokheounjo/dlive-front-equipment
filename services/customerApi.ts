@@ -313,9 +313,10 @@ export const searchCustomer = async (params: CustomerSearchParams): Promise<ApiR
       break;
 
     case 'PHONE_NAME':
-      // 전화번호/고객명으로 검색 - SERCH_GB=3 사용
+      // 전화번호/고객명으로 검색 - SERCH_GB=3, LOGIN_ID 필요
       reqParams = {
         SERCH_GB: '3',
+        LOGIN_ID: 'SYSTEM',  // 권한 체크용 - 실제 로그인 ID 사용 권장
         TEL_NO: params.phoneNumber || '',
         CUST_NM: params.customerName || ''
       };
