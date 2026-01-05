@@ -10,8 +10,8 @@
  * - 잠재고객: 고객 신규 등록
  */
 
-// API Base URL (EC2 프록시 서버 직접 연결)
-const API_BASE = 'http://52.63.232.141:8080/api';
+// API Base URL (서버 프록시 경유 - nginx에서 EC2로 전달)
+const API_BASE = '/api';
 
 // ============ 타입 정의 ============
 
