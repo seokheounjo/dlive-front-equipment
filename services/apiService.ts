@@ -3055,8 +3055,16 @@ export const getEquipmentReturnRequestListAll = async (params: {
   SO_ID?: string;
   CRR_ID?: string;
   PROC_STAT?: string;  // 반납요청 상태
+  RETURN_TP?: string;  // '1':반납창고, '2':작업기사, '3':CRR_ID직접 (필수!)
+  RETURN_STAT?: string; // '1':전체(outer join), '2':요청건만(inner join) (필수!)
 }): Promise<any[]> => {
-  console.log('📋 [반납요청조회_All] API 호출:', params);
+  // RETURN_TP, RETURN_STAT 기본값 추가 (SQL 필수 파라미터)
+  const requestParams = {
+    ...params,
+    RETURN_TP: params.RETURN_TP || '2',      // 기본: 작업기사
+    RETURN_STAT: params.RETURN_STAT || '1',  // 기본: 전체 조회
+  };
+  console.log('📋 [반납요청조회_All] API 호출:', requestParams);
 
   try {
     const origin = typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000';
@@ -3068,7 +3076,7 @@ export const getEquipmentReturnRequestListAll = async (params: {
         'Origin': origin
       },
       credentials: 'include',
-      body: JSON.stringify(params),
+      body: JSON.stringify(requestParams),
     });
 
     const result = await response.json();
