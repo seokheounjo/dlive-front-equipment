@@ -3322,44 +3322,70 @@ export const getEquipmentChkStndByAAll = async (params: {
 };
 
 /**
- * 장비 분실 처리
- * @param params 분실 정보
- * @returns 처리 결과
+ * 장비 상세 조회 (분실처리 전 필수 호출)
+ * Legacy: getWrkrListDetail.req
+ * @param params 조회 조건
+ * @returns 장비 상세 정보
  */
-export const processEquipmentLoss = async (params: {
-  EQT_NO: string;
-  EQT_SERNO?: string;
+export const getWrkrListDetail = async (params: {
+  SO_ID: string;
+  CRR_ID: string;
   WRKR_ID: string;
-  CRR_ID: string;           // 협력업체 ID (필수!)
-  SO_ID?: string;
-  MST_SO_ID?: string;
-  ITEM_MID_CD?: string;     // 품목중분류코드
-  EQT_CL?: string;          // 장비구분
-  ITEM_NM?: string;         // 품목명
-  EQT_USE_ARR_YN?: string;  // 장비사용도착여부
-  CHG_UID?: string;         // 변경자ID
-  LOSS_REASON?: string;
+  EQT_CL_CD?: string;
+  EQT_SERNO: string;
 }): Promise<any> => {
-  console.log('[processEquipmentLoss] API call:', params);
+  console.log('[getWrkrListDetail] API call:', params);
 
   try {
     const origin = typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000';
 
-    // Build request with parameters from equipment data
-    const requestBody = {
-      EQT_NO: params.EQT_NO,
-      EQT_SERNO: params.EQT_SERNO || '',
-      WRKR_ID: params.WRKR_ID,
-      CRR_ID: params.CRR_ID,
-      SO_ID: params.SO_ID || '',
-      MST_SO_ID: params.MST_SO_ID || params.SO_ID || '',
-      ITEM_MID_CD: params.ITEM_MID_CD || '',
-      EQT_CL: params.EQT_CL || '',
-      ITEM_NM: params.ITEM_NM || '',
-      EQT_USE_ARR_YN: params.EQT_USE_ARR_YN || 'Y',
-      CHG_UID: params.CHG_UID || params.WRKR_ID,
-      LOSS_REASON: params.LOSS_REASON || '',
-    };
+    const response = await fetchWithRetry(`${API_BASE}/customer/equipment/getWrkrListDetail`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Origin': origin
+      },
+      credentials: 'include',
+      body: JSON.stringify(params),
+    });
+
+    const result = await response.json();
+    console.log('[getWrkrListDetail] Result:', result);
+    return result;
+  } catch (error: any) {
+    console.error('[getWrkrListDetail] Failed:', error);
+    throw new NetworkError('장비 상세 조회에 실패했습니다.');
+  }
+};
+
+/**
+ * 장비 분실 처리 실행
+ * Legacy: cmplEqtCustLossIndem.req
+ * @param params 분실 처리 파라미터 (getWrkrListDetail 결과 기반)
+ * @returns 처리 결과
+ */
+export const cmplEqtCustLossIndem = async (params: {
+  MST_SO_ID: string;
+  SO_ID: string;
+  EQT_NO: string;
+  EQT_SERNO: string;
+  EQT_CL_CD: string;
+  CUST_ID: string;
+  YN_HAEJI: string;
+  CTRT_ID: string;
+  WRK_ID: string;
+  ITEM_MID_CD: string;
+  EQT_AMT?: string;
+  DLIVE_SO_ID: string;
+  CRR_ID: string;
+  WRKR_ID: string;
+  MOD_UID: string;
+  LOSS_REASON?: string;
+}): Promise<any> => {
+  console.log('[cmplEqtCustLossIndem] API call:', params);
+
+  try {
+    const origin = typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000';
 
     const response = await fetchWithRetry(`${API_BASE}/customer/equipment/cmplEqtCustLossIndem`, {
       method: 'POST',
@@ -3368,19 +3394,93 @@ export const processEquipmentLoss = async (params: {
         'Origin': origin
       },
       credentials: 'include',
-      body: JSON.stringify(requestBody),
+      body: JSON.stringify(params),
     });
 
     const result = await response.json();
-    console.log('[processEquipmentLoss] Success:', result);
-
+    console.log('[cmplEqtCustLossIndem] Result:', result);
     return result;
   } catch (error: any) {
-    console.error('[processEquipmentLoss] Failed:', error);
+    console.error('[cmplEqtCustLossIndem] Failed:', error);
+    throw new NetworkError('분실 처리 실행에 실패했습니다.');
+  }
+};
+
+/**
+ * 장비 분실 처리 (순차적 API 호출)
+ * 1. getWrkrListDetail.req - 장비 상세 조회
+ * 2. 결과 검증 (WRK_WAN_YN, EQT_USE_ARR_YN, YN_HAEJI)
+ * 3. cmplEqtCustLossIndem.req - 분실 처리 실행
+ * @param params 분실 정보
+ * @returns 처리 결과
+ */
+export const processEquipmentLoss = async (params: {
+  EQT_NO: string;
+  EQT_SERNO: string;
+  WRKR_ID: string;
+  CRR_ID: string;
+  SO_ID: string;
+  EQT_CL_CD?: string;
+  LOSS_REASON?: string;
+}): Promise<any> => {
+  console.log('[processEquipmentLoss] 분실처리 시작:', params);
+
+  try {
+    // Step 1: 장비 상세 조회 (getWrkrListDetail.req)
+    console.log('[processEquipmentLoss] Step 1: 장비 상세 조회');
+    const detailResult = await getWrkrListDetail({
+      SO_ID: params.SO_ID,
+      CRR_ID: params.CRR_ID,
+      WRKR_ID: params.WRKR_ID,
+      EQT_CL_CD: params.EQT_CL_CD || '',
+      EQT_SERNO: params.EQT_SERNO
+    });
+
+    if (!detailResult.success || !detailResult.data || detailResult.data.length === 0) {
+      throw new NetworkError('장비 상세 정보를 조회할 수 없습니다.');
+    }
+
+    const equipDetail = detailResult.data[0];
+    console.log('[processEquipmentLoss] 장비 상세:', equipDetail);
+
+    // Step 2: 검증 (레거시 로직)
+    console.log('[processEquipmentLoss] Step 2: 검증');
+
+    // WRK_WAN_YN 체크 - 작업완료 여부 ('Y'면 분실처리 불가)
+    if (equipDetail.WRK_WAN_YN === 'Y') {
+      throw new NetworkError('작업이 완료된 장비는 분실처리할 수 없습니다.');
+    }
+
+    // Step 3: 분실 처리 실행 (cmplEqtCustLossIndem.req)
+    console.log('[processEquipmentLoss] Step 3: 분실 처리 실행');
+    const lossResult = await cmplEqtCustLossIndem({
+      MST_SO_ID: equipDetail.MST_SO_ID || equipDetail.SO_ID || params.SO_ID,
+      SO_ID: equipDetail.SO_ID || params.SO_ID,
+      EQT_NO: equipDetail.EQT_NO || params.EQT_NO,
+      EQT_SERNO: equipDetail.EQT_SERNO || params.EQT_SERNO,
+      EQT_CL_CD: equipDetail.EQT_CL_CD || params.EQT_CL_CD || '',
+      CUST_ID: equipDetail.CUST_ID || '',
+      YN_HAEJI: equipDetail.YN_HAEJI || 'N',
+      CTRT_ID: equipDetail.CTRT_ID || '',
+      WRK_ID: equipDetail.WRK_ID || '',
+      ITEM_MID_CD: equipDetail.ITEM_MID_CD || '',
+      EQT_AMT: equipDetail.EQT_AMT || '0',
+      DLIVE_SO_ID: equipDetail.DLIVE_SO_ID || equipDetail.SO_ID || params.SO_ID,
+      CRR_ID: params.CRR_ID,
+      WRKR_ID: params.WRKR_ID,
+      MOD_UID: params.WRKR_ID,
+      LOSS_REASON: params.LOSS_REASON || ''
+    });
+
+    console.log('[processEquipmentLoss] 분실처리 완료:', lossResult);
+    return lossResult;
+
+  } catch (error: any) {
+    console.error('[processEquipmentLoss] 분실처리 실패:', error);
     if (error instanceof NetworkError) {
       throw error;
     }
-    throw new NetworkError('분실 처리에 실패했습니다.');
+    throw new NetworkError(error.message || '분실 처리에 실패했습니다.');
   }
 };
 
