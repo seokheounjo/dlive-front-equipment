@@ -173,10 +173,12 @@ router.post('/customer/equipment/getAuthSoList', handleProxy);
 router.post('/customer/equipment/getUserExtendedInfo', handleProxy);
 
 // Equipment Processing APIs (3 categories)
-router.post('/customer/equipment/getWrkrHaveEqtList_All', handleProxy);        // My Equipment
+router.post('/customer/equipment/getWrkrHaveEqtList_All', handleProxy);        // My Equipment (보유장비)
 router.post("/customer/equipment/getEquipmentChkStndByA_All", handleProxy);  // 검사대기
 router.post("/customer/phoneNumber/getOwnEqtLstForMobile_3", handleProxy);  // 장비반납
 router.post("/customer/equipment/getOwnEqtLstForMobile_3", handleProxy);  // 반납요청 (equipment 경로)
+router.post("/customer/equipment/getEquipmentReturnRequestList_All", handleProxy);  // 반납요청 _All (추가)
+router.post("/customer/equipment/getWrkrListDetail", handleProxy);  // 분실처리 상세조회 (추가)
 
 // Statistics/Equipment API
 router.post('/statistics/equipment/getEquipmentHistoryInfo', handleProxy);
