@@ -3045,8 +3045,8 @@ export const getEquipmentReturnRequestList = async (params: {
 };
 
 /**
- * 반납요청 장비 목록 조회 (All 버전)
- * Backend: getEquipmentReturnRequestList_All
+ * 반납요청 장비 목록 조회
+ * Backend: getEquipmentReturnRequestList (without _All - 모바일 앱과 동일)
  * @param params 검색 조건
  * @returns 반납요청 장비 리스트
  */
@@ -3057,19 +3057,22 @@ export const getEquipmentReturnRequestListAll = async (params: {
   PROC_STAT?: string;  // 반납요청 상태
   RETURN_TP?: string;  // '1':반납창고, '2':작업기사, '3':CRR_ID직접 (필수!)
   RETURN_STAT?: string; // '1':전체(outer join), '2':요청건만(inner join) (필수!)
+  ITEM_MID_CD?: string; // 장비 중분류 (선택)
+  EQT_CL_CD?: string;   // 장비 유형 (선택)
 }): Promise<any[]> => {
   // RETURN_TP, RETURN_STAT 기본값 추가 (SQL 필수 파라미터)
   const requestParams = {
     ...params,
     RETURN_TP: params.RETURN_TP || '2',      // 기본: 작업기사
-    RETURN_STAT: params.RETURN_STAT || '1',  // 기본: 전체 조회
+    RETURN_STAT: params.RETURN_STAT || '2',  // 기본: 반납요청건만 (PROC_STAT='1')
   };
-  console.log('📋 [반납요청조회_All] API 호출:', requestParams);
+  console.log('📋 [반납요청조회] API 호출:', requestParams);
 
   try {
     const origin = typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000';
 
-    const response = await fetchWithRetry(`${API_BASE}/customer/equipment/getEquipmentReturnRequestList_All`, {
+    // getEquipmentReturnRequestList 사용 (without _All - 모바일 앱과 동일)
+    const response = await fetchWithRetry(`${API_BASE}/customer/equipment/getEquipmentReturnRequestList`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
