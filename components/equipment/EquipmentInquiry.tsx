@@ -76,6 +76,7 @@ interface EquipmentItem {
   MAC_ADDRESS: string;
   EQT_CL_CD: string;
   EQT_CL_NM: string;
+  ITEM_CD?: string;
   ITEM_MID_CD: string;
   ITEM_MID_NM: string;
   ITEM_NM: string;
@@ -91,11 +92,20 @@ interface EquipmentItem {
   WRKR_NM?: string;
   CUST_ID?: string;
   CTRT_ID?: string;
+  CTRT_STAT?: string;
+  WRK_ID?: string;
+  CRR_ID?: string;
   EQT_USE_END_DT?: string;
   RETN_RESN_CD?: string;
   RETN_RESN_NM?: string;
   // 카테고리 구분용 (OWNED, RETURN_REQUESTED, INSPECTION_WAITING)
   _category?: 'OWNED' | 'RETURN_REQUESTED' | 'INSPECTION_WAITING';
+}
+
+// 상태 변경 결과 인터페이스
+interface StatusChangeResult {
+  success: { EQT_SERNO: string; EQT_NO: string; ITEM_NM: string }[];
+  failed: { EQT_SERNO: string; EQT_NO: string; ITEM_NM: string; error: string }[];
 }
 
 interface SoListItem {
@@ -1405,6 +1415,71 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
           </div>
         )}
       </BaseModal>
+      {/* 상태 변경 결과 모달 */}
+      {showStatusChangeResult && statusChangeResult && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-md max-h-[80vh] overflow-hidden">
+            <div className={`p-4 ${
+              statusChangeResult.failed.length === 0
+                ? 'bg-gradient-to-r from-green-500 to-green-600'
+                : statusChangeResult.success.length === 0
+                  ? 'bg-gradient-to-r from-red-500 to-red-600'
+                  : 'bg-gradient-to-r from-amber-500 to-amber-600'
+            }`}>
+              <h3 className="font-semibold text-white text-lg">
+                {statusChangeResult.failed.length === 0 ? '상태 변경 완료' :
+                 statusChangeResult.success.length === 0 ? '상태 변경 실패' : '부분 성공'}
+              </h3>
+              <p className="text-white/80 text-sm mt-1">
+                성공: {statusChangeResult.success.length}건 / 실패: {statusChangeResult.failed.length}건
+              </p>
+            </div>
+            <div className="p-4 max-h-96 overflow-y-auto space-y-4">
+              {statusChangeResult.success.length > 0 && (
+                <div>
+                  <h4 className="text-sm font-semibold text-green-700 mb-2">성공 ({statusChangeResult.success.length}건)</h4>
+                  <div className="space-y-1">
+                    {statusChangeResult.success.map((item, idx) => (
+                      <div key={idx} className="flex items-center justify-between p-2 bg-green-50 rounded-lg text-xs">
+                        <span className="font-mono text-green-800">{item.EQT_SERNO}</span>
+                        <span className="text-green-600">{item.ITEM_NM}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+              {statusChangeResult.failed.length > 0 && (
+                <div>
+                  <h4 className="text-sm font-semibold text-red-700 mb-2">실패 ({statusChangeResult.failed.length}건)</h4>
+                  <div className="space-y-1">
+                    {statusChangeResult.failed.map((item, idx) => (
+                      <div key={idx} className="p-2 bg-red-50 rounded-lg text-xs">
+                        <div className="flex items-center justify-between">
+                          <span className="font-mono text-red-800">{item.EQT_SERNO}</span>
+                          <span className="text-red-600">{item.ITEM_NM}</span>
+                        </div>
+                        <div className="text-red-500 mt-1">{item.error}</div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+            <div className="p-4 border-t border-gray-100 bg-gray-50">
+              <button
+                onClick={() => {
+                  setShowStatusChangeResult(false);
+                  setStatusChangeResult(null);
+                }}
+                className="w-full py-2.5 bg-gray-800 hover:bg-gray-900 text-white rounded-lg font-medium transition-colors"
+              >
+                확인
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
 
       {/* Barcode Scanner - removed, using S/N input instead */}
     </div>

@@ -3387,7 +3387,7 @@ export const processEquipmentLoss = async (params: {
 /**
  * 장비 상태 변경 (검사대기 → 사용가능)
  * Legacy Procedure: PCMEP_EQT_CHG_USE_ARR
- * Required Parameters: SO_ID, EQT_NO, EQT_SERNO, USER_ID, CRR_ID, WRKR_ID, CUST_ID, WRK_ID, CTRT_ID, CTRT_STAT, PROG_GB
+ * Required Parameters: SO_ID, EQT_NO, EQT_SERNO, USER_ID, CRR_ID, WRKR_ID, CUST_ID, WRK_ID, CTRT_ID, CTRT_STAT, PROG_GB, CHG_KND_CD, ITEM_CD
  * @param params 변경 정보
  * @returns 처리 결과
  */
@@ -3403,16 +3403,19 @@ export const setEquipmentCheckStandby = async (params: {
   CTRT_ID?: string;
   CTRT_STAT?: string;
   PROG_GB?: string;
+  CHG_KND_CD?: string;
+  ITEM_CD?: string;
 }): Promise<any> => {
   console.log('🔄 [장비상태변경] API 호출:', params);
 
   try {
     const origin = typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000';
 
-    // PROG_GB default: 'Y' = 사용가능으로 변경
+    // PROG_GB: 'M' = 검사대기에서 사용가능으로, CHG_KND_CD: '26' = 변경구분코드
     const fullParams = {
       ...params,
-      PROG_GB: params.PROG_GB || 'Y'
+      PROG_GB: params.PROG_GB || 'M',
+      CHG_KND_CD: params.CHG_KND_CD || '26'
     };
 
     const response = await fetchWithRetry(`${API_BASE}/customer/equipment/setEquipmentChkStndByY`, {

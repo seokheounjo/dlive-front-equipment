@@ -1,11 +1,11 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { findUserList, getWrkrHaveEqtListAll as getWrkrHaveEqtList, changeEquipmentWorker, getEquipmentHistoryInfo } from '../../services/apiService';
 import { debugApiCall } from './equipmentDebug';
-import { Scan, Search, ChevronDown, ChevronUp, Check, X, User, Hash } from 'lucide-react';
+import { Scan, Search, ChevronDown, ChevronUp, Check, X, User } from 'lucide-react';
 import BarcodeScanner from './BarcodeScanner';
 
-// Scan mode type
-type ScanMode = 'single' | 'multi' | 'serial' | 'worker';
+// Scan mode type: equipment(장비조회: 스캔+S/N입력), worker(보유기사)
+type ScanMode = 'equipment' | 'worker';
 
 interface EquipmentMovementProps {
   onBack: () => void;
@@ -108,8 +108,8 @@ const EquipmentMovement: React.FC<EquipmentMovementProps> = ({ onBack }) => {
   const [showBarcodeScanner, setShowBarcodeScanner] = useState(false);
   const [searchedWorkers, setSearchedWorkers] = useState<{ USR_ID: string; USR_NM: string }[]>([]);
 
-  // 조회 모드: single(단일스캔), multi(복수스캔), worker(보유기사)
-  const [scanMode, setScanMode] = useState<ScanMode>('single');
+  // 조회 모드: equipment(장비조회), worker(보유기사)
+  const [scanMode, setScanMode] = useState<ScanMode>('equipment');
 
   // 장비번호 입력
   const [serialInput, setSerialInput] = useState<string>('');
@@ -200,26 +200,10 @@ const EquipmentMovement: React.FC<EquipmentMovementProps> = ({ onBack }) => {
           // 2. 스캔된 S/N 저장
           setScannedSerials(prev => [...new Set([normalizedSN, ...prev])]);
 
-          // 3. 복수스캔 모드: 같은 기사의 장비만 추가 / 단일스캔 모드: 스캐너 닫고 조회
-          if (scanMode === 'multi') {
-            // 복수스캔: 같은 기사의 장비인지 확인
-            if (workerInfo.WRKR_ID && workerInfo.WRKR_ID !== ownerWrkrId) {
-              alert(`다른 기사(${ownerWrkrNm})의 장비입니다. 복수스캔은 같은 기사의 장비만 가능합니다.`);
-              setScannedSerials(prev => prev.filter(sn => sn !== normalizedSN));
-              return;
-            }
-            // 기사 정보 설정 및 보유장비 조회
-            if (!workerInfo.WRKR_ID) {
-              setWorkerInfo(prev => ({ ...prev, WRKR_ID: ownerWrkrId, WRKR_NM: ownerWrkrNm }));
-            }
-            await searchEquipmentByWorker(ownerWrkrId, ownerWrkrNm, normalizedSN);
-            // 복수스캔 모드에서는 스캐너 유지
-          } else {
-            // 단일스캔 모드
-            setShowBarcodeScanner(false);
-            setWorkerInfo(prev => ({ ...prev, WRKR_ID: ownerWrkrId, WRKR_NM: ownerWrkrNm }));
-            await searchEquipmentByWorker(ownerWrkrId, ownerWrkrNm, normalizedSN);
-          }
+          // 3. 스캐너 닫고 기사 보유장비 조회
+          setShowBarcodeScanner(false);
+          setWorkerInfo(prev => ({ ...prev, WRKR_ID: ownerWrkrId, WRKR_NM: ownerWrkrNm }));
+          await searchEquipmentByWorker(ownerWrkrId, ownerWrkrNm, normalizedSN);
         } else {
           alert(`장비(${normalizedSN})의 보유기사 정보가 없습니다.`);
         }
@@ -421,49 +405,21 @@ const EquipmentMovement: React.FC<EquipmentMovementProps> = ({ onBack }) => {
 
   return (
     <div className="h-full overflow-y-auto bg-gray-50 px-4 py-4 space-y-3">
-      {/* 이관기사 (로그인한 사용자 = 인수받는 사람) */}
-      <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4">
-        <div className="flex items-center justify-between">
-          <span className="text-xs font-medium text-blue-600">이관 대상 (나)</span>
-          <span className="text-sm font-bold text-gray-900">{loggedInUser.userName} ({loggedInUser.userId})</span>
-        </div>
-      </div>
-
-      {/* 조회 모드 선택 */}
+      {/* 조회 모드 선택 - 2개 버튼 */}
       <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4">
         <div className="flex items-center gap-2 mb-3">
           <span className="text-sm font-semibold text-gray-800">조회 방식</span>
         </div>
         <div className="grid grid-cols-2 gap-2">
           <button
-            onClick={() => setScanMode('single')}
+            onClick={() => setScanMode('equipment')}
             className={`py-3 px-2 rounded-lg text-sm font-medium transition-all ${
-              scanMode === 'single'
+              scanMode === 'equipment'
                 ? 'bg-blue-500 text-white shadow-sm'
                 : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
             }`}
           >
-            단일스캔
-          </button>
-          <button
-            onClick={() => setScanMode('multi')}
-            className={`py-3 px-2 rounded-lg text-sm font-medium transition-all ${
-              scanMode === 'multi'
-                ? 'bg-purple-500 text-white shadow-sm'
-                : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-            }`}
-          >
-            복수스캔
-          </button>
-          <button
-            onClick={() => setScanMode('serial')}
-            className={`py-3 px-2 rounded-lg text-sm font-medium transition-all ${
-              scanMode === 'serial'
-                ? 'bg-amber-500 text-white shadow-sm'
-                : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-            }`}
-          >
-            장비번호
+            장비조회
           </button>
           <button
             onClick={() => setScanMode('worker')}
@@ -476,77 +432,51 @@ const EquipmentMovement: React.FC<EquipmentMovementProps> = ({ onBack }) => {
             보유기사
           </button>
         </div>
-
-        {/* 복수스캔 모드 결과 표시 */}
-        {scanMode === 'multi' && scannedSerials.length > 0 && (
-          <div className="mt-3 flex items-center justify-between pt-3 border-t border-gray-100">
-            <div className="flex items-center gap-2">
-              <span className="text-xs text-purple-600 font-medium">
-                스캔: {scannedSerials.length}건
-              </span>
-              {workerInfo.WRKR_NM && (
-                <span className="text-xs text-gray-500">
-                  ({workerInfo.WRKR_NM})
-                </span>
-              )}
-            </div>
-            <button
-              onClick={handleClearScanned}
-              className="text-xs text-red-500 hover:text-red-700 transition-colors"
-            >
-              초기화
-            </button>
-          </div>
-        )}
       </div>
 
-      {/* 스캔 버튼 (단일/복수스캔 모드) */}
-      {(scanMode === 'single' || scanMode === 'multi') && (
-        <button
-          onClick={() => setShowBarcodeScanner(true)}
-          className={`w-full py-4 rounded-xl font-semibold text-base shadow-lg flex items-center justify-center gap-3 active:scale-[0.98] transition-all touch-manipulation ${
-            scanMode === 'single'
-              ? 'bg-gradient-to-r from-blue-500 to-blue-600 text-white'
-              : 'bg-gradient-to-r from-purple-500 to-purple-600 text-white'
-          }`}
-        >
-          <Scan className="w-6 h-6" />
-          {scanMode === 'single' ? '바코드 스캔 (1건)' : '바코드 연속 스캔'}
-        </button>
-      )}
-
-      
-      {/* 장비번호 입력 영역 (serial 모드) */}
-      {scanMode === 'serial' && (
+      {/* 장비조회 영역 (equipment 모드) - 스캔 + S/N 입력 통합 */}
+      {scanMode === 'equipment' && (
         <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4">
           <div className="mb-3">
             <h3 className="text-sm font-semibold text-gray-800 flex items-center gap-2">
-              <Hash className="w-4 h-4" />
-              장비번호 입력
+              <Search className="w-4 h-4" />
+              장비 조회
             </h3>
-            <p className="text-xs text-gray-500 mt-0.5">장비 S/N을 입력하여 조회합니다</p>
+            <p className="text-xs text-gray-500 mt-0.5">바코드 스캔 또는 S/N 직접 입력</p>
           </div>
+
+          {/* 바코드 스캔 버튼 */}
+          <button
+            onClick={() => setShowBarcodeScanner(true)}
+            className="w-full py-4 mb-3 rounded-xl font-semibold text-base shadow-lg flex items-center justify-center gap-3 active:scale-[0.98] transition-all touch-manipulation bg-gradient-to-r from-blue-500 to-blue-600 text-white"
+          >
+            <Scan className="w-6 h-6" />
+            바코드 스캔
+          </button>
+
+          {/* S/N 직접 입력 */}
           <div className="flex items-center gap-2">
             <input
               type="text"
               value={serialInput}
               onChange={(e) => setSerialInput(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && handleSerialSearch()}
-              className="flex-1 px-3 py-2.5 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-amber-500 font-mono"
-              placeholder="S/N 입력 (예: S81Q889679)"
+              className="flex-1 px-3 py-3 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 font-mono"
+              placeholder="S/N 직접 입력"
             />
             <button
               onClick={handleSerialSearch}
               disabled={isLoading || !serialInput.trim()}
-              className="px-4 py-2.5 bg-amber-500 hover:bg-amber-600 disabled:bg-gray-300 text-white rounded-lg font-semibold text-sm shadow-sm transition-all active:scale-[0.98]"
+              className="px-6 py-3 bg-blue-500 hover:bg-blue-600 disabled:bg-gray-300 text-white rounded-lg font-semibold text-sm shadow-sm transition-all active:scale-[0.98]"
             >
-              <Search className="w-4 h-4" />
+              조회
             </button>
           </div>
         </div>
       )}
 
-      {/* 보유기사 조회 영역 (worker 모드) */}
+      {/* 보유기사 조회 영역 (worker 모드) - 지점 제거, ID로만 조회 */}
+
       {scanMode === 'worker' && (
         <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4">
           <div className="mb-3">
@@ -557,19 +487,6 @@ const EquipmentMovement: React.FC<EquipmentMovementProps> = ({ onBack }) => {
             <p className="text-xs text-gray-500 mt-0.5">기사를 검색하여 보유 장비를 조회합니다</p>
           </div>
           <div className="space-y-3">
-            {/* 지점 */}
-            <div className="flex items-center gap-2">
-              <label className="text-xs font-medium text-gray-600 w-16 flex-shrink-0">지점</label>
-              <select
-                value={workerInfo.SO_ID}
-                onChange={(e) => setWorkerInfo({...workerInfo, SO_ID: e.target.value})}
-                className="flex-1 px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-green-500"
-              >
-                <option value="">선택</option>
-                {soList.map((item) => (<option key={item.SO_ID} value={item.SO_ID}>{item.SO_NM}</option>))}
-              </select>
-            </div>
-
             {/* 보유기사 */}
             <div>
               <label className="block text-xs font-medium text-gray-600 mb-1.5">보유기사 <span className="text-red-500">*</span></label>
@@ -766,7 +683,7 @@ const EquipmentMovement: React.FC<EquipmentMovementProps> = ({ onBack }) => {
         isOpen={showBarcodeScanner}
         onClose={() => setShowBarcodeScanner(false)}
         onScan={handleBarcodeScan}
-        isMultiScanMode={scanMode === 'multi'}
+        isMultiScanMode={false}
         scanCount={scannedSerials.length}
       />
 
