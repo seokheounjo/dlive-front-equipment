@@ -3266,7 +3266,7 @@ export const delEquipmentReturnRequest = async (params: {
     console.log('[delEquipmentReturnRequest] API 응답:', result);
 
     // 성공 여부 확인
-    if (result && (result.MSGCODE === '0' || result.success === true || Array.isArray(result))) {
+    if (result && (result.MSGCODE === '0' || result.MSGCODE === 'SUCCESS' || result.success === true || Array.isArray(result))) {
       return {
         success: true,
         message: result.MESSAGE || `${params.equipmentList.length}건의 반납요청이 취소되었습니다.`,
@@ -3628,7 +3628,7 @@ export const processEquipmentLoss = async (params: {
     console.log('[processEquipmentLoss] 분실처리 완료:', lossResult);
 
     // 성공 여부 확인
-    if (lossResult && (lossResult.MSGCODE === '0' || lossResult.success === true)) {
+    if (lossResult && (lossResult.MSGCODE === '0' || lossResult.MSGCODE === 'SUCCESS' || lossResult.success === true)) {
       return {
         success: true,
         message: lossResult.MESSAGE || '분실 처리가 완료되었습니다.',
@@ -3721,7 +3721,7 @@ export const setEquipmentCheckStandby = async (params: {
     console.log('[setEquipmentCheckStandby] API 응답:', result);
 
     // 성공 여부 확인
-    if (result && (result.MSGCODE === '0' || result.success === true)) {
+    if (result && (result.MSGCODE === '0' || result.MSGCODE === 'SUCCESS' || result.success === true)) {
       return {
         success: true,
         message: result.MESSAGE || '사용가능 상태로 변경되었습니다.',
@@ -3903,7 +3903,7 @@ export const changeEquipmentWorker = async (params: {
     console.log('[changeEquipmentWorker] API 응답:', result);
 
     // 성공 여부 확인 (MSGCODE가 null이거나 '0'이면 성공, EQT_NO 응답이 있어도 성공)
-    if (result && (result.MSGCODE === null || result.MSGCODE === '0' || result.success === true || result.EQT_NO)) {
+    if (result && (result.MSGCODE === null || result.MSGCODE === '0' || result.MSGCODE === 'SUCCESS' || result.success === true || result.EQT_NO)) {
       return {
         success: true,
         message: result.MESSAGE || '장비 이관이 완료되었습니다.',

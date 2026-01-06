@@ -101,6 +101,8 @@ interface EquipmentItem {
   RETN_RESN_NM?: string;
   // 카테고리 구분용 (OWNED, RETURN_REQUESTED, INSPECTION_WAITING)
   _category?: 'OWNED' | 'RETURN_REQUESTED' | 'INSPECTION_WAITING';
+  // 보유장비이면서 반납요청 중인 장비 표시
+  _hasReturnRequest?: boolean;
 }
 
 // 상태 변경 결과 인터페이스
@@ -318,6 +320,7 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
         // 보유장비 선택 시 - getWrkrHaveEqtList_All 사용 (CRR_ID 필수!)
         if (selectedCategory === 'OWNED') {
           try {
+            // 보유장비 조회
             const ownedResult = await debugApiCall(
               'EquipmentInquiry',
               'getWrkrHaveEqtListAll (보유장비)',
@@ -328,20 +331,42 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
               }),
               { WRKR_ID: userInfo.userId, CRR_ID: userInfo.crrId }
             );
+
+            // 반납요청 목록도 조회하여 중복 체크
+            let returnRequestEqtNos = new Set<string>();
+            try {
+              const returnResult = await getEquipmentReturnRequestListAll({
+                WRKR_ID: userInfo.userId,
+                CRR_ID: userInfo.crrId || '',
+                SO_ID: selectedSoId || userInfo.soId || undefined,
+              });
+              if (Array.isArray(returnResult)) {
+                returnResult.forEach((item: any) => {
+                  if (item.EQT_NO) returnRequestEqtNos.add(item.EQT_NO);
+                });
+                console.log('[보유장비] 반납요청 중인 장비 수:', returnRequestEqtNos.size);
+              }
+            } catch (returnErr) {
+              console.log('[보유장비] 반납요청 목록 조회 실패 (무시):', returnErr);
+            }
+
             if (Array.isArray(ownedResult)) {
               // ITEM_MID_CD 필터 적용 (프론트엔드에서)
               let filtered = ownedResult;
               if (selectedItemMidCd) {
                 filtered = ownedResult.filter((item: any) => item.ITEM_MID_CD === selectedItemMidCd);
               }
-              // 보유장비 표시용 태그 추가
-              allResults.push(...filtered.map((item: any) => ({ ...item, _category: 'OWNED' })));
+              // 보유장비 표시용 태그 추가 + 반납요청 중인지 표시
+              allResults.push(...filtered.map((item: any) => ({
+                ...item,
+                _category: 'OWNED',
+                _hasReturnRequest: returnRequestEqtNos.has(item.EQT_NO)
+              })));
             }
           } catch (e) {
             console.log('보유장비 조회 실패 (getCustProdInfo):', e);
           }
         }
-
         // 반납요청 선택 시 - getEquipmentReturnRequestListAll 사용 (phoneNumberManager)
         if (selectedCategory === 'RETURN_REQUESTED') {
           const returnParams = {
@@ -362,8 +387,20 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
               if (selectedItemMidCd) {
                 filtered = returnResult.filter((item: any) => item.ITEM_MID_CD === selectedItemMidCd);
               }
+              // 중복 제거 (EQT_NO 기준) - 동일 장비가 여러 번 표시되는 것 방지
+              const seenEqtNos = new Set<string>();
+              const deduped = filtered.filter((item: any) => {
+                if (item.EQT_NO && seenEqtNos.has(item.EQT_NO)) {
+                  return false;
+                }
+                if (item.EQT_NO) seenEqtNos.add(item.EQT_NO);
+                return true;
+              });
+              if (filtered.length !== deduped.length) {
+                console.log('[반납요청] 중복 제거:', filtered.length, '->', deduped.length);
+              }
               // 반납요청 표시용 태그 추가
-              allResults.push(...filtered.map(item => ({ ...item, _category: 'RETURN_REQUESTED' })));
+              allResults.push(...deduped.map(item => ({ ...item, _category: 'RETURN_REQUESTED' })));
             }
           } catch (e) {
             console.log('반납요청 조회 실패:', e);
@@ -998,6 +1035,7 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
                              item._category === 'RETURN_REQUESTED' ? '반납' :
                              item._category === 'INSPECTION_WAITING' ? '검사' : '-'}
                           </span>
+                          {item._hasReturnRequest && <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-red-500 text-white animate-pulse">반납중</span>}
                           <span className={`px-2 py-0.5 rounded text-xs font-bold ${getItemColor(item.ITEM_MID_CD)}`}>
                             {item.ITEM_NM || item.EQT_CL_NM || item.ITEM_MID_NM || '장비'}
                           </span>
@@ -1057,6 +1095,7 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
                                item._category === 'RETURN_REQUESTED' ? '반납' :
                                item._category === 'INSPECTION_WAITING' ? '검사' : '-'}
                             </span>
+                            {item._hasReturnRequest && <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-red-500 text-white animate-pulse">반납중</span>}
                             <span className={`px-2 py-0.5 rounded text-xs font-bold ${getItemColor(item.ITEM_MID_CD)}`}>
                               {item.ITEM_NM || item.EQT_CL_NM || item.ITEM_MID_NM || '장비'}
                             </span>
@@ -1126,6 +1165,7 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
                                item._category === 'RETURN_REQUESTED' ? '반납' :
                                item._category === 'INSPECTION_WAITING' ? '검사' : '-'}
                             </span>
+                            {item._hasReturnRequest && <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-red-500 text-white animate-pulse">반납중</span>}
                             <span className={`px-2 py-0.5 rounded text-xs font-bold ${getItemColor(item.ITEM_MID_CD)}`}>
                               {item.ITEM_NM || item.EQT_CL_NM || '장비'}
                             </span>
