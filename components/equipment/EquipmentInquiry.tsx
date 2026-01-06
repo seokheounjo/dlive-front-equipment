@@ -244,6 +244,10 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
   // 상태 변경 결과 (검사대기 다중처리용)
   const [statusChangeResult, setStatusChangeResult] = useState<StatusChangeResult | null>(null);
   const [showStatusChangeResult, setShowStatusChangeResult] = useState(false);
+  
+  // 사용가능변경 확인 모달
+  const [showStatusChangeConfirm, setShowStatusChangeConfirm] = useState(false);
+  const [pendingStatusChangeItems, setPendingStatusChangeItems] = useState<EquipmentItem[]>([]);
 
   // Barcode scanner state
   // BarcodeScanner state removed
@@ -608,36 +612,44 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
     }
   };
 
-  // 사용가능변경 버튼 클릭
-  const handleStatusChangeClick = async () => {
+  // 사용가능변경 버튼 클릭 - 확인 모달 표시
+  const handleStatusChangeClick = () => {
     const checkedItems = equipmentList.filter(item => item.CHK);
     if (checkedItems.length === 0) {
       showToast?.('상태 변경할 장비를 선택해주세요.', 'warning');
       return;
     }
+    // 모달로 확인
+    setPendingStatusChangeItems(checkedItems);
+    setShowStatusChangeConfirm(true);
+  };
 
-    // 동일고객의 당일해지 후 당일설치 작업이 발생하는 경우만 변경 가능
-    // 이 검증은 서버에서 처리되지만 UI에서도 안내
-    if (!confirm('동일 고객의 당일해지 후 당일설치 작업이 발생하는 경우에만 변경 가능합니다. 계속하시겠습니까?')) {
-      return;
-    }
+  // 사용가능변경 실행 (확인 후)
+  const executeStatusChange = async () => {
+    setShowStatusChangeConfirm(false);
+    const checkedItems = pendingStatusChangeItems;
+    
+    if (checkedItems.length === 0) return;
+
+    const result: StatusChangeResult = {
+      success: [],
+      failed: []
+    };
 
     try {
-      let successCount = 0;
       for (const item of checkedItems) {
-        // setEquipmentChkStndByY requires full parameters from equipment data
         const params = {
           EQT_NO: item.EQT_NO,
-          SO_ID: item.SO_ID || userInfo.soId || '',
+          SO_ID: item.SO_ID || userInfo?.soId || '',
           EQT_SERNO: item.EQT_SERNO || '',
-          USER_ID: userInfo.userId || '',
-          CRR_ID: item.CRR_ID || userInfo.crrId || '',
-          WRKR_ID: userInfo.userId || '',
+          USER_ID: userInfo?.userId || '',
+          CRR_ID: item.CRR_ID || userInfo?.crrId || '',
+          WRKR_ID: userInfo?.userId || '',
           CUST_ID: item.CUST_ID || '',
           WRK_ID: item.WRK_ID || '',
           CTRT_ID: item.CTRT_ID || '',
           CTRT_STAT: item.CTRT_STAT || '',
-          PROG_GB: 'Y'  // Y = change to usable
+          PROG_GB: 'Y'
         };
         try {
           await debugApiCall(
@@ -646,17 +658,29 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
             () => setEquipmentCheckStandby(params),
             params
           );
-          successCount++;
-        } catch (err) {
+          result.success.push({
+            EQT_SERNO: item.EQT_SERNO,
+            EQT_NO: item.EQT_NO,
+            ITEM_NM: item.ITEM_NM || item.ITEM_MID_NM || ''
+          });
+        } catch (err: any) {
           console.error('장비 상태 변경 실패:', item.EQT_SERNO, err);
+          result.failed.push({
+            EQT_SERNO: item.EQT_SERNO,
+            EQT_NO: item.EQT_NO,
+            ITEM_NM: item.ITEM_NM || item.ITEM_MID_NM || '',
+            error: err?.message || '당일해지 후 당일설치 조건 미충족'
+          });
         }
       }
 
-      if (successCount > 0) {
-        showToast?.(`${successCount}건의 장비 상태가 '사용가능'으로 변경되었습니다.`, 'success');
+      // 결과 모달 표시
+      setStatusChangeResult(result);
+      setShowStatusChangeResult(true);
+      setPendingStatusChangeItems([]);
+      
+      if (result.success.length > 0) {
         await handleSearch(); // 리스트 새로고침
-      } else {
-        throw new Error('장비 상태 변경에 실패했습니다.');
       }
     } catch (error: any) {
       console.error('❌ 상태 변경 실패:', error);
@@ -668,7 +692,6 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
   const handleBarcodeScan = (barcode: string) => {
     console.log('Barcode scanned:', barcode);
     setEqtSerno(barcode.toUpperCase());
-    setShowBarcodeScanner(false);
     showToast?.(`바코드 스캔 완료: ${barcode}`, 'success');
     // Auto search after scan
     setTimeout(() => {
@@ -899,31 +922,6 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
                 <span className="text-xs text-gray-500">
                   {equipmentList.length}건 (선택: {selectedCount}건)
                 </span>
-              </div>
-              {/* 카테고리별 전체 선택 */}
-              <div className="flex gap-2 mb-2 flex-wrap">
-                {totalReturn > 0 && (
-                  <label className="flex items-center gap-1.5 px-2 py-1 bg-amber-50 rounded-lg cursor-pointer border border-amber-200">
-                    <input
-                      type="checkbox"
-                      onChange={(e) => handleCheckCategory('RETURN_REQUESTED', e.target.checked)}
-                      checked={totalReturn > 0 && selectedReturn === totalReturn}
-                      className="w-3.5 h-3.5 text-amber-500 rounded focus:ring-amber-500"
-                    />
-                    <span className="text-xs font-medium text-amber-700">반납요청 ({selectedReturn}/{totalReturn})</span>
-                  </label>
-                )}
-                {totalInspection > 0 && (
-                  <label className="flex items-center gap-1.5 px-2 py-1 bg-purple-50 rounded-lg cursor-pointer border border-purple-200">
-                    <input
-                      type="checkbox"
-                      onChange={(e) => handleCheckCategory('INSPECTION_WAITING', e.target.checked)}
-                      checked={totalInspection > 0 && selectedInspection === totalInspection}
-                      className="w-3.5 h-3.5 text-purple-500 rounded focus:ring-purple-500"
-                    />
-                    <span className="text-xs font-medium text-purple-700">검사대기 ({selectedInspection}/{totalInspection})</span>
-                  </label>
-                )}
               </div>
               {/* 뷰 모드 선택 버튼 */}
               <div className="flex gap-1 bg-gray-100 p-1 rounded-lg">
@@ -1432,6 +1430,60 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
           </div>
         )}
       </BaseModal>
+
+      {/* 사용가능변경 확인 모달 */}
+      {showStatusChangeConfirm && pendingStatusChangeItems.length > 0 && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-md overflow-hidden">
+            <div className="p-4 bg-gradient-to-r from-blue-500 to-blue-600">
+              <h3 className="font-semibold text-white text-lg">사용가능 변경</h3>
+              <p className="text-white/80 text-sm mt-1">
+                선택된 장비: {pendingStatusChangeItems.length}건
+              </p>
+            </div>
+            <div className="p-4 space-y-4">
+              {/* 안내 메시지 */}
+              <div className="bg-amber-50 border border-amber-200 rounded-lg p-3">
+                <p className="text-sm text-amber-800 font-medium mb-1">변경 조건 안내</p>
+                <p className="text-xs text-amber-600">
+                  동일 고객의 당일해지 후 당일설치 작업이 발생하는 경우에만 변경 가능합니다.
+                </p>
+              </div>
+              
+              {/* 선택된 장비 목록 */}
+              <div>
+                <h4 className="text-sm font-semibold text-gray-700 mb-2">변경 대상 장비</h4>
+                <div className="max-h-40 overflow-y-auto space-y-1">
+                  {pendingStatusChangeItems.map((item, idx) => (
+                    <div key={idx} className="flex items-center justify-between p-2 bg-gray-50 rounded-lg text-xs">
+                      <span className="font-mono text-gray-800">{item.EQT_SERNO}</span>
+                      <span className="text-gray-600">{item.ITEM_NM || item.ITEM_MID_NM}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+            <div className="p-4 border-t border-gray-100 bg-gray-50 flex gap-2">
+              <button
+                onClick={() => {
+                  setShowStatusChangeConfirm(false);
+                  setPendingStatusChangeItems([]);
+                }}
+                className="flex-1 py-2.5 bg-gray-200 hover:bg-gray-300 text-gray-700 rounded-lg font-medium transition-colors"
+              >
+                취소
+              </button>
+              <button
+                onClick={executeStatusChange}
+                className="flex-1 py-2.5 bg-blue-500 hover:bg-blue-600 text-white rounded-lg font-medium transition-colors"
+              >
+                변경하기
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* 상태 변경 결과 모달 */}
       {showStatusChangeResult && statusChangeResult && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
