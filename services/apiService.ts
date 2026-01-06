@@ -3208,21 +3208,34 @@ export const addEquipmentReturnRequest = async (params: {
 };
 /**
  * 반납요청 취소 (삭제)
- * Legacy: /customer/equipment/delEquipmentReturnRequest.req
- * @param params 취소할 장비 정보
+ * - 반납요청 목록에서 선택한 장비의 반납요청을 취소
+ * - Legacy: /customer/equipment/delEquipmentReturnRequest.req
+ *
+ * @param params 취소할 장비 정보 + 사용자 정보
+ * @returns 처리 결과
  */
 export const delEquipmentReturnRequest = async (params: {
+  // 사용자 정보
   WRKR_ID: string;
   CRR_ID: string;
   SO_ID?: string;
+  // 취소할 장비 목록 (반납요청 목록에서 선택한 장비들)
   equipmentList: Array<{
     EQT_NO: string;
     EQT_SERNO?: string;
   }>;
 }): Promise<any> => {
-  console.log('[delEquipmentReturnRequest] API call:', params);
+  console.log('[delEquipmentReturnRequest] 반납취소 시작:', params);
 
   try {
+    // 필수 파라미터 검증
+    if (!params.WRKR_ID || !params.CRR_ID) {
+      throw new NetworkError('사용자 정보가 필요합니다.');
+    }
+    if (!params.equipmentList || params.equipmentList.length === 0) {
+      throw new NetworkError('취소할 장비를 선택해주세요.');
+    }
+
     const origin = typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000';
 
     const requestBody = {
@@ -3237,6 +3250,8 @@ export const delEquipmentReturnRequest = async (params: {
       })),
     };
 
+    console.log('[delEquipmentReturnRequest] API 호출 파라미터:', requestBody);
+
     const response = await fetchWithRetry(`${API_BASE}/customer/equipment/delEquipmentReturnRequest`, {
       method: 'POST',
       headers: {
@@ -3248,15 +3263,29 @@ export const delEquipmentReturnRequest = async (params: {
     });
 
     const result = await response.json();
-    console.log('[delEquipmentReturnRequest] Success:', result);
+    console.log('[delEquipmentReturnRequest] API 응답:', result);
+
+    // 성공 여부 확인
+    if (result && (result.MSGCODE === '0' || result.success === true || Array.isArray(result))) {
+      return {
+        success: true,
+        message: result.MESSAGE || `${params.equipmentList.length}건의 반납요청이 취소되었습니다.`,
+        data: result
+      };
+    } else if (result && result.MSGCODE) {
+      throw new NetworkError(result.MESSAGE || `반납취소 실패 (코드: ${result.MSGCODE})`);
+    } else if (result && result.code) {
+      throw new NetworkError(result.message || '반납 취소에 실패했습니다.');
+    }
 
     return result;
-  } catch (error) {
-    console.error('[delEquipmentReturnRequest] Failed:', error);
+
+  } catch (error: any) {
+    console.error('[delEquipmentReturnRequest] 반납취소 실패:', error);
     if (error instanceof NetworkError) {
       throw error;
     }
-    throw new NetworkError('반납 취소에 실패했습니다.');
+    throw new NetworkError(error.message || '반납 취소에 실패했습니다.');
   }
 };
 
@@ -3524,72 +3553,91 @@ export const cmplEqtCustLossIndem = async (params: {
 };
 
 /**
- * 장비 분실 처리 (순차적 API 호출)
- * 1. getWrkrListDetail.req - 장비 상세 조회
- * 2. 결과 검증 (WRK_WAN_YN, EQT_USE_ARR_YN, YN_HAEJI)
- * 3. cmplEqtCustLossIndem.req - 분실 처리 실행
- * @param params 분실 정보
+ * 장비 분실 처리 (간소화된 버전)
+ * - 장비 목록에서 이미 조회된 데이터를 직접 받아서 처리
+ * - getWrkrListDetail 호출 생략 (이미 보유장비 목록에서 조회됨)
+ * - cmplEqtCustLossIndem.req 직접 호출
+ *
+ * @param params 장비 정보 + 사용자 정보 + 분실 사유
  * @returns 처리 결과
  */
 export const processEquipmentLoss = async (params: {
+  // 장비 정보 (보유장비 목록에서 전달받음)
   EQT_NO: string;
   EQT_SERNO: string;
+  SO_ID: string;
+  MST_SO_ID?: string;
+  EQT_CL_CD?: string;
+  ITEM_MID_CD?: string;
+  ITEM_CD?: string;
+  ITEM_NM?: string;
+  EQT_USE_ARR_YN?: string;
+  // 사용자 정보
   WRKR_ID: string;
   CRR_ID: string;
-  SO_ID: string;
-  EQT_CL_CD?: string;
+  // 분실 사유
   LOSS_REASON?: string;
 }): Promise<any> => {
   console.log('[processEquipmentLoss] 분실처리 시작:', params);
 
   try {
-    // Step 1: 장비 상세 조회 (getWrkrListDetail.req)
-    console.log('[processEquipmentLoss] Step 1: 장비 상세 조회');
-    const detailResult = await getWrkrListDetail({
-      SO_ID: params.SO_ID,
-      CRR_ID: params.CRR_ID,
-      WRKR_ID: params.WRKR_ID,
-      EQT_CL_CD: params.EQT_CL_CD || '',
-      EQT_SERNO: params.EQT_SERNO
-    });
-
-    if (!detailResult.success || !detailResult.data || detailResult.data.length === 0) {
-      throw new NetworkError('장비 상세 정보를 조회할 수 없습니다.');
+    // 필수 파라미터 검증
+    if (!params.EQT_NO || !params.EQT_SERNO) {
+      throw new NetworkError('장비 번호와 시리얼 번호가 필요합니다.');
+    }
+    if (!params.WRKR_ID || !params.CRR_ID) {
+      throw new NetworkError('사용자 정보가 필요합니다.');
     }
 
-    const equipDetail = detailResult.data[0];
-    console.log('[processEquipmentLoss] 장비 상세:', equipDetail);
+    console.log('[processEquipmentLoss] 분실 처리 API 호출');
 
-    // Step 2: 검증 (레거시 로직)
-    console.log('[processEquipmentLoss] Step 2: 검증');
-
-    // WRK_WAN_YN 체크 - 작업완료 여부 ('Y'면 분실처리 불가)
-    if (equipDetail.WRK_WAN_YN === 'Y') {
-      throw new NetworkError('작업이 완료된 장비는 분실처리할 수 없습니다.');
-    }
-
-    // Step 3: 분실 처리 실행 (cmplEqtCustLossIndem.req)
-    console.log('[processEquipmentLoss] Step 3: 분실 처리 실행');
+    // cmplEqtCustLossIndem 직접 호출 (장비 목록에서 이미 조회된 데이터 사용)
     const lossResult = await cmplEqtCustLossIndem({
-      MST_SO_ID: equipDetail.MST_SO_ID || equipDetail.SO_ID || params.SO_ID,
-      SO_ID: equipDetail.SO_ID || params.SO_ID,
-      EQT_NO: equipDetail.EQT_NO || params.EQT_NO,
-      EQT_SERNO: equipDetail.EQT_SERNO || params.EQT_SERNO,
-      EQT_CL_CD: equipDetail.EQT_CL_CD || params.EQT_CL_CD || '',
-      CUST_ID: equipDetail.CUST_ID || '',
-      YN_HAEJI: equipDetail.YN_HAEJI || 'N',
-      CTRT_ID: equipDetail.CTRT_ID || '',
-      WRK_ID: equipDetail.WRK_ID || '',
-      ITEM_MID_CD: equipDetail.ITEM_MID_CD || '',
-      EQT_AMT: equipDetail.EQT_AMT || '0',
-      DLIVE_SO_ID: equipDetail.DLIVE_SO_ID || equipDetail.SO_ID || params.SO_ID,
-      CRR_ID: params.CRR_ID,
+      // 필수 장비 정보
+      EQT_NO: params.EQT_NO,
+      EQT_SERNO: params.EQT_SERNO,
+      SO_ID: params.SO_ID,
+      MST_SO_ID: params.MST_SO_ID || params.SO_ID,
+
+      // 장비 분류 정보
+      EQT_CL_CD: params.EQT_CL_CD || '',
+      ITEM_MID_CD: params.ITEM_MID_CD || '',
+      ITEM_CD: params.ITEM_CD || '',
+      ITEM_NM: params.ITEM_NM || '',
+      EQT_USE_ARR_YN: params.EQT_USE_ARR_YN || '',
+
+      // 사용자/협력업체 정보
       WRKR_ID: params.WRKR_ID,
-      MOD_UID: params.WRKR_ID,
+      CRR_ID: params.CRR_ID,
+      CHG_UID: params.WRKR_ID,
+
+      // 고객/계약 정보 (기사 보유 장비는 고객에게 미할당 상태이므로 빈 값)
+      CUST_ID: '',
+      CTRT_ID: '',
+      WRK_ID: '',
+      RCPT_ID: '',
+      OPEN_DD: '',
+      BASIC_PROD_CMPS_ID: '',
+      PROD_CMPS_ID: '',
+      EQT_SVC_CMPS_ID: '',
+
+      // 분실 사유
       LOSS_REASON: params.LOSS_REASON || ''
     });
 
     console.log('[processEquipmentLoss] 분실처리 완료:', lossResult);
+
+    // 성공 여부 확인
+    if (lossResult && (lossResult.MSGCODE === '0' || lossResult.success === true)) {
+      return {
+        success: true,
+        message: lossResult.MESSAGE || '분실 처리가 완료되었습니다.',
+        data: lossResult
+      };
+    } else if (lossResult && lossResult.MSGCODE) {
+      throw new NetworkError(lossResult.MESSAGE || `분실 처리 실패 (코드: ${lossResult.MSGCODE})`);
+    }
+
     return lossResult;
 
   } catch (error: any) {
@@ -3603,37 +3651,61 @@ export const processEquipmentLoss = async (params: {
 
 /**
  * 장비 상태 변경 (검사대기 → 사용가능)
- * Legacy Procedure: PCMEP_EQT_CHG_USE_ARR
- * Required Parameters: SO_ID, EQT_NO, EQT_SERNO, USER_ID, CRR_ID, WRKR_ID, CUST_ID, WRK_ID, CTRT_ID, CTRT_STAT, PROG_GB, CHG_KND_CD, ITEM_CD
- * @param params 변경 정보
+ * - 검사대기(EQT_USE_ARR_YN='A') 상태의 장비를 사용가능(EQT_USE_ARR_YN='Y')으로 변경
+ * - 장비 목록에서 이미 조회된 데이터를 직접 받아서 처리
+ * - Legacy Procedure: PCMEP_EQT_CHG_USE_ARR
+ *
+ * @param params 장비 정보 + 사용자 정보
  * @returns 처리 결과
  */
 export const setEquipmentCheckStandby = async (params: {
+  // 필수 장비 정보 (검사대기 목록에서 전달받음)
   EQT_NO: string;
-  SO_ID?: string;
-  EQT_SERNO?: string;
-  USER_ID?: string;
-  CRR_ID?: string;
-  WRKR_ID?: string;
-  CUST_ID?: string;
-  WRK_ID?: string;
-  CTRT_ID?: string;
-  CTRT_STAT?: string;
-  PROG_GB?: string;
-  CHG_KND_CD?: string;
+  EQT_SERNO: string;
+  SO_ID: string;
   ITEM_CD?: string;
+  // 사용자 정보
+  WRKR_ID: string;
+  CRR_ID: string;
 }): Promise<any> => {
-  console.log('🔄 [장비상태변경] API 호출:', params);
+  console.log('[setEquipmentCheckStandby] 사용가능변경 시작:', params);
 
   try {
+    // 필수 파라미터 검증
+    if (!params.EQT_NO || !params.EQT_SERNO) {
+      throw new NetworkError('장비 번호와 시리얼 번호가 필요합니다.');
+    }
+    if (!params.WRKR_ID || !params.CRR_ID) {
+      throw new NetworkError('사용자 정보가 필요합니다.');
+    }
+
     const origin = typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000';
 
-    // PROG_GB: 'M' = 검사대기에서 사용가능으로, CHG_KND_CD: '26' = 변경구분코드
+    // Oracle 프로시저 PCMEP_EQT_CHG_USE_ARR에 필요한 모든 파라미터
+    // 기사 보유 장비(고객 미할당)는 CUST_ID, WRK_ID, CTRT_ID, CTRT_STAT을 빈 문자열로 전송
     const fullParams = {
-      ...params,
-      PROG_GB: params.PROG_GB || 'M',
-      CHG_KND_CD: params.CHG_KND_CD || '26'
+      // 필수 장비 정보
+      EQT_NO: params.EQT_NO,
+      EQT_SERNO: params.EQT_SERNO,
+      SO_ID: params.SO_ID,
+
+      // 사용자/협력업체 정보
+      USER_ID: params.WRKR_ID,
+      WRKR_ID: params.WRKR_ID,
+      CRR_ID: params.CRR_ID,
+
+      // 고객/계약 정보 (기사 보유 장비는 고객에게 미할당 상태)
+      CUST_ID: '',     // 고객 ID 없음
+      WRK_ID: '',      // 작업 ID 없음
+      CTRT_ID: '',     // 계약 ID 없음
+      CTRT_STAT: '',   // 계약 상태 없음
+
+      // 상태 변경 정보
+      PROG_GB: 'Y',    // Y = 검사대기에서 사용가능으로 변경
+      ITEM_CD: params.ITEM_CD || ''
     };
+
+    console.log('[setEquipmentCheckStandby] API 호출 파라미터:', fullParams);
 
     const response = await fetchWithRetry(`${API_BASE}/customer/equipment/setEquipmentChkStndByY`, {
       method: 'POST',
@@ -3646,15 +3718,30 @@ export const setEquipmentCheckStandby = async (params: {
     });
 
     const result = await response.json();
-    console.log('✅ 장비 상태 변경 성공:', result);
+    console.log('[setEquipmentCheckStandby] API 응답:', result);
+
+    // 성공 여부 확인
+    if (result && (result.MSGCODE === '0' || result.success === true)) {
+      return {
+        success: true,
+        message: result.MESSAGE || '사용가능 상태로 변경되었습니다.',
+        data: result
+      };
+    } else if (result && result.MSGCODE) {
+      throw new NetworkError(result.MESSAGE || `상태 변경 실패 (코드: ${result.MSGCODE})`);
+    } else if (result && result.code) {
+      // 에러 응답 처리
+      throw new NetworkError(result.message || '상태 변경에 실패했습니다.');
+    }
 
     return result;
+
   } catch (error: any) {
-    console.error('❌ 장비 상태 변경 실패:', error);
+    console.error('[setEquipmentCheckStandby] 사용가능변경 실패:', error);
     if (error instanceof NetworkError) {
       throw error;
     }
-    throw new NetworkError('장비 상태 변경에 실패했습니다.');
+    throw new NetworkError(error.message || '장비 상태 변경에 실패했습니다.');
   }
 };
 
@@ -3753,19 +3840,54 @@ export const getEquipmentHistoryInfo = async (params: {
 };
 
 /**
- * 장비 작업자 변경 (나에게 인수)
- * @param params 변경 정보
+ * 장비 작업자 변경 (기사 간 이동)
+ * - 보유장비 목록에서 선택한 장비를 다른 기사에게 이관
+ * - Legacy Procedure: PCMEP_EQT_WRKR_CHG_3
+ *
+ * @param params 장비 정보 + 이관 대상 정보
  * @returns 처리 결과
  */
 export const changeEquipmentWorker = async (params: {
+  // 필수 장비 정보 (보유장비 목록에서 전달받음)
   EQT_NO: string;
-  FROM_WRKR_ID: string;
-  TO_WRKR_ID: string;
+  EQT_SERNO?: string;
+  SO_ID?: string;
+  // 사용자 정보 (현재 보유 기사)
+  WRKR_ID?: string;
+  CRR_ID?: string;
+  // 이관 대상 정보
+  TO_WRKR_ID: string;    // 이관받을 기사의 ID (필수)
+  FROM_WRKR_ID?: string; // 현재 보유 기사 ID (옵션)
 }): Promise<any> => {
-  console.log('👤 [장비인수] API 호출:', params);
+  console.log('[changeEquipmentWorker] 장비이관 시작:', params);
 
   try {
+    // 필수 파라미터 검증
+    if (!params.EQT_NO) {
+      throw new NetworkError('장비 번호가 필요합니다.');
+    }
+    if (!params.TO_WRKR_ID) {
+      throw new NetworkError('이관받을 기사 정보가 필요합니다.');
+    }
+
     const origin = typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000';
+
+    // 백엔드 컨트롤러 파라미터 형식에 맞춤
+    const requestBody = {
+      // 필수 장비 정보
+      SO_ID: params.SO_ID || '',
+      EQT_NO: params.EQT_NO,
+      EQT_SERNO: params.EQT_SERNO || '',
+
+      // 이관 대상 정보 (필수)
+      TO_WRKR_ID: params.TO_WRKR_ID,
+
+      // 옵션 정보
+      FROM_WRKR_ID: params.FROM_WRKR_ID || params.WRKR_ID || '',
+      CRR_ID: params.CRR_ID || '',
+    };
+
+    console.log('[changeEquipmentWorker] API 호출 파라미터:', requestBody);
 
     const response = await fetchWithRetry(`${API_BASE}/customer/equipment/changeEqtWrkr_3`, {
       method: 'POST',
@@ -3774,21 +3896,35 @@ export const changeEquipmentWorker = async (params: {
         'Origin': origin
       },
       credentials: 'include',
-      body: JSON.stringify(params),
+      body: JSON.stringify(requestBody),
     });
 
     const result = await response.json();
-    console.log('✅ 장비 인수 성공:', result);
+    console.log('[changeEquipmentWorker] API 응답:', result);
+
+    // 성공 여부 확인 (MSGCODE가 null이거나 '0'이면 성공, EQT_NO 응답이 있어도 성공)
+    if (result && (result.MSGCODE === null || result.MSGCODE === '0' || result.success === true || result.EQT_NO)) {
+      return {
+        success: true,
+        message: result.MESSAGE || '장비 이관이 완료되었습니다.',
+        data: result
+      };
+    } else if (result && result.MSGCODE) {
+      throw new NetworkError(result.MESSAGE || `장비 이관 실패 (코드: ${result.MSGCODE})`);
+    } else if (result && result.code) {
+      throw new NetworkError(result.message || '장비 이관에 실패했습니다.');
+    }
 
     return result;
+
   } catch (error: any) {
-    console.error('❌ 장비 인수 실패:', error);
+    console.error('[changeEquipmentWorker] 장비이관 실패:', error);
     if (error instanceof NetworkError) {
       throw error;
     }
-    throw new NetworkError('장비 인수에 실패했습니다.');
+    throw new NetworkError(error.message || '장비 이관에 실패했습니다.');
   }
-};
+}
 
 // ==================== 기사 간 장비 이동 API ====================
 
