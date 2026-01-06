@@ -21,13 +21,22 @@ const CustomerSearch: React.FC<CustomerSearchProps> = ({ onCustomerSelect, showT
   // 검색 유형 - 기본값: 고객ID 검색
   const [searchType, setSearchType] = useState<SearchType>('CUSTOMER_ID');
 
-  // 검색 입력값 - 테스트용 기본값: 푸꾸옥 고객 ID
+  // 검색 입력값 - 테스트용 기본값
   // 테스트용 고객: 푸꾸옥(1001857577), 하노이(1001857578), 가나다(1001846265)
-  const [phoneNumber, setPhoneNumber] = useState('');
-  const [customerName, setCustomerName] = useState('');
-  const [customerId, setCustomerId] = useState('1001857577');
-  const [contractId, setContractId] = useState('');
-  const [equipmentNo, setEquipmentNo] = useState('');
+  // 푸꾸옥 전화번호: 010-5134-6878, 장비번호: 000770BCF954
+  const DEFAULT_VALUES = {
+    phoneNumber: '01051346878',
+    customerName: '푸꾸옥',
+    customerId: '1001857577',
+    contractId: '1003687719',
+    equipmentNo: '000770BCF954'
+  };
+
+  const [phoneNumber, setPhoneNumber] = useState(DEFAULT_VALUES.phoneNumber);
+  const [customerName, setCustomerName] = useState(DEFAULT_VALUES.customerName);
+  const [customerId, setCustomerId] = useState(DEFAULT_VALUES.customerId);
+  const [contractId, setContractId] = useState(DEFAULT_VALUES.contractId);
+  const [equipmentNo, setEquipmentNo] = useState(DEFAULT_VALUES.equipmentNo);
 
   // 상태
   const [isSearching, setIsSearching] = useState(false);
@@ -37,12 +46,12 @@ const CustomerSearch: React.FC<CustomerSearchProps> = ({ onCustomerSelect, showT
   // 검색 유형 변경 핸들러
   const handleSearchTypeChange = (type: SearchType) => {
     setSearchType(type);
-    // 입력값 초기화
-    setPhoneNumber('');
-    setCustomerName('');
-    setCustomerId('');
-    setContractId('');
-    setEquipmentNo('');
+    // 입력값을 기본값으로 복원 (초기화하지 않음)
+    setPhoneNumber(DEFAULT_VALUES.phoneNumber);
+    setCustomerName(DEFAULT_VALUES.customerName);
+    setCustomerId(DEFAULT_VALUES.customerId);
+    setContractId(DEFAULT_VALUES.contractId);
+    setEquipmentNo(DEFAULT_VALUES.equipmentNo);
     setSearchResults([]);
     setHasSearched(false);
   };
@@ -124,13 +133,13 @@ const CustomerSearch: React.FC<CustomerSearchProps> = ({ onCustomerSelect, showT
     }
   };
 
-  // 검색 결과 초기화
+  // 검색 결과 초기화 (기본값으로 복원)
   const handleClear = () => {
-    setPhoneNumber('');
-    setCustomerName('');
-    setCustomerId('');
-    setContractId('');
-    setEquipmentNo('');
+    setPhoneNumber(DEFAULT_VALUES.phoneNumber);
+    setCustomerName(DEFAULT_VALUES.customerName);
+    setCustomerId(DEFAULT_VALUES.customerId);
+    setContractId(DEFAULT_VALUES.contractId);
+    setEquipmentNo(DEFAULT_VALUES.equipmentNo);
     setSearchResults([]);
     setHasSearched(false);
   };
