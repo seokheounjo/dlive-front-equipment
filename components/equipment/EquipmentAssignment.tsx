@@ -154,8 +154,13 @@ const EquipmentAssignment: React.FC<EquipmentAssignmentProps> = ({ onBack, showT
 
   const userInfo = getUserInfo();
 
-  // 검색 조건
-  const [fromDate, setFromDate] = useState<string>(new Date().toISOString().slice(0, 10).replace(/-/g, ''));
+  // 검색 조건 (레거시: 7일 전 ~ 오늘)
+  const getDefaultFromDate = () => {
+    const d = new Date();
+    d.setDate(d.getDate() - 7);
+    return d.toISOString().slice(0, 10).replace(/-/g, '');
+  };
+  const [fromDate, setFromDate] = useState<string>(getDefaultFromDate());
   const [toDate, setToDate] = useState<string>(new Date().toISOString().slice(0, 10).replace(/-/g, ''));
   const [selectedSoId, setSelectedSoId] = useState<string>(userInfo?.soId || '');
 
