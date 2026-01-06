@@ -1404,7 +1404,7 @@ export const getLGUConstructionList = async (params: any): Promise<any[]> => {
         'Origin': origin
       },
       credentials: 'include',
-      body: JSON.stringify(legacyParams),
+      body: JSON.stringify(params),
     });
 
     if (!response.ok) {
@@ -2604,7 +2604,7 @@ export const checkSignal = async (params: SignalCheckRequest): Promise<SignalChe
         'Origin': origin
       },
       credentials: 'include',
-      body: JSON.stringify(legacyParams),
+      body: JSON.stringify(params),
     });
 
     const result = await response.json();
@@ -2961,7 +2961,7 @@ export const checkEquipmentProc = async (params: {
         'Origin': origin
       },
       credentials: 'include',
-      body: JSON.stringify(legacyParams),
+      body: JSON.stringify(params),
     });
 
     const result = await response.json();
@@ -2998,7 +2998,7 @@ export const addEquipmentQuota = async (params: {
         'Origin': origin
       },
       credentials: 'include',
-      body: JSON.stringify(legacyParams),
+      body: JSON.stringify(params),
     });
 
     const result = await response.json();
@@ -3037,7 +3037,7 @@ export const getEquipmentReturnRequestList = async (params: {
         'Origin': origin
       },
       credentials: 'include',
-      body: JSON.stringify(legacyParams),
+      body: JSON.stringify(params),
     });
 
     const result = await response.json();
@@ -3128,7 +3128,7 @@ export const checkEquipmentReturn = async (params: {
         'Origin': origin
       },
       credentials: 'include',
-      body: JSON.stringify(legacyParams),
+      body: JSON.stringify(params),
     });
 
     const result = await response.json();
@@ -3284,7 +3284,7 @@ export const getWorkerEquipmentList = async (params: {
         'Origin': origin
       },
       credentials: 'include',
-      body: JSON.stringify(legacyParams),
+      body: JSON.stringify(params),
     });
 
     const result = await response.json();
@@ -3374,7 +3374,7 @@ export const getOwnEqtLstForMobile3 = async (params: {
         'Origin': origin
       },
       credentials: 'include',
-      body: JSON.stringify(legacyParams),
+      body: JSON.stringify(params),
     });
 
     const result = await response.json();
@@ -3463,7 +3463,7 @@ export const getWrkrListDetail = async (params: {
         'Origin': origin
       },
       credentials: 'include',
-      body: JSON.stringify(legacyParams),
+      body: JSON.stringify(params),
     });
 
     const result = await response.json();
@@ -3511,7 +3511,7 @@ export const cmplEqtCustLossIndem = async (params: {
         'Origin': origin
       },
       credentials: 'include',
-      body: JSON.stringify(legacyParams),
+      body: JSON.stringify(params),
     });
 
     const result = await response.json();
@@ -3774,7 +3774,7 @@ export const changeEquipmentWorker = async (params: {
         'Origin': origin
       },
       credentials: 'include',
-      body: JSON.stringify(legacyParams),
+      body: JSON.stringify(params),
     });
 
     const result = await response.json();
@@ -3814,7 +3814,7 @@ export const findUserList = async (params: {
         'Origin': origin
       },
       credentials: 'include',
-      body: JSON.stringify(legacyParams),
+      body: JSON.stringify(params),
     });
 
     const result = await response.json();
@@ -3852,7 +3852,7 @@ export const sendSmsNotification = async (params: {
         'Origin': origin
       },
       credentials: 'include',
-      body: JSON.stringify(legacyParams),
+      body: JSON.stringify(params),
     });
 
     const result = await response.json();
@@ -3921,7 +3921,7 @@ export const getSmsHistory = async (
         'Origin': origin
       },
       credentials: 'include',
-      body: JSON.stringify(legacyParams),
+      body: JSON.stringify(params),
     });
 
     const result = await response.json();
@@ -3975,7 +3975,7 @@ export const getUnreturnedEquipmentList = async (params: {
         'Origin': origin
       },
       credentials: 'include',
-      body: JSON.stringify(legacyParams),
+      body: JSON.stringify(params),
     });
 
     const result = await response.json();
@@ -4022,7 +4022,7 @@ export const processEquipmentRecovery = async (params: {
         'Origin': origin
       },
       credentials: 'include',
-      body: JSON.stringify(legacyParams),
+      body: JSON.stringify(params),
     });
 
     const result = await response.json();
@@ -4074,7 +4074,7 @@ export const getFullContractInfo = async (params: {
         'Origin': origin
       },
       credentials: 'include',
-      body: JSON.stringify(legacyParams),
+      body: JSON.stringify(params),
     });
 
     const result = await response.json();
@@ -4126,7 +4126,7 @@ export const getCustomerContractInfo = async (params: {
         'Origin': origin
       },
       credentials: 'include',
-      body: JSON.stringify(legacyParams),
+      body: JSON.stringify(params),
     });
 
     const result = await response.json();
@@ -4172,7 +4172,7 @@ export const getCustomerBillingInfo = async (params: {
         'Origin': origin
       },
       credentials: 'include',
-      body: JSON.stringify(legacyParams),
+      body: JSON.stringify(params),
     });
 
     const result = await response.json();
@@ -4268,7 +4268,7 @@ export const sendSignal = async (params: SignalParams): Promise<SignalResult> =>
         'Origin': origin
       },
       credentials: 'include',
-      body: JSON.stringify(legacyParams),
+      body: JSON.stringify(params),
     });
 
     const result = await response.json();
@@ -4305,7 +4305,7 @@ export const sendMetroSignal = async (params: MetroSignalParams): Promise<Signal
         'Origin': origin
       },
       credentials: 'include',
-      body: JSON.stringify(legacyParams),
+      body: JSON.stringify(params),
     });
 
     const result = await response.json();
@@ -4339,7 +4339,7 @@ export const sendPortCloseSignal = async (params: Omit<MetroSignalParams, 'msg_i
         'Origin': origin
       },
       credentials: 'include',
-      body: JSON.stringify(legacyParams),
+      body: JSON.stringify(params),
     });
 
     const result = await response.json();
@@ -4373,7 +4373,7 @@ export const sendPortOpenSignal = async (params: Omit<MetroSignalParams, 'msg_id
         'Origin': origin
       },
       credentials: 'include',
-      body: JSON.stringify(legacyParams),
+      body: JSON.stringify(params),
     });
 
     const result = await response.json();
@@ -4407,7 +4407,7 @@ export const sendPortResetSignal = async (params: Omit<MetroSignalParams, 'msg_i
         'Origin': origin
       },
       credentials: 'include',
-      body: JSON.stringify(legacyParams),
+      body: JSON.stringify(params),
     });
 
     const result = await response.json();
@@ -5012,7 +5012,7 @@ export const getMmtSusInfo = async (params: {
         'Content-Type': 'application/json',
       },
       credentials: 'include',
-      body: JSON.stringify(legacyParams),
+      body: JSON.stringify(params),
     });
 
     if (!response.ok) {
@@ -5066,7 +5066,7 @@ export const modMmtSusInfo = async (params: {
         'Content-Type': 'application/json',
       },
       credentials: 'include',
-      body: JSON.stringify(legacyParams),
+      body: JSON.stringify(params),
     });
 
     if (!response.ok) {
