@@ -253,7 +253,9 @@ const apiCall = async <T>(
     console.log(`[CustomerAPI] Response:`, result);
 
     // 레거시 API 응답 형식 처리
-    if (result.resultCode === '0000' || result.success) {
+    // D'Live API: { code: 'SUCCESS', message: 'OK', data: [...] }
+    // 레거시 API: { resultCode: '0000', resultData: [...] }
+    if (result.code === 'SUCCESS' || result.resultCode === '0000' || result.success) {
       return {
         success: true,
         data: result.data || result.resultData || result,
@@ -263,8 +265,8 @@ const apiCall = async <T>(
 
     return {
       success: false,
-      message: result.resultMsg || result.message || '요청 처리에 실패했습니다.',
-      errorCode: result.resultCode || result.errorCode
+      message: result.message || result.resultMsg || '요청 처리에 실패했습니다.',
+      errorCode: result.code || result.resultCode || result.errorCode
     };
   } catch (error) {
     console.error(`[CustomerAPI] Error:`, error);
