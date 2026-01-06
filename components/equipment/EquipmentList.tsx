@@ -724,7 +724,7 @@ const EquipmentList: React.FC<EquipmentListProps> = ({ onBack, showToast }) => {
                 />
               </div>
               <button
-                onClick={handleSearch}
+                onClick={() => handleSearch()}
                 disabled={isLoading}
                 className="w-full bg-blue-500 hover:bg-blue-600 disabled:bg-gray-400 text-white py-3 rounded-lg font-semibold text-sm shadow-sm transition-all active:scale-[0.98] touch-manipulation flex items-center justify-center gap-2"
                 style={{ WebkitTapHighlightColor: 'transparent' }}
