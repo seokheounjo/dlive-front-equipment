@@ -22,7 +22,7 @@ const LEGACY_REQ_ROUTES = [
   // Equipment Processing 3 APIs - Route directly to legacy .req servlet
 
   "/customer/phoneNumber/getOwnEqtLstForMobile_3",  // 장비반납
-  "/customer/equipment/setEquipmentChkStndByY",     // 검사완료(사용가능변경) - Oracle Procedure
+  // "/customer/equipment/setEquipmentChkStndByY",  // 검사완료 - 레거시 세션 필요 (백엔드 수정 필요)
   // "/statistics/equipment/getEquipmentHistoryInfo"  // Now handled by our adapter
 ];
 
