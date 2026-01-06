@@ -173,22 +173,35 @@ const EquipmentMovement: React.FC<EquipmentMovementProps> = ({ onBack }) => {
     }
   };
 
-  // 바코드 스캔 시 - 장비 정보로 기사 조회
+    // 바코드 스캔 시 - S/N만 저장 (조회 버튼 눌러야 조회됨)
   const handleBarcodeScan = async (serialNo: string) => {
     const normalizedSN = serialNo.toUpperCase().replace(/[:-]/g, '');
 
-    // 이미 스캔된 장비인지 확인
+    // 이미 스캔된 장비인지 확인 (중복 제거)
     if (scannedSerials.includes(normalizedSN)) {
       alert('이미 스캔된 장비입니다.');
       return;
     }
 
+    // S/N만 저장, 스캐너 닫기
+    setScannedSerials(prev => [...new Set([normalizedSN, ...prev])]);
+    setShowBarcodeScanner(false);
+  };
+
+  // 스캔된 장비로 보유기사 조회
+  const handleScannedSearch = async () => {
+    if (scannedSerials.length === 0) {
+      alert('스캔된 장비가 없습니다.');
+      return;
+    }
+
     setIsLoading(true);
     try {
-      // 1. 장비 정보 조회
+      // 첫 번째 스캔된 S/N으로 장비 정보 조회
+      const firstSN = scannedSerials[0];
       const eqtResult = await debugApiCall('EquipmentMovement', 'getEquipmentHistoryInfo',
-        () => getEquipmentHistoryInfo({ EQT_SERNO: normalizedSN }),
-        { EQT_SERNO: normalizedSN }
+        () => getEquipmentHistoryInfo({ EQT_SERNO: firstSN }),
+        { EQT_SERNO: firstSN }
       );
 
       if (eqtResult && eqtResult.length > 0) {
@@ -197,28 +210,22 @@ const EquipmentMovement: React.FC<EquipmentMovementProps> = ({ onBack }) => {
         const ownerWrkrNm = eqt.WRKR_NM || eqt.OWNER_WRKR_NM || '알수없음';
 
         if (ownerWrkrId) {
-          // 2. 스캔된 S/N 저장
-          setScannedSerials(prev => [...new Set([normalizedSN, ...prev])]);
-
-          // 3. 스캐너 닫고 기사 보유장비 조회
-          setShowBarcodeScanner(false);
           setWorkerInfo(prev => ({ ...prev, WRKR_ID: ownerWrkrId, WRKR_NM: ownerWrkrNm }));
-          await searchEquipmentByWorker(ownerWrkrId, ownerWrkrNm, normalizedSN);
+          await searchEquipmentByWorker(ownerWrkrId, ownerWrkrNm, firstSN);
         } else {
-          alert(`장비(${normalizedSN})의 보유기사 정보가 없습니다.`);
+          alert(`장비(${firstSN})의 보유기사 정보가 없습니다.`);
         }
       } else {
-        alert(`장비(${normalizedSN})를 찾을 수 없습니다.`);
+        alert(`장비(${firstSN})를 찾을 수 없습니다.`);
       }
     } catch (error) {
-      console.error('바코드 스캔 처리 실패:', error);
+      console.error('장비 조회 실패:', error);
       alert('장비 조회에 실패했습니다.');
     } finally {
       setIsLoading(false);
     }
   };
 
-  
   // 장비번호 검색
   const handleSerialSearch = async () => {
     const normalizedSN = serialInput.trim().toUpperCase().replace(/[:-]/g, '');
@@ -418,9 +425,7 @@ const EquipmentMovement: React.FC<EquipmentMovementProps> = ({ onBack }) => {
                 ? 'bg-blue-500 text-white shadow-sm'
                 : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
             }`}
-          >
-            장비조회
-          </button>
+          >장비번호</button>
           <button
             onClick={() => setScanMode('worker')}
             className={`py-3 px-2 rounded-lg text-sm font-medium transition-all ${
@@ -538,13 +543,21 @@ const EquipmentMovement: React.FC<EquipmentMovementProps> = ({ onBack }) => {
               초기화
             </button>
           </div>
-          <div className="flex flex-wrap gap-1">
+          <div className="flex flex-wrap gap-1 mb-3">
             {scannedSerials.map((sn, idx) => (
               <span key={idx} className="px-2 py-1 bg-purple-100 text-purple-800 text-xs rounded-md font-mono">
                 {sn}
               </span>
             ))}
           </div>
+          {/* 조회 버튼 */}
+          <button
+            onClick={handleScannedSearch}
+            disabled={isLoading}
+            className="w-full bg-purple-500 hover:bg-purple-600 disabled:bg-gray-300 text-white py-3 rounded-lg font-semibold text-sm shadow-sm transition-all active:scale-[0.98]"
+          >
+            {isLoading ? '조회 중...' : '조회'}
+          </button>
         </div>
       )}
 
