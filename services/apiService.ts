@@ -3634,6 +3634,9 @@ export const processEquipmentLoss = async (params: {
         message: lossResult.MESSAGE || '분실 처리가 완료되었습니다.',
         data: lossResult
       };
+    } else if (lossResult && lossResult.code) {
+      // 백엔드 에러 응답 (code 필드 사용)
+      throw new NetworkError(lossResult.message || `분실 처리 실패 (코드: ${lossResult.code})`);
     } else if (lossResult && lossResult.MSGCODE) {
       throw new NetworkError(lossResult.MESSAGE || `분실 처리 실패 (코드: ${lossResult.MSGCODE})`);
     }
