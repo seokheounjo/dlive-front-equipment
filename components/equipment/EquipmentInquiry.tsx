@@ -1347,41 +1347,24 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
         </div>
       </BaseModal>
 
-      {/* 분실처리 모달 */}
+      {/* 분실처리 모달 - 장비반납 스타일 통일 */}
       <BaseModal
         isOpen={showLossModal}
         onClose={() => { setShowLossModal(false); setSelectedEquipment(null); }}
-        title="분실처리"
+        title="분실처리-장비선택"
         size="md"
       >
         {selectedEquipment && (
           <div className="space-y-4">
-            {/* 장비 정보 */}
-            <div className="bg-gray-50 rounded-lg p-3">
-              <div className="space-y-1.5 text-xs">
-                <div className="flex">
-                  <span className="text-gray-500 w-16">장비유형</span>
-                  <span className="font-medium">{selectedEquipment.ITEM_NM || selectedEquipment.EQT_CL_NM}</span>
-                </div>
-                <div className="flex">
-                  <span className="text-gray-500 w-16">S/N</span>
-                  <span className="font-medium font-mono">{selectedEquipment.EQT_SERNO}</span>
-                </div>
-                <div className="flex">
-                  <span className="text-gray-500 w-16">MAC</span>
-                  <span className="font-medium font-mono">{selectedEquipment.MAC_ADDRESS || '-'}</span>
-                </div>
-                <div className="flex">
-                  <span className="text-gray-500 w-16">장비상태</span>
-                  <span className={`font-medium ${selectedEquipment.EQT_STAT_CD === '10' ? 'text-green-600' : 'text-gray-600'}`}>{selectedEquipment.EQT_STAT_NM || '-'}</span>
-                </div>
-                <div className="flex">
-                  <span className="text-gray-500 w-16">사용가능</span>
-                  <span className={`font-medium ${selectedEquipment.EQT_USE_ARR_YN === 'Y' ? 'text-green-600' : selectedEquipment.EQT_USE_ARR_YN === 'A' ? 'text-amber-600' : 'text-gray-600'}`}>
-                    {selectedEquipment.EQT_USE_ARR_YN === 'Y' ? '사용가능' : selectedEquipment.EQT_USE_ARR_YN === 'A' ? '검사대기' : selectedEquipment.EQT_USE_ARR_YN === 'N' ? '사용불가' : '-'}
-                  </span>
-                </div>
-              </div>
+            {/* 지점 (ReadOnly) */}
+            <div>
+              <label className="block text-xs font-medium text-gray-600 mb-1">지점</label>
+              <input
+                type="text"
+                value={selectedEquipment.SO_NM || soList.find(s => s.SO_ID === selectedEquipment.SO_ID)?.SO_NM || soList.find(s => s.SO_ID === userInfo?.soId)?.SO_NM || '-'}
+                readOnly
+                className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded bg-gray-100"
+              />
             </div>
 
             {/* 분실 사유 */}
@@ -1395,10 +1378,37 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
               />
             </div>
 
+            {/* 선택된 장비 리스트 (테이블 형식) */}
+            <div>
+              <label className="block text-xs font-medium text-gray-600 mb-1">선택된 장비</label>
+              <div className="max-h-40 overflow-y-auto border border-gray-200 rounded">
+                <table className="w-full text-xs">
+                  <thead className="bg-gray-50 sticky top-0">
+                    <tr>
+                      <th className="px-2 py-1.5 text-left">장비유형</th>
+                      <th className="px-2 py-1.5 text-left">S/N</th>
+                      <th className="px-2 py-1.5 text-left">상태</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr className="border-t border-gray-100">
+                      <td className="px-2 py-1.5">{selectedEquipment.ITEM_NM || selectedEquipment.EQT_CL_NM}</td>
+                      <td className="px-2 py-1.5 font-mono text-[10px]">{selectedEquipment.EQT_SERNO}</td>
+                      <td className="px-2 py-1.5">
+                        <span className={`px-1 py-0.5 rounded text-[10px] ${selectedEquipment.EQT_USE_ARR_YN === 'Y' ? 'bg-green-100 text-green-700' : selectedEquipment.EQT_USE_ARR_YN === 'A' ? 'bg-amber-100 text-amber-700' : 'bg-gray-100 text-gray-600'}`}>
+                          {selectedEquipment.EQT_STAT_NM || (selectedEquipment.EQT_USE_ARR_YN === 'Y' ? '사용가능' : selectedEquipment.EQT_USE_ARR_YN === 'A' ? '검사대기' : selectedEquipment.EQT_STAT_CD === '10' ? '재고' : selectedEquipment.EQT_STAT_CD === '20' ? '설치' : '-')}
+                        </span>
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
             {/* 경고 메시지 */}
             <div className="bg-red-50 border border-red-200 rounded-lg p-3">
               <p className="text-xs text-red-600">
-                ⚠️ 분실 처리 시 장비 변상금이 청구될 수 있습니다.
+                분실 처리 시 장비 변상금이 청구될 수 있습니다.
               </p>
             </div>
 
@@ -1409,7 +1419,7 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
                 className="flex-1 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg font-semibold text-sm transition-all active:scale-[0.98] touch-manipulation"
                 style={{ WebkitTapHighlightColor: 'transparent' }}
               >
-                취소
+                재선택
               </button>
               <button
                 onClick={handleLossProcess}
