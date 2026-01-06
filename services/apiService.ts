@@ -3328,7 +3328,7 @@ export const getWrkrHaveEqtListAll = async (params: {
         'Origin': origin
       },
       credentials: 'include',
-      body: JSON.stringify(legacyParams),
+      body: JSON.stringify(params),
     });
 
     const result = await response.json();
@@ -3418,7 +3418,7 @@ export const getEquipmentChkStndByAAll = async (params: {
         'Origin': origin
       },
       credentials: 'include',
-      body: JSON.stringify(legacyParams),
+      body: JSON.stringify(params),
     });
 
     const result = await response.json();
