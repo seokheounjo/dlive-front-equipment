@@ -253,9 +253,21 @@ export const fetchWithRetry = async (
           );
         }
 
-        // 5xx 에러는 재시도
+        // 5xx 에러는 재시도 (단, 응답 본문에 에러 메시지가 있으면 사용)
         if (response.status >= 500) {
           circuitBreaker.recordFailure(url);
+          // 응답 본문에서 에러 메시지 추출 시도
+          try {
+            const errorBody = await response.json();
+            if (errorBody && (errorBody.message || errorBody.MESSAGE)) {
+              throw new NetworkError(
+                errorBody.message || errorBody.MESSAGE,
+                response.status
+              );
+            }
+          } catch (parseError) {
+            // JSON 파싱 실패 시 기본 에러 메시지 사용
+          }
           throw new NetworkError(
             getErrorMessage(response.status),
             response.status

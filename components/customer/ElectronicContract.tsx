@@ -22,11 +22,21 @@ interface ElectronicContractProps {
     prodNm: string;
     instAddr: string;
   } | null;
+  onNavigateToBasicInfo?: () => void;
 }
 
 interface ContractSignStatus {
-  status: 'pending' | 'sent' | 'signed' | 'completed' | 'expired' | 'rejected';
-  statusNm: string;
+  SIGN_STATUS: string;
+  SIGN_STATUS_NM: string;
+  CTRT_ID?: string;
+  DOCUMENT_ID?: string;
+  REQUEST_DT?: string;
+  SIGN_DT?: string;
+  MESSAGE?: string;
+  SIMULATION?: boolean;
+  // Legacy format support
+  status?: 'pending' | 'sent' | 'signed' | 'completed' | 'expired' | 'rejected';
+  statusNm?: string;
   requestDt?: string;
   signDt?: string;
   docUrl?: string;
@@ -44,7 +54,8 @@ const ElectronicContract: React.FC<ElectronicContractProps> = ({
   onBack,
   showToast,
   selectedCustomer,
-  selectedContract
+  selectedContract,
+  onNavigateToBasicInfo
 }) => {
   // 서명 상태
   const [signStatus, setSignStatus] = useState<ContractSignStatus | null>(null);
@@ -110,20 +121,28 @@ const ElectronicContract: React.FC<ElectronicContractProps> = ({
     }
   };
 
+  // 상태값 정규화 (대소문자 통일)
+  const normalizeStatus = (status: string | undefined): string => {
+    if (!status) return 'NOT_REQUESTED';
+    return status.toUpperCase();
+  };
+
   // 상태별 아이콘
   const getStatusIcon = (status: string) => {
-    switch (status) {
-      case 'pending':
+    const normalized = normalizeStatus(status);
+    switch (normalized) {
+      case 'PENDING':
+      case 'NOT_REQUESTED':
         return <Clock className="w-6 h-6 text-gray-400" />;
-      case 'sent':
+      case 'SENT':
         return <Send className="w-6 h-6 text-blue-500" />;
-      case 'signed':
+      case 'SIGNED':
         return <FileCheck className="w-6 h-6 text-green-500" />;
-      case 'completed':
+      case 'COMPLETED':
         return <CheckCircle className="w-6 h-6 text-green-600" />;
-      case 'expired':
+      case 'EXPIRED':
         return <Clock className="w-6 h-6 text-orange-500" />;
-      case 'rejected':
+      case 'REJECTED':
         return <XCircle className="w-6 h-6 text-red-500" />;
       default:
         return <FileSignature className="w-6 h-6 text-gray-400" />;
@@ -132,15 +151,16 @@ const ElectronicContract: React.FC<ElectronicContractProps> = ({
 
   // 상태별 배경색
   const getStatusBgColor = (status: string) => {
-    switch (status) {
-      case 'sent':
+    const normalized = normalizeStatus(status);
+    switch (normalized) {
+      case 'SENT':
         return 'bg-blue-50 border-blue-200';
-      case 'signed':
-      case 'completed':
+      case 'SIGNED':
+      case 'COMPLETED':
         return 'bg-green-50 border-green-200';
-      case 'expired':
+      case 'EXPIRED':
         return 'bg-orange-50 border-orange-200';
-      case 'rejected':
+      case 'REJECTED':
         return 'bg-red-50 border-red-200';
       default:
         return 'bg-gray-50 border-gray-200';
@@ -162,7 +182,7 @@ const ElectronicContract: React.FC<ElectronicContractProps> = ({
             전자계약을 진행할 수 있습니다.
           </p>
           <button
-            onClick={onBack}
+            onClick={onNavigateToBasicInfo || onBack}
             className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
           >
             <ArrowLeft className="w-4 h-4 inline mr-2" />
@@ -222,27 +242,39 @@ const ElectronicContract: React.FC<ElectronicContractProps> = ({
             <div className="flex items-center justify-center py-8">
               <Loader2 className="w-6 h-6 animate-spin text-gray-400" />
             </div>
-          ) : signStatus ? (
-            <div className={`p-4 rounded-lg border ${getStatusBgColor(signStatus.status)}`}>
+          ) : signStatus && normalizeStatus(signStatus.SIGN_STATUS || signStatus.status) !== 'NOT_REQUESTED' ? (
+            <div className={`p-4 rounded-lg border ${getStatusBgColor(signStatus.SIGN_STATUS || signStatus.status || '')}`}>
               <div className="flex items-center gap-3">
-                {getStatusIcon(signStatus.status)}
+                {getStatusIcon(signStatus.SIGN_STATUS || signStatus.status || '')}
                 <div>
-                  <div className="font-medium text-gray-800">{signStatus.statusNm}</div>
-                  {signStatus.requestDt && (
+                  <div className="font-medium text-gray-800">
+                    {signStatus.SIGN_STATUS_NM || signStatus.statusNm || '상태 확인중'}
+                  </div>
+                  {(signStatus.REQUEST_DT || signStatus.requestDt) && (
                     <div className="text-sm text-gray-500">
-                      요청일: {signStatus.requestDt}
+                      요청일: {signStatus.REQUEST_DT || signStatus.requestDt}
                     </div>
                   )}
-                  {signStatus.signDt && (
+                  {(signStatus.SIGN_DT || signStatus.signDt) && (
                     <div className="text-sm text-gray-500">
-                      서명일: {signStatus.signDt}
+                      서명일: {signStatus.SIGN_DT || signStatus.signDt}
+                    </div>
+                  )}
+                  {signStatus.MESSAGE && (
+                    <div className="text-xs text-gray-400 mt-1">
+                      {signStatus.MESSAGE}
+                    </div>
+                  )}
+                  {signStatus.SIMULATION && (
+                    <div className="text-xs text-orange-500 mt-1">
+                      [시뮬레이션 모드]
                     </div>
                   )}
                 </div>
               </div>
 
               {/* 완료된 경우 문서 다운로드 */}
-              {signStatus.status === 'completed' && signStatus.docUrl && (
+              {normalizeStatus(signStatus.SIGN_STATUS || signStatus.status) === 'COMPLETED' && signStatus.docUrl && (
                 <div className="mt-4">
                   <a
                     href={signStatus.docUrl}
@@ -257,7 +289,7 @@ const ElectronicContract: React.FC<ElectronicContractProps> = ({
               )}
 
               {/* 만료된 경우 재요청 */}
-              {signStatus.status === 'expired' && (
+              {normalizeStatus(signStatus.SIGN_STATUS || signStatus.status) === 'EXPIRED' && (
                 <div className="mt-4">
                   <button
                     onClick={handleRequestContract}

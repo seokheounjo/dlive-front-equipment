@@ -103,6 +103,7 @@ const CustomerManagementMenu: React.FC<CustomerManagementMenuProps> = ({ onNavig
             showToast={showToast}
             selectedCustomer={selectedCustomer}
             selectedContract={selectedContract}
+            onNavigateToBasicInfo={() => handleNavigateToTab('basic-info')}
           />
         );
       case 'customer-create':
