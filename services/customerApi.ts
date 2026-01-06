@@ -324,6 +324,8 @@ export const searchCustomer = async (params: CustomerSearchParams): Promise<ApiR
   }
 
   // 전화번호/고객명 검색 - SERCH_GB=3 사용 (D'Live 서버 성능에 따라 Timeout 가능)
+  // 주의: 전화번호와 고객명을 동시에 보내면 AND 조건이라 결과 없음!
+  // 전화번호가 있으면 전화번호만, 없으면 고객명만 보냄
   if (params.searchType === 'PHONE_NAME') {
     if (!params.phoneNumber && !params.customerName) {
       return { success: false, message: '전화번호 또는 고객명을 입력해주세요.', data: [] };
@@ -333,8 +335,12 @@ export const searchCustomer = async (params: CustomerSearchParams): Promise<ApiR
       SERCH_GB: '3',
       LOGIN_ID: 'SYSTEM'
     };
-    if (params.phoneNumber) reqParams.TEL_NO = params.phoneNumber;
-    if (params.customerName) reqParams.CUST_NM = params.customerName;
+    // 전화번호 우선 (둘 다 있으면 전화번호만 사용)
+    if (params.phoneNumber) {
+      reqParams.TEL_NO = params.phoneNumber;
+    } else if (params.customerName) {
+      reqParams.CUST_NM = params.customerName;
+    }
 
     try {
       const result = await apiCall<any>('/customer/common/customercommon/getConditionalCustList2', reqParams);
