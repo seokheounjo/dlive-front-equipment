@@ -3,6 +3,7 @@ import {
   getWorkerEquipmentList,
   getEquipmentReturnRequestList,
   addEquipmentReturnRequest,
+  delEquipmentReturnRequest,
   processEquipmentLoss,
   setEquipmentCheckStandby,
   getCommonCodes,
@@ -504,27 +505,46 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
     }
 
     try {
-      // SQL Required: EQT_NO, RETURN_TP, MST_SO_ID, SO_ID, CRR_ID, RETN_PSN_ID, RETN_RESN_CD, PROC_STAT
-      const params = {
-        WRKR_ID: userInfo?.userId || '',
-        CRR_ID: userInfo?.crrId || '',           // 협력업체 ID (필수!)
-        SO_ID: selectedSoId || userInfo?.soId || '',
-        MST_SO_ID: userInfo?.mstSoId || userInfo?.soId || '',
-        RETURN_TP: '2',                          // 2 = 작업기사 반납
-        equipmentList: checkedItems.map(item => ({
-          EQT_NO: item.EQT_NO,
-          EQT_SERNO: item.EQT_SERNO,
-          ACTION: action,
-          RETN_RESN_CD: returnReason || '01',
-        })),
-      };
+      if (action === 'CANCEL') {
+        // 반납취소는 delEquipmentReturnRequest API 사용
+        const cancelParams = {
+          WRKR_ID: userInfo?.userId || '',
+          CRR_ID: userInfo?.crrId || '',
+          SO_ID: checkedItems[0]?.SO_ID || selectedSoId || userInfo?.soId || '',
+          equipmentList: checkedItems.map(item => ({
+            EQT_NO: item.EQT_NO,
+            EQT_SERNO: item.EQT_SERNO,
+          })),
+        };
+        const result = await debugApiCall(
+          'EquipmentInquiry',
+          'delEquipmentReturnRequest',
+          () => delEquipmentReturnRequest(cancelParams),
+          cancelParams
+        );
+      } else {
+        // 반납요청은 addEquipmentReturnRequest API 사용
+        const params = {
+          WRKR_ID: userInfo?.userId || '',
+          CRR_ID: userInfo?.crrId || '',           // 협력업체 ID (필수!)
+          SO_ID: checkedItems[0]?.SO_ID || selectedSoId || userInfo?.soId || '',
+          MST_SO_ID: userInfo?.mstSoId || userInfo?.soId || '',
+          RETURN_TP: '2',                          // 2 = 작업기사 반납
+          equipmentList: checkedItems.map(item => ({
+            EQT_NO: item.EQT_NO,
+            EQT_SERNO: item.EQT_SERNO,
+            ACTION: action,
+            RETN_RESN_CD: returnReason || '01',
+          })),
+        };
 
-      const result = await debugApiCall(
-        'EquipmentInquiry',
-        'addEquipmentReturnRequest',
-        () => addEquipmentReturnRequest(params),
-        params
-      );
+        const result = await debugApiCall(
+          'EquipmentInquiry',
+          'addEquipmentReturnRequest',
+          () => addEquipmentReturnRequest(params),
+          params
+        );
+      }
       showToast?.(
         action === 'RETURN'
           ? `${checkedItems.length}건의 장비 반납 요청이 완료되었습니다.`
@@ -566,7 +586,7 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
         EQT_SERNO: selectedEquipment.EQT_SERNO || '',
         WRKR_ID: userInfo?.userId || '',
         CRR_ID: userInfo?.crrId || '',
-        SO_ID: selectedSoId || userInfo?.soId || '',
+        SO_ID: selectedEquipment.SO_ID || selectedSoId || userInfo?.soId || '',  // 장비 데이터에서 SO_ID 우선
         EQT_CL_CD: selectedEquipment.EQT_CL_CD || '',
         LOSS_REASON: lossReason || undefined,
       };
@@ -882,17 +902,6 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
               </div>
               {/* 카테고리별 전체 선택 */}
               <div className="flex gap-2 mb-2 flex-wrap">
-                {totalOwned > 0 && (
-                  <label className="flex items-center gap-1.5 px-2 py-1 bg-green-50 rounded-lg cursor-pointer border border-green-200">
-                    <input
-                      type="checkbox"
-                      onChange={(e) => handleCheckCategory('OWNED', e.target.checked)}
-                      checked={totalOwned > 0 && selectedOwned === totalOwned}
-                      className="w-3.5 h-3.5 text-green-500 rounded focus:ring-green-500"
-                    />
-                    <span className="text-xs font-medium text-green-700">보유 ({selectedOwned}/{totalOwned})</span>
-                  </label>
-                )}
                 {totalReturn > 0 && (
                   <label className="flex items-center gap-1.5 px-2 py-1 bg-amber-50 rounded-lg cursor-pointer border border-amber-200">
                     <input

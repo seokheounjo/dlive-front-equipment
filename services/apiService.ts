@@ -3195,6 +3195,60 @@ export const addEquipmentReturnRequest = async (params: {
     throw new NetworkError('반납 요청에 실패했습니다.');
   }
 };
+/**
+ * 반납요청 취소 (삭제)
+ * Legacy: /customer/equipment/delEquipmentReturnRequest.req
+ * @param params 취소할 장비 정보
+ */
+export const delEquipmentReturnRequest = async (params: {
+  WRKR_ID: string;
+  CRR_ID: string;
+  SO_ID?: string;
+  equipmentList: Array<{
+    EQT_NO: string;
+    EQT_SERNO?: string;
+  }>;
+}): Promise<any> => {
+  console.log('[delEquipmentReturnRequest] API call:', params);
+
+  try {
+    const origin = typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000';
+
+    const requestBody = {
+      WRKR_ID: params.WRKR_ID,
+      CRR_ID: params.CRR_ID,
+      SO_ID: params.SO_ID || '',
+      REG_UID: params.WRKR_ID,
+      CHG_UID: params.WRKR_ID,
+      equipmentList: params.equipmentList.map(item => ({
+        EQT_NO: item.EQT_NO,
+        EQT_SERNO: item.EQT_SERNO || '',
+      })),
+    };
+
+    const response = await fetchWithRetry(`${API_BASE}/customer/equipment/delEquipmentReturnRequest`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Origin': origin
+      },
+      credentials: 'include',
+      body: JSON.stringify(requestBody),
+    });
+
+    const result = await response.json();
+    console.log('[delEquipmentReturnRequest] Success:', result);
+
+    return result;
+  } catch (error) {
+    console.error('[delEquipmentReturnRequest] Failed:', error);
+    if (error instanceof NetworkError) {
+      throw error;
+    }
+    throw new NetworkError('반납 취소에 실패했습니다.');
+  }
+};
+
 
 /**
  * 작업자(기사) 보유 장비 조회
