@@ -120,9 +120,13 @@ interface ItemMidItem {
 }
 
 // API Base URL
-const API_BASE = typeof window !== 'undefined' && window.location.hostname !== 'localhost'
-  ? `${window.location.protocol}//${window.location.hostname}:8080/api`
-  : 'http://52.63.232.141:8080/api';
+const API_BASE = typeof window !== 'undefined' ? (() => {
+  const hostname = window.location.hostname;
+  if (hostname === 'localhost' || hostname === '127.0.0.1') {
+    return 'http://52.63.232.141:8080/api';
+  }
+  return '/api';
+})() : '/api';
 
 // 지점 목록 API 호출 (백엔드에서 AUTH_SO_List 가져오기)
 const fetchAuthSoList = async (): Promise<SoListItem[]> => {
