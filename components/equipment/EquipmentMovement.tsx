@@ -4,8 +4,8 @@ import { debugApiCall } from './equipmentDebug';
 import { Scan, Search, ChevronDown, ChevronUp, Check, X, User } from 'lucide-react';
 import BarcodeScanner from './BarcodeScanner';
 
-// Scan mode type: equipment(장비조회: 스캔+S/N입력), worker(보유기사)
-type ScanMode = 'equipment' | 'worker';
+// Scan mode type: scan(단일스캔), equipment(장비번호), worker(보유기사)
+type ScanMode = 'scan' | 'equipment' | 'worker';
 
 interface EquipmentMovementProps {
   onBack: () => void;
@@ -109,7 +109,7 @@ const EquipmentMovement: React.FC<EquipmentMovementProps> = ({ onBack }) => {
   const [searchedWorkers, setSearchedWorkers] = useState<{ USR_ID: string; USR_NM: string }[]>([]);
 
   // 조회 모드: equipment(장비조회), worker(보유기사)
-  const [scanMode, setScanMode] = useState<ScanMode>('equipment');
+  const [scanMode, setScanMode] = useState<ScanMode>('scan');
 
   // 장비번호 입력
   const [serialInput, setSerialInput] = useState<string>('');
@@ -412,12 +412,20 @@ const EquipmentMovement: React.FC<EquipmentMovementProps> = ({ onBack }) => {
 
   return (
     <div className="h-full overflow-y-auto bg-gray-50 px-4 py-4 space-y-3">
-      {/* 조회 모드 선택 - 2개 버튼 */}
+      {/* 조회 모드 선택 - 3개 버튼 */}
       <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4">
         <div className="flex items-center gap-2 mb-3">
           <span className="text-sm font-semibold text-gray-800">조회 방식</span>
         </div>
-        <div className="grid grid-cols-2 gap-2">
+        <div className="grid grid-cols-3 gap-2">
+          <button
+            onClick={() => setScanMode('scan')}
+            className={`py-3 px-2 rounded-lg text-sm font-medium transition-all ${
+              scanMode === 'scan'
+                ? 'bg-purple-500 text-white shadow-sm'
+                : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+            }`}
+          >단일스캔</button>
           <button
             onClick={() => setScanMode('equipment')}
             className={`py-3 px-2 rounded-lg text-sm font-medium transition-all ${
@@ -433,48 +441,94 @@ const EquipmentMovement: React.FC<EquipmentMovementProps> = ({ onBack }) => {
                 ? 'bg-green-500 text-white shadow-sm'
                 : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
             }`}
-          >
-            보유기사
-          </button>
+          >보유기사</button>
         </div>
       </div>
 
-      {/* 장비조회 영역 (equipment 모드) - 스캔 + S/N 입력 통합 */}
-      {scanMode === 'equipment' && (
+      {/* 단일스캔 영역 (scan 모드) - 바코드 스캔만 */}
+      {scanMode === 'scan' && (
         <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4">
           <div className="mb-3">
             <h3 className="text-sm font-semibold text-gray-800 flex items-center gap-2">
-              <Search className="w-4 h-4" />
-              장비 조회
+              <Scan className="w-4 h-4" />
+              바코드 스캔
             </h3>
-            <p className="text-xs text-gray-500 mt-0.5">바코드 스캔 또는 S/N 직접 입력</p>
+            <p className="text-xs text-gray-500 mt-0.5">바코드를 스캔하여 장비를 조회합니다</p>
           </div>
 
           {/* 바코드 스캔 버튼 */}
           <button
             onClick={() => setShowBarcodeScanner(true)}
-            className="w-full py-4 mb-3 rounded-xl font-semibold text-base shadow-lg flex items-center justify-center gap-3 active:scale-[0.98] transition-all touch-manipulation bg-gradient-to-r from-blue-500 to-blue-600 text-white"
+            className="w-full py-4 rounded-xl font-semibold text-base shadow-lg flex items-center justify-center gap-3 active:scale-[0.98] transition-all touch-manipulation bg-gradient-to-r from-purple-500 to-purple-600 text-white"
           >
             <Scan className="w-6 h-6" />
             바코드 스캔
           </button>
 
+          {/* 스캔된 장비 표시 영역 */}
+          {scannedSerials.length > 0 && (
+            <div className="mt-3 p-3 bg-purple-50 border border-purple-200 rounded-lg">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-xs font-medium text-purple-700">스캔된 장비 ({scannedSerials.length}건)</span>
+                <button
+                  onClick={() => setScannedSerials([])}
+                  className="text-xs text-purple-600 hover:text-purple-800"
+                >
+                  전체 삭제
+                </button>
+              </div>
+              <div className="space-y-1 max-h-24 overflow-y-auto">
+                {scannedSerials.map((sn, idx) => (
+                  <div key={idx} className="flex items-center justify-between text-xs bg-white px-2 py-1 rounded">
+                    <span className="font-mono text-gray-800">{sn}</span>
+                    <button
+                      onClick={() => setScannedSerials(prev => prev.filter(s => s !== sn))}
+                      className="text-red-400 hover:text-red-600"
+                    >
+                      <X className="w-3 h-3" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+              <button
+                onClick={handleScannedSearch}
+                disabled={isLoading}
+                className="w-full mt-2 py-2 bg-purple-500 hover:bg-purple-600 disabled:bg-gray-300 text-white rounded-lg font-semibold text-sm transition-all active:scale-[0.98]"
+              >
+                {isLoading ? '조회 중...' : '조회'}
+              </button>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* 장비번호 영역 (equipment 모드) - S/N 입력만 */}
+      {scanMode === 'equipment' && (
+        <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4">
+          <div className="mb-3">
+            <h3 className="text-sm font-semibold text-gray-800 flex items-center gap-2">
+              <Search className="w-4 h-4" />
+              장비번호 조회
+            </h3>
+            <p className="text-xs text-gray-500 mt-0.5">S/N 또는 MAC 주소를 입력하여 조회합니다</p>
+          </div>
+
           {/* S/N 직접 입력 */}
-          <div className="flex items-center gap-2">
+          <div className="space-y-3">
             <input
               type="text"
               value={serialInput}
               onChange={(e) => setSerialInput(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && handleSerialSearch()}
-              className="flex-1 px-3 py-3 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 font-mono"
-              placeholder="S/N 직접 입력"
+              className="w-full px-4 py-3 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 font-mono uppercase"
+              placeholder="S/N 또는 MAC 주소 입력"
             />
             <button
               onClick={handleSerialSearch}
               disabled={isLoading || !serialInput.trim()}
-              className="px-6 py-3 bg-blue-500 hover:bg-blue-600 disabled:bg-gray-300 text-white rounded-lg font-semibold text-sm shadow-sm transition-all active:scale-[0.98]"
+              className="w-full py-3 bg-blue-500 hover:bg-blue-600 disabled:bg-gray-300 text-white rounded-lg font-semibold text-sm shadow-sm transition-all active:scale-[0.98]"
             >
-              조회
+              {isLoading ? '조회 중...' : '조회'}
             </button>
           </div>
         </div>
