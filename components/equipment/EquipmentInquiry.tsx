@@ -559,6 +559,8 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
           equipmentList: checkedItems.map(item => ({
             EQT_NO: item.EQT_NO,
             EQT_SERNO: item.EQT_SERNO,
+            REQ_DT: item.REQ_DT,        // SQL WHERE condition required
+            RETURN_TP: item.RETURN_TP,  // SQL WHERE condition required
           })),
         };
         const result = await debugApiCall(
