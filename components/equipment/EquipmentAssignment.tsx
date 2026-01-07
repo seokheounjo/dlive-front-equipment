@@ -204,7 +204,8 @@ const EquipmentAssignment: React.FC<EquipmentAssignmentProps> = ({ onBack, showT
       const params = {
         FROM_OUT_REQ_DT: fromDate,
         TO_OUT_REQ_DT: toDate,
-        SO_ID: selectedSoId || userInfo?.soId || '209'  // SO_ID 필수
+        SO_ID: selectedSoId || userInfo?.soId || '209',  // SO_ID 필수
+        PROC_STAT: '%'  // 모든 처리상태 조회 (필수 - 없으면 빈 결과)
       };
 
       const result = await debugApiCall(
