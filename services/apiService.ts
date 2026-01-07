@@ -2990,6 +2990,42 @@ export const checkEquipmentProc = async (params: {
 };
 
 /**
+ * 출고 대상 장비 목록 조회 (장비할당 상세)
+ * @param params OUT_REQ_NO 필수
+ * @returns 출고 대상 장비 목록
+ */
+export const getOutEquipmentTargetList = async (params: {
+  OUT_REQ_NO: string;
+}): Promise<any> => {
+  console.log('📦 [출고대상장비] API 호출:', params);
+
+  try {
+    const origin = typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000';
+
+    const response = await fetchWithRetry(`${API_BASE}/customer/equipment/getOutEquipmentTargetList`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Origin': origin
+      },
+      credentials: 'include',
+      body: JSON.stringify(params),
+    });
+
+    const result = await response.json();
+    console.log('✅ 출고 대상 장비 조회 성공:', result);
+
+    return result;
+  } catch (error: any) {
+    console.error('❌ 출고 대상 장비 조회 실패:', error);
+    if (error instanceof NetworkError) {
+      throw error;
+    }
+    throw new NetworkError('출고 대상 장비 조회에 실패했습니다.');
+  }
+};
+
+/**
  * 장비 할당 처리 (입고)
  * @param params 할당 정보
  * @returns 처리 결과

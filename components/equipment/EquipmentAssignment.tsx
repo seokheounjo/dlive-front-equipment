@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import '../../styles/buttons.css';
 import {
   getEquipmentOutList,
-  checkEquipmentProc,
+  getOutEquipmentTargetList,
   addEquipmentQuota
 } from '../../services/apiService';
 import BaseModal from '../common/BaseModal';
@@ -240,8 +240,8 @@ const EquipmentAssignment: React.FC<EquipmentAssignmentProps> = ({ onBack, showT
 
       const result = await debugApiCall(
         'EquipmentAssignment',
-        'checkEquipmentProc',
-        () => checkEquipmentProc(params),
+        'getOutEquipmentTargetList',
+        () => getOutEquipmentTargetList(params),
         params
       );
 
