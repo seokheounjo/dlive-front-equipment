@@ -583,49 +583,81 @@ export const registerConsultation = async (params: ConsultationRequest): Promise
  * API: customer/work/modAsPdaReceipt.req
  *
  * 프론트엔드 UI 파라미터를 백엔드 파라미터로 매핑:
- * - AS_CL_CD -> WRK_DTL_TCD (작업상세유형코드)
- * - AS_RESN_L_CD -> WRK_RCPT_CL (작업접수분류)
- * - AS_RESN_M_CD -> WRK_RCPT_CL_DTL (작업접수분류상세)
+ * - AS_CL_CD -> WRK_DTL_TCD (작업상세유형코드, CODE_GROUP: CMWT001)
+ * - AS_RESN_L_CD -> WRK_RCPT_CL (작업접수분류, CODE_GROUP: CMAS000)
+ * - AS_RESN_M_CD -> WRK_RCPT_CL_DTL (작업접수분류상세, CODE_GROUP: CMAS001)
  * - SCHD_DT + SCHD_TM -> WRK_HOPE_DTTM (희망일시)
  * - AS_CNTN -> MEMO
  */
 export const registerASRequest = async (params: ASRequestParams): Promise<ApiResponse<any>> => {
-  // WRK_DTL_TCD 매핑 (AS구분 -> 작업상세유형코드)
+  // WRK_DTL_TCD 매핑 (AS구분 -> 작업상세유형코드) - CMWT001
   const wrkDtlTcdMap: Record<string, string> = {
-    '01': '0380',  // A/S
-    '02': '0360',  // 재설치
-    '03': '0370',  // 철거
-    '04': '0380'   // 장비교체 -> A/S로 처리
+    '01': '0310',  // 장애처리(AS)
+    '02': '0320',  // 장비변경(AS)
+    '03': '0330',  // 망장애(AS)
+    '04': '0350',  // 현장방어(AS)
+    '05': '0360',  // OTT BOX (AS)
+    '06': '0370',  // 올인원(AS)
+    '07': '0380',  // 완전철거(재할당)
   };
 
-  // WRK_RCPT_CL 매핑 (AS사유대분류 -> 작업접수분류)
+  // WRK_RCPT_CL 매핑 (AS사유대분류 -> 작업접수분류) - CMAS000
   const wrkRcptClMap: Record<string, string> = {
-    '01': 'JH',    // 장비장애 -> 장애
-    '02': 'JH',    // 회선장애 -> 장애
-    '03': 'CR',    // 고객요청 -> 고객요청
-    '04': 'ET'     // 기타 -> 기타
+    '01': 'EQ',    // 장비
+    '02': 'ER',    // 장비/리모콘
+    '03': 'CH',    // 채널안나옴
+    '04': 'SV',    // 화질/소리불량
+    '05': 'IN',    // 인터넷느림/안됨
+    '06': 'TL',    // 전화안됨/기능불량
+    '07': 'JJ',    // CS(고객서비스)
+    '08': 'JH',    // CS(해지회선)
+    '09': 'OT',    // OTT BOX
+    '10': 'OL',    // 올인원방문서비스
+    '11': 'CE',    // 고객환경
+    '12': 'SM',    // 스마트카드 장애
   };
 
-  // WRK_RCPT_CL_DTL 매핑 (AS사유중분류 -> 작업접수분류상세)
+  // WRK_RCPT_CL_DTL 매핑 (AS사유중분류 -> 작업접수분류상세) - CMAS001
   const wrkRcptClDtlMap: Record<string, string> = {
-    '0101': 'JHA', // STB 불량 -> 장애 A/S
-    '0102': 'JHA', // 모뎀 불량 -> 장애 A/S
-    '0103': 'JHA', // 케이블 불량 -> 장애 A/S
-    '0201': 'JHA', // 신호불량 -> 장애 A/S
-    '0202': 'JHA', // 단선 -> 장애 A/S
-    '0203': 'JHA', // 혼선 -> 장애 A/S
-    '0301': 'CRM', // 위치변경 -> 고객요청 이동
-    '0302': 'CRA', // 추가설치 -> 고객요청 추가
-    '0303': 'CRH', // 해지요청 -> 고객요청 해지
-    '0401': 'ETA'  // 기타 -> 기타
+    // 장비(EQ)
+    '0101': 'EQ1', // 장비교체요청
+    '0102': 'EQ3', // 전원불량
+    '0103': 'EQ4', // (과금)모뎀 교체
+    '0104': 'EQ5', // (과금)AP 교체
+    // 장비/리모콘(ER)
+    '0201': 'ER4', // STB오작동
+    '0202': 'ER5', // 전원불량
+    '0203': 'ER6', // 장비교체요청(리모콘)
+    '0204': 'ER7', // 장비교체요청(셋탑/모뎀)
+    // 채널안나옴(CH)
+    '0301': 'CH1', // 전채널 안나옴(수신장애)
+    '0302': 'CH2', // 특정채널 안나옴(수신장애)
+    // 화질/소리불량(SV)
+    '0401': 'SV1', // 소리불량
+    '0402': 'SV2', // 화질불량
+    // 인터넷(IN) - 상세코드 없음, 대분류만 사용
+    // CS(해지회선)(JH)
+    '0801': 'JHA', // (해지회선)일정변경
+    '0802': 'JHB', // (해지회선)2인1조
+    '0803': 'JHC', // (해지회선)고소차량
+    // OTT BOX(OT)
+    '0901': 'OT1', // 네트워크 장애
+    '0902': 'OT2', // 조작설명
+    '0903': 'OT7', // 전원불량
+    // 올인원(OL)
+    '1001': 'OL1', // 올인원방문서비스
+    // 고객환경(CE)
+    '1101': 'CE1', // 공유기(AP)장애
+    '1102': 'CE2', // 사용불편
+    '1103': 'CE5', // 재연결
   };
 
   // 백엔드 파라미터로 변환
   const backendParams: ASBackendParams = {
     CUST_ID: params.CUST_ID,
-    WRK_DTL_TCD: wrkDtlTcdMap[params.AS_CL_CD] || '0380',
-    WRK_RCPT_CL: wrkRcptClMap[params.AS_RESN_L_CD] || 'JH',
-    WRK_RCPT_CL_DTL: wrkRcptClDtlMap[params.AS_RESN_M_CD] || 'JHA',
+    WRK_DTL_TCD: wrkDtlTcdMap[params.AS_CL_CD] || '0310',
+    WRK_RCPT_CL: wrkRcptClMap[params.AS_RESN_L_CD] || 'EQ',
+    WRK_RCPT_CL_DTL: wrkRcptClDtlMap[params.AS_RESN_M_CD] || 'EQ1',
     WRK_HOPE_DTTM: params.SCHD_DT + params.SCHD_TM,
     MEMO: params.AS_CNTN,
     WRKR_ID: params.WRKR_ID || 'MOBILE_USER',
