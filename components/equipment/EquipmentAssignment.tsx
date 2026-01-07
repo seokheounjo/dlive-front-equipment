@@ -278,7 +278,15 @@ const EquipmentAssignment: React.FC<EquipmentAssignmentProps> = ({ onBack, showT
     try {
       const params = {
         OUT_REQ_NO: selectedEqtOut.OUT_REQ_NO,
-        equipmentList: checkedItems
+        SO_ID: selectedEqtOut.SO_ID || userInfo?.soId || '',
+        WRKR_ID: userInfo?.userId || '',
+        CARRIER_ID: selectedEqtOut.CRR_ID || userInfo?.crrId || '',
+        CRR_ID: selectedEqtOut.CRR_ID || userInfo?.crrId || '',
+        equipmentList: checkedItems.map(item => ({
+          EQT_NO: item.EQT_NO,
+          EQT_SERNO: item.EQT_SERNO,
+          OUT_REQ_NO: item.OUT_REQ_NO,
+        }))
       };
 
       await debugApiCall(

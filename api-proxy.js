@@ -161,6 +161,7 @@ router.post('/customer/sigtrans/portReset', handleProxy);
 
 // Customer/Equipment API
 router.post('/customer/equipment/getEquipmentOutList', handleProxy);
+router.post('/customer/equipment/getOutEquipmentTargetList', handleProxy);     // Out Equipment Target List
 router.post('/customer/equipment/getEquipmentProcYnCheck', handleProxy);
 router.post('/customer/equipment/addCorporationEquipmentQuota', handleProxy);
 router.post('/customer/equipment/getEquipmentReturnRequestList', handleProxy);
