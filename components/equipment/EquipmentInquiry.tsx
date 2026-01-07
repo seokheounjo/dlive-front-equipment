@@ -1243,34 +1243,20 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
 
         {/* 하단 버튼 영역 - 선택된 장비의 실제 카테고리에 따라 버튼 활성화 */}
         <div className="flex gap-2 flex-wrap">
-          {/* 보유장비가 선택되었을 때만: 장비반납, 분실처리 */}
+          {/* 보유장비가 선택되었을 때만: 장비반납 */}
           {totalOwned > 0 && (
-            <>
-              <button
-                onClick={handleReturnClick}
-                disabled={selectedOwned === 0}
-                className={`flex-1 min-w-[100px] py-2.5 rounded-lg font-semibold text-sm shadow-sm transition-all active:scale-[0.98] touch-manipulation ${
-                  selectedOwned > 0
-                    ? 'bg-blue-500 hover:bg-blue-600 text-white'
-                    : 'bg-gray-200 text-gray-400 cursor-not-allowed'
-                }`}
-                style={{ WebkitTapHighlightColor: 'transparent' }}
-              >
-                장비반납 {selectedOwned > 0 && `(${selectedOwned})`}
-              </button>
-              <button
-                onClick={handleLossClick}
-                disabled={selectedOwned === 0}
-                className={`flex-1 min-w-[100px] py-2.5 rounded-lg font-semibold text-sm shadow-sm transition-all active:scale-[0.98] touch-manipulation ${
-                  selectedOwned > 0
-                    ? 'bg-red-500 hover:bg-red-600 text-white'
-                    : 'bg-gray-200 text-gray-400 cursor-not-allowed'
-                }`}
-                style={{ WebkitTapHighlightColor: 'transparent' }}
-              >
-                분실처리 {selectedOwned > 0 && `(${selectedOwned})`}
-              </button>
-            </>
+            <button
+              onClick={handleReturnClick}
+              disabled={selectedOwned === 0}
+              className={`flex-1 min-w-[100px] py-2.5 rounded-lg font-semibold text-sm shadow-sm transition-all active:scale-[0.98] touch-manipulation ${
+                selectedOwned > 0
+                  ? 'bg-blue-500 hover:bg-blue-600 text-white'
+                  : 'bg-gray-200 text-gray-400 cursor-not-allowed'
+              }`}
+              style={{ WebkitTapHighlightColor: 'transparent' }}
+            >
+              장비반납 {selectedOwned > 0 && `(${selectedOwned})`}
+            </button>
           )}
 
           {/* 반납요청 장비가 선택되었을 때만: 반납취소 */}
