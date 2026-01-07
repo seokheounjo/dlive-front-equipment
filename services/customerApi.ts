@@ -156,20 +156,34 @@ export interface ConsultationRequest {
   TRANS_DEPT_CD?: string;    // 전달지점코드
 }
 
-// AS 접수 요청 (와이어프레임 기준 확장)
+// AS 접수 요청 (프론트엔드 UI 기준)
 export interface ASRequestParams {
   CUST_ID: string;           // 고객ID
-  CTRT_ID: string;           // 계약ID (필수)
-  INST_ADDR: string;         // 설치주소
-  AS_CL_CD: string;          // AS구분코드
+  CTRT_ID?: string;          // 계약ID (선택)
+  INST_ADDR?: string;        // 설치주소
+  AS_CL_CD: string;          // AS구분코드 (UI) -> WRK_DTL_TCD로 매핑
   AS_CL_DTL_CD?: string;     // 콤보상세코드
   TRIP_FEE_CD?: string;      // 출장비코드
-  AS_RESN_L_CD: string;      // AS접수사유(대)
-  AS_RESN_M_CD: string;      // AS접수사유(중)
-  AS_CNTN: string;           // AS내용
+  AS_RESN_L_CD: string;      // AS접수사유(대) (UI) -> WRK_RCPT_CL로 매핑
+  AS_RESN_M_CD: string;      // AS접수사유(중) (UI) -> WRK_RCPT_CL_DTL로 매핑
+  AS_CNTN: string;           // AS내용 (UI) -> MEMO로 매핑
   SCHD_DT: string;           // 작업예정일 (YYYYMMDD)
-  SCHD_TM: string;           // 작업예정시간 (HHMM)
+  SCHD_TM: string;           // 작업예정시간 (HHMM) -> WRK_HOPE_DTTM (SCHD_DT + SCHD_TM)
   WRKR_ID: string;           // 작업자ID (로그인 사용자)
+}
+
+// AS 접수 백엔드 요청 (TaskWorkController.java modAsPdaReceipt 기준)
+interface ASBackendParams {
+  CUST_ID: string;           // 고객ID
+  WRK_DTL_TCD: string;       // 작업상세유형코드 (0380 = AS)
+  WRK_RCPT_CL: string;       // 작업접수분류 (JH = 장애)
+  WRK_RCPT_CL_DTL: string;   // 작업접수분류상세 (JHA = 장애 A/S)
+  WRK_HOPE_DTTM: string;     // 희망일시 (YYYYMMDDHHMM)
+  MEMO: string;              // 메모
+  WRKR_ID: string;           // 작업자ID
+  REG_UID: string;           // 등록자ID
+  EMRG_YN?: string;          // 긴급여부
+  HOLY_YN?: string;          // 휴일여부
 }
 
 // 전화번호 변경 요청
@@ -567,9 +581,58 @@ export const registerConsultation = async (params: ConsultationRequest): Promise
 /**
  * AS 접수
  * API: customer/work/modAsPdaReceipt.req
+ *
+ * 프론트엔드 UI 파라미터를 백엔드 파라미터로 매핑:
+ * - AS_CL_CD -> WRK_DTL_TCD (작업상세유형코드)
+ * - AS_RESN_L_CD -> WRK_RCPT_CL (작업접수분류)
+ * - AS_RESN_M_CD -> WRK_RCPT_CL_DTL (작업접수분류상세)
+ * - SCHD_DT + SCHD_TM -> WRK_HOPE_DTTM (희망일시)
+ * - AS_CNTN -> MEMO
  */
 export const registerASRequest = async (params: ASRequestParams): Promise<ApiResponse<any>> => {
-  return apiCall<any>('/customer/work/modAsPdaReceipt', params);
+  // WRK_DTL_TCD 매핑 (AS구분 -> 작업상세유형코드)
+  const wrkDtlTcdMap: Record<string, string> = {
+    '01': '0380',  // A/S
+    '02': '0360',  // 재설치
+    '03': '0370',  // 철거
+    '04': '0380'   // 장비교체 -> A/S로 처리
+  };
+
+  // WRK_RCPT_CL 매핑 (AS사유대분류 -> 작업접수분류)
+  const wrkRcptClMap: Record<string, string> = {
+    '01': 'JH',    // 장비장애 -> 장애
+    '02': 'JH',    // 회선장애 -> 장애
+    '03': 'CR',    // 고객요청 -> 고객요청
+    '04': 'ET'     // 기타 -> 기타
+  };
+
+  // WRK_RCPT_CL_DTL 매핑 (AS사유중분류 -> 작업접수분류상세)
+  const wrkRcptClDtlMap: Record<string, string> = {
+    '0101': 'JHA', // STB 불량 -> 장애 A/S
+    '0102': 'JHA', // 모뎀 불량 -> 장애 A/S
+    '0103': 'JHA', // 케이블 불량 -> 장애 A/S
+    '0201': 'JHA', // 신호불량 -> 장애 A/S
+    '0202': 'JHA', // 단선 -> 장애 A/S
+    '0203': 'JHA', // 혼선 -> 장애 A/S
+    '0301': 'CRM', // 위치변경 -> 고객요청 이동
+    '0302': 'CRA', // 추가설치 -> 고객요청 추가
+    '0303': 'CRH', // 해지요청 -> 고객요청 해지
+    '0401': 'ETA'  // 기타 -> 기타
+  };
+
+  // 백엔드 파라미터로 변환
+  const backendParams: ASBackendParams = {
+    CUST_ID: params.CUST_ID,
+    WRK_DTL_TCD: wrkDtlTcdMap[params.AS_CL_CD] || '0380',
+    WRK_RCPT_CL: wrkRcptClMap[params.AS_RESN_L_CD] || 'JH',
+    WRK_RCPT_CL_DTL: wrkRcptClDtlMap[params.AS_RESN_M_CD] || 'JHA',
+    WRK_HOPE_DTTM: params.SCHD_DT + params.SCHD_TM,
+    MEMO: params.AS_CNTN,
+    WRKR_ID: params.WRKR_ID || 'MOBILE_USER',
+    REG_UID: params.WRKR_ID || 'MOBILE_USER'
+  };
+
+  return apiCall<any>('/customer/work/modAsPdaReceipt', backendParams);
 };
 
 // ============ 고객 생성 API ============
