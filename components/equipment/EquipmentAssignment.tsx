@@ -204,7 +204,7 @@ const EquipmentAssignment: React.FC<EquipmentAssignmentProps> = ({ onBack, showT
       const params = {
         FROM_OUT_REQ_DT: fromDate,
         TO_OUT_REQ_DT: toDate,
-        SO_ID: selectedSoId || undefined
+        SO_ID: selectedSoId || userInfo?.soId || '209'  // SO_ID 필수
       };
 
       const result = await debugApiCall(
