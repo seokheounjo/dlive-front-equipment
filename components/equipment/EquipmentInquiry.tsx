@@ -833,7 +833,7 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
             >
               <div className="flex items-center justify-center gap-1.5 mb-1">
                 <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center ${
-                  selectedCategory === 'RETURN_REQUESTED' ? 'bg-amber-500 border-amber-500' : 'border-gray-300'
+                  selectedCategory === 'RETURN_REQUESTED' ? 'bg-orange-500 border-amber-500' : 'border-gray-300'
                 }`}>
                   {selectedCategory === 'RETURN_REQUESTED' && (
                     <svg className="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 20 20">
@@ -1053,7 +1053,7 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
                               {item.ITEM_MID_NM || item.EQT_CL_NM || '장비'}
                             </span>
                             {item._hasReturnRequest && (
-                              <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-amber-500 text-white">
+                              <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-orange-500 text-white">
                                 반납요청중
                               </span>
                             )}
@@ -1122,7 +1122,7 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
                               {item.ITEM_NM || item.EQT_CL_NM || item.ITEM_MID_NM || '장비'}
                             </span>
                             {item._hasReturnRequest && (
-                              <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-amber-500 text-white">
+                              <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-orange-500 text-white">
                                 반납요청중
                               </span>
                             )}
@@ -1225,7 +1225,7 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
               disabled={selectedReturn === 0}
               className={`flex-1 min-w-[100px] py-2.5 rounded-lg font-semibold text-sm shadow-sm transition-all active:scale-[0.98] touch-manipulation ${
                 selectedReturn > 0
-                  ? 'bg-amber-500 hover:bg-amber-600 text-white'
+                  ? 'bg-orange-500 hover:bg-amber-600 text-white'
                   : 'bg-gray-200 text-gray-400 cursor-not-allowed'
               }`}
               style={{ WebkitTapHighlightColor: 'transparent' }}
@@ -1573,7 +1573,7 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
                   setShowReturnWarningModal(false);
                   setReturnWarningItems([]);
                 }}
-                className="w-full py-2.5 bg-amber-500 hover:bg-amber-600 text-white rounded-lg font-medium transition-colors"
+                className="w-full py-2.5 bg-orange-500 hover:bg-amber-600 text-white rounded-lg font-medium transition-colors"
               >
                 확인
               </button>

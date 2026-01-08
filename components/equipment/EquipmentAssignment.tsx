@@ -344,7 +344,7 @@ const EquipmentAssignment: React.FC<EquipmentAssignmentProps> = ({ onBack, showT
     setOutTgtEqtList(outTgtEqtList.map(item => {
       const isReceived = (item.IBGO_QTY || 0) > 0;
       const hasSerial = item.EQT_SERNO && item.EQT_SERNO.trim() !== '';
-      const canSelect = hasSerial && !isReceived;
+      const canSelect = !isReceived;  // 입고완료가 아니면 선택 가능 (미할당도 선택 가능)
       return {
         ...item,
         CHK: canSelect ? checked : (isReceived ? true : false)
@@ -522,7 +522,7 @@ const EquipmentAssignment: React.FC<EquipmentAssignmentProps> = ({ onBack, showT
             <div className="flex items-center justify-between mb-2">
               <h3 className="text-sm font-semibold text-gray-700">입고 대상 장비</h3>
               {outTgtEqtList.length > 0 && (
-                <span className="text-xs text-gray-500">{outTgtEqtList.filter(i => i.CHK && i.EQT_SERNO && (i.IBGO_QTY || 0) === 0).length}/{outTgtEqtList.filter(i => i.EQT_SERNO && (i.IBGO_QTY || 0) === 0).length || outTgtEqtList.length}</span>
+                <span className="text-xs text-gray-500">{outTgtEqtList.filter(i => i.CHK && (i.IBGO_QTY || 0) === 0).length}/{outTgtEqtList.filter(i => (i.IBGO_QTY || 0) === 0).length}</span>
               )}
             </div>
 
@@ -543,9 +543,9 @@ const EquipmentAssignment: React.FC<EquipmentAssignmentProps> = ({ onBack, showT
                       type="checkbox"
                       id="checkAll"
                       onChange={(e) => handleCheckAll(e.target.checked)}
-                      checked={outTgtEqtList.filter(i => i.EQT_SERNO && (i.IBGO_QTY || 0) === 0).length > 0 &&
-                               outTgtEqtList.filter(i => i.EQT_SERNO && (i.IBGO_QTY || 0) === 0).every(item => item.CHK)}
-                      disabled={outTgtEqtList.filter(i => i.EQT_SERNO && (i.IBGO_QTY || 0) === 0).length === 0}
+                      checked={outTgtEqtList.filter(i => (i.IBGO_QTY || 0) === 0).length > 0 &&
+                               outTgtEqtList.filter(i => (i.IBGO_QTY || 0) === 0).every(item => item.CHK)}
+                      disabled={outTgtEqtList.filter(i => (i.IBGO_QTY || 0) === 0).length === 0}
                       className="w-4 h-4 text-blue-500 rounded focus:ring-blue-500 disabled:cursor-not-allowed"
                     />
                     <label htmlFor="checkAll" className="text-xs text-gray-600 cursor-pointer">전체 선택</label>
@@ -556,24 +556,22 @@ const EquipmentAssignment: React.FC<EquipmentAssignmentProps> = ({ onBack, showT
                     {outTgtEqtList.map((item, idx) => {
                       const isReceived = (item.IBGO_QTY || 0) > 0;  // 이미 입고된 장비
                       const hasSerial = item.EQT_SERNO && item.EQT_SERNO.trim() !== '';  // S/N 할당됨
-                      const canSelect = hasSerial && !isReceived;  // 선택 가능 조건
+                      const canSelect = !isReceived;  // 입고완료가 아니면 선택 가능 (미할당도 OK)
 
                       return (
                         <div
                           key={idx}
-                          className={`p-4 ${isReceived ? 'bg-green-50' : !hasSerial ? 'bg-gray-50' : item.CHK ? 'bg-blue-50' : 'hover:bg-gray-50'} transition-colors`}
+                          className={`p-4 ${isReceived ? 'bg-green-50' : item.CHK ? 'bg-blue-50' : 'hover:bg-gray-50'} transition-colors`}
                         >
                           <div className="flex items-start gap-3">
-                            {/* 체크박스 - 입고완료 또는 S/N 없으면 비활성화 */}
+                            {/* 체크박스 - 입고완료만 비활성화 */}
                             <input
                               type="checkbox"
                               checked={isReceived ? true : (item.CHK || false)}
                               onChange={(e) => canSelect && handleCheckItem(idx, e.target.checked)}
                               disabled={!canSelect}
                               className={`w-4 h-4 mt-0.5 rounded focus:ring-blue-500 ${
-                                isReceived ? 'text-green-500 cursor-not-allowed' :
-                                !hasSerial ? 'text-gray-300 cursor-not-allowed' :
-                                'text-blue-500'
+                                isReceived ? 'text-green-500 cursor-not-allowed' : 'text-blue-500'
                               }`}
                             />
 
@@ -612,14 +610,14 @@ const EquipmentAssignment: React.FC<EquipmentAssignmentProps> = ({ onBack, showT
                 <div className="h-20"></div>
 
                 {/* 입고처리 버튼 - 네비게이션 바 바로 위 고정 */}
-                <div className="fixed bottom-[56px] left-0 right-0 bg-white border-t border-gray-200 p-3 z-40 shadow-lg" style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}>
+                <div className="fixed bottom-[56px] left-0 right-0 p-3 z-40" style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}>
                   <button
                     onClick={handleCheckAccept}
-                    disabled={!outTgtEqtList.some(item => item.CHK && item.EQT_SERNO && (item.IBGO_QTY || 0) === 0)}
+                    disabled={!outTgtEqtList.some(item => item.CHK && (item.IBGO_QTY || 0) === 0)}
                     className="w-full bg-blue-500 hover:bg-blue-600 disabled:bg-gray-300 text-white py-3 px-6 rounded-lg font-semibold text-sm shadow-sm transition-all active:scale-[0.98] touch-manipulation disabled:cursor-not-allowed"
                     style={{ WebkitTapHighlightColor: 'transparent' }}
                   >
-                    선택 장비 입고처리 ({outTgtEqtList.filter(item => item.CHK && item.EQT_SERNO && (item.IBGO_QTY || 0) === 0).length}건)
+                    선택 장비 입고처리 ({outTgtEqtList.filter(item => item.CHK && (item.IBGO_QTY || 0) === 0).length}건)
                   </button>
                 </div>
               </>
