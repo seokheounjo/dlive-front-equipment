@@ -242,6 +242,10 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
   // UI 상태
   const [isLoading, setIsLoading] = useState(false);
   const [showReturnModal, setShowReturnModal] = useState(false);
+
+  // 대량 처리 진행 상태
+  const [showProgressModal, setShowProgressModal] = useState(false);
+  const [progressInfo, setProgressInfo] = useState({ current: 0, total: 0, item: '', action: '' });
   const [showLossModal, setShowLossModal] = useState(false);
   const [selectedEquipment, setSelectedEquipment] = useState<EquipmentItem | null>(null);
   const [returnReason, setReturnReason] = useState<string>('');
@@ -570,6 +574,15 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
     setEquipmentList(newList);
   };
 
+  // MAC 주소 포맷팅 (2자리마다 : 추가)
+  const formatMac = (mac: string) => {
+    if (!mac) return '-';
+    // 이미 포맷된 경우 그대로 반환
+    if (mac.includes(':') || mac.includes('-')) return mac;
+    // 2자리마다 : 추가
+    return mac.match(/.{1,2}/g)?.join(':') || mac;
+  };
+
   // 장비 중분류별 색상
   const getItemColor = (itemMidCd: string) => {
     switch (itemMidCd) {
@@ -609,6 +622,19 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
     }
 
     try {
+      // 대량 처리 시 진행 상태 표시 (3개 이상일 때)
+      const showProgress = checkedItems.length >= 3;
+      if (showProgress) {
+        setProgressInfo({ current: 0, total: checkedItems.length, item: '', action: action === 'CANCEL' ? '반납취소' : '반납요청' });
+        setShowProgressModal(true);
+      }
+
+      const onProgress = (current: number, total: number, item: string) => {
+        if (showProgress) {
+          setProgressInfo({ current, total, item, action: action === 'CANCEL' ? '반납취소' : '반납요청' });
+        }
+      };
+
       if (action === 'CANCEL') {
         // 반납취소는 delEquipmentReturnRequest API 사용
         // CRITICAL: 같은 EQT_NO에 여러 REQ_DT 레코드가 있을 수 있음 → 모두 삭제 필요
@@ -647,7 +673,7 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
         const result = await debugApiCall(
           'EquipmentInquiry',
           'delEquipmentReturnRequest',
-          () => delEquipmentReturnRequest(cancelParams),
+          () => delEquipmentReturnRequest(cancelParams, onProgress),
           cancelParams
         );
       } else {
@@ -669,10 +695,13 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
         const result = await debugApiCall(
           'EquipmentInquiry',
           'addEquipmentReturnRequest',
-          () => addEquipmentReturnRequest(params),
+          () => addEquipmentReturnRequest(params, onProgress),
           params
         );
       }
+      // 진행 상태 모달 닫기
+      setShowProgressModal(false);
+
       showToast?.(
         action === 'RETURN'
           ? `${checkedItems.length}건의 장비 반납 요청이 완료되었습니다.`
@@ -685,6 +714,7 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
     } catch (error: any) {
       console.error('❌ 반납 처리 실패:', error);
       showToast?.(error.message || '반납 처리에 실패했습니다.', 'error');
+      setShowProgressModal(false);
     }
   };
 
@@ -1130,7 +1160,7 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
                           </div>
                           <div className="flex items-center gap-1">
                             <span className="text-gray-400 w-10">MAC</span>
-                            <span className="font-mono text-gray-600 truncate">{item.MAC_ADDRESS || '-'}</span>
+                            <span className="font-mono text-gray-600 truncate">{formatMac(item.MAC_ADDRESS)}</span>
                           </div>
                         </div>
                       </div>
@@ -1199,7 +1229,7 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
                             {/* 두번째 행: S/N + MAC (값만, 레이블 없음) */}
                             <div className="flex flex-wrap gap-x-4 gap-y-1">
                               <span className="font-mono text-gray-800">{item.EQT_SERNO || '-'}</span>
-                              <span className="font-mono text-gray-500">{item.MAC_ADDRESS || '-'}</span>
+                              <span className="font-mono text-gray-500">{formatMac(item.MAC_ADDRESS)}</span>
                             </div>
 
                             {/* 세번째 행: 지점 + 장비상태 */}
@@ -1388,6 +1418,33 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
           </div>
         </div>
       </BaseModal>
+
+      {/* 대량 처리 진행 상태 모달 */}
+      {showProgressModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-xl p-6 w-80 shadow-2xl">
+            <div className="text-center">
+              <div className="text-lg font-semibold text-gray-800 mb-4">
+                {progressInfo.action} 진행 중...
+              </div>
+              <div className="mb-3">
+                <div className="h-3 bg-gray-200 rounded-full overflow-hidden">
+                  <div
+                    className="h-full bg-blue-500 transition-all duration-300"
+                    style={{ width: progressInfo.total > 0 ? `${(progressInfo.current / progressInfo.total) * 100}%` : '0%' }}
+                  />
+                </div>
+              </div>
+              <div className="text-sm text-gray-600 mb-2">
+                {progressInfo.current} / {progressInfo.total}
+              </div>
+              <div className="text-xs text-gray-400 truncate">
+                {progressInfo.item && `처리 중: ${progressInfo.item}`}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* 분실처리 모달 - 장비반납 스타일 통일 */}
       <BaseModal

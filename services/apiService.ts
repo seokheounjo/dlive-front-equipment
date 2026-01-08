@@ -3197,19 +3197,22 @@ export const checkEquipmentReturn = async (params: {
  * @param params 반납 정보
  * @returns 처리 결과
  */
-export const addEquipmentReturnRequest = async (params: {
-  WRKR_ID: string;
-  CRR_ID: string;           // 협력업체 ID (필수!)
-  SO_ID?: string;           // SO ID
-  MST_SO_ID?: string;       // MST SO ID
-  RETURN_TP?: string;       // 반납유형: 1=창고, 2=작업기사
-  equipmentList: Array<{
-    EQT_NO: string;
-    EQT_SERNO?: string;
-    RETN_RESN_CD?: string;
-    ACTION?: string;
-  }>;
-}): Promise<any> => {
+export const addEquipmentReturnRequest = async (
+  params: {
+    WRKR_ID: string;
+    CRR_ID: string;           // 협력업체 ID (필수!)
+    SO_ID?: string;           // SO ID
+    MST_SO_ID?: string;       // MST SO ID
+    RETURN_TP?: string;       // 반납유형: 1=창고, 2=작업기사
+    equipmentList: Array<{
+      EQT_NO: string;
+      EQT_SERNO?: string;
+      RETN_RESN_CD?: string;
+      ACTION?: string;
+    }>;
+  },
+  onProgress?: (current: number, total: number, item: string) => void
+): Promise<any> => {
   console.log('[addEquipmentReturnRequest] 반납요청 시작:', params);
 
   try {
@@ -3222,13 +3225,17 @@ export const addEquipmentReturnRequest = async (params: {
     }
 
     const origin = typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000';
+    const total = params.equipmentList.length;
 
     // CRITICAL FIX: 레거시 서비스가 _inserted_list 배치 형식을 지원하지 않음
     // 각 아이템별로 개별 API 호출 (단일 파라미터 형식만 작동함)
     let successCount = 0;
     let failedItems: string[] = [];
+    let currentIdx = 0;
 
     for (const item of params.equipmentList) {
+      currentIdx++;
+      onProgress?.(currentIdx, total, item.EQT_SERNO || item.EQT_NO);
       // 단일 아이템 형식으로 전송
       const singleRequestBody = {
         EQT_NO: item.EQT_NO,
@@ -3302,20 +3309,23 @@ export const addEquipmentReturnRequest = async (params: {
  * @param params 취소할 장비 정보 + 사용자 정보
  * @returns 처리 결과
  */
-export const delEquipmentReturnRequest = async (params: {
-  // 사용자 정보
-  WRKR_ID: string;
-  CRR_ID: string;
-  SO_ID?: string;
-  // 취소할 장비 목록 - MiPlatform 레거시 필수: EQT_NO, REQ_DT, RETURN_TP, EQT_USE_ARR_YN
-  equipmentList: Array<{
-    EQT_NO: string;
-    EQT_SERNO?: string;
-    REQ_DT?: string;       // 반납요청일자 (SQL WHERE 조건)
-    RETURN_TP?: string;    // 반납유형 (항상 "2")
-    EQT_USE_ARR_YN?: string; // 장비사용도착여부 (A 또는 Y)
-  }>;
-}): Promise<any> => {
+export const delEquipmentReturnRequest = async (
+  params: {
+    // 사용자 정보
+    WRKR_ID: string;
+    CRR_ID: string;
+    SO_ID?: string;
+    // 취소할 장비 목록 - MiPlatform 레거시 필수: EQT_NO, REQ_DT, RETURN_TP, EQT_USE_ARR_YN
+    equipmentList: Array<{
+      EQT_NO: string;
+      EQT_SERNO?: string;
+      REQ_DT?: string;       // 반납요청일자 (SQL WHERE 조건)
+      RETURN_TP?: string;    // 반납유형 (항상 "2")
+      EQT_USE_ARR_YN?: string; // 장비사용도착여부 (A 또는 Y)
+    }>;
+  },
+  onProgress?: (current: number, total: number, item: string) => void
+): Promise<any> => {
   console.log('[delEquipmentReturnRequest] 반납취소 시작:', params);
 
   try {
@@ -3328,13 +3338,17 @@ export const delEquipmentReturnRequest = async (params: {
     }
 
     const origin = typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000';
+    const total = params.equipmentList.length;
 
     // CRITICAL FIX: 레거시 서비스가 _inserted_list 배치 형식을 지원하지 않음
     // 각 아이템별로 개별 API 호출 (단일 파라미터 형식만 작동함)
     let successCount = 0;
     let failedItems: string[] = [];
+    let currentIdx = 0;
 
     for (const item of params.equipmentList) {
+      currentIdx++;
+      onProgress?.(currentIdx, total, item.EQT_SERNO || item.EQT_NO);
       // 단일 아이템 형식으로 전송 (DELETE WHERE 조건: EQT_NO, REQ_DT, RETURN_TP)
       const singleRequestBody = {
         EQT_NO: item.EQT_NO,
