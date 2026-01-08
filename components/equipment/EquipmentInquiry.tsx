@@ -490,6 +490,8 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
         RETN_RESN_NM: item.RETN_RESN_NM || item.RETN_RESN_CD_NM || '',
         // 카테고리 유지 (API 호출시 추가된 _category)
         _category: item._category || undefined,
+        // 반납요청 중인 장비 플래그 유지
+        _hasReturnRequest: item._hasReturnRequest || false,
       }));
 
       // 장비 종류 필터링 (S/N 검색에서도 적용)
@@ -498,13 +500,21 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
         filteredList = filteredList.filter(item => item.ITEM_MID_CD === selectedItemMidCd);
       }
 
-      // 카테고리별 정렬 (보유 -> 반납요청 -> 검사대기, 그 다음 장비종류별)
+      // 카테고리별 정렬 (보유 -> 반납요청 -> 검사대기)
+      // 보유장비 중 반납요청중인 것은 맨 하단으로
       filteredList.sort((a, b) => {
         const categoryOrder = { 'OWNED': 1, 'RETURN_REQUESTED': 2, 'INSPECTION_WAITING': 3 };
         const catA = categoryOrder[a._category || 'OWNED'] || 4;
         const catB = categoryOrder[b._category || 'OWNED'] || 4;
         if (catA !== catB) return catA - catB;
-        // 같은 카테고리 내에서 장비종류별 정렬
+        
+        // OWNED 카테고리 내에서: 반납요청중 장비는 하단으로
+        if (a._category === 'OWNED' && b._category === 'OWNED') {
+          if (a._hasReturnRequest && !b._hasReturnRequest) return 1;
+          if (!a._hasReturnRequest && b._hasReturnRequest) return -1;
+        }
+        
+        // 같은 그룹 내에서 장비종류별 정렬
         const midA = a.ITEM_MID_CD || '';
         const midB = b.ITEM_MID_CD || '';
         return midA.localeCompare(midB);
