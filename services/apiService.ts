@@ -3210,48 +3210,88 @@ export const addEquipmentReturnRequest = async (params: {
     ACTION?: string;
   }>;
 }): Promise<any> => {
-  console.log('[addEquipmentReturnRequest] API call:', params);
+  console.log('[addEquipmentReturnRequest] 반납요청 시작:', params);
 
   try {
+    // 필수 파라미터 검증
+    if (!params.WRKR_ID || !params.CRR_ID) {
+      throw new NetworkError('사용자 정보가 필요합니다.');
+    }
+    if (!params.equipmentList || params.equipmentList.length === 0) {
+      throw new NetworkError('반납요청할 장비를 선택해주세요.');
+    }
+
     const origin = typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000';
 
-    // Build request with all required SQL parameters
-    const requestBody = {
-      WRKR_ID: params.WRKR_ID,
-      CRR_ID: params.CRR_ID,
-      SO_ID: params.SO_ID || '',
-      MST_SO_ID: params.MST_SO_ID || params.SO_ID || '',
-      RETURN_TP: params.RETURN_TP || '2',      // Default: worker return
-      PROC_STAT: '1',                          // Default: pending
-      RETN_PSN_ID: params.WRKR_ID,             // Return person = worker
-      equipmentList: params.equipmentList.map(item => ({
+    // CRITICAL FIX: 레거시 서비스가 _inserted_list 배치 형식을 지원하지 않음
+    // 각 아이템별로 개별 API 호출 (단일 파라미터 형식만 작동함)
+    let successCount = 0;
+    let failedItems: string[] = [];
+
+    for (const item of params.equipmentList) {
+      // 단일 아이템 형식으로 전송
+      const singleRequestBody = {
         EQT_NO: item.EQT_NO,
         EQT_SERNO: item.EQT_SERNO || '',
         RETN_RESN_CD: item.RETN_RESN_CD || '01',
         ACTION: item.ACTION || 'RETURN',
-      })),
-    };
+        WRKR_ID: params.WRKR_ID,
+        CRR_ID: params.CRR_ID,
+        SO_ID: params.SO_ID || '',
+        MST_SO_ID: params.MST_SO_ID || params.SO_ID || '',
+        RETURN_TP: params.RETURN_TP || '2',
+        PROC_STAT: '1',
+        RETN_PSN_ID: params.WRKR_ID,
+      };
 
-    const response = await fetchWithRetry(`${API_BASE}/customer/equipment/addEquipmentReturnRequest`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Origin': origin
-      },
-      credentials: 'include',
-      body: JSON.stringify(requestBody),
-    });
+      console.log('[addEquipmentReturnRequest] 개별 호출:', item.EQT_SERNO, singleRequestBody);
 
-    const result = await response.json();
-    console.log('[addEquipmentReturnRequest] Success:', result);
+      try {
+        const response = await fetchWithRetry(`${API_BASE}/customer/equipment/addEquipmentReturnRequest`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Origin': origin
+          },
+          credentials: 'include',
+          body: JSON.stringify(singleRequestBody),
+        });
 
-    return result;
-  } catch (error) {
-    console.error('[addEquipmentReturnRequest] Failed:', error);
+        const result = await response.json();
+        console.log('[addEquipmentReturnRequest] 개별 응답:', item.EQT_SERNO, result);
+
+        if (result && (result.MSGCODE === '0' || result.MSGCODE === 'SUCCESS' || result.success === true)) {
+          successCount++;
+        } else {
+          failedItems.push(item.EQT_SERNO || item.EQT_NO);
+        }
+      } catch (itemError: any) {
+        console.error('[addEquipmentReturnRequest] 개별 실패:', item.EQT_SERNO, itemError);
+        failedItems.push(item.EQT_SERNO || item.EQT_NO);
+      }
+    }
+
+    console.log('[addEquipmentReturnRequest] 완료: 성공', successCount, '/ 실패', failedItems.length);
+
+    if (successCount > 0) {
+      return {
+        success: true,
+        MSGCODE: 'SUCCESS',
+        message: failedItems.length > 0
+          ? `${successCount}건 반납요청 성공, ${failedItems.length}건 실패`
+          : `${successCount}건의 반납요청이 등록되었습니다.`,
+        data: { successCount, failedItems }
+      };
+    } else {
+      throw new NetworkError(`반납요청 실패: ${failedItems.join(', ')}`);
+    }
+
+  } catch (error: any) {
+    console.error('[addEquipmentReturnRequest] 반납요청 실패:', error);
     if (error instanceof NetworkError) {
       throw error;
     }
-    throw new NetworkError('반납 요청에 실패했습니다.');
+    throw new NetworkError(error.message || '반납 요청에 실패했습니다.');
   }
 };
 /**

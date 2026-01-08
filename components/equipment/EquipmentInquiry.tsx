@@ -404,17 +404,32 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
               if (selectedItemMidCd) {
                 filtered = returnResult.filter((item: any) => item.ITEM_MID_CD === selectedItemMidCd);
               }
-              // 중복 제거 (EQT_NO 기준) - 동일 장비가 여러 번 표시되는 것 방지
-              const seenEqtNos = new Set<string>();
-              const deduped = filtered.filter((item: any) => {
-                if (item.EQT_NO && seenEqtNos.has(item.EQT_NO)) {
-                  return false;
+              // 중복 제거 (EQT_NO 기준) + 같은 EQT_NO의 모든 REQ_DT 저장 (반납취소 시 전체 삭제용)
+              const eqtNoMap = new Map<string, any[]>(); // EQT_NO -> 모든 레코드 배열
+              filtered.forEach((item: any) => {
+                if (item.EQT_NO) {
+                  if (!eqtNoMap.has(item.EQT_NO)) {
+                    eqtNoMap.set(item.EQT_NO, []);
+                  }
+                  eqtNoMap.get(item.EQT_NO)!.push(item);
                 }
-                if (item.EQT_NO) seenEqtNos.add(item.EQT_NO);
-                return true;
               });
+
+              // 각 EQT_NO별 첫 번째 레코드만 표시하되, _allReqDts에 모든 REQ_DT 저장
+              const deduped: any[] = [];
+              eqtNoMap.forEach((records, eqtNo) => {
+                const firstRecord = records[0];
+                // 모든 REQ_DT를 배열로 저장 (반납취소 시 모두 삭제)
+                const allReqDts = records.map(r => ({
+                  REQ_DT: r.REQ_DT,
+                  RETURN_TP: r.RETURN_TP || '2',
+                  EQT_USE_ARR_YN: r.EQT_USE_ARR_YN || 'Y'
+                }));
+                deduped.push({ ...firstRecord, _allReqDts: allReqDts });
+              });
+
               if (filtered.length !== deduped.length) {
-                console.log('[반납요청] 중복 제거:', filtered.length, '->', deduped.length);
+                console.log('[반납요청] 중복 제거:', filtered.length, '->', deduped.length, '(_allReqDts 저장됨)');
               }
               // 반납요청 표시용 태그 추가
               allResults.push(...deduped.map(item => ({ ...item, _category: 'RETURN_REQUESTED' })));
@@ -596,17 +611,38 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
     try {
       if (action === 'CANCEL') {
         // 반납취소는 delEquipmentReturnRequest API 사용
+        // CRITICAL: 같은 EQT_NO에 여러 REQ_DT 레코드가 있을 수 있음 → 모두 삭제 필요
+        const allDeleteItems: any[] = [];
+        checkedItems.forEach(item => {
+          if (item._allReqDts && Array.isArray(item._allReqDts) && item._allReqDts.length > 0) {
+            // _allReqDts에 저장된 모든 REQ_DT에 대해 삭제 요청 생성
+            item._allReqDts.forEach((reqDtItem: any) => {
+              allDeleteItems.push({
+                EQT_NO: item.EQT_NO,
+                EQT_SERNO: item.EQT_SERNO,
+                REQ_DT: reqDtItem.REQ_DT,
+                RETURN_TP: reqDtItem.RETURN_TP || '2',
+                EQT_USE_ARR_YN: reqDtItem.EQT_USE_ARR_YN || 'Y',
+              });
+            });
+          } else {
+            // fallback: _allReqDts가 없으면 단일 REQ_DT 사용
+            allDeleteItems.push({
+              EQT_NO: item.EQT_NO,
+              EQT_SERNO: item.EQT_SERNO,
+              REQ_DT: item.REQ_DT,
+              RETURN_TP: item.RETURN_TP || '2',
+              EQT_USE_ARR_YN: item.EQT_USE_ARR_YN || 'Y',
+            });
+          }
+        });
+        console.log('[반납취소] 총 삭제 요청 수:', allDeleteItems.length, '(장비', checkedItems.length, '개)');
+
         const cancelParams = {
           WRKR_ID: userInfo?.userId || '',
           CRR_ID: userInfo?.crrId || '',
           SO_ID: checkedItems[0]?.SO_ID || selectedSoId || userInfo?.soId || '',
-          equipmentList: checkedItems.map(item => ({
-            EQT_NO: item.EQT_NO,
-            EQT_SERNO: item.EQT_SERNO,
-            REQ_DT: item.REQ_DT,        // SQL WHERE condition required
-            RETURN_TP: item.RETURN_TP || '2',  // MiPlatform: 항상 "2"
-            EQT_USE_ARR_YN: item.EQT_USE_ARR_YN || 'Y',  // MiPlatform: A 또는 Y
-          })),
+          equipmentList: allDeleteItems,
         };
         const result = await debugApiCall(
           'EquipmentInquiry',
@@ -1080,12 +1116,14 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
                             )}
                           </div>
                           <span className={`px-2 py-1 rounded-full text-xs font-semibold ${
+                            item._hasReturnRequest ? 'bg-orange-100 text-orange-700' :
                             item.EQT_USE_ARR_YN === 'Y' ? 'bg-green-100 text-green-700' :
                             item.EQT_USE_ARR_YN === 'A' ? 'bg-purple-100 text-purple-700' :
                             item.EQT_USE_ARR_YN === 'N' ? 'bg-red-100 text-red-700' :
                             'bg-gray-100 text-gray-700'
                           }`}>
-                            {item.EQT_USE_ARR_YN === 'Y' ? '사용가능' :
+                            {item._hasReturnRequest ? '반납요청중' :
+                             item.EQT_USE_ARR_YN === 'Y' ? '사용가능' :
                              item.EQT_USE_ARR_YN === 'A' ? '검사대기' :
                              item.EQT_USE_ARR_YN === 'N' ? '사용불가' : '-'}
                           </span>
@@ -1149,12 +1187,14 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
                             )}
                           </div>
                           <span className={`px-2 py-1 rounded-full text-xs font-semibold ${
+                            item._hasReturnRequest ? 'bg-orange-100 text-orange-700' :
                             item.EQT_USE_ARR_YN === 'Y' ? 'bg-green-100 text-green-700' :
                             item.EQT_USE_ARR_YN === 'A' ? 'bg-purple-100 text-purple-700' :
                             item.EQT_USE_ARR_YN === 'N' ? 'bg-red-100 text-red-700' :
                             'bg-gray-100 text-gray-700'
                           }`}>
-                            {item.EQT_USE_ARR_YN === 'Y' ? '사용가능' :
+                            {item._hasReturnRequest ? '반납요청중' :
+                             item.EQT_USE_ARR_YN === 'Y' ? '사용가능' :
                              item.EQT_USE_ARR_YN === 'A' ? '검사대기' :
                              item.EQT_USE_ARR_YN === 'N' ? '사용불가' : '-'}
                           </span>
@@ -1166,7 +1206,13 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
                             {/* 첫 행: 모델명 (전체 너비) */}
                             <div className="text-gray-900 font-medium text-sm break-words">{item.ITEM_NM || item.EQT_CL_NM || '-'}</div>
 
-                            {/* 두번째 행: 지점 + 장비상태 */}
+                            {/* 두번째 행: S/N + MAC (값만, 레이블 없음) */}
+                            <div className="flex flex-wrap gap-x-4 gap-y-1">
+                              <span className="font-mono text-gray-800">{item.EQT_SERNO || '-'}</span>
+                              <span className="font-mono text-gray-500">{item.MAC_ADDRESS || '-'}</span>
+                            </div>
+
+                            {/* 세번째 행: 지점 + 장비상태 */}
                             <div className="flex flex-wrap gap-x-4 gap-y-1">
                               <span className="text-gray-600">{item.SO_NM || item.SO_ID || '-'}</span>
                               <span className={`font-medium ${item.EQT_STAT_CD === '10' ? 'text-green-600' : item.EQT_STAT_CD === '20' ? 'text-blue-600' : 'text-gray-600'}`}>
@@ -1174,7 +1220,7 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
                               </span>
                             </div>
 
-                            {/* 세번째 행: 위치 정보 (레이블 유지) */}
+                            {/* 네번째 행: 위치 정보 (레이블 유지) */}
                             <div className="flex flex-wrap gap-x-6 gap-y-1 pt-1 border-t border-gray-200">
                               <div className="flex items-center gap-1.5">
                                 <span className="text-gray-400">현재위치</span>
