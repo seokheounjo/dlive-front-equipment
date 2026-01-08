@@ -463,7 +463,7 @@ const EquipmentAssignment: React.FC<EquipmentAssignmentProps> = ({ onBack, showT
           </div>
         </div>
 
-        {/* 출고 리스트 */}
+        {/* 리스트 - 지점별 그룹핑 */}
         {eqtOutList.length > 0 && (
           <div>
             <div className="flex items-center justify-between mb-2">
@@ -471,43 +471,44 @@ const EquipmentAssignment: React.FC<EquipmentAssignmentProps> = ({ onBack, showT
               <span className="text-xs text-gray-500">{eqtOutList.length}건</span>
             </div>
             <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
-              <div className="max-h-48 overflow-y-auto">
-                <table className="w-full text-xs">
-                  <thead className="bg-gray-50 sticky top-0 z-10">
-                    <tr>
-                      <th className="px-3 py-2.5 text-center text-xs font-semibold text-gray-600 border-b border-gray-100 whitespace-nowrap">출고일</th>
-                      <th className="px-3 py-2.5 text-left text-xs font-semibold text-gray-600 border-b border-gray-100">협력업체</th>
-                      <th className="px-3 py-2.5 text-left text-xs font-semibold text-gray-600 border-b border-gray-100">지점</th>
-                      <th className="px-2 py-2.5 text-left text-xs font-semibold text-gray-600 border-b border-gray-100 whitespace-nowrap">출고번호</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {eqtOutList.map((item, idx) => (
-                      <tr
-                        key={idx}
-                        onClick={() => handleEqtOutSelect(item)}
-                        className={`cursor-pointer transition-colors ${
-                          selectedEqtOut?.OUT_REQ_NO === item.OUT_REQ_NO
-                            ? 'bg-blue-50 border-l-4 border-blue-500'
-                            : 'hover:bg-blue-50/50'
-                        }`}
-                      >
-                        <td className="px-3 py-2.5 text-xs text-center text-gray-900 border-b border-gray-50 whitespace-nowrap">
-                          {formatOutDttm(item.OUT_DTTM || item.OUT_REQ_DT)}
-                        </td>
-                        <td className="px-3 py-2.5 text-xs text-gray-700 border-b border-gray-50 truncate max-w-[100px]">
-                          {item.CRR_NM || '-'}
-                        </td>
-                        <td className="px-3 py-2.5 text-xs text-gray-700 border-b border-gray-50">
-                          {item.SO_NM || '-'}
-                        </td>
-                        <td className="px-2 py-2.5 text-xs text-gray-700 border-b border-gray-50 font-mono whitespace-nowrap">
-                          {item.OUT_REQ_NO || '-'}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+              <div className="max-h-64 overflow-y-auto">
+                {(() => {
+                  const grouped = eqtOutList.reduce((acc, item) => {
+                    const key = item.SO_NM || '기타';
+                    if (!acc[key]) acc[key] = [];
+                    acc[key].push(item);
+                    return acc;
+                  }, {} as Record<string, EqtOut[]>);
+                  const soNames = Object.keys(grouped).sort();
+
+                  return soNames.map((soName) => (
+                    <div key={soName}>
+                      <div className="bg-gray-100 px-3 py-2 border-b border-gray-200 sticky top-0 z-10">
+                        <span className="text-xs font-semibold text-gray-700">{soName}</span>
+                        <span className="ml-2 text-xs text-gray-500">({grouped[soName].length}건)</span>
+                      </div>
+                      {grouped[soName].map((item, idx) => (
+                        <div
+                          key={idx}
+                          onClick={() => handleEqtOutSelect(item)}
+                          className={`px-3 py-2.5 border-b border-gray-50 cursor-pointer transition-colors ${
+                            selectedEqtOut?.OUT_REQ_NO === item.OUT_REQ_NO
+                              ? 'bg-blue-50 border-l-4 border-blue-500'
+                              : 'hover:bg-blue-50/50'
+                          }`}
+                        >
+                          <div className="flex items-center justify-between text-xs">
+                            <div className="flex items-center gap-2 min-w-0">
+                              <span className="text-gray-900 whitespace-nowrap">{formatOutDttm(item.OUT_DTTM || item.OUT_REQ_DT)}</span>
+                              <span className="text-gray-600 truncate">{item.CRR_NM || '-'}</span>
+                            </div>
+                            <span className="text-gray-500 font-mono text-[10px] ml-2 flex-shrink-0">{item.OUT_REQ_NO || '-'}</span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ));
+                })()}
               </div>
             </div>
           </div>
