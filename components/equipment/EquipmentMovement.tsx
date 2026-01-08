@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { findUserList, getWrkrHaveEqtListAll as getWrkrHaveEqtList, changeEquipmentWorker, getEquipmentHistoryInfo } from '../../services/apiService';
 import { debugApiCall } from './equipmentDebug';
-import { Scan, Search, ChevronDown, ChevronUp, Check, X, User } from 'lucide-react';
+import { Scan, Search, ChevronDown, ChevronUp, Check, X, User, RotateCcw } from 'lucide-react';
 import BarcodeScanner from './BarcodeScanner';
+import BaseModal from '../common/BaseModal';
 
 // Scan mode type: scan(단일스캔), equipment(장비번호), worker(보유기사)
 type ScanMode = 'scan' | 'equipment' | 'worker';
@@ -124,6 +125,13 @@ const EquipmentMovement: React.FC<EquipmentMovementProps> = ({ onBack }) => {
   // 뷰 모드: simple(간단히), detail(자세히)
   const [viewMode, setViewMode] = useState<'simple' | 'detail'>('simple');
 
+  // 조회 완료 상태 (결과 표시 여부)
+  const [hasSearched, setHasSearched] = useState(false);
+
+  // 기사 검색 팝업 상태
+  const [workerSearchKeyword, setWorkerSearchKeyword] = useState('');
+  const [isSearchingWorker, setIsSearchingWorker] = useState(false);
+
   useEffect(() => {
     loadInitialData();
   }, []);
@@ -215,6 +223,7 @@ const EquipmentMovement: React.FC<EquipmentMovementProps> = ({ onBack }) => {
         if (ownerWrkrId) {
           setWorkerInfo(prev => ({ ...prev, WRKR_ID: ownerWrkrId, WRKR_NM: ownerWrkrNm }));
           await searchEquipmentByWorker(ownerWrkrId, ownerWrkrNm, firstSN);
+          setHasSearched(true);
         } else {
           alert(`장비(${firstSN})의 보유기사 정보가 없습니다.`);
         }
@@ -229,15 +238,45 @@ const EquipmentMovement: React.FC<EquipmentMovementProps> = ({ onBack }) => {
     }
   };
 
-  // 장비번호 검색
+  // 장비번호 검색 - 직접 조회
   const handleSerialSearch = async () => {
     const normalizedSN = serialInput.trim().toUpperCase().replace(/[:-]/g, '');
     if (!normalizedSN) {
       alert('장비번호(S/N)를 입력해주세요.');
       return;
     }
-    await handleBarcodeScan(normalizedSN);
-    setSerialInput('');
+
+    setIsLoading(true);
+    try {
+      // 장비 정보로 보유기사 조회
+      const eqtResult = await debugApiCall('EquipmentMovement', 'getEquipmentHistoryInfo',
+        () => getEquipmentHistoryInfo({ EQT_SERNO: normalizedSN }),
+        { EQT_SERNO: normalizedSN }
+      );
+
+      if (eqtResult && eqtResult.length > 0) {
+        const eqt = eqtResult[0];
+        const ownerWrkrId = eqt.WRKR_ID || eqt.OWNER_WRKR_ID;
+        const ownerWrkrNm = eqt.WRKR_NM || eqt.OWNER_WRKR_NM || '알수없음';
+
+        if (ownerWrkrId) {
+          setScannedSerials([normalizedSN]);
+          setWorkerInfo(prev => ({ ...prev, WRKR_ID: ownerWrkrId, WRKR_NM: ownerWrkrNm }));
+          await searchEquipmentByWorker(ownerWrkrId, ownerWrkrNm, normalizedSN);
+          setHasSearched(true);
+        } else {
+          alert('장비(' + normalizedSN + ')의 보유기사 정보가 없습니다.');
+        }
+      } else {
+        alert('장비(' + normalizedSN + ')를 찾을 수 없습니다.');
+      }
+    } catch (error) {
+      console.error('장비 조회 실패:', error);
+      alert('장비 조회에 실패했습니다.');
+    } finally {
+      setIsLoading(false);
+      setSerialInput('');
+    }
   };
 
   // 기사 보유장비 조회
@@ -299,20 +338,55 @@ const EquipmentMovement: React.FC<EquipmentMovementProps> = ({ onBack }) => {
   const handleSearch = async () => {
     if (!workerInfo.WRKR_ID) { alert('보유기사를 선택해주세요.'); return; }
     await searchEquipmentByWorker(workerInfo.WRKR_ID, workerInfo.WRKR_NM);
+    setHasSearched(true);
   };
 
-  const handleWorkerSearch = async () => {
-    const keyword = prompt('기사 이름 또는 ID를 입력하세요:');
-    if (!keyword) return;
+  // 기사 검색 팝업 열기
+  const openWorkerSearchModal = () => {
+    setWorkerSearchKeyword('');
+    setSearchedWorkers([]);
+    setWorkerModalOpen(true);
+  };
+
+  // 기사 검색 (팝업 내에서)
+  const handleWorkerModalSearch = async () => {
+    if (!workerSearchKeyword.trim()) {
+      alert('검색어를 입력해주세요.');
+      return;
+    }
+    setIsSearchingWorker(true);
     try {
+      const keyword = workerSearchKeyword.trim();
       const isIdSearch = /^\d+$/.test(keyword) || /^[A-Z]\d+$/i.test(keyword);
       const searchParam = isIdSearch ? { USR_ID: keyword } : { USR_NM: keyword };
       const result = await debugApiCall('EquipmentMovement', 'findUserList', () => findUserList(searchParam), searchParam);
-      if (!result || result.length === 0) { alert('검색 결과가 없습니다.'); return; }
-      if (result.length === 1) {
-        setWorkerInfo(prev => ({ ...prev, WRKR_ID: result[0].USR_ID, WRKR_NM: result[0].USR_NM }));
-      } else { setSearchedWorkers(result.slice(0, 50)); setWorkerModalOpen(true); }
-    } catch (error) { console.error('보유기사 검색 실패:', error); alert('보유기사 검색에 실패했습니다.'); }
+      if (!result || result.length === 0) {
+        alert('검색 결과가 없습니다.');
+        setSearchedWorkers([]);
+      } else {
+        setSearchedWorkers(result.slice(0, 50));
+      }
+    } catch (error) {
+      console.error('보유기사 검색 실패:', error);
+      alert('보유기사 검색에 실패했습니다.');
+    } finally {
+      setIsSearchingWorker(false);
+    }
+  };
+
+  // 기사 선택
+  const handleWorkerSelect = (worker: { USR_ID: string; USR_NM: string }) => {
+    setWorkerInfo(prev => ({ ...prev, WRKR_ID: worker.USR_ID, WRKR_NM: worker.USR_NM }));
+    setWorkerModalOpen(false);
+  };
+
+  // 초기화 (검색 모드로 복귀)
+  const handleReset = () => {
+    setHasSearched(false);
+    setEqtTrnsList([]);
+    setScannedSerials([]);
+    setWorkerInfo(prev => ({ ...prev, WRKR_ID: '', WRKR_NM: '' }));
+    setSerialInput('');
   };
 
   const handleTransfer = async () => {
@@ -417,9 +491,6 @@ const EquipmentMovement: React.FC<EquipmentMovementProps> = ({ onBack }) => {
     <div className="h-full overflow-y-auto bg-gray-50 px-4 py-4 space-y-3">
       {/* 조회 모드 선택 - 3개 버튼 */}
       <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4">
-        <div className="flex items-center gap-2 mb-3">
-          <span className="text-sm font-semibold text-gray-800">조회 방식</span>
-        </div>
         <div className="grid grid-cols-3 gap-2">
           <button
             onClick={() => setScanMode('scan')}
@@ -549,32 +620,32 @@ const EquipmentMovement: React.FC<EquipmentMovementProps> = ({ onBack }) => {
             <p className="text-xs text-gray-500 mt-0.5">기사를 검색하여 보유 장비를 조회합니다</p>
           </div>
           <div className="space-y-3">
-            {/* 보유기사 */}
-            <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1.5">보유기사 <span className="text-red-500">*</span></label>
-              <div className="flex items-center gap-2">
-                <input
-                  type="text"
-                  value={workerInfo.WRKR_NM}
-                  onChange={(e) => setWorkerInfo({...workerInfo, WRKR_NM: e.target.value})}
-                  className="flex-1 min-w-0 px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-green-500"
-                  placeholder="기사명"
-                />
-                <button
-                  onClick={handleWorkerSearch}
-                  className="flex-shrink-0 px-3 py-2 text-sm border border-gray-200 rounded-lg bg-white hover:bg-gray-50 active:scale-[0.98] transition-all"
-                >
-                  <Search className="w-4 h-4" />
-                </button>
-                <input
-                  type="text"
-                  value={workerInfo.WRKR_ID}
-                  onChange={(e) => setWorkerInfo({...workerInfo, WRKR_ID: e.target.value})}
-                  className="w-24 px-2 py-2 text-xs border border-gray-200 rounded-lg flex-shrink-0 focus:ring-2 focus:ring-green-500"
-                  placeholder="ID"
-                />
+            {/* 보유기사 검색 버튼 */}
+            <button
+              onClick={openWorkerSearchModal}
+              className="w-full py-4 rounded-xl font-semibold text-base shadow-lg flex items-center justify-center gap-3 active:scale-[0.98] transition-all touch-manipulation bg-gradient-to-r from-green-500 to-green-600 text-white"
+            >
+              <Search className="w-6 h-6" />
+              기사 검색
+            </button>
+
+            {/* 선택된 기사 정보 */}
+            {workerInfo.WRKR_ID && (
+              <div className="p-3 bg-green-50 border border-green-200 rounded-lg">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <span className="text-sm font-semibold text-green-800">{workerInfo.WRKR_NM}</span>
+                    <span className="text-xs text-green-600 ml-2">({workerInfo.WRKR_ID})</span>
+                  </div>
+                  <button
+                    onClick={() => setWorkerInfo(prev => ({ ...prev, WRKR_ID: '', WRKR_NM: '' }))}
+                    className="text-green-600 hover:text-green-800"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
               </div>
-            </div>
+            )}
 
             {/* 조회 버튼 */}
             <button
@@ -625,13 +696,22 @@ const EquipmentMovement: React.FC<EquipmentMovementProps> = ({ onBack }) => {
             {/* 헤더 */}
             <div className="px-4 py-3 bg-gradient-to-r from-gray-50 to-white border-b border-gray-100">
               <div className="flex items-center justify-between mb-2">
-                <div>
-                  <span className="text-sm font-semibold text-gray-800">
-                    {workerInfo.WRKR_NM} 보유장비: {eqtTrnsList.length}건
-                  </span>
-                  <span className="text-sm text-blue-600 ml-2 font-medium">
-                    (선택: {eqtTrnsList.filter(item => item.CHK).length}건)
-                  </span>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={handleReset}
+                    className="p-1.5 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+                    title="초기화"
+                  >
+                    <RotateCcw className="w-4 h-4" />
+                  </button>
+                  <div>
+                    <span className="text-sm font-semibold text-gray-800">
+                      {workerInfo.WRKR_NM} 보유장비: {eqtTrnsList.length}건
+                    </span>
+                    <span className="text-sm text-blue-600 ml-2 font-medium">
+                      (선택: {eqtTrnsList.filter(item => item.CHK).length}건)
+                    </span>
+                  </div>
                 </div>
                 <label className="flex items-center gap-2 text-xs">
                   <input
@@ -811,13 +891,59 @@ const EquipmentMovement: React.FC<EquipmentMovementProps> = ({ onBack }) => {
       )}
 
       {/* 모달들 */}
-      <WorkerSearchModal
+      <BaseModal
         isOpen={workerModalOpen}
         onClose={() => setWorkerModalOpen(false)}
-        onSelect={(worker) => setWorkerInfo({...workerInfo, WRKR_ID: worker.USR_ID, WRKR_NM: worker.USR_NM})}
-        workers={searchedWorkers}
-        title="보유기사 선택"
-      />
+        title="기사 검색"
+        size="medium"
+        subHeader={
+          <div className="flex gap-2">
+            <input
+              type="text"
+              value={workerSearchKeyword}
+              onChange={(e) => setWorkerSearchKeyword(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && handleWorkerModalSearch()}
+              className="flex-1 px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-green-500"
+              placeholder="이름 또는 ID 입력"
+              autoFocus
+            />
+            <button
+              onClick={handleWorkerModalSearch}
+              disabled={isSearchingWorker}
+              className="px-4 py-2 bg-green-500 hover:bg-green-600 disabled:bg-gray-300 text-white rounded-lg font-medium text-sm"
+            >
+              {isSearchingWorker ? '...' : '검색'}
+            </button>
+          </div>
+        }
+        footer={
+          <button
+            onClick={() => setWorkerModalOpen(false)}
+            className="w-full py-2.5 text-sm text-gray-600 hover:bg-gray-100 rounded-lg font-medium transition-colors"
+          >
+            닫기
+          </button>
+        }
+      >
+        {searchedWorkers.length === 0 ? (
+          <div className="py-8 text-center text-gray-500 text-sm">
+            {isSearchingWorker ? '검색 중...' : '기사 이름 또는 ID를 검색하세요'}
+          </div>
+        ) : (
+          <div className="divide-y divide-gray-100">
+            {searchedWorkers.map((worker, idx) => (
+              <button
+                key={idx}
+                onClick={() => handleWorkerSelect(worker)}
+                className="w-full px-4 py-3 text-left hover:bg-green-50 flex justify-between items-center transition-colors active:bg-green-100 touch-manipulation"
+              >
+                <span className="font-medium text-gray-900">{worker.USR_NM}</span>
+                <span className="text-xs text-gray-500 bg-gray-100 px-2 py-0.5 rounded">{worker.USR_ID}</span>
+              </button>
+            ))}
+          </div>
+        )}
+      </BaseModal>
 
       {/* 바코드 스캐너 */}
       <BarcodeScanner
