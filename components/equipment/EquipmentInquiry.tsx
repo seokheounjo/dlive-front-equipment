@@ -1066,12 +1066,15 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
                       />
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center justify-between mb-2">
-                          <div className="flex items-center gap-1">
-                            <span className={`px-2 py-0.5 rounded text-xs font-bold ${getItemColor(item.ITEM_MID_CD)}`}>
+                          <div className="flex items-center gap-1.5 min-w-0 flex-1 mr-2">
+                            <span className={`px-2 py-0.5 rounded text-xs font-bold flex-shrink-0 ${getItemColor(item.ITEM_MID_CD)}`}>
                               {item.ITEM_MID_NM || item.EQT_CL_NM || '장비'}
                             </span>
+                            {item.ITEM_NM && (
+                              <span className="text-xs text-gray-700 truncate">{item.ITEM_NM}</span>
+                            )}
                             {item._hasReturnRequest && (
-                              <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-orange-500 text-white">
+                              <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-orange-500 text-white flex-shrink-0">
                                 반납요청중
                               </span>
                             )}
