@@ -623,17 +623,20 @@ const EquipmentMovement: React.FC<EquipmentMovementProps> = ({ onBack }) => {
             <p className="text-xs text-gray-500 mt-0.5">기사를 검색하여 보유 장비를 조회합니다</p>
           </div>
           <div className="space-y-3">
-            {/* 보유기사 입력 */}
-            <div className="flex items-center gap-2">
+            {/* 보유기사 입력 - 전체 영역 클릭 시 팝업 */}
+            <div
+              className="flex items-center gap-2 cursor-pointer"
+              onClick={openWorkerSearchModal}
+            >
               <input
                 type="text"
                 value={workerInfo.WRKR_NM}
                 readOnly
-                className="flex-1 min-w-0 px-3 py-2.5 text-sm border border-gray-200 rounded-lg bg-gray-50 focus:ring-2 focus:ring-green-500"
+                className="flex-1 min-w-0 px-3 py-2.5 text-sm border border-gray-200 rounded-lg bg-gray-50 cursor-pointer"
                 placeholder="기사명"
               />
               <button
-                onClick={openWorkerSearchModal}
+                type="button"
                 className="flex-shrink-0 px-4 py-2.5 text-sm border border-green-500 text-green-600 rounded-lg bg-white hover:bg-green-50 active:scale-[0.98] transition-all font-medium"
               >
                 <Search className="w-4 h-4" />
@@ -642,7 +645,7 @@ const EquipmentMovement: React.FC<EquipmentMovementProps> = ({ onBack }) => {
                 type="text"
                 value={workerInfo.WRKR_ID}
                 readOnly
-                className="w-28 px-2 py-2.5 text-xs border border-gray-200 rounded-lg flex-shrink-0 bg-gray-50 focus:ring-2 focus:ring-green-500"
+                className="w-28 px-2 py-2.5 text-xs border border-gray-200 rounded-lg flex-shrink-0 bg-gray-50 cursor-pointer"
                 placeholder="ID"
               />
             </div>
