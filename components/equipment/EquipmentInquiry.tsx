@@ -347,11 +347,15 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
                 CRR_ID: userInfo.crrId || '',
                 SO_ID: selectedSoId || userInfo.soId || undefined,
               });
+              console.log('[보유장비] 반납요청 조회 결과:', returnResult);
               if (Array.isArray(returnResult)) {
                 returnResult.forEach((item: any) => {
-                  if (item.EQT_NO) returnRequestEqtNos.add(item.EQT_NO);
+                  if (item.EQT_NO) {
+                    returnRequestEqtNos.add(item.EQT_NO);
+                    console.log('[반납요청] EQT_NO 추가:', item.EQT_NO);
+                  }
                 });
-                console.log('[보유장비] 반납요청 중인 장비 수:', returnRequestEqtNos.size);
+                console.log('[보유장비] 반납요청 중인 장비 수:', returnRequestEqtNos.size, '/ EQT_NO Set:', Array.from(returnRequestEqtNos));
               }
             } catch (returnErr) {
               console.log('[보유장비] 반납요청 목록 조회 실패 (무시):', returnErr);
@@ -364,11 +368,17 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
                 filtered = ownedResult.filter((item: any) => item.ITEM_MID_CD === selectedItemMidCd);
               }
               // 보유장비 표시용 태그 추가 + 반납요청 중인지 표시
-              allResults.push(...filtered.map((item: any) => ({
-                ...item,
-                _category: 'OWNED',
-                _hasReturnRequest: returnRequestEqtNos.has(item.EQT_NO)
-              })));
+              allResults.push(...filtered.map((item: any) => {
+                const hasReturn = returnRequestEqtNos.has(item.EQT_NO);
+                if (hasReturn) {
+                  console.log('[보유장비] 반납요청중 장비 발견:', item.EQT_NO, item.EQT_SERNO);
+                }
+                return {
+                  ...item,
+                  _category: 'OWNED',
+                  _hasReturnRequest: hasReturn
+                };
+              }));
             }
           } catch (e) {
             console.log('보유장비 조회 실패 (getCustProdInfo):', e);
@@ -1033,9 +1043,16 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
                       />
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center justify-between mb-2">
-                          <span className={`px-2 py-0.5 rounded text-xs font-bold ${getItemColor(item.ITEM_MID_CD)}`}>
-                            {item.ITEM_MID_NM || item.EQT_CL_NM || '장비'}
-                          </span>
+                          <div className="flex items-center gap-1">
+                            <span className={`px-2 py-0.5 rounded text-xs font-bold ${getItemColor(item.ITEM_MID_CD)}`}>
+                              {item.ITEM_MID_NM || item.EQT_CL_NM || '장비'}
+                            </span>
+                            {item._hasReturnRequest && (
+                              <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-amber-500 text-white">
+                                반납요청중
+                              </span>
+                            )}
+                          </div>
                           <span className={`px-2 py-1 rounded-full text-xs font-semibold ${
                             item.EQT_USE_ARR_YN === 'Y' ? 'bg-green-100 text-green-700' :
                             item.EQT_USE_ARR_YN === 'A' ? 'bg-purple-100 text-purple-700' :

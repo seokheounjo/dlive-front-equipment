@@ -201,27 +201,51 @@ const EquipmentAssignment: React.FC<EquipmentAssignmentProps> = ({ onBack, showT
   const handleSearch = async () => {
     setIsLoading(true);
     try {
-      const params = {
-        FROM_OUT_REQ_DT: fromDate,
-        TO_OUT_REQ_DT: toDate,
-        SO_ID: selectedSoId || userInfo?.soId || '209',  // SO_ID 필수
-        PROC_STAT: '%'  // 모든 처리상태 조회 (필수 - 없으면 빈 결과)
-      };
+      let allResults: EqtOut[] = [];
 
-      const result = await debugApiCall(
-        'EquipmentAssignment',
-        'getEquipmentOutList',
-        () => getEquipmentOutList(params),
-        params
-      );
-      setEqtOutList(result || []);
+      // 전체 선택 시 모든 지점 조회
+      if (!selectedSoId && soList.length > 0) {
+        console.log('[장비할당] 전체 지점 조회 모드 - ', soList.length, '개 지점');
+        const promises = soList.map(so => {
+          const params = {
+            FROM_OUT_REQ_DT: fromDate,
+            TO_OUT_REQ_DT: toDate,
+            SO_ID: so.SO_ID,
+            PROC_STAT: '%'
+          };
+          return getEquipmentOutList(params).catch(() => []);
+        });
+        const results = await Promise.all(promises);
+        allResults = results.flat();
+        console.log('[장비할당] 전체 지점 조회 완료 - 총', allResults.length, '건');
+      } else {
+        // 특정 지점 선택 시
+        const params = {
+          FROM_OUT_REQ_DT: fromDate,
+          TO_OUT_REQ_DT: toDate,
+          SO_ID: selectedSoId || userInfo?.soId || '209',
+          PROC_STAT: '%'
+        };
+        const result = await debugApiCall(
+          'EquipmentAssignment',
+          'getEquipmentOutList',
+          () => getEquipmentOutList(params),
+          params
+        );
+        allResults = result || [];
+      }
+
+      // 지점별 정렬 (SO_NM 기준)
+      allResults.sort((a, b) => (a.SO_NM || '').localeCompare(b.SO_NM || ''));
+
+      setEqtOutList(allResults);
       setSelectedEqtOut(null);
       setOutTgtEqtList([]);
 
-      if (result.length === 0) {
+      if (allResults.length === 0) {
         showToast?.('조회된 출고 내역이 없습니다.', 'info');
       } else {
-        showToast?.(`${result.length}건의 출고 내역을 조회했습니다.`, 'success');
+        showToast?.(`${allResults.length}건의 출고 내역을 조회했습니다.`, 'success');
       }
     } catch (error: any) {
       console.error('❌ [장비할당] 조회 실패:', error);
@@ -326,7 +350,10 @@ const EquipmentAssignment: React.FC<EquipmentAssignmentProps> = ({ onBack, showT
   };
 
   const handleCheckAll = (checked: boolean) => {
-    setOutTgtEqtList(outTgtEqtList.map(item => ({ ...item, CHK: checked })));
+    setOutTgtEqtList(outTgtEqtList.map(item => ({
+      ...item,
+      CHK: item.PROC_YN === 'Y' ? true : checked
+    })));
   };
 
   const handleCheckItem = (index: number, checked: boolean) => {
@@ -440,7 +467,7 @@ const EquipmentAssignment: React.FC<EquipmentAssignmentProps> = ({ onBack, showT
         {eqtOutList.length > 0 && (
           <div>
             <div className="flex items-center justify-between mb-2">
-              <h3 className="text-sm font-semibold text-gray-700">출고 리스트 (파트너사 → 기사)</h3>
+              <h3 className="text-sm font-semibold text-gray-700">리스트</h3>
               <span className="text-xs text-gray-500">{eqtOutList.length}건</span>
             </div>
             <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
@@ -451,7 +478,7 @@ const EquipmentAssignment: React.FC<EquipmentAssignmentProps> = ({ onBack, showT
                       <th className="px-3 py-2.5 text-center text-xs font-semibold text-gray-600 border-b border-gray-100 whitespace-nowrap">출고일</th>
                       <th className="px-3 py-2.5 text-left text-xs font-semibold text-gray-600 border-b border-gray-100">협력업체</th>
                       <th className="px-3 py-2.5 text-left text-xs font-semibold text-gray-600 border-b border-gray-100">지점</th>
-                      <th className="px-3 py-2.5 text-center text-xs font-semibold text-gray-600 border-b border-gray-100">상태</th>
+                      <th className="px-2 py-2.5 text-left text-xs font-semibold text-gray-600 border-b border-gray-100 whitespace-nowrap">출고번호</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -474,14 +501,8 @@ const EquipmentAssignment: React.FC<EquipmentAssignmentProps> = ({ onBack, showT
                         <td className="px-3 py-2.5 text-xs text-gray-700 border-b border-gray-50">
                           {item.SO_NM || '-'}
                         </td>
-                        <td className="px-3 py-2.5 text-xs text-center border-b border-gray-50">
-                          <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${
-                            item.PROC_STAT === 'C' ? 'bg-green-100 text-green-700' :
-                            item.PROC_STAT === 'P' ? 'bg-yellow-100 text-yellow-700' :
-                            'bg-gray-100 text-gray-700'
-                          }`}>
-                            {item.PROC_STAT_NM || (item.PROC_STAT === 'C' ? '완료' : item.PROC_STAT === 'P' ? '진행중' : '대기')}
-                          </span>
+                        <td className="px-2 py-2.5 text-xs text-gray-700 border-b border-gray-50 font-mono whitespace-nowrap">
+                          {item.OUT_REQ_NO || '-'}
                         </td>
                       </tr>
                     ))}
@@ -492,33 +513,7 @@ const EquipmentAssignment: React.FC<EquipmentAssignmentProps> = ({ onBack, showT
           </div>
         )}
 
-        {/* 선택된 출고 정보 요약 */}
-        {selectedEqtOut && (
-          <div className="bg-gradient-to-r from-blue-50 to-blue-100/50 rounded-xl border border-blue-200 p-4">
-            <div className="flex items-center gap-2 mb-3">
-              <span className="text-blue-600">📦</span>
-              <span className="text-sm font-semibold text-gray-800">선택된 출고</span>
-            </div>
-            <div className="grid grid-cols-2 gap-2 text-xs">
-              <div>
-                <span className="text-gray-500">출고번호:</span>
-                <span className="ml-1 font-medium">{selectedEqtOut.OUT_REQ_NO}</span>
-              </div>
-              <div>
-                <span className="text-gray-500">출고일:</span>
-                <span className="ml-1 font-medium">{formatOutDttm(selectedEqtOut.OUT_DTTM || selectedEqtOut.OUT_REQ_DT)}</span>
-              </div>
-              <div>
-                <span className="text-gray-500">협력업체:</span>
-                <span className="ml-1 font-medium">{selectedEqtOut.CRR_NM || '-'}</span>
-              </div>
-              <div>
-                <span className="text-gray-500">할당기사:</span>
-                <span className="ml-1 font-medium">{selectedEqtOut.OUT_REQ_UID_NM || '-'}</span>
-              </div>
-            </div>
-          </div>
-        )}
+
 
         {/* 입고 대상 장비 리스트 */}
         {selectedEqtOut && (
@@ -526,7 +521,7 @@ const EquipmentAssignment: React.FC<EquipmentAssignmentProps> = ({ onBack, showT
             <div className="flex items-center justify-between mb-2">
               <h3 className="text-sm font-semibold text-gray-700">입고 대상 장비</h3>
               {outTgtEqtList.length > 0 && (
-                <span className="text-xs text-gray-500">{outTgtEqtList.length}개</span>
+                <span className="text-xs text-gray-500">{outTgtEqtList.filter(i => i.CHK && i.PROC_YN !== 'Y').length}/{outTgtEqtList.length}</span>
               )}
             </div>
 
@@ -547,8 +542,9 @@ const EquipmentAssignment: React.FC<EquipmentAssignmentProps> = ({ onBack, showT
                       type="checkbox"
                       id="checkAll"
                       onChange={(e) => handleCheckAll(e.target.checked)}
-                      checked={outTgtEqtList.length > 0 && outTgtEqtList.every(item => item.CHK)}
-                      className="w-4 h-4 text-blue-500 rounded focus:ring-blue-500"
+                      checked={outTgtEqtList.filter(i => i.PROC_YN !== 'Y').length > 0 && outTgtEqtList.filter(i => i.PROC_YN !== 'Y').every(item => item.CHK)}
+                      disabled={outTgtEqtList.every(i => i.PROC_YN === 'Y')}
+                      className="w-4 h-4 text-blue-500 rounded focus:ring-blue-500 disabled:cursor-not-allowed"
                     />
                     <label htmlFor="checkAll" className="text-xs text-gray-600 cursor-pointer">전체 선택</label>
                   </div>
@@ -558,15 +554,16 @@ const EquipmentAssignment: React.FC<EquipmentAssignmentProps> = ({ onBack, showT
                     {outTgtEqtList.map((item, idx) => (
                       <div
                         key={idx}
-                        className={`p-4 ${item.CHK ? 'bg-blue-50' : 'hover:bg-gray-50'} transition-colors`}
+                        className={`p-4 ${item.PROC_YN === 'Y' ? 'bg-green-50' : item.CHK ? 'bg-blue-50' : 'hover:bg-gray-50'} transition-colors`}
                       >
                         <div className="flex items-start gap-3">
-                          {/* 체크박스 */}
+                          {/* 체크박스 - 처리완료 시 비활성화 및 체크 상태 */}
                           <input
                             type="checkbox"
-                            checked={item.CHK || false}
-                            onChange={(e) => handleCheckItem(idx, e.target.checked)}
-                            className="w-4 h-4 mt-0.5 text-blue-500 rounded focus:ring-blue-500"
+                            checked={item.PROC_YN === 'Y' ? true : (item.CHK || false)}
+                            onChange={(e) => item.PROC_YN !== 'Y' && handleCheckItem(idx, e.target.checked)}
+                            disabled={item.PROC_YN === 'Y'}
+                            className={`w-4 h-4 mt-0.5 rounded focus:ring-blue-500 ${item.PROC_YN === 'Y' ? 'text-green-500 cursor-not-allowed' : 'text-blue-500'}`}
                           />
 
                           {/* 장비 정보 */}
@@ -578,48 +575,34 @@ const EquipmentAssignment: React.FC<EquipmentAssignmentProps> = ({ onBack, showT
                               <span className="text-sm font-medium text-gray-900 truncate">
                                 {item.EQT_CL_NM || '-'}
                               </span>
+                              {item.PROC_YN === 'Y' && (
+                                <span className="px-1.5 py-0.5 bg-green-500 text-white text-[10px] rounded font-medium">완료</span>
+                              )}
                             </div>
-                            <div className="text-xs text-gray-500 space-y-0.5">
+                            <div className="text-xs text-gray-500">
                               <div className="flex items-center gap-2">
                                 <span className="font-mono">S/N: {item.EQT_SERNO || '-'}</span>
                                 {item.MAC_ADDRESS && (
                                   <span className="text-gray-400 font-mono">| MAC: {item.MAC_ADDRESS}</span>
                                 )}
                               </div>
-                              <div className="flex items-center gap-2">
-                                <span>수량: {item.OUT_QTY || 1}</span>
-                                <span className={`${item.PROC_YN === 'Y' ? 'text-green-600' : 'text-yellow-600'}`}>
-                                  {item.PROC_YN === 'Y' ? '✓ 처리완료' : '○ 미처리'}
-                                </span>
-                              </div>
                             </div>
                           </div>
-
-                          {/* 상세보기 버튼 */}
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleShowDetail(item);
-                            }}
-                            className="px-3 py-1.5 text-xs text-blue-600 hover:bg-blue-100 rounded-lg transition-colors"
-                          >
-                            상세
-                          </button>
                         </div>
                       </div>
                     ))}
                   </div>
                 </div>
 
-                {/* 입고처리 버튼 */}
-                <div className="mt-3 flex justify-end gap-2">
+                {/* 입고처리 버튼 - 하단 고정 */}
+                <div className="sticky bottom-0 bg-white border-t border-gray-100 p-3 -mx-0 mt-3">
                   <button
                     onClick={handleCheckAccept}
-                    disabled={!outTgtEqtList.some(item => item.CHK)}
-                    className="bg-blue-500 hover:bg-blue-600 disabled:bg-gray-300 text-white py-2.5 px-6 rounded-lg font-semibold text-sm shadow-sm transition-all active:scale-[0.98] touch-manipulation disabled:cursor-not-allowed"
+                    disabled={!outTgtEqtList.some(item => item.CHK && item.PROC_YN !== 'Y')}
+                    className="w-full bg-blue-500 hover:bg-blue-600 disabled:bg-gray-300 text-white py-3 px-6 rounded-lg font-semibold text-sm shadow-sm transition-all active:scale-[0.98] touch-manipulation disabled:cursor-not-allowed"
                     style={{ WebkitTapHighlightColor: 'transparent' }}
                   >
-                    선택 장비 입고처리 ({outTgtEqtList.filter(item => item.CHK).length}건)
+                    선택 장비 입고처리 ({outTgtEqtList.filter(item => item.CHK && item.PROC_YN !== 'Y').length}건)
                   </button>
                 </div>
               </>
@@ -640,7 +623,7 @@ const EquipmentAssignment: React.FC<EquipmentAssignmentProps> = ({ onBack, showT
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
                 </svg>
               </div>
-              <p className="text-gray-600 text-sm mb-1">출고 리스트가 없습니다</p>
+              <p className="text-gray-600 text-sm mb-1">리스트가 없습니다</p>
               <p className="text-gray-400 text-xs">검색 조건을 설정하고 조회 버튼을 눌러주세요</p>
             </div>
           </div>
