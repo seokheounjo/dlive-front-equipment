@@ -608,9 +608,11 @@ const EquipmentAssignment: React.FC<EquipmentAssignmentProps> = ({ onBack, showT
                     })}
                   </div>
                 </div>
+                {/* 하단 버튼 영역 확보용 여백 */}
+                <div className="h-20"></div>
 
                 {/* 입고처리 버튼 - 네비게이션 바 바로 위 고정 */}
-                <div className="fixed bottom-[52px] left-0 right-0 bg-white border-t border-gray-200 p-3 z-40" style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}>
+                <div className="fixed bottom-[56px] left-0 right-0 bg-white border-t border-gray-200 p-3 z-40 shadow-lg" style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}>
                   <button
                     onClick={handleCheckAccept}
                     disabled={!outTgtEqtList.some(item => item.CHK && item.EQT_SERNO && (item.IBGO_QTY || 0) === 0)}
