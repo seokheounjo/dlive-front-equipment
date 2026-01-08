@@ -1024,7 +1024,7 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
                 {equipmentList.map((item, idx) => (
                   <div
                     key={idx}
-                    onClick={() => handleCheckItem(idx, !item.CHK)}
+                    onClick={() => { if (!(item._category === 'OWNED' && item._hasReturnRequest)) handleCheckItem(idx, !item.CHK); }}
                     className={`p-3 rounded-lg border-2 cursor-pointer transition-all ${
                       item.CHK
                         ? 'bg-blue-50 border-blue-400'
@@ -1038,8 +1038,13 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
                       <input
                         type="checkbox"
                         checked={item.CHK || false}
+                        disabled={item._category === 'OWNED' && item._hasReturnRequest}
                         onChange={(e) => { e.stopPropagation(); handleCheckItem(idx, e.target.checked); }}
-                        className="w-5 h-5 text-blue-500 rounded focus:ring-blue-500 mt-0.5"
+                        className={`w-5 h-5 rounded focus:ring-blue-500 mt-0.5 ${
+                          item._category === 'OWNED' && item._hasReturnRequest 
+                            ? 'text-gray-300 cursor-not-allowed' 
+                            : 'text-blue-500'
+                        }`}
                       />
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center justify-between mb-2">
@@ -1087,7 +1092,7 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
                 {equipmentList.map((item, idx) => (
                   <div
                     key={idx}
-                    onClick={() => handleCheckItem(idx, !item.CHK)}
+                    onClick={() => { if (!(item._category === 'OWNED' && item._hasReturnRequest)) handleCheckItem(idx, !item.CHK); }}
                     className={`p-3 rounded-lg border-2 cursor-pointer transition-all ${
                       item.CHK
                         ? 'bg-blue-50 border-blue-400'
@@ -1101,8 +1106,13 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
                       <input
                         type="checkbox"
                         checked={item.CHK || false}
+                        disabled={item._category === 'OWNED' && item._hasReturnRequest}
                         onChange={(e) => { e.stopPropagation(); handleCheckItem(idx, e.target.checked); }}
-                        className="w-5 h-5 text-blue-500 rounded focus:ring-blue-500 mt-0.5"
+                        className={`w-5 h-5 rounded focus:ring-blue-500 mt-0.5 ${
+                          item._category === 'OWNED' && item._hasReturnRequest 
+                            ? 'text-gray-300 cursor-not-allowed' 
+                            : 'text-blue-500'
+                        }`}
                       />
                       <div className="flex-1 min-w-0">
                         {/* 상단: 모델명 + 반납요청중 배지 + 사용가능 */}

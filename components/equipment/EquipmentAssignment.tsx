@@ -255,16 +255,7 @@ const EquipmentAssignment: React.FC<EquipmentAssignmentProps> = ({ onBack, showT
     }
   };
 
-  // Page load auto-search (on mount)
-  useEffect(() => {
-    console.log('[장비할당] 페이지 로드 - 자동 조회 시작');
-    // Small delay to wait for branch list load
-    const timer = setTimeout(() => {
-      handleSearch();
-    }, 300);
-    return () => clearTimeout(timer);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  // 자동 조회 제거 - 조회 버튼 클릭 시에만 조회
 
   const handleEqtOutSelect = async (item: EqtOut) => {
     setSelectedEqtOut(item);
