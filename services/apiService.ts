@@ -3289,50 +3289,63 @@ export const delEquipmentReturnRequest = async (params: {
 
     const origin = typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000';
 
-    const requestBody = {
-      WRKR_ID: params.WRKR_ID,
-      CRR_ID: params.CRR_ID,
-      SO_ID: params.SO_ID || '',
-      REG_UID: params.WRKR_ID,
-      CHG_UID: params.WRKR_ID,
-      equipmentList: params.equipmentList.map(item => ({
+    // CRITICAL FIX: 레거시 서비스가 _inserted_list 배치 형식을 지원하지 않음
+    // 각 아이템별로 개별 API 호출 (단일 파라미터 형식만 작동함)
+    let successCount = 0;
+    let failedItems: string[] = [];
+
+    for (const item of params.equipmentList) {
+      // 단일 아이템 형식으로 전송 (DELETE WHERE 조건: EQT_NO, REQ_DT, RETURN_TP)
+      const singleRequestBody = {
         EQT_NO: item.EQT_NO,
-        EQT_SERNO: item.EQT_SERNO || '',
-        REQ_DT: item.REQ_DT || '',           // MiPlatform: 반납요청일자
-        RETURN_TP: item.RETURN_TP || '2',    // MiPlatform: 항상 "2"
-        EQT_USE_ARR_YN: item.EQT_USE_ARR_YN || 'Y',  // 기본값 Y
-      })),
-    };
-
-    console.log('[delEquipmentReturnRequest] API 호출 파라미터:', requestBody);
-
-    const response = await fetchWithRetry(`${API_BASE}/customer/equipment/delEquipmentReturnRequest`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Origin': origin
-      },
-      credentials: 'include',
-      body: JSON.stringify(requestBody),
-    });
-
-    const result = await response.json();
-    console.log('[delEquipmentReturnRequest] API 응답:', result);
-
-    // 성공 여부 확인
-    if (result && (result.MSGCODE === '0' || result.MSGCODE === 'SUCCESS' || result.success === true || Array.isArray(result))) {
-      return {
-        success: true,
-        message: result.MESSAGE || `${params.equipmentList.length}건의 반납요청이 취소되었습니다.`,
-        data: result
+        REQ_DT: item.REQ_DT || '',           // 필수! 반납요청일자
+        RETURN_TP: item.RETURN_TP || '2',    // 필수! 반납유형
+        EQT_USE_ARR_YN: item.EQT_USE_ARR_YN || 'Y',
+        WRKR_ID: params.WRKR_ID,
+        CRR_ID: params.CRR_ID,
+        SO_ID: params.SO_ID || '',
       };
-    } else if (result && result.MSGCODE) {
-      throw new NetworkError(result.MESSAGE || `반납취소 실패 (코드: ${result.MSGCODE})`);
-    } else if (result && result.code) {
-      throw new NetworkError(result.message || '반납 취소에 실패했습니다.');
+
+      console.log('[delEquipmentReturnRequest] 개별 호출:', item.EQT_SERNO, singleRequestBody);
+
+      try {
+        const response = await fetchWithRetry(`${API_BASE}/customer/equipment/delEquipmentReturnRequest`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Origin': origin
+          },
+          credentials: 'include',
+          body: JSON.stringify(singleRequestBody),
+        });
+
+        const result = await response.json();
+        console.log('[delEquipmentReturnRequest] 개별 응답:', item.EQT_SERNO, result);
+
+        if (result && (result.MSGCODE === '0' || result.MSGCODE === 'SUCCESS' || result.success === true)) {
+          successCount++;
+        } else {
+          failedItems.push(item.EQT_SERNO || item.EQT_NO);
+        }
+      } catch (itemError: any) {
+        console.error('[delEquipmentReturnRequest] 개별 실패:', item.EQT_SERNO, itemError);
+        failedItems.push(item.EQT_SERNO || item.EQT_NO);
+      }
     }
 
-    return result;
+    console.log('[delEquipmentReturnRequest] 완료: 성공', successCount, '/ 실패', failedItems.length);
+
+    if (successCount > 0) {
+      return {
+        success: true,
+        message: failedItems.length > 0
+          ? `${successCount}건 취소 성공, ${failedItems.length}건 실패`
+          : `${successCount}건의 반납요청이 취소되었습니다.`,
+        data: { successCount, failedItems }
+      };
+    } else {
+      throw new NetworkError(`반납취소 실패: ${failedItems.join(', ')}`);
+    }
 
   } catch (error: any) {
     console.error('[delEquipmentReturnRequest] 반납취소 실패:', error);
