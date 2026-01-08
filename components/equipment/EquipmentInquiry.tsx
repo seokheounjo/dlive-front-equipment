@@ -244,8 +244,8 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
   const [returnReason, setReturnReason] = useState<string>('');
   const [lossReason, setLossReason] = useState<string>('');
 
-  // 뷰 모드: simple(간단히), medium(중간), detail(자세히)
-  const [viewMode, setViewMode] = useState<'simple' | 'medium' | 'detail'>('simple');
+  // 뷰 모드: simple(간단히), detail(자세히)
+  const [viewMode, setViewMode] = useState<'simple' | 'detail'>('simple');
 
   // 상태 변경 결과 (검사대기 다중처리용)
   const [statusChangeResult, setStatusChangeResult] = useState<StatusChangeResult | null>(null);
@@ -979,16 +979,6 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
                   간단히
                 </button>
                 <button
-                  onClick={() => setViewMode('medium')}
-                  className={`flex-1 py-1.5 px-2 text-xs font-medium rounded-md transition-all ${
-                    viewMode === 'medium'
-                      ? 'bg-white text-blue-600 shadow-sm'
-                      : 'text-gray-500 hover:text-gray-700'
-                  }`}
-                >
-                  중간
-                </button>
-                <button
                   onClick={() => setViewMode('detail')}
                   className={`flex-1 py-1.5 px-2 text-xs font-medium rounded-md transition-all ${
                     viewMode === 'detail'
@@ -1001,67 +991,8 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
               </div>
             </div>
 
-            {/* 간단히 보기: 품목명 + 상태 + 카테고리 */}
+            {/* 간단히 보기: 품목명 + 상태 + S/N + MAC + 카테고리 */}
             {viewMode === 'simple' && (
-              <div className="max-h-80 overflow-y-auto p-3 space-y-2">
-                {equipmentList.map((item, idx) => (
-                  <div
-                    key={idx}
-                    onClick={() => handleCheckItem(idx, !item.CHK)}
-                    className={`flex items-center justify-between p-3 rounded-lg border-2 cursor-pointer transition-all ${
-                      item.CHK
-                        ? 'bg-blue-50 border-blue-400'
-                        : item._category === 'OWNED' ? 'bg-green-50/50 border-green-200 hover:border-green-300'
-                        : item._category === 'RETURN_REQUESTED' ? 'bg-amber-50/50 border-amber-200 hover:border-amber-300'
-                        : item._category === 'INSPECTION_WAITING' ? 'bg-purple-50/50 border-purple-200 hover:border-purple-300'
-                        : 'bg-gray-50 border-transparent hover:border-gray-200'
-                    }`}
-                  >
-                    <div className="flex items-center gap-3">
-                      <input
-                        type="checkbox"
-                        checked={item.CHK || false}
-                        onChange={(e) => { e.stopPropagation(); handleCheckItem(idx, e.target.checked); }}
-                        className="w-5 h-5 text-blue-500 rounded focus:ring-blue-500"
-                      />
-                      <div>
-                        <div className="flex items-center gap-2">
-                          {/* 카테고리 배지 */}
-                          <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold ${
-                            item._category === 'OWNED' ? 'bg-green-500 text-white' :
-                            item._category === 'RETURN_REQUESTED' ? 'bg-amber-500 text-white' :
-                            item._category === 'INSPECTION_WAITING' ? 'bg-purple-500 text-white' :
-                            'bg-gray-400 text-white'
-                          }`}>
-                            {item._category === 'OWNED' ? '보유' :
-                             item._category === 'RETURN_REQUESTED' ? '반납' :
-                             item._category === 'INSPECTION_WAITING' ? '검사' : '-'}
-                          </span>
-                          {item._hasReturnRequest && <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-red-500 text-white animate-pulse">반납중</span>}
-                          <span className={`px-2 py-0.5 rounded text-xs font-bold ${getItemColor(item.ITEM_MID_CD)}`}>
-                            {item.ITEM_NM || item.EQT_CL_NM || item.ITEM_MID_NM || '장비'}
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-                    <div className="flex flex-col items-end">
-                      <span className={`px-2 py-1 rounded-full text-xs font-semibold ${
-                        item.EQT_STAT_CD === '10' ? 'bg-green-100 text-green-700' :
-                        item.EQT_STAT_CD === '20' ? 'bg-blue-100 text-blue-700' :
-                        item.EQT_STAT_CD === '40' ? 'bg-amber-100 text-amber-700' :
-                        item.EQT_STAT_CD === '50' ? 'bg-purple-100 text-purple-700' :
-                        'bg-gray-100 text-gray-700'
-                      }`}>
-                        {item.EQT_STAT_NM || getEqtStatName(item.EQT_STAT_CD)}
-                      </span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-
-            {/* 중간 보기: 품목명 + 상태 + S/N + MAC + 카테고리 */}
-            {viewMode === 'medium' && (
               <div className="max-h-80 overflow-y-auto p-3 space-y-2">
                 {equipmentList.map((item, idx) => (
                   <div
