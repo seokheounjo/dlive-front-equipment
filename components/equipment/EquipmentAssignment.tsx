@@ -290,26 +290,27 @@ const EquipmentAssignment: React.FC<EquipmentAssignmentProps> = ({ onBack, showT
   };
 
   const handleCheckAccept = async () => {
+    console.log('[입고처리] 버튼 클릭됨');
+    console.log('[입고처리] selectedEqtOut:', selectedEqtOut);
+
     if (!selectedEqtOut) {
       showToast?.('출고 정보를 선택해주세요.', 'warning');
       return;
     }
 
-    const checkedItems = outTgtEqtList.filter(item => item.CHK);
+    // 입고완료가 아닌 선택된 장비만 필터링
+    const checkedItems = outTgtEqtList.filter(item => item.CHK && (item.IBGO_QTY || 0) === 0);
+    console.log('[입고처리] 선택된 장비:', checkedItems.length, '건');
+    console.log('[입고처리] 선택된 장비 상세:', checkedItems);
+
     if (checkedItems.length === 0) {
       showToast?.('입고 처리할 장비를 선택해주세요.', 'warning');
       return;
     }
 
-    // EQT_NO null 검증 (장비번호 미할당된 장비 필터링)
-    const validItems = checkedItems.filter(item => item.EQT_NO && item.EQT_NO.trim() !== '');
-    if (validItems.length === 0) {
-      showToast?.('선택한 장비 중 입고 처리 가능한 장비가 없습니다. (장비번호 미할당)', 'warning');
-      return;
-    }
-    if (validItems.length < checkedItems.length) {
-      showToast?.(`${checkedItems.length}건 중 ${validItems.length}건만 입고 처리됩니다. (일부 장비번호 미할당)`, 'info');
-    }
+    // 미할당 장비도 처리 가능 - EQT_NO 없어도 진행
+    const validItems = checkedItems;
+    console.log('[입고처리] 처리할 장비:', validItems.length, '건');
 
     try {
       const params = {
@@ -319,11 +320,13 @@ const EquipmentAssignment: React.FC<EquipmentAssignmentProps> = ({ onBack, showT
         CARRIER_ID: selectedEqtOut.CRR_ID || userInfo?.crrId || '',
         CRR_ID: selectedEqtOut.CRR_ID || userInfo?.crrId || '',
         equipmentList: validItems.map(item => ({
-          EQT_NO: item.EQT_NO,
+          EQT_NO: item.EQT_NO || '',
           EQT_SERNO: item.EQT_SERNO || '',
           OUT_REQ_NO: item.OUT_REQ_NO || '',
         }))
       };
+
+      console.log('[입고처리] API 요청 파라미터:', params);
 
       await debugApiCall(
         'EquipmentAssignment',
