@@ -466,12 +466,18 @@ const EquipmentAssignment: React.FC<EquipmentAssignmentProps> = ({ onBack, showT
         {/* 리스트 - 지점별 그룹핑 */}
         {eqtOutList.length > 0 && (
           <div>
-            <div className="flex items-center justify-between mb-2">
-              <h3 className="text-sm font-semibold text-gray-700">리스트</h3>
-              <span className="text-xs text-gray-500">{eqtOutList.length}건</span>
+            <div className="mb-2">
+              <h3 className="text-sm font-semibold text-gray-700">리스트 (파트너사 → 기사)</h3>
             </div>
             <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
-              <div className="max-h-64 overflow-y-auto">
+              {/* 컬럼 헤더 */}
+              <div className="bg-gray-50 px-3 py-2 border-b border-gray-200 flex items-center text-xs font-semibold text-gray-600">
+                <span className="w-24">출고일</span>
+                <span className="flex-1">협력업체</span>
+                <span className="w-28 text-right">출고번호</span>
+              </div>
+              {/* 지점별 그룹핑된 리스트 */}
+              <div>
                 {(() => {
                   const grouped = eqtOutList.reduce((acc, item) => {
                     const key = item.SO_NM || '기타';
@@ -483,7 +489,7 @@ const EquipmentAssignment: React.FC<EquipmentAssignmentProps> = ({ onBack, showT
 
                   return soNames.map((soName) => (
                     <div key={soName}>
-                      <div className="bg-gray-100 px-3 py-2 border-b border-gray-200 sticky top-0 z-10">
+                      <div className="bg-gray-100 px-3 py-2 border-b border-gray-200">
                         <span className="text-xs font-semibold text-gray-700">{soName}</span>
                         <span className="ml-2 text-xs text-gray-500">({grouped[soName].length}건)</span>
                       </div>
@@ -497,12 +503,10 @@ const EquipmentAssignment: React.FC<EquipmentAssignmentProps> = ({ onBack, showT
                               : 'hover:bg-blue-50/50'
                           }`}
                         >
-                          <div className="flex items-center justify-between text-xs">
-                            <div className="flex items-center gap-2 min-w-0">
-                              <span className="text-gray-900 whitespace-nowrap">{formatOutDttm(item.OUT_DTTM || item.OUT_REQ_DT)}</span>
-                              <span className="text-gray-600 truncate">{item.CRR_NM || '-'}</span>
-                            </div>
-                            <span className="text-gray-500 font-mono text-[10px] ml-2 flex-shrink-0">{item.OUT_REQ_NO || '-'}</span>
+                          <div className="flex items-center text-xs">
+                            <span className="w-24 text-gray-900 whitespace-nowrap">{formatOutDttm(item.OUT_DTTM || item.OUT_REQ_DT)}</span>
+                            <span className="flex-1 text-gray-600 truncate">{item.CRR_NM || '-'}</span>
+                            <span className="w-28 text-right text-gray-500 font-mono text-[10px]">{item.OUT_REQ_NO || '-'}</span>
                           </div>
                         </div>
                       ))}
@@ -595,8 +599,8 @@ const EquipmentAssignment: React.FC<EquipmentAssignmentProps> = ({ onBack, showT
                   </div>
                 </div>
 
-                {/* 입고처리 버튼 - 하단 고정 */}
-                <div className="sticky bottom-0 bg-white border-t border-gray-100 p-3 -mx-0 mt-3">
+                {/* 입고처리 버튼 - 네비게이션 바 바로 위 고정 */}
+                <div className="fixed bottom-[52px] left-0 right-0 bg-white border-t border-gray-200 p-3 z-40" style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}>
                   <button
                     onClick={handleCheckAccept}
                     disabled={!outTgtEqtList.some(item => item.CHK && item.PROC_YN !== 'Y')}
