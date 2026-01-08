@@ -258,6 +258,10 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
   const [showStatusChangeConfirm, setShowStatusChangeConfirm] = useState(false);
   const [pendingStatusChangeItems, setPendingStatusChangeItems] = useState<EquipmentItem[]>([]);
 
+  // 반납요청 중인 장비 경고 모달
+  const [showReturnWarningModal, setShowReturnWarningModal] = useState(false);
+  const [returnWarningItems, setReturnWarningItems] = useState<EquipmentItem[]>([]);
+
   // Barcode scanner state
   // BarcodeScanner state removed
 
@@ -541,6 +545,15 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
       showToast?.('반납할 장비를 선택해주세요.', 'warning');
       return;
     }
+    
+    // 이미 반납요청 중인 장비 확인
+    const alreadyRequested = checkedItems.filter(item => item._hasReturnRequest);
+    if (alreadyRequested.length > 0) {
+      setReturnWarningItems(alreadyRequested);
+      setShowReturnWarningModal(true);
+      return;
+    }
+    
     setShowReturnModal(true);
   };
 
@@ -1075,11 +1088,18 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
                         className="w-5 h-5 text-blue-500 rounded focus:ring-blue-500 mt-0.5"
                       />
                       <div className="flex-1 min-w-0">
-                        {/* 상단: 모델명 + 사용가능 */}
+                        {/* 상단: 모델명 + 반납요청중 배지 + 사용가능 */}
                         <div className="flex items-center justify-between mb-3">
-                          <span className={`px-2 py-0.5 rounded text-xs font-bold ${getItemColor(item.ITEM_MID_CD)}`}>
-                            {item.ITEM_NM || item.EQT_CL_NM || item.ITEM_MID_NM || '장비'}
-                          </span>
+                          <div className="flex items-center gap-1">
+                            <span className={`px-2 py-0.5 rounded text-xs font-bold ${getItemColor(item.ITEM_MID_CD)}`}>
+                              {item.ITEM_NM || item.EQT_CL_NM || item.ITEM_MID_NM || '장비'}
+                            </span>
+                            {item._hasReturnRequest && (
+                              <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-amber-500 text-white">
+                                반납요청중
+                              </span>
+                            )}
+                          </div>
                           <span className={`px-2 py-1 rounded-full text-xs font-semibold ${
                             item.EQT_USE_ARR_YN === 'Y' ? 'bg-green-100 text-green-700' :
                             item.EQT_USE_ARR_YN === 'A' ? 'bg-purple-100 text-purple-700' :
@@ -1491,6 +1511,49 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
         </div>
       )}
 
+
+      {/* 반납요청 중복 경고 모달 */}
+      {showReturnWarningModal && returnWarningItems.length > 0 && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-md max-h-[80vh] overflow-hidden">
+            <div className="p-4 bg-gradient-to-r from-amber-500 to-amber-600">
+              <h3 className="font-semibold text-white text-lg flex items-center gap-2">
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                </svg>
+                반납요청 진행중인 장비
+              </h3>
+              <p className="text-white/80 text-sm mt-1">
+                {returnWarningItems.length}개의 선택된 장비가 이미 반납요청 중입니다
+              </p>
+            </div>
+            <div className="p-4 max-h-60 overflow-y-auto">
+              <p className="text-gray-600 text-sm mb-3">
+                다음 장비들은 이미 반납요청이 진행 중입니다. 반납요청 카테고리에서 상태를 확인해주세요.
+              </p>
+              <div className="space-y-2">
+                {returnWarningItems.map((item, idx) => (
+                  <div key={idx} className="flex items-center justify-between p-2 bg-amber-50 rounded-lg text-xs">
+                    <span className="font-mono text-amber-800">{item.EQT_SERNO}</span>
+                    <span className="text-amber-600">{item.ITEM_NM || item.ITEM_MID_NM || '장비'}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+            <div className="p-4 border-t border-gray-100 bg-gray-50">
+              <button
+                onClick={() => {
+                  setShowReturnWarningModal(false);
+                  setReturnWarningItems([]);
+                }}
+                className="w-full py-2.5 bg-amber-500 hover:bg-amber-600 text-white rounded-lg font-medium transition-colors"
+              >
+                확인
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Barcode Scanner - removed, using S/N input instead */}
     </div>
