@@ -1109,20 +1109,15 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
                             {item.ITEM_NM && (
                               <span className="text-xs text-gray-700 truncate">{item.ITEM_NM}</span>
                             )}
-                            {item._hasReturnRequest && (
-                              <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-orange-500 text-white flex-shrink-0">
-                                반납요청중
-                              </span>
-                            )}
-                          </div>
+                            </div>
                           <span className={`px-2 py-1 rounded-full text-xs font-semibold ${
-                            item._hasReturnRequest ? 'bg-orange-100 text-orange-700' :
+                            (item._hasReturnRequest || item._category === 'RETURN_REQUESTED') ? 'bg-orange-100 text-orange-700' :
                             item.EQT_USE_ARR_YN === 'Y' ? 'bg-green-100 text-green-700' :
                             item.EQT_USE_ARR_YN === 'A' ? 'bg-purple-100 text-purple-700' :
                             item.EQT_USE_ARR_YN === 'N' ? 'bg-red-100 text-red-700' :
                             'bg-gray-100 text-gray-700'
                           }`}>
-                            {item._hasReturnRequest ? '반납요청중' :
+                            {(item._hasReturnRequest || item._category === 'RETURN_REQUESTED') ? '반납요청중' :
                              item.EQT_USE_ARR_YN === 'Y' ? '사용가능' :
                              item.EQT_USE_ARR_YN === 'A' ? '검사대기' :
                              item.EQT_USE_ARR_YN === 'N' ? '사용불가' : '-'}
@@ -1180,20 +1175,15 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
                             <span className={`px-2 py-0.5 rounded text-xs font-bold ${getItemColor(item.ITEM_MID_CD)}`}>
                               {item.ITEM_NM || item.EQT_CL_NM || item.ITEM_MID_NM || '장비'}
                             </span>
-                            {item._hasReturnRequest && (
-                              <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-orange-500 text-white">
-                                반납요청중
-                              </span>
-                            )}
-                          </div>
+                            </div>
                           <span className={`px-2 py-1 rounded-full text-xs font-semibold ${
-                            item._hasReturnRequest ? 'bg-orange-100 text-orange-700' :
+                            (item._hasReturnRequest || item._category === 'RETURN_REQUESTED') ? 'bg-orange-100 text-orange-700' :
                             item.EQT_USE_ARR_YN === 'Y' ? 'bg-green-100 text-green-700' :
                             item.EQT_USE_ARR_YN === 'A' ? 'bg-purple-100 text-purple-700' :
                             item.EQT_USE_ARR_YN === 'N' ? 'bg-red-100 text-red-700' :
                             'bg-gray-100 text-gray-700'
                           }`}>
-                            {item._hasReturnRequest ? '반납요청중' :
+                            {(item._hasReturnRequest || item._category === 'RETURN_REQUESTED') ? '반납요청중' :
                              item.EQT_USE_ARR_YN === 'Y' ? '사용가능' :
                              item.EQT_USE_ARR_YN === 'A' ? '검사대기' :
                              item.EQT_USE_ARR_YN === 'N' ? '사용불가' : '-'}
