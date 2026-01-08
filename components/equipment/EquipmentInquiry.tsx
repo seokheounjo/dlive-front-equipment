@@ -488,6 +488,10 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
         EQT_USE_END_DT: item.EQT_USE_END_DT || '',
         RETN_RESN_CD: item.RETN_RESN_CD || '',
         RETN_RESN_NM: item.RETN_RESN_NM || item.RETN_RESN_CD_NM || '',
+        // 반납취소 DELETE SQL WHERE 조건 필수 파라미터 (CRITICAL!)
+        REQ_DT: item.REQ_DT || '',               // 반납요청일자 (예: "20251229104116")
+        RETURN_TP: item.RETURN_TP || '2',        // 반납유형 (항상 "2")
+        EQT_USE_ARR_YN: item.EQT_USE_ARR_YN || 'Y',  // 장비사용도착여부
         // 카테고리 유지 (API 호출시 추가된 _category)
         _category: item._category || undefined,
         // 반납요청 중인 장비 플래그 유지
