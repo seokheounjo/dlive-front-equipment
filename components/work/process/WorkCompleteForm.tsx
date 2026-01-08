@@ -693,6 +693,7 @@ const WorkCompleteForm: React.FC<WorkCompleteFormProps> = ({ order, onBack, onSu
             const isTargetProdGrp = ['C', 'D', 'I'].includes(kpiProdGrpCd);
             const isVoipExcluded = voipCtx !== 'T' && voipCtx !== 'R';
 
+            console.log('Removal check:', {
               WRK_CD: order.WRK_CD,
               KPI_PROD_GRP_CD: kpiProdGrpCd,
               VOIP_CTX: voipCtx,

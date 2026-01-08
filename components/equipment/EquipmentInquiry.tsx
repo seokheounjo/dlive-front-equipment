@@ -97,6 +97,9 @@ interface EquipmentItem {
   WRK_ID?: string;
   CRR_ID?: string;
   EQT_USE_END_DT?: string;
+  REQ_DT?: string;          // 반납요청일자
+  RETURN_TP?: string;       // 반납유형
+  EQT_USE_ARR_YN?: string;  // 장비사용도착여부
   RETN_RESN_CD?: string;
   RETN_RESN_NM?: string;
   // 카테고리 구분용 (OWNED, RETURN_REQUESTED, INSPECTION_WAITING)
@@ -560,7 +563,8 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
             EQT_NO: item.EQT_NO,
             EQT_SERNO: item.EQT_SERNO,
             REQ_DT: item.REQ_DT,        // SQL WHERE condition required
-            RETURN_TP: item.RETURN_TP,  // SQL WHERE condition required
+            RETURN_TP: item.RETURN_TP || '2',  // MiPlatform: 항상 "2"
+            EQT_USE_ARR_YN: item.EQT_USE_ARR_YN || 'Y',  // MiPlatform: A 또는 Y
           })),
         };
         const result = await debugApiCall(
@@ -991,7 +995,7 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
               </div>
             </div>
 
-            {/* 간단히 보기: 품목명 + 상태 + S/N + MAC + 카테고리 */}
+            {/* 간단히 보기: 장비구분, S/N, MAC, 사용가능 */}
             {viewMode === 'simple' && (
               <div className="max-h-80 overflow-y-auto p-3 space-y-2">
                 {equipmentList.map((item, idx) => (
@@ -1016,31 +1020,18 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
                       />
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center justify-between mb-2">
-                          <div className="flex items-center gap-2">
-                            {/* 카테고리 배지 */}
-                            <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold ${
-                              item._category === 'OWNED' ? 'bg-green-500 text-white' :
-                              item._category === 'RETURN_REQUESTED' ? 'bg-amber-500 text-white' :
-                              item._category === 'INSPECTION_WAITING' ? 'bg-purple-500 text-white' :
-                              'bg-gray-400 text-white'
-                            }`}>
-                              {item._category === 'OWNED' ? '보유' :
-                               item._category === 'RETURN_REQUESTED' ? '반납' :
-                               item._category === 'INSPECTION_WAITING' ? '검사' : '-'}
-                            </span>
-                            {item._hasReturnRequest && <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-red-500 text-white animate-pulse">반납중</span>}
-                            <span className={`px-2 py-0.5 rounded text-xs font-bold ${getItemColor(item.ITEM_MID_CD)}`}>
-                              {item.ITEM_NM || item.EQT_CL_NM || item.ITEM_MID_NM || '장비'}
-                            </span>
-                          </div>
+                          <span className={`px-2 py-0.5 rounded text-xs font-bold ${getItemColor(item.ITEM_MID_CD)}`}>
+                            {item.ITEM_MID_NM || item.EQT_CL_NM || '장비'}
+                          </span>
                           <span className={`px-2 py-1 rounded-full text-xs font-semibold ${
-                            item.EQT_STAT_CD === '10' ? 'bg-green-100 text-green-700' :
-                            item.EQT_STAT_CD === '20' ? 'bg-blue-100 text-blue-700' :
-                            item.EQT_STAT_CD === '40' ? 'bg-amber-100 text-amber-700' :
-                            item.EQT_STAT_CD === '50' ? 'bg-purple-100 text-purple-700' :
+                            item.EQT_USE_ARR_YN === 'Y' ? 'bg-green-100 text-green-700' :
+                            item.EQT_USE_ARR_YN === 'A' ? 'bg-purple-100 text-purple-700' :
+                            item.EQT_USE_ARR_YN === 'N' ? 'bg-red-100 text-red-700' :
                             'bg-gray-100 text-gray-700'
                           }`}>
-                            {item.EQT_STAT_NM || getEqtStatName(item.EQT_STAT_CD)}
+                            {item.EQT_USE_ARR_YN === 'Y' ? '사용가능' :
+                             item.EQT_USE_ARR_YN === 'A' ? '검사대기' :
+                             item.EQT_USE_ARR_YN === 'N' ? '사용불가' : '-'}
                           </span>
                         </div>
                         <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs">
@@ -1060,7 +1051,7 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
               </div>
             )}
 
-            {/* 자세히 보기: 테이블 형식으로 모든 정보 + 카테고리 */}
+            {/* 자세히 보기: 모델명, 사용가능, 변경종류, 현재위치, 이동전위치, 장비상태, 지점 */}
             {viewMode === 'detail' && (
               <div className="max-h-80 overflow-y-auto p-3 space-y-2">
                 {equipmentList.map((item, idx) => (
@@ -1084,67 +1075,55 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
                         className="w-5 h-5 text-blue-500 rounded focus:ring-blue-500 mt-0.5"
                       />
                       <div className="flex-1 min-w-0">
-                        {/* 상단: 카테고리 + 품목명 + 상태 */}
+                        {/* 상단: 모델명 + 사용가능 */}
                         <div className="flex items-center justify-between mb-3">
-                          <div className="flex items-center gap-2">
-                            {/* 카테고리 배지 */}
-                            <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold ${
-                              item._category === 'OWNED' ? 'bg-green-500 text-white' :
-                              item._category === 'RETURN_REQUESTED' ? 'bg-amber-500 text-white' :
-                              item._category === 'INSPECTION_WAITING' ? 'bg-purple-500 text-white' :
-                              'bg-gray-400 text-white'
-                            }`}>
-                              {item._category === 'OWNED' ? '보유' :
-                               item._category === 'RETURN_REQUESTED' ? '반납' :
-                               item._category === 'INSPECTION_WAITING' ? '검사' : '-'}
-                            </span>
-                            {item._hasReturnRequest && <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-red-500 text-white animate-pulse">반납중</span>}
-                            <span className={`px-2 py-0.5 rounded text-xs font-bold ${getItemColor(item.ITEM_MID_CD)}`}>
-                              {item.ITEM_NM || item.EQT_CL_NM || '장비'}
-                            </span>
-                            <span className="text-xs text-gray-400">{item.ITEM_MID_NM}</span>
-                          </div>
+                          <span className={`px-2 py-0.5 rounded text-xs font-bold ${getItemColor(item.ITEM_MID_CD)}`}>
+                            {item.ITEM_NM || item.EQT_CL_NM || item.ITEM_MID_NM || '장비'}
+                          </span>
                           <span className={`px-2 py-1 rounded-full text-xs font-semibold ${
-                            item.EQT_STAT_CD === '10' ? 'bg-green-100 text-green-700' :
-                            item.EQT_STAT_CD === '20' ? 'bg-blue-100 text-blue-700' :
-                            item.EQT_STAT_CD === '40' ? 'bg-amber-100 text-amber-700' :
-                            item.EQT_STAT_CD === '50' ? 'bg-purple-100 text-purple-700' :
+                            item.EQT_USE_ARR_YN === 'Y' ? 'bg-green-100 text-green-700' :
+                            item.EQT_USE_ARR_YN === 'A' ? 'bg-purple-100 text-purple-700' :
+                            item.EQT_USE_ARR_YN === 'N' ? 'bg-red-100 text-red-700' :
                             'bg-gray-100 text-gray-700'
                           }`}>
-                            {item.EQT_STAT_NM || getEqtStatName(item.EQT_STAT_CD)}
+                            {item.EQT_USE_ARR_YN === 'Y' ? '사용가능' :
+                             item.EQT_USE_ARR_YN === 'A' ? '검사대기' :
+                             item.EQT_USE_ARR_YN === 'N' ? '사용불가' : '-'}
                           </span>
                         </div>
 
-                        {/* 상세 정보 - 세로 배치로 전체 표시 */}
-                        <div className="bg-gray-50 rounded-lg p-3 space-y-2">
-                          <div className="space-y-1.5 text-xs">
+                        {/* 상세 정보 */}
+                        <div className="bg-gray-50 rounded-lg p-3">
+                          <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 text-xs">
                             <div className="flex">
-                              <span className="text-gray-400 w-20 flex-shrink-0">S/N</span>
-                              <span className="font-mono text-gray-900 font-medium">{item.EQT_SERNO || '-'}</span>
+                              <span className="text-gray-400 w-16 flex-shrink-0">모델명</span>
+                              <span className="text-gray-900 truncate">{item.ITEM_NM || item.EQT_CL_NM || '-'}</span>
                             </div>
                             <div className="flex">
-                              <span className="text-gray-400 w-20 flex-shrink-0">MAC</span>
-                              <span className="font-mono text-gray-700">{item.MAC_ADDRESS || '-'}</span>
+                              <span className="text-gray-400 w-16 flex-shrink-0">지점</span>
+                              <span className="text-gray-700 truncate">{item.SO_NM || item.SO_ID || '-'}</span>
                             </div>
                             <div className="flex">
-                              <span className="text-gray-400 w-20 flex-shrink-0">지점</span>
-                              <span className="text-gray-700">{item.SO_NM || item.SO_ID || '-'}</span>
+                              <span className="text-gray-400 w-16 flex-shrink-0">장비상태</span>
+                              <span className={`font-medium ${item.EQT_STAT_CD === '10' ? 'text-green-600' : item.EQT_STAT_CD === '20' ? 'text-blue-600' : 'text-gray-600'}`}>
+                                {item.EQT_STAT_NM || getEqtStatName(item.EQT_STAT_CD) || '-'}
+                              </span>
                             </div>
                             <div className="flex">
-                              <span className="text-gray-400 w-20 flex-shrink-0">위치</span>
+                              <span className="text-gray-400 w-16 flex-shrink-0">현재위치</span>
                               <span className="text-gray-700">{item.EQT_LOC_TP_NM || getEqtLocTpName(item.EQT_LOC_TP_CD || '') || '-'}</span>
                             </div>
                             <div className="flex">
-                              <span className="text-gray-400 w-20 flex-shrink-0">장비상태</span>
-                              <span className={`font-medium ${item.EQT_STAT_CD === '10' ? 'text-green-600' : item.EQT_STAT_CD === '20' ? 'text-blue-600' : 'text-gray-600'}`}>{item.EQT_STAT_NM || getEqtStatName(item.EQT_STAT_CD) || '-'}</span>
+                              <span className="text-gray-400 w-16 flex-shrink-0">변경종류</span>
+                              <span className="text-gray-700">{item.PROC_STAT_NM || item.PROC_STAT || '-'}</span>
                             </div>
                             <div className="flex">
-                              <span className="text-gray-400 w-20 flex-shrink-0">사용가능</span>
-                              <span className={`font-medium ${item.EQT_USE_ARR_YN === 'Y' ? 'text-green-600' : item.EQT_USE_ARR_YN === 'A' ? 'text-amber-600' : 'text-gray-600'}`}>{item.EQT_USE_ARR_YN === 'Y' ? '사용가능' : item.EQT_USE_ARR_YN === 'A' ? '검사대기' : item.EQT_USE_ARR_YN === 'N' ? '사용불가' : '-'}</span>
+                              <span className="text-gray-400 w-16 flex-shrink-0">이전위치</span>
+                              <span className="text-gray-700">{item.BEF_EQT_LOC_NM || '-'}</span>
                             </div>
                           </div>
                           {item.RETN_RESN_NM && (
-                            <div className="pt-1.5 border-t border-gray-200">
+                            <div className="mt-2 pt-1.5 border-t border-gray-200">
                               <span className="text-gray-400 text-xs">반납사유: </span>
                               <span className="text-amber-600 text-xs font-medium">{item.RETN_RESN_NM}</span>
                             </div>

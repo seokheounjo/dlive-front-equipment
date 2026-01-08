@@ -121,6 +121,9 @@ const EquipmentMovement: React.FC<EquipmentMovementProps> = ({ onBack }) => {
   // 종류별 접기/펼치기 상태
   const [collapsedCategories, setCollapsedCategories] = useState<Set<string>>(new Set());
 
+  // 뷰 모드: simple(간단히), detail(자세히)
+  const [viewMode, setViewMode] = useState<'simple' | 'detail'>('simple');
+
   useEffect(() => {
     loadInitialData();
   }, []);
@@ -620,24 +623,49 @@ const EquipmentMovement: React.FC<EquipmentMovementProps> = ({ onBack }) => {
         <>
           <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
             {/* 헤더 */}
-            <div className="px-4 py-3 bg-gradient-to-r from-gray-50 to-white border-b border-gray-100 flex items-center justify-between">
-              <div>
-                <span className="text-sm font-semibold text-gray-800">
-                  {workerInfo.WRKR_NM} 보유장비: {eqtTrnsList.length}건
-                </span>
-                <span className="text-sm text-blue-600 ml-2 font-medium">
-                  (선택: {eqtTrnsList.filter(item => item.CHK).length}건)
-                </span>
+            <div className="px-4 py-3 bg-gradient-to-r from-gray-50 to-white border-b border-gray-100">
+              <div className="flex items-center justify-between mb-2">
+                <div>
+                  <span className="text-sm font-semibold text-gray-800">
+                    {workerInfo.WRKR_NM} 보유장비: {eqtTrnsList.length}건
+                  </span>
+                  <span className="text-sm text-blue-600 ml-2 font-medium">
+                    (선택: {eqtTrnsList.filter(item => item.CHK).length}건)
+                  </span>
+                </div>
+                <label className="flex items-center gap-2 text-xs">
+                  <input
+                    type="checkbox"
+                    onChange={(e) => handleCheckAll(e.target.checked)}
+                    checked={eqtTrnsList.length > 0 && eqtTrnsList.every(item => item.CHK)}
+                    className="rounded"
+                  />
+                  전체선택
+                </label>
               </div>
-              <label className="flex items-center gap-2 text-xs">
-                <input
-                  type="checkbox"
-                  onChange={(e) => handleCheckAll(e.target.checked)}
-                  checked={eqtTrnsList.length > 0 && eqtTrnsList.every(item => item.CHK)}
-                  className="rounded"
-                />
-                전체선택
-              </label>
+              {/* 뷰 모드 선택 버튼 */}
+              <div className="flex gap-1 bg-gray-100 p-1 rounded-lg">
+                <button
+                  onClick={() => setViewMode('simple')}
+                  className={`flex-1 py-1.5 px-2 text-xs font-medium rounded-md transition-all ${
+                    viewMode === 'simple'
+                      ? 'bg-white text-blue-600 shadow-sm'
+                      : 'text-gray-500 hover:text-gray-700'
+                  }`}
+                >
+                  간단히
+                </button>
+                <button
+                  onClick={() => setViewMode('detail')}
+                  className={`flex-1 py-1.5 px-2 text-xs font-medium rounded-md transition-all ${
+                    viewMode === 'detail'
+                      ? 'bg-white text-blue-600 shadow-sm'
+                      : 'text-gray-500 hover:text-gray-700'
+                  }`}
+                >
+                  자세히
+                </button>
+              </div>
             </div>
 
             {/* 종류별 그룹 */}
@@ -687,18 +715,64 @@ const EquipmentMovement: React.FC<EquipmentMovementProps> = ({ onBack }) => {
                                 onChange={(e) => handleCheckItem(globalIndex, e.target.checked)}
                                 className="rounded mt-0.5"
                               />
-                              <div className="flex-1 min-w-0">
-                                <div className="flex items-center gap-2">
-                                  <span className="text-sm font-bold text-gray-900 font-mono">{item.EQT_SERNO}</span>
-                                  {item.isScanned && (
-                                    <span className="px-1.5 py-0.5 bg-purple-500 text-white text-[10px] rounded font-medium">스캔</span>
-                                  )}
+                              {/* 간단히 보기 */}
+                              {viewMode === 'simple' && (
+                                <div className="flex-1 min-w-0">
+                                  <div className="flex items-center justify-between">
+                                    <div className="flex items-center gap-2">
+                                      <span className="px-1.5 py-0.5 bg-blue-100 text-blue-700 text-[10px] rounded font-medium">
+                                        {item.ITEM_MID_NM || item.EQT_CL_NM || '장비'}
+                                      </span>
+                                      {item.isScanned && (
+                                        <span className="px-1.5 py-0.5 bg-purple-500 text-white text-[10px] rounded font-medium">스캔</span>
+                                      )}
+                                    </div>
+                                  </div>
+                                  <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs mt-1.5">
+                                    <div className="flex items-center gap-1">
+                                      <span className="text-gray-400 w-10">S/N</span>
+                                      <span className="font-mono text-gray-800 truncate">{item.EQT_SERNO || '-'}</span>
+                                    </div>
+                                    <div className="flex items-center gap-1">
+                                      <span className="text-gray-400 w-10">MAC</span>
+                                      <span className="font-mono text-gray-600 truncate">{item.MAC_ADDRESS || '-'}</span>
+                                    </div>
+                                  </div>
                                 </div>
-                                <div className="text-xs text-gray-600 mt-0.5">{item.EQT_CL_NM || item.ITEM_NM}</div>
-                                {item.MAC_ADDRESS && (
-                                  <div className="text-xs text-gray-400 font-mono mt-0.5">{item.MAC_ADDRESS}</div>
-                                )}
-                              </div>
+                              )}
+                              {/* 자세히 보기 */}
+                              {viewMode === 'detail' && (
+                                <div className="flex-1 min-w-0">
+                                  <div className="flex items-center justify-between mb-2">
+                                    <div className="flex items-center gap-2">
+                                      <span className="text-sm font-bold text-gray-900">{item.ITEM_NM || item.EQT_CL_NM || '장비'}</span>
+                                      {item.isScanned && (
+                                        <span className="px-1.5 py-0.5 bg-purple-500 text-white text-[10px] rounded font-medium">스캔</span>
+                                      )}
+                                    </div>
+                                  </div>
+                                  <div className="bg-gray-50 rounded-lg p-2">
+                                    <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs">
+                                      <div className="flex">
+                                        <span className="text-gray-400 w-14 flex-shrink-0">S/N</span>
+                                        <span className="font-mono text-gray-900">{item.EQT_SERNO || '-'}</span>
+                                      </div>
+                                      <div className="flex">
+                                        <span className="text-gray-400 w-14 flex-shrink-0">MAC</span>
+                                        <span className="font-mono text-gray-700">{item.MAC_ADDRESS || '-'}</span>
+                                      </div>
+                                      <div className="flex">
+                                        <span className="text-gray-400 w-14 flex-shrink-0">지점</span>
+                                        <span className="text-gray-700">{item.SO_NM || item.SO_ID || '-'}</span>
+                                      </div>
+                                      <div className="flex">
+                                        <span className="text-gray-400 w-14 flex-shrink-0">보유자</span>
+                                        <span className="text-gray-700">{item.WRKR_NM || '-'}</span>
+                                      </div>
+                                    </div>
+                                  </div>
+                                </div>
+                              )}
                             </div>
                           );
                         })}

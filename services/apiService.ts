@@ -3267,10 +3267,13 @@ export const delEquipmentReturnRequest = async (params: {
   WRKR_ID: string;
   CRR_ID: string;
   SO_ID?: string;
-  // 취소할 장비 목록 (반납요청 목록에서 선택한 장비들)
+  // 취소할 장비 목록 - MiPlatform 레거시 필수: EQT_NO, REQ_DT, RETURN_TP, EQT_USE_ARR_YN
   equipmentList: Array<{
     EQT_NO: string;
     EQT_SERNO?: string;
+    REQ_DT?: string;       // 반납요청일자 (SQL WHERE 조건)
+    RETURN_TP?: string;    // 반납유형 (항상 "2")
+    EQT_USE_ARR_YN?: string; // 장비사용도착여부 (A 또는 Y)
   }>;
 }): Promise<any> => {
   console.log('[delEquipmentReturnRequest] 반납취소 시작:', params);
@@ -3295,6 +3298,9 @@ export const delEquipmentReturnRequest = async (params: {
       equipmentList: params.equipmentList.map(item => ({
         EQT_NO: item.EQT_NO,
         EQT_SERNO: item.EQT_SERNO || '',
+        REQ_DT: item.REQ_DT || '',           // MiPlatform: 반납요청일자
+        RETURN_TP: item.RETURN_TP || '2',    // MiPlatform: 항상 "2"
+        EQT_USE_ARR_YN: item.EQT_USE_ARR_YN || 'Y',  // 기본값 Y
       })),
     };
 

@@ -286,6 +286,16 @@ const EquipmentAssignment: React.FC<EquipmentAssignmentProps> = ({ onBack, showT
       return;
     }
 
+    // EQT_NO null 검증 (장비번호 미할당된 장비 필터링)
+    const validItems = checkedItems.filter(item => item.EQT_NO && item.EQT_NO.trim() !== '');
+    if (validItems.length === 0) {
+      showToast?.('선택한 장비 중 입고 처리 가능한 장비가 없습니다. (장비번호 미할당)', 'warning');
+      return;
+    }
+    if (validItems.length < checkedItems.length) {
+      showToast?.(`${checkedItems.length}건 중 ${validItems.length}건만 입고 처리됩니다. (일부 장비번호 미할당)`, 'info');
+    }
+
     try {
       const params = {
         OUT_REQ_NO: selectedEqtOut.OUT_REQ_NO,
@@ -293,10 +303,10 @@ const EquipmentAssignment: React.FC<EquipmentAssignmentProps> = ({ onBack, showT
         WRKR_ID: userInfo?.userId || '',
         CARRIER_ID: selectedEqtOut.CRR_ID || userInfo?.crrId || '',
         CRR_ID: selectedEqtOut.CRR_ID || userInfo?.crrId || '',
-        equipmentList: checkedItems.map(item => ({
+        equipmentList: validItems.map(item => ({
           EQT_NO: item.EQT_NO,
-          EQT_SERNO: item.EQT_SERNO,
-          OUT_REQ_NO: item.OUT_REQ_NO,
+          EQT_SERNO: item.EQT_SERNO || '',
+          OUT_REQ_NO: item.OUT_REQ_NO || '',
         }))
       };
 
@@ -307,7 +317,7 @@ const EquipmentAssignment: React.FC<EquipmentAssignmentProps> = ({ onBack, showT
         params
       );
 
-      showToast?.(`${checkedItems.length}건의 장비 입고처리가 완료되었습니다.`, 'success');
+      showToast?.(`${validItems.length}건의 장비 입고처리가 완료되었습니다.`, 'success');
       await handleSearch();
     } catch (error: any) {
       console.error('❌ [장비할당] 입고처리 실패:', error);
