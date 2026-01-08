@@ -352,7 +352,7 @@ const EquipmentAssignment: React.FC<EquipmentAssignmentProps> = ({ onBack, showT
   const handleCheckAll = (checked: boolean) => {
     setOutTgtEqtList(outTgtEqtList.map(item => ({
       ...item,
-      CHK: item.PROC_YN === 'Y' ? true : checked
+      CHK: checked
     })));
   };
 
@@ -526,7 +526,7 @@ const EquipmentAssignment: React.FC<EquipmentAssignmentProps> = ({ onBack, showT
             <div className="flex items-center justify-between mb-2">
               <h3 className="text-sm font-semibold text-gray-700">입고 대상 장비</h3>
               {outTgtEqtList.length > 0 && (
-                <span className="text-xs text-gray-500">{outTgtEqtList.filter(i => i.CHK && i.PROC_YN !== 'Y').length}/{outTgtEqtList.length}</span>
+                <span className="text-xs text-gray-500">{outTgtEqtList.filter(i => i.CHK).length}/{outTgtEqtList.length}</span>
               )}
             </div>
 
@@ -547,9 +547,8 @@ const EquipmentAssignment: React.FC<EquipmentAssignmentProps> = ({ onBack, showT
                       type="checkbox"
                       id="checkAll"
                       onChange={(e) => handleCheckAll(e.target.checked)}
-                      checked={outTgtEqtList.filter(i => i.PROC_YN !== 'Y').length > 0 && outTgtEqtList.filter(i => i.PROC_YN !== 'Y').every(item => item.CHK)}
-                      disabled={outTgtEqtList.every(i => i.PROC_YN === 'Y')}
-                      className="w-4 h-4 text-blue-500 rounded focus:ring-blue-500 disabled:cursor-not-allowed"
+                      checked={outTgtEqtList.length > 0 && outTgtEqtList.every(item => item.CHK)}
+                      className="w-4 h-4 text-blue-500 rounded focus:ring-blue-500"
                     />
                     <label htmlFor="checkAll" className="text-xs text-gray-600 cursor-pointer">전체 선택</label>
                   </div>
@@ -559,16 +558,15 @@ const EquipmentAssignment: React.FC<EquipmentAssignmentProps> = ({ onBack, showT
                     {outTgtEqtList.map((item, idx) => (
                       <div
                         key={idx}
-                        className={`p-4 ${item.PROC_YN === 'Y' ? 'bg-green-50' : item.CHK ? 'bg-blue-50' : 'hover:bg-gray-50'} transition-colors`}
+                        className={`p-4 ${item.CHK ? 'bg-blue-50' : 'hover:bg-gray-50'} transition-colors`}
                       >
                         <div className="flex items-start gap-3">
-                          {/* 체크박스 - 처리완료 시 비활성화 및 체크 상태 */}
+                          {/* 체크박스 */}
                           <input
                             type="checkbox"
-                            checked={item.PROC_YN === 'Y' ? true : (item.CHK || false)}
-                            onChange={(e) => item.PROC_YN !== 'Y' && handleCheckItem(idx, e.target.checked)}
-                            disabled={item.PROC_YN === 'Y'}
-                            className={`w-4 h-4 mt-0.5 rounded focus:ring-blue-500 ${item.PROC_YN === 'Y' ? 'text-green-500 cursor-not-allowed' : 'text-blue-500'}`}
+                            checked={item.CHK || false}
+                            onChange={(e) => handleCheckItem(idx, e.target.checked)}
+                            className="w-4 h-4 mt-0.5 rounded focus:ring-blue-500 text-blue-500"
                           />
 
                           {/* 장비 정보 */}
@@ -580,9 +578,6 @@ const EquipmentAssignment: React.FC<EquipmentAssignmentProps> = ({ onBack, showT
                               <span className="text-sm font-medium text-gray-900 truncate">
                                 {item.EQT_CL_NM || '-'}
                               </span>
-                              {item.PROC_YN === 'Y' && (
-                                <span className="px-1.5 py-0.5 bg-green-500 text-white text-[10px] rounded font-medium">완료</span>
-                              )}
                             </div>
                             <div className="text-xs text-gray-500">
                               <div className="flex items-center gap-2">
@@ -603,11 +598,11 @@ const EquipmentAssignment: React.FC<EquipmentAssignmentProps> = ({ onBack, showT
                 <div className="fixed bottom-[52px] left-0 right-0 bg-white border-t border-gray-200 p-3 z-40" style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}>
                   <button
                     onClick={handleCheckAccept}
-                    disabled={!outTgtEqtList.some(item => item.CHK && item.PROC_YN !== 'Y')}
+                    disabled={!outTgtEqtList.some(item => item.CHK)}
                     className="w-full bg-blue-500 hover:bg-blue-600 disabled:bg-gray-300 text-white py-3 px-6 rounded-lg font-semibold text-sm shadow-sm transition-all active:scale-[0.98] touch-manipulation disabled:cursor-not-allowed"
                     style={{ WebkitTapHighlightColor: 'transparent' }}
                   >
-                    선택 장비 입고처리 ({outTgtEqtList.filter(item => item.CHK && item.PROC_YN !== 'Y').length}건)
+                    선택 장비 입고처리 ({outTgtEqtList.filter(item => item.CHK).length}건)
                   </button>
                 </div>
               </>
