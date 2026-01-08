@@ -4026,7 +4026,9 @@ export const findUserList = async (params: {
     const result = await response.json();
     console.log('✅ 기사 검색 성공:', result);
 
-    return Array.isArray(result) ? result : result.output1 || [];
+    // null/undefined 체크 추가
+    if (!result) return [];
+    return Array.isArray(result) ? result : (result.output1 || result.list || []);
   } catch (error: any) {
     console.error('❌ 기사 검색 실패:', error);
     if (error instanceof NetworkError) {
