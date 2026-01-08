@@ -357,8 +357,8 @@ const EquipmentMovement: React.FC<EquipmentMovementProps> = ({ onBack }) => {
     setIsSearchingWorker(true);
     try {
       const keyword = workerSearchKeyword.trim();
-      const isIdSearch = /^\d+$/.test(keyword) || /^[A-Z]\d+$/i.test(keyword);
-      const searchParam = isIdSearch ? { USR_ID: keyword } : { USR_NM: keyword };
+      // Java API uses USR_NM for search (both ID and name search)
+      const searchParam = { USR_NM: keyword };
       const result = await debugApiCall('EquipmentMovement', 'findUserList', () => findUserList(searchParam), searchParam);
       if (!result || result.length === 0) {
         alert('검색 결과가 없습니다.');
