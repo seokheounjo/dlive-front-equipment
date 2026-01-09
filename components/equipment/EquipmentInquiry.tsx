@@ -876,7 +876,7 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
   return (
     <div className="h-full overflow-y-auto bg-gray-50 px-4 py-4 space-y-3">
         {/* 검색 조건 선택 박스 - 체크박스로 복수 선택 가능 */}
-        <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-3">
+        <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-2">
           <div className="grid grid-cols-3 gap-2">
             {/* 보유장비 체크박스 */}
             <button
@@ -959,7 +959,7 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
         </div>
 
         {/* 조회 버튼 */}
-        <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4">
+        <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-2">
           <button
             onClick={handleSearch}
             disabled={isLoading}
