@@ -628,7 +628,7 @@ const EquipmentList: React.FC<EquipmentListProps> = ({ onBack, showToast }) => {
 
         {/* 조회 모드 선택 */}
         <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-1">
-          <div className="grid grid-cols-3 gap-2">
+          <div className="grid grid-cols-2 gap-2">
             <button
               onClick={() => setScanMode('single')}
               className={`py-2 px-2 rounded-lg text-sm font-medium transition-all ${
@@ -639,16 +639,7 @@ const EquipmentList: React.FC<EquipmentListProps> = ({ onBack, showToast }) => {
             >
               단일스캔
             </button>
-            <button
-              onClick={() => setScanMode('multi')}
-              className={`py-2 px-2 rounded-lg text-sm font-medium transition-all ${
-                scanMode === 'multi'
-                  ? 'bg-purple-500 text-white shadow-sm'
-                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-              }`}
-            >
-              복수스캔
-            </button>
+            
             <button
               onClick={() => setScanMode('manual')}
               className={`py-2 px-2 rounded-lg text-sm font-medium transition-all ${
