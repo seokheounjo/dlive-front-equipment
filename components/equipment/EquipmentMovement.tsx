@@ -440,6 +440,8 @@ const EquipmentMovement: React.FC<EquipmentMovementProps> = ({ onBack }) => {
         try {
           const params = {
             EQT_NO: item.EQT_NO,
+            EQT_SERNO: item.EQT_SERNO,
+            SO_ID: item.SO_ID || '',
             FROM_WRKR_ID: workerInfo.WRKR_ID,
             TO_WRKR_ID: loggedInUser.userId
           };
