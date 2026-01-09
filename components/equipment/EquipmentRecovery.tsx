@@ -367,8 +367,16 @@ const EquipmentRecovery: React.FC<EquipmentRecoveryProps> = ({ onBack }) => {
     setIsProcessing(true);
     try {
       let successCount = 0;
+      let skipCount = 0;
       for (const item of selectedItems) {
         try {
+          // EQT_NO 형식 검증 (20자리 숫자여야 함)
+          if (!item.EQT_NO || item.EQT_NO.length !== 20 || !/^\d+$/.test(item.EQT_NO)) {
+            console.warn('잘못된 EQT_NO 형식 (처리 불가):', item.EQT_SERNO, item.EQT_NO);
+            skipCount++;
+            continue;
+          }
+
           // Get user info for CHG_UID
           const userInfoStr = typeof window !== 'undefined' ? sessionStorage.getItem('userInfo') : null;
           const userInfo = userInfoStr ? JSON.parse(userInfoStr) : {};
@@ -409,7 +417,11 @@ const EquipmentRecovery: React.FC<EquipmentRecoveryProps> = ({ onBack }) => {
       };
 
       if (successCount > 0) {
-        alert(`${successCount}건의 장비가 "${procTypeNames[procType]}" 처리되었습니다.`);
+        let msg = `${successCount}건의 장비가 "${procTypeNames[procType]}" 처리되었습니다.`;
+        if (skipCount > 0) {
+          msg += `\n(${skipCount}건은 EQT_NO 형식 오류로 건너뜀)`;
+        }
+        alert(msg);
         setRecoveryModalOpen(false);
         setScannedSerials([]);
         // 목록 새로고침
