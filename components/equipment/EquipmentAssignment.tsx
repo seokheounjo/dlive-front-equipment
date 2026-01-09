@@ -299,7 +299,7 @@ const EquipmentAssignment: React.FC<EquipmentAssignmentProps> = ({ onBack, showT
     }
 
     // 입고완료가 아닌 선택된 장비만 필터링
-    const checkedItems = outTgtEqtList.filter(item => item.CHK && (item.IBGO_QTY || 0) === 0);
+    const checkedItems = outTgtEqtList.filter(item => item.CHK && item.PROC_YN !== 'Y');
     console.log('[입고처리] 선택된 장비:', checkedItems.length, '건');
     console.log('[입고처리] 선택된 장비 상세:', checkedItems);
 
@@ -345,7 +345,7 @@ const EquipmentAssignment: React.FC<EquipmentAssignmentProps> = ({ onBack, showT
 
   const handleCheckAll = (checked: boolean) => {
     setOutTgtEqtList(outTgtEqtList.map(item => {
-      const isReceived = (item.IBGO_QTY || 0) > 0;
+      const isReceived = item.PROC_YN === 'Y';
       const hasSerial = item.EQT_SERNO && item.EQT_SERNO.trim() !== '';
       const canSelect = !isReceived;  // 입고완료가 아니면 선택 가능 (미할당도 선택 가능)
       return {
@@ -525,7 +525,7 @@ const EquipmentAssignment: React.FC<EquipmentAssignmentProps> = ({ onBack, showT
             <div className="flex items-center justify-between mb-2">
               <h3 className="text-sm font-semibold text-gray-700">입고 대상 장비</h3>
               {outTgtEqtList.length > 0 && (
-                <span className="text-xs text-gray-500">{outTgtEqtList.filter(i => i.CHK && (i.IBGO_QTY || 0) === 0).length}/{outTgtEqtList.filter(i => (i.IBGO_QTY || 0) === 0).length}</span>
+                <span className="text-xs text-gray-500">{outTgtEqtList.filter(i => i.CHK && i.PROC_YN !== 'Y').length}/{outTgtEqtList.filter(i => i.PROC_YN !== 'Y').length}</span>
               )}
             </div>
 
@@ -546,9 +546,9 @@ const EquipmentAssignment: React.FC<EquipmentAssignmentProps> = ({ onBack, showT
                       type="checkbox"
                       id="checkAll"
                       onChange={(e) => handleCheckAll(e.target.checked)}
-                      checked={outTgtEqtList.filter(i => (i.IBGO_QTY || 0) === 0).length > 0 &&
-                               outTgtEqtList.filter(i => (i.IBGO_QTY || 0) === 0).every(item => item.CHK)}
-                      disabled={outTgtEqtList.filter(i => (i.IBGO_QTY || 0) === 0).length === 0}
+                      checked={outTgtEqtList.filter(i => i.PROC_YN !== 'Y').length > 0 &&
+                               outTgtEqtList.filter(i => i.PROC_YN !== 'Y').every(item => item.CHK)}
+                      disabled={outTgtEqtList.filter(i => i.PROC_YN !== 'Y').length === 0}
                       className="w-4 h-4 text-blue-500 rounded focus:ring-blue-500 disabled:cursor-not-allowed"
                     />
                     <label htmlFor="checkAll" className="text-xs text-gray-600 cursor-pointer">전체 선택</label>
@@ -557,7 +557,7 @@ const EquipmentAssignment: React.FC<EquipmentAssignmentProps> = ({ onBack, showT
                   {/* 장비 카드 리스트 */}
                   <div className="max-h-64 overflow-y-auto divide-y divide-gray-50">
                     {outTgtEqtList.map((item, idx) => {
-                      const isReceived = (item.IBGO_QTY || 0) > 0;  // 이미 입고된 장비
+                      const isReceived = item.PROC_YN === 'Y';  // 이미 입고된 장비
                       const hasSerial = item.EQT_SERNO && item.EQT_SERNO.trim() !== '';  // S/N 할당됨
                       const canSelect = !isReceived;  // 입고완료가 아니면 선택 가능 (미할당도 OK)
 
@@ -616,11 +616,11 @@ const EquipmentAssignment: React.FC<EquipmentAssignmentProps> = ({ onBack, showT
                 <div className="fixed bottom-[56px] left-0 right-0 p-3 z-40" style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}>
                   <button
                     onClick={handleCheckAccept}
-                    disabled={!outTgtEqtList.some(item => item.CHK && (item.IBGO_QTY || 0) === 0)}
+                    disabled={!outTgtEqtList.some(item => item.CHK && item.PROC_YN !== 'Y')}
                     className="w-full bg-blue-500 hover:bg-blue-600 disabled:bg-gray-300 text-white py-3 px-6 rounded-lg font-semibold text-sm shadow-sm transition-all active:scale-[0.98] touch-manipulation disabled:cursor-not-allowed"
                     style={{ WebkitTapHighlightColor: 'transparent' }}
                   >
-                    선택 장비 입고처리 ({outTgtEqtList.filter(item => item.CHK && (item.IBGO_QTY || 0) === 0).length}건)
+                    선택 장비 입고처리 ({outTgtEqtList.filter(item => item.CHK && item.PROC_YN !== 'Y').length}건)
                   </button>
                 </div>
               </>
