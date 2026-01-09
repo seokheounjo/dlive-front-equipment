@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { findUserList, getWrkrHaveEqtListAll as getWrkrHaveEqtList, changeEquipmentWorker, getEquipmentHistoryInfo } from '../../services/apiService';
+import { findUserList, getWrkrHaveEqtListAll as getWrkrHaveEqtList, searchWorkersByName, changeEquipmentWorker, getEquipmentHistoryInfo } from '../../services/apiService';
 import { debugApiCall } from './equipmentDebug';
 import { Scan, Search, ChevronDown, ChevronUp, Check, X, User, RotateCcw } from 'lucide-react';
 import BarcodeScanner from './BarcodeScanner';
@@ -371,35 +371,33 @@ const EquipmentMovement: React.FC<EquipmentMovementProps> = ({ onBack }) => {
     try {
       let params: any;
       if (isNameSearch) {
-        params = { WRKR_NM: keyword, CRR_ID: '' };
+        // 이름 검색: searchWorkersByName API 사용 (부분 일치)
         console.log('[장비이동] 이름 검색:', keyword);
-      } else {
-        params = { WRKR_ID: keyword.toUpperCase(), CRR_ID: '' };
-        console.log('[장비이동] ID 검색:', keyword.toUpperCase());
-      }
-      const equipmentResult = await debugApiCall('EquipmentMovement', 'getWrkrHaveEqtList',
-        () => getWrkrHaveEqtList(params),
-        params);
-      if (equipmentResult && equipmentResult.length > 0) {
-        const workerMap = new Map<string, { USR_ID: string; USR_NM: string; CRR_ID: string; EQT_COUNT: number }>();
-        equipmentResult.forEach((eqt: any) => {
-          const wrkrId = eqt.WRKR_ID || eqt.OWNER_WRKR_ID || '';
-          const wrkrNm = eqt.WRKR_NM || eqt.OWNER_WRKR_NM || wrkrId;
-          const crrId = eqt.CRR_ID || '';
-          if (wrkrId && !workerMap.has(wrkrId)) {
-            workerMap.set(wrkrId, { USR_ID: wrkrId, USR_NM: wrkrNm, CRR_ID: crrId, EQT_COUNT: 0 });
-          }
-          if (wrkrId && workerMap.has(wrkrId)) {
-            workerMap.get(wrkrId)!.EQT_COUNT++;
-          }
-        });
-        const workers = Array.from(workerMap.values());
-        console.log('[장비이동] 검색 결과:', workers.length, '명');
-        setSearchedWorkers(workers);
-      } else {
-        if (isNameSearch) {
+        const workers = await searchWorkersByName({ WRKR_NM: keyword, CRR_ID: '' });
+        if (workers && workers.length > 0) {
+          const formattedWorkers = workers.map((w: any) => ({
+            USR_ID: w.WRKR_ID,
+            USR_NM: w.WRKR_NM,
+            CRR_ID: w.CRR_ID || '',
+            EQT_COUNT: w.EQT_COUNT || 0
+          }));
+          console.log('[장비이동] 이름 검색 결과:', formattedWorkers.length, '명');
+          setSearchedWorkers(formattedWorkers);
+        } else {
           setSearchedWorkers([]);
           alert('해당 이름의 기사를 찾을 수 없습니다.');
+        }
+      } else {
+        // ID 검색: getWrkrHaveEqtList API 사용
+        console.log('[장비이동] ID 검색:', keyword.toUpperCase());
+        const params = { WRKR_ID: keyword.toUpperCase(), CRR_ID: '' };
+        const equipmentResult = await debugApiCall('EquipmentMovement', 'getWrkrHaveEqtList',
+          () => getWrkrHaveEqtList(params),
+          params);
+        if (equipmentResult && equipmentResult.length > 0) {
+          const workerName = equipmentResult[0].WRKR_NM || keyword.toUpperCase();
+          const workerCrrId = equipmentResult[0].CRR_ID || '';
+          setSearchedWorkers([{ USR_ID: keyword.toUpperCase(), USR_NM: workerName, CRR_ID: workerCrrId, EQT_COUNT: equipmentResult.length }]);
         } else {
           setSearchedWorkers([{ USR_ID: keyword.toUpperCase(), USR_NM: keyword.toUpperCase(), CRR_ID: '', EQT_COUNT: 0 }]);
         }

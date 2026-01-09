@@ -5355,6 +5355,37 @@ export const modMmtSusInfo = async (params: {
     throw error;
   }
 };
+/**
+ * 기사 이름 검색
+ * @param params WRKR_NM (2글자 이상 필수), CRR_ID (optional)
+ * @returns 이름에 매칭되는 기사 목록 (부분 일치)
+ */
+export const searchWorkersByName = async (params: {
+  WRKR_NM: string;
+  CRR_ID?: string;
+}): Promise<any[]> => {
+  console.log('[searchWorkersByName] 기사 이름 검색:', params);
+
+  try {
+    const response = await fetchWithRetry(`${API_BASE}/customer/equipment/searchWorkersByName`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Origin': typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000'
+      },
+      body: JSON.stringify(params),
+      credentials: 'include'
+    });
+
+    const result = await response.json();
+    console.log('[searchWorkersByName] 결과:', result.length, '명');
+    return Array.isArray(result) ? result : [];
+  } catch (error: any) {
+    console.error('[searchWorkersByName] 실패:', error);
+    throw error;
+  }
+};
+
 // ==================== 장비관리 API Aliases ====================
 export const getWrkrHaveEqtList = getWorkerEquipmentList;
 export const apiRequest = async (endpoint: string, method: 'GET' | 'POST' = 'POST', body?: any): Promise<any> => {
