@@ -669,6 +669,7 @@ const EquipmentMovement: React.FC<EquipmentMovementProps> = ({ onBack }) => {
             </button>
           </div>
         </div>
+      )}
       </>
 
       {/* 스캔된 장비 표시 - 조회 전에만 */}
