@@ -36,8 +36,7 @@ interface UnreturnedEqt {
   PHONE_NO: string;
   ADDRESS: string;
   RETN_REQ_YN: string;
-  LOSS_AMT: string;
-  isScanned?: boolean;
+  LOSS_AMT: string;CRR_ID: string;CMPL_DATE: string;isScanned?: boolean;
 }
 
 // 날짜 포맷 함수 (YYYY.MM.DD)
