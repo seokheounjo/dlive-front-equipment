@@ -279,11 +279,13 @@ const EquipmentMovement: React.FC<EquipmentMovementProps> = ({ onBack }) => {
     }
   };
 
-  // 기사 보유장비 조회
-  const searchEquipmentByWorker = async (wrkrId: string, wrkrNm: string, scannedSN?: string) => {
+  // 기사 보유장비 조회 - CRR_ID 전달하여 타협력업체 기사 장비도 조회 가능
+  const searchEquipmentByWorker = async (wrkrId: string, wrkrNm: string, crrId?: string, scannedSN?: string) => {
     setIsLoading(true);
     try {
-      const params: any = { WRKR_ID: wrkrId }; // 전체 지점 조회 (SO_ID 제거)
+      const params: any = { WRKR_ID: wrkrId };
+      // 타기사 장비 조회를 위해 해당 기사의 CRR_ID 전달
+      if (crrId) params.CRR_ID = crrId;
       const result = await debugApiCall('EquipmentMovement', 'getWrkrHaveEqtList', () => getWrkrHaveEqtList(params), params);
 
       if (Array.isArray(result) && result.length > 0) {
@@ -337,7 +339,7 @@ const EquipmentMovement: React.FC<EquipmentMovementProps> = ({ onBack }) => {
 
   const handleSearch = async () => {
     if (!workerInfo.WRKR_ID) { alert('보유기사를 선택해주세요.'); return; }
-    await searchEquipmentByWorker(workerInfo.WRKR_ID, workerInfo.WRKR_NM);
+    await searchEquipmentByWorker(workerInfo.WRKR_ID, workerInfo.WRKR_NM, workerInfo.CRR_ID);
     setHasSearched(true);
   };
 
@@ -363,12 +365,13 @@ const EquipmentMovement: React.FC<EquipmentMovementProps> = ({ onBack }) => {
         { WRKR_ID: workerId });
       
       if (equipmentResult && equipmentResult.length > 0) {
-        // 보유장비가 있으면 첫번째 장비에서 기사 이름 추출
+        // 보유장비가 있으면 첫번째 장비에서 기사 이름과 CRR_ID 추출
         const workerName = equipmentResult[0].WRKR_NM || workerId;
-        setSearchedWorkers([{ USR_ID: workerId, USR_NM: workerName, EQT_COUNT: equipmentResult.length }]);
+        const workerCrrId = equipmentResult[0].CRR_ID || '';
+        setSearchedWorkers([{ USR_ID: workerId, USR_NM: workerName, CRR_ID: workerCrrId, EQT_COUNT: equipmentResult.length }]);
       } else {
         // 보유장비가 없어도 기사 ID로 검색 결과 표시
-        setSearchedWorkers([{ USR_ID: workerId, USR_NM: workerId, EQT_COUNT: 0 }]);
+        setSearchedWorkers([{ USR_ID: workerId, USR_NM: workerId, CRR_ID: '', EQT_COUNT: 0 }]);
       }
     } catch (error) {
       console.error('기사 검색 실패:', error);
@@ -379,9 +382,9 @@ const EquipmentMovement: React.FC<EquipmentMovementProps> = ({ onBack }) => {
     }
   };
 
-  // 기사 선택
-  const handleWorkerSelect = (worker: { USR_ID: string; USR_NM: string; EQT_COUNT?: number }) => {
-    setWorkerInfo(prev => ({ ...prev, WRKR_ID: worker.USR_ID, WRKR_NM: worker.USR_NM }));
+  // 기사 선택 - CRR_ID도 함께 저장 (타기사 장비 조회용)
+  const handleWorkerSelect = (worker: { USR_ID: string; USR_NM: string; CRR_ID?: string; EQT_COUNT?: number }) => {
+    setWorkerInfo(prev => ({ ...prev, WRKR_ID: worker.USR_ID, WRKR_NM: worker.USR_NM, CRR_ID: worker.CRR_ID || '' }));
     setWorkerModalOpen(false);
   };
 

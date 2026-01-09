@@ -882,7 +882,7 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
             <button
               type="button"
               onClick={() => setSelectedCategory('OWNED')}
-              className={`p-3 rounded-lg border-2 transition-all text-center active:scale-[0.98] touch-manipulation ${
+              className={`p-2 rounded-lg border-2 transition-all text-center active:scale-[0.98] touch-manipulation ${
                 selectedCategory === 'OWNED'
                   ? 'bg-green-50 border-green-500 text-green-700 shadow-sm'
                   : 'border-gray-200 hover:bg-gray-50 text-gray-400'
@@ -908,7 +908,7 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
             <button
               type="button"
               onClick={() => setSelectedCategory('RETURN_REQUESTED')}
-              className={`p-3 rounded-lg border-2 transition-all text-center active:scale-[0.98] touch-manipulation ${
+              className={`p-2 rounded-lg border-2 transition-all text-center active:scale-[0.98] touch-manipulation ${
                 selectedCategory === 'RETURN_REQUESTED'
                   ? 'bg-amber-50 border-amber-500 text-amber-700 shadow-sm'
                   : 'border-gray-200 hover:bg-gray-50 text-gray-400'
@@ -934,7 +934,7 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
             <button
               type="button"
               onClick={() => setSelectedCategory('INSPECTION_WAITING')}
-              className={`p-3 rounded-lg border-2 transition-all text-center active:scale-[0.98] touch-manipulation ${
+              className={`p-2 rounded-lg border-2 transition-all text-center active:scale-[0.98] touch-manipulation ${
                 selectedCategory === 'INSPECTION_WAITING'
                   ? 'bg-purple-50 border-purple-500 text-purple-700 shadow-sm'
                   : 'border-gray-200 hover:bg-gray-50 text-gray-400'
@@ -963,7 +963,7 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
           <button
             onClick={handleSearch}
             disabled={isLoading}
-            className="w-full bg-blue-500 hover:bg-blue-600 disabled:bg-gray-400 text-white py-4 rounded-xl font-bold text-base shadow-md transition-all flex items-center justify-center gap-2 active:scale-[0.98] touch-manipulation"
+            className="w-full bg-blue-500 hover:bg-blue-600 disabled:bg-gray-400 text-white py-2 rounded-xl font-bold text-base shadow-md transition-all flex items-center justify-center gap-2 active:scale-[0.98] touch-manipulation"
             style={{ WebkitTapHighlightColor: 'transparent' }}
           >
             {isLoading ? (
