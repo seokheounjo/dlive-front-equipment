@@ -299,6 +299,12 @@ const EquipmentRecovery: React.FC<EquipmentRecoveryProps> = ({ onBack }) => {
   };
 
   const handleSearch = async () => {
+    // 검색 조건 검증 - 최소 1개 이상 필수
+    if (!searchParams.EQT_SERNO && !searchParams.CUST_ID && !searchParams.CUST_NM) {
+      alert('S/N, 고객ID, 고객명 중 하나 이상을 입력해주세요.');
+      return;
+    }
+
     setIsLoading(true);
     try {
       const params: any = {
