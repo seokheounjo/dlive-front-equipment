@@ -353,13 +353,27 @@ const EquipmentMovement: React.FC<EquipmentMovementProps> = ({ onBack }) => {
 
   // 기사 검색 (팝업 내에서) - 보유장비 API로 기사 확인
   const handleWorkerModalSearch = async () => {
-    if (!workerSearchKeyword.trim()) {
+    const keyword = workerSearchKeyword.trim();
+    if (!keyword) {
       alert('기사 ID를 입력해주세요.');
       return;
     }
+
+    // 한글 입력 감지 (이름 검색은 현재 지원 안됨)
+    const koreanRegex = /[가-힣]/;
+    if (koreanRegex.test(keyword)) {
+      if (keyword.length < 2) {
+        alert('이름은 2글자 이상 입력해주세요.');
+        return;
+      }
+      // 이름 검색은 백엔드 미지원 - ID 입력 안내
+      alert('이름 검색은 현재 지원되지 않습니다.\n기사 ID를 입력해주세요 (예: A20117965)');
+      return;
+    }
+
     setIsSearchingWorker(true);
     try {
-      const workerId = workerSearchKeyword.trim().toUpperCase();
+      const workerId = keyword.toUpperCase();
       // 보유장비 API로 기사 존재 여부 확인 (CRR_ID 없이 호출해야 전체 결과 반환)
       const equipmentResult = await debugApiCall('EquipmentMovement', 'getWrkrHaveEqtList', 
         () => getWrkrHaveEqtList({ WRKR_ID: workerId, CRR_ID: '' }), 
@@ -916,7 +930,7 @@ const EquipmentMovement: React.FC<EquipmentMovementProps> = ({ onBack }) => {
               onChange={(e) => setWorkerSearchKeyword(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && handleWorkerModalSearch()}
               className="flex-1 px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-green-500"
-              placeholder="이름 또는 ID 입력"
+              placeholder="기사 ID (예: A20117965)"
               autoFocus
             />
             <button
@@ -939,7 +953,7 @@ const EquipmentMovement: React.FC<EquipmentMovementProps> = ({ onBack }) => {
       >
         {searchedWorkers.length === 0 ? (
           <div className="py-8 text-center text-gray-500 text-sm">
-            {isSearchingWorker ? '검색 중...' : '기사 이름 또는 ID를 검색하세요'}
+            {isSearchingWorker ? '검색 중...' : '기사 ID를 입력하세요'}
           </div>
         ) : (
           <div className="divide-y divide-gray-100">
