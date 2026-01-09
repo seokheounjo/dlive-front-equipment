@@ -219,10 +219,11 @@ const EquipmentMovement: React.FC<EquipmentMovementProps> = ({ onBack }) => {
         const eqt = eqtResult[0];
         const ownerWrkrId = eqt.WRKR_ID || eqt.OWNER_WRKR_ID;
         const ownerWrkrNm = eqt.WRKR_NM || eqt.OWNER_WRKR_NM || '알수없음';
+        const ownerCrrId = eqt.CRR_ID || '';
 
         if (ownerWrkrId) {
-          setWorkerInfo(prev => ({ ...prev, WRKR_ID: ownerWrkrId, WRKR_NM: ownerWrkrNm }));
-          await searchEquipmentByWorker(ownerWrkrId, ownerWrkrNm, firstSN);
+          setWorkerInfo(prev => ({ ...prev, WRKR_ID: ownerWrkrId, WRKR_NM: ownerWrkrNm, CRR_ID: ownerCrrId }));
+          await searchEquipmentByWorker(ownerWrkrId, ownerWrkrNm, ownerCrrId, firstSN);
           setHasSearched(true);
         } else {
           alert(`장비(${firstSN})의 보유기사 정보가 없습니다.`);
@@ -258,11 +259,12 @@ const EquipmentMovement: React.FC<EquipmentMovementProps> = ({ onBack }) => {
         const eqt = eqtResult[0];
         const ownerWrkrId = eqt.WRKR_ID || eqt.OWNER_WRKR_ID;
         const ownerWrkrNm = eqt.WRKR_NM || eqt.OWNER_WRKR_NM || '알수없음';
+        const ownerCrrId = eqt.CRR_ID || '';
 
         if (ownerWrkrId) {
           setScannedSerials([normalizedSN]);
-          setWorkerInfo(prev => ({ ...prev, WRKR_ID: ownerWrkrId, WRKR_NM: ownerWrkrNm }));
-          await searchEquipmentByWorker(ownerWrkrId, ownerWrkrNm, normalizedSN);
+          setWorkerInfo(prev => ({ ...prev, WRKR_ID: ownerWrkrId, WRKR_NM: ownerWrkrNm, CRR_ID: ownerCrrId }));
+          await searchEquipmentByWorker(ownerWrkrId, ownerWrkrNm, ownerCrrId, normalizedSN);
           setHasSearched(true);
         } else {
           alert('장비(' + normalizedSN + ')의 보유기사 정보가 없습니다.');
