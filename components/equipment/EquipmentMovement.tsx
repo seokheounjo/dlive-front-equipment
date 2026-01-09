@@ -357,9 +357,9 @@ const EquipmentMovement: React.FC<EquipmentMovementProps> = ({ onBack }) => {
     setIsSearchingWorker(true);
     try {
       const workerId = workerSearchKeyword.trim().toUpperCase();
-      // 보유장비 API로 기사 존재 여부 확인
+      // 보유장비 API로 기사 존재 여부 확인 (CRR_ID 없이 호출해야 전체 결과 반환)
       const equipmentResult = await debugApiCall('EquipmentMovement', 'getWrkrHaveEqtList', 
-        () => getWrkrHaveEqtList({ WRKR_ID: workerId, CRR_ID: loggedInUser.crrId || '' }), 
+        () => getWrkrHaveEqtList({ WRKR_ID: workerId }), 
         { WRKR_ID: workerId });
       
       if (equipmentResult && equipmentResult.length > 0) {
