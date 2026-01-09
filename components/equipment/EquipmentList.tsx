@@ -627,14 +627,11 @@ const EquipmentList: React.FC<EquipmentListProps> = ({ onBack, showToast }) => {
     <div className="h-full overflow-y-auto bg-gray-50 px-4 py-4 space-y-3">
 
         {/* 조회 모드 선택 */}
-        <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4">
-          <div className="flex items-center gap-2 mb-3">
-            <span className="text-sm font-semibold text-gray-800">조회 방식</span>
-          </div>
+        <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-1">
           <div className="grid grid-cols-3 gap-2">
             <button
               onClick={() => setScanMode('single')}
-              className={`py-3 px-2 rounded-lg text-sm font-medium transition-all ${
+              className={`py-2 px-2 rounded-lg text-sm font-medium transition-all ${
                 scanMode === 'single'
                   ? 'bg-blue-500 text-white shadow-sm'
                   : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
@@ -644,7 +641,7 @@ const EquipmentList: React.FC<EquipmentListProps> = ({ onBack, showToast }) => {
             </button>
             <button
               onClick={() => setScanMode('multi')}
-              className={`py-3 px-2 rounded-lg text-sm font-medium transition-all ${
+              className={`py-2 px-2 rounded-lg text-sm font-medium transition-all ${
                 scanMode === 'multi'
                   ? 'bg-purple-500 text-white shadow-sm'
                   : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
@@ -654,7 +651,7 @@ const EquipmentList: React.FC<EquipmentListProps> = ({ onBack, showToast }) => {
             </button>
             <button
               onClick={() => setScanMode('manual')}
-              className={`py-3 px-2 rounded-lg text-sm font-medium transition-all ${
+              className={`py-2 px-2 rounded-lg text-sm font-medium transition-all ${
                 scanMode === 'manual'
                   ? 'bg-green-500 text-white shadow-sm'
                   : 'bg-gray-100 text-gray-600 hover:bg-gray-200'

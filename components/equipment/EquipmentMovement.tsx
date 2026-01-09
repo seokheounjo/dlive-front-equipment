@@ -502,11 +502,11 @@ const EquipmentMovement: React.FC<EquipmentMovementProps> = ({ onBack }) => {
       {/* 검색 영역 - 항상 표시 */}
       <>
           {/* 조회 모드 선택 - 3개 버튼 */}
-          <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4">
+          <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-1">
             <div className="grid grid-cols-3 gap-2">
           <button
             onClick={() => setScanMode('scan')}
-            className={`py-3 px-2 rounded-lg text-sm font-medium transition-all ${
+            className={`py-2 px-2 rounded-lg text-sm font-medium transition-all ${
               scanMode === 'scan'
                 ? 'bg-purple-500 text-white shadow-sm'
                 : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
@@ -514,7 +514,7 @@ const EquipmentMovement: React.FC<EquipmentMovementProps> = ({ onBack }) => {
           >단일스캔</button>
           <button
             onClick={() => setScanMode('equipment')}
-            className={`py-3 px-2 rounded-lg text-sm font-medium transition-all ${
+            className={`py-2 px-2 rounded-lg text-sm font-medium transition-all ${
               scanMode === 'equipment'
                 ? 'bg-blue-500 text-white shadow-sm'
                 : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
@@ -522,7 +522,7 @@ const EquipmentMovement: React.FC<EquipmentMovementProps> = ({ onBack }) => {
           >장비번호</button>
           <button
             onClick={() => setScanMode('worker')}
-            className={`py-3 px-2 rounded-lg text-sm font-medium transition-all ${
+            className={`py-2 px-2 rounded-lg text-sm font-medium transition-all ${
               scanMode === 'worker'
                 ? 'bg-green-500 text-white shadow-sm'
                 : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
