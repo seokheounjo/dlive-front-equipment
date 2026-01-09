@@ -1104,7 +1104,7 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
 
             {/* 간단히 보기: 장비구분, S/N, MAC, 사용가능 */}
             {viewMode === 'simple' && (
-              <div className="max-h-80 overflow-y-auto p-3 space-y-2">
+              <div className="max-h-[calc(100vh-320px)] overflow-y-auto p-3 space-y-2">
                 {equipmentList.map((item, idx) => (
                   <div
                     key={idx}
@@ -1163,7 +1163,7 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
 
             {/* 자세히 보기: 모델명, 사용가능, 변경종류, 현재위치, 이동전위치, 장비상태, 지점 */}
             {viewMode === 'detail' && (
-              <div className="max-h-80 overflow-y-auto p-3 space-y-2">
+              <div className="max-h-[calc(100vh-320px)] overflow-y-auto p-3 space-y-2">
                 {equipmentList.map((item, idx) => (
                   <div
                     key={idx}
