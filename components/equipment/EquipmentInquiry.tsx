@@ -1274,17 +1274,21 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
           </div>
         )}
 
-        {/* 하단 버튼 영역 - 선택된 장비의 실제 카테고리에 따라 버튼 활성화 */}
-        <div className="flex gap-2 flex-wrap">
+        {/* 하단 버튼 영역 확보용 여백 */}
+        <div className="h-20"></div>
+
+      {/* 하단 고정 버튼 영역 - 네비게이션 바 바로 위 */}
+      <div className="fixed bottom-[56px] left-0 right-0 p-3 bg-white border-t border-gray-200 z-40" style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}>
+        <div className="flex gap-2">
           {/* 보유장비가 선택되었을 때만: 장비반납 */}
           {totalOwned > 0 && (
             <button
               onClick={handleReturnClick}
               disabled={selectedOwned === 0}
-              className={`flex-1 min-w-[100px] py-2.5 rounded-lg font-semibold text-sm shadow-sm transition-all active:scale-[0.98] touch-manipulation ${
+              className={`flex-1 py-3 px-4 rounded-lg font-semibold text-sm shadow-sm transition-all active:scale-[0.98] touch-manipulation ${
                 selectedOwned > 0
                   ? 'bg-blue-500 hover:bg-blue-600 text-white'
-                  : 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                  : 'bg-gray-300 text-white cursor-not-allowed'
               }`}
               style={{ WebkitTapHighlightColor: 'transparent' }}
             >
@@ -1297,10 +1301,10 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
             <button
               onClick={() => handleReturnRequest('CANCEL')}
               disabled={selectedReturn === 0}
-              className={`flex-1 min-w-[100px] py-2.5 rounded-lg font-semibold text-sm shadow-sm transition-all active:scale-[0.98] touch-manipulation ${
+              className={`flex-1 py-3 px-4 rounded-lg font-semibold text-sm shadow-sm transition-all active:scale-[0.98] touch-manipulation ${
                 selectedReturn > 0
-                  ? 'bg-orange-500 hover:bg-amber-600 text-white'
-                  : 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                  ? 'bg-orange-500 hover:bg-orange-600 text-white'
+                  : 'bg-gray-300 text-white cursor-not-allowed'
               }`}
               style={{ WebkitTapHighlightColor: 'transparent' }}
             >
@@ -1313,10 +1317,10 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
             <button
               onClick={handleStatusChangeClick}
               disabled={selectedInspection === 0}
-              className={`flex-1 min-w-[100px] py-2.5 rounded-lg font-semibold text-sm shadow-sm transition-all active:scale-[0.98] touch-manipulation ${
+              className={`flex-1 py-3 px-4 rounded-lg font-semibold text-sm shadow-sm transition-all active:scale-[0.98] touch-manipulation ${
                 selectedInspection > 0
                   ? 'bg-green-500 hover:bg-green-600 text-white'
-                  : 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                  : 'bg-gray-300 text-white cursor-not-allowed'
               }`}
               style={{ WebkitTapHighlightColor: 'transparent' }}
             >
@@ -1324,6 +1328,7 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
             </button>
           )}
         </div>
+      </div>
 
       {/* 장비반납 모달 */}
       <BaseModal
