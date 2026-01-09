@@ -359,34 +359,50 @@ const EquipmentMovement: React.FC<EquipmentMovementProps> = ({ onBack }) => {
       return;
     }
 
-    // 한글 입력 감지 (이름 검색은 현재 지원 안됨)
+    // 한글 입력 감지 - 이름 검색
     const koreanRegex = /[가-힣]/;
-    if (koreanRegex.test(keyword)) {
-      if (keyword.length < 2) {
-        alert('이름은 2글자 이상 입력해주세요.');
-        return;
-      }
-      // 이름 검색은 백엔드 미지원 - ID 입력 안내
-      alert('이름 검색은 현재 지원되지 않습니다.\n기사 ID를 입력해주세요 (예: A20117965)');
+    const isNameSearch = koreanRegex.test(keyword);
+
+    if (isNameSearch && keyword.length < 2) {
+      alert('이름은 2글자 이상 입력해주세요.');
       return;
     }
-
     setIsSearchingWorker(true);
     try {
-      const workerId = keyword.toUpperCase();
-      // 보유장비 API로 기사 존재 여부 확인 (CRR_ID 없이 호출해야 전체 결과 반환)
-      const equipmentResult = await debugApiCall('EquipmentMovement', 'getWrkrHaveEqtList', 
-        () => getWrkrHaveEqtList({ WRKR_ID: workerId, CRR_ID: '' }), 
-        { WRKR_ID: workerId });
-      
-      if (equipmentResult && equipmentResult.length > 0) {
-        // 보유장비가 있으면 첫번째 장비에서 기사 이름과 CRR_ID 추출
-        const workerName = equipmentResult[0].WRKR_NM || workerId;
-        const workerCrrId = equipmentResult[0].CRR_ID || '';
-        setSearchedWorkers([{ USR_ID: workerId, USR_NM: workerName, CRR_ID: workerCrrId, EQT_COUNT: equipmentResult.length }]);
+      let params: any;
+      if (isNameSearch) {
+        params = { WRKR_NM: keyword, CRR_ID: '' };
+        console.log('[장비이동] 이름 검색:', keyword);
       } else {
-        // 보유장비가 없어도 기사 ID로 검색 결과 표시
-        setSearchedWorkers([{ USR_ID: workerId, USR_NM: workerId, CRR_ID: '', EQT_COUNT: 0 }]);
+        params = { WRKR_ID: keyword.toUpperCase(), CRR_ID: '' };
+        console.log('[장비이동] ID 검색:', keyword.toUpperCase());
+      }
+      const equipmentResult = await debugApiCall('EquipmentMovement', 'getWrkrHaveEqtList',
+        () => getWrkrHaveEqtList(params),
+        params);
+      if (equipmentResult && equipmentResult.length > 0) {
+        const workerMap = new Map<string, { USR_ID: string; USR_NM: string; CRR_ID: string; EQT_COUNT: number }>();
+        equipmentResult.forEach((eqt: any) => {
+          const wrkrId = eqt.WRKR_ID || eqt.OWNER_WRKR_ID || '';
+          const wrkrNm = eqt.WRKR_NM || eqt.OWNER_WRKR_NM || wrkrId;
+          const crrId = eqt.CRR_ID || '';
+          if (wrkrId && !workerMap.has(wrkrId)) {
+            workerMap.set(wrkrId, { USR_ID: wrkrId, USR_NM: wrkrNm, CRR_ID: crrId, EQT_COUNT: 0 });
+          }
+          if (wrkrId && workerMap.has(wrkrId)) {
+            workerMap.get(wrkrId)!.EQT_COUNT++;
+          }
+        });
+        const workers = Array.from(workerMap.values());
+        console.log('[장비이동] 검색 결과:', workers.length, '명');
+        setSearchedWorkers(workers);
+      } else {
+        if (isNameSearch) {
+          setSearchedWorkers([]);
+          alert('해당 이름의 기사를 찾을 수 없습니다.');
+        } else {
+          setSearchedWorkers([{ USR_ID: keyword.toUpperCase(), USR_NM: keyword.toUpperCase(), CRR_ID: '', EQT_COUNT: 0 }]);
+        }
       }
     } catch (error) {
       console.error('기사 검색 실패:', error);
@@ -930,7 +946,7 @@ const EquipmentMovement: React.FC<EquipmentMovementProps> = ({ onBack }) => {
               onChange={(e) => setWorkerSearchKeyword(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && handleWorkerModalSearch()}
               className="flex-1 px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-green-500"
-              placeholder="기사 ID (예: A20117965)"
+              placeholder="이름 또는 ID 입력"
               autoFocus
             />
             <button
@@ -953,7 +969,7 @@ const EquipmentMovement: React.FC<EquipmentMovementProps> = ({ onBack }) => {
       >
         {searchedWorkers.length === 0 ? (
           <div className="py-8 text-center text-gray-500 text-sm">
-            {isSearchingWorker ? '검색 중...' : '기사 ID를 입력하세요'}
+            {isSearchingWorker ? '검색 중...' : '이름 또는 ID를 검색하세요'}
           </div>
         ) : (
           <div className="divide-y divide-gray-100">
