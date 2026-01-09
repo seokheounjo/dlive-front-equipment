@@ -188,7 +188,7 @@ const EquipmentList: React.FC<EquipmentListProps> = ({ onBack, showToast }) => {
   const [myEquipments, setMyEquipments] = useState<any[]>([]);
   const [isLoadingMyEquipments, setIsLoadingMyEquipments] = useState(false);
 
-  // 조회 모드: single(단일스캔), multi(복수스캔), manual(장비번호 입력)
+  // 조회 모드: single(스캔), multi(복수스캔), manual(장비번호 입력)
   const [scanMode, setScanMode] = useState<ScanMode>('single');
 
   // 복수 스캔 누적 조회 기능
@@ -637,7 +637,7 @@ const EquipmentList: React.FC<EquipmentListProps> = ({ onBack, showToast }) => {
                   : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
               }`}
             >
-              단일스캔
+              스캔
             </button>
             
             <button
