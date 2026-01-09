@@ -281,13 +281,12 @@ const EquipmentMovement: React.FC<EquipmentMovementProps> = ({ onBack }) => {
     }
   };
 
-  // 기사 보유장비 조회 - CRR_ID 전달하여 타협력업체 기사 장비도 조회 가능
+  // 기사 보유장비 조회 - CRR_ID=""로 전체 협력업체 조회 가능
   const searchEquipmentByWorker = async (wrkrId: string, wrkrNm: string, crrId?: string, scannedSN?: string) => {
     setIsLoading(true);
     try {
-      const params: any = { WRKR_ID: wrkrId };
-      // 타기사 장비 조회를 위해 해당 기사의 CRR_ID 전달
-      if (crrId) params.CRR_ID = crrId;
+      // CRR_ID=""로 전체 협력업체 조회 (타기사 장비 조회용)
+      const params: any = { WRKR_ID: wrkrId, CRR_ID: '' };
       const result = await debugApiCall('EquipmentMovement', 'getWrkrHaveEqtList', () => getWrkrHaveEqtList(params), params);
 
       if (Array.isArray(result) && result.length > 0) {
@@ -363,7 +362,7 @@ const EquipmentMovement: React.FC<EquipmentMovementProps> = ({ onBack }) => {
       const workerId = workerSearchKeyword.trim().toUpperCase();
       // 보유장비 API로 기사 존재 여부 확인 (CRR_ID 없이 호출해야 전체 결과 반환)
       const equipmentResult = await debugApiCall('EquipmentMovement', 'getWrkrHaveEqtList', 
-        () => getWrkrHaveEqtList({ WRKR_ID: workerId }), 
+        () => getWrkrHaveEqtList({ WRKR_ID: workerId, CRR_ID: '' }), 
         { WRKR_ID: workerId });
       
       if (equipmentResult && equipmentResult.length > 0) {
@@ -511,7 +510,7 @@ const EquipmentMovement: React.FC<EquipmentMovementProps> = ({ onBack }) => {
                 ? 'bg-purple-500 text-white shadow-sm'
                 : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
             }`}
-          >단일스캔</button>
+          >스캔</button>
           <button
             onClick={() => setScanMode('equipment')}
             className={`py-2 px-2 rounded-lg text-sm font-medium transition-all ${
