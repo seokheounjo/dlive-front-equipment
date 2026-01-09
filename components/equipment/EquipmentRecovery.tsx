@@ -1,7 +1,8 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState } from 'react';
 import { getUnreturnedEquipmentList, processEquipmentRecovery, getEquipmentHistoryInfo } from '../../services/apiService';
 import { debugApiCall } from './equipmentDebug';
 import { Scan, Check, AlertTriangle, Package } from 'lucide-react';
+import BarcodeScanner from './BarcodeScanner';
 
 interface EquipmentRecoveryProps {
   onBack: () => void;
@@ -65,73 +66,6 @@ const formatDateInput = (dateStr: string): string => {
     return dateStr.replace(/\./g, '-');
   }
   return dateStr;
-};
-
-// 바코드 스캔 모달
-const BarcodeScanModal: React.FC<{
-  isOpen: boolean;
-  onClose: () => void;
-  onScan: (serialNo: string) => void;
-}> = ({ isOpen, onClose, onScan }) => {
-  const [inputValue, setInputValue] = useState('');
-  const inputRef = useRef<HTMLInputElement>(null);
-
-  useEffect(() => {
-    if (isOpen && inputRef.current) {
-      inputRef.current.focus();
-    }
-  }, [isOpen]);
-
-  if (!isOpen) return null;
-
-  const handleSubmit = () => {
-    if (inputValue.trim()) {
-      onScan(inputValue.trim().toUpperCase());
-      setInputValue('');
-      onClose();
-    }
-  };
-
-  return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-xl shadow-xl w-full max-w-sm overflow-hidden">
-        <div className="p-4 border-b border-gray-100 bg-gradient-to-r from-orange-500 to-orange-600">
-          <div className="flex items-center gap-2">
-            <Scan className="w-5 h-5 text-white" />
-            <h3 className="font-semibold text-white">바코드 스캔</h3>
-          </div>
-          <p className="text-xs text-white/80 mt-1">미회수 장비 S/N을 스캔하거나 입력하세요</p>
-        </div>
-        <div className="p-4 space-y-4">
-          <input
-            ref={inputRef}
-            type="text"
-            value={inputValue}
-            onChange={(e) => setInputValue(e.target.value.toUpperCase())}
-            onKeyDown={(e) => e.key === 'Enter' && handleSubmit()}
-            placeholder="S/N 입력 또는 스캔"
-            className="w-full px-4 py-3 text-lg border-2 border-orange-200 rounded-lg focus:border-orange-500 focus:ring-2 focus:ring-orange-200 uppercase font-mono text-center"
-            autoComplete="off"
-          />
-          <div className="flex gap-2">
-            <button
-              onClick={onClose}
-              className="flex-1 py-2.5 text-sm text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-lg font-medium transition-colors"
-            >
-              취소
-            </button>
-            <button
-              onClick={handleSubmit}
-              disabled={!inputValue.trim()}
-              className="flex-1 py-2.5 text-sm text-white bg-orange-500 hover:bg-orange-600 disabled:bg-gray-300 rounded-lg font-medium transition-colors"
-            >
-              조회
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
 };
 
 // 회수처리 모달
@@ -643,8 +577,8 @@ const EquipmentRecovery: React.FC<EquipmentRecoveryProps> = ({ onBack }) => {
         </div>
       )}
 
-      {/* 모달들 */}
-      <BarcodeScanModal
+      {/* 바코드 스캐너 */}
+      <BarcodeScanner
         isOpen={scanModalOpen}
         onClose={() => setScanModalOpen(false)}
         onScan={handleBarcodeScan}
