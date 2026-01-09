@@ -348,34 +348,39 @@ const EquipmentMovement: React.FC<EquipmentMovementProps> = ({ onBack }) => {
     setWorkerModalOpen(true);
   };
 
-  // 기사 검색 (팝업 내에서)
+  // 기사 검색 (팝업 내에서) - 보유장비 API로 기사 확인
   const handleWorkerModalSearch = async () => {
     if (!workerSearchKeyword.trim()) {
-      alert('검색어를 입력해주세요.');
+      alert('기사 ID를 입력해주세요.');
       return;
     }
     setIsSearchingWorker(true);
     try {
-      const keyword = workerSearchKeyword.trim();
-      // Java API uses USR_NM for search (both ID and name search)
-      const searchParam = { USR_NM: keyword };
-      const result = await debugApiCall('EquipmentMovement', 'findUserList', () => findUserList(searchParam), searchParam);
-      if (!result || result.length === 0) {
-        alert('검색 결과가 없습니다.');
-        setSearchedWorkers([]);
+      const workerId = workerSearchKeyword.trim().toUpperCase();
+      // 보유장비 API로 기사 존재 여부 확인
+      const equipmentResult = await debugApiCall('EquipmentMovement', 'getWrkrHaveEqtList', 
+        () => getWrkrHaveEqtList({ WRKR_ID: workerId, CRR_ID: loggedInUser.crrId || '' }), 
+        { WRKR_ID: workerId });
+      
+      if (equipmentResult && equipmentResult.length > 0) {
+        // 보유장비가 있으면 첫번째 장비에서 기사 이름 추출
+        const workerName = equipmentResult[0].WRKR_NM || workerId;
+        setSearchedWorkers([{ USR_ID: workerId, USR_NM: workerName, EQT_COUNT: equipmentResult.length }]);
       } else {
-        setSearchedWorkers(result.slice(0, 50));
+        // 보유장비가 없어도 기사 ID로 검색 결과 표시
+        setSearchedWorkers([{ USR_ID: workerId, USR_NM: workerId, EQT_COUNT: 0 }]);
       }
     } catch (error) {
-      console.error('보유기사 검색 실패:', error);
-      alert('보유기사 검색에 실패했습니다.');
+      console.error('기사 검색 실패:', error);
+      alert('기사 검색에 실패했습니다.');
+      setSearchedWorkers([]);
     } finally {
       setIsSearchingWorker(false);
     }
   };
 
   // 기사 선택
-  const handleWorkerSelect = (worker: { USR_ID: string; USR_NM: string }) => {
+  const handleWorkerSelect = (worker: { USR_ID: string; USR_NM: string; EQT_COUNT?: number }) => {
     setWorkerInfo(prev => ({ ...prev, WRKR_ID: worker.USR_ID, WRKR_NM: worker.USR_NM }));
     setWorkerModalOpen(false);
   };
@@ -942,8 +947,13 @@ const EquipmentMovement: React.FC<EquipmentMovementProps> = ({ onBack }) => {
                 onClick={() => handleWorkerSelect(worker)}
                 className="w-full px-4 py-3 text-left hover:bg-green-50 flex justify-between items-center transition-colors active:bg-green-100 touch-manipulation"
               >
-                <span className="font-medium text-gray-900">{worker.USR_NM}</span>
-                <span className="text-xs text-gray-500 bg-gray-100 px-2 py-0.5 rounded">{worker.USR_ID}</span>
+                <div className="flex flex-col">
+                  <span className="font-medium text-gray-900">{worker.USR_NM}</span>
+                  <span className="text-xs text-gray-500">{worker.USR_ID}</span>
+                </div>
+                <span className="text-xs text-blue-600 bg-blue-50 px-2 py-1 rounded">
+                  {worker.EQT_COUNT !== undefined ? `${worker.EQT_COUNT}건` : ''}
+                </span>
               </button>
             ))}
           </div>
