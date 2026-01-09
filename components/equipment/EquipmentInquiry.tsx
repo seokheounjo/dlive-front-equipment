@@ -818,7 +818,7 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
             ITEM_NM: item.ITEM_NM || item.ITEM_MID_NM || ''
           });
         } catch (err: any) {
-          console.error('장비 상태 변경 실패:', item.EQT_SERNO, err);
+          console.error('장비 처리 결과:', item.EQT_SERNO, err);
           result.failed.push({
             EQT_SERNO: item.EQT_SERNO,
             EQT_NO: item.EQT_NO,
@@ -837,7 +837,7 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
         await handleSearch(); // 리스트 새로고침
       }
     } catch (error: any) {
-      console.error('❌ 상태 변경 실패:', error);
+      console.error('❌ 처리 결과:', error);
       showToast?.(error.message || '상태 변경에 실패했습니다.', 'error');
     }
   };
@@ -1591,8 +1591,8 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
                   : 'bg-gradient-to-r from-amber-500 to-amber-600'
             }`}>
               <h3 className="font-semibold text-white text-lg">
-                {statusChangeResult.failed.length === 0 ? '상태 변경 완료' :
-                 statusChangeResult.success.length === 0 ? '상태 변경 실패' : '부분 성공'}
+                {statusChangeResult.failed.length === 0 ? '사용가능 변경 완료' :
+                 statusChangeResult.success.length === 0 ? '처리 결과' : '처리 결과 (일부 성공)'}
               </h3>
               <p className="text-white/80 text-sm mt-1">
                 성공: {statusChangeResult.success.length}건 / 실패: {statusChangeResult.failed.length}건

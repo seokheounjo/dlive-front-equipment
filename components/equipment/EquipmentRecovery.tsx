@@ -11,8 +11,6 @@ interface UnreturnedEqtSearch {
   CUST_ID: string;
   CUST_NM: string;
   PHONE_NO: string;
-  FROM_DT: string;
-  TO_DT: string;
   EQT_CL_CD: string;
   EQT_SERNO: string;
 }
@@ -208,12 +206,6 @@ const EquipmentRecovery: React.FC<EquipmentRecoveryProps> = ({ onBack }) => {
     CUST_ID: '',
     CUST_NM: '',
     PHONE_NO: '',
-    FROM_DT: (() => {
-      const date = new Date();
-      date.setMonth(date.getMonth() - 3);
-      return date.toISOString().slice(0, 10).replace(/-/g, '');
-    })(),
-    TO_DT: new Date().toISOString().slice(0, 10).replace(/-/g, ''),
     EQT_CL_CD: '',
     EQT_SERNO: ''
   });
@@ -234,9 +226,7 @@ const EquipmentRecovery: React.FC<EquipmentRecoveryProps> = ({ onBack }) => {
 
       // S/N으로 미회수 장비 조회
       const params = {
-        EQT_SERNO: serialNo,
-        FROM_DT: searchParams.FROM_DT,
-        TO_DT: searchParams.TO_DT
+        EQT_SERNO: serialNo
       };
 
       const result = await debugApiCall(
@@ -307,10 +297,7 @@ const EquipmentRecovery: React.FC<EquipmentRecoveryProps> = ({ onBack }) => {
 
     setIsLoading(true);
     try {
-      const params: any = {
-        FROM_DT: searchParams.FROM_DT,
-        TO_DT: searchParams.TO_DT
-      };
+      const params: any = {};
 
       if (searchParams.EQT_SERNO) params.EQT_SERNO = searchParams.EQT_SERNO;
       if (searchParams.CUST_ID) params.CUST_ID = searchParams.CUST_ID;
@@ -459,15 +446,6 @@ const EquipmentRecovery: React.FC<EquipmentRecoveryProps> = ({ onBack }) => {
 
   return (
     <div className="h-full overflow-y-auto bg-gray-50 px-4 py-4 space-y-3">
-      {/* 바코드 스캔 버튼 */}
-      <button
-        onClick={() => setScanModalOpen(true)}
-        className="w-full bg-gradient-to-r from-orange-500 to-orange-600 text-white py-4 rounded-xl font-semibold text-base shadow-lg flex items-center justify-center gap-3 active:scale-[0.98] transition-all touch-manipulation"
-      >
-        <Scan className="w-6 h-6" />
-        바코드 스캔으로 미회수 장비 조회
-      </button>
-
       {/* 스캔된 장비 표시 */}
       {scannedSerials.length > 0 && (
         <div className="bg-orange-50 border border-orange-200 rounded-xl p-3">
@@ -505,42 +483,6 @@ const EquipmentRecovery: React.FC<EquipmentRecoveryProps> = ({ onBack }) => {
             />
           </div>
 
-          {/* 해지일자 */}
-          <div className="flex items-center gap-2">
-            <label className="text-xs font-medium text-gray-600 w-14 flex-shrink-0">해지일자</label>
-            <div className="flex-1 flex items-center gap-2 min-w-0">
-              <div className="relative flex-1 min-w-0">
-                <input
-                  type="date"
-                  value={formatDateInput(searchParams.FROM_DT)}
-                  onChange={(e) => setSearchParams({...searchParams, FROM_DT: formatDateApi(e.target.value)})}
-                  className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
-                />
-                <div className="flex items-center px-3 py-2 text-sm border border-gray-200 rounded-lg bg-white pointer-events-none">
-                  <span className="flex-1">{formatDateDot(searchParams.FROM_DT)}</span>
-                  <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                  </svg>
-                </div>
-              </div>
-              <span className="text-gray-400 flex-shrink-0">~</span>
-              <div className="relative flex-1 min-w-0">
-                <input
-                  type="date"
-                  value={formatDateInput(searchParams.TO_DT)}
-                  onChange={(e) => setSearchParams({...searchParams, TO_DT: formatDateApi(e.target.value)})}
-                  className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
-                />
-                <div className="flex items-center px-3 py-2 text-sm border border-gray-200 rounded-lg bg-white pointer-events-none">
-                  <span className="flex-1">{formatDateDot(searchParams.TO_DT)}</span>
-                  <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                  </svg>
-                </div>
-              </div>
-            </div>
-          </div>
-
           {/* 고객ID */}
           <div className="flex items-center gap-2">
             <label className="text-xs font-medium text-gray-600 w-14 flex-shrink-0">고객ID</label>
@@ -565,14 +507,24 @@ const EquipmentRecovery: React.FC<EquipmentRecoveryProps> = ({ onBack }) => {
             />
           </div>
 
-          <button
-            onClick={handleSearch}
-            disabled={isLoading}
-            className="w-full bg-blue-500 hover:bg-blue-600 disabled:bg-gray-300 text-white py-2.5 rounded-lg font-semibold text-sm shadow-sm transition-all active:scale-[0.98] touch-manipulation"
-            style={{ WebkitTapHighlightColor: 'transparent' }}
-          >
-            {isLoading ? '조회 중...' : '조회'}
-          </button>
+          <div className="flex gap-2">
+            <button
+              onClick={handleSearch}
+              disabled={isLoading}
+              className="flex-1 bg-blue-500 hover:bg-blue-600 disabled:bg-gray-300 text-white py-2.5 rounded-lg font-semibold text-sm shadow-sm transition-all active:scale-[0.98] touch-manipulation"
+              style={{ WebkitTapHighlightColor: 'transparent' }}
+            >
+              {isLoading ? '조회 중...' : '조회'}
+            </button>
+            <button
+              onClick={() => setScanModalOpen(true)}
+              className="flex-1 bg-orange-500 hover:bg-orange-600 text-white py-2.5 rounded-lg font-semibold text-sm shadow-sm transition-all active:scale-[0.98] touch-manipulation flex items-center justify-center gap-2"
+              style={{ WebkitTapHighlightColor: 'transparent' }}
+            >
+              <Scan className="w-4 h-4" />
+              스캔
+            </button>
+          </div>
         </div>
       </div>
 
