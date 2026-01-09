@@ -1136,9 +1136,6 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
                             <span className={`px-2 py-0.5 rounded text-xs font-bold flex-shrink-0 ${getItemColor(item.ITEM_MID_CD)}`}>
                               {item.ITEM_MID_NM || item.EQT_CL_NM || '장비'}
                             </span>
-                            {item.ITEM_NM && (
-                              <span className="text-xs text-gray-700 truncate">{item.ITEM_NM}</span>
-                            )}
                             </div>
                           <span className={`px-2 py-1 rounded-full text-xs font-semibold ${
                             (item._hasReturnRequest || item._category === 'RETURN_REQUESTED') ? 'bg-orange-100 text-orange-700' :
@@ -1153,15 +1150,9 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
                              item.EQT_USE_ARR_YN === 'N' ? '사용불가' : '-'}
                           </span>
                         </div>
-                        <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs">
-                          <div className="flex items-center gap-1">
-                            <span className="text-gray-400 w-10">S/N</span>
-                            <span className="font-mono text-gray-800 truncate">{item.EQT_SERNO || '-'}</span>
-                          </div>
-                          <div className="flex items-center gap-1">
-                            <span className="text-gray-400 w-10">MAC</span>
-                            <span className="font-mono text-gray-600 truncate">{formatMac(item.MAC_ADDRESS)}</span>
-                          </div>
+                        <div className="space-y-0.5 text-xs">
+                          <div className="font-mono text-gray-800 text-[11px]">{item.EQT_SERNO || '-'}</div>
+                          <div className="font-mono text-gray-600 text-[11px]">{formatMac(item.MAC_ADDRESS)}</div>
                         </div>
                       </div>
                     </div>
@@ -1220,39 +1211,37 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
                           </span>
                         </div>
 
-                        {/* 상세 정보 - 레이블 최소화, 여유로운 레이아웃 */}
+                        {/* 상세 정보 - 값만 표시, 현재위치/이전위치만 라벨 유지 */}
                         <div className="bg-gray-50 rounded-lg p-3">
-                          <div className="space-y-2 text-xs">
-                            {/* 첫 행: 모델명 (전체 너비) */}
-                            <div className="text-gray-900 font-medium text-sm break-words">{item.ITEM_NM || item.EQT_CL_NM || '-'}</div>
+                          <div className="space-y-1.5 text-xs">
+                            {/* 모델명 (값만) */}
+                            <div className="text-gray-900 font-medium">{item.ITEM_NM || item.EQT_CL_NM || '-'}</div>
 
-                            {/* 두번째 행: S/N + MAC (값만, 레이블 없음) */}
-                            <div className="flex flex-wrap gap-x-4 gap-y-1">
-                              <span className="font-mono text-gray-800">{item.EQT_SERNO || '-'}</span>
-                              <span className="font-mono text-gray-500">{formatMac(item.MAC_ADDRESS)}</span>
+                            {/* 사용가능 날짜 (값만) */}
+                            <div className="text-gray-700">{item.USE_END_DT || item.EXPIRE_DT || item.EQT_USE_END_DT || '-'}</div>
+
+                            {/* 변경종류 (값만) */}
+                            <div className="text-gray-700">{item.CHG_TP_NM || item.PROC_STAT_NM || item.EQT_CHG_TP_NM || '-'}</div>
+
+                            {/* 현재위치 (라벨 유지) */}
+                            <div className="flex items-center gap-2">
+                              <span className="text-gray-400">현재위치</span>
+                              <span className="text-gray-700 font-medium">{item.EQT_LOC_TP_NM || getEqtLocTpName(item.EQT_LOC_TP_CD || '') || '-'}</span>
                             </div>
 
-                            {/* 세번째 행: 지점 + 장비상태 */}
-                            <div className="flex flex-wrap gap-x-4 gap-y-1">
-                              <span className="text-gray-600">{item.SO_NM || item.SO_ID || '-'}</span>
-                              <span className={`font-medium ${item.EQT_STAT_CD === '10' ? 'text-green-600' : item.EQT_STAT_CD === '20' ? 'text-blue-600' : 'text-gray-600'}`}>
-                                {item.EQT_STAT_NM || getEqtStatName(item.EQT_STAT_CD) || '-'}
-                              </span>
+                            {/* 이전위치 (라벨 유지) */}
+                            <div className="flex items-center gap-2">
+                              <span className="text-gray-400">이전위치</span>
+                              <span className="text-gray-700">{item.BEF_EQT_LOC_NM || item.BEF_LOC_NM || '-'}</span>
                             </div>
 
-                            {/* 네번째 행: 위치 정보 (레이블 유지) */}
-                            <div className="flex flex-wrap gap-x-6 gap-y-1 pt-1 border-t border-gray-200">
-                              <div className="flex items-center gap-1.5">
-                                <span className="text-gray-400">현재위치</span>
-                                <span className="text-gray-700 font-medium">{item.EQT_LOC_TP_NM || getEqtLocTpName(item.EQT_LOC_TP_CD || '') || '-'}</span>
-                              </div>
-                              {(item.BEF_EQT_LOC_NM || item.PROC_STAT_NM) && (
-                                <div className="flex items-center gap-1.5">
-                                  <span className="text-gray-400">이전위치</span>
-                                  <span className="text-gray-700">{item.BEF_EQT_LOC_NM || item.PROC_STAT_NM || '-'}</span>
-                                </div>
-                              )}
+                            {/* 장비상태 (값만) */}
+                            <div className={`font-medium ${item.EQT_STAT_CD === '10' ? 'text-green-600' : item.EQT_STAT_CD === '20' ? 'text-blue-600' : 'text-gray-600'}`}>
+                              {item.EQT_STAT_NM || getEqtStatName(item.EQT_STAT_CD) || '-'}
                             </div>
+
+                            {/* 지점 (값만) */}
+                            <div className="text-gray-600">{item.SO_NM || item.SO_ID || '-'}</div>
                           </div>
                           {item.RETN_RESN_NM && (
                             <div className="mt-2 pt-1.5 border-t border-gray-200">
