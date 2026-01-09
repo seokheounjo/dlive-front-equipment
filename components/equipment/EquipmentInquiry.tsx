@@ -1104,7 +1104,7 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
 
             {/* 간단히 보기: 장비구분, S/N, MAC, 사용가능 */}
             {viewMode === 'simple' && (
-              <div className="max-h-[calc(100vh-320px)] overflow-y-auto p-3 space-y-2">
+              <div className="p-3 space-y-2">
                 {equipmentList.map((item, idx) => (
                   <div
                     key={idx}
@@ -1163,7 +1163,7 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
 
             {/* 자세히 보기: 모델명, 사용가능, 변경종류, 현재위치, 이동전위치, 장비상태, 지점 */}
             {viewMode === 'detail' && (
-              <div className="max-h-[calc(100vh-320px)] overflow-y-auto p-3 space-y-2">
+              <div className="p-3 space-y-2">
                 {equipmentList.map((item, idx) => (
                   <div
                     key={idx}
@@ -1278,7 +1278,7 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
         <div className="h-20"></div>
 
       {/* 하단 고정 버튼 영역 - 네비게이션 바 바로 위 */}
-      <div className="fixed bottom-[56px] left-0 right-0 p-3 bg-white border-t border-gray-200 z-40" style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}>
+      <div className="fixed bottom-[56px] left-0 right-0 p-3 z-40" style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}>
         <div className="flex gap-2">
           {/* 보유장비가 선택되었을 때만: 장비반납 */}
           {totalOwned > 0 && (
