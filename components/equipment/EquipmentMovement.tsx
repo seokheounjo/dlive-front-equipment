@@ -494,9 +494,8 @@ const EquipmentMovement: React.FC<EquipmentMovementProps> = ({ onBack }) => {
 
   return (
     <div className="h-full overflow-y-auto bg-gray-50 px-4 py-4 space-y-3">
-      {/* 검색 영역 - 조회 전에만 표시 */}
-      {!hasSearched && (
-        <>
+      {/* 검색 영역 - 항상 표시 */}
+      <>
           {/* 조회 모드 선택 - 3개 버튼 */}
           <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4">
             <div className="grid grid-cols-3 gap-2">
@@ -665,9 +664,7 @@ const EquipmentMovement: React.FC<EquipmentMovementProps> = ({ onBack }) => {
             </button>
           </div>
         </div>
-      )}
-        </>
-      )}
+      </>
 
       {/* 스캔된 장비 표시 - 조회 전에만 */}
       {!hasSearched && scannedSerials.length > 0 && (
