@@ -323,6 +323,8 @@ const EquipmentAssignment: React.FC<EquipmentAssignmentProps> = ({ onBack, showT
           EQT_NO: item.EQT_NO || '',
           EQT_SERNO: item.EQT_SERNO || '',
           OUT_REQ_NO: item.OUT_REQ_NO || '',
+          PROC_YN: 'Y',  // Required: Mark as received
+          CHG_UID: userInfo?.userId || '',  // Required: Change user ID
         }))
       };
 
