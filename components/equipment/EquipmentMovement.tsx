@@ -283,7 +283,7 @@ const EquipmentMovement: React.FC<EquipmentMovementProps> = ({ onBack }) => {
   const searchEquipmentByWorker = async (wrkrId: string, wrkrNm: string, scannedSN?: string) => {
     setIsLoading(true);
     try {
-      const params = { WRKR_ID: wrkrId, SO_ID: workerInfo.SO_ID, EQT_SEL: '0', EQT_CL: 'ALL' };
+      const params: any = { WRKR_ID: wrkrId }; // 전체 지점 조회 (SO_ID 제거)
       const result = await debugApiCall('EquipmentMovement', 'getWrkrHaveEqtList', () => getWrkrHaveEqtList(params), params);
 
       if (Array.isArray(result) && result.length > 0) {
