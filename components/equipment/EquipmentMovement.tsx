@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { findUserList, getWrkrHaveEqtListAll as getWrkrHaveEqtList, searchWorkersByName, changeEquipmentWorker, getEquipmentHistoryInfo } from '../../services/apiService';
+import { findUserList, getWrkrHaveEqtListAll as getWrkrHaveEqtList, searchWorkersByName, changeEquipmentWorker, getEquipmentHistoryInfo, saveTransferredEquipment } from '../../services/apiService';
 import { debugApiCall } from './equipmentDebug';
 import { Scan, Search, ChevronDown, ChevronUp, Check, X, User, RotateCcw } from 'lucide-react';
 import BarcodeScanner from './BarcodeScanner';
@@ -450,6 +450,20 @@ const EquipmentMovement: React.FC<EquipmentMovementProps> = ({ onBack }) => {
             EQT_SERNO: item.EQT_SERNO,
             EQT_NO: item.EQT_NO,
             ITEM_NM: item.ITEM_NM || item.EQT_CL_NM
+          });
+          // Save to local storage for display
+          saveTransferredEquipment({
+            EQT_NO: item.EQT_NO,
+            EQT_SERNO: item.EQT_SERNO,
+            ITEM_NM: item.ITEM_NM || item.EQT_CL_NM,
+            ITEM_MID_NM: item.ITEM_MID_NM,
+            ITEM_MAX_NM: item.ITEM_MAX_NM,
+            EQT_CL_NM: item.EQT_CL_NM,
+            SO_ID: item.SO_ID || '',
+            SO_NM: item.SO_NM || item.MST_SO_NM || '',
+            FROM_WRKR_ID: workerInfo.WRKR_ID,
+            FROM_WRKR_NM: workerInfo.WRKR_NM,
+            TO_WRKR_ID: loggedInUser.userId
           });
         } catch (err: any) {
           console.error('장비 이동 실패:', item.EQT_SERNO, err);

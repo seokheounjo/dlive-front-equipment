@@ -5456,3 +5456,131 @@ const printBackendDebugLogs = (endpoint: string, result: any, isSuccess: boolean
 
   console.groupEnd();
 };
+
+// ============ 이관 장비 로컬 저장소 관리 ============
+export interface TransferredEquipment {
+  EQT_NO: string;
+  EQT_SERNO: string;
+  ITEM_NM: string;
+  ITEM_MID_NM?: string;
+  ITEM_MAX_NM?: string;
+  EQT_CL_NM?: string;
+  SO_ID: string;
+  SO_NM?: string;
+  FROM_WRKR_ID: string;
+  FROM_WRKR_NM?: string;
+  TO_WRKR_ID: string;
+  transferredAt: number;
+  isTransferred: boolean;
+}
+
+const TRANSFERRED_EQUIPMENT_KEY = 'dlive_transferred_equipment';
+const TRANSFER_EXPIRY_HOURS = 48;
+
+export const saveTransferredEquipment = (equipment: Omit<TransferredEquipment, 'transferredAt' | 'isTransferred'>): void => {
+  try {
+    const existing = getTransferredEquipmentList();
+    const filtered = existing.filter(e => e.EQT_SERNO !== equipment.EQT_SERNO);
+    const newEquipment: TransferredEquipment = {
+      ...equipment,
+      transferredAt: Date.now(),
+      isTransferred: true
+    };
+    filtered.push(newEquipment);
+    localStorage.setItem(TRANSFERRED_EQUIPMENT_KEY, JSON.stringify(filtered));
+    console.log('[TransferredEquipment] Saved:', equipment.EQT_SERNO);
+  } catch (e) {
+    console.error('[TransferredEquipment] Save error:', e);
+  }
+};
+
+export const getTransferredEquipmentList = (): TransferredEquipment[] => {
+  try {
+    const stored = localStorage.getItem(TRANSFERRED_EQUIPMENT_KEY);
+    if (!stored) return [];
+    const list: TransferredEquipment[] = JSON.parse(stored);
+    const now = Date.now();
+    const expiryMs = TRANSFER_EXPIRY_HOURS * 60 * 60 * 1000;
+    const valid = list.filter(e => (now - e.transferredAt) < expiryMs);
+    if (valid.length !== list.length) {
+      localStorage.setItem(TRANSFERRED_EQUIPMENT_KEY, JSON.stringify(valid));
+    }
+    return valid;
+  } catch (e) {
+    console.error('[TransferredEquipment] Get error:', e);
+    return [];
+  }
+};
+
+export const getTransferredEquipmentCount = (userId: string): number => {
+  const list = getTransferredEquipmentList();
+  return list.filter(e => e.TO_WRKR_ID === userId).length;
+};
+
+export const getTransferredOutCount = (userId: string): number => {
+  const list = getTransferredEquipmentList();
+  return list.filter(e => e.FROM_WRKR_ID === userId).length;
+};
+
+export const getTransferredEquipmentForUser = (userId: string): TransferredEquipment[] => {
+  const list = getTransferredEquipmentList();
+  return list.filter(e => e.TO_WRKR_ID === userId);
+};
+
+export const removeTransferredEquipment = (eqtSerno: string): void => {
+  try {
+    const list = getTransferredEquipmentList();
+    const filtered = list.filter(e => e.EQT_SERNO !== eqtSerno);
+    localStorage.setItem(TRANSFERRED_EQUIPMENT_KEY, JSON.stringify(filtered));
+    console.log('[TransferredEquipment] Removed:', eqtSerno);
+  } catch (e) {
+    console.error('[TransferredEquipment] Remove error:', e);
+  }
+};
+
+export const clearTransferredEquipment = (): void => {
+  try {
+    localStorage.removeItem(TRANSFERRED_EQUIPMENT_KEY);
+    console.log('[TransferredEquipment] Cleared all');
+  } catch (e) {
+    console.error('[TransferredEquipment] Clear error:', e);
+  }
+};
+
+export const mergeWithTransferredEquipment = (
+  apiResults: any[],
+  userId: string
+): { merged: any[]; transferredCount: number } => {
+  const transferred = getTransferredEquipmentForUser(userId);
+  if (transferred.length === 0) {
+    return { merged: apiResults, transferredCount: 0 };
+  }
+  const apiSernos = new Set(apiResults.map(e => e.EQT_SERNO));
+  const toAdd: any[] = [];
+  transferred.forEach(te => {
+    if (!apiSernos.has(te.EQT_SERNO)) {
+      toAdd.push({
+        EQT_NO: te.EQT_NO,
+        EQT_SERNO: te.EQT_SERNO,
+        ITEM_NM: te.ITEM_NM,
+        ITEM_MID_NM: te.ITEM_MID_NM || '',
+        ITEM_MAX_NM: te.ITEM_MAX_NM || '',
+        EQT_CL_NM: te.EQT_CL_NM || '',
+        SO_ID: te.SO_ID,
+        SO_NM: te.SO_NM || '',
+        WRKR_ID: te.TO_WRKR_ID,
+        FROM_WRKR_ID: te.FROM_WRKR_ID,
+        FROM_WRKR_NM: te.FROM_WRKR_NM || '',
+        isTransferred: true,
+        transferredAt: te.transferredAt
+      });
+    } else {
+      removeTransferredEquipment(te.EQT_SERNO);
+    }
+  });
+  console.log('[TransferredEquipment] Merging:', toAdd.length, 'items not in API');
+  return {
+    merged: [...apiResults, ...toAdd],
+    transferredCount: toAdd.length
+  };
+};

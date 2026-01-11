@@ -11,7 +11,10 @@ import {
   // 새 API 함수 (받은문서 20251223 분석 기반)
   getWrkrHaveEqtListAll,      // 보유장비 전체 조회
   getEquipmentReturnRequestListAll,  // 반납요청 장비 조회 (getEquipmentReturnRequestList_All)
-  getEquipmentChkStndByAAll   // 검사대기 장비 조회
+  getEquipmentChkStndByAAll,  // 검사대기 장비 조회
+  mergeWithTransferredEquipment,  // 이관 장비 병합
+  getTransferredEquipmentCount,   // 이관받은 장비 수
+  getTransferredOutCount          // 이관해준 장비 수
 } from '../../services/apiService';
 import BaseModal from '../common/BaseModal';
 // getCustProdInfo 활용 API (테스트 완료: 기사보유장비 조회)
@@ -383,6 +386,18 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
                   _hasReturnRequest: hasReturn
                 };
               }));
+              
+              // 이관받은 장비 병합 (API에서 조회되지 않는 SO_ID 다른 장비)
+              const { merged, transferredCount } = mergeWithTransferredEquipment(allResults, userInfo.userId);
+              if (transferredCount > 0) {
+                console.log('[보유장비] 이관받은 장비 병합:', transferredCount, '건');
+                allResults.length = 0; // 기존 배열 비우기
+                allResults.push(...merged.map((item: any) => ({
+                  ...item,
+                  _category: item._category || 'OWNED',
+                  _hasReturnRequest: returnRequestEqtNos.has(item.EQT_NO)
+                })));
+              }
             }
           } catch (e) {
             console.log('보유장비 조회 실패 (getCustProdInfo):', e);
