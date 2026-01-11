@@ -341,7 +341,7 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
               () => getWrkrHaveEqtListAll({
                 WRKR_ID: userInfo.userId,
                 CRR_ID: userInfo.crrId || '',  // 협력업체 ID (필수!)
-                SO_ID: selectedSoId || userInfo.soId || undefined,
+                SO_ID: selectedSoId || '',  // 빈 문자열 = 전체 SO 조회 (이관된 장비 포함)
               }),
               { WRKR_ID: userInfo.userId, CRR_ID: userInfo.crrId }
             );
