@@ -136,6 +136,9 @@ const EquipmentMovement: React.FC<EquipmentMovementProps> = ({ onBack }) => {
   const [userAuthSoList, setUserAuthSoList] = useState<{ SO_ID: string; SO_NM: string }[]>([]);
   const [targetSoId, setTargetSoId] = useState<string>('');
 
+  // 이관 확인 모달
+  const [showTransferModal, setShowTransferModal] = useState(false);
+
   useEffect(() => {
     loadInitialData();
   }, []);
@@ -448,7 +451,7 @@ const EquipmentMovement: React.FC<EquipmentMovementProps> = ({ onBack }) => {
     const checkedItems = eqtTrnsList.filter(item => item.CHK);
     if (checkedItems.length === 0) { alert('이동할 장비를 선택해주세요.'); return; }
     if (!loggedInUser.userId) { alert('로그인 정보가 없습니다.'); return; }
-    if (!confirm(`${workerInfo.WRKR_NM}(${workerInfo.WRKR_ID})의 장비 ${checkedItems.length}건을 인수하시겠습니까?`)) return;
+    // confirm is now handled in the modal
 
     setIsLoading(true);
     const results: TransferResult = { success: [], failed: [] };
@@ -941,38 +944,8 @@ const EquipmentMovement: React.FC<EquipmentMovementProps> = ({ onBack }) => {
             </div>
           </div>
 
-          {/* 이관지점 선택 */}
-          {userAuthSoList.length > 1 && (
-            <div className="bg-blue-50 border border-blue-200 rounded-xl p-3 mb-3">
-              <label className="block text-xs font-medium text-blue-700 mb-2">
-                이관지점 선택
-              </label>
-              <select
-                value={targetSoId}
-                onChange={(e) => setTargetSoId(e.target.value)}
-                className="w-full px-3 py-2 border border-blue-300 rounded-lg text-sm bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              >
-                {userAuthSoList.map((so) => (
-                  <option key={so.SO_ID} value={so.SO_ID}>
-                    {so.SO_NM} ({so.SO_ID})
-                  </option>
-                ))}
-              </select>
-              <p className="text-xs text-blue-600 mt-1">
-                장비가 선택한 지점으로 이관됩니다
-              </p>
-            </div>
-          )}
-
-          {/* 장비이동 버튼 */}
-          <button
-            onClick={handleTransfer}
-            disabled={eqtTrnsList.filter(item => item.CHK).length === 0}
-            className="w-full bg-gradient-to-r from-blue-500 to-blue-600 disabled:from-gray-300 disabled:to-gray-400 text-white py-4 rounded-xl font-bold text-base shadow-lg flex items-center justify-center gap-2 active:scale-[0.98] transition-all"
-          >
-            <Check className="w-5 h-5" />
-            장비 이동 ({eqtTrnsList.filter(item => item.CHK).length}건)
-          </button>
+          {/* 하단 여백 (고정 버튼 공간 확보) */}
+          <div className="h-24"></div>
         </>
       )}
 
@@ -989,6 +962,112 @@ const EquipmentMovement: React.FC<EquipmentMovementProps> = ({ onBack }) => {
           <p className="text-center text-gray-500 text-sm">조회 중...</p>
         </div>
       )}
+
+      {/* 하단 고정 버튼 */}
+      {eqtTrnsList.filter(item => item.CHK).length > 0 && (
+        <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 p-4 shadow-lg z-40">
+          <button
+            onClick={() => setShowTransferModal(true)}
+            className="w-full bg-gradient-to-r from-blue-500 to-blue-600 text-white py-4 rounded-xl font-bold text-base shadow-lg flex items-center justify-center gap-2 active:scale-[0.98] transition-all"
+          >
+            <Check className="w-5 h-5" />
+            장비 이동 ({eqtTrnsList.filter(item => item.CHK).length}건)
+          </button>
+        </div>
+      )}
+
+      {/* 이관 확인 모달 */}
+      <BaseModal
+        isOpen={showTransferModal}
+        onClose={() => setShowTransferModal(false)}
+        title="장비 이관 확인"
+        size="large"
+        footer={
+          <div className="flex gap-3">
+            <button
+              onClick={() => setShowTransferModal(false)}
+              className="flex-1 py-3 text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-xl font-semibold text-sm transition-colors"
+            >
+              취소
+            </button>
+            <button
+              onClick={() => {
+                setShowTransferModal(false);
+                handleTransfer();
+              }}
+              className="flex-1 py-3 bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-xl font-semibold text-sm shadow-lg active:scale-[0.98] transition-all"
+            >
+              이관하기
+            </button>
+          </div>
+        }
+      >
+        <div className="space-y-4">
+          {/* 이관지점 선택 */}
+          {userAuthSoList.length > 1 && (
+            <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
+              <label className="block text-sm font-semibold text-blue-800 mb-2">
+                이관지점 선택
+              </label>
+              <select
+                value={targetSoId}
+                onChange={(e) => setTargetSoId(e.target.value)}
+                className="w-full px-4 py-3 border border-blue-300 rounded-xl text-sm bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              >
+                {userAuthSoList.map((so) => (
+                  <option key={so.SO_ID} value={so.SO_ID}>
+                    {so.SO_NM} ({so.SO_ID})
+                  </option>
+                ))}
+              </select>
+              <p className="text-xs text-blue-600 mt-2">
+                장비가 선택한 지점으로 이관됩니다
+              </p>
+            </div>
+          )}
+
+          {/* 이관 정보 요약 */}
+          <div className="bg-gray-50 rounded-xl p-4">
+            <div className="flex items-center justify-between mb-3">
+              <span className="text-sm font-semibold text-gray-700">이관 정보</span>
+            </div>
+            <div className="space-y-2 text-sm">
+              <div className="flex justify-between">
+                <span className="text-gray-500">보유기사</span>
+                <span className="font-medium text-gray-900">{workerInfo.WRKR_NM} ({workerInfo.WRKR_ID})</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-gray-500">인수기사</span>
+                <span className="font-medium text-gray-900">{loggedInUser.userName} ({loggedInUser.userId})</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-gray-500">선택장비</span>
+                <span className="font-bold text-blue-600">{eqtTrnsList.filter(item => item.CHK).length}건</span>
+              </div>
+            </div>
+          </div>
+
+          {/* 선택된 장비 목록 */}
+          <div className="border border-gray-200 rounded-xl overflow-hidden">
+            <div className="bg-gray-100 px-4 py-2 border-b border-gray-200">
+              <span className="text-xs font-semibold text-gray-600">선택된 장비</span>
+            </div>
+            <div className="max-h-48 overflow-y-auto divide-y divide-gray-100">
+              {eqtTrnsList.filter(item => item.CHK).map((item, idx) => (
+                <div key={item.EQT_NO || idx} className="px-4 py-2 flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <span className="px-2 py-0.5 bg-blue-100 text-blue-700 text-[10px] rounded font-medium">
+                      {item.ITEM_MID_NM || item.EQT_CL_NM || '장비'}
+                    </span>
+                    <span className="text-xs font-mono text-gray-800">{item.EQT_SERNO}</span>
+                  </div>
+                  <span className="text-[10px] text-gray-500">{item.SO_NM || item.SO_ID}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </BaseModal>
 
       {/* 모달들 */}
       <BaseModal
