@@ -296,18 +296,21 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
   };
 
   // 장비 조회
-  const handleSearch = async () => {
+  const handleSearch = async (overrideCategory?: 'OWNED' | 'RETURN_REQUESTED' | 'INSPECTION_WAITING') => {
     if (!userInfo?.userId) {
       showToast?.('로그인 정보가 없습니다. 다시 로그인해주세요.', 'error');
       return;
     }
+
+    // 카테고리 파라미터가 전달되면 사용, 아니면 현재 상태 사용
+    const category = overrideCategory || selectedCategory;
 
     setIsLoading(true);
     setEquipmentList([]);
 
     try {
       console.log('🔍 [장비처리] 시작:', {
-        selectedCategory,
+        selectedCategory: category,
         SO_ID: selectedSoId,
         WRKR_ID: userInfo.userId,
             CRR_ID: userInfo.crrId, // CRR_ID = WRKR_ID (기사 본인)
@@ -332,7 +335,7 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
         const allResults: any[] = [];
 
         // 보유장비 선택 시 - getWrkrHaveEqtList_All 사용 (CRR_ID 필수!)
-        if (selectedCategory === 'OWNED') {
+        if (category === 'OWNED') {
           try {
             // 보유장비 조회
             const ownedResult = await debugApiCall(
@@ -404,7 +407,7 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
           }
         }
         // 반납요청 선택 시 - getEquipmentReturnRequestListAll 사용 (phoneNumberManager)
-        if (selectedCategory === 'RETURN_REQUESTED') {
+        if (category === 'RETURN_REQUESTED') {
           const returnParams = {
             WRKR_ID: userInfo.userId,
             SO_ID: selectedSoId || userInfo.soId || undefined,
@@ -459,7 +462,7 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
         }
 
         // 검사대기 선택 시
-        if (selectedCategory === 'INSPECTION_WAITING') {
+        if (category === 'INSPECTION_WAITING') {
           const inspectionParams = {
             WRKR_ID: userInfo.userId,
             CRR_ID: userInfo.crrId, // CRR_ID = WRKR_ID (기사 본인)
@@ -725,7 +728,14 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
       );
       setShowReturnModal(false);
       setReturnReason('');
-      await handleSearch(); // 리스트 새로고침
+
+      // 반납요청 성공 시 반납요청 탭으로 자동 이동, 취소 시 보유장비 탭 유지
+      if (action === 'RETURN') {
+        setSelectedCategory('RETURN_REQUESTED');
+        await handleSearch('RETURN_REQUESTED'); // 반납요청 탭 조회
+      } else {
+        await handleSearch(); // 현재 탭 새로고침
+      }
     } catch (error: any) {
       console.error('❌ 반납 처리 실패:', error);
       showToast?.(error.message || '반납 처리에 실패했습니다.', 'error');
