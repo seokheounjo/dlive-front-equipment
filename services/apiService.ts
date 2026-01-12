@@ -22,87 +22,7 @@ export class NetworkError extends Error {
   }
 }
 
-// ============ Circuit Breaker 패턴 (무한루프 방지) ============
-
-interface CircuitBreakerState {
-  failureCount: number;
-  lastFailureTime: number;
-  state: 'CLOSED' | 'OPEN' | 'HALF_OPEN';
-}
-
-class CircuitBreaker {
-  private states: Map<string, CircuitBreakerState> = new Map();
-  private readonly failureThreshold = 5; // 5번 연속 실패 시 차단
-  private readonly openDuration = 30000; // 30초 동안 차단
-  private readonly halfOpenDuration = 10000; // 10초 후 재시도 허용
-
-  private getState(key: string): CircuitBreakerState {
-    if (!this.states.has(key)) {
-      this.states.set(key, {
-        failureCount: 0,
-        lastFailureTime: 0,
-        state: 'CLOSED'
-      });
-    }
-    return this.states.get(key)!;
-  }
-
-  canRequest(url: string): boolean {
-    const state = this.getState(url);
-    const now = Date.now();
-
-    if (state.state === 'CLOSED') {
-      return true;
-    }
-
-    if (state.state === 'OPEN') {
-      // OPEN 상태: 일정 시간 후 HALF_OPEN으로 전환
-      if (now - state.lastFailureTime >= this.openDuration) {
-        console.log(`[Circuit Breaker] ${url} - OPEN → HALF_OPEN (재시도 허용)`);
-        state.state = 'HALF_OPEN';
-        return true;
-      }
-      console.warn(`⛔ Circuit Breaker: ${url} - 요청 차단됨 (${Math.round((this.openDuration - (now - state.lastFailureTime)) / 1000)}초 후 재시도 가능)`);
-      return false;
-    }
-
-    if (state.state === 'HALF_OPEN') {
-      // HALF_OPEN 상태: 한 번만 재시도 허용
-      return true;
-    }
-
-    return false;
-  }
-
-  recordSuccess(url: string): void {
-    const state = this.getState(url);
-    if (state.state === 'HALF_OPEN') {
-      console.log(`[Circuit Breaker] ${url} - HALF_OPEN → CLOSED (복구됨)`);
-    }
-    state.failureCount = 0;
-    state.state = 'CLOSED';
-  }
-
-  recordFailure(url: string): void {
-    const state = this.getState(url);
-    state.failureCount++;
-    state.lastFailureTime = Date.now();
-
-    if (state.failureCount >= this.failureThreshold) {
-      if (state.state !== 'OPEN') {
-        console.error(`🔴 Circuit Breaker: ${url} - CLOSED → OPEN (${this.failureThreshold}번 연속 실패, ${this.openDuration / 1000}초 동안 차단)`);
-      }
-      state.state = 'OPEN';
-    } else if (state.state === 'HALF_OPEN') {
-      console.warn(`[Circuit Breaker] ${url} - HALF_OPEN → OPEN (재시도 실패)`);
-      state.state = 'OPEN';
-    }
-  }
-
-  reset(): void {
-    this.states.clear();
-  }
-}
+// ============ Circuit Breaker 제거됨 ============
 
 // ============ 요청 중복 방지 (Request Deduplication) ============
 
@@ -154,15 +74,15 @@ class RequestDeduplicator {
 }
 
 // 전역 인스턴스
-const circuitBreaker = new CircuitBreaker();
+
 const requestDeduplicator = new RequestDeduplicator();
 
-// 디버깅용: Circuit Breaker 리셋 함수 (콘솔에서 사용 가능)
+// 디버깅용: Request Deduplicator 리셋 함수 (콘솔에서 사용 가능)
 if (typeof window !== 'undefined') {
-  (window as any).resetCircuitBreaker = () => {
-    circuitBreaker.reset();
+  (window as any).resetApiCache = () => {
+    
     requestDeduplicator.reset();
-    console.log('[API 초기화] Circuit Breaker 및 Request Deduplicator 초기화됨');
+    console.log('[API 초기화] Request Deduplicator 초기화됨');
   };
 }
 
@@ -202,13 +122,6 @@ const fetchWithRetry = async (
   maxRetries: number = 3,
   timeout: number = 30000
 ): Promise<Response> => {
-  // Circuit Breaker 체크
-  if (!circuitBreaker.canRequest(url)) {
-    throw new NetworkError(
-      '일시적으로 요청이 차단되었습니다. 잠시 후 다시 시도해주세요.',
-      503
-    );
-  }
 
   // 요청 중복 방지 (GET 요청만 - POST는 body stream 문제로 중복 방지 비활성화)
   const isGetRequest = options.method === 'GET' || !options.method;
@@ -237,16 +150,16 @@ const fetchWithRetry = async (
 
         clearTimeout(timeoutId);
 
-        // 성공하면 Circuit Breaker 성공 기록
+        // API 성공
         if (response.ok) {
-          circuitBreaker.recordSuccess(url);
+          
           return response;
         }
 
         // 4xx 에러는 재시도하지 않음
         if (response.status >= 400 && response.status < 500) {
-          // 404, 401 등 클라이언트 에러는 Circuit Breaker에 실패 기록
-          circuitBreaker.recordFailure(url);
+          // 클라이언트 에러
+          
           throw new NetworkError(
             getErrorMessage(response.status),
             response.status
@@ -255,7 +168,7 @@ const fetchWithRetry = async (
 
         // 5xx 에러는 재시도
         if (response.status >= 500) {
-          circuitBreaker.recordFailure(url);
+          
           // 서버 에러 시 response body에서 실제 에러 메시지 추출 시도
           let errorMessage = getErrorMessage(response.status);
           try {
@@ -280,7 +193,7 @@ const fetchWithRetry = async (
         // AbortError (타임아웃)
         if (error.name === 'AbortError') {
           console.error(`API 타임아웃 (시도 ${attempt + 1}/${maxRetries}):`, url);
-          circuitBreaker.recordFailure(url);
+          
 
           if (attempt === maxRetries - 1) {
             throw new NetworkError('요청 시간이 초과되었습니다. 다시 시도해주세요.', 408);
@@ -289,7 +202,7 @@ const fetchWithRetry = async (
         // 네트워크 에러
         else if (error instanceof TypeError && error.message.includes('fetch')) {
           console.error(`네트워크 에러 (시도 ${attempt + 1}/${maxRetries}):`, error);
-          circuitBreaker.recordFailure(url);
+          
 
           if (attempt === maxRetries - 1) {
             throw new NetworkError('인터넷 연결을 확인해주세요.', undefined, error);
@@ -309,7 +222,7 @@ const fetchWithRetry = async (
         // 기타 에러
         else {
           console.error(`API 호출 실패 (시도 ${attempt + 1}/${maxRetries}):`, error);
-          circuitBreaker.recordFailure(url);
+          
 
           if (attempt === maxRetries - 1) {
             throw new NetworkError(error.message || '서버와 통신 중 오류가 발생했습니다.');
