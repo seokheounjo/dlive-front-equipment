@@ -983,7 +983,7 @@ const EquipmentMovement: React.FC<EquipmentMovementProps> = ({ onBack }) => {
         title="장비 이관 확인"
         size="large"
         footer={
-          <div className="grid grid-cols-2 gap-4">
+          <div className="w-full grid grid-cols-2 gap-4">
             <button
               onClick={() => setShowTransferModal(false)}
               className="py-4 text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-xl font-semibold text-base transition-colors"
