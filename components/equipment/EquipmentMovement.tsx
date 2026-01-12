@@ -443,7 +443,10 @@ const EquipmentMovement: React.FC<EquipmentMovementProps> = ({ onBack }) => {
             EQT_SERNO: item.EQT_SERNO,
             SO_ID: item.SO_ID || '',
             FROM_WRKR_ID: workerInfo.WRKR_ID,
-            TO_WRKR_ID: loggedInUser.userId
+            TO_WRKR_ID: loggedInUser.userId,
+            MV_SO_ID: loggedInUser.soId,      // 이관지점 (이관받는 기사의 SO_ID)
+            MV_CRR_ID: loggedInUser.crrId,    // 이관 협력업체 (이관받는 기사의 CRR_ID)
+            CHG_UID: loggedInUser.userId      // 변경자 ID
           };
           await debugApiCall('EquipmentMovement', 'changeEquipmentWorker', () => changeEquipmentWorker(params), params);
           results.success.push({

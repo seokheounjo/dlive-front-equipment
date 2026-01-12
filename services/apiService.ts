@@ -3186,8 +3186,13 @@ export const getEquipmentHistoryInfo = async (params: {
  */
 export const changeEquipmentWorker = async (params: {
   EQT_NO: string;
+  EQT_SERNO?: string;
+  SO_ID?: string;           // 장비의 현재 SO_ID
   FROM_WRKR_ID: string;
   TO_WRKR_ID: string;
+  MV_SO_ID?: string;        // 이관지점 SO_ID (이관받는 기사의 SO_ID)
+  MV_CRR_ID?: string;       // 이관 협력업체 ID (이관받는 기사의 CRR_ID)
+  CHG_UID?: string;         // 변경자 ID
 }): Promise<any> => {
   console.log('👤 [장비인수] API 호출:', params);
 
