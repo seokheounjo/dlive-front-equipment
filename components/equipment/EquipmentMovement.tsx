@@ -132,6 +132,10 @@ const EquipmentMovement: React.FC<EquipmentMovementProps> = ({ onBack }) => {
   const [workerSearchKeyword, setWorkerSearchKeyword] = useState('');
   const [isSearchingWorker, setIsSearchingWorker] = useState(false);
 
+  // 이관지점 선택 (AUTH_SO_List 기반)
+  const [userAuthSoList, setUserAuthSoList] = useState<{ SO_ID: string; SO_NM: string }[]>([]);
+  const [targetSoId, setTargetSoId] = useState<string>('');
+
   useEffect(() => {
     loadInitialData();
   }, []);
@@ -141,10 +145,14 @@ const EquipmentMovement: React.FC<EquipmentMovementProps> = ({ onBack }) => {
       const userInfo = localStorage.getItem('userInfo');
       if (userInfo) {
         const user = JSON.parse(userInfo);
+        // AUTH_SO_List 저장
+        const authList = (user.authSoList && Array.isArray(user.authSoList)) ? user.authSoList : [];
+        setUserAuthSoList(authList);
+        
         // soId가 없으면 AUTH_SO_List의 첫 번째 항목 사용
         let userSoId = user.soId || '';
-        if (!userSoId && user.authSoList && Array.isArray(user.authSoList) && user.authSoList.length > 0) {
-          userSoId = user.authSoList[0].SO_ID || '';
+        if (!userSoId && authList.length > 0) {
+          userSoId = authList[0].SO_ID || '';
         }
         setLoggedInUser({
           userId: user.userId || '',
@@ -152,6 +160,11 @@ const EquipmentMovement: React.FC<EquipmentMovementProps> = ({ onBack }) => {
           soId: userSoId,
           crrId: user.crrId || ''
         });
+        
+        // 기본 이관지점 설정
+        if (authList.length > 0) {
+          setTargetSoId(authList[0].SO_ID || '');
+        }
       }
     } catch (e) { console.warn('사용자 정보 파싱 실패:', e); }
     await loadDropdownData();
@@ -449,7 +462,7 @@ const EquipmentMovement: React.FC<EquipmentMovementProps> = ({ onBack }) => {
             SO_ID: item.SO_ID || '',
             FROM_WRKR_ID: workerInfo.WRKR_ID,
             TO_WRKR_ID: loggedInUser.userId,
-            MV_SO_ID: loggedInUser.soId,      // 이관지점 (이관받는 기사의 SO_ID)
+            MV_SO_ID: targetSoId || loggedInUser.soId,  // 선택된 이관지점
             MV_CRR_ID: loggedInUser.crrId,    // 이관 협력업체 (이관받는 기사의 CRR_ID)
             CHG_UID: loggedInUser.userId      // 변경자 ID
           };
@@ -927,6 +940,29 @@ const EquipmentMovement: React.FC<EquipmentMovementProps> = ({ onBack }) => {
               })}
             </div>
           </div>
+
+          {/* 이관지점 선택 */}
+          {userAuthSoList.length > 1 && (
+            <div className="bg-blue-50 border border-blue-200 rounded-xl p-3 mb-3">
+              <label className="block text-xs font-medium text-blue-700 mb-2">
+                이관지점 선택
+              </label>
+              <select
+                value={targetSoId}
+                onChange={(e) => setTargetSoId(e.target.value)}
+                className="w-full px-3 py-2 border border-blue-300 rounded-lg text-sm bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              >
+                {userAuthSoList.map((so) => (
+                  <option key={so.SO_ID} value={so.SO_ID}>
+                    {so.SO_NM} ({so.SO_ID})
+                  </option>
+                ))}
+              </select>
+              <p className="text-xs text-blue-600 mt-1">
+                장비가 선택한 지점으로 이관됩니다
+              </p>
+            </div>
+          )}
 
           {/* 장비이동 버튼 */}
           <button
