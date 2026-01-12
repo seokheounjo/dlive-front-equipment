@@ -141,10 +141,15 @@ const EquipmentMovement: React.FC<EquipmentMovementProps> = ({ onBack }) => {
       const userInfo = localStorage.getItem('userInfo');
       if (userInfo) {
         const user = JSON.parse(userInfo);
+        // soId가 없으면 AUTH_SO_List의 첫 번째 항목 사용
+        let userSoId = user.soId || '';
+        if (!userSoId && user.authSoList && Array.isArray(user.authSoList) && user.authSoList.length > 0) {
+          userSoId = user.authSoList[0].SO_ID || '';
+        }
         setLoggedInUser({
           userId: user.userId || '',
           userName: user.userName || '',
-          soId: user.soId || '',
+          soId: userSoId,
           crrId: user.crrId || ''
         });
       }
