@@ -1,11 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { WorkOrder, WorkCompleteData } from '../../../../types';
-import { getCommonCodeList, CommonCode, getWorkReceiptDetail } from '../../../../services/apiService';
+import { getCommonCodeList, CommonCode, getWorkReceiptDetail, checkStbServerConnection } from '../../../../services/apiService';
 import Select from '../../../ui/Select';
 import InstallInfoModal, { InstallInfoData } from '../../../modal/InstallInfoModal';
 import HotbillSection from '../HotbillSection';
 import ConfirmModal from '../../../common/ConfirmModal';
+import WorkCompleteSummary from '../WorkCompleteSummary';
 import { useWorkProcessStore } from '../../../../stores/workProcessStore';
+import { useWorkEquipment } from '../../../../stores/workEquipmentStore';
 import { useCompleteWork } from '../../../../hooks/mutations/useCompleteWork';
 import '../../../../styles/buttons.css';
 
@@ -50,7 +52,24 @@ const CompleteRemoval: React.FC<CompleteRemovalProps> = ({
 
   // Zustand Store
   const { equipmentData: storeEquipmentData, filteringData } = useWorkProcessStore();
-  const equipmentData = storeEquipmentData || legacyEquipmentData || filteringData;
+
+  // Zustand Equipment Store - 장비 컴포넌트에서 등록한 장비 정보
+  const workId = order.id || '';
+  const zustandEquipment = useWorkEquipment(workId);
+
+  // equipmentData 병합: Zustand Equipment Store 우선 사용
+  const equipmentData = {
+    ...(storeEquipmentData || legacyEquipmentData || filteringData || {}),
+    installedEquipments: zustandEquipment.installedEquipments.length > 0
+      ? zustandEquipment.installedEquipments
+      : (storeEquipmentData?.installedEquipments || legacyEquipmentData?.installedEquipments || []),
+    removedEquipments: zustandEquipment.markedForRemoval.length > 0
+      ? zustandEquipment.markedForRemoval
+      : (storeEquipmentData?.removedEquipments || legacyEquipmentData?.removedEquipments || []),
+    removalStatus: Object.keys(zustandEquipment.removalStatus).length > 0
+      ? zustandEquipment.removalStatus
+      : (storeEquipmentData?.removalStatus || legacyEquipmentData?.removalStatus || {}),
+  };
 
   // React Query Mutation
   const { mutate: submitWork, isPending: isLoading } = useCompleteWork();
@@ -105,8 +124,8 @@ const CompleteRemoval: React.FC<CompleteRemovalProps> = ({
       try {
         console.log('[WorkCompleteRemoval] getWorkReceiptDetail API 호출');
         const detail = await getWorkReceiptDetail({
-          WRK_DRCTN_ID: order.directionId || order.id,
-          WRK_ID: (order as any).WRK_ID,
+          WRK_DRCTN_ID: order.directionId || order.WRK_DRCTN_ID || '',
+          WRK_ID: order.id,  // order.id가 실제 WRK_ID
           SO_ID: order.SO_ID
         });
 
@@ -115,6 +134,8 @@ const CompleteRemoval: React.FC<CompleteRemovalProps> = ({
 
           // 완료된 작업: API 데이터로 모든 필드 복원
           if (isWorkCompleted) {
+            setCustRel(detail.CUST_REL || '');
+            setMemo((detail.MEMO || '').replace(/\\n/g, '\n'));
             setNetworkType(detail.NET_CL || '');
             setNetworkTypeName(detail.NET_CL_NM || '');
             setInstallInfoData({
@@ -322,6 +343,15 @@ const CompleteRemoval: React.FC<CompleteRemovalProps> = ({
     if (!workCompleteDate) {
       errors.push('작업처리일을 선택해주세요.');
     }
+
+    // 장비 철거 검증 (레거시 동일)
+    // VoIP가 아닌 경우 철거 장비가 최소 1개 이상 있어야 함
+    const prodGrp = (order as any).PROD_GRP || '';
+    const removedEquipments = equipmentData?.removedEquipments || [];
+    if (prodGrp !== 'V' && removedEquipments.length < 1) {
+      errors.push('철거할 장비가 없습니다. 장비 정보를 확인해주세요.');
+    }
+
     return errors;
   };
 
@@ -374,16 +404,81 @@ const CompleteRemoval: React.FC<CompleteRemovalProps> = ({
   };
 
   // 실제 작업 완료 처리
-  const handleConfirmSubmit = () => {
+  const handleConfirmSubmit = async () => {
     console.log('[WorkCompleteRemoval] 작업완료 처리 시작');
 
     const formattedDate = workCompleteDate.replace(/-/g, '');
-    const workerId = 'A20130708';
+    const userInfo = localStorage.getItem('userInfo');
+    const user = userInfo ? JSON.parse(userInfo) : {};
+    const workerId = user.userId || 'A20130708';
+
+    // 부가상품 전용 신호 호출 (레거시 fn_signal_buga_trans - mowoa03m09.xml Line 1032-1076)
+    // WRK_DTL_TCD='0910' (부가상품 설치) → SMR06
+    // WRK_DTL_TCD='0920' (부가상품 철거) → SMR08
+    const wrkDtlTcd = order.WRK_DTL_TCD || '';
+    if (wrkDtlTcd === '0910' || wrkDtlTcd === '0920') {
+      const bugaMsgId = wrkDtlTcd === '0910' ? 'SMR06' : 'SMR08';
+      try {
+        const regUid = user.userId || user.id || 'UNKNOWN';
+        // 고객장비에서 첫 번째 장비 번호 가져오기
+        const customerEquipments = equipmentData?.customerEquipments || [];
+        const firstEquip = customerEquipments[0] || equipmentData?.installedEquipments?.[0];
+        const eqtNo = firstEquip?.EQT_NO || firstEquip?.id || '';
+
+        console.log(`[CompleteRemoval] 부가상품 신호(${bugaMsgId}) 호출:`, { eqtNo, wrkDtlTcd });
+        await checkStbServerConnection(
+          regUid,
+          order.CTRT_ID || '',
+          order.id,
+          bugaMsgId,
+          eqtNo,
+          ''
+        );
+        console.log(`[CompleteRemoval] 부가상품 신호(${bugaMsgId}) 호출 완료`);
+      } catch (error) {
+        console.log('[CompleteRemoval] 부가상품 신호 처리 중 오류 (무시하고 계속 진행):', error);
+      }
+    }
+
+    // 회수 장비가 있으면 철거 신호(SMR05) 호출 (레거시 fn_delsignal_trans 동일)
+    const removedEquipments = equipmentData?.removedEquipments || [];
+    if (removedEquipments.length > 0) {
+      try {
+        const regUid = user.userId || user.id || 'UNKNOWN';
+        const firstEquip = removedEquipments[0];
+        console.log('[CompleteRemoval] 철거 신호(SMR05) 호출:', { eqtNo: firstEquip.EQT_NO || firstEquip.id });
+        await checkStbServerConnection(
+          regUid,
+          order.CTRT_ID || '',
+          order.id,
+          'SMR05',
+          firstEquip.EQT_NO || firstEquip.id || '',
+          ''
+        );
+        console.log('[CompleteRemoval] 철거 신호(SMR05) 호출 완료');
+      } catch (error) {
+        console.log('[CompleteRemoval] 철거 신호 처리 중 오류 (무시하고 계속 진행):', error);
+      }
+    }
 
     // 장비 데이터 처리
-    const processEquipmentList = (equipments: any[]) => {
+    const processEquipmentList = (equipments: any[], isRemoval = false) => {
       if (!equipments || equipments.length === 0) return [];
+      const removalStatus = equipmentData?.removalStatus || {};
       return equipments.map((eq: any) => {
+        const eqtNo = eq.EQT_NO || eq.id || (eq.actualEquipment?.id) || '';
+        const status = removalStatus[eqtNo] || {};
+        // 회수 장비 필수 필드 (레거시 기준)
+        const removalFields = isRemoval ? {
+          CRR_TSK_CL: order.WRK_CD || '09',
+          RCPT_ID: order.RCPT_ID || '',
+          CRR_ID: order.CRR_ID || user.crrId || '01',
+          WRKR_ID: workerId,
+          EQT_LOSS_YN: status.isLost ? 'Y' : 'N',
+          EQT_BRK_YN: status.isDamaged ? 'Y' : 'N',
+          REUSE_YN: status.isReusable ? '1' : '0',
+        } : {};
+
         if (eq.actualEquipment) {
           const actual = eq.actualEquipment;
           const contract = eq.contractEquipment || {};
@@ -413,16 +508,27 @@ const CompleteRemoval: React.FC<CompleteRemovalProps> = ({
             EQT_USE_STAT_CD: actual.EQT_USE_STAT_CD || '1',
             EQT_CHG_GB: '1',
             IF_DTL_ID: actual.IF_DTL_ID || '',
+            ...removalFields,
           };
         }
+        // 중첩 구조가 아닌 경우도 필드 매핑 필요
         return {
           ...eq,
-          EQT_NO: eq.EQT_NO || eq.id,
+          EQT_NO: eq.EQT_NO || eq.id || '',
+          EQT_SERNO: eq.EQT_SERNO || eq.serialNumber || '',
+          ITEM_MID_CD: eq.ITEM_MID_CD || eq.itemMidCd || '',
+          EQT_CL_CD: eq.EQT_CL_CD || eq.eqtClCd || '',
+          MAC_ADDRESS: eq.MAC_ADDRESS || eq.macAddress || '',
+          SVC_CMPS_ID: eq.SVC_CMPS_ID || '',
+          BASIC_PROD_CMPS_ID: eq.BASIC_PROD_CMPS_ID || '',
+          PROD_CD: eq.PROD_CD || '',
+          SVC_CD: eq.SVC_CD || '',
           WRK_ID: eq.WRK_ID || order.id,
           CUST_ID: eq.CUST_ID || order.customer?.id,
           CTRT_ID: eq.CTRT_ID || order.CTRT_ID,
           WRK_CD: eq.WRK_CD || order.WRK_CD,
           REG_UID: workerId,
+          ...removalFields,
         };
       });
     };
@@ -433,8 +539,9 @@ const CompleteRemoval: React.FC<CompleteRemovalProps> = ({
         WRK_CD: order.WRK_CD,
         WRK_DTL_TCD: order.WRK_DTL_TCD,
         CUST_ID: order.customer?.id,
+        CTRT_ID: order.CTRT_ID || '',
         RCPT_ID: order.RCPT_ID,
-        CRR_ID: '01',
+        CRR_ID: order.CRR_ID || user.crrId || '01',
         WRKR_ID: workerId,
         WRKR_CMPL_DT: formattedDate,
         MEMO: memo || '작업 완료',
@@ -444,8 +551,8 @@ const CompleteRemoval: React.FC<CompleteRemovalProps> = ({
         CNFM_CUST_NM: cnfmCustNm,
         CNFM_CUST_TELNO: cnfmCustTelno,
         REUSE_YN: reuseYn ? 'Y' : 'N',
-        // 철거: 설치위치 없음
-        INSTL_LOC: '',
+        // 부가상품: 기존 설치위치 유지 (레거시 mowoa03m09.xml:1343)
+        INSTL_LOC: (order as any).INSTL_LOC || order.installLocation || '',
         // 철거: 상향제어, 서비스이용구분 없음
         UP_CTRL_CL: '',
         PSN_USE_CORP: '',
@@ -483,8 +590,8 @@ const CompleteRemoval: React.FC<CompleteRemovalProps> = ({
         TV_TYPE: ''
       },
       // 철거: 설치/회수 장비 모두 가능
-      equipmentList: processEquipmentList(equipmentData?.installedEquipments || []),
-      removeEquipmentList: processEquipmentList(equipmentData?.removedEquipments || []),
+      equipmentList: processEquipmentList(equipmentData?.installedEquipments || [], false),
+      removeEquipmentList: processEquipmentList(equipmentData?.removedEquipments || [], true),
       spendItemList: equipmentData?.spendItems || [],
       agreementList: equipmentData?.agreements || [],
       poleList: equipmentData?.poleResults || []
@@ -507,7 +614,7 @@ const CompleteRemoval: React.FC<CompleteRemovalProps> = ({
   };
 
   return (
-    <div className="px-2 sm:px-4 py-4 sm:py-6 bg-gray-50 overflow-x-hidden">
+    <div className="px-2 sm:px-4 py-4 sm:py-6 bg-gray-50 min-h-0">
       <div className="max-w-2xl mx-auto">
         <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-3 sm:p-5">
           <div className="space-y-3 sm:space-y-5">
@@ -682,6 +789,7 @@ const CompleteRemoval: React.FC<CompleteRemovalProps> = ({
         customerId={order.customer.id}
         customerName={order.customer.name}
         contractId={order.CTRT_ID}
+        addrOrd={(order as any).ADDR_ORD || ''}
         kpiProdGrpCd={equipmentData?.kpiProdGrpCd || equipmentData?.KPI_PROD_GRP_CD || order.KPI_PROD_GRP_CD}
         prodChgGb={equipmentData?.prodChgGb || equipmentData?.PROD_CHG_GB || (order as any).PROD_CHG_GB}
         chgKpiProdGrpCd={equipmentData?.chgKpiProdGrpCd || equipmentData?.CHG_KPI_PROD_GRP_CD || (order as any).CHG_KPI_PROD_GRP_CD}
@@ -702,7 +810,16 @@ const CompleteRemoval: React.FC<CompleteRemovalProps> = ({
         type="confirm"
         confirmText="완료"
         cancelText="취소"
-      />
+      >
+        <WorkCompleteSummary
+          equipmentData={equipmentData}
+          installInfoData={installInfoData}
+          custRel={custRel}
+          custRelOptions={custRelOptions}
+          memo={memo}
+          order={order}
+        />
+      </ConfirmModal>
     </div>
   );
 };

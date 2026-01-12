@@ -3,29 +3,24 @@
  *
  * 레거시 참조: mowoa03m02.xml, mowoa03m08.xml
  *
+ * 상태 관리:
+ * - Zustand (useWorkEquipmentStore): 클라이언트 상태 (철거 장비, 분실/파손 체크박스)
+ * - localStorage persist: Zustand middleware로 자동 저장
+ *
  * 기능:
  * - 철거 대상 장비 목록 표시 (API output5)
  * - 분실/파손 체크박스 (장비분실, 아답터분실, 리모콘분실, 케이블분실, 크래들분실)
  * - 고객소유 장비는 분실처리 불가
- * - 연동이력 조회
- * - 저장 기능
- *
- * 제거된 기능:
- * - 계약 장비 선택 로직
- * - 기사 재고 관련 로직
- * - 등록 버튼 및 기능
- * - 신호처리 (설치 전용)
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useEffect } from 'react';
 import { RotateCcw } from 'lucide-react';
 import { getTechnicianEquipments } from '../../../../services/apiService';
+import { useWorkEquipmentStore, useWorkEquipment } from '../../../../stores/workEquipmentStore';
 import {
   EquipmentComponentProps,
   ExtendedEquipment,
-  RemovalStatus,
   isCustomerOwnedEquipment,
-  getEquipmentStorageKey
 } from './shared/types';
 
 const EquipmentTerminate: React.FC<EquipmentComponentProps> = ({
@@ -37,51 +32,44 @@ const EquipmentTerminate: React.FC<EquipmentComponentProps> = ({
   onPreloadedDataUpdate,
   readOnly = false
 }) => {
+  const workId = workItem.id;
+
   // 작업 완료 여부 확인
   const isWorkCompleted = readOnly || workItem.WRK_STAT_CD === '4' || workItem.status === '완료';
 
-  // 철거 대상 장비 목록 (API output5)
-  const [removeEquipments, setRemoveEquipments] = useState<ExtendedEquipment[]>([]);
+  // Work Equipment Store - Actions
+  const {
+    initWorkState,
+    setApiData,
+    setDataLoaded: storeSetDataLoaded,
+    toggleRemovalStatus,
+    setFullRemovalStatus,
+  } = useWorkEquipmentStore();
 
-  // 철거 장비 분실/파손 상태
-  const [removalStatus, setRemovalStatus] = useState<RemovalStatus>({});
+  // Work Equipment Store - State (현재 작업)
+  const {
+    removeEquipments,
+    removalStatus,
+    isReady: isDataLoaded,
+  } = useWorkEquipment(workId);
 
-
-  // 초기 데이터 로드 완료 여부
-  const [isDataLoaded, setIsDataLoaded] = useState(false);
-
-  // 초기 데이터 로드
+  // 초기화 및 데이터 로드
   useEffect(() => {
-    setIsDataLoaded(false);
-    loadEquipmentData();
-  }, [workItem]);
-
-  // localStorage 키 생성
-  const getStorageKey = () => getEquipmentStorageKey(workItem.id);
-
-  // 작업 중인 데이터 자동 저장
-  useEffect(() => {
-    if (!isDataLoaded) {
+    // 이미 데이터가 로드된 상태면 건너뜀 (탭 이동 시 기존 데이터 유지)
+    if (isDataLoaded && removeEquipments.length > 0) {
+      console.log('[장비관리-철거] 이미 데이터 로드됨 - 기존 데이터 유지');
       return;
     }
+    initWorkState(workId);
+    loadEquipmentData();
+  }, [workItem.id]);
 
-    const storageKey = getStorageKey();
-    const hasRemovalStatus = Object.keys(removalStatus).length > 0;
-
-    if (hasRemovalStatus) {
-      const draftData = {
-        removalStatus: removalStatus,
-        savedAt: new Date().toISOString(),
-      };
-      localStorage.setItem(storageKey, JSON.stringify(draftData));
-    } else {
-      localStorage.removeItem(storageKey);
-    }
-  }, [removalStatus, isDataLoaded]);
+  // Zustand store가 자동으로 localStorage에 persist하므로 별도 저장 로직 불필요
 
   // 장비 데이터 로드
   const loadEquipmentData = async () => {
     try {
+      console.log('[장비관리-철거] 데이터 로드 시작 - isWorkCompleted:', isWorkCompleted, 'WRK_STAT_CD:', workItem.WRK_STAT_CD);
       let apiResponse;
 
       // Pre-loaded 데이터가 있으면 API 호출 건너뛰기
@@ -123,9 +111,17 @@ const EquipmentTerminate: React.FC<EquipmentComponentProps> = ({
 
       console.log('[장비관리-철거] 응답:');
       console.log('  - 철거장비 (output5):', apiResponse.removedEquipments?.length || 0, '개');
+      // 원본 API 응답 로깅 (첫번째 장비)
+      if (apiResponse.removedEquipments?.length > 0) {
+        console.log('[장비관리-철거] 원본 API 응답[0]:', apiResponse.removedEquipments[0]);
+      }
 
       // output5: 철거 대상 장비
+      // API 응답의 모든 필드를 보존하고, 프론트엔드용 별칭 추가
       const removed: ExtendedEquipment[] = (apiResponse.removedEquipments || []).map((eq: any) => ({
+        // 원본 API 응답 필드 모두 보존 (레거시 필드명 그대로)
+        ...eq,
+        // 프론트엔드용 별칭 추가
         id: eq.EQT_NO,
         type: eq.ITEM_MID_NM,
         model: eq.EQT_CL_NM,
@@ -134,53 +130,32 @@ const EquipmentTerminate: React.FC<EquipmentComponentProps> = ({
         eqtClCd: eq.EQT_CL_CD || eq.EQT_CL,
         macAddress: eq.MAC_ADDRESS || eq.MAC_ADDR,
         installLocation: eq.INSTL_LCTN,
-        // API 응답의 모든 필드 보존
-        SVC_CMPS_ID: eq.SVC_CMPS_ID,
-        BASIC_PROD_CMPS_ID: eq.BASIC_PROD_CMPS_ID,
-        MST_SO_ID: eq.MST_SO_ID,
-        SO_ID: eq.SO_ID,
-        LENT_YN: eq.LENT_YN,
-        VOIP_CUSTOWN_EQT: eq.VOIP_CUSTOWN_EQT,
-        EQT_LOC_TP_NM: eq.EQT_LOC_TP_NM,
       }));
 
       console.log('[장비관리-철거] 상태 업데이트:');
       console.log('  - 철거 대상:', removed.length, '개');
 
-      setRemoveEquipments(removed);
+      // Store에 API 데이터 저장
+      setApiData(workId, {
+        removeEquipments: removed,
+      });
 
-      // localStorage에서 저장된 상태 복원
-      const storageKey = getStorageKey();
-      const savedData = localStorage.getItem(storageKey);
-      if (savedData) {
-        try {
-          const parsed = JSON.parse(savedData);
-          if (parsed.removalStatus) {
-            setRemovalStatus(parsed.removalStatus);
-            console.log('[장비관리-철거] localStorage에서 분실/파손 상태 복원:', parsed.removalStatus);
-          }
-        } catch (err) {
-          console.error('[장비관리-철거] localStorage 파싱 오류:', err);
-        }
-      }
+      // Store에 persist된 removalStatus가 없으면 빈 상태로 시작
+      // (persist middleware가 자동으로 복원해줌)
 
-      setIsDataLoaded(true);
+      // Use requestAnimationFrame to ensure state updates are applied before marking data as loaded
+      requestAnimationFrame(() => storeSetDataLoaded(workId, true));
     } catch (error) {
       console.error('[장비관리-철거] 장비 데이터 로드 실패:', error);
       showToast?.('장비 정보를 불러오는데 실패했습니다.', 'error');
-      setIsDataLoaded(true);
+      setApiData(workId, { removeEquipments: [] });
+      requestAnimationFrame(() => storeSetDataLoaded(workId, true));
     }
   };
 
   // 철거 장비 분실/파손 상태 토글 핸들러
-  const handleRemovalStatusChange = (eqtNo: string, field: string, value: string) => {
-    setRemovalStatus(prev => ({
-      ...prev,
-      [eqtNo]: {
-        ...prev[eqtNo],
-        [field]: value === '1' ? '0' : '1'  // 토글
-      }
-    }));
+  const handleRemovalStatusChange = (eqtNo: string, field: string) => {
+    toggleRemovalStatus(workId, eqtNo, field);
   };
 
   // 철거 작업 저장 핸들러
@@ -203,14 +178,21 @@ const EquipmentTerminate: React.FC<EquipmentComponentProps> = ({
         eqtClCd: eq.eqtClCd,
         macAddress: eq.macAddress,
 
-        // 레거시 시스템 필수 필드
+        // 레거시 시스템 필수 필드 (mowoa03m02.xml:1094-1100 참조)
         CUST_ID: workItem.customer?.id || workItem.CUST_ID,
         CTRT_ID: workItem.CTRT_ID,
         EQT_NO: eq.id,
-        ITEM_CD: eq.ITEM_CD || '',
+        ITEM_CD: (eq as any).ITEM_CD || '',
         EQT_SERNO: eq.serialNumber,
         WRK_ID: workItem.id,
         WRK_CD: workItem.WRK_CD,
+        // 레거시 필수 필드 추가 (mowoa03m02.xml에서 작업완료 전 설정)
+        CRR_TSK_CL: '02',  // 철거 작업
+        RCPT_ID: workItem.RCPT_ID || '',
+        CRR_ID: workItem.CRR_ID || '',
+        WRKR_ID: user.workerId || 'A20130708',
+        // EQT_CL 필드 (장비분실처리에서 필수 - TCMCT_EQT_LOSS_INFO 테이블)
+        EQT_CL: eq.eqtClCd || (eq as any).EQT_CL_CD || (eq as any).EQT_CL || '',
 
         // 기타 필드
         SVC_CMPS_ID: (eq as any).SVC_CMPS_ID || '',
@@ -293,13 +275,33 @@ const EquipmentTerminate: React.FC<EquipmentComponentProps> = ({
                   </div>
 
                   {/* 분실/파손 체크박스 - 읽기 전용일 때는 숨김 */}
-                  {!isWorkCompleted && !readOnly && (
+                  {!isWorkCompleted && !readOnly && (() => {
+                    // 분실/파손 체크 여부에 따라 재사용 상태 자동 계산 (UI 표시용)
+                    const hasAnyLoss = status.EQT_LOSS_YN === '1' ||
+                      status.PART_LOSS_BRK_YN === '1' ||
+                      status.EQT_BRK_YN === '1' ||
+                      status.EQT_CABL_LOSS_YN === '1' ||
+                      status.EQT_CRDL_LOSS_YN === '1';
+                    const isReusable = !hasAnyLoss;
+
+                    return (
                     <div className="flex flex-wrap gap-2 pt-3 border-t border-gray-100">
+                      {/* 재사용 체크박스 (표시용 - 분실 체크 시 자동 해제) */}
+                      <label className="flex items-center gap-1.5 px-2 py-1.5 rounded-lg whitespace-nowrap opacity-70 cursor-not-allowed">
+                        <input
+                          type="checkbox"
+                          checked={isReusable}
+                          disabled={true}
+                          className={`w-4 h-4 rounded border-gray-300 ${isReusable ? 'text-green-500' : 'text-gray-300'} focus:ring-green-500`}
+                        />
+                        <span className={`text-xs font-medium ${isReusable ? 'text-green-700' : 'text-gray-400'}`}>재사용</span>
+                      </label>
+                      <div className="w-px h-5 bg-gray-300 self-center mx-1" />
                       <label className={`flex items-center gap-1.5 px-2 py-1.5 rounded-lg active:bg-gray-100 whitespace-nowrap ${isCustomerOwned ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}>
                         <input
                           type="checkbox"
                           checked={status.EQT_LOSS_YN === '1'}
-                          onChange={() => !isCustomerOwned && handleRemovalStatusChange(eqtNo, 'EQT_LOSS_YN', status.EQT_LOSS_YN || '0')}
+                          onChange={() => !isCustomerOwned && handleRemovalStatusChange(eqtNo, 'EQT_LOSS_YN')}
                           disabled={isCustomerOwned}
                           className="w-4 h-4 rounded border-gray-300 text-orange-500 focus:ring-orange-500"
                         />
@@ -309,7 +311,7 @@ const EquipmentTerminate: React.FC<EquipmentComponentProps> = ({
                         <input
                           type="checkbox"
                           checked={status.PART_LOSS_BRK_YN === '1'}
-                          onChange={() => !isCustomerOwned && handleRemovalStatusChange(eqtNo, 'PART_LOSS_BRK_YN', status.PART_LOSS_BRK_YN || '0')}
+                          onChange={() => !isCustomerOwned && handleRemovalStatusChange(eqtNo, 'PART_LOSS_BRK_YN')}
                           disabled={isCustomerOwned}
                           className="w-4 h-4 rounded border-gray-300 text-orange-500 focus:ring-orange-500"
                         />
@@ -319,7 +321,7 @@ const EquipmentTerminate: React.FC<EquipmentComponentProps> = ({
                         <input
                           type="checkbox"
                           checked={status.EQT_BRK_YN === '1'}
-                          onChange={() => !isCustomerOwned && handleRemovalStatusChange(eqtNo, 'EQT_BRK_YN', status.EQT_BRK_YN || '0')}
+                          onChange={() => !isCustomerOwned && handleRemovalStatusChange(eqtNo, 'EQT_BRK_YN')}
                           disabled={isCustomerOwned}
                           className="w-4 h-4 rounded border-gray-300 text-orange-500 focus:ring-orange-500"
                         />
@@ -329,7 +331,7 @@ const EquipmentTerminate: React.FC<EquipmentComponentProps> = ({
                         <input
                           type="checkbox"
                           checked={status.EQT_CABL_LOSS_YN === '1'}
-                          onChange={() => !isCustomerOwned && handleRemovalStatusChange(eqtNo, 'EQT_CABL_LOSS_YN', status.EQT_CABL_LOSS_YN || '0')}
+                          onChange={() => !isCustomerOwned && handleRemovalStatusChange(eqtNo, 'EQT_CABL_LOSS_YN')}
                           disabled={isCustomerOwned}
                           className="w-4 h-4 rounded border-gray-300 text-orange-500 focus:ring-orange-500"
                         />
@@ -339,14 +341,15 @@ const EquipmentTerminate: React.FC<EquipmentComponentProps> = ({
                         <input
                           type="checkbox"
                           checked={status.EQT_CRDL_LOSS_YN === '1'}
-                          onChange={() => !isCustomerOwned && handleRemovalStatusChange(eqtNo, 'EQT_CRDL_LOSS_YN', status.EQT_CRDL_LOSS_YN || '0')}
+                          onChange={() => !isCustomerOwned && handleRemovalStatusChange(eqtNo, 'EQT_CRDL_LOSS_YN')}
                           disabled={isCustomerOwned}
                           className="w-4 h-4 rounded border-gray-300 text-orange-500 focus:ring-orange-500"
                         />
                         <span className="text-xs text-gray-700 font-medium">크래들분실</span>
                       </label>
                     </div>
-                  )}
+                    );
+                  })()}
 
                   {/* 고객소유 장비 안내 */}
                   {isCustomerOwned && !isWorkCompleted && (

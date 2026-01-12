@@ -46,10 +46,10 @@ const SuspensionPeriodModal: React.FC<SuspensionPeriodModalProps> = ({
     return isoDate.replace(/-/g, '');
   };
 
-  // 날짜 표시 포맷 (YYYYMMDD -> YYYY.MM.DD)
+  // 날짜 표시 포맷 (YYYYMMDD -> YYYY-MM-DD)
   const formatDateDisplay = (yyyymmdd: string): string => {
     if (!yyyymmdd || yyyymmdd.length !== 8) return '-';
-    return `${yyyymmdd.slice(0, 4)}.${yyyymmdd.slice(4, 6)}.${yyyymmdd.slice(6, 8)}`;
+    return `${yyyymmdd.slice(0, 4)}-${yyyymmdd.slice(4, 6)}-${yyyymmdd.slice(6, 8)}`;
   };
 
   // 두 날짜 사이 일수 계산

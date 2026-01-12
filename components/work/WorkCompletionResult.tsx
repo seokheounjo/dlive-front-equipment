@@ -29,9 +29,55 @@ const TableRow: React.FC<{ label: string; value?: string; children?: React.React
   </tr>
 );
 
+// 작업상태 코드 → 한글 변환
+const getWorkStatusName = (statCd?: string): string => {
+  const statusMap: Record<string, string> = {
+    '1': '접수',
+    '2': '할당',
+    '3': '취소',
+    '4': '완료',
+    '7': '부분완료',
+    '9': '삭제',
+  };
+  return statusMap[statCd || ''] || statCd || '-';
+};
+
+// 상품그룹 코드 → 한글 변환
+const getProdGrpName = (prodGrp?: string): string => {
+  const grpMap: Record<string, string> = {
+    'D': 'DTV',
+    'V': 'VoIP',
+    'I': 'ISP',
+    'C': '번들',
+  };
+  return grpMap[prodGrp || ''] || prodGrp || '-';
+};
+
+// 작업완료일 포맷팅 (YYYYMMDD → YYYY-MM-DD HH:MM)
+const formatCompleteDate = (dateStr?: string): string => {
+  if (!dateStr) return new Date().toLocaleString('ko-KR');
+  if (dateStr.length >= 8) {
+    const year = dateStr.slice(0, 4);
+    const month = dateStr.slice(4, 6);
+    const day = dateStr.slice(6, 8);
+    if (dateStr.length >= 14) {
+      const hour = dateStr.slice(8, 10);
+      const min = dateStr.slice(10, 12);
+      return `${year}-${month}-${day} ${hour}:${min}`;
+    }
+    return `${year}-${month}-${day}`;
+  }
+  return dateStr;
+};
+
 const WorkCompletionResult: React.FC<WorkCompletionResultProps> = ({ order, onBack }) => {
+  // 작업자 정보 가져오기
+  const userInfo = localStorage.getItem('userInfo');
+  const user = userInfo ? JSON.parse(userInfo) : {};
+  const workerName = user.userName || user.userId || '작업자';
+
   return (
-    <div className="max-w-4xl mx-auto p-2 sm:p-4">
+    <div className="h-full overflow-y-auto max-w-4xl mx-auto p-2 sm:p-4">
       {/* 메인 카드 */}
       <div className="bg-white rounded-lg shadow-lg border border-gray-200 overflow-hidden">
         {/* 제목 헤더 - 작업 유형별 동적 제목 */}
@@ -39,45 +85,21 @@ const WorkCompletionResult: React.FC<WorkCompletionResultProps> = ({ order, onBa
           {getCompleteButtonText(order.WRK_CD)} [1.작업정보]
         </div>
 
-        {/* 작업 상세 테이블 */}
         <div className="p-3 sm:p-4">
-          <div className="mb-4">
-            <div className="bg-blue-50 border border-blue-200 rounded-lg overflow-hidden">
-              <table className="w-full text-xs sm:text-sm">
-                <thead>
-                  <tr className="bg-blue-600 text-white">
-                    <th className="px-2 py-1.5 text-left font-medium border-r border-blue-500">구분</th>
-                    <th className="px-2 py-1.5 text-left font-medium border-r border-blue-500">작업상세</th>
-                    <th className="px-2 py-1.5 text-left font-medium border-r border-blue-500">작업상태</th>
-                    <th className="px-2 py-1.5 text-left font-medium">상품코드</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr className="bg-white border-b border-blue-200">
-                    <td className="px-2 py-1.5 border-r border-blue-200">{order.typeDisplay}</td>
-                    <td className="px-2 py-1.5 border-r border-blue-200">설치</td>
-                    <td className="px-2 py-1.5 border-r border-blue-200">완료</td>
-                    <td className="px-2 py-1.5">ISP</td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-          </div>
-
           {/* 상세 정보 테이블 */}
           <div className="bg-white border border-gray-300 rounded-lg overflow-hidden">
             <table className="w-full">
               <tbody>
-                <TableRow label="상품명" value="ISP 스마트 광랜" />
-                <TableRow label="작업상세" value="추가" />
-                <TableRow label="고객번호" value={order.customer.id || "1001857578"} />
-                <TableRow label="고객명" value={order.customer.name} />
-                <TableRow label="연락처" value={order.customer.phone || "01044586687"} />
-                <TableRow label="번호구분" value="요청번호" />
-                <TableRow label="실치위치" value="/" />
-                <TableRow label="CELL NO" value="-" />
-                <TableRow label="작업주소" value={order.customer.address || "서울시 송파구 석촌동 261번지 17호"} />
-                <TableRow label="도로명" value="석촌호수로 261번지 17호" />
+                <TableRow label="상품명" value={order.PROD_NM || order.productName || '-'} />
+                <TableRow label="작업코드" value={order.WRK_CD ? `${order.WRK_CD} (${order.WRK_CD_NM || order.typeDisplay || ''})` : '-'} />
+                <TableRow label="고객번호" value={order.customer?.id || order.CUST_ID || '-'} />
+                <TableRow label="고객명" value={order.customer?.name || '-'} />
+                <TableRow label="연락처" value={order.customer?.phone || '-'} />
+                <TableRow label="계약번호" value={order.CTRT_ID || '-'} />
+                <TableRow label="설치위치" value={order.installLocation || '-'} />
+                <TableRow label="CELL NO" value={order.cellNo || '-'} />
+                <TableRow label="작업주소" value={order.customer?.address || '-'} />
+                <TableRow label="지사" value={order.SO_NM || '-'} />
               </tbody>
             </table>
           </div>
@@ -201,7 +223,7 @@ const WorkCompletionResult: React.FC<WorkCompletionResultProps> = ({ order, onBa
 
             {order.WRK_CD === '06' && (
               <div className="bg-gray-50 border border-gray-300 rounded-lg p-3 mb-3">
-                <h4 className="text-xs sm:text-sm font-semibold text-gray-800 mb-2">🏠 댁내설치 작업 완료 체크리스트</h4>
+                <h4 className="text-xs sm:text-sm font-semibold text-gray-800 mb-2">댁내설치 작업 완료 체크리스트</h4>
                 <ul className="text-xs text-gray-700 space-y-1">
                   <li>• 장비 설치 위치 확인</li>
                   <li>• 장비 연결 및 신호 확인</li>
@@ -212,7 +234,7 @@ const WorkCompletionResult: React.FC<WorkCompletionResultProps> = ({ order, onBa
 
             {order.WRK_CD === '04' && (
               <div className="bg-gray-50 border border-gray-300 rounded-lg p-3 mb-3">
-                <h4 className="text-xs sm:text-sm font-semibold text-gray-800 mb-2">⏸️ 정지 작업 완료 체크리스트</h4>
+                <h4 className="text-xs sm:text-sm font-semibold text-gray-800 mb-2">정지 작업 완료 체크리스트</h4>
                 <ul className="text-xs text-gray-700 space-y-1">
                   <li>• {order.WRK_DTL_TCD === '0430' ? '일시철거 완료' : order.WRK_DTL_TCD === '0440' ? '일시정지해제 완료' : '정지 처리 완료'}</li>
                   <li>• 장비 상태 확인</li>
@@ -223,7 +245,7 @@ const WorkCompletionResult: React.FC<WorkCompletionResultProps> = ({ order, onBa
 
             {order.WRK_CD === '09' && (
               <div className="bg-gray-50 border border-gray-300 rounded-lg p-3 mb-3">
-                <h4 className="text-xs sm:text-sm font-semibold text-gray-800 mb-2">📋 기타 작업 완료 체크리스트</h4>
+                <h4 className="text-xs sm:text-sm font-semibold text-gray-800 mb-2">부가상품 작업 완료 체크리스트</h4>
                 <ul className="text-xs text-gray-700 space-y-1">
                   <li>• 작업 내용 상세 기재 완료</li>
                   <li>• 작업 결과 기록 완료</li>
@@ -233,25 +255,37 @@ const WorkCompletionResult: React.FC<WorkCompletionResultProps> = ({ order, onBa
             )}
           </div>
 
-          {/* 추가 정보 */}
-          <div className="mt-4 bg-gray-50 p-3 rounded-lg">
-            <h4 className="text-xs sm:text-sm font-semibold text-gray-700 mb-2">작업 메모</h4>
-            <p className="text-xs sm:text-sm text-gray-600">
-              {order.details || "작업이 정상적으로 완료되었습니다."}
-            </p>
-          </div>
+          {/* 작업 메모 */}
+          {order.MEMO && (
+            <div className="mt-4 bg-gray-50 p-3 rounded-lg">
+              <h4 className="text-xs sm:text-sm font-semibold text-gray-700 mb-2">작업 메모</h4>
+              <p className="text-xs sm:text-sm text-gray-600 whitespace-pre-wrap">
+                {order.MEMO}
+              </p>
+            </div>
+          )}
 
           {/* 완료 정보 */}
           <div className="mt-4 bg-green-50 border border-green-300 rounded-lg p-3">
             <h4 className="text-xs sm:text-sm font-semibold text-green-800 mb-2">완료 정보</h4>
             <div className="space-y-1 text-xs sm:text-sm text-green-700">
-              <div>완료일시: {new Date().toLocaleString('ko-KR')}</div>
-              <div>작업자: 모바일 작업자</div>
+              <div>완료일시: {formatCompleteDate(order.WRKR_CMPL_DT || order.WRK_END_DTTM)}</div>
+              <div>작업자: {workerName}</div>
               <div>작업 ID: {order.id}</div>
-              {order.WRK_CD && <div>작업 코드: {order.WRK_CD}</div>}
+              {order.WRK_CD && <div>작업 코드: {order.WRK_CD} ({order.WRK_CD_NM || order.typeDisplay})</div>}
               {order.CTRT_ID && <div>계약 ID: {order.CTRT_ID}</div>}
-              <div>상태: {getCompleteButtonText(order.WRK_CD)}</div>
+              <div>상태: {getWorkStatusName(order.WRK_STAT_CD)}</div>
             </div>
+          </div>
+
+          {/* 확인 버튼 */}
+          <div className="mt-4">
+            <button
+              onClick={onBack}
+              className="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-lg transition-colors text-sm sm:text-base"
+            >
+              확인
+            </button>
           </div>
         </div>
       </div>

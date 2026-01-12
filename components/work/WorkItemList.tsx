@@ -8,6 +8,7 @@ import WorkCancelModal from '../work/WorkCancelModal';
 import { cancelWork, getWorkReceipts, NetworkError } from '../../services/apiService';
 import LoadingSpinner from '../common/LoadingSpinner';
 import ErrorMessage from '../common/ErrorMessage';
+import VipBadge from '../common/VipBadge';
 import { ClipboardList } from 'lucide-react';
 import { useWorkProcessStore } from '../../stores/workProcessStore';
 
@@ -43,14 +44,47 @@ const WorkItemList: React.FC<WorkItemListProps> = ({ direction, onBack, onNaviga
 
         const items = await getWorkReceipts(direction.id);
 
-        // 작업 상태별로 정렬: 진행중/할당 → 완료 → 취소
+        // 정렬: 1) 상태별 (진행중/할당 → 완료 → 취소)
+        //       2) 상품그룹별 (설치: V→D→I, 철거: I→D→V)
         const sortedItems = items.sort((a, b) => {
+          // 1. 상태 우선순위
           const getStatusPriority = (status: string) => {
             if (status === '할당' || status === '진행중') return 1;
             if (status === '완료') return 2;
             return 3; // 취소
           };
-          return getStatusPriority(a.WRK_STAT_CD_NM) - getStatusPriority(b.WRK_STAT_CD_NM);
+          const statusDiff = getStatusPriority(a.WRK_STAT_CD_NM) - getStatusPriority(b.WRK_STAT_CD_NM);
+          if (statusDiff !== 0) return statusDiff;
+
+          // 2. 상품그룹 우선순위 (WRK_CD에 따라 다름)
+          // 설치류: 01(설치), 05(상품변경), 07(이전설치), 0440(정지철거복구) → V→D→I
+          // 철거류: 02(철거), 08(이전철거), 0430(정지철거) → I→D→V
+          const isRemovalType = (item: any) => {
+            const wrkCd = item.WRK_CD;
+            const wrkDtlTcd = item.WRK_DTL_TCD;
+            // 철거류: 02, 08, 0430(정지철거)
+            if (wrkCd === '02' || wrkCd === '08') return true;
+            if (wrkDtlTcd === '0430') return true;
+            return false;
+          };
+
+          const getProdGrpPriority = (item: any) => {
+            const prodGrp = item.PROD_GRP || '';
+            if (isRemovalType(item)) {
+              // 철거류: ISP(I) → DTV(D) → VoIP(V)
+              if (prodGrp === 'I') return 1;
+              if (prodGrp === 'D') return 2;
+              if (prodGrp === 'V') return 3;
+            } else {
+              // 설치류: VoIP(V) → DTV(D) → ISP(I)
+              if (prodGrp === 'V') return 1;
+              if (prodGrp === 'D') return 2;
+              if (prodGrp === 'I') return 3;
+            }
+            return 4; // 기타
+          };
+
+          return getProdGrpPriority(a) - getProdGrpPriority(b);
         });
 
         setWorkItems(sortedItems);
@@ -96,6 +130,12 @@ const WorkItemList: React.FC<WorkItemListProps> = ({ direction, onBack, onNaviga
     const newWorkId = item.WRK_ID || item.id;
     clearPreviousWorkDraft(newWorkId);
 
+    // 작업요청상세 디버깅
+    console.log('📝 [작업요청상세] REQ_CTX 원본:', item.REQ_CTX);
+    console.log('📝 [작업요청상세] REQ_CTX JSON:', JSON.stringify(item.REQ_CTX));
+    // VIP 디버깅
+    console.log('👑 [VIP 디버그] item.VIP_GB:', item.VIP_GB, '| direction.VIP_GB:', (direction as any).VIP_GB, '| direction.customer.isVip:', direction.customer?.isVip);
+
     // 실제 API 데이터를 WorkOrder 형태로 변환 (handleSelectItem)
     const convertedItem: WorkItem = {
       id: item.WRK_ID || item.id,
@@ -114,7 +154,10 @@ const WorkItemList: React.FC<WorkItemListProps> = ({ direction, onBack, onNaviga
         id: item.CUST_ID || item.customer?.id || '',
         name: item.CUST_NM || item.customer?.name || '고객명 없음',
         phone: item.REQ_CUST_TEL_NO || item.customer?.phone,
-        address: item.ADDR || item.customer?.address || '주소 정보 없음'
+        address: item.ADDR || item.customer?.address || '주소 정보 없음',
+        // VIP 정보 (item에 없으면 direction에서 복사)
+        isVip: !!(item.VIP_GB && String(item.VIP_GB).length > 0) || direction.customer?.isVip || false,
+        vipLevel: item.VIP_GB === 'VIP_VVIP' ? 'VVIP' : (item.VIP_GB ? 'VIP' : direction.customer?.vipLevel),
       },
       details: item.REQ_CTX || item.MEMO || item.details || '작업 상세 정보',
       assignedEquipment: item.assignedEquipment || [],
@@ -124,19 +167,26 @@ const WorkItemList: React.FC<WorkItemListProps> = ({ direction, onBack, onNaviga
       WRK_DTL_TCD: item.WRK_DTL_TCD,    // 작업 세부 유형 코드
       WRK_STAT_CD: item.WRK_STAT_CD,    // 작업 상태 코드
       WRK_DRCTN_ID: item.WRK_DRCTN_ID,  // 작업지시 ID
-      CTRT_ID: item.DTL_CTRT_ID || item.CTRT_ID,  // 계약 ID (DTL_CTRT_ID 우선)
+      CTRT_ID: item.CTRT_ID,            // 원본 계약 ID (상품변경 시 OLD_CTRT_ID로 사용)
+      DTL_CTRT_ID: item.DTL_CTRT_ID,    // 상세 계약 ID (상품변경 시 신규 계약 ID)
       RCPT_ID: item.RCPT_ID,            // 접수 ID
       productName: item.PROD_NM,        // 상품명 (레거시 호환)
       PROD_NM: item.PROD_NM,            // 상품명 (장비정보변경 모달에서 사용)
+      OLD_PROD_CD: item.OLD_PROD_CD,    // 이전 상품코드 (상품변경 시)
+      OLD_PROD_NM: item.OLD_PROD_NM,    // 이전 상품명 (상품변경 시)
+      currentProduct: item.OLD_PROD_NM || item.OLD_PROD_CD,  // 현재(이전) 상품 - 상품변경 상세정보용
+      newProduct: item.PROD_NM,         // 변경(새) 상품 - 상품변경 상세정보용
       installLocation: item.INSTL_LOC,  // 설치위치
 
       // 추가 작업 관련 정보
+      MST_SO_ID: item.MST_SO_ID,        // 마스터 지점 ID (장비이관에 필요)
       SO_ID: item.SO_ID,                // 지점 ID
       PROD_CD: item.PROD_CD,            // 상품 코드
       ADDR_ORD: item.ADDR_ORD,          // 주소 순번
       CRR_ID: item.CRR_ID,              // 권역/통신사 ID
       BLD_ID: item.BLD_ID,              // 건물 ID
       CUST_ID: item.CUST_ID,            // 고객 ID (계약정보 API 호출에 필요)
+      WRKR_ID: item.WRKR_ID,            // 작업자 ID (장비이관에 필요)
 
       // 계약정보 - 계약 상태
       CTRT_STAT: item.CTRT_STAT,        // 계약상태 (10:설치대기, 20:정상 등)
@@ -166,7 +216,10 @@ const WorkItemList: React.FC<WorkItemListProps> = ({ direction, onBack, onNaviga
       WRKR_NM: item.WRKR_NM,            // 작업자명
       ACNT_PYM_MTHD: item.ACNT_PYM_MTHD, // 납부방법코드 (01 등)
       KPI_PROD_GRP_CD: item.KPI_PROD_GRP_CD, // KPI 상품그룹코드 (인입선로 철거관리 조건)
+      PROD_CHG_GB: item.PROD_CHG_GB,    // 상품변경구분 (01:설치, 02:철거)
+      CHG_KPI_PROD_GRP_CD: item.CHG_KPI_PROD_GRP_CD, // 변경 KPI 상품그룹코드
       VOIP_CTX: item.VOIP_CTX,          // VoIP 컨텍스트 (T/R이면 인입선로 제외)
+      VIP_GB: item.VIP_GB || (direction as any).VIP_GB || '',  // VIP 구분 (item에 없으면 direction에서 복사)
 
       // 작업 완료일자 (완료된 작업인 경우)
       WRKR_CMPL_DT: item.WRKR_CMPL_DT,  // 작업자 완료일자 (YYYYMMDD)
@@ -249,7 +302,10 @@ const WorkItemList: React.FC<WorkItemListProps> = ({ direction, onBack, onNaviga
         id: item.CUST_ID || item.customer?.id || '',
         name: item.CUST_NM || item.customer?.name || '고객명 없음',
         phone: item.REQ_CUST_TEL_NO || item.customer?.phone,
-        address: item.ADDR || item.customer?.address || '주소 정보 없음'
+        address: item.ADDR || item.customer?.address || '주소 정보 없음',
+        // VIP 정보 (item에 없으면 direction에서 복사)
+        isVip: !!(item.VIP_GB && String(item.VIP_GB).length > 0) || direction.customer?.isVip || false,
+        vipLevel: item.VIP_GB === 'VIP_VVIP' ? 'VVIP' : (item.VIP_GB ? 'VIP' : direction.customer?.vipLevel),
       },
       details: item.REQ_CTX || item.MEMO || item.details || '작업 상세 정보',
       assignedEquipment: item.assignedEquipment || [],
@@ -259,19 +315,26 @@ const WorkItemList: React.FC<WorkItemListProps> = ({ direction, onBack, onNaviga
       WRK_DTL_TCD: item.WRK_DTL_TCD,    // 작업 세부 유형 코드
       WRK_STAT_CD: item.WRK_STAT_CD,    // 작업 상태 코드
       WRK_DRCTN_ID: item.WRK_DRCTN_ID,  // 작업지시 ID
-      CTRT_ID: item.DTL_CTRT_ID || item.CTRT_ID,  // 계약 ID (DTL_CTRT_ID 우선)
+      CTRT_ID: item.CTRT_ID,            // 원본 계약 ID (상품변경 시 OLD_CTRT_ID로 사용)
+      DTL_CTRT_ID: item.DTL_CTRT_ID,    // 상세 계약 ID (상품변경 시 신규 계약 ID)
       RCPT_ID: item.RCPT_ID,            // 접수 ID
       productName: item.PROD_NM,        // 상품명 (레거시 호환)
       PROD_NM: item.PROD_NM,            // 상품명 (장비정보변경 모달에서 사용)
+      OLD_PROD_CD: item.OLD_PROD_CD,    // 이전 상품코드 (상품변경 시)
+      OLD_PROD_NM: item.OLD_PROD_NM,    // 이전 상품명 (상품변경 시)
+      currentProduct: item.OLD_PROD_NM || item.OLD_PROD_CD,  // 현재(이전) 상품 - 상품변경 상세정보용
+      newProduct: item.PROD_NM,         // 변경(새) 상품 - 상품변경 상세정보용
       installLocation: item.INSTL_LOC,  // 설치위치
 
       // 추가 작업 관련 정보
+      MST_SO_ID: item.MST_SO_ID,        // 마스터 지점 ID (장비이관에 필요)
       SO_ID: item.SO_ID,                // 지점 ID
       PROD_CD: item.PROD_CD,            // 상품 코드
       ADDR_ORD: item.ADDR_ORD,          // 주소 순번
       CRR_ID: item.CRR_ID,              // 권역/통신사 ID
       BLD_ID: item.BLD_ID,              // 건물 ID
       CUST_ID: item.CUST_ID,            // 고객 ID (계약정보 API 호출에 필요)
+      WRKR_ID: item.WRKR_ID,            // 작업자 ID (장비이관에 필요)
 
       // 계약정보 - 계약 상태
       CTRT_STAT: item.CTRT_STAT,        // 계약상태 (10:설치대기, 20:정상 등)
@@ -301,7 +364,10 @@ const WorkItemList: React.FC<WorkItemListProps> = ({ direction, onBack, onNaviga
       WRKR_NM: item.WRKR_NM,            // 작업자명
       ACNT_PYM_MTHD: item.ACNT_PYM_MTHD, // 납부방법코드 (01 등)
       KPI_PROD_GRP_CD: item.KPI_PROD_GRP_CD, // KPI 상품그룹코드 (인입선로 철거관리 조건)
+      PROD_CHG_GB: item.PROD_CHG_GB,    // 상품변경구분 (01:설치, 02:철거)
+      CHG_KPI_PROD_GRP_CD: item.CHG_KPI_PROD_GRP_CD, // 변경 KPI 상품그룹코드
       VOIP_CTX: item.VOIP_CTX,          // VoIP 컨텍스트 (T/R이면 인입선로 제외)
+      VIP_GB: item.VIP_GB || (direction as any).VIP_GB || '',  // VIP 구분 (item에 없으면 direction에서 복사)
 
       // 작업 완료일자 (완료된 작업인 경우)
       WRKR_CMPL_DT: item.WRKR_CMPL_DT,  // 작업자 완료일자 (YYYYMMDD)
@@ -356,7 +422,7 @@ const WorkItemList: React.FC<WorkItemListProps> = ({ direction, onBack, onNaviga
 
   const handleCancelWork = (item: any) => {
     console.log('🔍 취소 버튼 클릭 - 원본 데이터:', item);
-    
+
     // 실제 API 데이터를 WorkOrder 형태로 변환 (handleCancelWork)
     const convertedItem = {
       id: item.WRK_ID || item.id,
@@ -368,19 +434,22 @@ const WorkItemList: React.FC<WorkItemListProps> = ({ direction, onBack, onNaviga
             : (item.WRK_STAT_CD === '4' || item.WRK_STAT_CD === '7') ? '완료' as any
             : (item.WRK_STAT_CD === '1' || item.WRK_STAT_CD === '2') ? '진행중' as any
             : (item.WRK_STAT_CD_NM || '진행중') as any,
-      scheduledAt: item.WRK_HOPE_DTTM ? 
+      scheduledAt: item.WRK_HOPE_DTTM ?
         `${item.WRK_HOPE_DTTM.slice(0,4)}-${item.WRK_HOPE_DTTM.slice(4,6)}-${item.WRK_HOPE_DTTM.slice(6,8)}T${item.WRK_HOPE_DTTM.slice(8,10)}:${item.WRK_HOPE_DTTM.slice(10,12)}:00` :
         new Date().toISOString(),
       customer: {
         id: item.CUST_ID || '',
         name: item.CUST_NM || '고객명 없음',
         phone: item.REQ_CUST_TEL_NO,
-        address: item.ADDR || '주소 정보 없음'
+        address: item.ADDR || '주소 정보 없음',
+        // VIP 정보 (item에 없으면 direction에서 복사)
+        isVip: !!(item.VIP_GB && String(item.VIP_GB).length > 0) || direction.customer?.isVip || false,
+        vipLevel: item.VIP_GB === 'VIP_VVIP' ? 'VVIP' : (item.VIP_GB ? 'VIP' : direction.customer?.vipLevel),
       },
       details: item.REQ_CTX || item.MEMO || '작업 취소 요청',
       assignedEquipment: []
     };
-    
+
     console.log('✅ 취소 - 변환된 데이터:', convertedItem);
     setCancelTarget(convertedItem);
     setShowCancelModal(true);
@@ -445,8 +514,9 @@ const WorkItemList: React.FC<WorkItemListProps> = ({ direction, onBack, onNaviga
               {direction.typeDisplay}
             </span>
           </div>
-          {/* 오른쪽: 일정 */}
-          <div className="flex items-center gap-1 text-white/90 flex-shrink-0">
+          {/* 오른쪽: VIP뱃지 + 일정 */}
+          <div className="flex items-center gap-2 text-white/90 flex-shrink-0">
+            <VipBadge customer={direction.customer} />
             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor" className="w-3.5 h-3.5">
               <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
             </svg>

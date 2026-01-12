@@ -7,9 +7,10 @@ interface ReceptionInfoProps {
   workItem: WorkItem;
   onNext: () => void;
   onBack: () => void;
+  showToast?: (message: string, type: 'success' | 'error' | 'warning' | 'info') => void;
 }
 
-const ReceptionInfo: React.FC<ReceptionInfoProps> = ({ workItem, onNext, onBack }) => {
+const ReceptionInfo: React.FC<ReceptionInfoProps> = ({ workItem, onNext, onBack, showToast }) => {
   // 문자발송이력 상태
   const [smsHistoryOpen, setSmsHistoryOpen] = useState(false);
   const [smsHistory, setSmsHistory] = useState<SmsHistoryItem[]>([]);
@@ -40,6 +41,16 @@ const ReceptionInfo: React.FC<ReceptionInfoProps> = ({ workItem, onNext, onBack 
   // 문자발송이력 토글
   const handleSmsHistoryToggle = () => {
     setSmsHistoryOpen(!smsHistoryOpen);
+  };
+
+  // 상담이력 버튼 클릭 (미구현)
+  const handleConsultHistoryClick = () => {
+    // TODO: 고객메뉴 > 상담이력 화면으로 이동 (고객ID, 계약ID 전달)
+    // const custId = workItem.customer?.id;
+    // const ctrtId = workItem.CTRT_ID;
+    if (showToast) {
+      showToast('상담이력 기능은 준비 중입니다.', 'info');
+    }
   };
 
   return (
@@ -78,7 +89,7 @@ const ReceptionInfo: React.FC<ReceptionInfoProps> = ({ workItem, onNext, onBack 
       <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-3 sm:p-5">
         <h4 className="text-sm sm:text-base font-bold text-gray-900 mb-2.5 sm:mb-3">작업 요청 상세</h4>
         <div className="p-3 sm:p-4 bg-gray-50 rounded-lg text-xs sm:text-sm text-gray-700 leading-relaxed min-h-20 whitespace-pre-wrap">
-          {workItem.details?.replace(/◈/g, '\n◈') || '작업 상세 내용이 없습니다.'}
+          {workItem.details?.replace(/\\n/g, '\n').replace(/◈/g, '\n◈') || '작업 상세 내용이 없습니다.'}
         </div>
       </div>
 
@@ -194,6 +205,29 @@ const ReceptionInfo: React.FC<ReceptionInfoProps> = ({ workItem, onNext, onBack 
           </div>
         )}
       </div>
+
+      {/* 상담이력 버튼 */}
+      <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+        <button
+          onClick={handleConsultHistoryClick}
+          className="w-full p-3 sm:p-5 flex items-center justify-between hover:bg-gray-50 transition-colors"
+        >
+          <div className="flex items-center gap-2 sm:gap-3">
+            <svg className="w-4 h-4 sm:w-5 sm:h-5 text-green-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8h2a2 2 0 012 2v6a2 2 0 01-2 2h-2v4l-4-4H9a1.994 1.994 0 01-1.414-.586m0 0L11 14h4a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2v4l.586-.586z" />
+            </svg>
+            <h4 className="text-sm sm:text-base font-bold text-gray-900">상담이력</h4>
+          </div>
+          <svg
+            className="w-4 h-4 sm:w-5 sm:h-5 text-gray-400 flex-shrink-0"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+          </svg>
+        </button>
+      </div>
     </div>
   );
 };
@@ -248,37 +282,6 @@ const renderWorkTypeDetails = (workItem: WorkItem) => {
     );
   }
 
-  // 해지 작업
-  if (wrkCd === '02') {
-    return (
-      <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
-        <h4 className="text-base font-bold text-gray-900 mb-4">해지 상세 정보</h4>
-        <div className="space-y-3">
-          {workItem.termReasonCode && (
-            <div className="space-y-1">
-              <span className="text-xs text-gray-500">해지 사유</span>
-              <p className="text-sm font-medium text-gray-900">{workItem.termReasonCode}</p>
-            </div>
-          )}
-          {workItem.termFee && (
-            <div className="p-3 bg-red-50 border border-red-100 rounded-lg">
-              <div className="flex items-center justify-between">
-                <span className="text-sm font-medium text-red-700">위약금</span>
-                <span className="text-base font-bold text-red-600">{workItem.termFee.toLocaleString()}원</span>
-              </div>
-            </div>
-          )}
-          {workItem.promYn && (
-            <div className="space-y-1">
-              <span className="text-xs text-gray-500">프로모션 적용</span>
-              <p className="text-sm font-medium text-gray-900">{workItem.promYn === 'Y' ? '예' : '아니오'}</p>
-            </div>
-          )}
-        </div>
-      </div>
-    );
-  }
-
   // 일시정지 작업
   if (wrkCd === '0410' || wrkCd === '06') {
     return (
@@ -309,30 +312,6 @@ const renderWorkTypeDetails = (workItem: WorkItem) => {
               <p className="text-sm font-medium text-blue-600">{workItem.termDays}일</p>
             </div>
           )}
-        </div>
-      </div>
-    );
-  }
-
-  // 상품변경 작업
-  if (wrkCd === '05') {
-    return (
-      <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
-        <h4 className="text-base font-bold text-gray-900 mb-4">상품변경 상세 정보</h4>
-        <div className="flex items-center gap-3">
-          <div className="flex-1 p-4 bg-gray-50 rounded-lg border border-gray-200">
-            <span className="text-xs text-gray-500 block mb-1">현재 상품</span>
-            <p className="text-sm font-semibold text-gray-900">{workItem.currentProduct || '-'}</p>
-          </div>
-          <div className="flex-shrink-0">
-            <svg className="w-6 h-6 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
-            </svg>
-          </div>
-          <div className="flex-1 p-4 bg-blue-50 rounded-lg border border-blue-200">
-            <span className="text-xs text-blue-600 block mb-1">변경 상품</span>
-            <p className="text-sm font-semibold text-blue-900">{workItem.newProduct || '-'}</p>
-          </div>
         </div>
       </div>
     );

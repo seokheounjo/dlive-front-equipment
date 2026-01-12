@@ -32,6 +32,7 @@ interface WorkCompleteRouterProps {
   showToast?: (message: string, type: 'success' | 'error' | 'warning' | 'info') => void;
   equipmentData?: any;
   readOnly?: boolean;
+  onEquipmentRefreshNeeded?: () => void; // Called when equipment transfer succeeds (WRK_CD=07)
 }
 
 /**

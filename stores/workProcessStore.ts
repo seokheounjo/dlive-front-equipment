@@ -51,6 +51,10 @@ interface WorkProcessStore {
   filteringData: any;
   setFilteringData: (data: any) => void;
 
+  // 인입선로 철거관리 데이터 (스텝 이동해도 유지)
+  removalLineData: any;
+  setRemovalLineData: (data: any) => void;
+
   // 특정 작업의 step 가져오기
   getStepForWork: (workId: string) => ProcessStep;
 
@@ -74,6 +78,7 @@ export const useWorkProcessStore = create<WorkProcessStore>()(
       workItem: null,
       equipmentData: null,
       filteringData: null,
+      removalLineData: null,
 
       // Actions
       setCurrentWorkId: (workId) => {
@@ -100,6 +105,7 @@ export const useWorkProcessStore = create<WorkProcessStore>()(
       setWorkItem: (item) => set({ workItem: item }),
       setEquipmentData: (data) => set({ equipmentData: data }),
       setFilteringData: (data) => set({ filteringData: data }),
+      setRemovalLineData: (data) => set({ removalLineData: data }),
 
       getStepForWork: (workId: string) => {
         const { workSteps } = get();
@@ -114,6 +120,7 @@ export const useWorkProcessStore = create<WorkProcessStore>()(
           workItem: null,
           equipmentData: null,
           filteringData: null,
+          removalLineData: null,
         }),
 
       resetWork: (workId: string) => set((state) => {
@@ -153,6 +160,7 @@ export const useWorkProcessStore = create<WorkProcessStore>()(
             workItem: null,
             equipmentData: null,
             filteringData: null,
+            removalLineData: null,
           });
         } else {
           // 같은 작업이면 currentWorkId만 설정
@@ -168,6 +176,7 @@ export const useWorkProcessStore = create<WorkProcessStore>()(
         currentWorkId: state.currentWorkId, // 현재 작업 ID
         filteringData: state.filteringData, // 필터링 데이터 (설치정보 모달용)
         equipmentData: state.equipmentData, // 장비 데이터 (3단계에서 수집)
+        removalLineData: state.removalLineData, // 인입선로 철거관리 데이터
       }),
     }
   )

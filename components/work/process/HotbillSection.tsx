@@ -12,6 +12,7 @@ interface HotbillSectionProps {
   showToast?: (message: string, type: 'success' | 'error' | 'warning' | 'info') => void;
   onHotbillConfirmChange?: (confirmed: boolean) => void;  // 핫빌 확인 상태 콜백
   onSimulatingChange?: (simulating: boolean) => void;  // 시뮬레이션 진행 상태 콜백
+  readOnly?: boolean;  // 읽기 전용 모드 (완료된 작업)
 }
 
 /**
@@ -42,7 +43,8 @@ const HotbillSection: React.FC<HotbillSectionProps> = ({
   wrkStatCd,
   showToast,
   onHotbillConfirmChange,
-  onSimulatingChange
+  onSimulatingChange,
+  readOnly = false
 }) => {
   const [summary, setSummary] = useState<HotbillSummary | null>(null);
   const [loading, setLoading] = useState(true);
@@ -58,6 +60,7 @@ const HotbillSection: React.FC<HotbillSectionProps> = ({
   const [hotbillConfirmed, setHotbillConfirmed] = useState(false);  // 정상 케이스: 핫빌 확인
   const [recalcConfirmed, setRecalcConfirmed] = useState(false);  // 재계산 케이스: 재계산 확인
   const [skipRecalc, setSkipRecalc] = useState(false);  // 재계산 케이스: 미진행
+  const [wantRecalc, setWantRecalc] = useState(false);  // 재계산 진행 의사 체크박스
 
   // 조건 불충족 시 렌더링 안함 (WRK_CD !== '02' 또는 WRK_STAT_CD === '7')
   const shouldShow = wrkCd === '02' && wrkStatCd !== '7';
@@ -70,12 +73,12 @@ const HotbillSection: React.FC<HotbillSectionProps> = ({
       String(today.getDate()).padStart(2, '0');
   };
 
-  // 날짜 포맷 (YYYYMMDD → YYYY.MM.DD)
+  // 날짜 포맷 (YYYYMMDD → YYYY-MM-DD)
   const formatDate = (dateStr?: string): string => {
     if (!dateStr) return '-';
     const cleaned = dateStr.replace(/-/g, '');
     if (cleaned.length >= 8) {
-      return `${cleaned.slice(0, 4)}.${cleaned.slice(4, 6)}.${cleaned.slice(6, 8)}`;
+      return `${cleaned.slice(0, 4)}-${cleaned.slice(4, 6)}-${cleaned.slice(6, 8)}`;
     }
     return dateStr;
   };
@@ -304,11 +307,14 @@ const HotbillSection: React.FC<HotbillSectionProps> = ({
                 /* 케이스 1: 정상 (재계산 불필요) - 핫빌 확인 체크박스만 */
                 <button
                   type="button"
-                  onClick={() => setHotbillConfirmed(!hotbillConfirmed)}
+                  onClick={() => !readOnly && setHotbillConfirmed(!hotbillConfirmed)}
+                  disabled={readOnly}
                   className={`w-full p-3 rounded-lg border-2 transition-all flex items-center gap-3 ${
-                    hotbillConfirmed
-                      ? 'bg-green-50 border-green-500'
-                      : 'bg-white border-gray-300 hover:border-gray-400'
+                    readOnly
+                      ? 'bg-gray-100 border-gray-300 cursor-not-allowed'
+                      : hotbillConfirmed
+                        ? 'bg-green-50 border-green-500'
+                        : 'bg-white border-gray-300 hover:border-gray-400'
                   }`}
                 >
                   <div className={`w-5 h-5 rounded border-2 flex items-center justify-center flex-shrink-0 ${
@@ -322,83 +328,213 @@ const HotbillSection: React.FC<HotbillSectionProps> = ({
                       </svg>
                     )}
                   </div>
-                  <span className={`text-sm font-medium ${hotbillConfirmed ? 'text-green-700' : 'text-gray-700'}`}>
+                  <span className={`text-sm font-medium ${readOnly ? 'text-gray-500' : hotbillConfirmed ? 'text-green-700' : 'text-gray-700'}`}>
                     핫빌 확인
                   </span>
                 </button>
               ) : (
                 /* 케이스 2: 재계산 필요 */
                 <>
-                  {/* 2.1 핫빌 재계산 버튼 + 확인 체크박스 */}
-                  <div className="space-y-2">
-                    {!recalculationDone ? (
-                      /* 재계산 버튼 */
-                      <button
-                        type="button"
-                        onClick={runRecalculation}
-                        disabled={simulating}
-                        className="w-full py-3 bg-amber-600 hover:bg-amber-700 disabled:bg-gray-400 text-white text-sm font-bold rounded-lg transition-colors flex items-center justify-center gap-2"
-                      >
-                        {simulating ? (
-                          <>
-                            <svg className="animate-spin h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
-                              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  {/* 해지희망일이 미래인 경우 경고 문구 + 체크박스 */}
+                  {(() => {
+                    const todayStr = getTodayStr();
+                    const hopeDtStr = (termHopeDt || '').replace(/-/g, '');
+                    const isFutureDate = hopeDtStr > todayStr;
+
+                    if (isFutureDate) {
+                      return (
+                        <>
+                          {/* 경고 문구 */}
+                          <div className="flex items-center gap-1.5 sm:gap-2 py-2 px-2.5 sm:px-3 bg-red-50 rounded-lg border border-red-200">
+                            <svg className="w-4 h-4 sm:w-5 sm:h-5 text-red-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
                             </svg>
-                            <span>재계산 중...</span>
-                          </>
-                        ) : (
-                          <>
-                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                            </svg>
-                            <span>핫빌 재계산</span>
-                          </>
-                        )}
-                      </button>
-                    ) : (
-                      /* 재계산 완료 후 확인 체크박스 */
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setRecalcConfirmed(!recalcConfirmed);
-                          if (!recalcConfirmed) setSkipRecalc(false);  // 하나만 선택되도록
-                        }}
-                        className={`w-full p-3 rounded-lg border-2 transition-all flex items-center gap-3 ${
-                          recalcConfirmed
-                            ? 'bg-green-50 border-green-500'
-                            : 'bg-white border-gray-300 hover:border-gray-400'
-                        }`}
-                      >
-                        <div className={`w-5 h-5 rounded border-2 flex items-center justify-center flex-shrink-0 ${
-                          recalcConfirmed
-                            ? 'bg-green-500 border-green-500'
-                            : 'bg-white border-gray-400'
-                        }`}>
-                          {recalcConfirmed && (
-                            <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
-                            </svg>
+                            <span className="text-xs sm:text-sm text-red-800 font-medium">해지희망일 이전에 작업완료입니다.</span>
+                          </div>
+
+                          {/* 핫빌 재계산 진행 체크박스 */}
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (readOnly) return;
+                              setWantRecalc(!wantRecalc);
+                              if (wantRecalc) {
+                                setRecalcConfirmed(false);
+                              }
+                            }}
+                            disabled={readOnly}
+                            className={`w-full p-3 rounded-lg border-2 transition-all flex items-center gap-3 ${
+                              readOnly
+                                ? 'bg-gray-100 border-gray-300 cursor-not-allowed'
+                                : wantRecalc
+                                  ? 'bg-amber-50 border-amber-500'
+                                  : 'bg-white border-gray-300 hover:border-gray-400'
+                            }`}
+                          >
+                            <div className={`w-5 h-5 rounded border-2 flex items-center justify-center flex-shrink-0 ${
+                              wantRecalc
+                                ? 'bg-amber-500 border-amber-500'
+                                : 'bg-white border-gray-400'
+                            }`}>
+                              {wantRecalc && (
+                                <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                                </svg>
+                              )}
+                            </div>
+                            <span className={`text-sm font-medium ${readOnly ? 'text-gray-500' : wantRecalc ? 'text-amber-700' : 'text-gray-700'}`}>
+                              핫빌 재계산 진행
+                            </span>
+                          </button>
+
+                          {/* 재계산 진행 체크 시에만 버튼/확인 표시 */}
+                          {wantRecalc && !readOnly && (
+                            <div className="space-y-2">
+                              {!recalculationDone ? (
+                                <button
+                                  type="button"
+                                  onClick={runRecalculation}
+                                  disabled={simulating || readOnly}
+                                  className="w-full py-3 bg-amber-600 hover:bg-amber-700 disabled:bg-gray-400 text-white text-sm font-bold rounded-lg transition-colors flex items-center justify-center gap-2"
+                                >
+                                  {simulating ? (
+                                    <>
+                                      <svg className="animate-spin h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
+                                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                      </svg>
+                                      <span>재계산 중...</span>
+                                    </>
+                                  ) : (
+                                    <>
+                                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                                      </svg>
+                                      <span>핫빌 재계산</span>
+                                    </>
+                                  )}
+                                </button>
+                              ) : (
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    if (readOnly) return;
+                                    setRecalcConfirmed(!recalcConfirmed);
+                                    if (!recalcConfirmed) setSkipRecalc(false);
+                                  }}
+                                  disabled={readOnly}
+                                  className={`w-full p-3 rounded-lg border-2 transition-all flex items-center gap-3 ${
+                                    readOnly
+                                      ? 'bg-gray-100 border-gray-300 cursor-not-allowed'
+                                      : recalcConfirmed
+                                        ? 'bg-green-50 border-green-500'
+                                        : 'bg-white border-gray-300 hover:border-gray-400'
+                                  }`}
+                                >
+                                  <div className={`w-5 h-5 rounded border-2 flex items-center justify-center flex-shrink-0 ${
+                                    recalcConfirmed
+                                      ? 'bg-green-500 border-green-500'
+                                      : 'bg-white border-gray-400'
+                                  }`}>
+                                    {recalcConfirmed && (
+                                      <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                                      </svg>
+                                    )}
+                                  </div>
+                                  <span className={`text-sm font-medium ${readOnly ? 'text-gray-500' : recalcConfirmed ? 'text-green-700' : 'text-gray-700'}`}>
+                                    핫빌 재계산 확인
+                                  </span>
+                                </button>
+                              )}
+                            </div>
                           )}
+                        </>
+                      );
+                    } else {
+                      // 해지희망일이 미래가 아닌 경우 (이력 없음 등) - 기존 로직
+                      return (
+                        <div className="space-y-2">
+                          {!recalculationDone && !readOnly ? (
+                            <button
+                              type="button"
+                              onClick={runRecalculation}
+                              disabled={simulating || readOnly}
+                              className="w-full py-3 bg-amber-600 hover:bg-amber-700 disabled:bg-gray-400 text-white text-sm font-bold rounded-lg transition-colors flex items-center justify-center gap-2"
+                            >
+                              {simulating ? (
+                                <>
+                                  <svg className="animate-spin h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
+                                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                  </svg>
+                                  <span>재계산 중...</span>
+                                </>
+                              ) : (
+                                <>
+                                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                                  </svg>
+                                  <span>핫빌 재계산</span>
+                                </>
+                              )}
+                            </button>
+                          ) : recalculationDone ? (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                if (readOnly) return;
+                                setRecalcConfirmed(!recalcConfirmed);
+                                if (!recalcConfirmed) setSkipRecalc(false);
+                              }}
+                              disabled={readOnly}
+                              className={`w-full p-3 rounded-lg border-2 transition-all flex items-center gap-3 ${
+                                readOnly
+                                  ? 'bg-gray-100 border-gray-300 cursor-not-allowed'
+                                  : recalcConfirmed
+                                    ? 'bg-green-50 border-green-500'
+                                    : 'bg-white border-gray-300 hover:border-gray-400'
+                              }`}
+                            >
+                              <div className={`w-5 h-5 rounded border-2 flex items-center justify-center flex-shrink-0 ${
+                                recalcConfirmed
+                                  ? 'bg-green-500 border-green-500'
+                                  : 'bg-white border-gray-400'
+                              }`}>
+                                {recalcConfirmed && (
+                                  <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                                  </svg>
+                                )}
+                              </div>
+                              <span className={`text-sm font-medium ${readOnly ? 'text-gray-500' : recalcConfirmed ? 'text-green-700' : 'text-gray-700'}`}>
+                                핫빌 재계산 확인
+                              </span>
+                            </button>
+                          ) : null}
                         </div>
-                        <span className={`text-sm font-medium ${recalcConfirmed ? 'text-green-700' : 'text-gray-700'}`}>
-                          핫빌 재계산 확인
-                        </span>
-                      </button>
-                    )}
-                  </div>
+                      );
+                    }
+                  })()}
 
                   {/* 2.2 핫빌 재계산 미진행 체크박스 */}
                   <button
                     type="button"
                     onClick={() => {
+                      if (readOnly) return;
                       setSkipRecalc(!skipRecalc);
-                      if (!skipRecalc) setRecalcConfirmed(false);  // 하나만 선택되도록
+                      if (!skipRecalc) {
+                        setRecalcConfirmed(false);
+                        setWantRecalc(false);
+                      }
                     }}
+                    disabled={readOnly}
                     className={`w-full p-3 rounded-lg border-2 transition-all flex items-center gap-3 ${
-                      skipRecalc
-                        ? 'bg-gray-100 border-gray-500'
-                        : 'bg-white border-gray-300 hover:border-gray-400'
+                      readOnly
+                        ? 'bg-gray-100 border-gray-300 cursor-not-allowed'
+                        : skipRecalc
+                          ? 'bg-gray-100 border-gray-500'
+                          : 'bg-white border-gray-300 hover:border-gray-400'
                     }`}
                   >
                     <div className={`w-5 h-5 rounded border-2 flex items-center justify-center flex-shrink-0 ${
@@ -412,7 +548,7 @@ const HotbillSection: React.FC<HotbillSectionProps> = ({
                         </svg>
                       )}
                     </div>
-                    <span className={`text-sm font-medium ${skipRecalc ? 'text-gray-700' : 'text-gray-600'}`}>
+                    <span className={`text-sm font-medium ${readOnly ? 'text-gray-500' : skipRecalc ? 'text-gray-700' : 'text-gray-600'}`}>
                       핫빌 재계산 미진행
                     </span>
                   </button>

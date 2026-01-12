@@ -7,7 +7,6 @@ import WorkCompleteRouter from './process/complete';
 import WorkItemList from './WorkItemList';
 import WorkCancelModal from './WorkCancelModal';
 import VisitSmsModal from '../modal/VisitSmsModal';
-import VipCounter from '../common/VipCounter';
 import SafetyCheckList from './safety/SafetyCheckList';
 import WorkResultSignalList from './signal/WorkResultSignalList';
 import FloatingMapButton from '../common/FloatingMapButton';
@@ -24,6 +23,7 @@ import { useWorkOrders } from '../../hooks/queries/useWorkOrders';
 interface UserInfo {
   userId: string;
   userName: string;
+  userNameEn?: string;
   userRole: string;
   soId?: string;
   crrId?: string;
@@ -68,7 +68,6 @@ const Dashboard: React.FC<DashboardProps> = ({
 
   // 새로운 필터 상태들 (workTypeFilter는 uiStore에서 관리)
   const [dateFilterType, setDateFilterType] = useState<DateFilterType>('예정일');
-  const [showCurrentUserOnly, setShowCurrentUserOnly] = useState<boolean>(false);
   const [safetyCheckWarning, setSafetyCheckWarning] = useState<boolean>(false);
   // 안전점검 경고 닫으면 오늘 하루 동안 안 보이게 (localStorage 저장)
   const [dismissedSafetyWarning, setDismissedSafetyWarning] = useState<boolean>(() => {
@@ -93,7 +92,7 @@ const Dashboard: React.FC<DashboardProps> = ({
   const DATE_FORMAT = 'YYYY-MM-DD';
 
   // UI Store에서 필터 상태 가져오기
-  const { startDate, endDate, filter, workTypeFilter } = workFilters;
+  const { startDate, endDate, filter, workTypeFilter = '전체' } = workFilters;
 
   // React Query로 작업 목록 조회
   const { data: workOrders = [], isLoading, error: queryError, refetch } = useWorkOrders({ startDate, endDate });
@@ -248,15 +247,26 @@ const Dashboard: React.FC<DashboardProps> = ({
 
   // SMS 버튼 핸들러
   const handleSmsOrder = (order: WorkOrder) => {
+    // scheduledAt ISO 형식(2025-01-15T14:30:00)을 YYYYMMDDHHmm으로 변환
+    const convertToWrkHopeDttm = (isoDate: string | undefined): string => {
+      if (!isoDate) return '';
+      // ISO 형식이면 변환, 아니면 그대로 반환
+      if (isoDate.includes('T') || isoDate.includes('-')) {
+        const cleaned = isoDate.replace(/[-:T]/g, '').substring(0, 12);
+        return cleaned;
+      }
+      return isoDate;
+    };
+
     const data: SmsSendData = {
       SO_ID: (order as any).SO_ID || '',
       CUST_ID: (order as any).CUST_ID || order.customer?.id || '',
       CUST_NM: order.customer?.name || '',
-      SMS_RCV_TEL: order.customer?.phone || (order as any).REQ_CUST_TEL_NO || '',
+      SMS_RCV_TEL: order.customer?.phone || (order as any).REQ_CUST_TEL_NO || '',  // 여러 번호 그대로 전달 (모달에서 Select로 선택)
       SMS_SEND_TEL: '',
-      WRK_HOPE_DTTM: order.scheduledAt || '',
+      WRK_HOPE_DTTM: convertToWrkHopeDttm(order.scheduledAt),
       WRKR_NM: userInfo?.userName || '',
-      WRKR_NM_EN: userInfo?.userName || '',
+      WRKR_NM_EN: userInfo?.userNameEn || userInfo?.userName || '',
       WRK_CD: (order as any).WRK_CD || '',
       WRK_CD_NM: order.typeDisplay || '',
       WRK_DRCTN_ID: (order as any).WRK_DRCTN_ID || order.id || '',
@@ -352,8 +362,6 @@ const Dashboard: React.FC<DashboardProps> = ({
     }
   }
   
-  const filters: FilterType[] = ['전체', WorkOrderStatus.Pending, WorkOrderStatus.Completed, WorkOrderStatus.Cancelled];
-
   const filteredOrders = workOrders.filter(order => {
     // 상태 필터
     if (filter !== '전체' && order.status !== filter) return false;
@@ -361,9 +369,6 @@ const Dashboard: React.FC<DashboardProps> = ({
     // 작업유형 필터 (WRK_CD_NM으로 필터링: "설치", "철거", "A/S" 등 - CMWT000 코드 테이블 값)
     // workTypeFilter가 undefined이거나 '전체'면 필터링 안함
     if (workTypeFilter && workTypeFilter !== '전체' && order.WRK_CD_NM !== workTypeFilter) return false;
-
-    // 현재 작업자만 보기
-    if (showCurrentUserOnly && order.customer.name !== userInfo?.userName) return false;
 
     return true;
   });
@@ -373,31 +378,16 @@ const Dashboard: React.FC<DashboardProps> = ({
     let count = 0;
     if (filter !== '전체') count++;
     if (workTypeFilter !== '전체') count++;
-    if (showCurrentUserOnly) count++;
     return count;
   };
 
   // 모든 필터 초기화
   const clearAllFilters = () => {
     updateFilters({ filter: '전체', workTypeFilter: '전체' });
-    setShowCurrentUserOnly(false);
   };
 
   // 모든 데이터 표시
   const currentOrders = filteredOrders;
-
-  // 필터 변경 함수
-  const handleFilterChange = (newFilter: FilterType) => {
-    updateFilters({ filter: newFilter });
-  };
-
-  const getFilterButtonClasses = (f: FilterType) => {
-    const baseClasses = "px-2 sm:px-4 py-1.5 sm:py-2 text-xs sm:text-sm font-medium rounded-full transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50 flex items-center gap-1 sm:gap-2";
-    if (f === filter) {
-      return `${baseClasses} bg-blue-500 text-white shadow-sm`;
-    }
-    return `${baseClasses} bg-gray-100 text-gray-600 hover:bg-gray-200 border border-gray-200`;
-  };
 
   const getFilterCount = (filterType: FilterType) => {
     if (filterType === '전체') {
@@ -477,6 +467,28 @@ const Dashboard: React.FC<DashboardProps> = ({
     ];
   }, [workOrders]);
 
+  // workTypeFilter가 options에 없으면 '전체'로 리셋
+  useEffect(() => {
+    const validValues = workTypeOptions.map(opt => opt.value);
+    if (workTypeFilter && !validValues.includes(workTypeFilter)) {
+      updateFilters({ workTypeFilter: '전체' });
+    }
+  }, [workTypeOptions, workTypeFilter]);
+
+  // 상태 필터 옵션 (Select용) - shortLabel은 버튼에, label은 드롭다운에 표시
+  const statusOptions = useMemo(() => [
+    { value: '전체', label: `전체 (${getFilterCount('전체')})`, shortLabel: '전체' },
+    { value: WorkOrderStatus.Pending, label: `진행중 (${getFilterCount(WorkOrderStatus.Pending)})`, shortLabel: '진행중' },
+    { value: WorkOrderStatus.Completed, label: `완료 (${getFilterCount(WorkOrderStatus.Completed)})`, shortLabel: '완료' },
+    { value: WorkOrderStatus.Cancelled, label: `취소 (${getFilterCount(WorkOrderStatus.Cancelled)})`, shortLabel: '취소' },
+  ], [workOrders]);
+
+  // 날짜 기준 옵션
+  const dateFilterOptions = [
+    { value: '예정일', label: '예정일' },
+    { value: '접수일', label: '접수일' },
+  ];
+
   return (
     <div className="h-[calc(100vh-64px)] flex flex-col overflow-hidden">
       {/* Shadcn Tabs */}
@@ -525,8 +537,6 @@ const Dashboard: React.FC<DashboardProps> = ({
               </div>
             )}
 
-            {/* VIP 카운터 */}
-            <VipCounter workOrders={workOrders} className="mb-3" />
 
             {/* 토스 스타일 날짜/필터 섹션 */}
             <div className="bg-white rounded-2xl shadow-sm border border-gray-100 mb-3 overflow-hidden">
@@ -603,94 +613,47 @@ const Dashboard: React.FC<DashboardProps> = ({
           </svg>
         </button>
 
-        {/* 확장 필터 */}
+        {/* 확장 필터 - 컴팩트 */}
         {isFilterExpanded && (
-          <div className="px-4 py-3 bg-gray-50 border-t border-gray-100 space-y-3">
-            {/* 활성 필터 초기화 */}
-            {getActiveFilterCount() > 0 && (
-              <div className="flex justify-end">
-                <button
-                  onClick={clearAllFilters}
-                  className="text-xs text-blue-500 font-medium"
-                >
-                  초기화
-                </button>
+          <div className="px-4 py-3 bg-gray-50 border-t border-gray-100">
+            {/* 상태 & 작업유형 & 날짜기준 - 한 줄에 3개 + 초기화 아이콘 */}
+            <div className="flex items-end gap-2">
+              <div className="flex-1 min-w-0">
+                <label className="block text-xs font-medium text-gray-500 mb-1">상태</label>
+                <Select
+                  value={filter}
+                  onValueChange={(val) => updateFilters({ filter: val as FilterType })}
+                  options={statusOptions}
+                />
               </div>
-            )}
-
-            {/* 상태 필터 */}
-            <div>
-              <label className="block text-xs font-medium text-gray-500 mb-2">상태</label>
-              <div className="flex flex-wrap gap-2">
-                {filters.map(f => (
-                  <button
-                    key={f}
-                    onClick={() => handleFilterChange(f)}
-                    className={`px-3 py-1.5 rounded-full text-sm font-medium transition-all ${
-                      f === filter
-                        ? 'bg-blue-500 text-white'
-                        : 'bg-white text-gray-600 border border-gray-200 hover:border-gray-300'
-                    }`}
-                  >
-                    {f}
-                    <span className={`ml-1 ${f === filter ? 'text-blue-200' : 'text-gray-400'}`}>
-                      {getFilterCount(f)}
-                    </span>
-                  </button>
-                ))}
+              <div className="flex-1 min-w-0">
+                <label className="block text-xs font-medium text-gray-500 mb-1">작업유형</label>
+                <Select
+                  value={workTypeFilter}
+                  onValueChange={(val) => updateFilters({ workTypeFilter: val })}
+                  options={workTypeOptions}
+                />
               </div>
-            </div>
-
-            {/* 작업유형 필터 */}
-            <div>
-              <label className="block text-xs font-medium text-gray-500 mb-2">작업유형</label>
-              <Select
-                value={workTypeFilter}
-                onValueChange={(val) => updateFilters({ workTypeFilter: val })}
-                options={workTypeOptions}
-                placeholder="작업유형 선택"
-              />
-            </div>
-
-            {/* 날짜 기준 */}
-            <div>
-              <label className="block text-xs font-medium text-gray-500 mb-2">날짜 기준</label>
-              <div className="flex gap-2">
-                <button
-                  onClick={() => setDateFilterType('예정일')}
-                  className={`flex-1 py-2 rounded-lg text-sm font-medium transition-all ${
-                    dateFilterType === '예정일'
-                      ? 'bg-blue-500 text-white'
-                      : 'bg-white text-gray-600 border border-gray-200'
-                  }`}
-                >
-                  예정일
-                </button>
-                <button
-                  onClick={() => setDateFilterType('접수일')}
-                  className={`flex-1 py-2 rounded-lg text-sm font-medium transition-all ${
-                    dateFilterType === '접수일'
-                      ? 'bg-blue-500 text-white'
-                      : 'bg-white text-gray-600 border border-gray-200'
-                  }`}
-                >
-                  접수일
-                </button>
+              <div className="flex-1 min-w-0">
+                <label className="block text-xs font-medium text-gray-500 mb-1">날짜기준</label>
+                <Select
+                  value={dateFilterType}
+                  onValueChange={(val) => setDateFilterType(val as DateFilterType)}
+                  options={dateFilterOptions}
+                />
               </div>
-            </div>
-
-            {/* 현재 작업자만 보기 */}
-            <div className="flex items-center justify-between py-1">
-              <span className="text-sm text-gray-700">내 작업만 보기</span>
               <button
-                onClick={() => setShowCurrentUserOnly(!showCurrentUserOnly)}
-                className={`relative w-11 h-6 rounded-full transition-colors ${
-                  showCurrentUserOnly ? 'bg-blue-500' : 'bg-gray-200'
+                onClick={clearAllFilters}
+                className={`p-2 rounded-lg transition-colors flex-shrink-0 ${
+                  getActiveFilterCount() > 0
+                    ? 'text-blue-600 bg-blue-50 hover:bg-blue-100'
+                    : 'text-gray-400 bg-gray-100'
                 }`}
+                title="필터 초기화"
               >
-                <div className={`absolute top-1 w-4 h-4 bg-white rounded-full shadow transition-transform ${
-                  showCurrentUserOnly ? 'translate-x-6' : 'translate-x-1'
-                }`} />
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                </svg>
               </button>
             </div>
           </div>

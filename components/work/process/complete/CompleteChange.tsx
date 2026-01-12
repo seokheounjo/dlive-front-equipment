@@ -10,13 +10,15 @@
  */
 import React, { useState, useEffect } from 'react';
 import { WorkOrder, WorkCompleteData } from '../../../../types';
-import { getCommonCodeList, CommonCode, getWorkReceiptDetail, getCustomerContractInfo } from '../../../../services/apiService';
+import { getCommonCodeList, CommonCode, getWorkReceiptDetail, getCustomerContractInfo, checkStbServerConnection, custEqtInfoDel } from '../../../../services/apiService';
 import Select from '../../../ui/Select';
 import InstallInfoModal, { InstallInfoData } from '../../../modal/InstallInfoModal';
 import IntegrationHistoryModal from '../../../modal/IntegrationHistoryModal';
 import InstallLocationModal, { InstallLocationData } from '../../../modal/InstallLocationModal';
 import ConfirmModal from '../../../common/ConfirmModal';
+import WorkCompleteSummary from '../WorkCompleteSummary';
 import { useWorkProcessStore } from '../../../../stores/workProcessStore';
+import { useWorkEquipment } from '../../../../stores/workEquipmentStore';
 import { useCompleteWork } from '../../../../hooks/mutations/useCompleteWork';
 import '../../../../styles/buttons.css';
 
@@ -49,7 +51,25 @@ const CompleteChange: React.FC<CompleteChangeProps> = ({
 
   const [isDataLoaded, setIsDataLoaded] = useState(false);
   const { equipmentData: storeEquipmentData, filteringData } = useWorkProcessStore();
-  const equipmentData = storeEquipmentData || legacyEquipmentData || filteringData;
+
+  // Zustand Equipment Store - 장비 컴포넌트에서 등록한 장비 정보
+  const workId = order.id || '';
+  const zustandEquipment = useWorkEquipment(workId);
+
+  // equipmentData 병합: Zustand Equipment Store 우선 사용
+  const equipmentData = {
+    ...(storeEquipmentData || legacyEquipmentData || filteringData || {}),
+    installedEquipments: zustandEquipment.installedEquipments.length > 0
+      ? zustandEquipment.installedEquipments
+      : (storeEquipmentData?.installedEquipments || legacyEquipmentData?.installedEquipments || []),
+    removedEquipments: zustandEquipment.markedForRemoval.length > 0
+      ? zustandEquipment.markedForRemoval
+      : (storeEquipmentData?.removedEquipments || legacyEquipmentData?.removedEquipments || []),
+    removalStatus: Object.keys(zustandEquipment.removalStatus).length > 0
+      ? zustandEquipment.removalStatus
+      : (storeEquipmentData?.removalStatus || legacyEquipmentData?.removalStatus || {}),
+  };
+
   const { mutate: submitWork, isPending: isLoading } = useCompleteWork();
 
   const getStorageKey = () => `work_complete_draft_${order.id}`;
@@ -112,16 +132,20 @@ const CompleteChange: React.FC<CompleteChangeProps> = ({
       const fetchCompletedWorkDetail = async () => {
         try {
           const detail = await getWorkReceiptDetail({
-            WRK_DRCTN_ID: order.directionId || order.id,
-            WRK_ID: (order as any).WRK_ID,
+            WRK_DRCTN_ID: order.directionId || order.WRK_DRCTN_ID || '',
+            WRK_ID: order.id,  // order.id가 실제 WRK_ID
             SO_ID: order.SO_ID
           });
           if (detail) {
+            setCustRel(detail.CUST_REL || '');
             setMemo((detail.MEMO || '').replace(/\\n/g, '\n'));
             setInternetUse(detail.PSN_USE_CORP || '');
             setVoipUse(detail.VOIP_USE_CORP || '');
             setDtvUse(detail.DTV_USE_CORP || '');
-            setUpCtrlCl(detail.UP_CTRL_CL || '');
+            // 상향제어: API 응답에 없으면 장비 데이터(output1)에서 가져옴
+            const upCtrlClValue = detail.UP_CTRL_CL || equipmentData?.upCtrlCl || '';
+            console.log('[CompleteChange] 상향제어 값:', { API: detail.UP_CTRL_CL, 장비데이터: equipmentData?.upCtrlCl, 최종: upCtrlClValue });
+            setUpCtrlCl(upCtrlClValue);
             setNetworkType(detail.NET_CL || '');
             setNetworkTypeName(detail.NET_CL_NM || '');
             setInstallLocationText(detail.INSTL_LOC || '');
@@ -146,6 +170,15 @@ const CompleteChange: React.FC<CompleteChangeProps> = ({
               CVT_LBL: detail.CVT_LBL || '',
               STB_LBL: detail.STB_LBL || '',
             });
+
+            // 시청모드 복원
+            setViewModCd(detail.VIEW_MOD_CD || '');
+            setViewModNm(detail.VIEW_MOD_NM || '');
+
+            // 결합계약 ID 복원
+            if (detail.VOIP_JOIN_CTRT_ID) {
+              setVoipJoinCtrtId(detail.VOIP_JOIN_CTRT_ID);
+            }
 
             // 작업처리일 복원
             if (detail.WRKR_CMPL_DT && detail.WRKR_CMPL_DT.length >= 8) {
@@ -176,6 +209,11 @@ const CompleteChange: React.FC<CompleteChangeProps> = ({
         setInstallLocationText(draftData.installLocationText || '');
         setInstallInfoData(draftData.installInfoData);
         setRemovalInfoData(draftData.removalInfoData);
+        // 시청모드 복원
+        setViewModCd(draftData.viewModCd || '');
+        setViewModNm(draftData.viewModNm || '');
+        // 결합계약 ID 복원
+        if (draftData.voipJoinCtrtId) setVoipJoinCtrtId(draftData.voipJoinCtrtId);
       } catch (error) {
         console.error('[WorkCompleteChange] localStorage 복원 실패:', error);
       }
@@ -189,11 +227,12 @@ const CompleteChange: React.FC<CompleteChangeProps> = ({
     const draftData = {
       custRel, memo, internetUse, voipUse, dtvUse, upCtrlCl,
       networkType, networkTypeName, installLocationText, installInfoData, removalInfoData,
+      viewModCd, viewModNm, voipJoinCtrtId,
       savedAt: new Date().toISOString()
     };
     localStorage.setItem(getStorageKey(), JSON.stringify(draftData));
   }, [custRel, memo, internetUse, voipUse, dtvUse, upCtrlCl,
-      networkType, networkTypeName, installLocationText, installInfoData, removalInfoData, isDataLoaded, isWorkCompleted]);
+      networkType, networkTypeName, installLocationText, installInfoData, removalInfoData, viewModCd, viewModNm, voipJoinCtrtId, isDataLoaded, isWorkCompleted]);
 
   // 공통코드 로드
   useEffect(() => {
@@ -209,6 +248,7 @@ const CompleteChange: React.FC<CompleteChangeProps> = ({
           })));
         }
         if (codes['CMCT015']) {
+          console.log('[CompleteChange] 공통코드 CMCT015 옵션:', codes['CMCT015']);
           setUpCtrlClOptions(codes['CMCT015'].map((code: CommonCode) => ({
             value: code.COMMON_CD, label: code.COMMON_CD_NM
           })));
@@ -234,6 +274,18 @@ const CompleteChange: React.FC<CompleteChangeProps> = ({
     };
     loadCodes();
   }, []);
+
+  // 상향제어: equipmentData가 나중에 로드되면 업데이트, 없으면 기본값 '01'(쌍방향) 설정
+  useEffect(() => {
+    if (equipmentData?.upCtrlCl && !upCtrlCl) {
+      console.log('[CompleteChange] equipmentData에서 상향제어 업데이트:', equipmentData.upCtrlCl);
+      setUpCtrlCl(equipmentData.upCtrlCl);
+    } else if (!upCtrlCl && isDataLoaded && !isWorkCompleted) {
+      // 데이터 로드 완료 후에도 상향제어 값이 없으면 기본값 '01'(쌍방향) 설정
+      console.log('[CompleteChange] 상향제어 기본값 설정: 01 (쌍방향)');
+      setUpCtrlCl('01');
+    }
+  }, [equipmentData?.upCtrlCl, isDataLoaded, isWorkCompleted, upCtrlCl]);
 
   // 고객 계약 목록 로드 (결합계약 선택용)
   useEffect(() => {
@@ -346,6 +398,7 @@ const CompleteChange: React.FC<CompleteChangeProps> = ({
     if (!custRel) errors.push('고객과의 관계를 선택해주세요.');
     if (!installInfoData?.NET_CL) errors.push('설치정보를 입력해주세요.');
     if (!installLocationText && !order.installLocation) errors.push('설치위치를 설정해주세요.');
+    if (!workCompleteDate) errors.push('작업처리일을 선택해주세요.');
 
     // VoIP/ISP 결합계약 선택 validation
     const prodGrp = (order as any).PROD_GRP || '';
@@ -361,6 +414,13 @@ const CompleteChange: React.FC<CompleteChangeProps> = ({
       if (!voipJoinCtrtId) {
         errors.push('결합이 필요한 ISP 상품입니다. 결합할 계약을 선택하여 주십시오.');
       }
+    }
+
+    // 장비 검증 (레거시 동일)
+    // VoIP가 아닌 경우 장비가 최소 1개 이상 등록되어 있어야 함
+    const installedEquipments = equipmentData?.installedEquipments || [];
+    if (prodGrp !== 'V' && installedEquipments.length < 1) {
+      errors.push('신호처리(장비등록)를 먼저 진행해주세요.');
     }
 
     return errors;
@@ -391,10 +451,254 @@ const CompleteChange: React.FC<CompleteChangeProps> = ({
     setShowConfirmModal(true);
   };
 
+  // 분실 상태 체크 함수
+  const hasLossStatus = (eq: any): boolean => {
+    return (
+      eq.EQT_LOSS_YN === '1' ||
+      eq.PART_LOSS_BRK_YN === '1' ||
+      eq.EQT_BRK_YN === '1' ||
+      eq.EQT_CABL_LOSS_YN === '1' ||
+      eq.EQT_CRDL_LOSS_YN === '1'
+    );
+  };
+
+  // 장비 목록 변환 함수 (nested → flat 구조)
+  // actualEquipment/contractEquipment 중첩 구조를 EQT_NO, SVC_CMPS_ID 등 flat 구조로 변환
+  const processEquipmentList = (equipments: any[], isRemoval = false) => {
+    if (!equipments || equipments.length === 0) return [];
+    const userInfo = localStorage.getItem('userInfo');
+    const user = userInfo ? JSON.parse(userInfo) : {};
+    const workerId = user.userId || 'A20130708';
+    const removalStatus = equipmentData?.removalStatus || {};
+
+    // 철거장비에서 fallback 조회 (레거시와 동일: 계약장비에 없으면 철거장비에서 찾기)
+    // 단, 레거시는 계약장비(ds_eqt_info)에서 LENT 필드로 가져옴 (LENT_YN이 아닌 LENT!)
+    const removedEquipments = equipmentData?.removedEquipments || [];
+    const findRemovedEquipmentField = (itemMidCd: string, fieldName: string): string => {
+      const matchedRemoved = removedEquipments.find((eq: any) =>
+        (eq.itemMidCd === itemMidCd || eq.ITEM_MID_CD === itemMidCd) && eq[fieldName]
+      );
+      return matchedRemoved?.[fieldName] || '';
+    };
+    const findBasicProdCmpsId = (itemMidCd: string): string => findRemovedEquipmentField(itemMidCd, 'BASIC_PROD_CMPS_ID');
+    // LENT 또는 LENT_YN 필드 fallback (레거시 SQL은 LENT로 반환)
+    const findLentYn = (itemMidCd: string): string =>
+      findRemovedEquipmentField(itemMidCd, 'LENT') || findRemovedEquipmentField(itemMidCd, 'LENT_YN');
+    const findSvcCmpsId = (itemMidCd: string): string => findRemovedEquipmentField(itemMidCd, 'SVC_CMPS_ID');
+
+    return equipments.map((eq: any) => {
+      const eqtNo = eq.EQT_NO || eq.id || (eq.actualEquipment?.id) || '';
+      const status = removalStatus[eqtNo] || {};
+      // 레거시 mowoa03m05.xml:
+      // - 설치장비(ds_eqt_cust): CRR_TSK_CL="01", CHG_UID=REG_UID (라인 1881-1893)
+      // - 철거장비(ds_rmv_eqt_info): CRR_TSK_CL="02" (라인 1895-1901)
+      const installFields = !isRemoval ? {
+        CRR_TSK_CL: '01',  // 설치는 항상 01!
+        CHG_UID: workerId,
+      } : {};
+      const removalFields = isRemoval ? {
+        CRR_TSK_CL: '02',  // 철거는 항상 02!
+        RCPT_ID: order.RCPT_ID || '',
+        CRR_ID: order.CRR_ID || user.crrId || '01',
+        WRKR_ID: workerId,
+        EQT_LOSS_YN: status.isLost ? 'Y' : 'N',
+        EQT_BRK_YN: status.isDamaged ? 'Y' : 'N',
+        REUSE_YN: status.isReusable ? '1' : '0',
+      } : {};
+
+      // 상품변경(05): 설치장비는 새 계약(DTL_CTRT_ID), 철거장비는 기존 계약(OLD_CTRT_ID) 또는 장비 원래값
+      // 레거시는 철거장비에 CTRT_ID를 따로 설정하지 않음 (원래 값 유지)
+      const ctrtIdForInstall = order.DTL_CTRT_ID || order.CTRT_ID || '';
+      const ctrtIdForRemoval = eq.CTRT_ID || order.OLD_CTRT_ID || order.CTRT_ID || '';
+
+      if (eq.actualEquipment) {
+        const actual = eq.actualEquipment;
+        const contract = eq.contractEquipment || {};
+        const itemMidCd = actual.itemMidCd || actual.ITEM_MID_CD || '';
+        // 필수 필드들: 계약장비(LENT 필드) → 장비자체 → 철거장비에서 fallback
+        // 레거시 SQL(getEqtProdInfo)은 LENT 필드로 반환 (LENT_YN이 아님!)
+        const basicProdCmpsId = contract.BASIC_PROD_CMPS_ID || eq.BASIC_PROD_CMPS_ID || findBasicProdCmpsId(itemMidCd);
+        const lentYn = contract.LENT || contract.LENT_YN || eq.LENT || eq.lentYn || eq.LENT_YN || findLentYn(itemMidCd);
+        const svcCmpsId = contract.SVC_CMPS_ID || eq.SVC_CMPS_ID || findSvcCmpsId(itemMidCd);
+        return {
+          ...actual,
+          EQT_NO: actual.id,
+          EQT_SERNO: actual.serialNumber,
+          ITEM_MID_CD: itemMidCd,
+          EQT_CL_CD: actual.eqtClCd,
+          MAC_ADDRESS: eq.macAddress || actual.macAddress,
+          WRK_ID: order.id,
+          CUST_ID: order.customer?.id,
+          CTRT_ID: isRemoval ? ctrtIdForRemoval : ctrtIdForInstall,
+          WRK_CD: order.WRK_CD,
+          REG_UID: workerId,
+          SVC_CMPS_ID: svcCmpsId,
+          BASIC_PROD_CMPS_ID: basicProdCmpsId,
+          PROD_CMPS_ID: contract.PROD_CMPS_ID || eq.PROD_CMPS_ID || '',
+          SVC_CD: contract.SVC_CD || eq.SVC_CD || '',
+          PROD_CD: contract.PROD_CD || eq.PROD_CD || '',
+          LENT_YN: lentYn,
+          EQT_CHG_GB: eq.EQT_CHG_GB || '01',
+          ...installFields,
+          ...removalFields,
+        };
+      }
+
+      // 중첩 구조가 아닌 경우도 필드 매핑 필요 (레거시: LENT 필드 우선)
+      const itemMidCdFlat = eq.ITEM_MID_CD || eq.itemMidCd || '';
+      const basicProdCmpsIdFlat = eq.BASIC_PROD_CMPS_ID || findBasicProdCmpsId(itemMidCdFlat);
+      const lentYnFlat = eq.LENT || eq.LENT_YN || eq.lentYn || findLentYn(itemMidCdFlat);
+      const svcCmpsIdFlat = eq.SVC_CMPS_ID || findSvcCmpsId(itemMidCdFlat);
+      return {
+        ...eq,
+        EQT_NO: eq.EQT_NO || eq.id || '',
+        EQT_SERNO: eq.EQT_SERNO || eq.serialNumber || '',
+        ITEM_MID_CD: itemMidCdFlat,
+        EQT_CL_CD: eq.EQT_CL_CD || eq.eqtClCd || '',
+        MAC_ADDRESS: eq.MAC_ADDRESS || eq.macAddress || '',
+        SVC_CMPS_ID: svcCmpsIdFlat,
+        BASIC_PROD_CMPS_ID: basicProdCmpsIdFlat,
+        LENT_YN: lentYnFlat,
+        PROD_CD: eq.PROD_CD || '',
+        SVC_CD: eq.SVC_CD || '',
+        WRK_ID: order.id,
+        CUST_ID: order.customer?.id,
+        CTRT_ID: isRemoval ? ctrtIdForRemoval : ctrtIdForInstall,
+        WRK_CD: order.WRK_CD,
+        REG_UID: workerId,
+        ...installFields,
+        ...removalFields,
+      };
+    });
+  };
+
   // 실제 작업 완료 처리
-  const handleConfirmSubmit = () => {
+  const handleConfirmSubmit = async () => {
     const formattedDate = workCompleteDate.replace(/-/g, '');
-    const workerId = 'A20130708';
+    const userInfo = localStorage.getItem('userInfo');
+    const user = userInfo ? JSON.parse(userInfo) : {};
+    const workerId = user.userId || 'A20130708';
+
+    // 상품변경(05) 작업은 DTL_CTRT_ID 사용 (레거시 mowoa03m05.xml 동일)
+    const ctrtIdForSignal = order.DTL_CTRT_ID || order.CTRT_ID || '';
+
+    // 회수 장비가 있으면 철거 신호(SMR05) 호출 (레거시 fn_delsignal_trans 동일)
+    const removedEquipments = equipmentData?.removedEquipments || [];
+    if (removedEquipments.length > 0) {
+      try {
+        const regUid = user.userId || user.id || 'UNKNOWN';
+        const firstEquip = removedEquipments[0];
+        console.log('[CompleteChange] 철거 신호(SMR05) 호출:', { eqtNo: firstEquip.EQT_NO || firstEquip.id, ctrtId: ctrtIdForSignal });
+        await checkStbServerConnection(
+          regUid,
+          ctrtIdForSignal,
+          order.id,
+          'SMR05',
+          firstEquip.EQT_NO || firstEquip.id || '',
+          ''
+        );
+        console.log('[CompleteChange] 철거 신호(SMR05) 호출 완료');
+      } catch (error) {
+        console.log('[CompleteChange] 철거 신호 처리 중 오류 (무시하고 계속 진행):', error);
+      }
+
+      // 분실 상태가 있는 회수 장비에 대해 분실처리 API 호출
+      const lossEquipments = removedEquipments.filter(hasLossStatus);
+      if (lossEquipments.length > 0) {
+        console.log('[CompleteChange] 분실처리 대상 장비:', lossEquipments.length, '개');
+        for (const eq of lossEquipments) {
+          try {
+            const result = await custEqtInfoDel({
+              WRK_ID: order.id,
+              CUST_ID: order.customer?.id || '',
+              CTRT_ID: order.DTL_CTRT_ID || order.CTRT_ID || '',
+              MST_SO_ID: order.MST_SO_ID || order.SO_ID || '',
+              SO_ID: order.SO_ID || '',
+              EQT_NO: eq.EQT_NO || eq.id || '',
+              ITEM_MID_CD: eq.ITEM_MID_CD || eq.itemMidCd || '',
+              EQT_CL_CD: eq.EQT_CL_CD || eq.eqtClCd || '',
+              EQT_CL: eq.EQT_CL || eq.eqtClCd || '',
+              EQT_CL_NM: eq.EQT_CL_NM || eq.model || '',
+              REG_UID: workerId,
+              WRK_CD: order.WRK_CD || '05',
+              CRR_ID: order.CRR_ID || '',
+              WRKR_ID: workerId,
+              RCPT_ID: order.RCPT_ID || '',
+              SVC_CMPS_ID: eq.SVC_CMPS_ID || '',
+              BASIC_PROD_CMPS_ID: eq.BASIC_PROD_CMPS_ID || '',
+              OLD_LENT_YN: eq.LENT_YN || eq.OLD_LENT_YN || '',
+              EQT_CHG_GB: '02',
+              REUSE_YN: '0',
+              EQT_LOSS_YN: eq.EQT_LOSS_YN || '0',
+              PART_LOSS_BRK_YN: eq.PART_LOSS_BRK_YN || '0',
+              EQT_BRK_YN: eq.EQT_BRK_YN || '0',
+              EQT_CABL_LOSS_YN: eq.EQT_CABL_LOSS_YN || '0',
+              EQT_CRDL_LOSS_YN: eq.EQT_CRDL_LOSS_YN || '0',
+            });
+            console.log('[CompleteChange] 분실처리 완료:', eq.EQT_NO || eq.id, result);
+          } catch (error) {
+            console.log('[CompleteChange] 분실처리 실패 (무시하고 계속 진행):', error);
+          }
+        }
+      }
+    }
+
+    // 분실처리 모달에서 저장한 pendingLossStatusList 처리 (deferLossProcessing 용)
+    const pendingLossStatusList = equipmentData?.pendingLossStatusList || [];
+    if (pendingLossStatusList.length > 0) {
+      console.log('[CompleteChange] 분실처리 모달에서 저장된 대기 목록:', pendingLossStatusList.length, '개');
+      for (const lossItem of pendingLossStatusList) {
+        try {
+          const result = await custEqtInfoDel({
+            WRK_ID: order.id,
+            CUST_ID: order.customer?.id || '',
+            CTRT_ID: order.DTL_CTRT_ID || order.CTRT_ID || '',
+            MST_SO_ID: order.MST_SO_ID || order.SO_ID || '',
+            SO_ID: order.SO_ID || '',
+            EQT_NO: lossItem.EQT_NO || '',
+            ITEM_MID_CD: lossItem.ITEM_MID_CD || '',
+            EQT_CL_CD: lossItem.EQT_CL_CD || '',
+            EQT_CL: lossItem.EQT_CL || '',
+            EQT_CL_NM: lossItem.EQT_CL_NM || '',
+            REG_UID: workerId,
+            WRK_CD: order.WRK_CD || '05',
+            CRR_ID: order.CRR_ID || '',
+            WRKR_ID: workerId,
+            RCPT_ID: order.RCPT_ID || '',
+            SVC_CMPS_ID: lossItem.SVC_CMPS_ID || '',
+            BASIC_PROD_CMPS_ID: lossItem.BASIC_PROD_CMPS_ID || '',
+            OLD_LENT_YN: lossItem.LENT_YN || '',
+            EQT_CHG_GB: '02',
+            REUSE_YN: '0',
+            EQT_LOSS_YN: lossItem.EQT_LOSS_YN || '0',
+            PART_LOSS_BRK_YN: lossItem.PART_LOSS_BRK_YN || '0',
+            EQT_BRK_YN: lossItem.EQT_BRK_YN || '0',
+            EQT_CABL_LOSS_YN: lossItem.EQT_CABL_LOSS_YN || '0',
+            EQT_CRDL_LOSS_YN: lossItem.EQT_CRDL_LOSS_YN || '0',
+          });
+          console.log('[CompleteChange] 대기 분실처리 완료:', lossItem.EQT_SERNO, result);
+
+          // 철거 신호(SMR05) 호출
+          try {
+            await checkStbServerConnection(
+              workerId,
+              order.DTL_CTRT_ID || order.CTRT_ID || '',
+              order.id,
+              'SMR05',
+              lossItem.EQT_NO || '',
+              ''
+            );
+          } catch (signalError) {
+            console.log('[CompleteChange] 철거 신호 실패 (무시):', signalError);
+          }
+        } catch (error) {
+          console.log('[CompleteChange] 대기 분실처리 실패 (무시하고 계속 진행):', error);
+        }
+      }
+    }
+
+    // 상품변경(05) 작업은 DTL_CTRT_ID 사용 (레거시 mowoa03m05.xml 동일)
+    const ctrtIdForProductChange = order.DTL_CTRT_ID || order.CTRT_ID || '';
 
     const completeData: WorkCompleteData = {
       workInfo: {
@@ -402,27 +706,31 @@ const CompleteChange: React.FC<CompleteChangeProps> = ({
         WRK_CD: order.WRK_CD,
         WRK_DTL_TCD: order.WRK_DTL_TCD,
         CUST_ID: order.customer?.id,
+        CTRT_ID: ctrtIdForProductChange,
         RCPT_ID: order.RCPT_ID,
-        CRR_ID: '01',
+        CRR_ID: order.CRR_ID || user.crrId || '01',
         WRKR_ID: workerId,
         WRKR_CMPL_DT: formattedDate,
         MEMO: memo || '작업 완료',
         STTL_YN: 'Y',
         REG_UID: workerId,
         CUST_REL: custRel,
+        CNFM_CUST_NM: order.customer?.name || '',
+        CNFM_CUST_TELNO: order.customer?.contactNumber || '',
         INSTL_LOC: installLocationText || order.installLocation || '',
         UP_CTRL_CL: upCtrlCl || '',
         PSN_USE_CORP: internetUse || '',
         VOIP_USE_CORP: voipUse || '',
         DTV_USE_CORP: dtvUse || '',
         WRK_ACT_CL: '20',
+        TV_TYPE: '',
         NET_CL: installInfoData?.NET_CL || '',
         WRNG_TP: installInfoData?.WRNG_TP || '',
         INSTL_TP: installInfoData?.INSTL_TP || '',
         VOIP_JOIN_CTRT_ID: voipJoinCtrtId || '',
       },
-      equipmentList: equipmentData?.installedEquipments || [],
-      removeEquipmentList: equipmentData?.removedEquipments || [],
+      equipmentList: processEquipmentList(equipmentData?.installedEquipments || [], false),
+      removeEquipmentList: processEquipmentList(equipmentData?.removedEquipments || [], true),
       spendItemList: equipmentData?.spendItems || [],
       agreementList: equipmentData?.agreements || [],
       poleList: equipmentData?.poleResults || []
@@ -445,7 +753,7 @@ const CompleteChange: React.FC<CompleteChangeProps> = ({
   };
 
   return (
-    <div className="px-2 sm:px-4 py-4 sm:py-6 bg-gray-50 overflow-x-hidden">
+    <div className="px-2 sm:px-4 py-4 sm:py-6 bg-gray-50 min-h-0">
       <div className="max-w-2xl mx-auto">
         <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-3 sm:p-5">
           <div className="space-y-3 sm:space-y-5">
@@ -469,7 +777,7 @@ const CompleteChange: React.FC<CompleteChangeProps> = ({
                 <label className="block text-xs sm:text-sm font-semibold text-gray-900 mb-1.5">결합계약</label>
                 <input
                   type="text"
-                  value={order.customer?.name || ''}
+                  value=""
                   readOnly disabled
                   className="w-full min-h-10 px-3 py-2 bg-gray-100 border border-gray-200 rounded-lg text-sm text-gray-600 cursor-not-allowed"
                 />
@@ -535,12 +843,14 @@ const CompleteChange: React.FC<CompleteChangeProps> = ({
               </div>
             </div>
 
-            {/* 상향제어 */}
-            <div>
-              <label className="block text-xs sm:text-sm font-semibold text-gray-900 mb-1.5">상향제어</label>
-              <Select value={upCtrlCl} onValueChange={setUpCtrlCl} options={upCtrlClOptions}
-                placeholder="선택" disabled={isWorkCompleted} />
-            </div>
+            {/* 상향제어 - DTV(KPI_PROD_GRP_CD='D')일 때만 표시 */}
+            {(equipmentData?.kpiProdGrpCd === 'D' || equipmentData?.prodGrp === 'D' || (order as any).PROD_GRP === 'D') && (
+              <div>
+                <label className="block text-xs sm:text-sm font-semibold text-gray-900 mb-1.5">상향제어</label>
+                <Select value={upCtrlCl} onValueChange={setUpCtrlCl} options={upCtrlClOptions}
+                  placeholder="선택" disabled={isWorkCompleted} />
+              </div>
+            )}
 
             {/* 처리내용 */}
             <div>
@@ -607,17 +917,6 @@ const CompleteChange: React.FC<CompleteChangeProps> = ({
 
             {/* 하단 버튼 영역 */}
             <div className="flex gap-1.5 sm:gap-2 pt-3 sm:pt-4 mt-3 sm:mt-4 border-t border-gray-200">
-              {/* 연동이력 버튼 */}
-              <button
-                type="button"
-                onClick={() => setShowIntegrationHistoryModal(true)}
-                className="flex-1 min-h-10 sm:min-h-12 px-3 sm:px-4 bg-purple-600 hover:bg-purple-700 text-white rounded-lg font-bold transition-colors flex items-center justify-center gap-1.5 sm:gap-2 text-sm sm:text-base"
-              >
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-                </svg>
-                <span>연동이력</span>
-              </button>
               {/* 작업완료 버튼 */}
               {!isWorkCompleted && (
                 <button
@@ -643,6 +942,17 @@ const CompleteChange: React.FC<CompleteChangeProps> = ({
                   )}
                 </button>
               )}
+              {/* 연동이력 버튼 */}
+              <button
+                type="button"
+                onClick={() => setShowIntegrationHistoryModal(true)}
+                className="flex-1 min-h-10 sm:min-h-12 px-3 sm:px-4 bg-purple-600 hover:bg-purple-700 text-white rounded-lg font-bold transition-colors flex items-center justify-center gap-1.5 sm:gap-2 text-sm sm:text-base"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                </svg>
+                <span>연동이력</span>
+              </button>
             </div>
 
           </div>
@@ -660,6 +970,12 @@ const CompleteChange: React.FC<CompleteChangeProps> = ({
         customerId={order.customer?.id}
         customerName={order.customer?.name}
         contractId={order.CTRT_ID}
+        addrOrd={(order as any).ADDR_ORD}
+        kpiProdGrpCd={equipmentData?.kpiProdGrpCd || equipmentData?.KPI_PROD_GRP_CD || (order as any).KPI_PROD_GRP_CD}
+        prodChgGb="01"
+        chgKpiProdGrpCd={equipmentData?.chgKpiProdGrpCd || equipmentData?.CHG_KPI_PROD_GRP_CD || (order as any).KPI_PROD_GRP_CD}
+        prodGrp={equipmentData?.prodGrp || equipmentData?.PROD_GRP || (order as any).PROD_GRP}
+        wrkDtlTcd={order.WRK_DTL_TCD}
         readOnly={isWorkCompleted}
       />
 
@@ -674,6 +990,12 @@ const CompleteChange: React.FC<CompleteChangeProps> = ({
         customerId={order.customer?.id}
         customerName={order.customer?.name}
         contractId={order.CTRT_ID}
+        addrOrd={(order as any).ADDR_ORD}
+        kpiProdGrpCd={equipmentData?.kpiProdGrpCd || equipmentData?.KPI_PROD_GRP_CD || (order as any).KPI_PROD_GRP_CD}
+        prodChgGb="02"
+        chgKpiProdGrpCd={equipmentData?.chgKpiProdGrpCd || equipmentData?.CHG_KPI_PROD_GRP_CD || (order as any).KPI_PROD_GRP_CD}
+        prodGrp={equipmentData?.prodGrp || equipmentData?.PROD_GRP || (order as any).PROD_GRP}
+        wrkDtlTcd={order.WRK_DTL_TCD}
         readOnly={isWorkCompleted}
       />
 
@@ -713,7 +1035,17 @@ const CompleteChange: React.FC<CompleteChangeProps> = ({
         type="confirm"
         confirmText="완료"
         cancelText="취소"
-      />
+      >
+        <WorkCompleteSummary
+          equipmentData={equipmentData}
+          installInfoData={installInfoData}
+          custRel={custRel}
+          custRelOptions={custRelOptions}
+          memo={memo}
+          installLocationText={installLocationText}
+          order={order}
+        />
+      </ConfirmModal>
     </div>
   );
 };

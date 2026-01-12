@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Shield, AlertCircle, CheckCircle, Camera, Check, X } from 'lucide-react';
-import { saveSafetyCheck, getSafetyChecks, SafetyCheck } from '../../../services/apiService';
+import { saveSafetyCheck, getSafetyChecks, getSafetyChecklistItems, SafetyCheck, SafetyChecklistItem } from '../../../services/apiService';
 
 interface SafetyCheckListProps {
   onBack: () => void;
@@ -29,50 +29,129 @@ interface SafetyInspection {
   workSiteSafety: ChecklistItem[];
 }
 
+// Default checklist items (fallback if API returns empty)
+const DEFAULT_CHECKLIST: SafetyInspection = {
+  personalSafety: [
+    { id: 'ps1', category: 'personal', label: '안전모 착용', required: true, checked: false },
+    { id: 'ps2', category: 'personal', label: '안전화 착용', required: true, checked: false },
+    { id: 'ps3', category: 'personal', label: '안전조끼 착용', required: true, checked: false },
+    { id: 'ps4', category: 'personal', label: '안전장갑 착용', required: false, checked: false },
+    { id: 'ps5', category: 'personal', label: '보호안경 착용', required: false, checked: false },
+  ],
+  vehicleSafety: [
+    { id: 'vs1', category: 'vehicle', label: '차량 외관 상태 확인', required: true, checked: false },
+    { id: 'vs2', category: 'vehicle', label: '타이어 공기압 확인', required: true, checked: false },
+    { id: 'vs3', category: 'vehicle', label: '엔진오일 점검', required: false, checked: false },
+    { id: 'vs4', category: 'vehicle', label: '브레이크 작동 확인', required: true, checked: false },
+    { id: 'vs5', category: 'vehicle', label: '라이트 및 방향지시등 점검', required: true, checked: false },
+  ],
+  equipmentSafety: [
+    { id: 'es1', category: 'equipment', label: '공구함 점검 완료', required: true, checked: false },
+    { id: 'es2', category: 'equipment', label: '측정장비 정상 작동 확인', required: true, checked: false },
+    { id: 'es3', category: 'equipment', label: '사다리/발판 안전 확인', required: true, checked: false },
+    { id: 'es4', category: 'equipment', label: '전기 작업 도구 절연 상태', required: true, checked: false },
+    { id: 'es5', category: 'equipment', label: '응급처치 키트 구비', required: false, checked: false },
+  ],
+  workSiteSafety: [
+    { id: 'ws1', category: 'worksite', label: '작업 현장 위험요소 파악', required: true, checked: false },
+    { id: 'ws2', category: 'worksite', label: '날씨 및 환경 조건 확인', required: true, checked: false },
+    { id: 'ws3', category: 'worksite', label: '고객 안전 주의사항 숙지', required: true, checked: false },
+    { id: 'ws4', category: 'worksite', label: '비상연락망 확인', required: true, checked: false },
+    { id: 'ws5', category: 'worksite', label: '작업 동선 계획 수립', required: false, checked: false },
+  ],
+};
+
+// Map API category to our category names
+const categoryMap: Record<string, keyof SafetyInspection> = {
+  'personal': 'personalSafety',
+  'vehicle': 'vehicleSafety',
+  'equipment': 'equipmentSafety',
+  'worksite': 'workSiteSafety',
+};
+
 const SafetyCheckList: React.FC<SafetyCheckListProps> = ({ onBack, userInfo, showToast }) => {
   const [lastInspection, setLastInspection] = useState<SafetyCheck | null>(null);
   const [inspectionExpired, setInspectionExpired] = useState<boolean>(false);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [isSaving, setIsSaving] = useState<boolean>(false);
+  const [checklistLoaded, setChecklistLoaded] = useState<boolean>(false);
 
-  // Safety inspection checklist state
-  const [inspection, setInspection] = useState<SafetyInspection>({
-    personalSafety: [
-      { id: 'ps1', category: 'personal', label: '안전모 착용', required: true, checked: false },
-      { id: 'ps2', category: 'personal', label: '안전화 착용', required: true, checked: false },
-      { id: 'ps3', category: 'personal', label: '안전조끼 착용', required: true, checked: false },
-      { id: 'ps4', category: 'personal', label: '안전장갑 착용', required: false, checked: false },
-      { id: 'ps5', category: 'personal', label: '보호안경 착용', required: false, checked: false },
-    ],
-    vehicleSafety: [
-      { id: 'vs1', category: 'vehicle', label: '차량 외관 상태 확인', required: true, checked: false },
-      { id: 'vs2', category: 'vehicle', label: '타이어 공기압 확인', required: true, checked: false },
-      { id: 'vs3', category: 'vehicle', label: '엔진오일 점검', required: false, checked: false },
-      { id: 'vs4', category: 'vehicle', label: '브레이크 작동 확인', required: true, checked: false },
-      { id: 'vs5', category: 'vehicle', label: '라이트 및 방향지시등 점검', required: true, checked: false },
-    ],
-    equipmentSafety: [
-      { id: 'es1', category: 'equipment', label: '공구함 점검 완료', required: true, checked: false },
-      { id: 'es2', category: 'equipment', label: '측정장비 정상 작동 확인', required: true, checked: false },
-      { id: 'es3', category: 'equipment', label: '사다리/발판 안전 확인', required: true, checked: false },
-      { id: 'es4', category: 'equipment', label: '전기 작업 도구 절연 상태', required: true, checked: false },
-      { id: 'es5', category: 'equipment', label: '응급처치 키트 구비', required: false, checked: false },
-    ],
-    workSiteSafety: [
-      { id: 'ws1', category: 'worksite', label: '작업 현장 위험요소 파악', required: true, checked: false },
-      { id: 'ws2', category: 'worksite', label: '날씨 및 환경 조건 확인', required: true, checked: false },
-      { id: 'ws3', category: 'worksite', label: '고객 안전 주의사항 숙지', required: true, checked: false },
-      { id: 'ws4', category: 'worksite', label: '비상연락망 확인', required: true, checked: false },
-      { id: 'ws5', category: 'worksite', label: '작업 동선 계획 수립', required: false, checked: false },
-    ],
-  });
+  // Safety inspection checklist state - initialized with default items
+  const [inspection, setInspection] = useState<SafetyInspection>(DEFAULT_CHECKLIST);
 
   const [photos, setPhotos] = useState<string[]>([]);
   const [signature, setSignature] = useState<boolean>(false);
 
   useEffect(() => {
+    loadChecklistItems();
     checkLastInspection();
   }, [userInfo]);
+
+  // Load checklist items from API
+  const loadChecklistItems = async () => {
+    if (checklistLoaded) return;
+
+    try {
+      const items = await getSafetyChecklistItems({
+        SO_ID: userInfo?.soId,
+        CRR_ID: userInfo?.crrId,
+        WRKR_ID: userInfo?.userId,
+      });
+
+      if (items && items.length > 0) {
+        console.log('[SafetyCheckList] Loaded checklist items from API:', items.length);
+
+        // Group items by category
+        const newInspection: SafetyInspection = {
+          personalSafety: [],
+          vehicleSafety: [],
+          equipmentSafety: [],
+          workSiteSafety: [],
+        };
+
+        items
+          .sort((a, b) => (a.DISPLAY_ORDER || 0) - (b.DISPLAY_ORDER || 0))
+          .forEach((item) => {
+            const category = categoryMap[item.CATEGORY?.toLowerCase()] || 'workSiteSafety';
+            const checklistItem: ChecklistItem = {
+              id: item.ITEM_CD,
+              category: item.CATEGORY,
+              label: item.ITEM_NM,
+              required: item.REQUIRED_YN === 'Y',
+              checked: false,
+            };
+            newInspection[category].push(checklistItem);
+          });
+
+        // Only use API data if we have items in at least one category
+        const hasItems = Object.values(newInspection).some(arr => arr.length > 0);
+        if (hasItems) {
+          // Fill in any missing categories with defaults
+          if (newInspection.personalSafety.length === 0) {
+            newInspection.personalSafety = DEFAULT_CHECKLIST.personalSafety;
+          }
+          if (newInspection.vehicleSafety.length === 0) {
+            newInspection.vehicleSafety = DEFAULT_CHECKLIST.vehicleSafety;
+          }
+          if (newInspection.equipmentSafety.length === 0) {
+            newInspection.equipmentSafety = DEFAULT_CHECKLIST.equipmentSafety;
+          }
+          if (newInspection.workSiteSafety.length === 0) {
+            newInspection.workSiteSafety = DEFAULT_CHECKLIST.workSiteSafety;
+          }
+          setInspection(newInspection);
+        } else {
+          console.log('[SafetyCheckList] No items in API response, using defaults');
+        }
+      } else {
+        console.log('[SafetyCheckList] API returned empty, using default checklist');
+      }
+    } catch (error) {
+      console.warn('[SafetyCheckList] Failed to load checklist from API, using defaults:', error);
+    } finally {
+      setChecklistLoaded(true);
+    }
+  };
 
   const checkLastInspection = async () => {
     const soId = userInfo?.soId || '';

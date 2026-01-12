@@ -8,17 +8,19 @@
  * - 설치정보 입력 필수
  * - WRK_DTL_TCD=0440 (일시철거복구) 시 장비추가 가능
  */
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { WorkOrder, WorkCompleteData } from '../../../../types';
-import { getCommonCodeList, CommonCode, getWorkReceiptDetail, getCustomerContractInfo } from '../../../../services/apiService';
+import { getCommonCodeList, CommonCode, getWorkReceiptDetail, getCustomerContractInfo, getMmtSusInfo, modMmtSusInfo, checkStbServerConnection } from '../../../../services/apiService';
 import Select from '../../../ui/Select';
 import InstallInfoModal, { InstallInfoData } from '../../../modal/InstallInfoModal';
 import IntegrationHistoryModal from '../../../modal/IntegrationHistoryModal';
 import InstallLocationModal, { InstallLocationData } from '../../../modal/InstallLocationModal';
 import ConfirmModal from '../../../common/ConfirmModal';
-import SuspensionPeriodModal from '../../../modal/SuspensionPeriodModal';
+import WorkCompleteSummary from '../WorkCompleteSummary';
 import { useWorkProcessStore } from '../../../../stores/workProcessStore';
+import { useWorkEquipment } from '../../../../stores/workEquipmentStore';
 import { useCompleteWork } from '../../../../hooks/mutations/useCompleteWork';
+import { Calendar, AlertCircle } from 'lucide-react';
 import '../../../../styles/buttons.css';
 
 interface CompleteMoveProps {
@@ -52,7 +54,25 @@ const CompleteMove: React.FC<CompleteMoveProps> = ({
 
   const [isDataLoaded, setIsDataLoaded] = useState(false);
   const { equipmentData: storeEquipmentData, filteringData } = useWorkProcessStore();
-  const equipmentData = storeEquipmentData || legacyEquipmentData || filteringData;
+
+  // Zustand Equipment Store - 장비 컴포넌트에서 등록한 장비 정보
+  const workId = order.id || '';
+  const zustandEquipment = useWorkEquipment(workId);
+
+  // equipmentData 병합: Zustand Equipment Store 우선 사용
+  const equipmentData = {
+    ...(storeEquipmentData || legacyEquipmentData || filteringData || {}),
+    installedEquipments: zustandEquipment.installedEquipments.length > 0
+      ? zustandEquipment.installedEquipments
+      : (storeEquipmentData?.installedEquipments || legacyEquipmentData?.installedEquipments || []),
+    removedEquipments: zustandEquipment.markedForRemoval.length > 0
+      ? zustandEquipment.markedForRemoval
+      : (storeEquipmentData?.removedEquipments || legacyEquipmentData?.removedEquipments || []),
+    removalStatus: Object.keys(zustandEquipment.removalStatus).length > 0
+      ? zustandEquipment.removalStatus
+      : (storeEquipmentData?.removalStatus || legacyEquipmentData?.removalStatus || {}),
+  };
+
   const { mutate: submitWork, isPending: isLoading } = useCompleteWork();
 
   const getStorageKey = () => `work_complete_draft_${order.id}`;
@@ -112,8 +132,21 @@ const CompleteMove: React.FC<CompleteMoveProps> = ({
 
   // 작업완료 확인 모달
   const [showConfirmModal, setShowConfirmModal] = useState(false);
-  // 정지기간 모달
-  const [showSuspensionPeriodModal, setShowSuspensionPeriodModal] = useState(false);
+
+  // 정지기간 인라인 상태
+  const [susInfo, setSusInfo] = useState<{
+    SUS_HOPE_DD: string;
+    MMT_SUS_HOPE_DD: string;
+    VALID_SUS_DAYS: string;
+    MMT_SUS_CD: string;
+    WRK_DTL_TCD: string;
+  } | null>(null);
+  const [susLoading, setSusLoading] = useState(false);
+  const [susNewEndDate, setSusNewEndDate] = useState('');
+  const [susCanEdit, setSusCanEdit] = useState(false);
+  const [susError, setSusError] = useState<string | null>(null);
+  const [susSaving, setSusSaving] = useState(false);
+  const [susPendingSave, setSusPendingSave] = useState(false); // 임시저장 상태
 
   // 공통코드
   const [custRelOptions, setCustRelOptions] = useState<{ value: string; label: string }[]>([]);
@@ -138,8 +171,8 @@ const CompleteMove: React.FC<CompleteMoveProps> = ({
       try {
         console.log('[WorkCompleteMove] 작업 상세 조회 시작');
         const detail = await getWorkReceiptDetail({
-          WRK_DRCTN_ID: order.directionId || order.id,
-          WRK_ID: (order as any).WRK_ID,
+          WRK_DRCTN_ID: order.directionId || order.WRK_DRCTN_ID || '',
+          WRK_ID: order.id,  // order.id가 실제 WRK_ID
           SO_ID: order.SO_ID
         });
 
@@ -148,12 +181,17 @@ const CompleteMove: React.FC<CompleteMoveProps> = ({
 
           // 완료된 작업이면 모든 값 복원
           if (isWorkCompleted) {
+            setCustRel(detail.CUST_REL || '');
             setMemo((detail.MEMO || '').replace(/\\n/g, '\n'));
             setInternetUse(detail.PSN_USE_CORP || '');
             setVoipUse(detail.VOIP_USE_CORP || '');
             setDtvUse(detail.DTV_USE_CORP || '');
             if (detail.WRKR_CMPL_DT && detail.WRKR_CMPL_DT.length >= 8) {
               setWorkCompleteDate(`${detail.WRKR_CMPL_DT.slice(0,4)}-${detail.WRKR_CMPL_DT.slice(4,6)}-${detail.WRKR_CMPL_DT.slice(6,8)}`);
+            }
+            // 결합계약 ID 복원
+            if (detail.VOIP_JOIN_CTRT_ID) {
+              setVoipJoinCtrtId(detail.VOIP_JOIN_CTRT_ID);
             }
           }
 
@@ -202,6 +240,10 @@ const CompleteMove: React.FC<CompleteMoveProps> = ({
               setInstallLocationText(draftData.installLocationText || '');
               setInstallInfoData(draftData.installInfoData);
             }
+            // 결합계약 ID 복원
+            if (draftData.voipJoinCtrtId) {
+              setVoipJoinCtrtId(draftData.voipJoinCtrtId);
+            }
           } catch (error) {
             console.error('[WorkCompleteMove] localStorage 복원 실패:', error);
           }
@@ -220,11 +262,138 @@ const CompleteMove: React.FC<CompleteMoveProps> = ({
     const draftData = {
       custRel, memo, internetUse, voipUse, dtvUse,
       networkType, networkTypeName, installLocationText, installInfoData,
+      voipJoinCtrtId,
       savedAt: new Date().toISOString()
     };
     localStorage.setItem(getStorageKey(), JSON.stringify(draftData));
   }, [custRel, memo, internetUse, voipUse, dtvUse,
-      networkType, networkTypeName, installLocationText, installInfoData, isDataLoaded, isWorkCompleted]);
+      networkType, networkTypeName, installLocationText, installInfoData, voipJoinCtrtId, isDataLoaded, isWorkCompleted]);
+
+  // 정지기간 헬퍼 함수들
+  const formatDateForInput = (yyyymmdd: string): string => {
+    if (!yyyymmdd || yyyymmdd.length !== 8) return '';
+    return `${yyyymmdd.slice(0, 4)}-${yyyymmdd.slice(4, 6)}-${yyyymmdd.slice(6, 8)}`;
+  };
+  const formatDateForApi = (isoDate: string): string => isoDate.replace(/-/g, '');
+  const getTodayString = (): string => new Date().toISOString().slice(0, 10).replace(/-/g, '');
+  const calculateSusDays = (startDate: string, endDate: string): number => {
+    if (!startDate || !endDate) return 0;
+    const start = new Date(formatDateForInput(startDate));
+    const end = new Date(formatDateForInput(endDate));
+    return Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24));
+  };
+
+  // 해당월 말일 계산
+  const getLastDayOfMonth = (date: Date): Date => {
+    return new Date(date.getFullYear(), date.getMonth() + 1, 0);
+  };
+
+  // 현재가 해당월 마지막 주인지 확인 (해당월 마지막 7일)
+  const isLastWeekOfMonth = (date: Date): boolean => {
+    const lastDay = getLastDayOfMonth(date);
+    const daysUntilEnd = lastDay.getDate() - date.getDate();
+    return daysUntilEnd < 7;
+  };
+
+  // 기본 종료일 계산: 마지막 주면 익월 말일, 아니면 해당월 말일
+  const getDefaultEndDate = (): string => {
+    const today = new Date();
+    let targetDate: Date;
+
+    if (isLastWeekOfMonth(today)) {
+      // 마지막 주면 익월 말일
+      targetDate = new Date(today.getFullYear(), today.getMonth() + 2, 0);
+    } else {
+      // 그 외 해당월 말일
+      targetDate = getLastDayOfMonth(today);
+    }
+
+    return targetDate.toISOString().slice(0, 10); // YYYY-MM-DD
+  };
+
+  // 정지기간 정보 조회
+  const fetchSuspensionInfo = useCallback(async () => {
+    const rcptId = order.RCPT_ID || '';
+    const ctrtId = order.CTRT_ID || '';
+    if (!rcptId || !ctrtId) return;
+
+    setSusLoading(true);
+    setSusError(null);
+
+    try {
+      const info = await getMmtSusInfo({ RCPT_ID: rcptId, CTRT_ID: ctrtId });
+      console.log('[CompleteMove] 정지기간 조회 결과:', info);
+
+      if (info) {
+        setSusInfo(info);
+
+        const today = getTodayString();
+        if (info.WRK_DTL_TCD === '0430' && info.MMT_SUS_HOPE_DD <= today) {
+          // 수정 모드: 기본 종료일을 해당월 말일로 설정 (마지막 주면 익월 말일)
+          const defaultEndDate = getDefaultEndDate();
+          setSusNewEndDate(defaultEndDate);
+          setSusCanEdit(true);
+          console.log('[CompleteMove] 수정 모드 - 기본 종료일 설정:', defaultEndDate);
+          showToast?.('이용정지기간 종료일이 경과되었습니다. 이용정지기간을 다시 설정하십시오.', 'warning');
+        } else {
+          // 읽기 모드: API에서 받아온 값 사용
+          setSusNewEndDate(formatDateForInput(info.MMT_SUS_HOPE_DD));
+          setSusCanEdit(false);
+        }
+      }
+    } catch (err: any) {
+      console.error('[CompleteMove] 정지기간 조회 실패:', err);
+      setSusError(err.message || '정지기간 정보 조회 실패');
+    } finally {
+      setSusLoading(false);
+    }
+  }, [order.RCPT_ID, order.CTRT_ID, showToast]);
+
+  useEffect(() => {
+    fetchSuspensionInfo();
+  }, [fetchSuspensionInfo]);
+
+  // 정지기간 종료일 변경 핸들러
+  const handleSusEndDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const newDate = e.target.value;
+    setSusNewEndDate(newDate);
+    setSusError(null);
+
+    if (!susInfo) return;
+
+    const startDateStr = formatDateForInput(susInfo.SUS_HOPE_DD);
+    if (newDate < startDateStr) {
+      setSusError('종료일은 시작일 이후로 설정해주세요.');
+      return;
+    }
+
+    if (susInfo.VALID_SUS_DAYS && parseInt(susInfo.VALID_SUS_DAYS) > 0) {
+      const validDays = parseInt(susInfo.VALID_SUS_DAYS);
+      const startDate = new Date(startDateStr);
+      const maxEndDate = new Date(startDate);
+      maxEndDate.setDate(maxEndDate.getDate() + validDays - 1);
+
+      if (new Date(newDate) > maxEndDate) {
+        setSusError(`해당 정지유형의 이용정지기간은 ${maxEndDate.toISOString().slice(0, 10)} 까지 가능합니다.`);
+      }
+    }
+  };
+
+  // 정지기간 임시저장 핸들러 (작업완료 시 API 호출)
+  const handleSusSave = () => {
+    if (!susInfo || !susNewEndDate) return;
+
+    const startDateStr = formatDateForInput(susInfo.SUS_HOPE_DD);
+    if (susNewEndDate < startDateStr) {
+      showToast?.('종료일은 시작일 이후로 설정해주세요.', 'error');
+      return;
+    }
+
+    // 임시저장 - 작업완료 시 API 호출됨
+    setSusPendingSave(true);
+    setSusCanEdit(false);
+    showToast?.('정지기간이 임시저장되었습니다. 작업완료 시 반영됩니다.', 'info');
+  };
 
   // 공통코드 로드
   useEffect(() => {
@@ -373,6 +542,10 @@ const CompleteMove: React.FC<CompleteMoveProps> = ({
     if (!installInfoData?.NET_CL) errors.push('설치정보를 입력해주세요.');
     // 정지작업(04)은 설치위치 체크 제외
     if (order.WRK_CD !== '04' && !installLocationText && !order.installLocation) errors.push('설치위치를 설정해주세요.');
+    if (!workCompleteDate) errors.push('작업처리일을 선택해주세요.');
+
+    // VoIP/ISP 결합계약 선택 validation
+    const prodGrp = (order as any).PROD_GRP || '';
 
     // WRK_DTL_TCD=0430 (단순이전) 시 모든 장비 철거 체크
     if (order.WRK_DTL_TCD === '0430') {
@@ -380,10 +553,14 @@ const CompleteMove: React.FC<CompleteMoveProps> = ({
       if (installedCount > 0) {
         errors.push('모든 장비를 철거해주세요.');
       }
+    } else {
+      // 일반 정지/복구: 설치 장비 검증 (레거시: mowoa03m04.xml 694줄)
+      // VoIP가 아닌 경우 장비가 최소 1개 이상 등록되어 있어야 함
+      const installedEquipments = equipmentData?.installedEquipments || [];
+      if (prodGrp !== 'V' && installedEquipments.length < 1) {
+        errors.push('신호처리(장비등록)를 먼저 진행해주세요.');
+      }
     }
-
-    // VoIP/ISP 결합계약 선택 validation
-    const prodGrp = (order as any).PROD_GRP || '';
     const voipProdCd = (order as any).VOIP_PROD_CD || '';
     const ispProdCd = (order as any).ISP_PROD_CD || '';
 
@@ -421,10 +598,164 @@ const CompleteMove: React.FC<CompleteMoveProps> = ({
     setShowConfirmModal(true);
   };
 
+  // 장비 목록 변환 함수 (nested → flat 구조)
+  const processEquipmentList = (equipments: any[], isRemoval = false) => {
+    if (!equipments || equipments.length === 0) return [];
+    const userInfo = localStorage.getItem('userInfo');
+    const user = userInfo ? JSON.parse(userInfo) : {};
+    const workerId = user.userId || 'A20130708';
+    const removalStatus = equipmentData?.removalStatus || {};
+
+    return equipments.map((eq: any) => {
+      const eqtNo = eq.EQT_NO || eq.id || (eq.actualEquipment?.id) || '';
+      const status = removalStatus[eqtNo] || {};
+      const removalFields = isRemoval ? {
+        CRR_TSK_CL: order.WRK_CD || '04',
+        RCPT_ID: order.RCPT_ID || '',
+        CRR_ID: order.CRR_ID || user.crrId || '01',
+        WRKR_ID: workerId,
+        EQT_LOSS_YN: status.isLost ? 'Y' : 'N',
+        EQT_BRK_YN: status.isDamaged ? 'Y' : 'N',
+        REUSE_YN: status.isReusable ? '1' : '0',
+      } : {};
+
+      if (eq.actualEquipment) {
+        const actual = eq.actualEquipment;
+        const contract = eq.contractEquipment || {};
+        return {
+          ...actual,
+          EQT_NO: actual.id,
+          EQT_SERNO: actual.serialNumber,
+          ITEM_MID_CD: actual.itemMidCd,
+          EQT_CL_CD: actual.eqtClCd,
+          MAC_ADDRESS: eq.macAddress || actual.macAddress,
+          WRK_ID: order.id,
+          CUST_ID: order.customer?.id,
+          CTRT_ID: order.CTRT_ID,
+          WRK_CD: order.WRK_CD,
+          REG_UID: workerId,
+          SVC_CMPS_ID: contract.SVC_CMPS_ID || eq.SVC_CMPS_ID || '',
+          BASIC_PROD_CMPS_ID: contract.BASIC_PROD_CMPS_ID || eq.BASIC_PROD_CMPS_ID || '',
+          PROD_CMPS_ID: contract.PROD_CMPS_ID || eq.PROD_CMPS_ID || '',
+          SVC_CD: contract.SVC_CD || eq.SVC_CD || '',
+          PROD_CD: contract.PROD_CD || eq.PROD_CD || '',
+          LENT_YN: eq.lentYn || eq.LENT_YN || contract.LENT_YN || '',
+          EQT_CHG_GB: eq.EQT_CHG_GB || '01',
+          ...removalFields,
+        };
+      }
+
+      // 중첩 구조가 아닌 경우도 필드 매핑 필요
+      return {
+        ...eq,
+        EQT_NO: eq.EQT_NO || eq.id || '',
+        EQT_SERNO: eq.EQT_SERNO || eq.serialNumber || '',
+        ITEM_MID_CD: eq.ITEM_MID_CD || eq.itemMidCd || '',
+        EQT_CL_CD: eq.EQT_CL_CD || eq.eqtClCd || '',
+        MAC_ADDRESS: eq.MAC_ADDRESS || eq.macAddress || '',
+        SVC_CMPS_ID: eq.SVC_CMPS_ID || '',
+        BASIC_PROD_CMPS_ID: eq.BASIC_PROD_CMPS_ID || '',
+        PROD_CD: eq.PROD_CD || '',
+        SVC_CD: eq.SVC_CD || '',
+        WRK_ID: order.id,
+        CUST_ID: order.customer?.id,
+        CTRT_ID: order.CTRT_ID,
+        WRK_CD: order.WRK_CD,
+        REG_UID: workerId,
+        ...removalFields,
+      };
+    });
+  };
+
   // 실제 작업 완료 처리
-  const handleConfirmSubmit = () => {
+  const handleConfirmSubmit = async () => {
     const formattedDate = workCompleteDate.replace(/-/g, '');
-    const workerId = 'A20130708';
+    const userInfo = localStorage.getItem('userInfo');
+    const user = userInfo ? JSON.parse(userInfo) : {};
+    const workerId = user.userId || 'A20130708';
+
+    // 임시저장된 정지기간이 있으면 먼저 API 호출
+    if (susPendingSave && susInfo && susNewEndDate) {
+      setSusSaving(true);
+      try {
+        const susStartDate = susInfo.SUS_HOPE_DD;
+        const susEndDate = formatDateForApi(susNewEndDate);
+        const susDays = calculateSusDays(susStartDate, susEndDate);
+
+        const susResult = await modMmtSusInfo({
+          CTRT_ID: order.CTRT_ID || '',
+          RCPT_ID: order.RCPT_ID || '',
+          SUS_HOPE_DD: susStartDate,
+          MMT_SUS_HOPE_DD: susEndDate,
+          SUS_DD_NUM: String(susDays),
+          REG_UID: workerId,
+        });
+
+        if (susResult.code !== 'SUCCESS') {
+          showToast?.(susResult.message || '정지기간 수정 실패', 'error');
+          setSusSaving(false);
+          return;
+        }
+        console.log('[CompleteMove] 정지기간 수정 성공');
+      } catch (err: any) {
+        showToast?.(err.message || '정지기간 수정 실패', 'error');
+        setSusSaving(false);
+        return;
+      }
+      setSusSaving(false);
+    }
+
+    // 회수 장비가 있으면 철거 신호(SMR05) 호출 (레거시: mowoa03m04.xml fn_delsignal_trans)
+    const removedEquipments = equipmentData?.removedEquipments || [];
+    if (removedEquipments.length > 0) {
+      try {
+        const regUid = user.userId || user.id || 'UNKNOWN';
+        const firstEquip = removedEquipments[0];
+        console.log('[CompleteMove] 철거 신호(SMR05) 호출:', { eqtNo: firstEquip.EQT_NO || firstEquip.id });
+        await checkStbServerConnection(
+          regUid,
+          order.CTRT_ID || '',
+          order.id,
+          'SMR05',
+          firstEquip.EQT_NO || firstEquip.id || '',
+          ''
+        );
+        console.log('[CompleteMove] 철거 신호(SMR05) 호출 완료');
+      } catch (error) {
+        console.log('[CompleteMove] 철거 신호 처리 중 오류 (무시하고 계속 진행):', error);
+      }
+    }
+
+    // 일시철거복구(0440)이고 고객장비가 있으면 설치 신호(SMR03) 호출 (레거시: mowoa03m04.xml Line 629-632)
+    const customerEquipments = equipmentData?.customerEquipments || [];
+    const installedEquipments = equipmentData?.installedEquipments || [];
+    const ispProdCd = (order as any).ISP_PROD_CD || '';
+    if (order.WRK_DTL_TCD === '0440' && (customerEquipments.length > 0 || installedEquipments.length > 0 || ispProdCd)) {
+      try {
+        const regUid = user.userId || user.id || 'UNKNOWN';
+        // 고객장비에서 셋톱박스(05) > 모뎀(01) > 추가장비(03) 순으로 찾기 (레거시 Line 709-714)
+        let targetEquip = customerEquipments.find((eq: any) => eq.ITEM_MID_CD === '05' || eq.itemMidCd === '05');
+        if (!targetEquip) targetEquip = customerEquipments.find((eq: any) => eq.ITEM_MID_CD === '01' || eq.itemMidCd === '01');
+        if (!targetEquip) targetEquip = customerEquipments.find((eq: any) => eq.ITEM_MID_CD === '03' || eq.itemMidCd === '03');
+        if (!targetEquip && installedEquipments.length > 0) targetEquip = installedEquipments[0];
+
+        if (targetEquip) {
+          const eqtNo = targetEquip.EQT_NO || targetEquip.id || '';
+          console.log('[CompleteMove] 일시철거복구 설치 신호(SMR03) 호출:', { eqtNo });
+          await checkStbServerConnection(
+            regUid,
+            order.CTRT_ID || '',
+            order.id,
+            'SMR03',
+            eqtNo,
+            ''
+          );
+          console.log('[CompleteMove] 설치 신호(SMR03) 호출 완료');
+        }
+      } catch (error) {
+        console.log('[CompleteMove] 설치 신호 처리 중 오류 (무시하고 계속 진행):', error);
+      }
+    }
 
     const completeData: WorkCompleteData = {
       workInfo: {
@@ -432,14 +763,17 @@ const CompleteMove: React.FC<CompleteMoveProps> = ({
         WRK_CD: order.WRK_CD,
         WRK_DTL_TCD: order.WRK_DTL_TCD,
         CUST_ID: order.customer?.id,
+        CTRT_ID: order.CTRT_ID || '',
         RCPT_ID: order.RCPT_ID,
-        CRR_ID: '01',
+        CRR_ID: order.CRR_ID || user.crrId || '01',
         WRKR_ID: workerId,
         WRKR_CMPL_DT: formattedDate,
         MEMO: memo || '작업 완료',
         STTL_YN: 'Y',
         REG_UID: workerId,
         CUST_REL: custRel,
+        CNFM_CUST_NM: order.customer?.name || '',
+        CNFM_CUST_TELNO: order.customer?.contactNumber || '',
         INSTL_LOC: installLocationText || order.installLocation || '',
         PSN_USE_CORP: internetUse || '',
         VOIP_USE_CORP: voipUse || '',
@@ -450,8 +784,8 @@ const CompleteMove: React.FC<CompleteMoveProps> = ({
         INSTL_TP: installInfoData?.INSTL_TP || '',
         VOIP_JOIN_CTRT_ID: voipJoinCtrtId || '',
       },
-      equipmentList: equipmentData?.installedEquipments || [],
-      removeEquipmentList: equipmentData?.removedEquipments || [],
+      equipmentList: processEquipmentList(equipmentData?.installedEquipments || [], false),
+      removeEquipmentList: processEquipmentList(equipmentData?.removedEquipments || [], true),
       spendItemList: equipmentData?.spendItems || [],
       agreementList: equipmentData?.agreements || [],
       poleList: equipmentData?.poleResults || []
@@ -474,7 +808,7 @@ const CompleteMove: React.FC<CompleteMoveProps> = ({
   };
 
   return (
-    <div className="px-2 sm:px-4 py-4 sm:py-6 bg-gray-50 overflow-x-hidden">
+    <div className="px-2 sm:px-4 py-4 sm:py-6 bg-gray-50 min-h-0">
       <div className="max-w-2xl mx-auto">
         <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-3 sm:p-5">
           <div className="space-y-3 sm:space-y-5">
@@ -505,7 +839,7 @@ const CompleteMove: React.FC<CompleteMoveProps> = ({
               </div>
             )}
 
-            {/* 망구분 + 설치정보 버튼 */}
+            {/* 망구분 + 철거정보 버튼 */}
             <div>
               <label className="block text-xs sm:text-sm font-semibold text-gray-900 mb-1.5">망구분</label>
               <div className="flex gap-2">
@@ -513,7 +847,7 @@ const CompleteMove: React.FC<CompleteMoveProps> = ({
                   type="text"
                   value={networkTypeName || ''}
                   readOnly disabled
-                  placeholder="설치정보에서 입력"
+                  placeholder="철거정보에서 입력"
                   className="flex-1 min-h-10 px-3 py-2 bg-gray-100 border border-gray-200 rounded-lg text-sm text-gray-600 cursor-not-allowed"
                 />
                 <button
@@ -521,7 +855,7 @@ const CompleteMove: React.FC<CompleteMoveProps> = ({
                   onClick={() => setShowInstallInfoModal(true)}
                   className={`px-4 py-2 text-sm font-semibold rounded-lg ${isWorkCompleted ? 'bg-gray-500 text-white' : 'bg-green-500 hover:bg-green-600 text-white'}`}
                 >
-                  {isWorkCompleted ? '보기' : '설치정보'}
+                  {isWorkCompleted ? '보기' : '철거정보'}
                 </button>
               </div>
             </div>
@@ -571,39 +905,123 @@ const CompleteMove: React.FC<CompleteMoveProps> = ({
               />
             </div>
 
-            {/* 작업처리일 + 이용정지기간 버튼 */}
+            {/* 작업처리일 */}
             <div>
               <label className="block text-xs sm:text-sm font-semibold text-gray-700 mb-1.5 sm:mb-2">작업처리일 <span className="text-red-500">*</span></label>
-              <div className="flex gap-2">
-                <input
-                  type="text"
-                  value={workCompleteDate}
-                  readOnly disabled
-                  className="flex-1 min-w-0 min-h-10 sm:min-h-12 px-3 sm:px-4 py-2 sm:py-3 bg-gray-50 border border-gray-300 rounded-lg text-sm sm:text-base text-gray-500 cursor-not-allowed"
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowSuspensionPeriodModal(true)}
-                  className="px-4 py-2 bg-indigo-500 hover:bg-indigo-600 text-white rounded-lg font-bold text-sm whitespace-nowrap"
-                >
-                  정지기간
-                </button>
+              <input
+                type="text"
+                value={workCompleteDate}
+                readOnly disabled
+                className="w-full min-h-10 sm:min-h-12 px-3 sm:px-4 py-2 sm:py-3 bg-gray-50 border border-gray-300 rounded-lg text-sm sm:text-base text-gray-500 cursor-not-allowed"
+              />
+            </div>
+
+            {/* 정지기간 인라인 */}
+            <div className="bg-indigo-50 rounded-lg p-3 border border-indigo-200">
+              <div className="text-sm font-semibold text-indigo-800 mb-2 flex items-center justify-between">
+                <div className="flex items-center gap-1">
+                  <Calendar size={16} />
+                  이용정지기간
+                </div>
+                {!isWorkCompleted && susInfo && !susCanEdit && (
+                  <button
+                    type="button"
+                    onClick={() => setSusCanEdit(true)}
+                    className="px-2 py-0.5 bg-indigo-500 hover:bg-indigo-600 text-white rounded text-xs font-medium"
+                  >
+                    수정
+                  </button>
+                )}
               </div>
+              {susLoading ? (
+                <div className="flex items-center gap-2 text-sm text-gray-500">
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-indigo-500"></div>
+                  조회 중...
+                </div>
+              ) : susInfo ? (
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2 text-sm">
+                    <input
+                      type="date"
+                      value={formatDateForInput(susInfo.SUS_HOPE_DD)}
+                      disabled
+                      className="flex-1 px-2 py-1.5 border border-gray-300 rounded bg-gray-100 text-gray-600 text-sm"
+                    />
+                    <span className="text-gray-500">~</span>
+                    {susCanEdit && !isWorkCompleted ? (
+                      <input
+                        type="date"
+                        value={susNewEndDate}
+                        onChange={handleSusEndDateChange}
+                        min={formatDateForInput(susInfo.SUS_HOPE_DD)}
+                        className="flex-1 px-2 py-1.5 border border-indigo-300 rounded bg-white text-gray-900 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                      />
+                    ) : (
+                      <input
+                        type="date"
+                        value={susPendingSave ? susNewEndDate : formatDateForInput(susInfo.MMT_SUS_HOPE_DD)}
+                        disabled
+                        className={`flex-1 px-2 py-1.5 border rounded text-sm ${susPendingSave ? 'border-orange-300 bg-orange-50 text-orange-700' : 'border-gray-300 bg-gray-100 text-gray-600'}`}
+                      />
+                    )}
+                  </div>
+                  {susCanEdit && !isWorkCompleted && susNewEndDate && (
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs text-indigo-600">
+                        정지일수: {calculateSusDays(susInfo.SUS_HOPE_DD, formatDateForApi(susNewEndDate))}일
+                      </span>
+                      <div className="flex gap-2">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setSusCanEdit(false);
+                            setSusPendingSave(false);
+                            setSusNewEndDate(formatDateForInput(susInfo.MMT_SUS_HOPE_DD));
+                            setSusError(null);
+                          }}
+                          className="px-3 py-1 bg-gray-400 hover:bg-gray-500 text-white rounded text-xs font-medium"
+                        >
+                          취소
+                        </button>
+                        <button
+                          type="button"
+                          onClick={handleSusSave}
+                          disabled={!!susError}
+                          className="px-3 py-1 bg-indigo-500 hover:bg-indigo-600 text-white rounded text-xs font-medium disabled:opacity-50"
+                        >
+                          확인
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                  {susPendingSave && !susCanEdit && !isWorkCompleted && (
+                    <div className="flex items-center justify-between mt-1">
+                      <span className="text-xs text-orange-600 font-medium">
+                        ⏳ 임시저장됨 (작업완료 시 반영)
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => setSusCanEdit(true)}
+                        className="px-2 py-0.5 bg-orange-500 hover:bg-orange-600 text-white rounded text-xs font-medium"
+                      >
+                        다시 수정
+                      </button>
+                    </div>
+                  )}
+                  {susError && (
+                    <div className="flex items-center gap-1 text-xs text-red-600">
+                      <AlertCircle size={12} />
+                      {susError}
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div className="text-sm text-gray-500">정지기간 정보 없음</div>
+              )}
             </div>
 
             {/* 하단 버튼 영역 */}
             <div className="flex gap-1.5 sm:gap-2 pt-3 sm:pt-4 mt-3 sm:mt-4 border-t border-gray-200">
-              {/* 연동이력 버튼 */}
-              <button
-                type="button"
-                onClick={() => setShowIntegrationHistoryModal(true)}
-                className="flex-1 min-h-10 sm:min-h-12 px-3 sm:px-4 bg-purple-600 hover:bg-purple-700 text-white rounded-lg font-bold transition-colors flex items-center justify-center gap-1.5 sm:gap-2 text-sm sm:text-base"
-              >
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-                </svg>
-                <span>연동이력</span>
-              </button>
               {/* 작업완료 버튼 */}
               {!isWorkCompleted && (
                 <button
@@ -629,6 +1047,17 @@ const CompleteMove: React.FC<CompleteMoveProps> = ({
                   )}
                 </button>
               )}
+              {/* 연동이력 버튼 */}
+              <button
+                type="button"
+                onClick={() => setShowIntegrationHistoryModal(true)}
+                className="flex-1 min-h-10 sm:min-h-12 px-3 sm:px-4 bg-purple-600 hover:bg-purple-700 text-white rounded-lg font-bold transition-colors flex items-center justify-center gap-1.5 sm:gap-2 text-sm sm:text-base"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                </svg>
+                <span>연동이력</span>
+              </button>
             </div>
 
           </div>
@@ -646,6 +1075,7 @@ const CompleteMove: React.FC<CompleteMoveProps> = ({
         customerId={order.customer?.id}
         customerName={order.customer?.name}
         contractId={order.CTRT_ID}
+        addrOrd={(order as any).ADDR_ORD || ''}
         kpiProdGrpCd={equipmentData?.kpiProdGrpCd || equipmentData?.KPI_PROD_GRP_CD || order.KPI_PROD_GRP_CD}
         prodChgGb={equipmentData?.prodChgGb || equipmentData?.PROD_CHG_GB || (order as any).PROD_CHG_GB}
         chgKpiProdGrpCd={equipmentData?.chgKpiProdGrpCd || equipmentData?.CHG_KPI_PROD_GRP_CD || (order as any).CHG_KPI_PROD_GRP_CD}
@@ -690,17 +1120,17 @@ const CompleteMove: React.FC<CompleteMoveProps> = ({
         type="confirm"
         confirmText="완료"
         cancelText="취소"
-      />
-
-      {/* 정지기간 모달 */}
-      <SuspensionPeriodModal
-        isOpen={showSuspensionPeriodModal}
-        onClose={() => setShowSuspensionPeriodModal(false)}
-        rcptId={order.RCPT_ID || ''}
-        ctrtId={order.CTRT_ID || ''}
-        userId="A20130708"
-        showToast={showToast}
-      />
+      >
+        <WorkCompleteSummary
+          equipmentData={equipmentData}
+          installInfoData={installInfoData}
+          custRel={custRel}
+          custRelOptions={custRelOptions}
+          memo={memo}
+          installLocationText={installLocationText}
+          order={order}
+        />
+      </ConfirmModal>
     </div>
   );
 };

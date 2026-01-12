@@ -8,6 +8,7 @@ import IntegrationHistoryModal from '../../modal/IntegrationHistoryModal';
 import InstallLocationModal, { InstallLocationData } from '../../modal/InstallLocationModal';
 import RemovalLineManageModal, { RemovalLineData } from '../../modal/RemovalLineManageModal';
 import RemovalASAssignModal, { ASAssignData } from '../../modal/RemovalASAssignModal';
+import ConfirmModal from '../../common/ConfirmModal';
 import { useWorkProcessStore } from '../../../stores/workProcessStore';
 import { useCompleteWork } from '../../../hooks/mutations/useCompleteWork';
 import '../../../styles/buttons.css';
@@ -35,8 +36,8 @@ const WorkCompleteForm: React.FC<WorkCompleteFormProps> = ({ order, onBack, onSu
 
   const [isDataLoaded, setIsDataLoaded] = useState(false); // 초기 데이터 로드 완료 여부
 
-  // Work Process Store에서 장비 데이터 가져오기 (Zustand)
-  const { equipmentData: storeEquipmentData, filteringData } = useWorkProcessStore();
+  // Work Process Store에서 장비 데이터 + 인입선로 철거관리 데이터 가져오기 (Zustand)
+  const { equipmentData: storeEquipmentData, filteringData, removalLineData: storeRemovalLineData, setRemovalLineData: setStoreRemovalLineData } = useWorkProcessStore();
 
   // Store 데이터 우선, 없으면 prop 사용 (하위 호환성)
   const equipmentData = storeEquipmentData || legacyEquipmentData || filteringData;
@@ -79,11 +80,16 @@ const WorkCompleteForm: React.FC<WorkCompleteFormProps> = ({ order, onBack, onSu
 
   // 인입선로 철거관리 모달 관련
   const [showRemovalLineModal, setShowRemovalLineModal] = useState(false);
-  const [removalLineData, setRemovalLineData] = useState<RemovalLineData | null>(null);
+  // 인입선로 철거관리 데이터 (store에서 관리 - 스텝 이동해도 유지)
+  const removalLineData = storeRemovalLineData as RemovalLineData | null;
+  const setRemovalLineData = setStoreRemovalLineData;
 
   // AS할당 모달 관련
   const [showASAssignModal, setShowASAssignModal] = useState(false);
   const [isASProcessing, setIsASProcessing] = useState(false); // AS할당 처리 중
+
+  // 작업완료 확인 모달 관련
+  const [showCompleteConfirmModal, setShowCompleteConfirmModal] = useState(false);
 
   // 서비스 이용 구분 (공통코드 값으로 저장)
   const [internetUse, setInternetUse] = useState(''); // 인터넷 이용 (CMCU057)
@@ -477,17 +483,21 @@ const WorkCompleteForm: React.FC<WorkCompleteFormProps> = ({ order, onBack, onSu
     proceedWithCompletion();
   };
 
+  // 작업완료 확인 메시지 생성
+  const getCompleteConfirmMessage = () => {
+    return (equipmentData?.removedEquipments?.length > 0 || order.ISP_PROD_CD)
+      ? '작업을 완료하시겠습니까? (신호번호 처리업무도 동시에 처리됩니다.)'
+      : '작업을 완료하시겠습니까?';
+  };
+
   // 실제 작업 완료 처리 로직
   const proceedWithCompletion = () => {
-    // 레거시 mowoa03m08: 작업완료 확인 메시지
-    const confirmMessage = (equipmentData?.removedEquipments?.length > 0 || order.ISP_PROD_CD)
-      ? '작업을 완료하시겠습니까?\n(신호번호 처리업무도 동시에 처리됩니다.)'
-      : '작업을 완료하시겠습니까?';
+    setShowCompleteConfirmModal(true);
+  };
 
-    if (!window.confirm(confirmMessage)) {
-      return;
-    }
-
+  // 확인 후 실제 완료 처리
+  const handleConfirmCompletion = () => {
+    setShowCompleteConfirmModal(false);
 
     // completeData 생성 로직
     const buildCompleteData = (): WorkCompleteData => {
@@ -526,6 +536,7 @@ const WorkCompleteForm: React.FC<WorkCompleteFormProps> = ({ order, onBack, onSu
               EQT_SERNO: actual.serialNumber,
               ITEM_MID_CD: actual.itemMidCd,
               EQT_CL_CD: actual.eqtClCd,
+              EQT_CL: actual.EQT_CL || actual.eqtClCd,  // 장비분실처리 필수 (TCMCT_EQT_LOSS_INFO)
               MAC_ADDRESS: eq.macAddress || actual.macAddress,
 
               // workInfo에서 가져오는 필드
@@ -566,6 +577,7 @@ const WorkCompleteForm: React.FC<WorkCompleteFormProps> = ({ order, onBack, onSu
             EQT_SERNO: eq.EQT_SERNO || eq.serialNumber,
             ITEM_MID_CD: eq.ITEM_MID_CD || eq.itemMidCd,
             EQT_CL_CD: eq.EQT_CL_CD || eq.eqtClCd,
+            EQT_CL: eq.EQT_CL || eq.EQT_CL_CD || eq.eqtClCd,  // 장비분실처리 필수 (TCMCT_EQT_LOSS_INFO)
             MAC_ADDRESS: eq.MAC_ADDRESS || eq.macAddress,
 
             // workInfo에서 가져오는 필드 (없으면 추가)
@@ -693,7 +705,7 @@ const WorkCompleteForm: React.FC<WorkCompleteFormProps> = ({ order, onBack, onSu
             const isTargetProdGrp = ['C', 'D', 'I'].includes(kpiProdGrpCd);
             const isVoipExcluded = voipCtx !== 'T' && voipCtx !== 'R';
 
-            console.log('Removal check:', {
+            console.log('[WorkCompleteForm] 인입선로 철거관리 모달 표시 조건:', {
               WRK_CD: order.WRK_CD,
               KPI_PROD_GRP_CD: kpiProdGrpCd,
               VOIP_CTX: voipCtx,
@@ -728,14 +740,14 @@ const WorkCompleteForm: React.FC<WorkCompleteFormProps> = ({ order, onBack, onSu
         <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-3 sm:p-5">
           {/* 폼 */}
           <div className="space-y-3 sm:space-y-5">
-            {/* 계약정보 (읽기전용) */}
+            {/* 결합계약 (읽기전용) */}
             <div>
               <label className="block text-xs sm:text-sm font-semibold text-gray-900 mb-1.5 sm:mb-2">
-                계약정보
+                결합계약
               </label>
               <input
                 type="text"
-                value={order.customer?.name || ''}
+                value=""
                 readOnly
                 disabled
                 className="w-full min-h-[40px] sm:min-h-[48px] px-3 sm:px-4 py-2 sm:py-3 bg-gray-100 border border-gray-200 rounded-lg text-sm sm:text-base text-gray-600 cursor-not-allowed"
@@ -1036,6 +1048,18 @@ const WorkCompleteForm: React.FC<WorkCompleteFormProps> = ({ order, onBack, onSu
         addrOrd={order.customer?.ADDR_ORD || ''}
         address={order.address || ''}
         showToast={showToast}
+      />
+
+      {/* 작업완료 확인 모달 */}
+      <ConfirmModal
+        isOpen={showCompleteConfirmModal}
+        onClose={() => setShowCompleteConfirmModal(false)}
+        onConfirm={handleConfirmCompletion}
+        title="작업 완료"
+        message={getCompleteConfirmMessage()}
+        type="confirm"
+        confirmText="완료"
+        cancelText="취소"
       />
     </div>
   );

@@ -20,33 +20,68 @@ const WorkDirectionRow: React.FC<WorkDirectionRowProps> = ({ direction, onSelect
     cancelled: 0
   };
 
-  // 상태별 뱃지 렌더링
+  // 상품그룹별 총 건수를 문자열로 변환 (D_3 / I_3 / V_2 형태)
+  const formatTotalByProdGrp = (): string => {
+    const pendingByGrp = statusCounts.pendingByProdGrp || {};
+    const completedByGrp = statusCounts.completedByProdGrp || {};
+
+    // 모든 상품그룹의 총 건수 계산
+    const totalByGrp: Record<string, number> = {};
+    [...Object.keys(pendingByGrp), ...Object.keys(completedByGrp)].forEach(grp => {
+      totalByGrp[grp] = (pendingByGrp[grp] || 0) + (completedByGrp[grp] || 0);
+    });
+
+    // 상품그룹 표시 순서: D, I, V, C
+    const order = ['D', 'I', 'V', 'C'];
+    const parts: string[] = [];
+    order.forEach(grp => {
+      if (totalByGrp[grp] && totalByGrp[grp] > 0) {
+        parts.push(`${grp}_${totalByGrp[grp]}`);
+      }
+    });
+    // 정의되지 않은 그룹도 포함 (순서 뒤에)
+    Object.keys(totalByGrp).forEach(grp => {
+      if (!order.includes(grp) && totalByGrp[grp] > 0) {
+        parts.push(`${grp}_${totalByGrp[grp]}`);
+      }
+    });
+    return parts.join(' / ');
+  };
+
+  // 상태별 뱃지 렌더링 (2줄: 상태 / 서비스건수)
   const renderStatusBadges = () => {
-    const badges: React.ReactNode[] = [];
+    // 2행: 서비스 건수 배지 (D_3 / I_3 / V_2)
+    const prodGrpText = formatTotalByProdGrp();
 
-    if (statusCounts.pending > 0) {
-      badges.push(
-        <span key="pending" className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800 border border-yellow-200">
-          진행중 {statusCounts.pending}
-        </span>
-      );
-    }
-    if (statusCounts.completed > 0) {
-      badges.push(
-        <span key="completed" className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 border border-green-200">
-          완료 {statusCounts.completed}
-        </span>
-      );
-    }
-    if (statusCounts.cancelled > 0) {
-      badges.push(
-        <span key="cancelled" className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800 border border-red-200">
-          취소 {statusCounts.cancelled}
-        </span>
-      );
-    }
+    // 상태 배지들 (1행용)
+    const statusBadges = (
+      <div className="flex items-center gap-1">
+        {statusCounts.pending > 0 && (
+          <span className="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-semibold bg-amber-50 text-amber-700 border border-amber-200">
+            진행 {statusCounts.pending}
+          </span>
+        )}
+        {statusCounts.completed > 0 && (
+          <span className="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
+            완료 {statusCounts.completed}
+          </span>
+        )}
+        {statusCounts.cancelled > 0 && (
+          <span className="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-semibold bg-rose-50 text-rose-700 border border-rose-200">
+            취소 {statusCounts.cancelled}
+          </span>
+        )}
+      </div>
+    );
 
-    return badges;
+    // 서비스 건수 배지 (2행용)
+    const serviceBadge = prodGrpText ? (
+      <span className="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium bg-slate-100 text-slate-600 border border-slate-200">
+        {prodGrpText}
+      </span>
+    ) : null;
+
+    return { statusBadges, serviceBadge };
   };
 
   const handleCall = (e: React.MouseEvent) => {
@@ -70,37 +105,46 @@ const WorkDirectionRow: React.FC<WorkDirectionRowProps> = ({ direction, onSelect
       style={{ WebkitTapHighlightColor: 'transparent' }}
     >
       <div className="p-4">
-        {/* 헤더: 고객명 + 상태 배지 */}
-        <div className="flex items-center justify-between mb-3">
-          <div className="flex items-center gap-2 flex-1 min-w-0">
-            {/* 시퀀스 번호 */}
-            {index !== undefined && (
-              <div className="flex-shrink-0 w-7 h-7 flex items-center justify-center rounded-full bg-blue-500 text-white text-sm font-bold">
-                {index}
+        {(() => {
+          const { statusBadges, serviceBadge } = renderStatusBadges();
+          return (
+            <>
+              {/* 1행: 번호 + 고객명 + 작업유형 (왼쪽) / 상태배지 (오른쪽) */}
+              <div className="flex items-center justify-between gap-2 mb-2">
+                <div className="flex items-center gap-2 min-w-0">
+                  {index !== undefined && (
+                    <div className="flex-shrink-0 w-7 h-7 flex items-center justify-center rounded-full bg-blue-500 text-white text-sm font-bold">
+                      {index}
+                    </div>
+                  )}
+                  <h3 className="font-bold text-gray-900 text-base truncate">
+                    {direction.customer.name}
+                  </h3>
+                  <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-50 text-blue-700 border border-blue-200 flex-shrink-0">
+                    {direction.typeDisplay}
+                  </span>
+                </div>
+                <div className="flex-shrink-0">
+                  {statusBadges}
+                </div>
               </div>
-            )}
-            <h3 className="font-bold text-gray-900 text-base truncate">
-              {direction.customer.name}
-            </h3>
-            <VipBadge customer={direction.customer} />
-          </div>
-          <div className="flex items-center gap-1.5 flex-shrink-0 flex-wrap justify-end">
-            {renderStatusBadges()}
-          </div>
-        </div>
 
-        {/* 작업 유형 + 날짜 */}
-        <div className="flex items-center gap-3 mb-3">
-          <span className="inline-flex items-center px-3 py-1.5 rounded-lg text-sm font-medium bg-blue-50 text-blue-700 border border-blue-200">
-            {direction.typeDisplay}
-          </span>
-          <div className="flex items-center gap-1.5 text-sm text-gray-600">
-            <svg className="w-4 h-4 text-gray-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-            <span>{formatDateTimeFromISO(direction.scheduledAt)}</span>
-          </div>
-        </div>
+              {/* 2행: 날짜 + VIP (왼쪽) / 서비스건수 (오른쪽) */}
+              <div className="flex items-center justify-between gap-2 mb-3">
+                <div className="flex items-center gap-2">
+                  <svg className="w-4 h-4 text-gray-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  <span className="text-sm text-gray-600">{formatDateTimeFromISO(direction.scheduledAt)}</span>
+                  <VipBadge customer={direction.customer} />
+                </div>
+                <div className="flex-shrink-0">
+                  {serviceBadge}
+                </div>
+              </div>
+            </>
+          );
+        })()}
 
         {/* 주소 */}
         <div className="flex items-start gap-2 mb-4">

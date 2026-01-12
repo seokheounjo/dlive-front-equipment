@@ -59,18 +59,26 @@ const WorkProcessFlow: React.FC<WorkProcessFlowProps> = ({ workItem, onComplete,
   // 작업 시작 시 장비 데이터 + 필터링 데이터 미리 로드 (3단계 진입 전에!)
   useEffect(() => {
     const loadEquipmentApiData = async () => {
-      if (workItem.CTRT_ID) {
+      // 상품변경(05) 작업은 DTL_CTRT_ID 사용, 그 외는 CTRT_ID 사용
+      const ctrtIdToUse = workItem.WRK_CD === '05'
+        ? (workItem.DTL_CTRT_ID || workItem.CTRT_ID)
+        : workItem.CTRT_ID;
+
+      if (ctrtIdToUse) {
         try {
           const userInfo = localStorage.getItem('userInfo');
           const user = userInfo ? JSON.parse(userInfo) : {};
 
+          console.log('[WorkProcessFlow] 장비 프리로드 - WRK_CD:', workItem.WRK_CD, 'CTRT_ID:', ctrtIdToUse);
+
           const response = await getTechnicianEquipments({
-            WRKR_ID: 'A20130708',
+            WRKR_ID: user.workerId || 'A20130708',
             SO_ID: workItem.SO_ID || user.soId,
-            WORK_ID: workItem.id,
-            CUST_ID: workItem.customer?.id,
+            WRK_ID: workItem.id,  // 레거시와 동일하게 WRK_ID 사용
+            CUST_ID: workItem.customer?.id || workItem.CUST_ID,
             RCPT_ID: workItem.RCPT_ID || null,
-            CTRT_ID: workItem.CTRT_ID || null,
+            CTRT_ID: ctrtIdToUse,
+            OLD_CTRT_ID: workItem.WRK_CD === '05' ? workItem.CTRT_ID : null,  // 상품변경용
             CRR_ID: workItem.CRR_ID || null,
             ADDR_ORD: workItem.ADDR_ORD || null,
             CRR_TSK_CL: workItem.WRK_CD || '',
@@ -88,6 +96,7 @@ const WorkProcessFlow: React.FC<WorkProcessFlowProps> = ({ workItem, onComplete,
             prodChgGb: response.prodChgGb,
             chgKpiProdGrpCd: response.chgKpiProdGrpCd,
             prodGrp: response.prodGrp,
+            upCtrlCl: response.upCtrlCl,
           };
 
           // 전체 API response 저장 (3단계에서 재사용)
@@ -97,12 +106,55 @@ const WorkProcessFlow: React.FC<WorkProcessFlowProps> = ({ workItem, onComplete,
           // 철거 작업(WRK_CD=02,08,09): API 응답의 회수 장비를 Store에 자동 저장
           // 3단계를 건너뛰어도 4단계에서 철거 신호 전송이 가능하도록
           const isRemovalWork = ['02', '08', '09'].includes(workItem.WRK_CD || '');
-          if (isRemovalWork && response.removedEquipments?.length > 0) {
+          if (isRemovalWork) {
+            // API 응답을 Complete 컴포넌트에서 사용할 수 있는 형태로 변환
+            const userInfo = localStorage.getItem('userInfo');
+            const user = userInfo ? JSON.parse(userInfo) : {};
+
+            const removals = (response.removedEquipments || []).map((eq: any) => ({
+              // 기본 필드
+              id: eq.EQT_NO,
+              type: eq.ITEM_MID_NM,
+              model: eq.EQT_CL_NM,
+              serialNumber: eq.EQT_SERNO,
+              itemMidCd: eq.ITEM_MID_CD,
+              eqtClCd: eq.EQT_CL_CD || eq.EQT_CL,
+              macAddress: eq.MAC_ADDRESS || eq.MAC_ADDR,
+
+              // 레거시 시스템 필수 필드
+              CUST_ID: workItem.customer?.id || workItem.CUST_ID,
+              CTRT_ID: workItem.CTRT_ID,
+              EQT_NO: eq.EQT_NO,
+              ITEM_CD: eq.ITEM_CD || '',
+              EQT_SERNO: eq.EQT_SERNO,
+              WRK_ID: workItem.id,
+              WRK_CD: workItem.WRK_CD,
+              // 장비분실처리 필수 필드 (TCMCT_EQT_LOSS_INFO.EQT_CL)
+              EQT_CL: eq.EQT_CL || eq.EQT_CL_CD || '',
+              EQT_CL_CD: eq.EQT_CL_CD || eq.EQT_CL || '',
+              ITEM_MID_CD: eq.ITEM_MID_CD || '',
+
+              // 기타 필드
+              SVC_CMPS_ID: eq.SVC_CMPS_ID || '',
+              BASIC_PROD_CMPS_ID: eq.BASIC_PROD_CMPS_ID || '',
+              MST_SO_ID: eq.MST_SO_ID || workItem.SO_ID || user.soId,
+              SO_ID: eq.SO_ID || workItem.SO_ID || user.soId,
+              REG_UID: user.userId || user.workerId || 'A20230019',
+
+              // 분실 상태 기본값 (3단계에서 수정 가능)
+              EQT_LOSS_YN: '0',
+              PART_LOSS_BRK_YN: '0',
+              EQT_BRK_YN: '0',
+              EQT_CABL_LOSS_YN: '0',
+              EQT_CRDL_LOSS_YN: '0',
+            }));
+
             setEquipmentData({
               installedEquipments: [],
-              removedEquipments: response.removedEquipments,
+              removedEquipments: removals,
               ...filtering
             });
+            console.log('[WorkProcessFlow] 철거 장비 자동 저장:', removals.length, '개');
           }
         } catch (error) {
           console.error('장비 API Pre-loading 실패:', error);
@@ -118,6 +170,12 @@ const WorkProcessFlow: React.FC<WorkProcessFlowProps> = ({ workItem, onComplete,
 
   // 3단계에서 장비 데이터 로드하는 함수 (동기적으로 데이터 반환)
   const loadEquipmentDataFromStorage = (): any => {
+    // 이미 Store에 장비 데이터가 있으면 그대로 사용 (철거 작업 등에서 EquipmentTerminate가 저장한 데이터)
+    if (equipmentData?.installedEquipments?.length > 0 || equipmentData?.removedEquipments?.length > 0) {
+      console.log('[WorkProcessFlow] Store에 이미 장비 데이터 있음 - 유지');
+      return equipmentData;
+    }
+
     const storageKey = `equipment_draft_${workItem.id}`;
     const savedDraft = localStorage.getItem(storageKey);
 
@@ -125,30 +183,118 @@ const WorkProcessFlow: React.FC<WorkProcessFlowProps> = ({ workItem, onComplete,
       try {
         const draftData = JSON.parse(savedDraft);
 
-        if (draftData.installedEquipments && draftData.installedEquipments.length > 0) {
-          const equipmentData = {
-            installedEquipments: draftData.installedEquipments,
-            removedEquipments: draftData.markedForRemoval || [],
+        // 설치 장비 또는 철거 장비가 있으면 데이터 반환
+        const hasInstalled = draftData.installedEquipments && draftData.installedEquipments.length > 0;
+        const hasRemoved = draftData.markedForRemoval && draftData.markedForRemoval.length > 0;
+
+        if (hasInstalled || hasRemoved) {
+          const userInfo = localStorage.getItem('userInfo');
+          const user = userInfo ? JSON.parse(userInfo) : {};
+
+          // 상품변경(05) 작업용 CTRT_ID
+          const ctrtIdForProductChange = workItem.DTL_CTRT_ID || workItem.CTRT_ID;
+
+          // markedForRemoval을 removedEquipments 형식으로 변환 (상품변경 필수 필드 추가)
+          const removedEquipments = (draftData.markedForRemoval || []).map((eq: any) => {
+            const status = draftData.removalStatus?.[eq.id] || {};
+            return {
+              ...eq,
+              id: eq.id,
+              type: eq.type,
+              model: eq.model,
+              serialNumber: eq.serialNumber,
+              itemMidCd: eq.itemMidCd,
+              EQT_NO: eq.id,
+              EQT_SERNO: eq.serialNumber,
+              ITEM_MID_CD: eq.itemMidCd,
+              EQT_CL_CD: eq.eqtClCd,
+              MAC_ADDRESS: eq.macAddress,
+              WRK_ID: workItem.id,
+              CUST_ID: workItem.customer?.id || workItem.CUST_ID,
+              CTRT_ID: ctrtIdForProductChange,
+              WRK_CD: workItem.WRK_CD,
+              // 상품변경(05) 필수 필드
+              CHG_YN: workItem.WRK_CD === '05' ? 'Y' : undefined,
+              SVC_CMPS_ID: eq.SVC_CMPS_ID || '',
+              BASIC_PROD_CMPS_ID: eq.BASIC_PROD_CMPS_ID || '',
+              MST_SO_ID: eq.MST_SO_ID || workItem.SO_ID || user.soId,
+              SO_ID: eq.SO_ID || workItem.SO_ID || user.soId,
+              REG_UID: user.userId || user.workerId || 'A20230019',
+              // 분실/파손 상태
+              EQT_LOSS_YN: status.EQT_LOSS_YN || '0',
+              PART_LOSS_BRK_YN: status.PART_LOSS_BRK_YN || '0',
+              EQT_BRK_YN: status.EQT_BRK_YN || '0',
+              EQT_CABL_LOSS_YN: status.EQT_CABL_LOSS_YN || '0',
+              EQT_CRDL_LOSS_YN: status.EQT_CRDL_LOSS_YN || '0',
+            };
+          });
+
+          // installedEquipments를 백엔드 형식으로 변환 (필수 필드 추가)
+          const installedEquipments = (draftData.installedEquipments || []).map((eq: any) => {
+            const actual = eq.actualEquipment || {};
+            const contract = eq.contractEquipment || {};
+
+            return {
+              actualEquipment: {
+                ...actual,
+                id: actual.id,
+                type: actual.type,
+                model: actual.model,
+                serialNumber: actual.serialNumber,
+                itemMidCd: actual.itemMidCd,
+                eqtClCd: actual.eqtClCd,
+                macAddress: eq.macAddress || actual.macAddress,
+                // 상품변경: actualEquipment에 없으면 contractEquipment에서 가져옴
+                BASIC_PROD_CMPS_ID: actual.BASIC_PROD_CMPS_ID || contract.BASIC_PROD_CMPS_ID || '',
+                EQT_PROD_CMPS_ID: actual.EQT_PROD_CMPS_ID || contract.SVC_CMPS_ID || contract.id,
+                PROD_CD: actual.PROD_CD || contract.PROD_CD || workItem.PROD_CD,
+                SVC_CD: actual.SVC_CD || contract.SVC_CD || '',
+                SVC_CMPS_ID: actual.SVC_CMPS_ID || contract.SVC_CMPS_ID || contract.id,
+                EQT_SALE_AMT: actual.EQT_SALE_AMT || '0',
+                MST_SO_ID: actual.MST_SO_ID || workItem.SO_ID || user.soId,
+                SO_ID: actual.SO_ID || workItem.SO_ID || user.soId,
+                OLD_LENT_YN: actual.OLD_LENT_YN || 'N',
+                LENT: actual.LENT || '10',
+                ITLLMT_PRD: actual.ITLLMT_PRD || '00',
+                EQT_USE_STAT_CD: actual.EQT_USE_STAT_CD || '1',
+                EQT_CHG_GB: actual.EQT_CHG_GB || '1',
+                IF_DTL_ID: actual.IF_DTL_ID || '',
+              },
+              contractEquipment: {
+                ...contract,
+                id: contract.id,
+                SVC_CMPS_ID: contract.SVC_CMPS_ID || contract.id,
+                BASIC_PROD_CMPS_ID: contract.BASIC_PROD_CMPS_ID || '',
+                PROD_CD: contract.PROD_CD || '',
+                SVC_CD: contract.SVC_CD || '',
+              },
+              macAddress: eq.macAddress || actual.macAddress,
+            };
+          });
+
+          const loadedData = {
+            installedEquipments: installedEquipments,
+            removedEquipments: removedEquipments,
             kpiProdGrpCd: filteringData?.kpiProdGrpCd || draftData.kpiProdGrpCd,
             prodChgGb: filteringData?.prodChgGb || draftData.prodChgGb,
             chgKpiProdGrpCd: filteringData?.chgKpiProdGrpCd || draftData.chgKpiProdGrpCd,
             prodGrp: filteringData?.prodGrp || draftData.prodGrp,
+            upCtrlCl: filteringData?.upCtrlCl || draftData.upCtrlCl,
           };
-          return equipmentData;
+          console.log('[WorkProcessFlow] localStorage에서 장비 데이터 로드:', {
+            installed: loadedData.installedEquipments.length,
+            removed: loadedData.removedEquipments.length,
+            첫번째장비_PROD_CD: installedEquipments[0]?.actualEquipment?.PROD_CD,
+            첫번째장비_SVC_CMPS_ID: installedEquipments[0]?.actualEquipment?.SVC_CMPS_ID,
+          });
+          return loadedData;
         }
       } catch (error) {
         console.error('장비 데이터 로드 실패:', error);
       }
     }
 
-    if (filteringData) {
-      return {
-        installedEquipments: [],
-        removedEquipments: [],
-        ...filteringData
-      };
-    }
-
+    // localStorage에도 없으면 null 반환 (Store 데이터 덮어쓰지 않음)
     return null;
   };
 
@@ -169,10 +315,11 @@ const WorkProcessFlow: React.FC<WorkProcessFlowProps> = ({ workItem, onComplete,
     document.body.scrollTop = 0;
   };
 
-  const handleNext = () => {
+  const handleNext = (skipEquipmentLoad = false) => {
     if (currentStep < 4) {
       // 3단계에서 벗어날 때 장비 데이터 먼저 로드하고 상태 설정
-      if (currentStep === 3) {
+      // skipEquipmentLoad=true면 이미 저장된 데이터 사용 (handleEquipmentSave에서 호출 시)
+      if (currentStep === 3 && !skipEquipmentLoad) {
         const data = loadEquipmentDataFromStorage();
         if (data) {
           setEquipmentData(data);
@@ -212,7 +359,7 @@ const WorkProcessFlow: React.FC<WorkProcessFlowProps> = ({ workItem, onComplete,
 
   const handleEquipmentSave = (data: any) => {
     setEquipmentData(data);
-    handleNext();
+    handleNext(true); // 이미 데이터 저장했으므로 loadEquipmentDataFromStorage 건너뜀
   };
 
   const handleWorkComplete = () => {
@@ -314,6 +461,7 @@ const WorkProcessFlow: React.FC<WorkProcessFlowProps> = ({ workItem, onComplete,
             workItem={workItem}
             onNext={handleNext}
             onBack={handlePrevious}
+            showToast={showToast}
           />
         );
       case 3:
@@ -337,6 +485,11 @@ const WorkProcessFlow: React.FC<WorkProcessFlowProps> = ({ workItem, onComplete,
             showToast={showToast}
             equipmentData={equipmentData || filteringData}
             readOnly={isWorkCompleted}
+            onEquipmentRefreshNeeded={() => {
+              // Invalidate equipment cache to force refresh when going back to equipment step
+              console.log('[WorkProcessFlow] 장비이전 성공 - 장비 캐시 무효화');
+              setPreloadedEquipmentApiData(null);
+            }}
           />
         );
       default:

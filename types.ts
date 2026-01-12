@@ -115,9 +115,16 @@ export interface WorkItem {
 
   // 상품 정보
   PROD_NM?: string;        // 상품명
+  OLD_PROD_CD?: string;    // 이전 상품코드 (상품변경 시)
+  OLD_PROD_NM?: string;    // 이전 상품명 (상품변경 시)
+  currentProduct?: string; // 현재(이전) 상품 - 상품변경 상세정보용
+  newProduct?: string;     // 변경(새) 상품 - 상품변경 상세정보용
   PROD_GRP?: string;       // 상품 그룹 (D:DTV, V:VoIP, I:Internet, C:Cable)
   KPI_PROD_GRP_CD?: string; // KPI 상품그룹코드 (C:번들, D:DTV, I:인터넷) - 인입선로 철거관리 조건에 사용
+  PROD_CHG_GB?: string;    // 상품변경구분 (01:설치, 02:철거) - 설치유형 필터링에 사용
+  CHG_KPI_PROD_GRP_CD?: string; // 변경 KPI 상품그룹코드 - 상품변경 시 설치유형 필터링에 사용
   VOIP_CTX?: string;       // VoIP 컨텍스트 (T/R인 경우 인입선로 모달 제외)
+  VIP_GB?: string;         // VIP 구분 (VIP_TOP, VIP_VVIP 등)
 
   // 납부방법/약정정보
   PYM_MTHD?: string;       // 납부방법
@@ -153,11 +160,13 @@ export interface WorkItem {
   UPYM_AMT?: string;           // 총미납금
 
   // 추가 작업 관련 정보
+  MST_SO_ID?: string;      // 마스터 지점 ID (장비이관에 필요)
   SO_ID?: string;          // 지점 ID
   PROD_CD?: string;        // 상품 코드
   ADDR_ORD?: string;       // 주소 순번
   CRR_ID?: string;         // 권역/통신사 ID
   BLD_ID?: string;         // 건물 ID
+  WRKR_ID?: string;        // 작업자 ID (장비이관에 필요)
 
   // A/S 작업 관련 (WRK_CD = '03')
   asHistory?: ASHistory[];   // A/S 이력
@@ -338,6 +347,16 @@ export interface RemoveEquipmentInfo {
   RETN_RESN_CD?: string;    // 반납 사유 코드
   EQT_NM?: string;          // 장비명
   EQT_SERNO?: string;       // 장비 시리얼 번호
+  // 레거시 필수 필드 (mowoa03m02.xml 기준)
+  CRR_TSK_CL?: string;      // 작업구분 (02: 철거)
+  RCPT_ID?: string;         // 접수 ID
+  WRK_ID?: string;          // 작업 ID
+  CRR_ID?: string;          // 권역 ID
+  WRKR_ID?: string;         // 작업자 ID
+  REG_UID?: string;         // 등록 사용자 ID
+  EQT_LOSS_YN?: string;     // 분실 여부 (Y/N)
+  EQT_BRK_YN?: string;      // 파손 여부 (Y/N)
+  REUSE_YN?: string;        // 재사용 여부 (1: 재사용)
 }
 
 // 작업 완료 - 약관 동의 정보
@@ -577,6 +596,9 @@ export interface SmsSendData {
 
 // SMS 메시지 유형 상수 (레거시 mowoa01p01.xml ds_msg_id 기준)
 // Legacy mowoa01p01.xml ds_msg_id
+// WK: 모든 작업에서 사용 가능
+// AS: A/S 작업(WRK_CD='03')에서만 사용 가능
+// 레거시 mowoa01p01.xml ds_msg_id 순서대로 정렬
 export const SMS_MESSAGE_TYPES: SmsMessageType[] = [
   {
     code: '020',
@@ -588,7 +610,7 @@ export const SMS_MESSAGE_TYPES: SmsMessageType[] = [
   {
     code: '021',
     name: '지연양해문자',
-    template: '[$1] 앞작업의 지연으로 약속시간보다 늦겠사오니 양해바랍니다.',
+    template: '[$1] 앞작업의 지연으로 약속시간보다 분 늦겠사오니 양해바랍니다.',
     kkoMsgId: 'KKO021_001',
     refCode: 'WK'
   },
@@ -605,5 +627,130 @@ export const SMS_MESSAGE_TYPES: SmsMessageType[] = [
     template: '[$1] 시경에 [$2] 기사 방문시 부재로 [$3] 처리를 못하고 갑니다.',
     kkoMsgId: 'KKO028_001',
     refCode: 'WK'
+  },
+  {
+    code: '138',
+    name: '장애복구안내',
+    template: '[$1]장애가 복구되었습니다. 확인후 이용불가시 연락바랍니다.',
+    kkoMsgId: 'KKO138_003',
+    refCode: 'AS'
+  },
+  {
+    code: '139',
+    name: '망장애안내',
+    template: '[$1]AS신청하신 지역에 장애가 발생하여 외부조치중입니다.점검후 연락예정:$2',
+    kkoMsgId: 'KKO139_001',
+    refCode: 'AS'
+  },
+  {
+    code: '141',
+    name: '현장마케팅수신동의',
+    template: '[$1][$2]',
+    kkoMsgId: 'KKO141_001',
+    refCode: 'AS'
+  },
+  {
+    code: '059_002',
+    name: 'KB국민카드신청안내',
+    template: '[$1][$2]',
+    kkoMsgId: 'KKO059_002',
+    refCode: 'WK'
+  },
+  {
+    code: '059',
+    name: '더심플하나카드URL안내',
+    template: '[$1][$2]',
+    kkoMsgId: 'KKO059_001',
+    refCode: 'WK'
+  },
+  {
+    code: '271',
+    name: '고객센터안내',
+    template: '[딜라이브] 고객센터 1644-1100 입니다. 감사합니다.',
+    kkoMsgId: 'KKO271_001',
+    refCode: 'AS'
+  },
+  {
+    code: '235',
+    name: '(제휴)하나렌탈플러스카드',
+    template: '[$1] [$2]',
+    kkoMsgId: 'KKO059_002',
+    refCode: 'WK'
+  },
+  {
+    code: '059_005',
+    name: '(제휴)롯데로카SE카드',
+    template: '[$1] [$2]',
+    kkoMsgId: 'KKO059_002',
+    refCode: 'WK'
   }
 ];
+
+// ========================================
+// Alarm API Types (계약정보 알림)
+// ========================================
+
+// 작업 알림 정보 (getWorkAlarmInfo)
+export interface WorkAlarmInfo {
+  HD_PLUS_YN?: string;        // HD+ 여부
+  VOD_COUPON?: string;        // VOD 쿠폰
+  COUPON_VAL?: string;        // 쿠폰 금액
+  PYM_MTHD?: string;          // 결제 방법 (01=자동이체)
+  ATMT_YN?: string;           // 자동이체 여부
+  WRK_CD?: string;            // 작업 코드
+  RLNM_AUTH_YN_NM?: string;   // 실명인증 상태명
+  SO_ID?: string;             // 사업소 ID
+  PIN_NO?: string;            // PIN 번호
+  FACE_VALUE?: string;        // 금면
+  CUST_ID?: string;           // 고객 ID
+  AS_RCPT_ORD?: string;       // AS 접수 주문
+  BIZ_CL?: string;            // 업종 분류
+  OTT_SALE_DESC?: string;     // OTT 판매 설명
+  BUNDLE_ISP_TG?: string;     // 번들 상품 유무 (Y/N)
+  CUST_VOD_AMT?: string;      // 고객 VOD 금액
+  [key: string]: any;
+}
+
+// VOD 6개월 사용 날짜 (getVod6MonUseDate)
+export interface Vod6MonUseDateInfo {
+  max_dt?: string;            // 마지막 VOD 요청 날짜 (YYYYMMDD)
+  [key: string]: any;
+}
+
+// 특수 고객 VOD5K 정보 (getSpecialCust4VOD5K)
+export interface SpecialCustVod5kInfo {
+  BIGO?: string;              // 특수 비고
+  SPECIAL_GB?: string;        // 특수 유형
+  [key: string]: any;
+}
+
+// 고객 특수 비고 (getCustSpecialBigo)
+export interface CustSpecialBigoInfo {
+  SPECIAL_GB?: string;        // 특수 유형 (G=일반)
+  BIGO?: string;              // 특수 비고
+  ATTN_CUST_YN?: string;      // 주의 고객 여부
+  [key: string]: any;
+}
+
+// 모든 알림 정보 통합 (getAllAlarmInfo)
+export interface AllAlarmInfo {
+  workAlarm?: WorkAlarmInfo;
+  vodLastDate?: Vod6MonUseDateInfo;
+  specialVod5k?: SpecialCustVod5kInfo;
+  specialBigo?: CustSpecialBigoInfo[];
+  INFO_SMS_RCV_YN?: string;  // 홍보문자 수신동의 (Y=동의, N=거부) from customerManagerDao.getCustInfo
+  [key: string]: any;
+}
+
+// 고객 정보 SMS 수신 여부 (getCustomerInfoSmsRecv)
+export interface CustomerInfoSmsRecvInfo {
+  INFO_SMS_RCV_YN?: string;   // SMS 수신 동의 여부 (Y=동의, N=거부)
+  custBasicInfo?: {           // 고객 기본 정보 (ds_cust_basic_info)
+    INFO_SMS_RCV_YN?: string;
+    [key: string]: any;
+  };
+  custAddInfo?: {             // 고객 추가 정보 (ds_cust_add_info)
+    [key: string]: any;
+  };
+  [key: string]: any;
+}

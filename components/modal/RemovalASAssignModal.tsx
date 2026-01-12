@@ -12,6 +12,20 @@ interface RemovalASAssignModalProps {
   addrOrd: string;
   address: string;
   showToast?: (message: string, type: 'success' | 'error' | 'warning' | 'info') => void;
+  // Address info for AS assignment (from order data)
+  addressInfo?: {
+    POST_ID?: string;
+    BLD_ID?: string;
+    BLD_CL?: string;
+    BLD_NM?: string;
+    BUN_CL?: string;
+    BUN_NO?: string;
+    HO_NM?: string;
+    APT_DONG_NO?: string;
+    APT_HO_CNT?: string;
+    ADDR?: string;
+    ADDR_DTL?: string;
+  };
 }
 
 export interface ASAssignData {
@@ -32,6 +46,18 @@ export interface ASAssignData {
   REMOVE_LINE_TP: string;
   REMOVE_GB: string;
   REMOVE_STAT: string;
+  // Address fields (legacy ds_cust_info)
+  POST_ID?: string;
+  BLD_ID?: string;
+  BLD_CL?: string;
+  BLD_NM?: string;
+  BUN_CL?: string;
+  BUN_NO?: string;
+  HO_NM?: string;
+  APT_DONG_NO?: string;
+  APT_HO_CNT?: string;
+  ADDR?: string;
+  ADDR_DTL?: string;
 }
 
 // 미철거 사유 → AS접수상세 매핑
@@ -50,7 +76,8 @@ const RemovalASAssignModal: React.FC<RemovalASAssignModalProps> = ({
   custNm,
   addrOrd,
   address,
-  showToast
+  showToast,
+  addressInfo
 }) => {
   // 작업희망일
   const [hopeDate, setHopeDate] = useState<string>('');
@@ -78,19 +105,32 @@ const RemovalASAssignModal: React.FC<RemovalASAssignModalProps> = ({
     if (isOpen) {
       const now = new Date();
       const year = now.getFullYear();
-      const month = String(now.getMonth() + 1).padStart(2, '0');
-      const day = String(now.getDate()).padStart(2, '0');
-      setHopeDate(`${year}-${month}-${day}`);
+      const month = now.getMonth(); // 0-indexed
 
-      const currentHour = now.getHours();
-      if (currentHour >= 9 && currentHour <= 21) {
-        setHopeHour(String(currentHour).padStart(2, '0'));
+      // 해당월 말일 계산
+      const lastDayOfMonth = new Date(year, month + 1, 0).getDate();
+      const today = now.getDate();
+
+      // 마지막 주 판단 (해당월의 마지막 7일)
+      const isLastWeek = today > lastDayOfMonth - 7;
+
+      let defaultDate: Date;
+      if (isLastWeek) {
+        // 익월 말일
+        defaultDate = new Date(year, month + 2, 0);
       } else {
-        setHopeHour('10');
+        // 해당월 말일
+        defaultDate = new Date(year, month + 1, 0);
       }
 
-      const currentMinute = Math.floor(now.getMinutes() / 10) * 10;
-      setHopeMinute(String(currentMinute).padStart(2, '0'));
+      const dateYear = defaultDate.getFullYear();
+      const dateMonth = String(defaultDate.getMonth() + 1).padStart(2, '0');
+      const dateDay = String(defaultDate.getDate()).padStart(2, '0');
+      setHopeDate(`${dateYear}-${dateMonth}-${dateDay}`);
+
+      // 기본 시간: 10:00 고정 (수정 가능)
+      setHopeHour('10');
+      setHopeMinute('00');
 
       setMemo('');
     }
@@ -146,6 +186,18 @@ const RemovalASAssignModal: React.FC<RemovalASAssignModalProps> = ({
       REMOVE_LINE_TP: removalLineData?.REMOVE_LINE_TP || '',
       REMOVE_GB: removalLineData?.REMOVE_GB || '',
       REMOVE_STAT: removalLineData?.REMOVE_STAT || '',
+      // Address fields (legacy ds_cust_info)
+      POST_ID: addressInfo?.POST_ID || '',
+      BLD_ID: addressInfo?.BLD_ID || '',
+      BLD_CL: addressInfo?.BLD_CL || '',
+      BLD_NM: addressInfo?.BLD_NM || '',
+      BUN_CL: addressInfo?.BUN_CL || '',
+      BUN_NO: addressInfo?.BUN_NO || '',
+      HO_NM: addressInfo?.HO_NM || '',
+      APT_DONG_NO: addressInfo?.APT_DONG_NO || '',
+      APT_HO_CNT: addressInfo?.APT_HO_CNT || '',
+      ADDR: addressInfo?.ADDR || address || '',
+      ADDR_DTL: addressInfo?.ADDR_DTL || '',
     };
 
     onSave(data);
@@ -309,7 +361,7 @@ const RemovalASAssignModal: React.FC<RemovalASAssignModalProps> = ({
             onClick={handleSave}
             className="w-full py-2 sm:py-3 bg-purple-600 hover:bg-purple-700 text-white rounded-lg font-bold transition-colors text-sm sm:text-base"
           >
-            저장
+            확인
           </button>
         </div>
       </div>

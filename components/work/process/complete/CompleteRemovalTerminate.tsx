@@ -1,14 +1,18 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
+import { Calendar, AlertCircle } from 'lucide-react';
 import { WorkOrder, WorkCompleteData } from '../../../../types';
-import { getCommonCodeList, CommonCode, insertWorkRemoveStat, modAsPdaReceipt, getWorkReceiptDetail } from '../../../../services/apiService';
+import { getCommonCodeList, CommonCode, insertWorkRemoveStat, modAsPdaReceipt, getWorkReceiptDetail, sendSignal, getMoveWorkInfo, setCertifyCL06, getCertifyCL08, getLghvProdMap, getCertifyProdMap, getMmtSusInfo, modMmtSusInfo } from '../../../../services/apiService';
 import Select from '../../../ui/Select';
 import InstallInfoModal, { InstallInfoData } from '../../../modal/InstallInfoModal';
 import IntegrationHistoryModal from '../../../modal/IntegrationHistoryModal';
 import HotbillSection from '../HotbillSection';
-import RemovalLineManageModal, { RemovalLineData } from '../../../modal/RemovalLineManageModal';
+import RemovalLineSection, { RemovalLineData } from '../RemovalLineSection';
 import RemovalASAssignModal, { ASAssignData } from '../../../modal/RemovalASAssignModal';
 import ConfirmModal from '../../../common/ConfirmModal';
+import WorkCompleteSummary from '../WorkCompleteSummary';
+import MoveWorkInfoModal from '../modals/MoveWorkInfoModal';
 import { useWorkProcessStore } from '../../../../stores/workProcessStore';
+import { useWorkEquipment } from '../../../../stores/workEquipmentStore';
 import { useCompleteWork } from '../../../../hooks/mutations/useCompleteWork';
 import '../../../../styles/buttons.css';
 
@@ -55,8 +59,27 @@ const CompleteRemovalTerminate: React.FC<CompleteRemovalTerminateProps> = ({
   const [isDataLoaded, setIsDataLoaded] = useState(false);
 
   // Zustand Store
-  const { equipmentData: storeEquipmentData, filteringData } = useWorkProcessStore();
-  const equipmentData = storeEquipmentData || legacyEquipmentData || filteringData;
+  const { equipmentData: storeEquipmentData, filteringData, removalLineData: storeRemovalLineData, setRemovalLineData: setStoreRemovalLineData } = useWorkProcessStore();
+
+  // Zustand Equipment Store - 장비 컴포넌트에서 등록한 장비 정보
+  const workId = order.id || '';
+  const zustandEquipment = useWorkEquipment(workId);
+
+  // equipmentData 병합: Zustand Equipment Store 우선 사용
+  // 이전철거 작업(WRK_CD=08)은 removeEquipments(API output5)를 사용 (markedForRemoval은 AS/상품변경용)
+  const equipmentData = {
+    ...(storeEquipmentData || legacyEquipmentData || filteringData || {}),
+    installedEquipments: zustandEquipment.installedEquipments.length > 0
+      ? zustandEquipment.installedEquipments
+      : (storeEquipmentData?.installedEquipments || legacyEquipmentData?.installedEquipments || []),
+    // 이전철거: zustandEquipment.removeEquipments (API output5) 우선 사용
+    removedEquipments: zustandEquipment.removeEquipments.length > 0
+      ? zustandEquipment.removeEquipments
+      : (storeEquipmentData?.removedEquipments || legacyEquipmentData?.removedEquipments || []),
+    removalStatus: Object.keys(zustandEquipment.removalStatus).length > 0
+      ? zustandEquipment.removalStatus
+      : (storeEquipmentData?.removalStatus || legacyEquipmentData?.removalStatus || {}),
+  };
 
   // React Query Mutation
   const { mutate: submitWork, isPending: isLoading } = useCompleteWork();
@@ -86,22 +109,51 @@ const CompleteRemovalTerminate: React.FC<CompleteRemovalTerminateProps> = ({
   // 연동이력 모달
   const [showIntegrationHistoryModal, setShowIntegrationHistoryModal] = useState(false);
 
-
-  // 인입선로 철거관리 모달
-  const [showRemovalLineModal, setShowRemovalLineModal] = useState(false);
-  const [removalLineData, setRemovalLineData] = useState<RemovalLineData | null>(null);
+  // 인입선로 철거관리 데이터 (store에서 관리 - 스텝 이동해도 유지)
+  const removalLineData = storeRemovalLineData as RemovalLineData | null;
+  const setRemovalLineData = setStoreRemovalLineData;
 
   // AS할당 모달
   const [showASAssignModal, setShowASAssignModal] = useState(false);
   const [isASProcessing, setIsASProcessing] = useState(false);
 
+  // 이전설치정보 모달 (레거시 btn_move_info - "이전설치정보")
+  const [showMoveWorkInfoModal, setShowMoveWorkInfoModal] = useState(false);
+  const [moveWorkInfoData, setMoveWorkInfoData] = useState<any>(null);
+
+  // 신호 전송 결과 (레거시: IFSVC_CHK, IFSVC_SEND_YN)
+  const [signalSent, setSignalSent] = useState(false);
+  const [signalResult, setSignalResult] = useState<{ success: boolean; message: string } | null>(null);
 
   // 작업완료 확인 모달
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [confirmMessage, setConfirmMessage] = useState('');
 
+  // 단말인증 관련 (레거시: fn_certify_cl06, fn_certify_cl08)
+  const [showCertifyButtons, setShowCertifyButtons] = useState(false);
+  const [certifyProcessing, setCertifyProcessing] = useState(false);
+  const [certifyStatus, setCertifyStatus] = useState<'none' | 'success' | 'error'>('none');
+  const [certifyMessage, setCertifyMessage] = useState('');
+  // LGHV STB 상품 여부 (레거시: bLghvStb)
+  const [isLghvStb, setIsLghvStb] = useState(false);
+
   // 공통코드 옵션
   const [custRelOptions, setCustRelOptions] = useState<{ value: string; label: string }[]>([]);
+
+  // 정지기간 상태 (레거시: mowoDivE02.xml btn_mmt_sus_dd - WRK_CD=02,04,08,09)
+  const [susInfo, setSusInfo] = useState<{
+    SUS_HOPE_DD: string;
+    MMT_SUS_HOPE_DD: string;
+    VALID_SUS_DAYS: string;
+    MMT_SUS_CD: string;
+    WRK_DTL_TCD: string;
+  } | null>(null);
+  const [susLoading, setSusLoading] = useState(false);
+  const [susNewEndDate, setSusNewEndDate] = useState('');
+  const [susCanEdit, setSusCanEdit] = useState(false);
+  const [susError, setSusError] = useState<string | null>(null);
+  const [susSaving, setSusSaving] = useState(false);
+  const [susPendingSave, setSusPendingSave] = useState(false);
 
   // 작업처리일
   const [workCompleteDate, setWorkCompleteDate] = useState(() => {
@@ -142,13 +194,15 @@ const CompleteRemovalTerminate: React.FC<CompleteRemovalTerminateProps> = ({
       const fetchCompletedWorkDetail = async () => {
         try {
           const detail = await getWorkReceiptDetail({
-            WRK_DRCTN_ID: order.directionId || order.id,
-            WRK_ID: (order as any).WRK_ID,
+            WRK_DRCTN_ID: order.directionId || order.WRK_DRCTN_ID || '',
+            WRK_ID: order.id,  // order.id가 실제 WRK_ID
             SO_ID: order.SO_ID
           });
 
           if (detail) {
             console.log('[WorkCompleteRemovalTerminate] API 응답:', detail);
+            setCustRel(detail.CUST_REL || '');
+            setMemo((detail.MEMO || '').replace(/\\n/g, '\n'));
             setNetworkType(detail.NET_CL || '');
             setNetworkTypeName(detail.NET_CL_NM || '');
 
@@ -237,7 +291,7 @@ const CompleteRemovalTerminate: React.FC<CompleteRemovalTerminateProps> = ({
     localStorage.setItem(getStorageKey(), JSON.stringify(draftData));
   }, [custRel, memo, networkType, networkTypeName, installInfoData, cnfmCustNm, cnfmCustTelno, reuseYn, isDataLoaded, isWorkCompleted]);
 
-  // 공통코드 로드
+  // 공통코드 로드 및 단말인증/LGHV 체크
   useEffect(() => {
     const loadInitialData = async () => {
       try {
@@ -248,26 +302,139 @@ const CompleteRemovalTerminate: React.FC<CompleteRemovalTerminateProps> = ({
             value: code.COMMON_CD, label: code.COMMON_CD_NM
           })));
         }
+
+        // LGHV 상품맵 조회 (레거시: fn_getLghvProdMap)
+        const lghvProdList = await getLghvProdMap();
+        if (lghvProdList && lghvProdList.length > 0) {
+          // 현재 상품이 LGHV STB인지 확인
+          const prodCd = order.PROD_CD || (order as any).BASIC_PROD_CD || '';
+          const isLghv = lghvProdList.some(item => item.PROD_CD === prodCd);
+          setIsLghvStb(isLghv);
+          console.log('[WorkCompleteRemovalTerminate] LGHV STB 체크:', { prodCd, isLghv });
+        }
+
+        // 단말인증 버튼 표시 조건 (레거시: mowoa03m08.xml 391~395)
+        // CERTIFY_TG='Y' 이고, 인증 대상 SO/상품인 경우
+        const certifyTg = (order as any).CERTIFY_TG || '';
+        if (certifyTg === 'Y') {
+          // 단말인증 상품맵 조회
+          const certifyProdList = await getCertifyProdMap();
+          const newProdCd = (order as any).NEW_PROD_CD || order.PROD_CD || '';
+          const soId = order.SO_ID || '';
+
+          // 단말인증 대상 여부 확인
+          const isCertifyProd = certifyProdList.some(item => item.PROD_CD === newProdCd);
+          console.log('[WorkCompleteRemovalTerminate] 단말인증 체크:', { certifyTg, newProdCd, soId, isCertifyProd });
+
+          // 레거시: nNewPrdRow < 0 이거나 SO_ID가 인증 SO가 아닌 경우 버튼 표시
+          if (!isCertifyProd) {
+            setShowCertifyButtons(true);
+          }
+        }
       } catch (error) {
         console.error('[WorkCompleteRemovalTerminate] 초기 데이터 로드 실패:', error);
       }
     };
 
     loadInitialData();
-  }, []);
+  }, [order]);
+
+  // 정지기간 헬퍼 함수들
+  const formatDateForInput = (yyyymmdd: string): string => {
+    if (!yyyymmdd || yyyymmdd.length !== 8) return '';
+    return `${yyyymmdd.slice(0, 4)}-${yyyymmdd.slice(4, 6)}-${yyyymmdd.slice(6, 8)}`;
+  };
+  const formatDateForApi = (isoDate: string): string => isoDate.replace(/-/g, '');
+  const getTodayString = (): string => new Date().toISOString().slice(0, 10).replace(/-/g, '');
+  const calculateSusDays = (startDate: string, endDate: string): number => {
+    if (!startDate || !endDate) return 0;
+    const start = new Date(formatDateForInput(startDate));
+    const end = new Date(formatDateForInput(endDate));
+    return Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24));
+  };
+
+  // 정지기간 정보 조회 (레거시: getMmtSusInfo)
+  const fetchSuspensionInfo = useCallback(async () => {
+    const rcptId = order.RCPT_ID || '';
+    const ctrtId = order.CTRT_ID || '';
+    if (!rcptId || !ctrtId) return;
+
+    setSusLoading(true);
+    setSusError(null);
+
+    try {
+      const info = await getMmtSusInfo({ RCPT_ID: rcptId, CTRT_ID: ctrtId });
+      console.log('[CompleteRemovalTerminate] 정지기간 조회 결과:', info);
+
+      if (info) {
+        setSusInfo(info);
+        setSusNewEndDate(formatDateForInput(info.MMT_SUS_HOPE_DD));
+
+        const today = getTodayString();
+        if (info.WRK_DTL_TCD === '0430' && info.MMT_SUS_HOPE_DD <= today) {
+          setSusCanEdit(true);
+          showToast?.('이용정지기간 종료일이 경과되었습니다. 이용정지기간을 다시 설정하십시오.', 'warning');
+        } else {
+          setSusCanEdit(false);
+        }
+      }
+    } catch (err: any) {
+      console.error('[CompleteRemovalTerminate] 정지기간 조회 실패:', err);
+      setSusError(err.message || '정지기간 정보 조회 실패');
+    } finally {
+      setSusLoading(false);
+    }
+  }, [order.RCPT_ID, order.CTRT_ID, showToast]);
+
+  useEffect(() => {
+    fetchSuspensionInfo();
+  }, [fetchSuspensionInfo]);
+
+  // 정지기간 종료일 변경 핸들러
+  const handleSusEndDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const newDate = e.target.value;
+    setSusNewEndDate(newDate);
+    setSusError(null);
+
+    if (!susInfo) return;
+
+    const startDateStr = formatDateForInput(susInfo.SUS_HOPE_DD);
+    if (newDate < startDateStr) {
+      setSusError('종료일은 시작일 이후로 설정해주세요.');
+      return;
+    }
+
+    if (susInfo.VALID_SUS_DAYS && parseInt(susInfo.VALID_SUS_DAYS) > 0) {
+      const validDays = parseInt(susInfo.VALID_SUS_DAYS);
+      const startDate = new Date(startDateStr);
+      const maxEndDate = new Date(startDate);
+      maxEndDate.setDate(maxEndDate.getDate() + validDays - 1);
+
+      if (new Date(newDate) > maxEndDate) {
+        setSusError(`해당 정지유형의 이용정지기간은 ${maxEndDate.toISOString().slice(0, 10)} 까지 가능합니다.`);
+      }
+    }
+  };
+
+  // 정지기간 임시저장 핸들러 (작업완료 시 API 호출)
+  const handleSusSave = () => {
+    if (!susInfo || !susNewEndDate) return;
+
+    const startDateStr = formatDateForInput(susInfo.SUS_HOPE_DD);
+    if (susNewEndDate < startDateStr) {
+      showToast?.('종료일은 시작일 이후로 설정해주세요.', 'error');
+      return;
+    }
+
+    // 임시저장 - 작업완료 시 API 호출됨
+    setSusPendingSave(true);
+    setSusCanEdit(false);
+    showToast?.('정지기간이 임시저장되었습니다. 작업완료 시 반영됩니다.', 'info');
+  };
 
   // 검증 - 철거해지는 NET_CL, INSTL_TP 필수 (레거시 동일)
-  // 레거시: 고객명, 고객관계, 연락처 필수 (mowoa03m08.xml 801~808)
   const validate = (): string[] => {
     const errors: string[] = [];
-    // 고객명 필수
-    if (!cnfmCustNm || cnfmCustNm.trim() === '') {
-      errors.push('고객명을 입력해주세요.');
-    }
-    // 연락처 필수
-    if (!cnfmCustTelno || cnfmCustTelno.trim() === '') {
-      errors.push('연락처를 입력해주세요.');
-    }
     if (!custRel || custRel === '[]') {
       errors.push('고객과의 관계를 선택해주세요.');
     }
@@ -280,10 +447,16 @@ const CompleteRemovalTerminate: React.FC<CompleteRemovalTerminateProps> = ({
     }
     if (!installInfoData?.INSTL_TP) {
       errors.push('철거정보에서 설치유형을 선택해주세요.');
+    } else if (installInfoData.INSTL_TP !== '77') {
+      // 레거시 mowoa03m08.xml:816 - 이전철거는 설치유형 '77'(철거) 필수
+      errors.push('이전철거 작업은 설치유형이 "철거(77)"이어야 합니다.');
     }
     if (!workCompleteDate) {
       errors.push('작업처리일을 선택해주세요.');
     }
+
+    // 레거시: 철거장비 없어도 작업완료 가능 (신호전송만 skip)
+
     return errors;
   };
 
@@ -295,43 +468,230 @@ const CompleteRemovalTerminate: React.FC<CompleteRemovalTerminateProps> = ({
     showToast?.('철거 정보가 저장되었습니다.', 'success');
   };
 
-  // 인입선로 철거관리 - 완료(완전철거) 핸들러
-  const handleRemovalLineComplete = async (data: RemovalLineData) => {
-    console.log('[WorkCompleteRemovalTerminate] 인입선로 철거관리 완료(완전철거):', data);
-    setRemovalLineData(data);
-    setShowRemovalLineModal(false);
+  // 이전설치정보 조회 (레거시: fn_getMoveWorkInfo)
+  const fetchMoveWorkInfo = async () => {
+    try {
+      const result = await getMoveWorkInfo({
+        RCPT_ID: order.RCPT_ID || '',
+        CTRT_ID: order.CTRT_ID || '',
+        CRR_ID: order.CRR_ID || '',
+        WRKR_ID: (order as any).WRKR_ID || '',
+        PROD_CD: order.PROD_CD || '',
+        CRR_TSK_CL: '02',  // 이전철거(08)도 철거는 02 (레거시 라인 378-380)
+        WRK_ID: order.id || '',
+        ADDR_ORD: (order as any).ADDR_ORD || order.customer?.ADDR_ORD || '',
+        WRK_CD: order.WRK_CD || '08',
+        WRK_STAT_CD: order.WRK_STAT_CD || '',
+      });
+      setMoveWorkInfoData(result);
+      setShowMoveWorkInfoModal(true);
+    } catch (error: any) {
+      console.error('[이전설치정보 조회 실패]:', error);
+      showToast?.(error.message || '이전설치정보 조회에 실패했습니다.', 'error');
+    }
+  };
+
+  /**
+   * 단말인증 CL-06 처리 (레거시: fn_certify_cl06)
+   * 작업완료 전 단말인증 처리
+   */
+  const handleCertifyCL06 = async () => {
+    setCertifyProcessing(true);
+    setCertifyMessage('');
+    setCertifyStatus('none');
+
+    try {
+      const userInfo = localStorage.getItem('userInfo');
+      const user = userInfo ? JSON.parse(userInfo) : {};
+
+      const result = await setCertifyCL06({
+        CTRT_ID: order.CTRT_ID || '',
+        CUST_ID: order.customer?.id || order.CUST_ID || '',
+        SO_ID: order.SO_ID || '',
+        REG_UID: user.userId || '',
+        WRK_ID: order.id || '',
+      });
+
+      if (result?.ERROR) {
+        setCertifyStatus('error');
+        setCertifyMessage(result.ERROR);
+        showToast?.(`단말인증 실패: ${result.ERROR}`, 'error');
+      } else {
+        setCertifyStatus('success');
+        setCertifyMessage('단말인증이 완료되었습니다.');
+        showToast?.('단말인증이 완료되었습니다.', 'success');
+      }
+    } catch (error: any) {
+      console.error('[단말인증 CL-06 실패]:', error);
+      setCertifyStatus('error');
+      setCertifyMessage(error.message || '단말인증 처리 중 오류가 발생했습니다.');
+      showToast?.(error.message || '단말인증 처리 중 오류가 발생했습니다.', 'error');
+    } finally {
+      setCertifyProcessing(false);
+    }
+  };
+
+  /**
+   * 단말상태조회 CL-08 (레거시: fn_certify_cl08)
+   * 현재 단말 인증 상태 조회
+   */
+  const handleCertifyCL08 = async () => {
+    setCertifyProcessing(true);
+    setCertifyMessage('');
+
+    try {
+      const userInfo = localStorage.getItem('userInfo');
+      const user = userInfo ? JSON.parse(userInfo) : {};
+
+      const result = await getCertifyCL08({
+        CTRT_ID: order.CTRT_ID || '',
+        CUST_ID: order.customer?.id || order.CUST_ID || '',
+        SO_ID: order.SO_ID || '',
+        REG_UID: user.userId || '',
+        WRK_ID: order.id || '',
+      });
+
+      if (result?.ERROR) {
+        setCertifyStatus('error');
+        setCertifyMessage(`상태조회 결과: ${result.ERROR}`);
+        showToast?.(`상태조회 결과: ${result.ERROR}`, 'warning');
+      } else {
+        const statusMsg = result?.RESULT || result?.MSG || JSON.stringify(result);
+        setCertifyMessage(`상태조회 결과: ${statusMsg}`);
+        showToast?.(`상태조회 완료`, 'info');
+      }
+    } catch (error: any) {
+      console.error('[단말상태조회 CL-08 실패]:', error);
+      setCertifyMessage(error.message || '상태조회 중 오류가 발생했습니다.');
+      showToast?.(error.message || '상태조회 중 오류가 발생했습니다.', 'error');
+    } finally {
+      setCertifyProcessing(false);
+    }
+  };
+
+  /**
+   * 철거 신호 전송 (레거시: fn_signal_trans)
+   * - 일반 장비: SMR05 전송
+   * - LGHV_STB 상품: STB_DEL 전송
+   * - LGU+ 고객: 신호 전송 스킵
+   *
+   * TODO: 추후 구현 필요:
+   * - fn_uplus_cust_info: LGU+ 가입자 정보 조회 (/customer/etc/getUplsCtrtInfo.req)
+   * - fn_certify_cl06/cl08: 단말인증 처리 (/customer/etc/setCertifyCL06.req, getCertifyCL08.req)
+   * - fn_getLghvProdMap: LGHV_STB 상품 여부 확인 (/customer/work/getLghvProdMap.req)
+   */
+  const sendRemovalSignal = async (): Promise<boolean> => {
+    const removedEquipments = equipmentData?.removedEquipments || [];
+
+    // 철거 장비가 없으면 신호 전송 불필요
+    if (removedEquipments.length === 0) {
+      console.log('[신호전송] 철거 장비 없음 - 스킵');
+      return true;
+    }
+
+    // 계약 상태가 '20'이면 신호 전송 불필요 (레거시 동일)
+    const ctrtStat = (order as any).CTRT_STAT || '';
+    if (ctrtStat === '20') {
+      console.log('[신호전송] 계약상태 20 - 스킵');
+      return true;
+    }
 
     try {
       const userInfo = localStorage.getItem('userInfo');
       const user = userInfo ? JSON.parse(userInfo) : {};
       const workerId = user.userId || 'A20130708';
 
-      const result = await insertWorkRemoveStat({
-        WRK_ID: order.id,
-        REMOVE_LINE_TP: data.REMOVE_LINE_TP,
-        REMOVE_GB: data.REMOVE_GB,
-        REMOVE_STAT: data.REMOVE_STAT || '',
+      // 방송상품 컴포넌트 찾기 (PROD_CMPS_CL='23')
+      const broadcastProdCmpsId = removedEquipments.find(
+        (eq: any) => eq.PROD_CMPS_CL === '23' || eq.actualEquipment?.PROD_CMPS_CL === '23'
+      )?.EQT_PROD_CMPS_ID || '';
+
+      // LGHV_STB 상품 확인 (레거시: bLghvStb)
+      // LGHV_STB 상품인 경우 STB_DEL, 아니면 SMR05 사용
+      // TODO: getLghvProdMap API 연동 후 정확한 LGHV 상품 체크
+      const isLghvStb = (order.PROD_CD || '').includes('LGU') || (order.PROD_CD || '').includes('LGHV');
+      const msgId = isLghvStb ? 'STB_DEL' : 'SMR05';
+
+      // STB 장비번호 (LGHV_STB인 경우 ETC_1로 전달)
+      let etc1 = '';
+      if (isLghvStb) {
+        const stbEquipment = removedEquipments.find(
+          (eq: any) => (eq.ITEM_MID_CD || eq.actualEquipment?.itemMidCd) === '04'
+        );
+        etc1 = stbEquipment?.EQT_NO || stbEquipment?.actualEquipment?.id || '';
+      }
+
+      console.log(`[신호전송] ${msgId} 전송 시작, isLghvStb: ${isLghvStb}`);
+
+      // 신호 전송 (레거시: SMR05 또는 STB_DEL)
+      const result = await sendSignal({
+        MSG_ID: msgId,
+        CUST_ID: order.customer?.id || order.CUST_ID || '',
+        CTRT_ID: order.CTRT_ID || '',
+        SO_ID: order.SO_ID || '',
+        EQT_NO: '',
+        EQT_PROD_CMPS_ID: broadcastProdCmpsId,
+        PROD_CD: order.PROD_CD || '',
+        WRK_ID: order.id || '',
         REG_UID: workerId,
+        ETC_1: etc1,
       });
 
-      if (result.code === 'SUCCESS' || result.code === 'OK') {
-        console.log('[WorkCompleteRemovalTerminate] insertWorkRemoveStat 성공');
-        showToast?.('인입선로 철거상태가 저장되었습니다.', 'success');
-        showToast?.('작업이 성공적으로 완료되었습니다.', 'success');
-        onSuccess();
+      if (result.code === 'SUCCESS' || result.code === 'OK' ||
+          (result.message && result.message.indexOf('TRUE') > -1 && result.message.indexOf('000000') > -1)) {
+        console.log('[신호전송] 성공:', result);
+        setSignalSent(true);
+        setSignalResult({ success: true, message: '신호 전송 성공' });
+        return true;
       } else {
-        showToast?.(result.message || '인입선로 철거상태 저장에 실패했습니다.', 'error');
+        console.warn('[신호전송] 실패:', result);
+        setSignalResult({ success: false, message: result.message || '신호 전송 실패' });
+
+        // VoIP 상품은 신호 전송 실패해도 진행 가능 (레거시 동일)
+        const prodGrp = (order as any).PROD_GRP || '';
+        if (prodGrp === 'V') {
+          showToast?.('신호 전송이 실패했습니다. 계속 진행합니다.', 'warning');
+          return true;
+        }
+
+        return false;
       }
     } catch (error: any) {
-      showToast?.(error.message || '인입선로 철거상태 저장 중 오류가 발생했습니다.', 'error');
+      console.error('[신호전송] 오류:', error);
+      setSignalResult({ success: false, message: error.message || '신호 전송 오류' });
+
+      // VoIP 상품은 신호 전송 실패해도 진행 가능
+      const prodGrp = (order as any).PROD_GRP || '';
+      if (prodGrp === 'V') {
+        showToast?.('신호 전송이 실패했습니다. 계속 진행합니다.', 'warning');
+        return true;
+      }
+
+      return false;
     }
+  };
+
+  // 인입선로 철거관리 필요 여부 체크 (레거시: mowoa03m02 동일 조건)
+  // KPI_PROD_GRP_CD in (C, D, I) AND VOIP_CTX != 'T' AND != 'R'
+  const needsRemovalLineManagement = () => {
+    const kpiProdGrpCd = (order as any).KPI_PROD_GRP_CD || '';
+    const voipCtx = (order as any).VOIP_CTX || '';
+    return ['C', 'D', 'I'].includes(kpiProdGrpCd)
+      && voipCtx !== 'T'
+      && voipCtx !== 'R';
+  };
+
+  // 인입선로 철거관리 - 완료(완전철거) 핸들러 (임시저장 - 작업완료 시 API 호출)
+  const handleRemovalLineComplete = (data: RemovalLineData) => {
+    console.log('[WorkCompleteRemovalTerminate] 인입선로 철거관리 완료(완전철거) 임시저장:', data);
+    setRemovalLineData(data);
+    showToast?.('인입선로 철거관리가 임시저장되었습니다. 작업완료 시 반영됩니다.', 'info');
   };
 
   // 인입선로 미철거 - AS할당 핸들러
   const handleRemovalLineAssignAS = (data: RemovalLineData) => {
     console.log('[WorkCompleteRemovalTerminate] 인입선로 미철거 - AS할당 모달 열기:', data);
     setRemovalLineData(data);
-    setShowRemovalLineModal(false);
     setShowASAssignModal(true);
   };
 
@@ -429,19 +789,122 @@ const CompleteRemovalTerminate: React.FC<CompleteRemovalTerminateProps> = ({
     setShowConfirmModal(true);
   };
 
-  // 작업 완료 실제 처리
-  const handleConfirmSubmit = () => {
+  // 작업 완료 실제 처리 (레거시 mowoa03m08: fn_save)
+  const handleConfirmSubmit = async () => {
     console.log('[WorkCompleteRemovalTerminate] 작업완료 처리 시작');
 
-    const formattedDate = workCompleteDate.replace(/-/g, '');
-    const workerId = 'A20130708';
+    const userInfo = localStorage.getItem('userInfo');
+    const user = userInfo ? JSON.parse(userInfo) : {};
+    const workerId = user.userId || 'A20130708';
 
-    // 장비 데이터 처리 (회수 장비만) - REUSE_YN 포함 (레거시: mowoa03m08.xml 983~987)
+    // 인입선로 완전철거 데이터가 있으면 먼저 API 호출
+    if (removalLineData && removalLineData.REMOVE_GB === '4') {
+      try {
+        console.log('[WorkCompleteRemovalTerminate] 인입선로 완전철거 API 호출:', removalLineData);
+        const removeStatResult = await insertWorkRemoveStat({
+          WRK_ID: order.id || '',
+          REMOVE_LINE_TP: removalLineData.REMOVE_LINE_TP || '',
+          REMOVE_GB: removalLineData.REMOVE_GB || '4',
+          REMOVE_STAT: removalLineData.REMOVE_STAT || '',
+          REG_UID: workerId,
+        });
+
+        if (removeStatResult.code !== 'SUCCESS' && removeStatResult.code !== 'OK') {
+          showToast?.(removeStatResult.message || '인입선로 철거상태 저장에 실패했습니다.', 'error');
+          return;
+        }
+        console.log('[WorkCompleteRemovalTerminate] 인입선로 완전철거 저장 성공');
+      } catch (error: any) {
+        showToast?.(error.message || '인입선로 철거상태 저장 중 오류가 발생했습니다.', 'error');
+        return;
+      }
+    }
+
+    // 임시저장된 정지기간이 있으면 먼저 API 호출
+    if (susPendingSave && susInfo && susNewEndDate) {
+      setSusSaving(true);
+      try {
+        const susStartDate = susInfo.SUS_HOPE_DD;
+        const susEndDate = formatDateForApi(susNewEndDate);
+        const susDays = calculateSusDays(susStartDate, susEndDate);
+
+        const susResult = await modMmtSusInfo({
+          CTRT_ID: order.CTRT_ID || '',
+          RCPT_ID: order.RCPT_ID || '',
+          SUS_HOPE_DD: susStartDate,
+          MMT_SUS_HOPE_DD: susEndDate,
+          SUS_DD_NUM: String(susDays),
+          REG_UID: workerId,
+        });
+
+        if (susResult.code !== 'SUCCESS') {
+          showToast?.(susResult.message || '정지기간 수정 실패', 'error');
+          setSusSaving(false);
+          return;
+        }
+        console.log('[CompleteRemovalTerminate] 정지기간 수정 성공');
+      } catch (err: any) {
+        showToast?.(err.message || '정지기간 수정 실패', 'error');
+        setSusSaving(false);
+        return;
+      }
+      setSusSaving(false);
+    }
+
+    const removedEquipments = equipmentData?.removedEquipments || [];
+    const ctrtStat = (order as any).CTRT_STAT || '';
+
+    // 신호 전송이 필요한 경우 (철거장비 있고 계약상태가 '20'이 아닌 경우)
+    // 레거시: IFSVC_CHK == false && (ds_rmv_eqt_info.rowcount > 0 || ISP_PROD_CD)
+    if (!signalSent && (removedEquipments.length > 0 || order.ISP_PROD_CD) && ctrtStat !== '20') {
+      showToast?.('신호를 전송합니다...', 'info');
+
+      const signalSuccess = await sendRemovalSignal();
+      if (!signalSuccess) {
+        // MSO 외부망인 경우 신호 실패시 작업완료 불가 (레거시 동일)
+        const msoOutYn = (order as any).MSO_OUT_YN || '';
+        if (msoOutYn === 'Y') {
+          showToast?.('MSO 외부 망에서 신호 전송이 필요합니다. 관리자에게 문의하세요.', 'error');
+          return;
+        }
+        // 일반적인 경우 실패 알림 후 계속 진행 가능 (사용자에게 이미 알림됨)
+        showToast?.('신호 전송이 실패했지만 작업을 계속 진행합니다.', 'warning');
+      }
+    }
+
+    const formattedDate = workCompleteDate.replace(/-/g, '');
+
+    // 장비 데이터 처리 (회수 장비만) - 필수 필드 포함 (레거시 기준)
+    // removalStatus 필드명: EQT_LOSS_YN, PART_LOSS_BRK_YN, EQT_BRK_YN, EQT_CABL_LOSS_YN, EQT_CRDL_LOSS_YN (값: '0' 또는 '1')
     const processEquipmentList = (equipments: any[]) => {
       if (!equipments || equipments.length === 0) return [];
+      const removalStatus = equipmentData?.removalStatus || {};
+
+      // 장비 객체에 이미 값이 있으면 사용, 없으면 removalStatus에서 가져옴
+      // '1' → 'Y', '0' 또는 없음 → 'N' 변환
+      const getYN = (eqVal: any, statusVal: any) =>
+        (eqVal === '1' || eqVal === 'Y' || statusVal === '1') ? 'Y' : 'N';
+
       return equipments.map((eq: any) => {
+        const eqtNo = eq.EQT_NO || eq.id || (eq.actualEquipment?.id) || '';
+        const status = removalStatus[eqtNo] || {};
         // REUSE_YN 값 설정 (레거시: chk_reuse_yn 체크 시 "1", 아니면 "0")
-        const reuseYnValue = reuseYn ? '1' : '0';
+        const reuseYnValue = reuseYn ? '1' : (eq.REUSE_YN || status.REUSE_YN || '0');
+        // 회수 장비 필수 필드 (레거시 기준)
+        // 이전철거(08)도 철거장비는 CRR_TSK_CL="02" (레거시 mowoa03m08.xml:976)
+        const removalFields = {
+          CRR_TSK_CL: '02',
+          RCPT_ID: order.RCPT_ID || '',
+          CRR_ID: order.CRR_ID || user.crrId || '01',
+          WRKR_ID: workerId,
+          // 분실/파손 상태 (EquipmentTerminate에서 저장한 필드명 사용)
+          EQT_LOSS_YN: getYN(eq.EQT_LOSS_YN, status.EQT_LOSS_YN),
+          PART_LOSS_BRK_YN: getYN(eq.PART_LOSS_BRK_YN, status.PART_LOSS_BRK_YN),
+          EQT_BRK_YN: getYN(eq.EQT_BRK_YN, status.EQT_BRK_YN),
+          EQT_CABL_LOSS_YN: getYN(eq.EQT_CABL_LOSS_YN, status.EQT_CABL_LOSS_YN),
+          EQT_CRDL_LOSS_YN: getYN(eq.EQT_CRDL_LOSS_YN, status.EQT_CRDL_LOSS_YN),
+          REUSE_YN: reuseYnValue,
+        };
 
         if (eq.actualEquipment) {
           const actual = eq.actualEquipment;
@@ -472,18 +935,27 @@ const CompleteRemovalTerminate: React.FC<CompleteRemovalTerminateProps> = ({
             EQT_USE_STAT_CD: actual.EQT_USE_STAT_CD || '1',
             EQT_CHG_GB: '1',
             IF_DTL_ID: actual.IF_DTL_ID || '',
-            REUSE_YN: reuseYnValue, // 재사용 여부
+            ...removalFields,
           };
         }
+        // 중첩 구조가 아닌 경우도 필드 매핑 필요
         return {
           ...eq,
-          EQT_NO: eq.EQT_NO || eq.id,
+          EQT_NO: eq.EQT_NO || eq.id || '',
+          EQT_SERNO: eq.EQT_SERNO || eq.serialNumber || '',
+          ITEM_MID_CD: eq.ITEM_MID_CD || eq.itemMidCd || '',
+          EQT_CL_CD: eq.EQT_CL_CD || eq.eqtClCd || '',
+          MAC_ADDRESS: eq.MAC_ADDRESS || eq.macAddress || '',
+          SVC_CMPS_ID: eq.SVC_CMPS_ID || '',
+          BASIC_PROD_CMPS_ID: eq.BASIC_PROD_CMPS_ID || '',
+          PROD_CD: eq.PROD_CD || '',
+          SVC_CD: eq.SVC_CD || '',
           WRK_ID: eq.WRK_ID || order.id,
           CUST_ID: eq.CUST_ID || order.customer?.id,
           CTRT_ID: eq.CTRT_ID || order.CTRT_ID,
           WRK_CD: eq.WRK_CD || order.WRK_CD,
           REG_UID: workerId,
-          REUSE_YN: reuseYnValue, // 재사용 여부
+          ...removalFields,
         };
       });
     };
@@ -494,8 +966,9 @@ const CompleteRemovalTerminate: React.FC<CompleteRemovalTerminateProps> = ({
         WRK_CD: order.WRK_CD,
         WRK_DTL_TCD: order.WRK_DTL_TCD,
         CUST_ID: order.customer?.id,
+        CTRT_ID: order.CTRT_ID || '',
         RCPT_ID: order.RCPT_ID,
-        CRR_ID: '01',
+        CRR_ID: order.CRR_ID || user.crrId || '01',
         WRKR_ID: workerId,
         WRKR_CMPL_DT: formattedDate,
         MEMO: memo || '작업 완료',
@@ -549,6 +1022,7 @@ const CompleteRemovalTerminate: React.FC<CompleteRemovalTerminateProps> = ({
       removeEquipmentList: processEquipmentList(equipmentData?.removedEquipments || []),
       spendItemList: equipmentData?.spendItems || [],
       agreementList: equipmentData?.agreements || [],
+      // 인입선로 정보 (zustand store에서 가져옴)
       poleList: equipmentData?.poleResults || []
     };
 
@@ -556,27 +1030,6 @@ const CompleteRemovalTerminate: React.FC<CompleteRemovalTerminateProps> = ({
       onSuccess: (result) => {
         if (result.code === 'SUCCESS' || result.code === 'OK') {
           localStorage.removeItem(getStorageKey());
-
-          // 철거해지 완료 후 인입선로 철거관리 모달 표시 조건 체크
-          // 레거시: KPI_PROD_GRP_CD in (C, D, I), VOIP_CTX가 T/R이 아닌 경우
-          const kpiProdGrpCd = order.KPI_PROD_GRP_CD || '';
-          const voipCtx = order.VOIP_CTX || '';
-          const isTargetProdGrp = ['C', 'D', 'I'].includes(kpiProdGrpCd);
-          const isVoipExcluded = voipCtx !== 'T' && voipCtx !== 'R';
-
-          console.log('[WorkCompleteRemovalTerminate] 인입선로 철거관리 모달 조건:', {
-            KPI_PROD_GRP_CD: kpiProdGrpCd,
-            VOIP_CTX: voipCtx,
-            isTargetProdGrp,
-            isVoipExcluded
-          });
-
-          if (isTargetProdGrp && isVoipExcluded) {
-            console.log('[WorkCompleteRemovalTerminate] 인입선로 철거관리 모달 표시');
-            setShowRemovalLineModal(true);
-            return;
-          }
-
           showToast?.('작업이 성공적으로 완료되었습니다.', 'success');
           onSuccess();
         } else {
@@ -590,42 +1043,10 @@ const CompleteRemovalTerminate: React.FC<CompleteRemovalTerminateProps> = ({
   };
 
   return (
-    <div className="px-2 sm:px-4 py-4 sm:py-6 bg-gray-50 overflow-x-hidden">
+    <div className="px-2 sm:px-4 py-4 sm:py-6 bg-gray-50 min-h-0">
       <div className="max-w-2xl mx-auto">
         <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-3 sm:p-5">
           <div className="space-y-3 sm:space-y-5">
-            {/* 고객명 (편집 가능) - 레거시: edt_cust_nm */}
-            <div>
-              <label className="block text-xs sm:text-sm font-semibold text-gray-900 mb-1.5 sm:mb-2">
-                고객명 {!isWorkCompleted && <span className="text-red-500">*</span>}
-              </label>
-              <input
-                type="text"
-                value={cnfmCustNm}
-                onChange={(e) => setCnfmCustNm(e.target.value)}
-                placeholder="고객명 입력"
-                className={`w-full min-h-10 sm:min-h-12 px-3 sm:px-4 py-2 sm:py-3 border rounded-lg text-sm sm:text-base ${isWorkCompleted ? 'bg-gray-100 border-gray-200 text-gray-600 cursor-not-allowed' : 'border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500'}`}
-                readOnly={isWorkCompleted}
-                disabled={isWorkCompleted}
-              />
-            </div>
-
-            {/* 연락처 (편집 가능) - 레거시: edt_cust_telno */}
-            <div>
-              <label className="block text-xs sm:text-sm font-semibold text-gray-900 mb-1.5 sm:mb-2">
-                연락처 {!isWorkCompleted && <span className="text-red-500">*</span>}
-              </label>
-              <input
-                type="tel"
-                value={cnfmCustTelno}
-                onChange={(e) => setCnfmCustTelno(e.target.value)}
-                placeholder="연락처 입력"
-                className={`w-full min-h-10 sm:min-h-12 px-3 sm:px-4 py-2 sm:py-3 border rounded-lg text-sm sm:text-base ${isWorkCompleted ? 'bg-gray-100 border-gray-200 text-gray-600 cursor-not-allowed' : 'border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500'}`}
-                readOnly={isWorkCompleted}
-                disabled={isWorkCompleted}
-              />
-            </div>
-
             {/* 재사용 체크박스 (조건부 표시) - 레거시: chk_reuse_yn */}
             {showReuseCheckbox && !isWorkCompleted && (
               <div className="flex items-center gap-3 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
@@ -669,19 +1090,33 @@ const CompleteRemovalTerminate: React.FC<CompleteRemovalTerminateProps> = ({
               )}
             </div>
 
-            {/* 고객관계 */}
+            {/* 고객관계 + 이전설치정보 버튼 */}
             <div>
               <label className="block text-xs sm:text-sm font-semibold text-gray-900 mb-1.5 sm:mb-2">
                 고객관계 {!isWorkCompleted && <span className="text-red-500">*</span>}
               </label>
-              <Select
-                value={custRel}
-                onValueChange={setCustRel}
-                options={custRelOptions}
-                placeholder="고객관계 선택"
-                required
-                disabled={isWorkCompleted}
-              />
+              <div className="flex gap-2">
+                <div className="flex-1">
+                  <Select
+                    value={custRel}
+                    onValueChange={setCustRel}
+                    options={custRelOptions}
+                    placeholder="고객관계 선택"
+                    required
+                    disabled={isWorkCompleted}
+                  />
+                </div>
+                {/* 이전설치정보 버튼 (레거시 btn_move_info - WRK_CD=08) */}
+                {!isWorkCompleted && (
+                  <button
+                    type="button"
+                    onClick={fetchMoveWorkInfo}
+                    className="px-4 py-2 text-sm font-semibold rounded-lg whitespace-nowrap bg-indigo-500 hover:bg-indigo-600 text-white"
+                  >
+                    이전설치정보
+                  </button>
+                )}
+              </div>
             </div>
 
             {/* 처리내용 */}
@@ -714,6 +1149,71 @@ const CompleteRemovalTerminate: React.FC<CompleteRemovalTerminateProps> = ({
               />
             </div>
 
+            {/* 단말인증 버튼 영역 (레거시: btn_concentrator - CERTIFY_TG='Y'인 경우 표시) */}
+            {showCertifyButtons && !isWorkCompleted && (
+              <div className="p-3 bg-indigo-50 border border-indigo-200 rounded-lg">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-sm font-semibold text-indigo-800">단말인증</span>
+                  {certifyStatus === 'success' && (
+                    <span className="px-2 py-0.5 text-xs bg-green-100 text-green-700 rounded-full">인증완료</span>
+                  )}
+                  {certifyStatus === 'error' && (
+                    <span className="px-2 py-0.5 text-xs bg-red-100 text-red-700 rounded-full">인증실패</span>
+                  )}
+                </div>
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={handleCertifyCL06}
+                    disabled={certifyProcessing}
+                    className="flex-1 px-3 py-2 bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-400 text-white text-sm font-semibold rounded-lg transition-colors flex items-center justify-center gap-1.5"
+                  >
+                    {certifyProcessing ? (
+                      <svg className="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                      </svg>
+                    ) : (
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+                      </svg>
+                    )}
+                    <span>단말인증</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleCertifyCL08}
+                    disabled={certifyProcessing}
+                    className="flex-1 px-3 py-2 bg-gray-600 hover:bg-gray-700 disabled:bg-gray-400 text-white text-sm font-semibold rounded-lg transition-colors flex items-center justify-center gap-1.5"
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
+                    </svg>
+                    <span>상태조회</span>
+                  </button>
+                </div>
+                {certifyMessage && (
+                  <p className={`mt-2 text-xs ${certifyStatus === 'error' ? 'text-red-600' : certifyStatus === 'success' ? 'text-green-600' : 'text-gray-600'}`}>
+                    {certifyMessage}
+                  </p>
+                )}
+              </div>
+            )}
+
+            {/* LGHV STB 알림 (레거시: bLghvStb) */}
+            {isLghvStb && !isWorkCompleted && (
+              <div className="p-3 bg-orange-50 border border-orange-200 rounded-lg">
+                <div className="flex items-center gap-2">
+                  <svg className="w-5 h-5 text-orange-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                  </svg>
+                  <span className="text-sm font-medium text-orange-800">
+                    LGHV STB 상품입니다. 철거 완료 시 STB 삭제 신호가 전송됩니다.
+                  </span>
+                </div>
+              </div>
+            )}
+
             {/* 해지정보 (토글 섹션) */}
             <HotbillSection
               custId={order.customer?.id || order.CUST_ID || ''}
@@ -725,19 +1225,18 @@ const CompleteRemovalTerminate: React.FC<CompleteRemovalTerminateProps> = ({
               showToast={showToast}
             />
 
+            {/* 인입선로 철거관리 (인라인 섹션) - 조건: KPI_PROD_GRP_CD in C,D,I */}
+            {needsRemovalLineManagement() && (
+              <RemovalLineSection
+                onComplete={handleRemovalLineComplete}
+                onAssignAS={handleRemovalLineAssignAS}
+                showToast={showToast}
+                disabled={isWorkCompleted}
+              />
+            )}
+
             {/* 하단 버튼 영역 */}
             <div className="flex gap-1.5 sm:gap-2 pt-3 sm:pt-4 mt-3 sm:mt-4 border-t border-gray-200">
-              {/* 연동이력 버튼 */}
-              <button
-                type="button"
-                onClick={() => setShowIntegrationHistoryModal(true)}
-                className="flex-1 min-h-10 sm:min-h-12 px-3 sm:px-4 bg-purple-600 hover:bg-purple-700 text-white rounded-lg font-bold transition-colors flex items-center justify-center gap-1.5 sm:gap-2 text-sm sm:text-base"
-              >
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-                </svg>
-                <span>연동이력</span>
-              </button>
               {/* 작업완료 버튼 */}
               {!isWorkCompleted && (
                 <button
@@ -763,6 +1262,17 @@ const CompleteRemovalTerminate: React.FC<CompleteRemovalTerminateProps> = ({
                   )}
                 </button>
               )}
+              {/* 연동이력 버튼 */}
+              <button
+                type="button"
+                onClick={() => setShowIntegrationHistoryModal(true)}
+                className="flex-1 min-h-10 sm:min-h-12 px-3 sm:px-4 bg-purple-600 hover:bg-purple-700 text-white rounded-lg font-bold transition-colors flex items-center justify-center gap-1.5 sm:gap-2 text-sm sm:text-base"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                </svg>
+                <span>연동이력</span>
+              </button>
             </div>
 
           </div>
@@ -780,6 +1290,7 @@ const CompleteRemovalTerminate: React.FC<CompleteRemovalTerminateProps> = ({
         customerId={order.customer.id}
         customerName={order.customer.name}
         contractId={order.CTRT_ID}
+        addrOrd={(order as any).ADDR_ORD || ''}
         kpiProdGrpCd={equipmentData?.kpiProdGrpCd || equipmentData?.KPI_PROD_GRP_CD || order.KPI_PROD_GRP_CD}
         prodChgGb={equipmentData?.prodChgGb || equipmentData?.PROD_CHG_GB || (order as any).PROD_CHG_GB}
         chgKpiProdGrpCd={equipmentData?.chgKpiProdGrpCd || equipmentData?.CHG_KPI_PROD_GRP_CD || (order as any).CHG_KPI_PROD_GRP_CD}
@@ -796,13 +1307,12 @@ const CompleteRemovalTerminate: React.FC<CompleteRemovalTerminateProps> = ({
         custId={order.customer.id}
       />
 
-      {/* 인입선로 철거관리 모달 (레거시 mowoa03p05) */}
-      <RemovalLineManageModal
-        isOpen={showRemovalLineModal}
-        onClose={() => setShowRemovalLineModal(false)}
-        onComplete={handleRemovalLineComplete}
-        onAssignAS={handleRemovalLineAssignAS}
-        showToast={showToast}
+      {/* 이전설치정보 모달 (레거시 btn_move_info) */}
+      <MoveWorkInfoModal
+        isOpen={showMoveWorkInfoModal}
+        onClose={() => setShowMoveWorkInfoModal(false)}
+        moveWorkData={moveWorkInfoData}
+        order={order}
       />
 
       {/* 인입선로미철거 AS할당 모달 (레거시 mowoa03p06) */}
@@ -829,7 +1339,16 @@ const CompleteRemovalTerminate: React.FC<CompleteRemovalTerminateProps> = ({
         type="confirm"
         confirmText="완료"
         cancelText="취소"
-      />
+      >
+        <WorkCompleteSummary
+          equipmentData={equipmentData}
+          installInfoData={installInfoData}
+          custRel={custRel}
+          custRelOptions={custRelOptions}
+          memo={memo}
+          order={order}
+        />
+      </ConfirmModal>
     </div>
   );
 };

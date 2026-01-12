@@ -13,24 +13,23 @@
  * - NO reuse logic (unlike General component)
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { ArrowUp, ArrowDown, CheckCircle2, XCircle, Loader2, ScanBarcode, History } from 'lucide-react';
 import { getTechnicianEquipments, updateEquipmentComposition, checkStbServerConnection } from '../../../../services/apiService';
 import EquipmentModelChangeModal from '../../../equipment/EquipmentModelChangeModal';
 import IntegrationHistoryModal from '../../../modal/IntegrationHistoryModal';
 import { useWorkProcessStore } from '../../../../stores/workProcessStore';
+import { useWorkEquipmentStore, useWorkEquipment } from '../../../../stores/workEquipmentStore';
 import {
   EquipmentComponentProps,
   ExtendedEquipment,
   ContractEquipment,
   InstalledEquipment,
   EquipmentData,
-  RemovalStatus,
   getWorkCodeName,
   getContractStatusName,
   mapWrkCdToCrrTskCl,
   isCustomerOwnedEquipment,
-  getEquipmentStorageKey,
 } from './shared/types';
 
 const EquipmentRemoval: React.FC<EquipmentComponentProps> = ({
@@ -48,23 +47,39 @@ const EquipmentRemoval: React.FC<EquipmentComponentProps> = ({
   // Work Process Store (for filtering data)
   const { setFilteringData } = useWorkProcessStore();
 
-  // Equipment state
-  const [contractEquipments, setContractEquipments] = useState<ContractEquipment[]>([]);
-  const [technicianEquipments, setTechnicianEquipments] = useState<ExtendedEquipment[]>([]);
-  const [installedEquipments, setInstalledEquipments] = useState<InstalledEquipment[]>([]);
-  const [customerEquipmentCount, setCustomerEquipmentCount] = useState<number>(0);
-  const [removeEquipments, setRemoveEquipments] = useState<ExtendedEquipment[]>([]);
-  const [markedForRemoval, setMarkedForRemoval] = useState<ExtendedEquipment[]>([]);
+  // Zustand store actions
+  const workId = workItem.id;
+  const {
+    initWorkState,
+    setApiData,
+    setDataLoaded: storeSetDataLoaded,
+    setInstalledEquipments: storeSetInstalledEquipments,
+    addMarkedForRemoval,
+    toggleRemovalStatus,
+    setSelectedContract: storeSetSelectedContract,
+    setSelectedStock: storeSetSelectedStock,
+    setSignalStatus: storeSetSignalStatus,
+    setSignalResult: storeSetSignalResult,
+  } = useWorkEquipmentStore();
 
-  // Removal status (loss/damage checkboxes)
-  const [removalStatus, setRemovalStatus] = useState<RemovalStatus>({});
+  // Zustand store state
+  const {
+    contractEquipments,
+    technicianEquipments,
+    customerEquipments,
+    removeEquipments,
+    installedEquipments,
+    markedForRemoval,
+    removalStatus,
+    selectedContract,
+    selectedStock,
+    signalStatus: lastSignalStatus,
+    signalResult,
+    isReady: isDataLoaded,
+  } = useWorkEquipment(workId);
 
-  // Data loading state
-  const [isDataLoaded, setIsDataLoaded] = useState(false);
-
-  // Selection state
-  const [selectedContract, setSelectedContract] = useState<ContractEquipment | null>(null);
-  const [selectedStock, setSelectedStock] = useState<ExtendedEquipment | null>(null);
+  // API output4에서 받아온 고객장비 수 (서버에 이미 등록된 장비)
+  const customerEquipmentCount = customerEquipments.length;
 
   // Modal states
   const [isModelChangeModalOpen, setIsModelChangeModalOpen] = useState(false);
@@ -72,56 +87,42 @@ const EquipmentRemoval: React.FC<EquipmentComponentProps> = ({
 
   // Signal processing state
   const [isSignalPopupOpen, setIsSignalPopupOpen] = useState(false);
-  const [signalResult, setSignalResult] = useState<string>('');
   const [isSignalProcessing, setIsSignalProcessing] = useState(false);
-  const [lastSignalStatus, setLastSignalStatus] = useState<'success' | 'fail' | null>(null);
 
   // Barcode scanning state
   const [isBarcodeScanning, setIsBarcodeScanning] = useState(false);
 
   // Load initial data
   useEffect(() => {
-    setIsDataLoaded(false);
-    loadEquipmentData();
-  }, [workItem]);
-
-  // Auto-save work in progress (localStorage)
-  useEffect(() => {
-    if (!isDataLoaded) {
+    // 이미 데이터가 로드된 상태면 건너뜀 (탭 이동 시 기존 데이터 유지)
+    if (isDataLoaded && (installedEquipments.length > 0 || markedForRemoval.length > 0 || contractEquipments.length > 0)) {
+      console.log('[장비관리-부가상품] 이미 데이터 로드됨 - 기존 데이터 유지');
       return;
     }
+    initWorkState(workId);
+    loadEquipmentData();
+  }, [workItem.id]);
 
-    const storageKey = getEquipmentStorageKey(workItem.id);
-    const hasRemovalStatus = Object.keys(removalStatus).length > 0;
-
-    if (installedEquipments.length > 0 || markedForRemoval.length > 0 || hasRemovalStatus) {
-      const draftData = {
-        installedEquipments: installedEquipments,
-        markedForRemoval: markedForRemoval,
-        removalStatus: removalStatus,
-        lastSignalStatus: lastSignalStatus,
-        savedAt: new Date().toISOString(),
-        kpiProdGrpCd: (window as any).__equipmentFilterData?.kpiProdGrpCd,
-        prodChgGb: (window as any).__equipmentFilterData?.prodChgGb,
-        chgKpiProdGrpCd: (window as any).__equipmentFilterData?.chgKpiProdGrpCd,
-        prodGrp: (window as any).__equipmentFilterData?.prodGrp,
-      };
-      localStorage.setItem(storageKey, JSON.stringify(draftData));
-    } else {
-      localStorage.removeItem(storageKey);
-    }
-  }, [installedEquipments, markedForRemoval, removalStatus, isDataLoaded, lastSignalStatus]);
+  // Zustand store가 자동으로 localStorage에 persist하므로 별도 저장 로직 불필요
 
   const loadEquipmentData = async (forceRefresh = false) => {
     try {
       let apiResponse;
 
-      if (preloadedApiData && !forceRefresh) {
-        console.log('[장비관리-부가상품] Pre-loaded 데이터 사용 - API 호출 건너뜀!');
+      // 부가상품(09) 작업은 반드시 계약장비(output2)가 있어야 함
+      // preloadedApiData가 있어도 계약장비가 비어있으면 API 재호출
+      const hasValidPreloadedData = preloadedApiData &&
+        preloadedApiData.contractEquipments &&
+        preloadedApiData.contractEquipments.length > 0;
+
+      if (hasValidPreloadedData && !forceRefresh) {
+        console.log('[장비관리-부가상품] Pre-loaded 데이터 사용 -', preloadedApiData.contractEquipments.length, '개 계약장비');
         apiResponse = preloadedApiData;
       } else {
         if (forceRefresh) {
           console.log('[장비관리-부가상품] 강제 새로고침 - API 호출');
+        } else if (preloadedApiData && (!preloadedApiData.contractEquipments || preloadedApiData.contractEquipments.length === 0)) {
+          console.log('[장비관리-부가상품] preloadedApiData 계약장비 없음 - API 재호출');
         }
 
         const userInfo = localStorage.getItem('userInfo');
@@ -260,60 +261,37 @@ const EquipmentRemoval: React.FC<EquipmentComponentProps> = ({
         VOIP_CUSTOWN_EQT: eq.VOIP_CUSTOWN_EQT,
       }));
 
-      setContractEquipments(contracts);
-      setTechnicianEquipments(techStock);
-      setRemoveEquipments(removed);
-      setCustomerEquipmentCount(installed.length);
+      // Zustand store에 API 데이터 설정
+      setApiData(workId, {
+        contractEquipments: contracts,
+        technicianEquipments: techStock,
+        removeEquipments: removed,
+        filteringData: filterData,
+      });
 
+      // Zustand persist에서 이미 복원된 상태가 있는지 확인
+      const existingMarkedForRemoval = markedForRemoval || [];
 
       if (installed.length > 0) {
         console.log('[장비관리-부가상품] API에서 받은 고객 설치 장비 사용:', installed.length, '개');
-        setInstalledEquipments(installed);
 
-        // Restore signal status and removal checkboxes from localStorage
-        const savedDraft = localStorage.getItem(getEquipmentStorageKey(workItem.id));
-        if (savedDraft) {
-          try {
-            const draftData = JSON.parse(savedDraft);
-            if (draftData.lastSignalStatus) {
-              setLastSignalStatus(draftData.lastSignalStatus);
-            }
-            if (draftData.removalStatus && Object.keys(draftData.removalStatus).length > 0) {
-              setRemovalStatus(draftData.removalStatus);
-            }
-          } catch (error) {
-            // Ignore
-          }
+        // 기존에 철거 등록된 장비가 있으면 설치 장비에서 제외
+        if (existingMarkedForRemoval.length > 0) {
+          const markedForRemovalIds = new Set(existingMarkedForRemoval.map(eq => eq.id));
+          const filteredInstalled = installed.filter(eq => !markedForRemovalIds.has(eq.actualEquipment.id));
+          storeSetInstalledEquipments(workId, filteredInstalled);
+        } else {
+          storeSetInstalledEquipments(workId, installed);
         }
-      } else {
-        // Restore from localStorage if no customer equipment from API
-        const savedDraft = localStorage.getItem(getEquipmentStorageKey(workItem.id));
-        if (savedDraft) {
-          try {
-            const draftData = JSON.parse(savedDraft);
-            if (draftData.installedEquipments && draftData.installedEquipments.length > 0) {
-              console.log('[장비관리-부가상품] localStorage에서 장비 복원:', draftData.installedEquipments.length, '개');
-              setInstalledEquipments(draftData.installedEquipments);
-            }
-            if (draftData.markedForRemoval && draftData.markedForRemoval.length > 0) {
-              setMarkedForRemoval(draftData.markedForRemoval);
-            }
-            if (draftData.removalStatus && Object.keys(draftData.removalStatus).length > 0) {
-              setRemovalStatus(draftData.removalStatus);
-            }
-            if (draftData.lastSignalStatus) {
-              setLastSignalStatus(draftData.lastSignalStatus);
-            }
-          } catch (error) {
-            console.warn('[장비관리-부가상품] localStorage 데이터 파싱 실패:', error);
-          }
-        }
+        // Zustand persist에서 자동으로 신호처리 상태, 분실처리 상태 복원됨
       }
+      // else: Zustand persist에서 이미 복원된 installedEquipments, markedForRemoval 사용
 
-      setIsDataLoaded(true);
+      // Use requestAnimationFrame to ensure state updates are applied before marking data as loaded
+      requestAnimationFrame(() => storeSetDataLoaded(workId, true));
     } catch (error) {
       console.error('[장비관리-부가상품] 장비 데이터 로드 실패:', error);
-      setIsDataLoaded(true);
+      requestAnimationFrame(() => storeSetDataLoaded(workId, true));
     }
   };
 
@@ -322,14 +300,14 @@ const EquipmentRemoval: React.FC<EquipmentComponentProps> = ({
     const installed = installedEquipments.find(eq => eq.contractEquipment.id === contract.id);
 
     if (selectedContract?.id === contract.id) {
-      setSelectedContract(null);
-      setSelectedStock(null);
+      storeSetSelectedContract(workId, null);
+      storeSetSelectedStock(workId, null);
     } else {
-      setSelectedContract(contract);
+      storeSetSelectedContract(workId, contract);
       if (installed) {
-        setSelectedStock(installed.actualEquipment);
+        storeSetSelectedStock(workId, installed.actualEquipment);
       } else {
-        setSelectedStock(null);
+        storeSetSelectedStock(workId, null);
       }
     }
   };
@@ -337,9 +315,9 @@ const EquipmentRemoval: React.FC<EquipmentComponentProps> = ({
   // Handle stock equipment click
   const handleStockClick = (stock: ExtendedEquipment) => {
     if (selectedStock?.id === stock.id) {
-      setSelectedStock(null);
+      storeSetSelectedStock(workId, null);
     } else {
-      setSelectedStock(stock);
+      storeSetSelectedStock(workId, stock);
     }
   };
 
@@ -357,7 +335,7 @@ const EquipmentRemoval: React.FC<EquipmentComponentProps> = ({
         macAddress: selectedStock.macAddress || '',
         installLocation: '',
       };
-      setInstalledEquipments(updated);
+      storeSetInstalledEquipments(workId, updated);
     } else {
       const newInstalled: InstalledEquipment = {
         contractEquipment: selectedContract,
@@ -365,12 +343,12 @@ const EquipmentRemoval: React.FC<EquipmentComponentProps> = ({
         macAddress: selectedStock.macAddress || '',
         installLocation: '',
       };
-      setInstalledEquipments([...installedEquipments, newInstalled]);
+      storeSetInstalledEquipments(workId, [...installedEquipments, newInstalled]);
     }
 
-    setLastSignalStatus(null);
-    setSelectedStock(null);
-    setSelectedContract(null);
+    storeSetSignalStatus(workId, 'idle');
+    storeSetSelectedStock(workId, null);
+    storeSetSelectedContract(workId, null);
   };
 
   // Remove button - mark equipment for removal
@@ -382,17 +360,17 @@ const EquipmentRemoval: React.FC<EquipmentComponentProps> = ({
     if (installedIndex >= 0) {
       const updated = [...installedEquipments];
       const removedEquipment = updated.splice(installedIndex, 1)[0];
-      setInstalledEquipments(updated);
+      storeSetInstalledEquipments(workId, updated);
 
       const removedActualEquipment = removedEquipment.actualEquipment;
       const isAlreadyMarked = markedForRemoval.some(eq => eq.id === removedActualEquipment.id);
       if (!isAlreadyMarked) {
-        setMarkedForRemoval(prev => [...prev, removedActualEquipment]);
+        addMarkedForRemoval(workId, removedActualEquipment);
       }
 
-      setLastSignalStatus(null);
-      setSelectedStock(null);
-      setSelectedContract(null);
+      storeSetSignalStatus(workId, 'idle');
+      storeSetSelectedStock(workId, null);
+      storeSetSelectedContract(workId, null);
       return;
     }
 
@@ -401,7 +379,7 @@ const EquipmentRemoval: React.FC<EquipmentComponentProps> = ({
 
     const isRemoveEquipment = removeEquipments.some(eq => eq.id === selectedStock.id);
     if (isRemoveEquipment) {
-      setMarkedForRemoval([...markedForRemoval, selectedStock]);
+      addMarkedForRemoval(workId, selectedStock);
     }
   };
 
@@ -477,19 +455,19 @@ const EquipmentRemoval: React.FC<EquipmentComponentProps> = ({
 
     if (installedEquipments.length === 0) {
       showToast?.('신호처리를 하려면 먼저 장비를 등록해주세요.', 'warning');
-      setLastSignalStatus('fail');
+      storeSetSignalStatus(workId, 'fail');
       return;
     }
 
     try {
       setIsSignalProcessing(true);
       setIsSignalPopupOpen(true);
-      setSignalResult('신호처리 중...');
+      storeSetSignalResult(workId, '신호처리 중...');
 
       const userInfo = localStorage.getItem('userInfo');
       if (!userInfo) {
-        setSignalResult('사용자 정보를 찾을 수 없습니다.');
-        setLastSignalStatus('fail');
+        storeSetSignalResult(workId, '사용자 정보를 찾을 수 없습니다.');
+        storeSetSignalStatus(workId, 'fail');
         setIsSignalProcessing(false);
         return;
       }
@@ -507,15 +485,15 @@ const EquipmentRemoval: React.FC<EquipmentComponentProps> = ({
       );
 
       if (result.O_IFSVC_RESULT && result.O_IFSVC_RESULT.startsWith('TRUE')) {
-        setSignalResult(`신호처리 완료\n\n결과: ${result.O_IFSVC_RESULT || '성공'}`);
-        setLastSignalStatus('success');
+        storeSetSignalResult(workId, `신호처리 완료\n\n결과: ${result.O_IFSVC_RESULT || '성공'}`);
+        storeSetSignalStatus(workId, 'success');
       } else {
-        setSignalResult(`신호처리 실패\n\n${result.MESSAGE || '알 수 없는 오류'}`);
-        setLastSignalStatus('fail');
+        storeSetSignalResult(workId, `신호처리 실패\n\n${result.MESSAGE || '알 수 없는 오류'}`);
+        storeSetSignalStatus(workId, 'fail');
       }
     } catch (error: any) {
-      setSignalResult(`신호처리 실패\n\n${error.message || '알 수 없는 오류'}`);
-      setLastSignalStatus('fail');
+      storeSetSignalResult(workId, `신호처리 실패\n\n${error.message || '알 수 없는 오류'}`);
+      storeSetSignalStatus(workId, 'fail');
     } finally {
       setIsSignalProcessing(false);
     }
@@ -527,35 +505,39 @@ const EquipmentRemoval: React.FC<EquipmentComponentProps> = ({
     const user = userInfo ? JSON.parse(userInfo) : {};
 
     const equipments = installedEquipments.map(eq => ({
-      id: eq.actualEquipment.id,
-      type: eq.actualEquipment.type,
-      model: eq.actualEquipment.model,
-      serialNumber: eq.actualEquipment.serialNumber,
-      itemMidCd: eq.actualEquipment.itemMidCd,
-      EQT_NO: eq.actualEquipment.id,
-      EQT_SERNO: eq.actualEquipment.serialNumber,
-      ITEM_MID_CD: eq.actualEquipment.itemMidCd,
-      EQT_CL_CD: eq.actualEquipment.eqtClCd,
-      MAC_ADDRESS: eq.macAddress || eq.actualEquipment.macAddress,
-      WRK_ID: workItem.id,
-      CUST_ID: workItem.customer?.id || workItem.CUST_ID,
-      CTRT_ID: workItem.CTRT_ID,
-      WRK_CD: workItem.WRK_CD,
-      SVC_CMPS_ID: eq.contractEquipment.id,
-      BASIC_PROD_CMPS_ID: eq.actualEquipment.BASIC_PROD_CMPS_ID || '',
-      EQT_PROD_CMPS_ID: eq.actualEquipment.EQT_PROD_CMPS_ID || eq.contractEquipment.id,
-      PROD_CD: eq.actualEquipment.PROD_CD || workItem.PROD_CD,
-      SVC_CD: eq.actualEquipment.SVC_CD || '',
-      EQT_SALE_AMT: eq.actualEquipment.EQT_SALE_AMT || '0',
-      MST_SO_ID: eq.actualEquipment.MST_SO_ID || workItem.SO_ID || user.soId,
-      SO_ID: eq.actualEquipment.SO_ID || workItem.SO_ID || user.soId,
-      REG_UID: user.userId || user.workerId || 'A20230019',
-      OLD_LENT_YN: eq.actualEquipment.OLD_LENT_YN || 'N',
-      LENT: eq.actualEquipment.LENT || '10',
-      ITLLMT_PRD: eq.actualEquipment.ITLLMT_PRD || '00',
-      EQT_USE_STAT_CD: eq.actualEquipment.EQT_USE_STAT_CD || '1',
-      EQT_CHG_GB: '1',
-      IF_DTL_ID: eq.actualEquipment.IF_DTL_ID || '',
+      actualEquipment: {
+        ...eq.actualEquipment,
+        id: eq.actualEquipment.id,
+        type: eq.actualEquipment.type,
+        model: eq.actualEquipment.model,
+        serialNumber: eq.actualEquipment.serialNumber,
+        itemMidCd: eq.actualEquipment.itemMidCd,
+        eqtClCd: eq.actualEquipment.eqtClCd,
+        macAddress: eq.macAddress || eq.actualEquipment.macAddress,
+        BASIC_PROD_CMPS_ID: eq.actualEquipment.BASIC_PROD_CMPS_ID || '',
+        EQT_PROD_CMPS_ID: eq.actualEquipment.EQT_PROD_CMPS_ID || eq.contractEquipment.id,
+        PROD_CD: eq.actualEquipment.PROD_CD || workItem.PROD_CD,
+        SVC_CD: eq.actualEquipment.SVC_CD || '',
+        SVC_CMPS_ID: eq.actualEquipment.SVC_CMPS_ID || eq.contractEquipment.id,
+        EQT_SALE_AMT: eq.actualEquipment.EQT_SALE_AMT || '0',
+        MST_SO_ID: eq.actualEquipment.MST_SO_ID || workItem.SO_ID || user.soId,
+        SO_ID: eq.actualEquipment.SO_ID || workItem.SO_ID || user.soId,
+        OLD_LENT_YN: eq.actualEquipment.OLD_LENT_YN || 'N',
+        LENT: eq.actualEquipment.LENT || '10',
+        ITLLMT_PRD: eq.actualEquipment.ITLLMT_PRD || '00',
+        EQT_USE_STAT_CD: eq.actualEquipment.EQT_USE_STAT_CD || '1',
+        EQT_CHG_GB: '1',
+        IF_DTL_ID: eq.actualEquipment.IF_DTL_ID || '',
+      },
+      contractEquipment: {
+        ...eq.contractEquipment,
+        id: eq.contractEquipment.id,
+        SVC_CMPS_ID: eq.contractEquipment.SVC_CMPS_ID || eq.contractEquipment.id,
+        BASIC_PROD_CMPS_ID: eq.contractEquipment.BASIC_PROD_CMPS_ID || '',
+        PROD_CD: eq.contractEquipment.PROD_CD || '',
+        SVC_CD: eq.contractEquipment.SVC_CD || '',
+      },
+      macAddress: eq.macAddress || eq.actualEquipment.macAddress,
     } as any));
 
     const removals = markedForRemoval.map(eq => {
@@ -604,18 +586,12 @@ const EquipmentRemoval: React.FC<EquipmentComponentProps> = ({
   };
 
   // Toggle removal status (loss/damage checkboxes)
-  const handleRemovalStatusChange = (eqtNo: string, field: string, value: string) => {
-    setRemovalStatus(prev => ({
-      ...prev,
-      [eqtNo]: {
-        ...prev[eqtNo],
-        [field]: value === '1' ? '0' : '1'
-      }
-    }));
+  const handleRemovalStatusChange = (eqtNo: string, field: string) => {
+    toggleRemovalStatus(workId, eqtNo, field);
   };
 
   // Filter available stock
-  const getAvailableStock = (): ExtendedEquipment[] => {
+  const availableStock = useMemo((): ExtendedEquipment[] => {
     const usedStockIds = new Set(installedEquipments.map(eq => eq.actualEquipment.id));
     let available = technicianEquipments.filter(stock => !usedStockIds.has(stock.id));
 
@@ -627,7 +603,7 @@ const EquipmentRemoval: React.FC<EquipmentComponentProps> = ({
     }
 
     return available;
-  };
+  }, [installedEquipments, technicianEquipments, selectedContract]);
 
   // Barcode scan handler
   const handleBarcodeScan = () => {
@@ -638,59 +614,67 @@ const EquipmentRemoval: React.FC<EquipmentComponentProps> = ({
     }, 500);
   };
 
-  const availableStock = getAvailableStock();
-
   return (
     <div className="px-2 sm:px-4 py-4 sm:py-6 space-y-3 sm:space-y-4 bg-gray-50 pb-4">
       {/* Customer installed equipment section */}
       <div className="bg-white rounded-xl shadow-sm border border-gray-100">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between p-3 sm:p-4 border-b border-gray-100 gap-2">
-          <h4 className="text-sm sm:text-base font-bold text-gray-900">고객 설치 장비</h4>
-          <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
-            {!isWorkCompleted && (
-              <>
-                <button
-                  className={`px-3 sm:px-4 py-2.5 sm:py-3 text-sm sm:text-base font-semibold rounded-xl transition-colors whitespace-nowrap active:scale-95 ${
-                    (installedEquipments.length > 0 || customerEquipmentCount > 0)
-                      ? 'text-gray-400 bg-gray-100 cursor-not-allowed'
-                      : 'text-blue-600 bg-blue-50 hover:bg-blue-100'
-                  }`}
-                  onClick={() => {
-                    if (customerEquipmentCount > 0) {
-                      showToast?.('이미 고객에게 설치된 장비가 있어 장비정보를 변경할 수 없습니다.', 'warning');
-                      return;
-                    }
-                    if (installedEquipments.length > 0) {
-                      showToast?.('등록된 장비를 먼저 회수한 후 장비정보를 변경할 수 있습니다.', 'warning');
-                      return;
-                    }
-                    setIsModelChangeModalOpen(true);
-                  }}
-                  disabled={installedEquipments.length > 0 || customerEquipmentCount > 0}
-                >
-                  장비변경
-                </button>
-                <button
-                  className="px-3 sm:px-4 py-2.5 sm:py-3 text-sm sm:text-base font-semibold text-white bg-blue-500 hover:bg-blue-600 rounded-xl transition-colors flex items-center gap-2 whitespace-nowrap active:scale-95"
-                  onClick={handleSignalProcess}
-                >
-                  <span>신호처리</span>
-                  <span className={`w-2.5 h-2.5 sm:w-3 sm:h-3 rounded-full flex-shrink-0 ${
-                    lastSignalStatus === 'success' ? 'bg-green-400' :
-                    lastSignalStatus === 'fail' ? 'bg-red-400' :
-                    'bg-gray-400'
-                  }`}></span>
-                </button>
-              </>
-            )}
+        <div className="p-3 sm:p-4 border-b border-gray-100">
+          <div className="flex items-center justify-between mb-3">
+            <h4 className="text-sm sm:text-base font-bold text-gray-900">고객 설치 장비</h4>
+            <span className="px-2.5 sm:px-3 py-1 sm:py-1.5 bg-gray-100 text-gray-700 text-xs sm:text-sm font-semibold rounded-full">{contractEquipments.length}개</span>
+          </div>
+          {/* 버튼 그룹 - 모바일에서 그리드 레이아웃 */}
+          <div className="grid grid-cols-3 gap-2">
             <button
-              className="px-3 sm:px-4 py-2.5 sm:py-3 text-sm sm:text-base font-semibold text-purple-600 bg-purple-50 hover:bg-purple-100 rounded-xl transition-colors flex items-center gap-2 whitespace-nowrap active:scale-95"
+              className={`flex flex-col items-center justify-center py-2.5 px-1 rounded-lg border-2 transition-all active:scale-95 min-h-[56px] ${
+                isWorkCompleted || installedEquipments.length > 0 || customerEquipmentCount > 0
+                  ? 'border-gray-200 bg-gray-50 text-gray-400 cursor-not-allowed'
+                  : 'border-blue-200 bg-blue-50 text-blue-600 hover:bg-blue-100 hover:border-blue-300'
+              }`}
+              onClick={() => {
+                if (isWorkCompleted) return;
+                if (customerEquipmentCount > 0) {
+                  showToast?.('이미 고객에게 설치된 장비가 있어 장비정보를 변경할 수 없습니다.', 'warning');
+                  return;
+                }
+                if (installedEquipments.length > 0) {
+                  showToast?.('등록된 장비를 먼저 회수한 후 장비정보를 변경할 수 있습니다.', 'warning');
+                  return;
+                }
+                setIsModelChangeModalOpen(true);
+              }}
+              disabled={isWorkCompleted || installedEquipments.length > 0 || customerEquipmentCount > 0}
+            >
+              <svg className="w-5 h-5 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
+              </svg>
+              <span className="text-xs font-semibold">장비변경</span>
+            </button>
+            <button
+              className={`flex flex-col items-center justify-center py-2.5 px-1 rounded-lg border-2 transition-all active:scale-95 min-h-[56px] ${
+                isWorkCompleted
+                  ? 'border-gray-200 bg-gray-50 text-gray-400 cursor-not-allowed'
+                  : lastSignalStatus === 'success'
+                    ? 'border-green-300 bg-green-100 text-green-700 hover:bg-green-200 hover:border-green-400'
+                    : lastSignalStatus === 'fail'
+                      ? 'border-red-500 bg-red-200 text-red-800 hover:bg-red-300 hover:border-red-600'
+                      : 'border-red-300 bg-red-100 text-red-700 hover:bg-red-200 hover:border-red-400'
+              }`}
+              onClick={() => !isWorkCompleted && !isSignalProcessing && handleSignalProcess()}
+              disabled={isWorkCompleted || isSignalProcessing}
+            >
+              <svg className="w-5 h-5 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+              </svg>
+              <span className="text-xs font-semibold">신호처리</span>
+            </button>
+            <button
+              className="flex flex-col items-center justify-center py-2.5 px-1 rounded-lg border-2 transition-all active:scale-95 min-h-[56px] border-purple-200 bg-purple-50 text-purple-600 hover:bg-purple-100 hover:border-purple-300"
               onClick={() => setIsIntegrationHistoryModalOpen(true)}
             >
-              <History className="w-4 h-4" />
-              <span>연동이력</span>
+              <History className="w-5 h-5 mb-1" />
+              <span className="text-xs font-semibold">연동이력</span>
             </button>
-            <span className="px-2.5 sm:px-3 py-1 sm:py-1.5 bg-gray-100 text-gray-700 text-xs sm:text-sm font-semibold rounded-full">{contractEquipments.length}개</span>
           </div>
         </div>
 
@@ -754,7 +738,7 @@ const EquipmentRemoval: React.FC<EquipmentComponentProps> = ({
       {!isWorkCompleted && (
         <div className="flex items-center justify-center gap-3 sm:gap-4">
           <button
-            className={`flex flex-col items-center justify-center w-24 h-24 sm:w-32 sm:h-32 rounded-xl border-2 transition-all ${
+            className={`flex flex-col items-center justify-center w-16 h-16 sm:w-20 sm:h-20 rounded-xl border-2 transition-all ${
               !selectedContract || !selectedStock || installedEquipments.some(eq => eq.actualEquipment.id === selectedStock.id)
                 ? 'border-gray-200 bg-gray-50 text-gray-400 cursor-not-allowed'
                 : 'border-blue-500 bg-blue-50 text-blue-600 hover:bg-blue-100 cursor-pointer active:scale-95'
@@ -763,10 +747,9 @@ const EquipmentRemoval: React.FC<EquipmentComponentProps> = ({
             disabled={!selectedContract || !selectedStock || installedEquipments.some(eq => eq.actualEquipment.id === selectedStock.id)}
           >
             <ArrowUp size={32} className="sm:w-10 sm:h-10" strokeWidth={2.5} />
-            <span className="mt-2 text-sm sm:text-base font-bold">등록</span>
           </button>
           <button
-            className={`flex flex-col items-center justify-center w-24 h-24 sm:w-32 sm:h-32 rounded-xl border-2 transition-all ${
+            className={`flex flex-col items-center justify-center w-16 h-16 sm:w-20 sm:h-20 rounded-xl border-2 transition-all ${
               !selectedStock || !(
                 installedEquipments.some(eq => eq.actualEquipment.id === selectedStock.id) ||
                 removeEquipments.some(eq => eq.id === selectedStock.id)
@@ -781,7 +764,6 @@ const EquipmentRemoval: React.FC<EquipmentComponentProps> = ({
             )}
           >
             <ArrowDown size={32} className="sm:w-10 sm:h-10" strokeWidth={2.5} />
-            <span className="mt-2 text-sm sm:text-base font-bold">회수</span>
           </button>
         </div>
       )}
@@ -808,7 +790,7 @@ const EquipmentRemoval: React.FC<EquipmentComponentProps> = ({
               <div className="text-xs sm:text-sm text-gray-500">해당 종류의 사용 가능한 재고가 없습니다</div>
             </div>
           ) : (
-            <div className="p-3 sm:p-4 space-y-2.5">
+            <div className="p-3 sm:p-4 space-y-2.5 max-h-72 overflow-y-auto">
               {availableStock.map(stock => (
                 <div
                   key={stock.id}
@@ -883,7 +865,7 @@ const EquipmentRemoval: React.FC<EquipmentComponentProps> = ({
                         <input
                           type="checkbox"
                           checked={status.EQT_LOSS_YN === '1'}
-                          onChange={() => !isCustomerOwned && handleRemovalStatusChange(eqtNo, 'EQT_LOSS_YN', status.EQT_LOSS_YN || '0')}
+                          onChange={() => !isCustomerOwned && handleRemovalStatusChange(eqtNo, 'EQT_LOSS_YN')}
                           disabled={isCustomerOwned}
                           className="w-4 h-4 rounded border-gray-300 text-orange-500 focus:ring-orange-500"
                         />
@@ -893,7 +875,7 @@ const EquipmentRemoval: React.FC<EquipmentComponentProps> = ({
                         <input
                           type="checkbox"
                           checked={status.PART_LOSS_BRK_YN === '1'}
-                          onChange={() => !isCustomerOwned && handleRemovalStatusChange(eqtNo, 'PART_LOSS_BRK_YN', status.PART_LOSS_BRK_YN || '0')}
+                          onChange={() => !isCustomerOwned && handleRemovalStatusChange(eqtNo, 'PART_LOSS_BRK_YN')}
                           disabled={isCustomerOwned}
                           className="w-4 h-4 rounded border-gray-300 text-orange-500 focus:ring-orange-500"
                         />
@@ -903,7 +885,7 @@ const EquipmentRemoval: React.FC<EquipmentComponentProps> = ({
                         <input
                           type="checkbox"
                           checked={status.EQT_BRK_YN === '1'}
-                          onChange={() => !isCustomerOwned && handleRemovalStatusChange(eqtNo, 'EQT_BRK_YN', status.EQT_BRK_YN || '0')}
+                          onChange={() => !isCustomerOwned && handleRemovalStatusChange(eqtNo, 'EQT_BRK_YN')}
                           disabled={isCustomerOwned}
                           className="w-4 h-4 rounded border-gray-300 text-orange-500 focus:ring-orange-500"
                         />
@@ -913,7 +895,7 @@ const EquipmentRemoval: React.FC<EquipmentComponentProps> = ({
                         <input
                           type="checkbox"
                           checked={status.EQT_CABL_LOSS_YN === '1'}
-                          onChange={() => !isCustomerOwned && handleRemovalStatusChange(eqtNo, 'EQT_CABL_LOSS_YN', status.EQT_CABL_LOSS_YN || '0')}
+                          onChange={() => !isCustomerOwned && handleRemovalStatusChange(eqtNo, 'EQT_CABL_LOSS_YN')}
                           disabled={isCustomerOwned}
                           className="w-4 h-4 rounded border-gray-300 text-orange-500 focus:ring-orange-500"
                         />
@@ -923,7 +905,7 @@ const EquipmentRemoval: React.FC<EquipmentComponentProps> = ({
                         <input
                           type="checkbox"
                           checked={status.EQT_CRDL_LOSS_YN === '1'}
-                          onChange={() => !isCustomerOwned && handleRemovalStatusChange(eqtNo, 'EQT_CRDL_LOSS_YN', status.EQT_CRDL_LOSS_YN || '0')}
+                          onChange={() => !isCustomerOwned && handleRemovalStatusChange(eqtNo, 'EQT_CRDL_LOSS_YN')}
                           disabled={isCustomerOwned}
                           className="w-4 h-4 rounded border-gray-300 text-orange-500 focus:ring-orange-500"
                         />

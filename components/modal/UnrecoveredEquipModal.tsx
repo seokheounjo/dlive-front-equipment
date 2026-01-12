@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { getUnreturnedEquipmentList, processEquipmentRecovery } from '../../services/apiService';
+import ConfirmModal from '../common/ConfirmModal';
 
 /**
  * UnrecoveredEquipModal - 미회수 장비 처리 모달
@@ -44,6 +45,7 @@ const UnrecoveredEquipModal: React.FC<UnrecoveredEquipModalProps> = ({
   const [equipmentList, setEquipmentList] = useState<UnrecoveredEquipment[]>([]);
   const [selectedEquipNos, setSelectedEquipNos] = useState<Set<string>>(new Set());
   const [recoveryType, setRecoveryType] = useState('');
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
 
   // 회수처리 옵션
   const recoveryOptions = [
@@ -105,8 +107,8 @@ const UnrecoveredEquipModal: React.FC<UnrecoveredEquipModalProps> = ({
 
   if (!isOpen) return null;
 
-  // 회수 처리 (다중 처리 지원)
-  const handleRecovery = async () => {
+  // 회수 처리 확인
+  const handleRecovery = () => {
     if (selectedEquipNos.size === 0) {
       showToast?.('처리할 장비를 선택해주세요.', 'error');
       return;
@@ -115,14 +117,12 @@ const UnrecoveredEquipModal: React.FC<UnrecoveredEquipModalProps> = ({
       showToast?.('처리유형을 선택해주세요.', 'error');
       return;
     }
+    setShowConfirmModal(true);
+  };
 
-    const selectedCount = selectedEquipNos.size;
-    const confirmMsg = recoveryType === '2'
-      ? `망실처리 시 고객에게 손해배상금이 청구됩니다.\n선택한 ${selectedCount}건을 처리하시겠습니까?`
-      : `선택한 ${selectedCount}건을 회수처리 하시겠습니까?`;
-
-    if (!window.confirm(confirmMsg)) return;
-
+  // 실제 회수 처리
+  const handleConfirmRecovery = async () => {
+    setShowConfirmModal(false);
     setIsSaving(true);
     let successCount = 0;
     let failCount = 0;
@@ -355,6 +355,21 @@ const UnrecoveredEquipModal: React.FC<UnrecoveredEquipModalProps> = ({
           </div>
         </div>
       </div>
+
+      {/* 회수처리 확인 모달 */}
+      <ConfirmModal
+        isOpen={showConfirmModal}
+        onClose={() => setShowConfirmModal(false)}
+        onConfirm={handleConfirmRecovery}
+        title="장비 회수 처리"
+        message={recoveryType === '2'
+          ? `망실처리 시 고객에게 손해배상금이 청구됩니다. 선택한 ${selectedEquipNos.size}건을 처리하시겠습니까?`
+          : `선택한 ${selectedEquipNos.size}건을 회수처리 하시겠습니까?`
+        }
+        type={recoveryType === '2' ? 'warning' : 'confirm'}
+        confirmText="처리"
+        cancelText="취소"
+      />
     </div>
   );
 };

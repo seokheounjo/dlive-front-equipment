@@ -12,7 +12,7 @@
 import React, { useState, useEffect } from 'react';
 import { History } from 'lucide-react';
 import { WorkOrder, WorkCompleteData } from '../../../../types';
-import { getCommonCodeList, CommonCode, getWorkReceiptDetail } from '../../../../services/apiService';
+import { getCommonCodeList, CommonCode, getWorkReceiptDetail, checkStbServerConnection } from '../../../../services/apiService';
 import Select from '../../../ui/Select';
 import InstallInfoModal, { InstallInfoData } from '../../../modal/InstallInfoModal';
 import IntegrationHistoryModal from '../../../modal/IntegrationHistoryModal';
@@ -20,8 +20,10 @@ import HotbillSection from '../HotbillSection';
 import RemovalLineSection, { RemovalLineData } from '../RemovalLineSection';
 import RemovalASAssignModal, { ASAssignData } from '../../../modal/RemovalASAssignModal';
 import ConfirmModal from '../../../common/ConfirmModal';
+import WorkCompleteSummary from '../WorkCompleteSummary';
 import { insertWorkRemoveStat, modAsPdaReceipt } from '../../../../services/apiService';
 import { useWorkProcessStore } from '../../../../stores/workProcessStore';
+import { useWorkEquipment } from '../../../../stores/workEquipmentStore';
 import { useCompleteWork } from '../../../../hooks/mutations/useCompleteWork';
 import '../../../../styles/buttons.css';
 
@@ -52,9 +54,28 @@ const CompleteTerminate: React.FC<CompleteTerminateProps> = ({
 
   const [isDataLoaded, setIsDataLoaded] = useState(false);
 
-  // Store에서 장비 데이터
-  const { equipmentData: storeEquipmentData, filteringData } = useWorkProcessStore();
-  const equipmentData = storeEquipmentData || legacyEquipmentData || filteringData;
+  // Store에서 장비 데이터 + 인입선로 철거관리 데이터
+  const { equipmentData: storeEquipmentData, filteringData, removalLineData: storeRemovalLineData, setRemovalLineData: setStoreRemovalLineData } = useWorkProcessStore();
+
+  // Zustand Equipment Store - 장비 컴포넌트에서 등록한 장비 정보
+  const workId = order.id || '';
+  const zustandEquipment = useWorkEquipment(workId);
+
+  // equipmentData 병합: Zustand Equipment Store 우선 사용
+  // 철거 작업(WRK_CD=02)은 removeEquipments(API output5)를 사용 (markedForRemoval은 AS/상품변경용)
+  const equipmentData = {
+    ...(storeEquipmentData || legacyEquipmentData || filteringData || {}),
+    installedEquipments: zustandEquipment.installedEquipments.length > 0
+      ? zustandEquipment.installedEquipments
+      : (storeEquipmentData?.installedEquipments || legacyEquipmentData?.installedEquipments || []),
+    // 철거: zustandEquipment.removeEquipments (API output5) 우선 사용
+    removedEquipments: zustandEquipment.removeEquipments.length > 0
+      ? zustandEquipment.removeEquipments
+      : (storeEquipmentData?.removedEquipments || legacyEquipmentData?.removedEquipments || []),
+    removalStatus: Object.keys(zustandEquipment.removalStatus).length > 0
+      ? zustandEquipment.removalStatus
+      : (storeEquipmentData?.removalStatus || legacyEquipmentData?.removalStatus || {}),
+  };
 
   // React Query Mutation
   const { mutate: submitWork, isPending: isLoading } = useCompleteWork();
@@ -72,10 +93,12 @@ const CompleteTerminate: React.FC<CompleteTerminateProps> = ({
   const [networkTypeName, setNetworkTypeName] = useState('');
   const [installInfoData, setInstallInfoData] = useState<InstallInfoData | undefined>(undefined);
 
-  // 인입선로 철거관리
-  const [removalLineData, setRemovalLineData] = useState<RemovalLineData | null>(null);
+  // 인입선로 철거관리 (store에서 관리 - 스텝 이동해도 유지)
+  const removalLineData = storeRemovalLineData as RemovalLineData | null;
+  const setRemovalLineData = setStoreRemovalLineData;
   const [showASAssignModal, setShowASAssignModal] = useState(false);
   const [isASProcessing, setIsASProcessing] = useState(false);
+  const [pendingASData, setPendingASData] = useState<ASAssignData | null>(null);  // AS할당 임시 저장
 
   // 작업완료 확인 모달
   const [showConfirmModal, setShowConfirmModal] = useState(false);
@@ -169,16 +192,22 @@ const CompleteTerminate: React.FC<CompleteTerminateProps> = ({
       try {
         console.log('[WorkCompleteTerminate] 작업 상세 조회 시작');
         const detail = await getWorkReceiptDetail({
-          WRK_DRCTN_ID: order.directionId || order.id,
-          WRK_ID: (order as any).WRK_ID,
+          WRK_DRCTN_ID: order.directionId || order.WRK_DRCTN_ID || '',
+          WRK_ID: order.id,  // order.id가 실제 WRK_ID
           SO_ID: order.SO_ID
         });
 
         if (detail) {
-          console.log('[WorkCompleteTerminate] API 응답:', { NET_CL: detail.NET_CL, NET_CL_NM: detail.NET_CL_NM });
+          console.log('[WorkCompleteTerminate] API 응답 전체:', detail);
+          console.log('[WorkCompleteTerminate] 망구분:', { NET_CL: detail.NET_CL, NET_CL_NM: detail.NET_CL_NM });
+          console.log('[WorkCompleteTerminate] 설치정보:', { INSTL_TP: detail.INSTL_TP, WRNG_TP: detail.WRNG_TP });
+          console.log('[WorkCompleteTerminate] 고객관계/메모:', { CUST_REL: detail.CUST_REL, MEMO: detail.MEMO });
+          console.log('[WorkCompleteTerminate] isWorkCompleted:', isWorkCompleted);
 
           // 완료된 작업이면 모든 값 복원
           if (isWorkCompleted) {
+            console.log('[WorkCompleteTerminate] 완료된 작업 - 데이터 복원 시작');
+            setCustRel(detail.CUST_REL || '');
             setMemo((detail.MEMO || '').replace(/\\n/g, '\n'));
             if (detail.WRKR_CMPL_DT && detail.WRKR_CMPL_DT.length >= 8) {
               setWorkCompleteDate(`${detail.WRKR_CMPL_DT.slice(0,4)}-${detail.WRKR_CMPL_DT.slice(4,6)}-${detail.WRKR_CMPL_DT.slice(6,8)}`);
@@ -276,10 +305,20 @@ const CompleteTerminate: React.FC<CompleteTerminateProps> = ({
     if (!installInfoData?.NET_CL) {
       errors.push('철거정보를 입력해주세요. (망구분 필수)');
     }
+    if (!workCompleteDate) errors.push('작업처리일을 선택해주세요.');
     // 핫빌 확인 필수 (WRK_CD=02 && WRK_STAT_CD !== '7' 일 때)
     if (order.WRK_CD === '02' && wrkStatCd !== '7' && !isHotbillConfirmed) {
       errors.push('핫빌 확인이 필요합니다.');
     }
+
+    // 장비 철거 검증 (레거시 동일)
+    // VoIP가 아닌 경우 철거 장비가 최소 1개 이상 있어야 함
+    const prodGrp = (order as any).PROD_GRP || '';
+    const removedEquipments = equipmentData?.removedEquipments || [];
+    if (prodGrp !== 'V' && removedEquipments.length < 1) {
+      errors.push('철거할 장비가 없습니다. 장비 정보를 확인해주세요.');
+    }
+
     return errors;
   };
 
@@ -303,10 +342,13 @@ const CompleteTerminate: React.FC<CompleteTerminateProps> = ({
 
     // 방송상품 작업완료 불가 체크 (레거시: mowoa03m02 btn_save_OnClick)
     // KPI_PROD_GRP_CD가 'C'(케이블) 또는 'D'(DTV)인 경우 작업완료 불가
-    const kpiProdGrp = (order as any).KPI_PROD_GRP_CD || '';
-    if (kpiProdGrp === 'C' || kpiProdGrp === 'D') {
-      showToast?.('방송 상품은 작업완료 처리하실 수 없습니다.', 'error');
-      return;
+    // 단, 장비철거(btn_eqt_rmv)는 방송상품 체크 없이 진행 가능 (레거시: btn_eqt_rmv_OnClick → fn_save 직접 호출)
+    if (!isEquipmentRemoval) {
+      const kpiProdGrp = (order as any).KPI_PROD_GRP_CD || '';
+      if (kpiProdGrp === 'C' || kpiProdGrp === 'D') {
+        showToast?.('방송 상품은 작업완료 처리하실 수 없습니다.', 'error');
+        return;
+      }
     }
 
     const errors = validate();
@@ -344,29 +386,11 @@ const CompleteTerminate: React.FC<CompleteTerminateProps> = ({
       && voipCtx !== 'R';
   };
 
-  // 인입선로 철거관리 - 완료(완전철거) 핸들러
-  const handleRemovalLineComplete = async (data: RemovalLineData) => {
-    console.log('[WorkCompleteTerminate] 인입선로 철거관리 완료(완전철거):', data);
+  // 인입선로 철거관리 - 완료(완전철거) 핸들러 (임시저장 - 작업완료 시 API 호출)
+  const handleRemovalLineComplete = (data: RemovalLineData) => {
+    console.log('[WorkCompleteTerminate] 인입선로 철거관리 완료(완전철거) 임시저장:', data);
     setRemovalLineData(data);
-
-    // 인입선로 철거상태 저장 (레거시: fn_insertWrkRemoveStat)
-    try {
-      const result = await insertWorkRemoveStat({
-        WRK_ID: order.id || (order as any).WRK_ID || '',
-        REMOVE_LINE_TP: data.REMOVE_LINE_TP || '',
-        REMOVE_GB: data.REMOVE_GB || '4',  // 완전철거
-        REMOVE_STAT: data.REMOVE_STAT || '',
-        REG_UID: 'A20130708',
-      });
-
-      if (result.code === 'SUCCESS' || result.code === 'OK') {
-        showToast?.('인입선로 철거상태가 저장되었습니다.', 'success');
-      } else {
-        showToast?.(result.message || '인입선로 철거상태 저장에 실패했습니다.', 'error');
-      }
-    } catch (error: any) {
-      showToast?.(error.message || '인입선로 철거상태 저장 중 오류가 발생했습니다.', 'error');
-    }
+    showToast?.('인입선로 철거관리가 임시저장되었습니다. 작업완료 시 반영됩니다.', 'info');
   };
 
   // 인입선로 미철거 - AS할당 핸들러
@@ -376,56 +400,119 @@ const CompleteTerminate: React.FC<CompleteTerminateProps> = ({
     setShowASAssignModal(true);
   };
 
-  // AS할당 저장 핸들러
-  const handleASAssignSave = async (asData: ASAssignData) => {
-    console.log('[WorkCompleteTerminate] AS할당 저장:', asData);
-    setIsASProcessing(true);
-
-    try {
-      // 1. 인입선로 철거상태 저장 (미철거)
-      const removeStatResult = await insertWorkRemoveStat({
-        WRK_ID: order.id || (order as any).WRK_ID || '',
-        REMOVE_LINE_TP: removalLineData?.REMOVE_LINE_TP || '',
-        REMOVE_GB: removalLineData?.REMOVE_GB || '1',  // 미철거
-        REMOVE_STAT: removalLineData?.REMOVE_STAT || '',
-        REG_UID: 'A20130708',
-      });
-
-      if (removeStatResult.code !== 'SUCCESS' && removeStatResult.code !== 'OK') {
-        throw new Error(removeStatResult.message || '인입선로 철거상태 저장에 실패했습니다.');
-      }
-
-      // 2. AS 접수 생성
-      const asResult = await modAsPdaReceipt({
-        CUST_ID: order.customer?.id || '',
-        CTRT_ID: order.CTRT_ID || '',
-        ADDR_ORD: order.customer?.ADDR_ORD || '',
-        AS_TP: asData.AS_TP || '03',  // AS유형
-        AS_CL: asData.AS_CL || '',     // AS분류
-        AS_RSN: asData.AS_RSN || '',   // AS사유
-        MEMO: asData.MEMO || '',
-        HOPE_DT: asData.HOPE_DT || '',
-        HOPE_TM_CL: asData.HOPE_TM_CL || '',
-        REG_UID: 'A20130708',
-      });
-
-      if (asResult.code === 'SUCCESS' || asResult.code === 'OK') {
-        showToast?.('인입선로 미철거 AS할당이 완료되었습니다.', 'success');
-        setShowASAssignModal(false);
-      } else {
-        showToast?.(asResult.message || 'AS 접수 생성에 실패했습니다.', 'error');
-      }
-    } catch (error: any) {
-      showToast?.(error.message || 'AS할당 처리 중 오류가 발생했습니다.', 'error');
-    } finally {
-      setIsASProcessing(false);
-    }
+  // AS할당 확인 핸들러 (임시 저장 - 작업완료 시 같이 호출)
+  const handleASAssignSave = (asData: ASAssignData) => {
+    console.log('[WorkCompleteTerminate] AS할당 임시 저장:', asData);
+    // 임시 저장 (작업완료 시 같이 API 호출)
+    setPendingASData(asData);
+    setShowASAssignModal(false);
+    showToast?.('인입선로 미철거 AS할당 정보가 입력되었습니다.', 'info');
   };
 
   // 실제 작업 완료 처리
-  const handleConfirmSubmit = () => {
+  const handleConfirmSubmit = async () => {
     const formattedDate = workCompleteDate.replace(/-/g, '');
-    const workerId = 'A20130708';
+    const userInfo = localStorage.getItem('userInfo');
+    const user = userInfo ? JSON.parse(userInfo) : {};
+    const workerId = user.userId || 'A20130708';
+
+    // 인입선로 완전철거 데이터가 있으면 먼저 API 호출
+    if (removalLineData && removalLineData.REMOVE_GB === '4') {
+      try {
+        console.log('[WorkCompleteTerminate] 인입선로 완전철거 API 호출:', removalLineData);
+        const removeStatResult = await insertWorkRemoveStat({
+          WRK_ID: order.id || (order as any).WRK_ID || '',
+          REMOVE_LINE_TP: removalLineData.REMOVE_LINE_TP || '',
+          REMOVE_GB: removalLineData.REMOVE_GB || '4',
+          REMOVE_STAT: removalLineData.REMOVE_STAT || '',
+          REG_UID: workerId,
+        });
+
+        if (removeStatResult.code !== 'SUCCESS' && removeStatResult.code !== 'OK') {
+          showToast?.(removeStatResult.message || '인입선로 철거상태 저장에 실패했습니다.', 'error');
+          return;
+        }
+        console.log('[WorkCompleteTerminate] 인입선로 완전철거 저장 성공');
+      } catch (error: any) {
+        showToast?.(error.message || '인입선로 철거상태 저장 중 오류가 발생했습니다.', 'error');
+        return;
+      }
+    }
+
+    // 회수 장비가 있으면 철거 신호(SMR05) 호출 (레거시: mowoa03m02.xml fn_signal_trans)
+    const removedEquipments = equipmentData?.removedEquipments || [];
+    if (removedEquipments.length > 0) {
+      try {
+        const regUid = user.userId || user.id || 'UNKNOWN';
+        const firstEquip = removedEquipments[0];
+        console.log('[CompleteTerminate] 철거 신호(SMR05) 호출:', { eqtNo: firstEquip.EQT_NO || firstEquip.id });
+        await checkStbServerConnection(
+          regUid,
+          order.CTRT_ID || '',
+          order.id,
+          'SMR05',
+          firstEquip.EQT_NO || firstEquip.id || '',
+          ''
+        );
+        console.log('[CompleteTerminate] 철거 신호(SMR05) 호출 완료');
+      } catch (error) {
+        console.log('[CompleteTerminate] 철거 신호 처리 중 오류 (무시하고 계속 진행):', error);
+      }
+    }
+
+    // 철거 장비 목록에 필수 필드 매핑 (레거시 mowoa03m02.xml 기준)
+    // removalStatus 필드명: EQT_LOSS_YN, PART_LOSS_BRK_YN, EQT_BRK_YN, EQT_CABL_LOSS_YN, EQT_CRDL_LOSS_YN (값: '0' 또는 '1')
+    const removalStatus = equipmentData?.removalStatus || {};
+    const mappedRemoveEquipmentList = removedEquipments.map((eq: any) => {
+      // nested 구조 처리: actualEquipment/contractEquipment가 있으면 그 안의 값 사용
+      const actual = eq.actualEquipment || eq;
+      const contract = eq.contractEquipment || {};
+      const eqtNo = actual.id || eq.EQT_NO || eq.id || '';
+      const status = removalStatus[eqtNo] || {};
+
+      // 장비 객체에 이미 값이 있으면 사용, 없으면 removalStatus에서 가져옴
+      // '1' → 'Y', '0' 또는 없음 → 'N' 변환
+      const getYN = (eqVal: any, statusVal: any) =>
+        (eqVal === '1' || eqVal === 'Y' || statusVal === '1') ? 'Y' : 'N';
+
+      return {
+        ...actual,
+        // 레거시 필수 필드 매핑 (프론트엔드 → 레거시)
+        EQT_NO: eqtNo,
+        ITEM_MID_CD: actual.ITEM_MID_CD || actual.itemMidCd || eq.ITEM_MID_CD || eq.itemMidCd || '',
+        ITEM_MID_NM: actual.ITEM_MID_NM || actual.type || eq.ITEM_MID_NM || eq.type || '',
+        EQT_CL_CD: actual.EQT_CL_CD || actual.eqtClCd || eq.EQT_CL_CD || eq.eqtClCd || '',
+        EQT_CL_NM: actual.EQT_CL_NM || actual.model || eq.EQT_CL_NM || eq.model || '',
+        EQT_SERNO: actual.EQT_SERNO || actual.serialNumber || eq.EQT_SERNO || eq.serialNumber || '',
+        MAC_ADDRESS: eq.macAddress || actual.MAC_ADDRESS || actual.macAddress || eq.MAC_ADDRESS || '',
+        // 작업 관련 필드
+        CRR_TSK_CL: '02',                    // 철거 하드코딩 (레거시 Line 1095)
+        RCPT_ID: order.RCPT_ID || '',
+        WRK_ID: order.id || '',
+        CUST_ID: eq.CUST_ID || order.customer?.id || '',
+        CTRT_ID: eq.CTRT_ID || order.CTRT_ID || '',
+        CRR_ID: order.CRR_ID || user.crrId || '01',
+        WRKR_ID: workerId,
+        REG_UID: workerId,
+        // 기타 레거시 필드 (contract 구조도 확인)
+        SVC_CMPS_ID: contract.SVC_CMPS_ID || eq.SVC_CMPS_ID || '',
+        BASIC_PROD_CMPS_ID: contract.BASIC_PROD_CMPS_ID || eq.BASIC_PROD_CMPS_ID || '',
+        EQT_PROD_CMPS_ID: eq.EQT_PROD_CMPS_ID || '',
+        PROD_CD: contract.PROD_CD || eq.PROD_CD || '',
+        SVC_CD: contract.SVC_CD || eq.SVC_CD || '',
+        MST_SO_ID: eq.MST_SO_ID || order.SO_ID || '',
+        SO_ID: eq.SO_ID || order.SO_ID || '',
+        OLD_LENT_YN: eq.OLD_LENT_YN || 'N',
+        LENT_YN: eq.lentYn || eq.LENT_YN || contract.LENT_YN || '10',
+        // 분실/파손 상태 (EquipmentTerminate에서 저장한 필드명 사용)
+        EQT_LOSS_YN: getYN(eq.EQT_LOSS_YN, status.EQT_LOSS_YN),
+        PART_LOSS_BRK_YN: getYN(eq.PART_LOSS_BRK_YN, status.PART_LOSS_BRK_YN),
+        EQT_BRK_YN: getYN(eq.EQT_BRK_YN, status.EQT_BRK_YN),
+        EQT_CABL_LOSS_YN: getYN(eq.EQT_CABL_LOSS_YN, status.EQT_CABL_LOSS_YN),
+        EQT_CRDL_LOSS_YN: getYN(eq.EQT_CRDL_LOSS_YN, status.EQT_CRDL_LOSS_YN),
+        REUSE_YN: eq.REUSE_YN || status.REUSE_YN || '1',  // 레거시 기본값 '1'
+      };
+    });
 
     const completeData: WorkCompleteData = {
       workInfo: {
@@ -433,8 +520,9 @@ const CompleteTerminate: React.FC<CompleteTerminateProps> = ({
         WRK_CD: order.WRK_CD,
         WRK_DTL_TCD: order.WRK_DTL_TCD,
         CUST_ID: order.customer?.id,
+        CTRT_ID: order.CTRT_ID || '',
         RCPT_ID: order.RCPT_ID,
-        CRR_ID: '01',
+        CRR_ID: order.CRR_ID || user.crrId || '01',
         WRKR_ID: workerId,
         WRKR_CMPL_DT: formattedDate,
         MEMO: memo || '작업 완료',
@@ -451,18 +539,89 @@ const CompleteTerminate: React.FC<CompleteTerminateProps> = ({
         EQT_RMV_FLAG: pendingIsEquipmentRemoval ? 'Y' : '',
       },
       equipmentList: [],
-      removeEquipmentList: equipmentData?.removedEquipments || [],
+      removeEquipmentList: mappedRemoveEquipmentList,
       spendItemList: equipmentData?.spendItems || [],
       agreementList: equipmentData?.agreements || [],
+      // 인입선로 정보 (zustand store에서 가져옴)
       poleList: equipmentData?.poleResults || []
     };
 
+    // 디버깅: 전송 데이터 확인
+    console.log('🔧 [CompleteTerminate] 작업완료 요청 데이터:');
+    console.log('  - workInfo:', completeData.workInfo);
+    console.log('  - 🔑 modNetInfo 호출 조건 확인:');
+    console.log('    - NET_CL:', completeData.workInfo.NET_CL, '(빈값이면 modNetInfo 미호출)');
+    console.log('    - INSTL_TP:', completeData.workInfo.INSTL_TP);
+    console.log('    - WRNG_TP:', completeData.workInfo.WRNG_TP);
+    console.log('    - WRK_ID:', completeData.workInfo.WRK_ID);
+    console.log('    - CTRT_ID:', completeData.workInfo.CTRT_ID);
+    console.log('    - installInfoData 전체:', installInfoData);
+    console.log('  - removeEquipmentList 개수:', mappedRemoveEquipmentList.length);
+    if (mappedRemoveEquipmentList.length > 0) {
+      console.log('  - removeEquipmentList[0] 전체:', mappedRemoveEquipmentList[0]);
+      console.log('  - 원본 장비 데이터[0]:', removedEquipments[0]);
+    }
+
     submitWork(completeData, {
-      onSuccess: (result) => {
+      onSuccess: async (result) => {
         if (result.code === 'SUCCESS' || result.code === 'OK') {
           localStorage.removeItem(getStorageKey());
-          showToast?.('작업이 성공적으로 완료되었습니다.', 'success');
 
+          // 인입선로 미철거 AS할당 데이터가 있으면 API 호출
+          if (pendingASData) {
+            try {
+              // 1. 인입선로 철거상태 저장 (미철거)
+              const removeStatResult = await insertWorkRemoveStat({
+                WRK_ID: order.id || (order as any).WRK_ID || '',
+                REMOVE_LINE_TP: pendingASData.REMOVE_LINE_TP || '',
+                REMOVE_GB: pendingASData.REMOVE_GB || '1',
+                REMOVE_STAT: pendingASData.REMOVE_STAT || '',
+                REG_UID: pendingASData.REG_UID || workerId,
+              });
+
+              if (removeStatResult.code !== 'SUCCESS' && removeStatResult.code !== 'OK') {
+                console.error('[WorkCompleteTerminate] 인입선로 철거상태 저장 실패:', removeStatResult.message);
+              }
+
+              // 2. AS 접수 생성 (레거시 modAsPdaReceipt.req 파라미터와 동일)
+              const asResult = await modAsPdaReceipt({
+                CUST_ID: pendingASData.CUST_ID || order.customer?.id || '',
+                RCPT_ID: pendingASData.RCPT_ID || '',
+                WRK_DTL_TCD: pendingASData.WRK_DTL_TCD || '0380',  // 선로철거(AS할당)
+                WRK_RCPT_CL: pendingASData.WRK_RCPT_CL || 'JH',    // CS(전화회수)
+                WRK_RCPT_CL_DTL: pendingASData.WRK_RCPT_CL_DTL || '',
+                WRK_HOPE_DTTM: pendingASData.WRK_HOPE_DTTM || '',
+                MEMO: pendingASData.MEMO || '',
+                EMRG_YN: pendingASData.EMRG_YN || 'N',
+                HOLY_YN: pendingASData.HOLY_YN || 'N',
+                CRR_ID: pendingASData.CRR_ID || '',
+                WRKR_ID: pendingASData.WRKR_ID || '',
+                REG_UID: pendingASData.REG_UID || workerId,
+                // Address fields (from pendingASData)
+                POST_ID: pendingASData.POST_ID || '',
+                BLD_ID: pendingASData.BLD_ID || '',
+                BLD_CL: pendingASData.BLD_CL || '',
+                BLD_NM: pendingASData.BLD_NM || '',
+                BUN_CL: pendingASData.BUN_CL || '',
+                BUN_NO: pendingASData.BUN_NO || '',
+                HO_NM: pendingASData.HO_NM || '',
+                APT_DONG_NO: pendingASData.APT_DONG_NO || '',
+                APT_HO_CNT: pendingASData.APT_HO_CNT || '',
+                ADDR: pendingASData.ADDR || '',
+                ADDR_DTL: pendingASData.ADDR_DTL || '',
+              });
+
+              if (asResult.code === 'SUCCESS' || asResult.code === 'OK') {
+                console.log('[WorkCompleteTerminate] AS할당 완료');
+              } else {
+                console.error('[WorkCompleteTerminate] AS할당 실패:', asResult.message);
+              }
+            } catch (asError: any) {
+              console.error('[WorkCompleteTerminate] AS할당 처리 오류:', asError);
+            }
+          }
+
+          showToast?.('작업이 성공적으로 완료되었습니다.', 'success');
           onSuccess();
         } else {
           showToast?.(result.message || '작업 완료 처리에 실패했습니다.', 'error');
@@ -475,10 +634,14 @@ const CompleteTerminate: React.FC<CompleteTerminateProps> = ({
   };
 
   return (
-    <div className="px-2 sm:px-4 py-4 sm:py-6 bg-gray-50 overflow-x-hidden relative">
-      {/* 핫빌 계산 중 전체 화면 스피너 */}
+    <div className="px-2 sm:px-4 py-4 sm:py-6 bg-gray-50 min-h-0 relative">
+      {/* 핫빌 계산 중 전체 화면 스피너 - 다른 조작 차단 */}
       {isHotbillSimulating && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+        <div
+          className="fixed inset-0 bg-black/50 flex items-center justify-center z-[9999]"
+          onClick={(e) => e.stopPropagation()}
+          onTouchStart={(e) => e.stopPropagation()}
+        >
           <div className="bg-white rounded-xl p-6 flex flex-col items-center gap-4 shadow-xl">
             <div className="w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full animate-spin" />
             <p className="text-gray-700 font-medium">핫빌 계산 중...</p>
@@ -489,14 +652,14 @@ const CompleteTerminate: React.FC<CompleteTerminateProps> = ({
       <div className="max-w-2xl mx-auto">
         <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-3 sm:p-5">
           <div className="space-y-3 sm:space-y-5">
-            {/* 계약정보 */}
+            {/* 결합계약 */}
             <div>
               <label className="block text-xs sm:text-sm font-semibold text-gray-900 mb-1.5 sm:mb-2">
-                계약정보
+                결합계약
               </label>
               <input
                 type="text"
-                value={order.customer?.name || ''}
+                value=""
                 readOnly
                 disabled
                 className="w-full min-h-10 sm:min-h-12 px-3 sm:px-4 py-2 sm:py-3 bg-gray-100 border border-gray-200 rounded-lg text-sm sm:text-base text-gray-600 cursor-not-allowed"
@@ -588,6 +751,7 @@ const CompleteTerminate: React.FC<CompleteTerminateProps> = ({
               showToast={showToast}
               onHotbillConfirmChange={setIsHotbillConfirmed}
               onSimulatingChange={setIsHotbillSimulating}
+              readOnly={isWorkCompleted}
             />
 
             {/* 인입선로 철거관리 (토글 섹션) - 조건: KPI_PROD_GRP_CD in C,D,I */}
@@ -602,8 +766,8 @@ const CompleteTerminate: React.FC<CompleteTerminateProps> = ({
 
             {/* 하단 버튼 영역 */}
             <div className="flex gap-1.5 sm:gap-2 pt-3 sm:pt-4 mt-3 sm:mt-4 border-t border-gray-200">
-              {/* 장비철거 버튼 (레거시: btn_eqt_rmv) */}
-              {!isWorkCompleted && showEquipmentRemovalButton && (
+              {/* 장비철거 버튼 (레거시: btn_eqt_rmv) - 모든 철거 작업에서 표시 */}
+              {!isWorkCompleted && (
                 <button
                   onClick={() => handleEquipmentRemoval()}
                   disabled={isLoading || !isEquipmentRemovalEnabled}
@@ -620,8 +784,8 @@ const CompleteTerminate: React.FC<CompleteTerminateProps> = ({
                 </button>
               )}
 
-              {/* 작업완료 버튼 (레거시: btn_save) */}
-              {!isWorkCompleted && showSaveButton && (
+              {/* 작업완료 버튼 (레거시: btn_save) - 모든 철거 작업에서 표시 */}
+              {!isWorkCompleted && (
                 <button
                   onClick={() => handleSubmit(false)}
                   disabled={isLoading || !isSaveButtonEnabled}
@@ -675,9 +839,12 @@ const CompleteTerminate: React.FC<CompleteTerminateProps> = ({
         customerId={order.customer?.id}
         customerName={order.customer?.name}
         contractId={order.CTRT_ID}
+        addrOrd={order.ADDR_ORD || (order as any).addrOrd || ''}
         kpiProdGrpCd={(order as any).KPI_PROD_GRP_CD || ''}
-        wrkDtlTcd={order.WRK_DTL_TCD || ''}
+        prodChgGb={(order as any).PROD_CHG_GB || ''}
+        chgKpiProdGrpCd={(order as any).CHG_KPI_PROD_GRP_CD || ''}
         prodGrp={(order as any).PROD_GRP || ''}
+        wrkDtlTcd={order.WRK_DTL_TCD || ''}
         readOnly={isWorkCompleted}
       />
 
@@ -692,6 +859,19 @@ const CompleteTerminate: React.FC<CompleteTerminateProps> = ({
         addrOrd={order.customer?.ADDR_ORD || ''}
         address={order.address || ''}
         showToast={showToast}
+        addressInfo={{
+          POST_ID: (order as any).POST_ID || '',
+          BLD_ID: (order as any).BLD_ID || '',
+          BLD_CL: (order as any).BLD_CL || '',
+          BLD_NM: (order as any).BLD_NM || '',
+          BUN_CL: (order as any).BUN_CL || '',
+          BUN_NO: (order as any).BUN_NO || '',
+          HO_NM: (order as any).HO_NM || '',
+          APT_DONG_NO: (order as any).APT_DONG_NO || '',
+          APT_HO_CNT: (order as any).APT_HO_CNT || '',
+          ADDR: (order as any).ADDR_TOTAL || (order as any).ADDR || order.address || '',
+          ADDR_DTL: (order as any).ADDR_DTL || '',
+        }}
       />
 
       {/* 작업완료 확인 모달 */}
@@ -704,7 +884,22 @@ const CompleteTerminate: React.FC<CompleteTerminateProps> = ({
         type="confirm"
         confirmText={pendingIsEquipmentRemoval ? '철거' : '완료'}
         cancelText="취소"
-      />
+      >
+        {!pendingIsEquipmentRemoval && (
+          <WorkCompleteSummary
+            workType="02"
+            workTypeName="철거"
+            custRel={custRel}
+            custRelName={custRelOptions.find(o => o.value === custRel)?.label}
+            networkType={networkType}
+            networkTypeName={networkTypeName}
+            installType={installInfoData?.INSTL_TP}
+            installTypeName={installInfoData?.INSTL_TP_NM}
+            removedEquipments={equipmentData?.removedEquipments || []}
+            memo={memo}
+          />
+        )}
+      </ConfirmModal>
 
       {/* 연동이력 모달 */}
       <IntegrationHistoryModal

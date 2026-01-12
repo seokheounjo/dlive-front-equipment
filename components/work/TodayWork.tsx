@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { WorkOrder, WorkOrderStatus, SmsSendData } from '../../types';
 import { getWorkTypeIcon, getWorkTypeIconColor } from '../../utils/workTypeIcons';
-import VipCounter from '../common/VipCounter';
 import VipBadge from '../common/VipBadge';
 import LoadingSpinner from '../common/LoadingSpinner';
 import ErrorMessage from '../common/ErrorMessage';
@@ -15,6 +14,7 @@ import { useUIStore } from '../../stores/uiStore';
 interface UserInfo {
   userId: string;
   userName: string;
+  userNameEn?: string;
   userRole: string;
 }
 
@@ -109,15 +109,26 @@ const TodayWork: React.FC<TodayWorkProps> = ({
     e.stopPropagation();
 
     // Build SMS data from WorkOrder
+    // scheduledAt ISO 형식(2025-01-15T14:30:00)을 YYYYMMDDHHmm으로 변환
+    const convertToWrkHopeDttm = (isoDate: string | undefined): string => {
+      if (!isoDate) return '';
+      // ISO 형식이면 변환, 아니면 그대로 반환
+      if (isoDate.includes('T') || isoDate.includes('-')) {
+        const cleaned = isoDate.replace(/[-:T]/g, '').substring(0, 12);
+        return cleaned;
+      }
+      return isoDate;
+    };
+
     const data: SmsSendData = {
       SO_ID: (order as any).SO_ID || '328',
       CUST_ID: (order as any).CUST_ID || order.customer.id || '',
       CUST_NM: order.customer.name || '',
-      SMS_RCV_TEL: order.customer.phone || '',
+      SMS_RCV_TEL: order.customer.phone || '',  // 여러 번호 그대로 전달 (모달에서 Select로 선택)
       SMS_SEND_TEL: '',  // VisitSmsModal에서 localStorage userInfo.telNo2로 설정됨
-      WRK_HOPE_DTTM: order.scheduledAt || '',
+      WRK_HOPE_DTTM: convertToWrkHopeDttm(order.scheduledAt),
       WRKR_NM: userInfo?.userName || '',
-      WRKR_NM_EN: userInfo?.userName || '',
+      WRKR_NM_EN: userInfo?.userNameEn || userInfo?.userName || '',
       WRK_CD: (order as any).WRK_CD || '',
       WRK_CD_NM: order.typeDisplay || '',
       WRK_DRCTN_ID: (order as any).WRK_DRCTN_ID || order.id || '',
@@ -298,8 +309,6 @@ const TodayWork: React.FC<TodayWorkProps> = ({
 
       {/* Content - 스크롤 영역 */}
       <div className="flex-1 overflow-y-auto px-3 py-4">
-        {/* VIP Counter */}
-        <VipCounter workOrders={workOrders} className="mb-4" />
 
         {/* Loading State */}
         {isLoading ? (

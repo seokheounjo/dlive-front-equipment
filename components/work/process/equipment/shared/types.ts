@@ -57,10 +57,29 @@ export interface InstalledEquipment {
   installLocation?: string;
 }
 
+// 분실 상태 저장 데이터 타입 (작업완료 시 API 호출용)
+export interface LossStatusData {
+  EQT_NO: string;
+  EQT_SERNO: string;
+  EQT_CL_CD: string;
+  EQT_CL: string;
+  EQT_CL_NM: string;
+  ITEM_MID_CD: string;
+  SVC_CMPS_ID: string;
+  BASIC_PROD_CMPS_ID: string;
+  LENT_YN: string;
+  EQT_LOSS_YN: string;
+  PART_LOSS_BRK_YN: string;
+  EQT_BRK_YN: string;
+  EQT_CABL_LOSS_YN: string;
+  EQT_CRDL_LOSS_YN: string;
+}
+
 // 장비 데이터 (저장용)
 export interface EquipmentData {
   installedEquipments: Equipment[];
   removedEquipments: Equipment[];
+  pendingLossStatusList?: LossStatusData[]; // 작업완료 시 분실처리 API 호출용
 }
 
 // 철거 장비 분실/파손 상태
@@ -131,13 +150,18 @@ export const mapWrkCdToCrrTskCl = (wrkCd?: string): string => {
   if (['01', '05', '06', '07', '09'].includes(wrkCd)) {
     return '01';
   }
-  // WRK_CD IN ('02','04','08') → CRR_TSK_CL = '02' (철거/정지/이전철거)
-  if (['02', '04', '08'].includes(wrkCd)) {
+  // WRK_CD IN ('02','08') → CRR_TSK_CL = '02' (철거/이전철거)
+  if (['02', '08'].includes(wrkCd)) {
     return '02';
   }
   // WRK_CD = '03' → CRR_TSK_CL = '03' (AS)
   if (wrkCd === '03') {
     return '03';
+  }
+  // WRK_CD = '04' → CRR_TSK_CL = '04' (정지)
+  // 정지는 철거와 다르게 계약장비/기사장비가 필요함
+  if (wrkCd === '04') {
+    return '04';
   }
 
   return '01'; // 기본값
@@ -168,3 +192,73 @@ export const isCustomerOwnedEquipment = (equipment: ExtendedEquipment): boolean 
 
 // localStorage 키 생성
 export const getEquipmentStorageKey = (workItemId: string) => `equipment_draft_${workItemId}`;
+
+// STB 장비 여부 확인 (셋톱박스)
+// itemMidCd=04 또는 05, 또는 모델명에 STB 포함
+export const isSTBEquipment = (equipment: ExtendedEquipment | ContractEquipment): boolean => {
+  const itemMidCd = equipment.itemMidCd || '';
+  const model = (equipment.model || '').toUpperCase();
+  const type = (equipment.type || '').toUpperCase();
+  const eqtClCd = (equipment.eqtClCd || '').toUpperCase();
+
+  // itemMidCd가 04(STB) 또는 05(셋톱박스)
+  if (itemMidCd === '04' || itemMidCd === '05') {
+    return true;
+  }
+
+  // 모델명이나 타입명에 STB 포함
+  if (model.includes('STB') || type.includes('STB') || type.includes('셋톱')) {
+    return true;
+  }
+
+  // eqtClCd가 09로 시작 (STB 계열)
+  if (eqtClCd.startsWith('09')) {
+    return true;
+  }
+
+  return false;
+};
+
+// 스마트카드/케이블카드 장비 여부 확인
+// itemMidCd=03, 또는 모델명/타입명에 카드, CARD, 스마트 포함
+export const isCardEquipment = (equipment: ExtendedEquipment | ContractEquipment): boolean => {
+  const itemMidCd = equipment.itemMidCd || '';
+  const model = (equipment.model || '').toUpperCase();
+  const type = (equipment.type || '').toUpperCase();
+
+  // itemMidCd가 03(추가장비 - 카드류 포함)
+  if (itemMidCd === '03') {
+    return true;
+  }
+
+  // 모델명이나 타입명에 카드, CARD, 스마트, SMART, 케이블 포함
+  if (
+    model.includes('CARD') || model.includes('카드') ||
+    model.includes('SMART') || model.includes('스마트') ||
+    model.includes('CABLE') || model.includes('케이블') ||
+    type.includes('CARD') || type.includes('카드') ||
+    type.includes('SMART') || type.includes('스마트')
+  ) {
+    return true;
+  }
+
+  return false;
+};
+
+// 같은 상품 구성에 속하는 장비인지 확인 (SVC_CMPS_ID 또는 BASIC_PROD_CMPS_ID 기반)
+export const isSameProductGroup = (
+  equipment1: ExtendedEquipment | ContractEquipment,
+  equipment2: ExtendedEquipment | ContractEquipment
+): boolean => {
+  // BASIC_PROD_CMPS_ID가 같으면 같은 상품 구성
+  if (equipment1.BASIC_PROD_CMPS_ID && equipment2.BASIC_PROD_CMPS_ID) {
+    return equipment1.BASIC_PROD_CMPS_ID === equipment2.BASIC_PROD_CMPS_ID;
+  }
+
+  // PROD_CD가 같으면 같은 상품
+  if (equipment1.PROD_CD && equipment2.PROD_CD) {
+    return equipment1.PROD_CD === equipment2.PROD_CD;
+  }
+
+  return false;
+};

@@ -17,6 +17,7 @@ interface InstallInfoModalProps {
   customerId?: string;
   customerName?: string;
   contractId?: string;
+  addrOrd?: string;            // 주소순번 (TCMCT_NET_INFO JOIN에 필요)
   // Filtering data
   kpiProdGrpCd?: string;      // KPI product group code (V, I, C, etc.)
   prodChgGb?: string;          // Product change division (01=upgrade, 02=downgrade)
@@ -58,6 +59,7 @@ const InstallInfoModal: React.FC<InstallInfoModalProps> = ({
   customerId,
   customerName,
   contractId,
+  addrOrd,
   kpiProdGrpCd,
   prodChgGb,
   chgKpiProdGrpCd,
@@ -104,9 +106,25 @@ const InstallInfoModal: React.FC<InstallInfoModalProps> = ({
 
   useEffect(() => {
     if (initialData) {
-      setFormData(prev => ({ ...prev, ...initialData }));
+      // 철거 작업에서 기본값 설정 후 빈 값으로 덮어쓰지 않도록 필터링
+      const isRemovalWork = workType === '02' || workType === '04' || workType === '08';
+      const filteredData = { ...initialData };
+
+      // 철거 작업에서 빈 값은 기본값을 유지하도록 제외
+      if (isRemovalWork) {
+        if (!initialData.NET_CL || initialData.NET_CL.trim() === '') {
+          delete filteredData.NET_CL;
+          delete filteredData.NET_CL_NM;
+        }
+        if (!initialData.INSTL_TP || initialData.INSTL_TP.trim() === '') {
+          delete filteredData.INSTL_TP;
+        }
+      }
+
+      setFormData(prev => ({ ...prev, ...filteredData }));
     }
-  }, [initialData]);
+  }, [initialData, workType]);
+
 
   // Filter helper: mimic MiPlatform's pos() function
   const pos = (str: string | undefined, search: string): number => {
@@ -357,23 +375,16 @@ const InstallInfoModal: React.FC<InstallInfoModalProps> = ({
       }
 
       // Apply initial filters
-      // 철거 작업(WRK_CD='02', '08')은 kpiProdGrpCd 없이도 code='77' 필터링 적용
-      const isRemovalWork = workType === '02' || workType === '08';
+      // 철거 작업(WRK_CD='02', '04', '08')은 kpiProdGrpCd 없이도 code='77' 필터링 적용
+      const isRemovalWork = workType === '02' || workType === '04' || workType === '08';
       if (workType && (kpiProdGrpCd || isRemovalWork)) {
         const filtered = applyInitialFilters(instlTp, wrngTp, cbInstlTp, cbWrngTp);
         setNetClCodes(netCl);
 
-        // 철거 작업(WRK_CD='02', '08')이면 배선형태도 ref_code2에 '77' 포함된 것만 필터링
-        // 레거시: ds_wrng_tp.Filter("pos(ref_code2,'77') > -1 && ...")
-        if (isRemovalWork) {
-          const wrngTpFiltered = wrngTp.filter(item =>
-            pos(item.ref_code2, '77') > -1
-          );
-          console.log('🔍 [Filter] 철거 작업 - 배선형태 ref_code2=77 필터링:', wrngTpFiltered.length, '개');
-          setWrngTpCodes(wrngTpFiltered);
-        } else {
-          setWrngTpCodes(filtered.filteredWrngTp);
-        }
+        // 배선형태 초기 필터: 레거시 fn_ds_filter (line 578)
+        // ds_wrng_tp.Filter("pos(ref_code,'"+KPI_PROD_GRP_CD+"') > -1 && REF_CODE3>='20090901'")
+        // 설치유형 선택 후에 ref_code2로 추가 필터링됨 (filterWrngTpByInstlTp 함수에서 처리)
+        setWrngTpCodes(filtered.filteredWrngTp);
         setWrngTpCodesOriginal(wrngTp);
         setInstlTpCodes(filtered.filteredInstlTp);
         setCbWrngTpCodes(filtered.filteredCbWrngTp);
@@ -391,6 +402,53 @@ const InstallInfoModal: React.FC<InstallInfoModalProps> = ({
       }
 
       console.log('✅ [InstallInfoModal] 공통코드 state 설정 완료');
+
+      // 철거 작업(02, 04, 08)이면 기본값 설정 (레거시와 동일)
+      if (isRemovalWork) {
+        const hasNetCl = initialData?.NET_CL && initialData.NET_CL.trim() !== '';
+        const hasInstlTp = initialData?.INSTL_TP && initialData.INSTL_TP.trim() !== '';
+
+        console.log('🔧 [InstallInfoModal] 철거 작업 기본값 체크 - hasNetCl:', hasNetCl, 'hasInstlTp:', hasInstlTp);
+
+        // 기본값 설정할 항목 준비
+        const defaults: Partial<InstallInfoData> = {};
+
+        // NET_CL이 없으면 "DLIVE 자가"를 기본값으로 (레거시 동일)
+        if (!hasNetCl && netCl.length > 0) {
+          console.log('🔧 [InstallInfoModal] netCl 전체:', netCl.map(item => ({ code: item.code, name: item.name })));
+          // "DLIVE 자가" 또는 "DLIVE자가" 찾기
+          const defaultNetCl = netCl.find(item =>
+            item.name && (item.name.includes('DLIVE') || item.name.includes('자가'))
+          );
+          console.log('🔧 [InstallInfoModal] 찾은 기본 NET_CL:', defaultNetCl);
+          if (defaultNetCl) {
+            defaults.NET_CL = defaultNetCl.code;
+            defaults.NET_CL_NM = defaultNetCl.name;
+            console.log('🔧 [InstallInfoModal] NET_CL 기본값 설정:', defaultNetCl.code, defaultNetCl.name);
+          }
+        }
+
+        // INSTL_TP가 없으면 '77'(철거) 기본값
+        if (!hasInstlTp) {
+          defaults.INSTL_TP = '77';
+          console.log('🔧 [InstallInfoModal] INSTL_TP 기본값 설정: 77(철거)');
+        }
+
+        // 기본값이 있으면 formData에 적용
+        if (Object.keys(defaults).length > 0) {
+          setFormData(prev => ({ ...prev, ...defaults }));
+        }
+
+        // 배선형태 필터링 (INSTL_TP='77' 기준)
+        const targetInstlTp = hasInstlTp ? initialData?.INSTL_TP : '77';
+        if (targetInstlTp === '77') {
+          const wrngTpFiltered = wrngTp.filter(item =>
+            pos(item.ref_code2, '77') > -1
+          );
+          console.log('🔧 [InstallInfoModal] 철거 기본값 - 배선형태 필터링:', wrngTpFiltered.length, '개');
+          setWrngTpCodes(wrngTpFiltered);
+        }
+      }
     } catch (error: any) {
       console.error('❌ [InstallInfoModal] Failed to load common codes:', error);
     } finally {
@@ -559,6 +617,9 @@ const InstallInfoModal: React.FC<InstallInfoModalProps> = ({
 
       const result = await saveInstallInfo({
         WRK_ID: workId,
+        CTRT_ID: contractId || '',
+        ADDR_ORD: addrOrd || '',
+        WRK_DTL_TCD: wrkDtlTcd || '',
         ...formData
       });
 
@@ -616,7 +677,7 @@ const InstallInfoModal: React.FC<InstallInfoModalProps> = ({
     <BaseModal
       isOpen={isOpen}
       onClose={onClose}
-      title={workType === '02' || workType === '08' || workType === '09' ? '철거정보' : '설치정보'}
+      title={workType === '02' || workType === '04' || workType === '08' || workType === '09' ? '철거정보' : '설치정보'}
       size="medium"
       subHeader={subHeader}
       footer={footer}

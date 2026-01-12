@@ -1,13 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import { WorkOrder, WorkCompleteData } from '../../../../types';
 import { getCompleteButtonText } from '../../../../utils/workValidation';
-import { getCommonCodeList, CommonCode, getWorkReceiptDetail, getCustomerContractInfo } from '../../../../services/apiService';
+import { getCommonCodeList, CommonCode, getWorkReceiptDetail, getCustomerContractInfo, checkStbServerConnection } from '../../../../services/apiService';
 import Select from '../../../ui/Select';
 import InstallInfoModal, { InstallInfoData } from '../../../modal/InstallInfoModal';
 import IntegrationHistoryModal from '../../../modal/IntegrationHistoryModal';
 import InstallLocationModal, { InstallLocationData } from '../../../modal/InstallLocationModal';
 import ConfirmModal from '../../../common/ConfirmModal';
+import WorkCompleteSummary from '../WorkCompleteSummary';
 import { useWorkProcessStore } from '../../../../stores/workProcessStore';
+import { useWorkEquipment } from '../../../../stores/workEquipmentStore';
 import { useCompleteWork } from '../../../../hooks/mutations/useCompleteWork';
 import '../../../../styles/buttons.css';
 
@@ -52,7 +54,24 @@ const CompleteInstall: React.FC<CompleteInstallProps> = ({
 
   // Zustand Store
   const { equipmentData: storeEquipmentData, filteringData } = useWorkProcessStore();
-  const equipmentData = storeEquipmentData || legacyEquipmentData || filteringData;
+
+  // Zustand Equipment Store - 장비 컴포넌트에서 등록한 장비 정보
+  const workId = order.id || '';
+  const zustandEquipment = useWorkEquipment(workId);
+
+  // equipmentData 병합: Zustand Equipment Store의 installedEquipments 우선 사용
+  const equipmentData = {
+    ...(storeEquipmentData || legacyEquipmentData || filteringData || {}),
+    installedEquipments: zustandEquipment.installedEquipments.length > 0
+      ? zustandEquipment.installedEquipments
+      : (storeEquipmentData?.installedEquipments || legacyEquipmentData?.installedEquipments || []),
+    removedEquipments: zustandEquipment.markedForRemoval.length > 0
+      ? zustandEquipment.markedForRemoval
+      : (storeEquipmentData?.removedEquipments || legacyEquipmentData?.removedEquipments || []),
+    removalStatus: Object.keys(zustandEquipment.removalStatus).length > 0
+      ? zustandEquipment.removalStatus
+      : (storeEquipmentData?.removalStatus || legacyEquipmentData?.removalStatus || {}),
+  };
 
   // React Query Mutation
   const { mutate: submitWork, isPending: isLoading } = useCompleteWork();
@@ -125,8 +144,8 @@ const CompleteInstall: React.FC<CompleteInstallProps> = ({
       const fetchCompletedWorkDetail = async () => {
         try {
           const detail = await getWorkReceiptDetail({
-            WRK_DRCTN_ID: order.directionId || order.id,
-            WRK_ID: (order as any).WRK_ID,
+            WRK_DRCTN_ID: order.directionId || order.WRK_DRCTN_ID || '',
+            WRK_ID: order.id,  // order.id가 실제 WRK_ID
             SO_ID: order.SO_ID
           });
 
@@ -144,7 +163,10 @@ const CompleteInstall: React.FC<CompleteInstallProps> = ({
               setViewModNm(detail.VIEW_MOD_NM || '');
             }
 
-            setUpCtrlCl(detail.UP_CTRL_CL || '');
+            // 상향제어: API 응답에 없으면 장비 데이터(output1)에서 가져옴
+            const upCtrlClValue = detail.UP_CTRL_CL || equipmentData?.upCtrlCl || '';
+            console.log('[CompleteInstall] 상향제어 값:', { API: detail.UP_CTRL_CL, 장비데이터: equipmentData?.upCtrlCl, 최종: upCtrlClValue });
+            setUpCtrlCl(upCtrlClValue);
             setInternetUse(detail.PSN_USE_CORP || '');
             setVoipUse(detail.VOIP_USE_CORP || '');
             setDtvUse(detail.DTV_USE_CORP || '');
@@ -173,7 +195,13 @@ const CompleteInstall: React.FC<CompleteInstallProps> = ({
               STB_LBL: detail.STB_LBL || '',
             });
 
+            setCustRel(detail.CUST_REL || '');
             setMemo((detail.MEMO || '').replace(/\\n/g, '\n'));
+
+            // 결합계약 ID 복원
+            if (detail.VOIP_JOIN_CTRT_ID) {
+              setVoipJoinCtrtId(detail.VOIP_JOIN_CTRT_ID);
+            }
 
             // 작업처리일 복원
             if (detail.WRKR_CMPL_DT && detail.WRKR_CMPL_DT.length >= 8) {
@@ -217,6 +245,9 @@ const CompleteInstall: React.FC<CompleteInstallProps> = ({
         setInstallLocationText(draftData.installLocationText || '');
         setViewModCd(draftData.viewModCd || '');
         setViewModNm(draftData.viewModNm || '');
+        if (draftData.voipJoinCtrtId) {
+          setVoipJoinCtrtId(draftData.voipJoinCtrtId);
+        }
       } catch (error) {
         console.error('[WorkCompleteInstall] localStorage 복원 실패:', error);
       }
@@ -234,11 +265,12 @@ const CompleteInstall: React.FC<CompleteInstallProps> = ({
       networkType, networkTypeName,
       installInfoData,
       installLocationText, viewModCd, viewModNm,
+      voipJoinCtrtId,
       savedAt: new Date().toISOString()
     };
 
     localStorage.setItem(getStorageKey(), JSON.stringify(draftData));
-  }, [custRel, upCtrlCl, memo, internetUse, voipUse, dtvUse, networkType, networkTypeName, installInfoData, installLocationText, viewModCd, viewModNm, isDataLoaded, isWorkCompleted]);
+  }, [custRel, upCtrlCl, memo, internetUse, voipUse, dtvUse, networkType, networkTypeName, installInfoData, installLocationText, viewModCd, viewModNm, voipJoinCtrtId, isDataLoaded, isWorkCompleted]);
 
   // 공통코드 로드
   useEffect(() => {
@@ -252,6 +284,7 @@ const CompleteInstall: React.FC<CompleteInstallProps> = ({
           })));
         }
         if (codes['CMCT015']) {
+          console.log('[CompleteInstall] 공통코드 CMCT015 옵션:', codes['CMCT015']);
           setUpCtrlClOptions(codes['CMCT015'].map((code: CommonCode) => ({
             value: code.COMMON_CD, label: code.COMMON_CD_NM
           })));
@@ -278,6 +311,18 @@ const CompleteInstall: React.FC<CompleteInstallProps> = ({
 
     loadInitialData();
   }, []);
+
+  // 상향제어: equipmentData가 나중에 로드되면 업데이트, 없으면 기본값 '01'(쌍방향) 설정
+  useEffect(() => {
+    if (equipmentData?.upCtrlCl && !upCtrlCl) {
+      console.log('[CompleteInstall] equipmentData에서 상향제어 업데이트:', equipmentData.upCtrlCl);
+      setUpCtrlCl(equipmentData.upCtrlCl);
+    } else if (!upCtrlCl && isDataLoaded && !isWorkCompleted) {
+      // 데이터 로드 완료 후에도 상향제어 값이 없으면 기본값 '01'(쌍방향) 설정
+      console.log('[CompleteInstall] 상향제어 기본값 설정: 01 (쌍방향)');
+      setUpCtrlCl('01');
+    }
+  }, [equipmentData?.upCtrlCl, isDataLoaded, isWorkCompleted, upCtrlCl]);
 
   // 고객 계약 목록 로드 (결합계약 선택용)
   useEffect(() => {
@@ -409,6 +454,9 @@ const CompleteInstall: React.FC<CompleteInstallProps> = ({
     if (!custRel || custRel === '[]') {
       errors.push('고객과의 관계를 선택해주세요.');
     }
+    if (!installInfoData?.NET_CL) {
+      errors.push('설치정보를 입력해주세요.');
+    }
     if (!order.installLocation && !installLocationText) {
       errors.push('설치위치를 설정해주세요.');
     }
@@ -430,6 +478,13 @@ const CompleteInstall: React.FC<CompleteInstallProps> = ({
       if (!voipJoinCtrtId) {
         errors.push('결합이 필요한 ISP 상품입니다. 결합할 계약을 선택하여 주십시오.');
       }
+    }
+
+    // 장비 등록 검증 (레거시: mowoa03m01.xml 1327줄)
+    // VoIP가 아닌 경우 장비가 최소 1개 이상 등록되어 있어야 함
+    const installedEquipments = equipmentData?.installedEquipments || [];
+    if (prodGrp !== 'V' && installedEquipments.length < 1) {
+      errors.push('신호처리(장비등록)를 먼저 진행해주세요.');
     }
 
     return errors;
@@ -462,16 +517,53 @@ const CompleteInstall: React.FC<CompleteInstallProps> = ({
   };
 
   // 실제 작업 완료 처리
-  const handleConfirmSubmit = () => {
+  const handleConfirmSubmit = async () => {
     console.log('[WorkCompleteInstall] 작업완료 처리 시작');
 
     const formattedDate = workCompleteDate.replace(/-/g, '');
-    const workerId = 'A20130708';
+    const userInfo = localStorage.getItem('userInfo');
+    const user = userInfo ? JSON.parse(userInfo) : {};
+    const workerId = user.userId || 'A20130708';
+
+    // 회수 장비가 있으면 철거 신호(SMR05) 호출 (레거시 fn_delsignal_trans 동일)
+    const removedEquipments = equipmentData?.removedEquipments || [];
+    if (removedEquipments.length > 0) {
+      try {
+        const regUid = user.userId || user.id || 'UNKNOWN';
+        const firstEquip = removedEquipments[0];
+        console.log('[CompleteInstall] 철거 신호(SMR05) 호출:', { eqtNo: firstEquip.EQT_NO || firstEquip.id });
+        await checkStbServerConnection(
+          regUid,
+          order.CTRT_ID || '',
+          order.id,
+          'SMR05',
+          firstEquip.EQT_NO || firstEquip.id || '',
+          ''
+        );
+        console.log('[CompleteInstall] 철거 신호(SMR05) 호출 완료');
+      } catch (error) {
+        console.log('[CompleteInstall] 철거 신호 처리 중 오류 (무시하고 계속 진행):', error);
+      }
+    }
 
     // 장비 데이터 처리
-    const processEquipmentList = (equipments: any[]) => {
+    const processEquipmentList = (equipments: any[], isRemoval = false) => {
       if (!equipments || equipments.length === 0) return [];
+      const removalStatus = equipmentData?.removalStatus || {};
       return equipments.map((eq: any) => {
+        const eqtNo = eq.EQT_NO || eq.id || (eq.actualEquipment?.id) || '';
+        const status = removalStatus[eqtNo] || {};
+        // 회수 장비 필수 필드 (레거시 기준)
+        const removalFields = isRemoval ? {
+          CRR_TSK_CL: order.WRK_CD || '01',
+          RCPT_ID: order.RCPT_ID || '',
+          CRR_ID: order.CRR_ID || user.crrId || '01',
+          WRKR_ID: workerId,
+          EQT_LOSS_YN: status.isLost ? 'Y' : 'N',
+          EQT_BRK_YN: status.isDamaged ? 'Y' : 'N',
+          REUSE_YN: status.isReusable ? '1' : '0',
+        } : {};
+
         if (eq.actualEquipment) {
           const actual = eq.actualEquipment;
           const contract = eq.contractEquipment || {};
@@ -495,22 +587,37 @@ const CompleteInstall: React.FC<CompleteInstallProps> = ({
             MST_SO_ID: actual.MST_SO_ID || order.SO_ID || '',
             SO_ID: actual.SO_ID || order.SO_ID || '',
             REG_UID: workerId,
+            CHG_UID: workerId,  // 레거시 mowoa03m01.xml:1828
             OLD_LENT_YN: actual.OLD_LENT_YN || 'N',
             LENT: actual.LENT || '10',
+            LENT_KND: actual.LENT_KND || '',  // 레거시 mowoa03m01.xml:1145
             ITLLMT_PRD: actual.ITLLMT_PRD || '00',
             EQT_USE_STAT_CD: actual.EQT_USE_STAT_CD || '1',
             EQT_CHG_GB: '1',
             IF_DTL_ID: actual.IF_DTL_ID || '',
+            ...removalFields,
           };
         }
+        // 중첩 구조가 아닌 경우도 필드 매핑 필요
         return {
           ...eq,
-          EQT_NO: eq.EQT_NO || eq.id,
+          EQT_NO: eq.EQT_NO || eq.id || '',
+          EQT_SERNO: eq.EQT_SERNO || eq.serialNumber || '',
+          ITEM_MID_CD: eq.ITEM_MID_CD || eq.itemMidCd || '',
+          EQT_CL_CD: eq.EQT_CL_CD || eq.eqtClCd || '',
+          MAC_ADDRESS: eq.MAC_ADDRESS || eq.macAddress || '',
+          SVC_CMPS_ID: eq.SVC_CMPS_ID || '',
+          BASIC_PROD_CMPS_ID: eq.BASIC_PROD_CMPS_ID || '',
+          PROD_CD: eq.PROD_CD || '',
+          SVC_CD: eq.SVC_CD || '',
           WRK_ID: eq.WRK_ID || order.id,
           CUST_ID: eq.CUST_ID || order.customer?.id,
           CTRT_ID: eq.CTRT_ID || order.CTRT_ID,
           WRK_CD: eq.WRK_CD || order.WRK_CD,
           REG_UID: workerId,
+          CHG_UID: workerId,  // 레거시 mowoa03m01.xml:1828
+          LENT_KND: eq.LENT_KND || '',  // 레거시 mowoa03m01.xml:1145
+          ...removalFields,
         };
       });
     };
@@ -521,8 +628,9 @@ const CompleteInstall: React.FC<CompleteInstallProps> = ({
         WRK_CD: order.WRK_CD,
         WRK_DTL_TCD: order.WRK_DTL_TCD,
         CUST_ID: order.customer?.id,
+        CTRT_ID: order.CTRT_ID || '',
         RCPT_ID: order.RCPT_ID,
-        CRR_ID: '01',
+        CRR_ID: order.CRR_ID || user.crrId || '01',
         WRKR_ID: workerId,
         WRKR_CMPL_DT: formattedDate,
         MEMO: memo || '작업 완료',
@@ -567,8 +675,8 @@ const CompleteInstall: React.FC<CompleteInstallProps> = ({
         EQT_RMV_FLAG: '',
         TV_TYPE: ''
       },
-      equipmentList: processEquipmentList(equipmentData?.installedEquipments || []),
-      removeEquipmentList: processEquipmentList(equipmentData?.removedEquipments || []),
+      equipmentList: processEquipmentList(equipmentData?.installedEquipments || [], false),
+      removeEquipmentList: processEquipmentList(equipmentData?.removedEquipments || [], true),
       spendItemList: equipmentData?.spendItems || [],
       agreementList: equipmentData?.agreements || [],
       poleList: equipmentData?.poleResults || []
@@ -591,7 +699,7 @@ const CompleteInstall: React.FC<CompleteInstallProps> = ({
   };
 
   return (
-    <div className="px-2 sm:px-4 py-4 sm:py-6 bg-gray-50 overflow-x-hidden">
+    <div className="px-2 sm:px-4 py-4 sm:py-6 bg-gray-50 min-h-0">
       <div className="max-w-2xl mx-auto">
         <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-3 sm:p-5">
           <div className="space-y-3 sm:space-y-5">
@@ -612,7 +720,7 @@ const CompleteInstall: React.FC<CompleteInstallProps> = ({
               ) : (
                 <input
                   type="text"
-                  value={order.customer?.name || ''}
+                  value=""
                   readOnly
                   disabled
                   className="w-full min-h-10 sm:min-h-12 px-3 sm:px-4 py-2 sm:py-3 bg-gray-100 border border-gray-200 rounded-lg text-sm sm:text-base text-gray-600 cursor-not-allowed"
@@ -687,19 +795,21 @@ const CompleteInstall: React.FC<CompleteInstallProps> = ({
               </div>
             </div>
 
-            {/* 상향제어 */}
-            <div>
-              <label className="block text-xs sm:text-sm font-semibold text-gray-900 mb-1.5 sm:mb-2">
-                상향제어
-              </label>
-              <Select
-                value={upCtrlCl}
-                onValueChange={setUpCtrlCl}
-                options={upCtrlClOptions}
-                placeholder="선택"
-                disabled={isWorkCompleted}
-              />
-            </div>
+            {/* 상향제어 - DTV(KPI_PROD_GRP_CD='D')일 때만 표시 */}
+            {(equipmentData?.kpiProdGrpCd === 'D' || equipmentData?.prodGrp === 'D' || (order as any).PROD_GRP === 'D') && (
+              <div>
+                <label className="block text-xs sm:text-sm font-semibold text-gray-900 mb-1.5 sm:mb-2">
+                  상향제어
+                </label>
+                <Select
+                  value={upCtrlCl}
+                  onValueChange={setUpCtrlCl}
+                  options={upCtrlClOptions}
+                  placeholder="선택"
+                  disabled={isWorkCompleted}
+                />
+              </div>
+            )}
 
             {/* 처리내용 */}
             <div>
@@ -797,17 +907,6 @@ const CompleteInstall: React.FC<CompleteInstallProps> = ({
 
             {/* 하단 버튼 영역 */}
             <div className="flex gap-1.5 sm:gap-2 pt-3 sm:pt-4 mt-3 sm:mt-4 border-t border-gray-200">
-              {/* 연동이력 버튼 */}
-              <button
-                type="button"
-                onClick={() => setShowIntegrationHistoryModal(true)}
-                className="flex-1 min-h-10 sm:min-h-12 px-3 sm:px-4 bg-purple-600 hover:bg-purple-700 text-white rounded-lg font-bold transition-colors flex items-center justify-center gap-1.5 sm:gap-2 text-sm sm:text-base"
-              >
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-                </svg>
-                <span>연동이력</span>
-              </button>
               {/* 작업완료 버튼 */}
               {!isWorkCompleted && (
                 <button
@@ -833,6 +932,17 @@ const CompleteInstall: React.FC<CompleteInstallProps> = ({
                   )}
                 </button>
               )}
+              {/* 연동이력 버튼 */}
+              <button
+                type="button"
+                onClick={() => setShowIntegrationHistoryModal(true)}
+                className="flex-1 min-h-10 sm:min-h-12 px-3 sm:px-4 bg-purple-600 hover:bg-purple-700 text-white rounded-lg font-bold transition-colors flex items-center justify-center gap-1.5 sm:gap-2 text-sm sm:text-base"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                </svg>
+                <span>연동이력</span>
+              </button>
             </div>
 
           </div>
@@ -850,10 +960,11 @@ const CompleteInstall: React.FC<CompleteInstallProps> = ({
         customerId={order.customer.id}
         customerName={order.customer.name}
         contractId={order.CTRT_ID}
-        kpiProdGrpCd={equipmentData?.kpiProdGrpCd || equipmentData?.KPI_PROD_GRP_CD}
-        prodChgGb={equipmentData?.prodChgGb || equipmentData?.PROD_CHG_GB}
-        chgKpiProdGrpCd={equipmentData?.chgKpiProdGrpCd || equipmentData?.CHG_KPI_PROD_GRP_CD}
-        prodGrp={equipmentData?.prodGrp || equipmentData?.PROD_GRP}
+        addrOrd={(order as any).ADDR_ORD || ''}
+        kpiProdGrpCd={equipmentData?.kpiProdGrpCd || equipmentData?.KPI_PROD_GRP_CD || (order as any).KPI_PROD_GRP_CD}
+        prodChgGb={equipmentData?.prodChgGb || equipmentData?.PROD_CHG_GB || (order as any).PROD_CHG_GB}
+        chgKpiProdGrpCd={equipmentData?.chgKpiProdGrpCd || equipmentData?.CHG_KPI_PROD_GRP_CD || (order as any).CHG_KPI_PROD_GRP_CD}
+        prodGrp={equipmentData?.prodGrp || equipmentData?.PROD_GRP || (order as any).PROD_GRP}
         wrkDtlTcd={order.WRK_DTL_TCD}
         readOnly={isWorkCompleted}
       />
@@ -896,7 +1007,24 @@ const CompleteInstall: React.FC<CompleteInstallProps> = ({
         type="confirm"
         confirmText="완료"
         cancelText="취소"
-      />
+      >
+        <WorkCompleteSummary
+          workType="01"
+          workTypeName="설치"
+          custRel={custRel}
+          custRelName={custRelOptions.find(o => o.value === custRel)?.label}
+          networkType={networkType}
+          networkTypeName={networkTypeName}
+          upCtrlCl={upCtrlCl}
+          upCtrlClName={upCtrlClOptions.find(o => o.value === upCtrlCl)?.label}
+          installedEquipments={equipmentData?.installedEquipments || []}
+          removedEquipments={equipmentData?.removedEquipments || []}
+          installLocation={installLocationText ? {
+            position: installLocationText,
+          } : undefined}
+          memo={memo}
+        />
+      </ConfirmModal>
     </div>
   );
 };

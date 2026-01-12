@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { WorkItem } from '../../../types';
-import { getWorkTypeGuideMessage } from '../../../utils/workValidation';
-import { getFullContractInfo } from '../../../services/apiService';
+import { getFullContractInfo, getAllAlarmInfo, AllAlarmInfo, getCodeDetail } from '../../../services/apiService';
 import { formatId } from '../../../utils/dateFormatter';
 
 interface ContractInfoProps {
@@ -29,6 +28,11 @@ const ContractInfo: React.FC<ContractInfoProps> = ({ workItem, onNext, onBack })
   const [contractDetail, setContractDetail] = useState<ContractDetailData | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
+
+  // Alarm info state
+  const [alarmInfo, setAlarmInfo] = useState<AllAlarmInfo | null>(null);
+  const [alarmLoading, setAlarmLoading] = useState(false);
+
 
   // 컴포넌트 마운트 시 계약 상세 정보 로드
   useEffect(() => {
@@ -84,6 +88,174 @@ const ContractInfo: React.FC<ContractInfoProps> = ({ workItem, onNext, onBack })
     loadContractDetail();
   }, [workItem.CUST_ID, workItem.CTRT_ID]);
 
+  // Load alarm info
+  useEffect(() => {
+    const loadAlarmInfo = async () => {
+      if (!workItem.CUST_ID) {
+        console.log('[ContractInfo] CUST_ID 없음 - 알림 정보 조회 스킵');
+        return;
+      }
+
+      setAlarmLoading(true);
+
+      try {
+        console.log('[ContractInfo] 알림 정보 로드 시작:', {
+          CUST_ID: workItem.CUST_ID,
+          WRK_DRCTN_ID: workItem.WRK_DRCTN_ID
+        });
+
+        const result = await getAllAlarmInfo(workItem.CUST_ID, workItem.WRK_DRCTN_ID);
+        console.log('[ContractInfo] 알림 정보 로드 완료:', result);
+        setAlarmInfo(result);
+
+      } catch (error: any) {
+        console.error('[ContractInfo] 알림 정보 로드 실패:', error);
+        // Don't show error to user, just log it
+      } finally {
+        setAlarmLoading(false);
+      }
+    };
+
+    loadAlarmInfo();
+  }, [workItem.CUST_ID, workItem.WRK_DRCTN_ID]);
+
+
+  // 알림 항목 수집 (레이블-값 형태)
+  interface AlarmItem {
+    label: string;
+    value: string;
+  }
+
+  const [alarmItems, setAlarmItems] = useState<AlarmItem[]>([]);
+  const [vipInfo, setVipInfo] = useState<AlarmItem | null>(null);
+  const [isVipExpanded, setIsVipExpanded] = useState(false);
+  const [vipMessage, setVipMessage] = useState<string | null>(null);
+  const [vipMessageLoading, setVipMessageLoading] = useState(false);
+
+  // VIP 정보 별도 처리 (alarmInfo 로딩과 무관하게 먼저 표시)
+  useEffect(() => {
+    console.log('[ContractInfo] VIP 체크:', {
+      'customer.isVip': workItem.customer?.isVip,
+      'VIP_GB': workItem.VIP_GB,
+      'customer': workItem.customer
+    });
+    const isVip = workItem.customer?.isVip || (workItem.VIP_GB && String(workItem.VIP_GB).length > 0);
+    if (isVip) {
+      const vipLevel = workItem.customer?.vipLevel ||
+        (workItem.VIP_GB === 'VIP_VVIP' ? 'VVIP' : 'VIP');
+      setVipInfo({ label: 'VIP', value: `${vipLevel} 고객입니다.` });
+    } else {
+      setVipInfo(null);
+    }
+  }, [workItem.customer?.isVip, workItem.customer?.vipLevel, workItem.VIP_GB]);
+
+  // VIP 메시지 DB 조회 (COMMON_GRP='MOWO001', COMMON_CD='AL1')
+  useEffect(() => {
+    const loadVipMessage = async () => {
+      const isVip = workItem.customer?.isVip || (workItem.VIP_GB && String(workItem.VIP_GB).length > 0);
+      if (!isVip) {
+        setVipMessage(null);
+        return;
+      }
+
+      setVipMessageLoading(true);
+      try {
+        console.log('[ContractInfo] VIP 메시지 DB 조회 시작');
+        const result = await getCodeDetail({
+          COMMON_GRP: 'MOWO001',
+          COMMON_CD: 'AL1'
+        });
+        console.log('[ContractInfo] VIP 메시지 DB 조회 결과:', result);
+
+        if (result && result.length > 0 && result[0].REF_CODE) {
+          setVipMessage(result[0].REF_CODE);
+        } else {
+          setVipMessage(null);
+        }
+      } catch (error) {
+        console.error('[ContractInfo] VIP 메시지 DB 조회 실패:', error);
+        setVipMessage(null);
+      } finally {
+        setVipMessageLoading(false);
+      }
+    };
+
+    loadVipMessage();
+  }, [workItem.customer?.isVip, workItem.VIP_GB]);
+
+  useEffect(() => {
+    const items: AlarmItem[] = [];
+    const wrkCd = workItem.WRK_CD || alarmInfo?.workAlarm?.WRK_CD;
+
+    // alarmInfo 로딩 중이면 리턴
+    if (alarmLoading || !alarmInfo) {
+      setAlarmItems([]);
+      return;
+    }
+
+    // workAlarm 확인
+    if (alarmInfo.workAlarm) {
+      // 레거시: OTT_SALE_DESC 표시
+      if (alarmInfo.workAlarm.OTT_SALE_DESC) {
+        items.push({ label: 'OTT', value: alarmInfo.workAlarm.OTT_SALE_DESC });
+      }
+      // 레거시: BUNDLE_ISP_TG='Y' → "번들상품 사용"
+      if (alarmInfo.workAlarm.BUNDLE_ISP_TG === 'Y') {
+        items.push({ label: '번들', value: '번들상품 사용' });
+      }
+      // 레거시: WRK_CD IN (01,05,07) && PYM_MTHD='01' && ATMT_YN='Y' → "자동이체/Email승인요청안내"
+      if (['01', '05', '07'].includes(wrkCd || '') &&
+          alarmInfo.workAlarm.PYM_MTHD === '01' &&
+          alarmInfo.workAlarm.ATMT_YN === 'Y') {
+        items.push({ label: '자동이체', value: '자동이체/Email승인요청안내' });
+      }
+      // 레거시: WRK_CD IN (01,05,06,07) → 실명인증 상태 그대로 표시
+      if (['01', '05', '06', '07'].includes(wrkCd || '') && alarmInfo.workAlarm.RLNM_AUTH_YN_NM) {
+        items.push({ label: '실명인증', value: alarmInfo.workAlarm.RLNM_AUTH_YN_NM });
+      }
+      // 레거시: COUPON_VAL !== "0" → "잔액 {금액}원"
+      if (alarmInfo.workAlarm.COUPON_VAL && alarmInfo.workAlarm.COUPON_VAL !== '0' && Number(alarmInfo.workAlarm.COUPON_VAL) > 0) {
+        items.push({ label: 'VOD쿠폰', value: `잔액 ${Number(alarmInfo.workAlarm.COUPON_VAL).toLocaleString()}원` });
+      }
+    }
+
+    // 레거시: VOD 6개월 이용일 (필드명 대소문자 둘 다 체크)
+    const maxDt = alarmInfo.vodLastDate?.max_dt || alarmInfo.vodLastDate?.MAX_DT;
+    if (maxDt && String(maxDt).trim().length > 7) {
+      items.push({ label: 'VOD이용', value: `최근(6M)VOD신청일: ${formatAlarmDate(String(maxDt))}` });
+    }
+
+    // 레거시: specialVod5k BIGO 표시
+    if (alarmInfo.specialVod5k?.BIGO) {
+      items.push({ label: '특이사항', value: alarmInfo.specialVod5k.BIGO });
+    }
+
+    // 레거시: 홍보문자 수신동의 (custBasicInfo.SMS_RCV_YN)
+    // Legacy API: customer/customer/general/customerChgInfo.req
+    // SMS_RCV_YN: Y=동의, N=거부
+    if (alarmInfo.custBasicInfo?.SMS_RCV_YN) {
+      const smsYn = String(alarmInfo.custBasicInfo.SMS_RCV_YN);
+      if (smsYn === 'Y') {
+        items.push({ label: '홍보문자', value: '홍보문자수신동의 : 동의' });
+      } else if (smsYn === 'N') {
+        items.push({ label: '홍보문자', value: '홍보문자수신동의 : 거부' });
+      }
+    }
+
+    // 레거시: specialBigo - SPECIAL_GB='G'인 첫 번째 항목의 BIGO만 표시
+    if (alarmInfo.specialBigo && alarmInfo.specialBigo.length > 0) {
+      const firstGBigo = alarmInfo.specialBigo.find(item => item.SPECIAL_GB === 'G' && item.BIGO);
+      if (firstGBigo) {
+        items.push({ label: '비고', value: firstGBigo.BIGO || '' });
+      }
+    }
+
+    if (items.length > 0) {
+      console.log('[ContractInfo] 알림 항목:', items);
+    }
+    setAlarmItems(items);
+  }, [alarmInfo, alarmLoading, workItem.WRK_CD]);
+
   // workItem과 contractDetail을 병합하여 표시 데이터 결정
   const displayData = {
     // 약정정보
@@ -119,24 +291,6 @@ const ContractInfo: React.FC<ContractInfoProps> = ({ workItem, onNext, onBack })
               <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
             </svg>
             <span className="text-xs sm:text-sm text-yellow-700">{loadError}</span>
-          </div>
-        </div>
-      )}
-
-      {/* 작업 유형별 안내 메시지 - 완료된 작업에서는 숨김 */}
-      {workItem.WRK_CD && workItem.WRK_STAT_CD !== '4' && workItem.status !== '완료' && (
-        <div className="bg-blue-50 border border-blue-100 rounded-xl p-3 sm:p-4">
-          <div className="flex items-start gap-2 sm:gap-3">
-            <div className="flex-shrink-0 w-8 h-8 sm:w-9 sm:h-9 bg-blue-500 rounded-lg flex items-center justify-center">
-              <svg className="w-4 h-4 sm:w-5 sm:h-5 text-white" fill="currentColor" viewBox="0 0 20 20">
-                <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
-              </svg>
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-xs sm:text-sm font-medium text-blue-900 leading-relaxed">
-                {getWorkTypeGuideMessage(workItem.WRK_CD)}
-              </p>
-            </div>
           </div>
         </div>
       )}
@@ -227,6 +381,62 @@ const ContractInfo: React.FC<ContractInfoProps> = ({ workItem, onNext, onBack })
         </div>
       </div>
 
+      {/* VIP 정보 - 토글 형식 */}
+      {vipInfo && (
+        <div className="bg-amber-50 border border-amber-300 rounded-lg overflow-hidden">
+          {/* 토글 헤더 */}
+          <button
+            onClick={() => setIsVipExpanded(!isVipExpanded)}
+            className="w-full flex items-center justify-between px-3 py-2 hover:bg-amber-100 transition-colors"
+          >
+            <div className="flex items-center">
+              <span className="text-xs sm:text-sm font-bold text-amber-600 w-20 sm:w-24 flex-shrink-0">VIP</span>
+              <span className="text-xs sm:text-sm font-bold text-amber-700">{vipInfo.value}</span>
+            </div>
+            <svg
+              className={`w-4 h-4 text-amber-600 transition-transform duration-200 ${isVipExpanded ? 'rotate-180' : ''}`}
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+            </svg>
+          </button>
+          {/* 토글 내용 */}
+          {isVipExpanded && (
+            <div className="px-3 py-3 border-t border-amber-200 bg-amber-50">
+              <div className="text-xs sm:text-sm text-amber-800">
+                {vipMessageLoading ? (
+                  <div className="flex items-center gap-2">
+                    <div className="animate-spin w-4 h-4 border-2 border-amber-500 border-t-transparent rounded-full"></div>
+                    <span>VIP 메시지 로딩 중...</span>
+                  </div>
+                ) : vipMessage ? (
+                  <p className="whitespace-pre-wrap">{vipMessage}</p>
+                ) : (
+                  <p className="text-amber-600">VIP 고객입니다. 친절한 응대 부탁드립니다.</p>
+                )}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* 알림 정보 */}
+      {alarmItems.length > 0 && (
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-3 sm:p-5">
+          <h4 className="text-sm sm:text-base font-bold text-gray-900 mb-3 sm:mb-4">알림</h4>
+          <div className="space-y-2 sm:space-y-3">
+            {alarmItems.map((item, idx) => (
+              <div key={idx} className="flex items-start">
+                <span className="text-xs sm:text-sm text-gray-500 w-20 sm:w-24 flex-shrink-0">{item.label}</span>
+                <span className="text-xs sm:text-sm font-medium text-gray-900 break-words flex-1">{item.value}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* 상품 및 프로모션 정보 */}
       <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-3 sm:p-5">
         <h4 className="text-sm sm:text-base font-bold text-gray-900 mb-3 sm:mb-4">상품 및 프로모션 정보</h4>
@@ -240,7 +450,7 @@ const ContractInfo: React.FC<ContractInfoProps> = ({ workItem, onNext, onBack })
             <span className="text-xs sm:text-sm font-medium text-gray-900">{workItem.CTRT_STAT_NM || getContractStatusText(workItem.CTRT_STAT)}</span>
           </div>
           <div className="flex items-start">
-            <span className="text-xs sm:text-sm text-gray-500 w-20 sm:w-24 flex-shrink-0">지사명</span>
+            <span className="text-xs sm:text-sm text-gray-500 w-20 sm:w-24 flex-shrink-0">계약지점</span>
             <span className="text-xs sm:text-sm font-medium text-gray-900">{displayData.SO_NM || '-'}</span>
           </div>
           <div className="flex items-start">
@@ -286,11 +496,17 @@ const formatDate = (dateStr?: string | number): string => {
 
   // 8자리 이상이면 앞 8자리만 사용
   if (digitsOnly.length >= 8) {
-    return `${digitsOnly.slice(0, 4)}.${digitsOnly.slice(4, 6)}.${digitsOnly.slice(6, 8)}`;
+    return `${digitsOnly.slice(0, 4)}-${digitsOnly.slice(4, 6)}-${digitsOnly.slice(6, 8)}`;
   }
 
   // 원본 반환 (파싱 불가)
   return str || '-';
+};
+
+// 알림 날짜 포맷 (YYYYMMDD -> YYYY-MM-DD)
+const formatAlarmDate = (dateStr?: string): string => {
+  if (!dateStr || dateStr.length < 8) return '-';
+  return `${dateStr.slice(0, 4)}-${dateStr.slice(4, 6)}-${dateStr.slice(6, 8)}`;
 };
 
 export default ContractInfo;

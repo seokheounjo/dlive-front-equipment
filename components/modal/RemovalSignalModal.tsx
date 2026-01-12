@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { sendSignal, SignalResult } from '../../services/apiService';
+import ConfirmModal from '../common/ConfirmModal';
 
 /**
  * RemovalSignalModal - 철거 신호 전송 모달
@@ -34,6 +35,7 @@ const RemovalSignalModal: React.FC<RemovalSignalModalProps> = ({
   const [isLoading, setIsLoading] = useState(false);
   const [results, setResults] = useState<{ eqtNo: string; eqtNm: string; result: SignalResult }[]>([]);
   const [selectedEquipments, setSelectedEquipments] = useState<Set<string>>(new Set());
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
 
   // 모달 열릴 때 초기화
   useEffect(() => {
@@ -66,17 +68,18 @@ const RemovalSignalModal: React.FC<RemovalSignalModalProps> = ({
     }
   };
 
-  // 철거 신호 전송
-  const handleSendSignal = async () => {
+  // 철거 신호 전송 확인
+  const handleSendSignal = () => {
     if (selectedEquipments.size === 0) {
       showToast?.('신호를 전송할 장비를 선택해주세요.', 'error');
       return;
     }
+    setShowConfirmModal(true);
+  };
 
-    if (!window.confirm(`선택한 ${selectedEquipments.size}개 장비에 철거 신호(SMR91)를 전송하시겠습니까?`)) {
-      return;
-    }
-
+  // 실제 철거 신호 전송
+  const handleConfirmSendSignal = async () => {
+    setShowConfirmModal(false);
     setIsLoading(true);
     setResults([]);
 
@@ -295,6 +298,18 @@ const RemovalSignalModal: React.FC<RemovalSignalModalProps> = ({
           </div>
         </div>
       </div>
+
+      {/* 철거 신호 전송 확인 모달 */}
+      <ConfirmModal
+        isOpen={showConfirmModal}
+        onClose={() => setShowConfirmModal(false)}
+        onConfirm={handleConfirmSendSignal}
+        title="철거 신호 전송"
+        message={`선택한 ${selectedEquipments.size}개 장비에 철거 신호(SMR91)를 전송하시겠습니까?`}
+        type="confirm"
+        confirmText="전송"
+        cancelText="취소"
+      />
     </div>
   );
 };
