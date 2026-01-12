@@ -1147,11 +1147,14 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
                       />
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center justify-between mb-2">
-                          <div className="flex items-center gap-1.5 min-w-0 flex-1 mr-2">
-                            <span className={`px-2 py-0.5 rounded text-xs font-bold flex-shrink-0 ${getItemColor(item.ITEM_MID_CD)}`}>
-                              {item.ITEM_MID_NM || item.EQT_CL_NM || '장비'}
+                          <div className="flex items-center gap-2 min-w-0 flex-1 mr-2">
+                            <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium flex-shrink-0 ${getItemColor(item.ITEM_MID_CD)}`}>
+                              {item.ITEM_MID_NM || '장비'}
                             </span>
-                            </div>
+                            <span className="text-sm font-medium text-gray-900 truncate">
+                              {item.EQT_CL_NM || '-'}
+                            </span>
+                          </div>
                           <span className={`px-2 py-1 rounded-full text-xs font-semibold ${
                             (item._hasReturnRequest || item._category === 'RETURN_REQUESTED') ? 'bg-orange-100 text-orange-700' :
                             item.EQT_USE_ARR_YN === 'Y' ? 'bg-green-100 text-green-700' :
@@ -1205,13 +1208,16 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
                         }`}
                       />
                       <div className="flex-1 min-w-0">
-                        {/* 상단: 모델명 + 반납요청중 배지 + 사용가능 */}
+                        {/* 상단: 품목 배지 + 모델명 + 사용가능 */}
                         <div className="flex items-center justify-between mb-3">
-                          <div className="flex items-center gap-1">
-                            <span className={`px-2 py-0.5 rounded text-xs font-bold ${getItemColor(item.ITEM_MID_CD)}`}>
-                              {item.ITEM_NM || item.EQT_CL_NM || item.ITEM_MID_NM || '장비'}
+                          <div className="flex items-center gap-2 min-w-0 flex-1 mr-2">
+                            <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium flex-shrink-0 ${getItemColor(item.ITEM_MID_CD)}`}>
+                              {item.ITEM_MID_NM || '장비'}
                             </span>
-                            </div>
+                            <span className="text-sm font-medium text-gray-900 truncate">
+                              {item.EQT_CL_NM || '-'}
+                            </span>
+                          </div>
                           <span className={`px-2 py-1 rounded-full text-xs font-semibold ${
                             (item._hasReturnRequest || item._category === 'RETURN_REQUESTED') ? 'bg-orange-100 text-orange-700' :
                             item.EQT_USE_ARR_YN === 'Y' ? 'bg-green-100 text-green-700' :
@@ -1229,9 +1235,6 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
                         {/* 상세 정보 - 값만 표시, 현재위치/이전위치만 라벨 유지 */}
                         <div className="bg-gray-50 rounded-lg p-3">
                           <div className="space-y-1.5 text-xs">
-                            {/* 모델명 (값만) */}
-                            <div className="text-gray-900 font-medium">{item.ITEM_NM || item.EQT_CL_NM || '-'}</div>
-
                             {/* 사용가능 날짜 (값만) */}
                             <div className="text-gray-700">{item.USE_END_DT || item.EXPIRE_DT || item.EQT_USE_END_DT || '-'}</div>
 
