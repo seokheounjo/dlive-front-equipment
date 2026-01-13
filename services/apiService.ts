@@ -3204,12 +3204,16 @@ export const changeEquipmentWorker = async (params: {
   MV_CRR_ID?: string;       // 이관 협력업체 ID (이관받는 기사의 CRR_ID)
   CHG_UID?: string;         // 변경자 ID
 }): Promise<any> => {
-  console.log('👤 [장비인수] API 호출:', params);
+  console.log('👤 [장비이동] API 호출:', params);
 
   try {
     const origin = typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000';
 
-    const response = await fetchWithRetry(`${API_BASE}/customer/equipment/changeEqtWrkr_3`, {
+    // fetchWithRetry 대신 직접 fetch 사용 - 더 세밀한 에러 처리를 위해
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 30000);
+
+    const response = await fetch(`${API_BASE}/customer/equipment/changeEqtWrkr_3`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -3217,18 +3221,39 @@ export const changeEquipmentWorker = async (params: {
       },
       credentials: 'include',
       body: JSON.stringify(params),
+      signal: controller.signal
     });
 
-    const result = await response.json();
-    console.log('✅ 장비 인수 성공:', result);
+    clearTimeout(timeoutId);
 
-    return result;
+    const result = await response.json();
+    console.log('[장비이동] 응답:', response.status, result);
+
+    // 성공 조건 확인 (200 OK 또는 result에 SUCCESS 포함)
+    if (response.ok || result?.MSGCODE === 'SUCCESS' || result?.code === 'SUCCESS') {
+      console.log('✅ 장비 이동 성공:', result);
+      return result;
+    }
+
+    // 500 에러지만 실제로는 성공한 경우 체크 (result가 정상 데이터인 경우)
+    if (result && !result.error && !result.code?.includes('ERROR')) {
+      console.log('✅ 장비 이동 성공 (응답 코드 무시):', result);
+      return result;
+    }
+
+    // 에러 응답
+    const errMsg = result?.message || result?.error || '장비 이동에 실패했습니다.';
+    console.error('❌ 장비 이동 실패:', errMsg);
+    throw new Error(errMsg);
   } catch (error: any) {
-    console.error('❌ 장비 인수 실패:', error);
-    if (error instanceof NetworkError) {
+    console.error('❌ 장비 이동 실패:', error);
+    if (error.name === 'AbortError') {
+      throw new Error('요청 시간이 초과되었습니다.');
+    }
+    if (error instanceof Error) {
       throw error;
     }
-    throw new NetworkError('장비 인수에 실패했습니다.');
+    throw new Error('장비 이동에 실패했습니다.');
   }
 };
 
@@ -3249,6 +3274,22 @@ export const findUserList = async (params: {
   try {
     const origin = typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000';
 
+    // 검색 파라미터 정리 - 빈 값 제거, WRKR_NM도 추가 (백엔드 호환)
+    const searchParams: any = {};
+    if (params.USR_NM && params.USR_NM.trim()) {
+      searchParams.USR_NM = params.USR_NM.trim();
+      searchParams.WRKR_NM = params.USR_NM.trim(); // 백엔드 호환용
+    }
+    if (params.USR_ID && params.USR_ID.trim()) {
+      searchParams.USR_ID = params.USR_ID.trim();
+      searchParams.WRKR_ID = params.USR_ID.trim(); // 백엔드 호환용
+    }
+    if (params.SO_ID) {
+      searchParams.SO_ID = params.SO_ID;
+    }
+
+    console.log('🔍 [기사검색] 정리된 파라미터:', searchParams);
+
     const response = await fetchWithRetry(`${API_BASE}/system/cm/getFindUsrList3`, {
       method: 'POST',
       headers: {
@@ -3256,13 +3297,23 @@ export const findUserList = async (params: {
         'Origin': origin
       },
       credentials: 'include',
-      body: JSON.stringify(params),
+      body: JSON.stringify(searchParams),
     });
 
     const result = await response.json();
-    console.log('✅ 기사 검색 성공:', result);
+    console.log('✅ 기사 검색 결과:', result);
 
-    return Array.isArray(result) ? result : result.output1 || [];
+    // 다양한 응답 형태 처리
+    if (Array.isArray(result)) {
+      return result;
+    }
+    if (result.output1 && Array.isArray(result.output1)) {
+      return result.output1;
+    }
+    if (result.data && Array.isArray(result.data)) {
+      return result.data;
+    }
+    return [];
   } catch (error: any) {
     console.error('❌ 기사 검색 실패:', error);
     if (error instanceof NetworkError) {
