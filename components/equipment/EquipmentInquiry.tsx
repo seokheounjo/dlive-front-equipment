@@ -494,7 +494,7 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
           }
         }
 
-        // 검사대기 선택 시
+        // 검사대기 선택 시 - 레거시 API 조건만 사용 (ITEM_MID_CD='04' STB만)
         if (selectedCategory === 'INSPECTION_WAITING') {
           const inspectionParams = {
             WRKR_ID: userInfo.userId,
@@ -510,8 +510,12 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
               inspectionParams
             );
             if (Array.isArray(inspectionResult)) {
+              // 레거시 API 조건: ITEM_MID_CD='04' (STB만) 필터링
+              // 백엔드 Strategy 2에서 추가된 다른 장비 제외
+              const stbOnly = inspectionResult.filter((item: any) => item.ITEM_MID_CD === '04');
+              console.log('[검사대기] STB만 필터링:', inspectionResult.length, '->', stbOnly.length);
               // 검사대기 표시용 태그 추가
-              allResults.push(...inspectionResult.map(item => ({ ...item, _category: 'INSPECTION_WAITING' })));
+              allResults.push(...stbOnly.map(item => ({ ...item, _category: 'INSPECTION_WAITING' })));
             }
           } catch (e) {
             console.log('검사대기 조회 실패:', e);
