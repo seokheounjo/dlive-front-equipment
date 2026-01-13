@@ -171,6 +171,23 @@ const EquipmentRecovery: React.FC<EquipmentRecoveryProps> = ({ onBack }) => {
   const [scannedSerials, setScannedSerials] = useState<string[]>([]);
   const [soList, setSoList] = useState<SoInfo[]>([]);
   const [viewMode, setViewMode] = useState<'simple' | 'detail'>('simple');
+  const [lossFilter, setLossFilter] = useState<'all' | 'lost' | 'notLost'>('all');
+
+  // Lost equipment check (LOSS_AMT > 0 means lost)
+  const isLostEquipment = (item: UnreturnedEqt): boolean => {
+    return item.LOSS_AMT !== '' && item.LOSS_AMT !== '0' && Number(item.LOSS_AMT) > 0;
+  };
+
+  // Filtered list
+  const getFilteredList = (): UnreturnedEqt[] => {
+    if (lossFilter === 'all') return unreturnedList;
+    if (lossFilter === 'lost') return unreturnedList.filter(item => isLostEquipment(item));
+    return unreturnedList.filter(item => !isLostEquipment(item));
+  };
+
+  const filteredList = getFilteredList();
+  const lostCount = unreturnedList.filter(item => isLostEquipment(item)).length;
+  const notLostCount = unreturnedList.length - lostCount;
 
   // SO 목록 로드
   useEffect(() => {
@@ -405,16 +422,23 @@ const EquipmentRecovery: React.FC<EquipmentRecoveryProps> = ({ onBack }) => {
     }
   };
 
-  // 전체 체크
+  // 전체 체크 (분실장비만 체크 가능)
   const handleCheckAll = (checked: boolean) => {
-    setUnreturnedList(unreturnedList.map(item => ({ ...item, CHK: checked })));
+    setUnreturnedList(unreturnedList.map(item => {
+      const isLost = isLostEquipment(item);
+      return { ...item, CHK: isLost ? checked : false };
+    }));
   };
 
-  // 개별 체크
+  // 개별 체크 (분실장비만 체크 가능)
   const handleCheckItem = (index: number, checked: boolean) => {
     const newList = [...unreturnedList];
-    newList[index].CHK = checked;
-    setUnreturnedList(newList);
+    const item = newList[index];
+    // Only allow checking lost equipment
+    if (isLostEquipment(item)) {
+      newList[index].CHK = checked;
+      setUnreturnedList(newList);
+    }
   };
 
   const selectedCount = unreturnedList.filter(item => item.CHK).length;
@@ -507,26 +531,61 @@ const EquipmentRecovery: React.FC<EquipmentRecoveryProps> = ({ onBack }) => {
       {unreturnedList.length > 0 ? (
         <>
           <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
-            <div className="px-4 py-3 bg-gradient-to-r from-gray-50 to-white border-b border-gray-100 flex items-center justify-between">
-              <div>
-                <span className="text-sm font-semibold text-gray-800">
-                  조회 결과: {unreturnedList.length}건
-                </span>
-                {selectedCount > 0 && (
-                  <span className="text-sm text-orange-600 ml-2 font-medium">
-                    (선택: {selectedCount}건)
+            <div className="px-4 py-3 bg-gradient-to-r from-gray-50 to-white border-b border-gray-100">
+              <div className="flex items-center justify-between mb-2">
+                <div>
+                  <span className="text-sm font-semibold text-gray-800">
+                    조회 결과: {filteredList.length}건
                   </span>
-                )}
+                  {selectedCount > 0 && (
+                    <span className="text-sm text-orange-600 ml-2 font-medium">
+                      (선택: {selectedCount}건)
+                    </span>
+                  )}
+                </div>
+                <label className="flex items-center gap-2 text-xs">
+                  <input
+                    type="checkbox"
+                    onChange={(e) => handleCheckAll(e.target.checked)}
+                    checked={filteredList.length > 0 && filteredList.filter(item => isLostEquipment(item)).every(item => item.CHK)}
+                    className="rounded"
+                  />
+                  전체선택
+                </label>
               </div>
-              <label className="flex items-center gap-2 text-xs">
-                <input
-                  type="checkbox"
-                  onChange={(e) => handleCheckAll(e.target.checked)}
-                  checked={unreturnedList.length > 0 && unreturnedList.every(item => item.CHK)}
-                  className="rounded"
-                />
-                전체선택
-              </label>
+              {/* Loss filter buttons */}
+              <div className="flex gap-1 bg-gray-100 p-1 rounded-lg">
+                <button
+                  onClick={() => setLossFilter('all')}
+                  className={`flex-1 py-1.5 px-2 text-xs font-medium rounded-md transition-all ${
+                    lossFilter === 'all'
+                      ? 'bg-white text-orange-600 shadow-sm'
+                      : 'text-gray-500 hover:text-gray-700'
+                  }`}
+                >
+                  전체 ({unreturnedList.length})
+                </button>
+                <button
+                  onClick={() => setLossFilter('lost')}
+                  className={`flex-1 py-1.5 px-2 text-xs font-medium rounded-md transition-all ${
+                    lossFilter === 'lost'
+                      ? 'bg-white text-red-600 shadow-sm'
+                      : 'text-gray-500 hover:text-gray-700'
+                  }`}
+                >
+                  분실 ({lostCount})
+                </button>
+                <button
+                  onClick={() => setLossFilter('notLost')}
+                  className={`flex-1 py-1.5 px-2 text-xs font-medium rounded-md transition-all ${
+                    lossFilter === 'notLost'
+                      ? 'bg-white text-gray-700 shadow-sm'
+                      : 'text-gray-500 hover:text-gray-700'
+                  }`}
+                >
+                  비분실 ({notLostCount})
+                </button>
+              </div>
             </div>
             {/* 뷰 모드 선택 버튼 */}
             <div className="px-4 pb-3">
@@ -554,17 +613,26 @@ const EquipmentRecovery: React.FC<EquipmentRecoveryProps> = ({ onBack }) => {
               </div>
             </div>
             <div className="max-h-[50vh] overflow-y-auto divide-y divide-gray-50">
-              {unreturnedList.map((item, idx) => (
+              {filteredList.map((item, idx) => {
+                const isLost = isLostEquipment(item);
+                const canSelect = isLost;
+                const originalIdx = unreturnedList.findIndex(u => u.EQT_SERNO === item.EQT_SERNO);
+                return (
                 <div
                   key={idx}
-                  className={`px-4 py-3 transition-colors ${item.isScanned ? 'bg-orange-50' : 'hover:bg-blue-50/50'}`}
+                  className={`px-4 py-3 transition-colors ${
+                    !canSelect ? 'opacity-60 bg-gray-50' :
+                    item.isScanned ? 'bg-orange-50' : 'hover:bg-blue-50/50'
+                  }`}
                 >
                   <div className="flex items-start gap-3">
                     <input
                       type="checkbox"
                       checked={item.CHK || false}
-                      onChange={(e) => handleCheckItem(idx, e.target.checked)}
-                      className="rounded mt-0.5"
+                      onChange={(e) => handleCheckItem(originalIdx, e.target.checked)}
+                      disabled={!canSelect}
+                      className={`rounded mt-0.5 ${!canSelect ? 'cursor-not-allowed' : ''}`}
+                      title={!canSelect ? '분실장비만 회수 가능' : ''}
                     />
                     <div className="flex-1 min-w-0">
                       {/* 간단히 보기 */}
@@ -576,14 +644,18 @@ const EquipmentRecovery: React.FC<EquipmentRecoveryProps> = ({ onBack }) => {
                               <span className="px-1.5 py-0.5 bg-orange-100 text-orange-700 text-[10px] rounded font-medium flex-shrink-0">
                                 {item.EQT_CL_NM || '장비'}
                               </span>
-                              <span className="text-sm font-medium text-gray-900 truncate">{item.ITEM_NM || '-'}</span>
+                              <span className={`text-sm font-medium truncate ${canSelect ? 'text-gray-900' : 'text-gray-500'}`}>{item.ITEM_NM || '-'}</span>
                               {item.isScanned && (
                                 <span className="px-1.5 py-0.5 bg-orange-500 text-white text-[10px] rounded font-medium flex-shrink-0">스캔</span>
                               )}
                             </div>
-                            <span className={`px-2 py-0.5 rounded text-[10px] flex-shrink-0 ${item.RETN_REQ_YN === 'Y' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600'}`}>
-                              {item.RETN_REQ_YN === 'Y' ? '회수요청' : '미요청'}
-                            </span>
+                            <div className="flex items-center gap-1">
+                              {isLost ? (
+                                <span className="px-2 py-0.5 rounded text-[10px] flex-shrink-0 bg-red-100 text-red-700">분실</span>
+                              ) : (
+                                <span className="px-2 py-0.5 rounded text-[10px] flex-shrink-0 bg-gray-200 text-gray-500">회수불가</span>
+                              )}
+                            </div>
                           </div>
                           {/* S/N - 한 줄 (MAC 없음) */}
                           <div className="font-mono text-xs text-gray-700 mt-1">
@@ -600,14 +672,18 @@ const EquipmentRecovery: React.FC<EquipmentRecoveryProps> = ({ onBack }) => {
                               <span className="px-1.5 py-0.5 bg-orange-100 text-orange-700 text-[10px] rounded font-medium flex-shrink-0">
                                 {item.EQT_CL_NM || item.ITEM_NM || '장비'}
                               </span>
-                              <span className="font-mono text-xs text-gray-800 truncate">{item.EQT_SERNO}</span>
+                              <span className={`font-mono text-xs truncate ${canSelect ? 'text-gray-800' : 'text-gray-500'}`}>{item.EQT_SERNO}</span>
                               {item.isScanned && (
                                 <span className="px-1.5 py-0.5 bg-orange-500 text-white text-[10px] rounded font-medium flex-shrink-0">스캔</span>
                               )}
                             </div>
-                            <span className={`px-2 py-0.5 rounded text-[10px] flex-shrink-0 ${item.RETN_REQ_YN === 'Y' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600'}`}>
-                              {item.RETN_REQ_YN === 'Y' ? '회수요청' : '미요청'}
-                            </span>
+                            <div className="flex items-center gap-1">
+                              {isLost ? (
+                                <span className="px-2 py-0.5 rounded text-[10px] flex-shrink-0 bg-red-100 text-red-700">분실</span>
+                              ) : (
+                                <span className="px-2 py-0.5 rounded text-[10px] flex-shrink-0 bg-gray-200 text-gray-500">회수불가</span>
+                              )}
+                            </div>
                           </div>
                           {/* 추가 정보 (회색 박스) */}
                           <div className="bg-gray-50 rounded-lg p-2">
@@ -632,7 +708,8 @@ const EquipmentRecovery: React.FC<EquipmentRecoveryProps> = ({ onBack }) => {
                     </div>
                   </div>
                 </div>
-              ))}
+                );
+              })}
             </div>
           </div>
 
