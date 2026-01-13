@@ -1310,11 +1310,9 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
                             <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium flex-shrink-0 ${getItemColor(item.ITEM_MID_CD)}`}>
                               {item.ITEM_MID_NM || '장비'}
                             </span>
-                            {isTodayTermination(item.EQT_USE_END_DT) && (
-                              <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-red-500 text-white flex-shrink-0">
-                                당일해지
-                              </span>
-                            )}
+                            <span className="text-sm font-medium text-gray-900 truncate">
+                              {item.EQT_CL_NM || item.ITEM_NM || '-'}
+                            </span>
                           </div>
                           <span className={`px-2 py-1 rounded-full text-xs font-semibold flex-shrink-0 ${
                             (item._hasReturnRequest || item._category === 'RETURN_REQUESTED') ? 'bg-orange-100 text-orange-700' :
