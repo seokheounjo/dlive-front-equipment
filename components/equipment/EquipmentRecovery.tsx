@@ -174,8 +174,12 @@ const EquipmentRecovery: React.FC<EquipmentRecoveryProps> = ({ onBack }) => {
   const [lossFilter, setLossFilter] = useState<'all' | 'lost' | 'notLost'>('all');
 
   // Lost equipment check (LOSS_AMT > 0 means lost)
-  const isLostEquipment = (item: UnreturnedEqt): boolean => {
-    return item.LOSS_AMT !== '' && item.LOSS_AMT !== '0' && Number(item.LOSS_AMT) > 0;
+  const isLostEquipment = (item: UnreturnedEqt | null | undefined): boolean => {
+    if (!item || !item.LOSS_AMT) return false;
+    const amt = item.LOSS_AMT;
+    if (amt === '' || amt === '0' || amt === 'null' || amt === 'undefined') return false;
+    const numAmt = Number(amt);
+    return !isNaN(numAmt) && numAmt > 0;
   };
 
   // Filtered list
@@ -432,8 +436,10 @@ const EquipmentRecovery: React.FC<EquipmentRecoveryProps> = ({ onBack }) => {
 
   // 개별 체크 (분실장비만 체크 가능)
   const handleCheckItem = (index: number, checked: boolean) => {
+    if (index < 0 || index >= unreturnedList.length) return;
     const newList = [...unreturnedList];
     const item = newList[index];
+    if (!item) return;
     // Only allow checking lost equipment
     if (isLostEquipment(item)) {
       newList[index].CHK = checked;
