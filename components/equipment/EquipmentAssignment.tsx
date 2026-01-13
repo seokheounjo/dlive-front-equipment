@@ -184,6 +184,7 @@ const EquipmentAssignment: React.FC<EquipmentAssignmentProps> = ({ onBack, showT
   const [isLoadingDetail, setIsLoadingDetail] = useState(false);
   const [showDetailModal, setShowDetailModal] = useState(false);
   const [selectedEquipmentDetail, setSelectedEquipmentDetail] = useState<OutTgtEqt | null>(null);
+  const [viewMode, setViewMode] = useState<'simple' | 'detail'>('simple');
 
   // 날짜 형식 변환 (YYYYMMDD -> YYYY-MM-DD)
   const formatDateForInput = (date: string) => {
@@ -386,6 +387,26 @@ const EquipmentAssignment: React.FC<EquipmentAssignmentProps> = ({ onBack, showT
     }
   };
 
+  // 수령 상태 계산 (PROC_STAT 기준)
+  const getReceiveStatus = (procStat: string) => {
+    // PROC_STAT: 1=미처리, 2=처리중, 3=처리완료
+    switch (procStat) {
+      case '3':
+        return { label: '수령', color: 'bg-green-500 text-white' };
+      case '2':
+        return { label: '일부수령', color: 'bg-yellow-500 text-white' };
+      default:
+        return { label: '미수령', color: 'bg-red-500 text-white' };
+    }
+  };
+
+  // MAC 주소 포맷팅
+  const formatMac = (mac: string) => {
+    if (!mac) return '-';
+    if (mac.includes(':') || mac.includes('-')) return mac;
+    return mac.match(/.{1,2}/g)?.join(':') || mac;
+  };
+
   return (
     <div className="h-full overflow-y-auto bg-gray-50 px-4 py-4 space-y-3">
         {/* 검색 영역 */}
@@ -505,9 +526,11 @@ const EquipmentAssignment: React.FC<EquipmentAssignmentProps> = ({ onBack, showT
                           }`}
                         >
                           <div className="flex items-center text-xs">
-                            <span className="w-24 text-gray-900 whitespace-nowrap">{formatOutDttm(item.OUT_DTTM || item.OUT_REQ_DT)}</span>
+                            <span className="w-20 text-gray-900 whitespace-nowrap">{formatOutDttm(item.OUT_DTTM || item.OUT_REQ_DT)}</span>
                             <span className="flex-1 text-gray-600 truncate">{item.CRR_NM || '-'}</span>
-                            <span className="w-28 text-right text-gray-500 font-mono text-[10px]">{item.OUT_REQ_NO || '-'}</span>
+                            <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold mr-2 ${getReceiveStatus(item.PROC_STAT).color}`}>
+                              {getReceiveStatus(item.PROC_STAT).label}
+                            </span>
                           </div>
                         </div>
                       ))}
@@ -542,74 +565,182 @@ const EquipmentAssignment: React.FC<EquipmentAssignmentProps> = ({ onBack, showT
             ) : outTgtEqtList.length > 0 ? (
               <>
                 <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
-                  {/* 전체 선택 */}
-                  <div className="bg-gray-50 px-4 py-3 border-b border-gray-100 flex items-center gap-2">
-                    <input
-                      type="checkbox"
-                      id="checkAll"
-                      onChange={(e) => handleCheckAll(e.target.checked)}
-                      checked={outTgtEqtList.filter(i => i.PROC_YN !== 'Y').length > 0 &&
-                               outTgtEqtList.filter(i => i.PROC_YN !== 'Y').every(item => item.CHK)}
-                      disabled={outTgtEqtList.filter(i => i.PROC_YN !== 'Y').length === 0}
-                      className="w-4 h-4 text-blue-500 rounded focus:ring-blue-500 disabled:cursor-not-allowed"
-                    />
-                    <label htmlFor="checkAll" className="text-xs text-gray-600 cursor-pointer">전체 선택</label>
+                  {/* 헤더: 전체선택 + 뷰모드 */}
+                  <div className="px-4 py-3 bg-gradient-to-r from-gray-50 to-white border-b border-gray-100">
+                    <div className="flex items-center justify-between mb-2">
+                      <label className="flex items-center gap-2 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          onChange={(e) => handleCheckAll(e.target.checked)}
+                          checked={outTgtEqtList.filter(i => i.PROC_YN !== 'Y').length > 0 &&
+                                   outTgtEqtList.filter(i => i.PROC_YN !== 'Y').every(item => item.CHK)}
+                          disabled={outTgtEqtList.filter(i => i.PROC_YN !== 'Y').length === 0}
+                          className="w-4 h-4 text-blue-500 rounded focus:ring-blue-500"
+                        />
+                        <span className="text-sm font-semibold text-gray-800">전체선택</span>
+                      </label>
+                      <span className="text-xs text-gray-500">
+                        {outTgtEqtList.length}건 (선택: {outTgtEqtList.filter(i => i.CHK && i.PROC_YN !== 'Y').length}건)
+                      </span>
+                    </div>
+                    {/* 뷰 모드 선택 버튼 */}
+                    <div className="flex gap-1 bg-gray-100 p-1 rounded-lg">
+                      <button
+                        onClick={() => setViewMode('simple')}
+                        className={`flex-1 py-1.5 px-2 text-xs font-medium rounded-md transition-all ${
+                          viewMode === 'simple'
+                            ? 'bg-white text-blue-600 shadow-sm'
+                            : 'text-gray-500 hover:text-gray-700'
+                        }`}
+                      >
+                        간단히
+                      </button>
+                      <button
+                        onClick={() => setViewMode('detail')}
+                        className={`flex-1 py-1.5 px-2 text-xs font-medium rounded-md transition-all ${
+                          viewMode === 'detail'
+                            ? 'bg-white text-blue-600 shadow-sm'
+                            : 'text-gray-500 hover:text-gray-700'
+                        }`}
+                      >
+                        자세히
+                      </button>
+                    </div>
                   </div>
 
-                  {/* 장비 카드 리스트 */}
-                  <div className="max-h-64 overflow-y-auto divide-y divide-gray-50">
-                    {outTgtEqtList.map((item, idx) => {
-                      const isReceived = item.PROC_YN === 'Y';  // 이미 입고된 장비
-                      const hasSerial = item.EQT_SERNO && item.EQT_SERNO.trim() !== '';  // S/N 할당됨
-                      const canSelect = !isReceived;  // 입고완료가 아니면 선택 가능 (미할당도 OK)
+                  {/* 간단히 보기 */}
+                  {viewMode === 'simple' && (
+                    <div className="p-3 space-y-2">
+                      {outTgtEqtList.map((item, idx) => {
+                        const isReceived = item.PROC_YN === 'Y';
+                        const hasSerial = item.EQT_SERNO && item.EQT_SERNO.trim() !== '';
+                        const canSelect = !isReceived;
 
-                      return (
-                        <div
-                          key={idx}
-                          className={`p-4 ${isReceived ? 'bg-green-50' : item.CHK ? 'bg-blue-50' : 'hover:bg-gray-50'} transition-colors`}
-                        >
-                          <div className="flex items-start gap-3">
-                            {/* 체크박스 - 입고완료만 비활성화 */}
-                            <input
-                              type="checkbox"
-                              checked={isReceived ? true : (item.CHK || false)}
-                              onChange={(e) => canSelect && handleCheckItem(idx, e.target.checked)}
-                              disabled={!canSelect}
-                              className={`w-4 h-4 mt-0.5 rounded focus:ring-blue-500 ${
-                                isReceived ? 'text-green-500 cursor-not-allowed' : 'text-blue-500'
-                              }`}
-                            />
-
-                            {/* 장비 정보 */}
-                            <div className="flex-1 min-w-0">
-                              <div className="flex items-center gap-2 mb-1">
-                                <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${getItemColor(item.ITEM_MID_CD)}`}>
-                                  {item.ITEM_MID_CD_NM || item.ITEM_MAX_CD_NM || '장비'}
-                                </span>
-                                <span className="text-sm font-medium text-gray-900 truncate">
-                                  {item.EQT_CL_NM || '-'}
-                                </span>
-                                {isReceived && (
-                                  <span className="px-1.5 py-0.5 bg-green-500 text-white text-[10px] rounded font-medium">입고완료</span>
-                                )}
-                                {!hasSerial && (
-                                  <span className="px-1.5 py-0.5 bg-gray-400 text-white text-[10px] rounded font-medium">미할당</span>
-                                )}
-                              </div>
-                              <div className="text-xs text-gray-500">
-                                <div className="flex items-center gap-2">
-                                  <span className="font-mono">S/N: {item.EQT_SERNO || '-'}</span>
-                                  {item.MAC_ADDRESS && (
-                                    <span className="text-gray-400 font-mono">| MAC: {item.MAC_ADDRESS}</span>
-                                  )}
+                        return (
+                          <div
+                            key={idx}
+                            onClick={() => canSelect && handleCheckItem(idx, !item.CHK)}
+                            className={`p-3 rounded-lg border-2 cursor-pointer transition-all ${
+                              item.CHK
+                                ? 'bg-blue-50 border-blue-400'
+                                : isReceived ? 'bg-green-50/50 border-green-200'
+                                : 'bg-gray-50 border-transparent hover:border-gray-200'
+                            }`}
+                          >
+                            <div className="flex items-start gap-3">
+                              <input
+                                type="checkbox"
+                                checked={isReceived ? true : (item.CHK || false)}
+                                onChange={(e) => { e.stopPropagation(); canSelect && handleCheckItem(idx, e.target.checked); }}
+                                disabled={!canSelect}
+                                className={`w-5 h-5 rounded focus:ring-blue-500 mt-0.5 ${
+                                  isReceived ? 'text-green-500 cursor-not-allowed' : 'text-blue-500'
+                                }`}
+                              />
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center justify-between mb-2">
+                                  <div className="flex items-center gap-2 min-w-0 flex-1 mr-2">
+                                    <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium flex-shrink-0 ${getItemColor(item.ITEM_MID_CD)}`}>
+                                      {item.ITEM_MID_CD_NM || '장비'}
+                                    </span>
+                                    <span className="text-sm font-medium text-gray-900 truncate">
+                                      {item.EQT_CL_NM || '-'}
+                                    </span>
+                                  </div>
+                                  <span className={`px-2 py-1 rounded-full text-xs font-semibold ${
+                                    isReceived ? 'bg-green-100 text-green-700' :
+                                    !hasSerial ? 'bg-gray-100 text-gray-700' :
+                                    'bg-blue-100 text-blue-700'
+                                  }`}>
+                                    {isReceived ? '입고완료' : !hasSerial ? '미할당' : '대기'}
+                                  </span>
+                                </div>
+                                <div className="space-y-0.5 text-xs">
+                                  <div className="font-mono text-gray-800 text-[11px]">{item.EQT_SERNO || '-'}</div>
+                                  <div className="font-mono text-gray-600 text-[11px]">{formatMac(item.MAC_ADDRESS || '')}</div>
                                 </div>
                               </div>
                             </div>
                           </div>
-                        </div>
-                      );
-                    })}
-                  </div>
+                        );
+                      })}
+                    </div>
+                  )}
+
+                  {/* 자세히 보기 */}
+                  {viewMode === 'detail' && (
+                    <div className="p-3 space-y-2">
+                      {outTgtEqtList.map((item, idx) => {
+                        const isReceived = item.PROC_YN === 'Y';
+                        const hasSerial = item.EQT_SERNO && item.EQT_SERNO.trim() !== '';
+                        const canSelect = !isReceived;
+
+                        return (
+                          <div
+                            key={idx}
+                            onClick={() => canSelect && handleCheckItem(idx, !item.CHK)}
+                            className={`p-3 rounded-lg border-2 cursor-pointer transition-all ${
+                              item.CHK
+                                ? 'bg-blue-50 border-blue-400'
+                                : isReceived ? 'bg-green-50/30 border-green-200'
+                                : 'bg-white border-gray-100 hover:border-gray-300'
+                            }`}
+                          >
+                            <div className="flex items-start gap-3">
+                              <input
+                                type="checkbox"
+                                checked={isReceived ? true : (item.CHK || false)}
+                                onChange={(e) => { e.stopPropagation(); canSelect && handleCheckItem(idx, e.target.checked); }}
+                                disabled={!canSelect}
+                                className={`w-5 h-5 rounded focus:ring-blue-500 mt-0.5 ${
+                                  isReceived ? 'text-green-500 cursor-not-allowed' : 'text-blue-500'
+                                }`}
+                              />
+                              <div className="flex-1 min-w-0">
+                                {/* 상단: 품목 배지 + 장비명 + 상태 */}
+                                <div className="flex items-center justify-between mb-2">
+                                  <div className="flex items-center gap-2 min-w-0 flex-1 mr-2">
+                                    <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium flex-shrink-0 ${getItemColor(item.ITEM_MID_CD)}`}>
+                                      {item.ITEM_MID_CD_NM || '장비'}
+                                    </span>
+                                    <span className="text-sm font-medium text-gray-900 truncate">
+                                      {item.EQT_CL_NM || '-'}
+                                    </span>
+                                  </div>
+                                  <span className={`px-2 py-1 rounded-full text-xs font-semibold ${
+                                    isReceived ? 'bg-green-100 text-green-700' :
+                                    !hasSerial ? 'bg-gray-100 text-gray-700' :
+                                    'bg-blue-100 text-blue-700'
+                                  }`}>
+                                    {isReceived ? '입고완료' : !hasSerial ? '미할당' : '대기'}
+                                  </span>
+                                </div>
+
+                                {/* 중단: S/N + MAC */}
+                                <div className="grid grid-cols-2 gap-2 text-xs mb-2">
+                                  <div>
+                                    <span className="text-gray-500">S/N: </span>
+                                    <span className="font-mono text-gray-800">{item.EQT_SERNO || '-'}</span>
+                                  </div>
+                                  <div>
+                                    <span className="text-gray-500">MAC: </span>
+                                    <span className="font-mono text-gray-800">{formatMac(item.MAC_ADDRESS || '')}</span>
+                                  </div>
+                                </div>
+
+                                {/* 하단: 수량 정보 */}
+                                <div className="flex items-center gap-4 text-[10px] text-gray-500 pt-2 border-t border-gray-100">
+                                  <span>요청: <strong className="text-gray-700">{item.OUT_REQ_QTY || 0}</strong></span>
+                                  <span>출고: <strong className="text-green-600">{item.OUT_QTY || 0}</strong></span>
+                                  <span>입고: <strong className="text-blue-600">{item.IBGO_QTY || 0}</strong></span>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
                 </div>
                 {/* 하단 버튼 영역 확보용 여백 */}
                 <div className="h-20"></div>
