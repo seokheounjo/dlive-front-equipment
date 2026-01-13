@@ -383,6 +383,10 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
               }),
               { WRKR_ID: userInfo.userId, CRR_ID: userInfo.crrId }
             );
+            // DEBUG: 첫 아이템의 모든 필드 확인
+            if (Array.isArray(ownedResult) && ownedResult.length > 0) {
+              console.log('📋 [보유장비] 첫 아이템 전체 필드:', JSON.stringify(ownedResult[0], null, 2));
+            }
 
             // 반납요청 목록도 조회하여 중복 체크
             let returnRequestEqtNos = new Set<string>();
@@ -561,7 +565,7 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
         WRKR_NM: item.WRKR_NM || userInfo.userName,
         CUST_ID: item.CUST_ID || '',
         CTRT_ID: item.CTRT_ID || '',
-        EQT_USE_END_DT: item.EQT_USE_END_DT || '',
+        EQT_USE_END_DT: item.EQT_USE_END_DT || item.USE_END_DT || item.EXPIRE_DT || '',
         RETN_RESN_CD: item.RETN_RESN_CD || '',
         RETN_RESN_NM: item.RETN_RESN_NM || item.RETN_RESN_CD_NM || '',
         // 반납취소 DELETE SQL WHERE 조건 필수 파라미터 (CRITICAL!)
