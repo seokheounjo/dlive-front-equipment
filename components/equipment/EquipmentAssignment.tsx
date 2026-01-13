@@ -44,6 +44,10 @@ interface EqtOut {
   PROC_STAT_NM: string;
   REG_UID: string;
   CHG_UID: string;
+  // 수령 상태 (계산됨)
+  _receiveStatus?: 'received' | 'partial' | 'none';
+  _receivedCount?: number;
+  _totalCount?: number;
 }
 
 // Dataset: ds_out_tgt_eqt
@@ -239,6 +243,7 @@ const EquipmentAssignment: React.FC<EquipmentAssignmentProps> = ({ onBack, showT
       // 지점별 정렬 (SO_NM 기준)
       allResults.sort((a, b) => (a.SO_NM || '').localeCompare(b.SO_NM || ''));
 
+      // 먼저 목록 표시 (수령 상태는 미정)
       setEqtOutList(allResults);
       setSelectedEqtOut(null);
       setOutTgtEqtList([]);
@@ -247,6 +252,39 @@ const EquipmentAssignment: React.FC<EquipmentAssignmentProps> = ({ onBack, showT
         showToast?.('조회된 출고 내역이 없습니다.', 'info');
       } else {
         showToast?.(`${allResults.length}건의 출고 내역을 조회했습니다.`, 'success');
+
+        // 백그라운드에서 수령 상태 계산
+        const calculateReceiveStatus = async () => {
+          const updatedResults = await Promise.all(
+            allResults.map(async (item) => {
+              try {
+                const equipments = await getOutEquipmentTargetList({ OUT_REQ_NO: item.OUT_REQ_NO });
+                const eqList = Array.isArray(equipments) ? equipments : (equipments.output1 || []);
+
+                if (eqList.length === 0) {
+                  return { ...item, _receiveStatus: 'none' as const, _receivedCount: 0, _totalCount: 0 };
+                }
+
+                const receivedCount = eqList.filter((eq: any) => eq.PROC_YN === 'Y').length;
+                const totalCount = eqList.length;
+
+                let status: 'received' | 'partial' | 'none' = 'none';
+                if (receivedCount === totalCount) {
+                  status = 'received';
+                } else if (receivedCount > 0) {
+                  status = 'partial';
+                }
+
+                return { ...item, _receiveStatus: status, _receivedCount: receivedCount, _totalCount: totalCount };
+              } catch {
+                return { ...item, _receiveStatus: 'none' as const, _receivedCount: 0, _totalCount: 0 };
+              }
+            })
+          );
+          setEqtOutList(updatedResults);
+        };
+
+        calculateReceiveStatus();
       }
     } catch (error: any) {
       console.error('❌ [장비할당] 조회 실패:', error);
@@ -387,16 +425,20 @@ const EquipmentAssignment: React.FC<EquipmentAssignmentProps> = ({ onBack, showT
     }
   };
 
-  // 수령 상태 계산 (PROC_STAT 기준)
-  const getReceiveStatus = (procStat: string) => {
-    // PROC_STAT: 1=미처리, 2=처리중, 3=처리완료
-    switch (procStat) {
-      case '3':
+  // 수령 상태 표시
+  const getReceiveStatusDisplay = (item: EqtOut) => {
+    if (!item._receiveStatus) {
+      return { label: '-', color: 'bg-gray-400 text-white' };
+    }
+    switch (item._receiveStatus) {
+      case 'received':
         return { label: '수령', color: 'bg-green-500 text-white' };
-      case '2':
-        return { label: '일부수령', color: 'bg-yellow-500 text-white' };
-      default:
+      case 'partial':
+        return { label: `일부(${item._receivedCount}/${item._totalCount})`, color: 'bg-yellow-500 text-white' };
+      case 'none':
         return { label: '미수령', color: 'bg-red-500 text-white' };
+      default:
+        return { label: '-', color: 'bg-gray-400 text-white' };
     }
   };
 
@@ -528,8 +570,8 @@ const EquipmentAssignment: React.FC<EquipmentAssignmentProps> = ({ onBack, showT
                           <div className="flex items-center text-xs">
                             <span className="w-20 text-gray-900 whitespace-nowrap">{formatOutDttm(item.OUT_DTTM || item.OUT_REQ_DT)}</span>
                             <span className="flex-1 text-gray-600 truncate">{item.CRR_NM || '-'}</span>
-                            <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold mr-2 ${getReceiveStatus(item.PROC_STAT).color}`}>
-                              {getReceiveStatus(item.PROC_STAT).label}
+                            <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold mr-2 ${getReceiveStatusDisplay(item).color}`}>
+                              {getReceiveStatusDisplay(item).label}
                             </span>
                           </div>
                         </div>
