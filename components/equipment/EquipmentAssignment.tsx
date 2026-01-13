@@ -637,9 +637,6 @@ const EquipmentAssignment: React.FC<EquipmentAssignmentProps> = ({ onBack, showT
           <div ref={equipmentListRef}>
             <div className="flex items-center justify-between mb-3">
               <h3 className="text-sm font-semibold text-gray-700">입고 대상 장비</h3>
-              {outTgtEqtList.length > 0 && (
-                <span className="text-xs text-gray-500">{outTgtEqtList.filter(i => i.CHK && i.PROC_YN !== 'Y').length}/{outTgtEqtList.filter(i => i.PROC_YN !== 'Y').length}</span>
-              )}
             </div>
 
             {isLoadingDetail ? (
