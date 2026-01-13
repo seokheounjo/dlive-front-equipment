@@ -269,8 +269,13 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
     return endDt.slice(0, 8) === today;
   };
 
-  // 필터 적용된 장비 목록
+  // 필터 적용된 장비 목록 (보유장비 탭에서만 필터 적용)
   const getFilteredList = () => {
+    // 반납요청/검사대기 탭에서는 필터 적용하지 않음
+    if (selectedCategory !== 'OWNED') {
+      return equipmentList;
+    }
+
     return equipmentList.filter(item => {
       // 반납요청중 (반납요청 카테고리 또는 보유장비 중 반납요청중)
       const isReturnReq = item._category === 'RETURN_REQUESTED' || item._hasReturnRequest;
