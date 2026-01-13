@@ -255,7 +255,7 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
   const [lossReason, setLossReason] = useState<string>('');
 
   // 뷰 모드: simple(간단히), detail(자세히)
-  const [viewMode, setViewMode] = useState<'simple' | 'detail'>('simple');
+  const [viewMode, setViewMode] = useState<'simple' | 'detail'>('detail');
 
   // 상태 변경 결과 (검사대기 다중처리용)
   const [statusChangeResult, setStatusChangeResult] = useState<StatusChangeResult | null>(null);
@@ -1100,95 +1100,11 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
                   {equipmentList.length}건 (선택: {selectedCount}건)
                 </span>
               </div>
-              {/* 뷰 모드 선택 버튼 */}
-              <div className="flex gap-1 bg-gray-100 p-1 rounded-lg">
-                <button
-                  onClick={() => setViewMode('simple')}
-                  className={`flex-1 py-1.5 px-2 text-xs font-medium rounded-md transition-all ${
-                    viewMode === 'simple'
-                      ? 'bg-white text-blue-600 shadow-sm'
-                      : 'text-gray-500 hover:text-gray-700'
-                  }`}
-                >
-                  간단히
-                </button>
-                <button
-                  onClick={() => setViewMode('detail')}
-                  className={`flex-1 py-1.5 px-2 text-xs font-medium rounded-md transition-all ${
-                    viewMode === 'detail'
-                      ? 'bg-white text-blue-600 shadow-sm'
-                      : 'text-gray-500 hover:text-gray-700'
-                  }`}
-                >
-                  자세히
-                </button>
-              </div>
+
             </div>
 
-            {/* 간단히 보기: 장비구분, S/N, MAC, 사용가능 */}
-            {viewMode === 'simple' && (
-              <div className="p-3 space-y-2">
-                {equipmentList.map((item, idx) => (
-                  <div
-                    key={idx}
-                    onClick={() => { if (!(item._category === 'OWNED' && item._hasReturnRequest)) handleCheckItem(idx, !item.CHK); }}
-                    className={`p-3 rounded-lg border-2 cursor-pointer transition-all ${
-                      item.CHK
-                        ? 'bg-blue-50 border-blue-400'
-                        : item._category === 'OWNED' ? 'bg-green-50/50 border-green-200 hover:border-green-300'
-                        : item._category === 'RETURN_REQUESTED' ? 'bg-amber-50/50 border-amber-200 hover:border-amber-300'
-                        : item._category === 'INSPECTION_WAITING' ? 'bg-purple-50/50 border-purple-200 hover:border-purple-300'
-                        : 'bg-gray-50 border-transparent hover:border-gray-200'
-                    }`}
-                  >
-                    <div className="flex items-start gap-3">
-                      <input
-                        type="checkbox"
-                        checked={item.CHK || false}
-                        disabled={item._category === 'OWNED' && item._hasReturnRequest}
-                        onChange={(e) => { e.stopPropagation(); handleCheckItem(idx, e.target.checked); }}
-                        className={`w-5 h-5 rounded focus:ring-blue-500 mt-0.5 ${
-                          item._category === 'OWNED' && item._hasReturnRequest 
-                            ? 'text-gray-300 cursor-not-allowed' 
-                            : 'text-blue-500'
-                        }`}
-                      />
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center justify-between mb-2">
-                          <div className="flex items-center gap-2 min-w-0 flex-1 mr-2">
-                            <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium flex-shrink-0 ${getItemColor(item.ITEM_MID_CD)}`}>
-                              {item.ITEM_MID_NM || '장비'}
-                            </span>
-                            <span className="text-sm font-medium text-gray-900 truncate">
-                              {item.EQT_CL_NM || '-'}
-                            </span>
-                          </div>
-                          <span className={`px-2 py-1 rounded-full text-xs font-semibold ${
-                            (item._hasReturnRequest || item._category === 'RETURN_REQUESTED') ? 'bg-orange-100 text-orange-700' :
-                            item.EQT_USE_ARR_YN === 'Y' ? 'bg-green-100 text-green-700' :
-                            item.EQT_USE_ARR_YN === 'A' ? 'bg-purple-100 text-purple-700' :
-                            item.EQT_USE_ARR_YN === 'N' ? 'bg-red-100 text-red-700' :
-                            'bg-gray-100 text-gray-700'
-                          }`}>
-                            {(item._hasReturnRequest || item._category === 'RETURN_REQUESTED') ? '반납요청중' :
-                             item.EQT_USE_ARR_YN === 'Y' ? '사용가능' :
-                             item.EQT_USE_ARR_YN === 'A' ? '검사대기' :
-                             item.EQT_USE_ARR_YN === 'N' ? '사용불가' : '-'}
-                          </span>
-                        </div>
-                        <div className="space-y-0.5 text-xs">
-                          <div className="font-mono text-gray-800 text-[11px]">{item.EQT_SERNO || '-'}</div>
-                          <div className="font-mono text-gray-600 text-[11px]">{formatMac(item.MAC_ADDRESS)}</div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-
             {/* 자세히 보기: 모델명, 사용가능, 변경종류, 현재위치, 이동전위치, 장비상태, 지점 */}
-            {viewMode === 'detail' && (
+            {true && (
               <div className="p-3 space-y-2">
                 {equipmentList.map((item, idx) => (
                   <div
