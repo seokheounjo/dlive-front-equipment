@@ -132,6 +132,11 @@ const EquipmentMovement: React.FC<EquipmentMovementProps> = ({ onBack }) => {
   const [workerSearchKeyword, setWorkerSearchKeyword] = useState('');
   const [isSearchingWorker, setIsSearchingWorker] = useState(false);
 
+  // 모달 내 장비 선택 상태
+  const [modalSelectedWorker, setModalSelectedWorker] = useState<{ USR_ID: string; USR_NM: string; CRR_ID?: string } | null>(null);
+  const [modalEquipmentList, setModalEquipmentList] = useState<EqtTrns[]>([]);
+  const [isLoadingModalEquipment, setIsLoadingModalEquipment] = useState(false);
+
   // 이관지점 선택 (AUTH_SO_List 기반)
   const [userAuthSoList, setUserAuthSoList] = useState<{ SO_ID: string; SO_NM: string }[]>([]);
   const [targetSoId, setTargetSoId] = useState<string>('');
@@ -432,7 +437,92 @@ const EquipmentMovement: React.FC<EquipmentMovementProps> = ({ onBack }) => {
     }
   };
 
-  // 기사 선택 - CRR_ID도 함께 저장 (타기사 장비 조회용)
+  // 기사 클릭 시 - 장비 목록 조회 (모달 내)
+  const handleWorkerClickInModal = async (worker: { USR_ID: string; USR_NM: string; CRR_ID?: string }) => {
+    setModalSelectedWorker(worker);
+    setIsLoadingModalEquipment(true);
+    try {
+      const params: any = { WRKR_ID: worker.USR_ID, CRR_ID: '' };
+      const result = await debugApiCall('EquipmentMovement', 'getWrkrHaveEqtList (modal)', () => getWrkrHaveEqtList(params), params);
+      if (Array.isArray(result) && result.length > 0) {
+        const transformedList: EqtTrns[] = result.map((item: any) => ({
+          CHK: false,
+          EQT_NO: item.EQT_NO || '',
+          ITEM_MAX_NM: item.ITEM_MAX_NM || '',
+          ITEM_MID_NM: item.ITEM_MID_NM || '',
+          EQT_CL_CD: item.EQT_CL_CD || '',
+          EQT_CL_NM: item.EQT_CL_NM || '',
+          ITEM_NM: item.ITEM_NM || '',
+          ITEM_SPEC: item.ITEM_SPEC || '',
+          MST_SO_ID: item.MST_SO_ID || '',
+          MST_SO_NM: item.MST_SO_NM || '',
+          SO_ID: item.SO_ID || '',
+          SO_NM: item.SO_NM || '',
+          EQT_SERNO: item.EQT_SERNO || '',
+          MAC_ADDRESS: item.MAC_ADDRESS || '',
+          TA_MAC_ADDRESS: item.TA_MAC_ADDRESS || '',
+          WRKR_NM: item.WRKR_NM || worker.USR_NM,
+          CRR_NM: item.CRR_NM || '',
+          isScanned: false
+        }));
+        setModalEquipmentList(transformedList);
+      } else {
+        setModalEquipmentList([]);
+      }
+    } catch (error) {
+      console.error('모달 장비 조회 실패:', error);
+      setModalEquipmentList([]);
+    } finally {
+      setIsLoadingModalEquipment(false);
+    }
+  };
+
+  // 모달 내 장비 체크박스 토글
+  const handleModalEquipmentCheck = (index: number, checked: boolean) => {
+    const newList = [...modalEquipmentList];
+    newList[index].CHK = checked;
+    setModalEquipmentList(newList);
+  };
+
+  // 모달 내 전체 선택
+  const handleModalCheckAll = (checked: boolean) => {
+    setModalEquipmentList(modalEquipmentList.map(item => ({ ...item, CHK: checked })));
+  };
+
+  // 모달에서 선택 확정 - 메인 리스트로 이동
+  const handleModalEquipmentConfirm = () => {
+    const checkedItems = modalEquipmentList.filter(item => item.CHK);
+    if (checkedItems.length === 0) {
+      alert('선택된 장비가 없습니다.');
+      return;
+    }
+    // 워커 정보 설정
+    if (modalSelectedWorker) {
+      setWorkerInfo(prev => ({
+        ...prev,
+        WRKR_ID: modalSelectedWorker.USR_ID,
+        WRKR_NM: modalSelectedWorker.USR_NM,
+        CRR_ID: modalSelectedWorker.CRR_ID || ''
+      }));
+    }
+    // 선택된 장비만 메인 리스트에 추가
+    setEqtTrnsList(checkedItems);
+    setHasSearched(true);
+    // 모달 초기화 및 닫기
+    setModalSelectedWorker(null);
+    setModalEquipmentList([]);
+    setSearchedWorkers([]);
+    setWorkerSearchKeyword('');
+    setWorkerModalOpen(false);
+  };
+
+  // 모달 뒤로가기 (장비 목록 → 기사 목록)
+  const handleModalBack = () => {
+    setModalSelectedWorker(null);
+    setModalEquipmentList([]);
+  };
+
+  // 기사 선택 - CRR_ID도 함께 저장 (타기사 장비 조회용) - 이제 사용 안함
   const handleWorkerSelect = (worker: { USR_ID: string; USR_NM: string; CRR_ID?: string; EQT_COUNT?: number }) => {
     setWorkerInfo(prev => ({ ...prev, WRKR_ID: worker.USR_ID, WRKR_NM: worker.USR_NM, CRR_ID: worker.CRR_ID || '' }));
     setWorkerModalOpen(false);
@@ -451,6 +541,12 @@ const EquipmentMovement: React.FC<EquipmentMovementProps> = ({ onBack }) => {
     const checkedItems = eqtTrnsList.filter(item => item.CHK);
     if (checkedItems.length === 0) { alert('이동할 장비를 선택해주세요.'); return; }
     if (!loggedInUser.userId) { alert('로그인 정보가 없습니다.'); return; }
+
+    // 본인에게 이동 불가 체크
+    if (workerInfo.WRKR_ID === loggedInUser.userId) {
+      alert('본인에게는 장비를 이동할 수 없습니다.');
+      return;
+    }
     // confirm is now handled in the modal
 
     setIsLoading(true);
@@ -530,11 +626,12 @@ const EquipmentMovement: React.FC<EquipmentMovementProps> = ({ onBack }) => {
     setEqtTrnsList(newList);
   };
 
-  // 종류별 전체 체크
+  // 지점별 전체 체크
   const handleCheckCategory = (category: string, checked: boolean) => {
-    setEqtTrnsList(eqtTrnsList.map(item =>
-      item.ITEM_MID_NM === category ? { ...item, CHK: checked } : item
-    ));
+    setEqtTrnsList(eqtTrnsList.map(item => {
+      const itemCategory = item.SO_NM || item.SO_ID || '미지정';
+      return itemCategory === category ? { ...item, CHK: checked } : item;
+    }));
   };
 
   // 카테고리 접기/펼치기
@@ -547,9 +644,9 @@ const EquipmentMovement: React.FC<EquipmentMovementProps> = ({ onBack }) => {
     });
   };
 
-  // 종류별로 그룹화
+  // 지점별로 그룹화
   const groupedEquipment = eqtTrnsList.reduce((acc, item) => {
-    const category = item.ITEM_MID_NM || '기타';
+    const category = item.SO_NM || item.SO_ID || '미지정';
     if (!acc[category]) acc[category] = [];
     acc[category].push(item);
     return acc;
@@ -706,23 +803,10 @@ const EquipmentMovement: React.FC<EquipmentMovementProps> = ({ onBack }) => {
             >
               <input
                 type="text"
-                value={workerInfo.WRKR_NM}
+                value={workerInfo.WRKR_NM ? `${workerInfo.WRKR_NM} (${workerInfo.WRKR_ID})` : ''}
                 readOnly
                 className="flex-1 min-w-0 px-3 py-2.5 text-sm border border-gray-200 rounded-lg bg-gray-50 cursor-pointer"
-                placeholder="기사명"
-              />
-              <button
-                type="button"
-                className="flex-shrink-0 px-4 py-2.5 text-sm border border-green-500 text-green-600 rounded-lg bg-white hover:bg-green-50 active:scale-[0.98] transition-all font-medium"
-              >
-                <Search className="w-4 h-4" />
-              </button>
-              <input
-                type="text"
-                value={workerInfo.WRKR_ID}
-                readOnly
-                className="w-28 px-2 py-2.5 text-xs border border-gray-200 rounded-lg flex-shrink-0 bg-gray-50 cursor-pointer"
-                placeholder="ID"
+                placeholder="기사명 또는 ID 검색"
               />
             </div>
 
@@ -730,7 +814,7 @@ const EquipmentMovement: React.FC<EquipmentMovementProps> = ({ onBack }) => {
             <button
               onClick={handleSearch}
               disabled={isLoading || !workerInfo.WRKR_ID}
-              className="w-full bg-green-500 hover:bg-green-600 disabled:bg-gray-300 text-white py-2.5 rounded-lg font-semibold text-sm shadow-sm transition-all active:scale-[0.98]"
+              className="w-full bg-green-500 hover:bg-green-600 disabled:bg-gray-300 text-white py-2.5 rounded-lg font-semibold text-sm shadow-sm transition-all active:scale-[0.98] touch-manipulation"
             >
               {isLoading ? '조회 중...' : '조회'}
             </button>
@@ -878,57 +962,51 @@ const EquipmentMovement: React.FC<EquipmentMovementProps> = ({ onBack }) => {
                               {/* 간단히 보기 */}
                               {viewMode === 'simple' && (
                                 <div className="flex-1 min-w-0">
+                                  {/* [품목] S/N | MAC - 한 줄 */}
                                   <div className="flex items-center justify-between">
-                                    <div className="flex items-center gap-2">
-                                      <span className="px-1.5 py-0.5 bg-blue-100 text-blue-700 text-[10px] rounded font-medium">
+                                    <div className="flex items-center gap-2 min-w-0 flex-1 mr-2">
+                                      <span className="px-1.5 py-0.5 bg-blue-100 text-blue-700 text-[10px] rounded font-medium flex-shrink-0">
                                         {item.ITEM_MID_NM || item.EQT_CL_NM || '장비'}
                                       </span>
-                                      {item.isScanned && (
-                                        <span className="px-1.5 py-0.5 bg-purple-500 text-white text-[10px] rounded font-medium">스캔</span>
-                                      )}
+                                      <span className="font-mono text-xs text-gray-800 truncate">
+                                        {item.EQT_SERNO || '-'} | {item.MAC_ADDRESS || '-'}
+                                      </span>
                                     </div>
-                                  </div>
-                                  <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs mt-1.5">
-                                    <div className="flex items-center gap-1">
-                                      <span className="text-gray-400 w-10">S/N</span>
-                                      <span className="font-mono text-gray-800 truncate">{item.EQT_SERNO || '-'}</span>
-                                    </div>
-                                    <div className="flex items-center gap-1">
-                                      <span className="text-gray-400 w-10">MAC</span>
-                                      <span className="font-mono text-gray-600 truncate">{item.MAC_ADDRESS || '-'}</span>
-                                    </div>
+                                    {item.isScanned && (
+                                      <span className="px-1.5 py-0.5 bg-purple-500 text-white text-[10px] rounded font-medium flex-shrink-0">스캔</span>
+                                    )}
                                   </div>
                                 </div>
                               )}
                               {/* 자세히 보기 */}
                               {viewMode === 'detail' && (
                                 <div className="flex-1 min-w-0">
+                                  {/* 간단히와 동일: [품목] S/N | MAC */}
                                   <div className="flex items-center justify-between mb-2">
-                                    <div className="flex items-center gap-2">
-                                      <span className="text-sm font-bold text-gray-900">{item.ITEM_NM || item.EQT_CL_NM || '장비'}</span>
-                                      {item.isScanned && (
-                                        <span className="px-1.5 py-0.5 bg-purple-500 text-white text-[10px] rounded font-medium">스캔</span>
-                                      )}
+                                    <div className="flex items-center gap-2 min-w-0 flex-1 mr-2">
+                                      <span className="px-1.5 py-0.5 bg-blue-100 text-blue-700 text-[10px] rounded font-medium flex-shrink-0">
+                                        {item.ITEM_MID_NM || item.EQT_CL_NM || '장비'}
+                                      </span>
+                                      <span className="font-mono text-xs text-gray-800 truncate">
+                                        {item.EQT_SERNO || '-'} | {item.MAC_ADDRESS || '-'}
+                                      </span>
                                     </div>
+                                    {item.isScanned && (
+                                      <span className="px-1.5 py-0.5 bg-purple-500 text-white text-[10px] rounded font-medium flex-shrink-0">스캔</span>
+                                    )}
                                   </div>
+                                  {/* 추가 정보 (회색 박스) */}
                                   <div className="bg-gray-50 rounded-lg p-2">
-                                    <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs">
-                                      <div className="flex">
-                                        <span className="text-gray-400 w-14 flex-shrink-0">S/N</span>
-                                        <span className="font-mono text-gray-900">{item.EQT_SERNO || '-'}</span>
-                                      </div>
-                                      <div className="flex">
-                                        <span className="text-gray-400 w-14 flex-shrink-0">MAC</span>
-                                        <span className="font-mono text-gray-700">{item.MAC_ADDRESS || '-'}</span>
-                                      </div>
-                                      <div className="flex">
-                                        <span className="text-gray-400 w-14 flex-shrink-0">지점</span>
+                                    <div className="space-y-1 text-xs">
+                                      {/* 장비명 (값만) */}
+                                      <div className="text-gray-700 font-medium">{item.ITEM_NM || item.EQT_CL_NM || '-'}</div>
+                                      {/* 현재위치 (라벨+값) */}
+                                      <div className="flex items-center gap-2">
+                                        <span className="text-gray-400">현재위치</span>
                                         <span className="text-gray-700">{item.SO_NM || item.SO_ID || '-'}</span>
                                       </div>
-                                      <div className="flex">
-                                        <span className="text-gray-400 w-14 flex-shrink-0">보유자</span>
-                                        <span className="text-gray-700">{item.WRKR_NM || '-'}</span>
-                                      </div>
+                                      {/* 보유자 (값만) */}
+                                      <div className="text-gray-600">{item.WRKR_NM || '-'}</div>
                                     </div>
                                   </div>
                                 </div>
@@ -1069,63 +1147,154 @@ const EquipmentMovement: React.FC<EquipmentMovementProps> = ({ onBack }) => {
         </div>
       </BaseModal>
 
-      {/* 모달들 */}
+      {/* 기사 검색 + 장비 선택 모달 */}
       <BaseModal
         isOpen={workerModalOpen}
-        onClose={() => setWorkerModalOpen(false)}
-        title="기사 검색"
-        size="medium"
+        onClose={() => {
+          setWorkerModalOpen(false);
+          setModalSelectedWorker(null);
+          setModalEquipmentList([]);
+          setSearchedWorkers([]);
+          setWorkerSearchKeyword('');
+        }}
+        title={modalSelectedWorker ? `${modalSelectedWorker.USR_NM} 보유장비` : '기사 검색'}
+        size="large"
         subHeader={
-          <div className="flex gap-2">
-            <input
-              type="text"
-              value={workerSearchKeyword}
-              onChange={(e) => setWorkerSearchKeyword(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && handleWorkerModalSearch()}
-              className="flex-1 px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-green-500"
-              placeholder="이름 또는 ID 입력"
-              autoFocus
-            />
-            <button
-              onClick={handleWorkerModalSearch}
-              disabled={isSearchingWorker}
-              className="px-4 py-2 bg-green-500 hover:bg-green-600 disabled:bg-gray-300 text-white rounded-lg font-medium text-sm"
-            >
-              {isSearchingWorker ? '...' : '검색'}
-            </button>
-          </div>
+          modalSelectedWorker ? (
+            <div className="flex items-center justify-between">
+              <button
+                onClick={handleModalBack}
+                className="flex items-center gap-1 text-sm text-gray-600 hover:text-gray-900"
+              >
+                <ChevronUp className="w-4 h-4 rotate-[-90deg]" />
+                뒤로
+              </button>
+              <label className="flex items-center gap-2 text-xs">
+                <input
+                  type="checkbox"
+                  onChange={(e) => handleModalCheckAll(e.target.checked)}
+                  checked={modalEquipmentList.length > 0 && modalEquipmentList.every(item => item.CHK)}
+                  className="rounded"
+                />
+                전체선택
+              </label>
+            </div>
+          ) : (
+            <div className="flex gap-2">
+              <input
+                type="text"
+                value={workerSearchKeyword}
+                onChange={(e) => setWorkerSearchKeyword(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && handleWorkerModalSearch()}
+                className="flex-1 px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-green-500"
+                placeholder="이름 또는 ID 입력"
+                autoFocus
+              />
+              <button
+                onClick={handleWorkerModalSearch}
+                disabled={isSearchingWorker}
+                className="px-4 py-2 bg-green-500 hover:bg-green-600 disabled:bg-gray-300 text-white rounded-lg font-medium text-sm touch-manipulation"
+              >
+                {isSearchingWorker ? '...' : '검색'}
+              </button>
+            </div>
+          )
         }
         footer={
-          <button
-            onClick={() => setWorkerModalOpen(false)}
-            className="w-full py-2.5 text-sm text-gray-600 hover:bg-gray-100 rounded-lg font-medium transition-colors"
-          >
-            닫기
-          </button>
+          modalSelectedWorker ? (
+            <div className="w-full grid grid-cols-2 gap-3">
+              <button
+                onClick={handleModalBack}
+                className="py-3 text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-xl font-semibold text-sm transition-colors touch-manipulation"
+              >
+                뒤로
+              </button>
+              <button
+                onClick={handleModalEquipmentConfirm}
+                disabled={modalEquipmentList.filter(item => item.CHK).length === 0}
+                className="py-3 bg-gradient-to-r from-blue-500 to-blue-600 disabled:from-gray-300 disabled:to-gray-400 text-white rounded-xl font-semibold text-sm shadow-lg active:scale-[0.98] transition-all touch-manipulation"
+              >
+                선택 완료 ({modalEquipmentList.filter(item => item.CHK).length}건)
+              </button>
+            </div>
+          ) : (
+            <button
+              onClick={() => setWorkerModalOpen(false)}
+              className="w-full py-2.5 text-sm text-gray-600 hover:bg-gray-100 rounded-lg font-medium transition-colors touch-manipulation"
+            >
+              닫기
+            </button>
+          )
         }
       >
-        {searchedWorkers.length === 0 ? (
-          <div className="py-8 text-center text-gray-500 text-sm">
-            {isSearchingWorker ? '검색 중...' : '이름 또는 ID를 검색하세요'}
-          </div>
-        ) : (
-          <div className="divide-y divide-gray-100">
-            {searchedWorkers.map((worker, idx) => (
-              <button
-                key={idx}
-                onClick={() => handleWorkerSelect(worker)}
-                className="w-full px-4 py-3 text-left hover:bg-green-50 flex justify-between items-center transition-colors active:bg-green-100 touch-manipulation"
-              >
-                <div className="flex flex-col">
-                  <span className="font-medium text-gray-900">{worker.USR_NM}</span>
-                  <span className="text-xs text-gray-500">{worker.USR_ID}</span>
+        {/* 장비 목록 보기 (기사 선택 후) */}
+        {modalSelectedWorker ? (
+          isLoadingModalEquipment ? (
+            <div className="py-8 text-center text-gray-500 text-sm">
+              장비 조회 중...
+            </div>
+          ) : modalEquipmentList.length === 0 ? (
+            <div className="py-8 text-center text-gray-500 text-sm">
+              보유 장비가 없습니다
+            </div>
+          ) : (
+            <div className="divide-y divide-gray-100 max-h-80 overflow-y-auto">
+              {modalEquipmentList.map((item, idx) => (
+                <div
+                  key={item.EQT_NO || idx}
+                  className={`px-4 py-3 flex items-center gap-3 ${item.CHK ? 'bg-blue-50' : 'hover:bg-gray-50'}`}
+                >
+                  <input
+                    type="checkbox"
+                    checked={item.CHK || false}
+                    onChange={(e) => handleModalEquipmentCheck(idx, e.target.checked)}
+                    className="rounded flex-shrink-0"
+                  />
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <span className="px-1.5 py-0.5 bg-blue-100 text-blue-700 text-[10px] rounded font-medium">
+                        {item.ITEM_MID_NM || item.EQT_CL_NM || '장비'}
+                      </span>
+                      <span className="font-mono text-xs text-gray-800 truncate">
+                        {item.EQT_SERNO || '-'}
+                      </span>
+                    </div>
+                    <div className="text-[10px] text-gray-500 mt-1">
+                      {item.SO_NM || item.SO_ID || '미지정'}
+                    </div>
+                  </div>
                 </div>
-                <span className="text-xs text-blue-600 bg-blue-50 px-2 py-1 rounded">
-                  {worker.EQT_COUNT !== undefined ? `${worker.EQT_COUNT}건` : ''}
-                </span>
-              </button>
-            ))}
-          </div>
+              ))}
+            </div>
+          )
+        ) : (
+          /* 기사 목록 보기 (초기 상태) */
+          searchedWorkers.length === 0 ? (
+            <div className="py-8 text-center text-gray-500 text-sm">
+              {isSearchingWorker ? '검색 중...' : '이름 또는 ID를 검색하세요'}
+            </div>
+          ) : (
+            <div className="divide-y divide-gray-100">
+              {searchedWorkers.map((worker, idx) => (
+                <button
+                  key={idx}
+                  onClick={() => handleWorkerClickInModal(worker)}
+                  className="w-full px-4 py-3 text-left hover:bg-green-50 flex justify-between items-center transition-colors active:bg-green-100 touch-manipulation"
+                >
+                  <div className="flex flex-col">
+                    <span className="font-medium text-gray-900">{worker.USR_NM}</span>
+                    <span className="text-xs text-gray-500">{worker.USR_ID}</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-blue-600 bg-blue-50 px-2 py-1 rounded">
+                      {worker.EQT_COUNT !== undefined ? `${worker.EQT_COUNT}건` : ''}
+                    </span>
+                    <ChevronDown className="w-4 h-4 text-gray-400 rotate-[-90deg]" />
+                  </div>
+                </button>
+              ))}
+            </div>
+          )
         )}
       </BaseModal>
 
