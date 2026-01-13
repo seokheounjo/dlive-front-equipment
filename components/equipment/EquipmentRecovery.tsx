@@ -551,11 +551,11 @@ const EquipmentRecovery: React.FC<EquipmentRecoveryProps> = ({ onBack }) => {
                 </div>
                 {/* 추가 정보 (회색 박스) - 한 줄에 하나씩 */}
                 <div className="bg-gray-100 rounded-lg p-2 mt-2 text-xs space-y-1">
-                  <div className="text-gray-600">고객명 {item.CUST_NM || '-'}</div>
+                  <div className="text-gray-600">{item.CUST_NM || '-'}</div>
                   <div><span className="text-gray-500">현재위치</span> <span className="text-gray-800">{item.SO_NM || '-'}</span></div>
-                  <div className="text-gray-600">담당기사 {item.WRKR_NM || '-'}</div>
-                  <div className="text-gray-600">해지일 {item.TRML_DT ? formatDateDot(item.TRML_DT) : '-'}</div>
-                  {isLost && <div className="text-red-600">분실금액 {Number(item.LOSS_AMT).toLocaleString()}원</div>}
+                  <div className="text-gray-600">{item.WRKR_NM || '-'}</div>
+                  <div className="text-gray-600">{item.TRML_DT ? formatDateDot(item.TRML_DT) : '-'}</div>
+                  {isLost && <div className="text-red-600">{Number(item.LOSS_AMT).toLocaleString()}원</div>}
                 </div>
               </>
             )}

@@ -1050,7 +1050,7 @@ const EquipmentMovement: React.FC<EquipmentMovementProps> = ({ onBack }) => {
                                   <div className="bg-gray-100 rounded-lg p-2 mt-2 text-xs space-y-1">
                                     <div><span className="text-gray-500">현재위치</span> <span className="text-gray-800">{item.SO_NM || '작업기사'}</span></div>
                                     <div><span className="text-gray-500">이동전위치</span> <span className="text-gray-800">-</span></div>
-                                    <div className="text-gray-600">보유자 {item.WRKR_NM || '-'}</div>
+                                    <div className="text-gray-600">{item.WRKR_NM || '-'}</div>
                                   </div>
                                 </div>
                               )}

@@ -1334,12 +1334,12 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
                         {/* 자세히: 추가 정보 (회색 박스) - 한 줄에 하나씩 */}
                         {viewMode === 'detail' && (
                           <div className="bg-gray-100 rounded-lg p-2 mt-2 text-xs space-y-1">
-                            <div className="text-gray-600">사용종료일 {item.EQT_USE_END_DT ? formatDateDot(item.EQT_USE_END_DT) : '-'}</div>
-                            <div className="text-gray-600">변경종류 {item.PROC_STAT_NM || (item._category === 'RETURN_REQUESTED' ? '반납요청' : item._category === 'INSPECTION_WAITING' ? '검사대기' : '-')}</div>
+                            <div className="text-gray-600">{item.EQT_USE_END_DT ? formatDateDot(item.EQT_USE_END_DT) : '-'}</div>
+                            <div className="text-gray-600">{item.PROC_STAT_NM || (item._category === 'RETURN_REQUESTED' ? '반납요청' : item._category === 'INSPECTION_WAITING' ? '검사대기' : '-')}</div>
                             <div><span className="text-gray-500">현재위치</span> <span className="text-gray-800">{item.EQT_LOC_TP_NM || getEqtLocTpName(item.EQT_LOC_TP_CD || '') || '작업기사'}</span></div>
                             <div><span className="text-gray-500">이동전위치</span> <span className="text-gray-800">-</span></div>
-                            <div className="text-gray-600">장비상태 {item.EQT_STAT_NM || (item.EQT_USE_ARR_YN === 'Y' ? '사용가능' : item.EQT_USE_ARR_YN === 'A' ? '검사대기' : item.EQT_USE_ARR_YN === 'N' ? '사용불가' : getEqtStatName(item.EQT_STAT_CD) || '-')}</div>
-                            <div className="text-gray-600">지점명 {item.SO_NM || '-'}</div>
+                            <div className="text-gray-600">{item.EQT_STAT_NM || (item.EQT_USE_ARR_YN === 'Y' ? '사용가능' : item.EQT_USE_ARR_YN === 'A' ? '검사대기' : item.EQT_USE_ARR_YN === 'N' ? '사용불가' : getEqtStatName(item.EQT_STAT_CD) || '-')}</div>
+                            <div className="text-gray-600">{item.SO_NM || '-'}</div>
                           </div>
                         )}
                       </div>
