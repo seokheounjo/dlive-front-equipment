@@ -895,14 +895,7 @@ const EquipmentList: React.FC<EquipmentListProps> = ({ onBack, showToast }) => {
                 <h3 className="text-sm font-bold text-gray-800 flex items-center gap-2">
                   <span className="text-blue-500">📦</span> 장비 상세 정보
                 </h3>
-                <span className={`px-2 py-1 rounded-full text-xs font-semibold ${
-                  equipmentDetail.EQT_STAT_CD === '10' ? 'bg-green-100 text-green-700' :
-                  equipmentDetail.EQT_STAT_CD === '20' ? 'bg-blue-100 text-blue-700' :
-                  equipmentDetail.EQT_STAT_CD === '40' ? 'bg-amber-100 text-amber-700' :
-                  'bg-gray-100 text-gray-700'
-                }`}>
-                  {equipmentDetail.EQT_STAT_CD_NM || getEqtStatName(equipmentDetail.EQT_STAT_CD)}
-                </span>
+
               </div>
 
             </div>
