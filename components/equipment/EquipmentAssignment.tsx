@@ -546,10 +546,11 @@ const EquipmentAssignment: React.FC<EquipmentAssignmentProps> = ({ onBack, showT
             </div>
             <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
               {/* 컬럼 헤더 */}
-              <div className="bg-gray-50 px-3 py-2 border-b border-gray-200 flex items-center text-xs font-semibold text-gray-600">
-                <span className="w-24">출고일</span>
-                <span className="flex-1">협력업체</span>
-                <span className="w-28 text-right">출고번호</span>
+              <div className="bg-gray-50 px-3 py-2 border-b border-gray-200 flex items-center text-[11px] font-semibold text-gray-600">
+                <span className="w-16 text-center">출고일</span>
+                <span className="w-20 text-center">협력업체</span>
+                <span className="flex-1 text-center">출고번호</span>
+                <span className="w-16 text-center">수령</span>
               </div>
               {/* 지점별 그룹핑된 리스트 */}
               <div>
@@ -572,17 +573,17 @@ const EquipmentAssignment: React.FC<EquipmentAssignmentProps> = ({ onBack, showT
                         <div
                           key={idx}
                           onClick={() => handleEqtOutSelect(item)}
-                          className={`px-3 py-2.5 border-b border-gray-50 cursor-pointer transition-colors ${
+                          className={`px-3 py-2 border-b border-gray-50 cursor-pointer transition-colors ${
                             selectedEqtOut?.OUT_REQ_NO === item.OUT_REQ_NO
-                              ? 'bg-blue-50 border-l-4 border-blue-500'
+                              ? 'bg-blue-50 border-l-4 border-l-blue-500'
                               : 'hover:bg-blue-50/50'
                           }`}
                         >
-                          <div className="flex items-center text-xs">
-                            <span className="w-20 text-gray-900 whitespace-nowrap">{formatOutDttm(item.OUT_DTTM || item.OUT_REQ_DT)}</span>
-                            <span className="flex-1 text-gray-600 truncate">{item.CRR_NM || '-'}</span>
-                            <span className="text-[10px] text-gray-500 mr-2 font-mono">{item.OUT_REQ_NO}</span>
-                            <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold ${getReceiveStatusDisplay(item).color}`}>
+                          <div className="flex items-center text-[11px]">
+                            <span className="w-16 text-center text-gray-900">{formatOutDttm(item.OUT_DTTM || item.OUT_REQ_DT)}</span>
+                            <span className="w-20 text-center text-gray-600 truncate">{item.CRR_NM || '-'}</span>
+                            <span className="flex-1 text-center text-gray-700 font-mono">{item.OUT_REQ_NO}</span>
+                            <span className={`w-16 text-center px-1.5 py-0.5 rounded text-[10px] font-bold ${getReceiveStatusDisplay(item).color}`}>
                               {getReceiveStatusDisplay(item).label}
                             </span>
                           </div>
