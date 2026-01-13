@@ -197,7 +197,7 @@ const EquipmentAssignment: React.FC<EquipmentAssignmentProps> = ({ onBack, showT
   const [showDetailModal, setShowDetailModal] = useState(false);
   const [selectedEquipmentDetail, setSelectedEquipmentDetail] = useState<OutTgtEqt | null>(null);
   const [viewMode, setViewMode] = useState<'simple' | 'detail'>('simple');
-  const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
+  const [collapsedGroups, setCollapsedGroups] = useState<Record<string, boolean>>({});
 
   // 입고대상장비 섹션 ref (자동 스크롤용)
   const equipmentListRef = useRef<HTMLDivElement>(null);
@@ -588,11 +588,21 @@ const EquipmentAssignment: React.FC<EquipmentAssignmentProps> = ({ onBack, showT
 
                   return soNames.map((soName) => (
                     <div key={soName}>
-                      <div className="bg-gray-100 px-3 py-2 border-b border-gray-200">
-                        <span className="text-xs font-semibold text-gray-700">{soName}</span>
-                        <span className="ml-2 text-xs text-gray-500">({grouped[soName].length}건)</span>
+                      <div
+                        className="bg-gray-100 px-3 py-2 border-b border-gray-200 flex items-center justify-between cursor-pointer hover:bg-gray-200 transition-colors"
+                        onClick={() => toggleGroupCollapse(soName)}
+                      >
+                        <div>
+                          <span className="text-xs font-semibold text-gray-700">{soName}</span>
+                          <span className="ml-2 text-xs text-gray-500">({grouped[soName].length}건)</span>
+                        </div>
+                        {collapsedGroups[soName] ? (
+                          <ChevronDown className="w-4 h-4 text-gray-500" />
+                        ) : (
+                          <ChevronUp className="w-4 h-4 text-gray-500" />
+                        )}
                       </div>
-                      {grouped[soName].map((item, idx) => (
+                      {!collapsedGroups[soName] && grouped[soName].map((item, idx) => (
                         <div
                           key={idx}
                           onClick={() => handleEqtOutSelect(item)}
@@ -690,7 +700,7 @@ const EquipmentAssignment: React.FC<EquipmentAssignmentProps> = ({ onBack, showT
                   <div className="divide-y divide-gray-100">
                     {itemTypeKeys.map(itemTypeKey => {
                       const items = groupedByItemType[itemTypeKey];
-                      const isCollapsed = collapsedGroups.has(itemTypeKey);
+                      const isCollapsed = collapsedGroups[itemTypeKey] || false;
                       const itemCount = items.length;
                       const checkedCount = items.filter(i => i.CHK && i.PROC_YN !== 'Y').length;
 
