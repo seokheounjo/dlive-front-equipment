@@ -207,8 +207,7 @@ const EquipmentList: React.FC<EquipmentListProps> = ({ onBack, showToast }) => {
   // 문의 전화번호 (D'Live 고객센터)
   const INQUIRY_PHONE = '1644-1100';
 
-  // 뷰 모드: simple(간단히), medium(중간), detail(자세히)
-  const [viewMode, setViewMode] = useState<'simple' | 'medium' | 'detail'>('simple');
+  // 자세히 보기만 사용 (뷰 모드 선택 제거)
 
   // 일괄 조회 모드
   const [showBulkView, setShowBulkView] = useState(false);
@@ -905,134 +904,10 @@ const EquipmentList: React.FC<EquipmentListProps> = ({ onBack, showToast }) => {
                   {equipmentDetail.EQT_STAT_CD_NM || getEqtStatName(equipmentDetail.EQT_STAT_CD)}
                 </span>
               </div>
-              {/* 뷰 모드 선택 버튼 */}
-              <div className="flex gap-1 bg-gray-100 p-1 rounded-lg">
-                <button
-                  onClick={() => setViewMode('simple')}
-                  className={`flex-1 py-1.5 px-2 text-xs font-medium rounded-md transition-all ${
-                    viewMode === 'simple'
-                      ? 'bg-white text-blue-600 shadow-sm'
-                      : 'text-gray-500 hover:text-gray-700'
-                  }`}
-                >
-                  간단히
-                </button>
-                <button
-                  onClick={() => setViewMode('medium')}
-                  className={`flex-1 py-1.5 px-2 text-xs font-medium rounded-md transition-all ${
-                    viewMode === 'medium'
-                      ? 'bg-white text-blue-600 shadow-sm'
-                      : 'text-gray-500 hover:text-gray-700'
-                  }`}
-                >
-                  중간
-                </button>
-                <button
-                  onClick={() => setViewMode('detail')}
-                  className={`flex-1 py-1.5 px-2 text-xs font-medium rounded-md transition-all ${
-                    viewMode === 'detail'
-                      ? 'bg-white text-blue-600 shadow-sm'
-                      : 'text-gray-500 hover:text-gray-700'
-                  }`}
-                >
-                  자세히
-                </button>
-              </div>
+
             </div>
 
-            {/* 간단히 보기: 품목명 + 상태 */}
-            {viewMode === 'simple' && (
-              <div className="p-4">
-                <div className="bg-gradient-to-r from-blue-50 to-white rounded-xl p-4 border border-blue-100">
-                  <div className="text-center">
-                    <div className="text-lg font-bold text-gray-800 mb-2">
-                      {equipmentDetail.ITEM_NM || equipmentDetail.EQT_CL_NM || '장비'}
-                    </div>
-                    <div className="text-sm text-gray-500 mb-3">
-                      {equipmentDetail.EQT_TP_CD_NM || equipmentDetail.EQT_CL_CD}
-                    </div>
-                    <div className="inline-flex items-center gap-2 bg-white px-4 py-2 rounded-full shadow-sm">
-                      <span className="text-xs text-gray-500">상태</span>
-                      <span className={`px-3 py-1 rounded-full text-sm font-bold ${
-                        equipmentDetail.EQT_STAT_CD === '10' ? 'bg-green-100 text-green-700' :
-                        equipmentDetail.EQT_STAT_CD === '20' ? 'bg-blue-100 text-blue-700' :
-                        equipmentDetail.EQT_STAT_CD === '40' ? 'bg-amber-100 text-amber-700' :
-                        'bg-gray-100 text-gray-700'
-                      }`}>
-                        {equipmentDetail.EQT_STAT_CD_NM || getEqtStatName(equipmentDetail.EQT_STAT_CD)}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* 중간 보기: 기본 정보 + S/N + MAC + 위치 */}
-            {viewMode === 'medium' && (
-              <div className="p-4 space-y-3">
-                {/* 품목 정보 카드 */}
-                <div className="bg-gradient-to-r from-blue-50 to-white rounded-lg p-3 border border-blue-100">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <div className="text-sm font-bold text-gray-800">
-                        {equipmentDetail.ITEM_NM || equipmentDetail.EQT_CL_NM || '장비'}
-                      </div>
-                      <div className="text-xs text-gray-500 mt-0.5">
-                        {equipmentDetail.EQT_TP_CD_NM || equipmentDetail.EQT_CL_CD}
-                      </div>
-                    </div>
-                    <span className={`px-2 py-1 rounded-full text-xs font-semibold ${
-                      equipmentDetail.EQT_STAT_CD === '10' ? 'bg-green-100 text-green-700' :
-                      equipmentDetail.EQT_STAT_CD === '20' ? 'bg-blue-100 text-blue-700' :
-                      'bg-gray-100 text-gray-700'
-                    }`}>
-                      {equipmentDetail.EQT_STAT_CD_NM || getEqtStatName(equipmentDetail.EQT_STAT_CD)}
-                    </span>
-                  </div>
-                </div>
-
-                {/* 핵심 정보 그리드 */}
-                <div className="bg-gray-50 rounded-lg p-3 space-y-1">
-                  <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs">
-                    <div className="flex">
-                      <span className="text-gray-400 w-16 flex-shrink-0">S/N</span>
-                      <span className="font-mono text-gray-900 font-medium truncate">{equipmentDetail.EQT_SERNO || '-'}</span>
-                    </div>
-                    <div className="flex">
-                      <span className="text-gray-400 w-16 flex-shrink-0">MAC</span>
-                      <span className="font-mono text-gray-700 truncate">{equipmentDetail.MAC_ADDRESS || '-'}</span>
-                    </div>
-                    <div className="flex">
-                      <span className="text-gray-400 w-16 flex-shrink-0">위치</span>
-                      <span className="text-gray-700 truncate">{equipmentDetail.EQT_LOC_TP_CD_NM || getEqtLocTpName(equipmentDetail.EQT_LOC_TP_CD) || '-'}</span>
-                    </div>
-                    <div className="flex">
-                      <span className="text-gray-400 w-16 flex-shrink-0">보유기사</span>
-                      <span className="text-gray-700 truncate">
-                        {(() => {
-                          const worker = parseWorkerFromLocNm(equipmentDetail.EQT_LOC_NM);
-                          if (worker.id) {
-                            return `${worker.name} (${worker.id})`;
-                          }
-                          return equipmentDetail.WRKR_NM || equipmentDetail.WRKR_ID || '-';
-                        })()}
-                      </span>
-                    </div>
-                    <div className="flex">
-                      <span className="text-gray-400 w-16 flex-shrink-0">지점</span>
-                      <span className="text-gray-700 truncate">{equipmentDetail.SO_NM || equipmentDetail.SO_ID || '-'}</span>
-                    </div>
-                    <div className="flex">
-                      <span className="text-gray-400 w-16 flex-shrink-0">사용상태</span>
-                      <span className="text-gray-700 truncate">{equipmentDetail.EQT_USE_STAT_CD_NM || equipmentDetail.EQT_USE_ARR_YN_NM || '-'}</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            )}
-
             {/* 자세히 보기: 전체 정보 */}
-            {viewMode === 'detail' && (
             <div className="p-4 max-h-[60vh] overflow-y-auto">
               {/* 기본 정보 */}
               <SectionHeader title="기본 정보" />
@@ -1123,7 +998,6 @@ const EquipmentList: React.FC<EquipmentListProps> = ({ onBack, showToast }) => {
               <InfoRow label="등록일시" value={equipmentDetail.REG_DATE} />
               <InfoRow label="등록자" value={equipmentDetail.REG_UID} />
             </div>
-            )}
           </div>
         )}
 
