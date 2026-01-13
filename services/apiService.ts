@@ -3103,7 +3103,7 @@ export const setEquipmentCheckStandby = async (params: {
   try {
     const origin = typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000';
 
-    const response = await fetchWithRetry(`${API_BASE}/customer/equipment/setEquipmentChkStndByY`, {
+    const response = await fetch(`${API_BASE}/customer/equipment/setEquipmentChkStndByY`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -3114,15 +3114,35 @@ export const setEquipmentCheckStandby = async (params: {
     });
 
     const result = await response.json();
-    console.log('✅ 장비 상태 변경 성공:', result);
 
+    // 디버그 로그 출력 (백엔드에서 전달)
+    if (result.debugLogs) {
+      console.log('📋 [백엔드 디버그 로그]');
+      result.debugLogs.forEach((log: string) => console.log(log));
+    }
+
+    // HTTP 400: 비즈니스 규칙 오류 (한글 메시지)
+    if (response.status === 400 && result.code === 'BUSINESS_RULE_ERROR') {
+      console.error('❌ 비즈니스 규칙 오류:', result.message);
+      throw new Error(result.message || '당일해지 장비만 사용가능으로 변경할 수 있습니다.');
+    }
+
+    // HTTP 500: 기술적 오류
+    if (!response.ok) {
+      console.error('❌ 장비 상태 변경 실패:', result);
+      const errMsg = result.message || result.error || '장비 상태 변경에 실패했습니다.';
+      throw new Error(errMsg);
+    }
+
+    console.log('✅ 장비 상태 변경 성공:', result);
     return result;
   } catch (error: any) {
     console.error('❌ 장비 상태 변경 실패:', error);
-    if (error instanceof NetworkError) {
+    // 이미 처리된 Error는 그대로 전달
+    if (error instanceof Error) {
       throw error;
     }
-    throw new NetworkError('장비 상태 변경에 실패했습니다.');
+    throw new Error('장비 상태 변경에 실패했습니다.');
   }
 };
 
