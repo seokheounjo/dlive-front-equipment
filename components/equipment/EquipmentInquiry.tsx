@@ -73,6 +73,18 @@ const EQT_LOC_TP_CODE_MAP: Record<string, string> = {
 const getEqtStatName = (code: string): string => EQT_STAT_CODE_MAP[code] || code;
 const getEqtLocTpName = (code: string): string => EQT_LOC_TP_CODE_MAP[code] || code;
 
+// 날짜 포맷 함수 (YYYYMMDD -> YYYY.MM.DD)
+const formatDateDot = (dateStr: string): string => {
+  if (!dateStr) return '-';
+  if (dateStr.length === 8 && !dateStr.includes('-') && !dateStr.includes('.')) {
+    return `${dateStr.slice(0, 4)}.${dateStr.slice(4, 6)}.${dateStr.slice(6, 8)}`;
+  }
+  if (dateStr.includes('-')) {
+    return dateStr.replace(/-/g, '.');
+  }
+  return dateStr;
+};
+
 // 장비 아이템 인터페이스
 interface EquipmentItem {
   CHK: boolean;
@@ -1340,8 +1352,11 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
                         {/* 자세히: 추가 정보 (회색 박스) - 한 줄에 하나씩 */}
                         {viewMode === 'detail' && (
                           <div className="bg-gray-100 rounded-lg p-2 mt-2 text-xs space-y-1">
+                            <div className="text-gray-800">{formatDateDot(item.EQT_USE_END_DT || item.USE_END_DT || '')}</div>
+                            <div className="text-gray-800">{item.CHG_TP_NM || item.PROC_STAT_NM || item.EQT_CHG_TP_NM || '-'}</div>
                             <div><span className="text-gray-500">현재위치</span> <span className="text-gray-800">{item.EQT_LOC_TP_NM || getEqtLocTpName(item.EQT_LOC_TP_CD || '') || '작업기사'}</span></div>
-                            <div><span className="text-gray-500">이동전위치</span> <span className="text-gray-800">-</span></div>
+                            <div><span className="text-gray-500">이동전위치</span> <span className="text-gray-800">{item.BEF_EQT_LOC_NM || item.BEF_LOC_NM || '-'}</span></div>
+                            <div className="text-gray-800">{item.EQT_STAT_NM || getEqtStatName(item.EQT_STAT_CD || '') || '-'}</div>
                             <div className="text-gray-600">{item.SO_NM || '-'}</div>
                           </div>
                         )}

@@ -1025,11 +1025,12 @@ const EquipmentMovement: React.FC<EquipmentMovementProps> = ({ onBack }) => {
                                 {/* 자세히 보기: 추가 정보 (회색 박스) - 한 줄에 하나씩 */}
                                 {viewMode === 'detail' && (
                                   <div className="bg-gray-100 rounded-lg p-2 mt-2 text-xs space-y-1">
-                                    <div className="text-gray-600">{item.EQT_USE_ARR_YN === 'Y' ? '사용가능' : item.EQT_USE_ARR_YN === 'A' ? '검사대기' : item.EQT_USE_ARR_YN === 'N' ? '사용불가' : '-'}</div>
-                                    <div><span className="text-gray-500">현재위치</span> <span className="text-gray-800">{item.SO_NM || '작업기사'}</span></div>
+                                    <div className="text-gray-800">-</div>
+                                    <div className="text-gray-800">이관</div>
+                                    <div><span className="text-gray-500">현재위치</span> <span className="text-gray-800">작업기사</span></div>
                                     <div><span className="text-gray-500">이동전위치</span> <span className="text-gray-800">-</span></div>
-                                    <div className="text-gray-600">{item.EQT_STAT_CD === '10' ? '재고' : item.EQT_STAT_CD === '20' ? '설치' : item.EQT_STAT_CD === '30' ? '반납' : '-'}</div>
-                                    <div className="text-gray-600">{item.WRKR_NM || '-'}</div>
+                                    <div className="text-gray-800">재고</div>
+                                    <div className="text-gray-600">{item.SO_NM || '-'}</div>
                                   </div>
                                 )}
                               </div>

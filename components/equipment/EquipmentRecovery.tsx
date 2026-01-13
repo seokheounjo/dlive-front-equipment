@@ -525,11 +525,12 @@ const EquipmentRecovery: React.FC<EquipmentRecoveryProps> = ({ onBack }) => {
             {/* 자세히 보기: 추가 정보 (회색 박스) - 한 줄에 하나씩 */}
             {viewMode === 'detail' && (
               <div className="bg-gray-100 rounded-lg p-2 mt-2 text-xs space-y-1">
-                <div className="text-gray-600">{isLost ? '분실' : '정상'}</div>
-                <div><span className="text-gray-500">현재위치</span> <span className="text-gray-800">{item.SO_NM || '-'}</span></div>
+                <div className="text-gray-800">-</div>
+                <div className="text-gray-800">미회수</div>
+                <div><span className="text-gray-500">현재위치</span> <span className="text-gray-800">고객</span></div>
                 <div><span className="text-gray-500">이동전위치</span> <span className="text-gray-800">-</span></div>
-                <div className="text-gray-600">{item.CUST_NM || '-'}</div>
-                <div className="text-gray-600">{item.TRML_DT ? formatDateDot(item.TRML_DT) : '-'}</div>
+                <div className="text-gray-800">설치</div>
+                <div className="text-gray-600">{item.SO_NM || '-'}</div>
               </div>
             )}
           </div>
