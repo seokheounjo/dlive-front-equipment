@@ -1315,9 +1315,6 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
                                 당일해지
                               </span>
                             )}
-                            <span className="text-sm font-medium text-gray-900 truncate">
-                              {item.EQT_CL_NM || '-'}
-                            </span>
                           </div>
                           <span className={`px-2 py-1 rounded-full text-xs font-semibold flex-shrink-0 ${
                             (item._hasReturnRequest || item._category === 'RETURN_REQUESTED') ? 'bg-orange-100 text-orange-700' :
@@ -1332,10 +1329,45 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
                              item.EQT_USE_ARR_YN === 'N' ? '사용불가' : '-'}
                           </span>
                         </div>
-                        {/* S/N | MAC - 한 줄 */}
+                        {/* S/N | MAC */}
                         <div className="font-mono text-xs text-gray-700 mt-1">
                           {item.EQT_SERNO || '-'} | {formatMac(item.MAC_ADDRESS)}
                         </div>
+                        {/* 자세히: 추가 정보 (회색 박스) */}
+                        {viewMode === 'detail' && (
+                          <div className="bg-gray-100 rounded-lg p-2 mt-2">
+                            <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs">
+                              <div className="flex justify-between">
+                                <span className="text-gray-500">모델명</span>
+                                <span className="text-gray-800 font-medium truncate ml-1">{item.EQT_CL_NM || item.ITEM_NM || '-'}</span>
+                              </div>
+                              <div className="flex justify-between">
+                                <span className="text-gray-500">사용가능일자</span>
+                                <span className="text-gray-800">{item.EQT_USE_END_DT ? formatDateDot(item.EQT_USE_END_DT) : '-'}</span>
+                              </div>
+                              <div className="flex justify-between">
+                                <span className="text-gray-500">변경종류</span>
+                                <span className="text-gray-800">{item.PROC_STAT_NM || '-'}</span>
+                              </div>
+                              <div className="flex justify-between">
+                                <span className="text-gray-500">현재위치</span>
+                                <span className="text-gray-800">{item.EQT_LOC_TP_NM || getEqtLocTpName(item.EQT_LOC_TP_CD || '') || '-'}</span>
+                              </div>
+                              <div className="flex justify-between">
+                                <span className="text-gray-500">이동전위치</span>
+                                <span className="text-gray-800">-</span>
+                              </div>
+                              <div className="flex justify-between">
+                                <span className="text-gray-500">장비상태</span>
+                                <span className="text-gray-800">{item.EQT_STAT_NM || getEqtStatName(item.EQT_STAT_CD) || '-'}</span>
+                              </div>
+                              <div className="flex justify-between col-span-2">
+                                <span className="text-gray-500">지점명</span>
+                                <span className="text-gray-800">{item.SO_NM || '-'}</span>
+                              </div>
+                            </div>
+                          </div>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -1350,9 +1382,8 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
               })}
             </div>
 
-            {/* 자세히 보기 - 제거됨 (간단히와 통합)
-            {false && ( 모델명, 사용가능, 변경종류, 현재위치, 이동전위치, 장비상태, 지점 */}
-            {viewMode === 'detail' && (
+            {/* 자세히 보기 - 그룹핑 내부로 통합됨 (아래 블록 비활성화) */}
+            {false && (
               <div className="p-3 space-y-2">
                 {filteredDisplayList.map((item, idx) => (
                   <div
