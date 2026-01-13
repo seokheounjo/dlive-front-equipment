@@ -3155,6 +3155,10 @@ export const getEquipmentHistoryInfo = async (params: {
     const result = await response.json();
     console.log('✅ 장비 조회 성공:', result);
 
+    // API 응답이 { success: true, data: [...] } 형태인 경우 data 추출
+    if (result.success && result.data) {
+      return Array.isArray(result.data) ? result.data[0] : result.data;
+    }
     return Array.isArray(result) ? result[0] : result;
   } catch (error: any) {
     console.error('❌ 장비 조회 실패:', error);
