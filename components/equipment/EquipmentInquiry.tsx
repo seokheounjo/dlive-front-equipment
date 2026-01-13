@@ -1320,7 +1320,7 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
                             item.EQT_USE_ARR_YN === 'N' ? 'bg-red-100 text-red-700' :
                             'bg-gray-100 text-gray-700'
                           }`}>
-                            {(item._hasReturnRequest || item._category === 'RETURN_REQUESTED') ? '반납요청중' :
+                            {(item._hasReturnRequest || item._category === 'RETURN_REQUESTED') ? '반납요청' :
                              item.EQT_USE_ARR_YN === 'Y' ? '사용가능' :
                              item.EQT_USE_ARR_YN === 'A' ? '검사대기' :
                              item.EQT_USE_ARR_YN === 'N' ? '사용불가' : '-'}
@@ -1333,15 +1333,22 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
                         {/* 자세히: 추가 정보 (회색 박스) - 한 줄에 하나씩 */}
                         {viewMode === 'detail' && (
                           <div className="bg-gray-100 rounded-lg p-2 mt-2 text-xs space-y-1">
-                            <div className="text-gray-600">
-                              {[
-                                item._category === 'RETURN_REQUESTED' ? '반납요청' : null,
-                                item.EQT_USE_ARR_YN === 'Y' ? '사용가능' : item.EQT_USE_ARR_YN === 'A' ? '검사대기' : item.EQT_USE_ARR_YN === 'N' ? '사용불가' : null
-                              ].filter(Boolean).join(' / ') || '-'}
+                            <div className="flex flex-wrap gap-1">
+                              {(item._hasReturnRequest || item._category === 'RETURN_REQUESTED') && (
+                                <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-orange-100 text-orange-700">반납요청</span>
+                              )}
+                              {item.EQT_USE_ARR_YN === 'Y' && (
+                                <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-green-100 text-green-700">사용가능</span>
+                              )}
+                              {item.EQT_USE_ARR_YN === 'A' && (
+                                <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-purple-100 text-purple-700">검사대기</span>
+                              )}
+                              {item.EQT_USE_ARR_YN === 'N' && (
+                                <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-red-100 text-red-700">사용불가</span>
+                              )}
                             </div>
                             <div><span className="text-gray-500">현재위치</span> <span className="text-gray-800">{item.EQT_LOC_TP_NM || getEqtLocTpName(item.EQT_LOC_TP_CD || '') || '작업기사'}</span></div>
                             <div><span className="text-gray-500">이동전위치</span> <span className="text-gray-800">-</span></div>
-                            <div className="text-gray-600">{item.EQT_CL_NM || item.ITEM_NM || '-'}</div>
                             <div className="text-gray-600">{item.SO_NM || '-'}</div>
                           </div>
                         )}
@@ -1410,7 +1417,7 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
                             item.EQT_USE_ARR_YN === 'N' ? 'bg-red-100 text-red-700' :
                             'bg-gray-100 text-gray-700'
                           }`}>
-                            {(item._hasReturnRequest || item._category === 'RETURN_REQUESTED') ? '반납요청중' :
+                            {(item._hasReturnRequest || item._category === 'RETURN_REQUESTED') ? '반납요청' :
                              item.EQT_USE_ARR_YN === 'Y' ? '사용가능' :
                              item.EQT_USE_ARR_YN === 'A' ? '검사대기' :
                              item.EQT_USE_ARR_YN === 'N' ? '사용불가' : '-'}
