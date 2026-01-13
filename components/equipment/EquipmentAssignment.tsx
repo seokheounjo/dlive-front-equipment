@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import '../../styles/buttons.css';
 import {
   getEquipmentOutList,
@@ -190,6 +190,9 @@ const EquipmentAssignment: React.FC<EquipmentAssignmentProps> = ({ onBack, showT
   const [selectedEquipmentDetail, setSelectedEquipmentDetail] = useState<OutTgtEqt | null>(null);
   const [viewMode, setViewMode] = useState<'simple' | 'detail'>('simple');
 
+  // 입고대상장비 섹션 ref (자동 스크롤용)
+  const equipmentListRef = useRef<HTMLDivElement>(null);
+
   // 날짜 형식 변환 (YYYYMMDD -> YYYY-MM-DD)
   const formatDateForInput = (date: string) => {
     if (date.length === 8) {
@@ -243,48 +246,44 @@ const EquipmentAssignment: React.FC<EquipmentAssignmentProps> = ({ onBack, showT
       // 지점별 정렬 (SO_NM 기준)
       allResults.sort((a, b) => (a.SO_NM || '').localeCompare(b.SO_NM || ''));
 
-      // 먼저 목록 표시 (수령 상태는 미정)
-      setEqtOutList(allResults);
-      setSelectedEqtOut(null);
-      setOutTgtEqtList([]);
-
       if (allResults.length === 0) {
+        setEqtOutList([]);
+        setSelectedEqtOut(null);
+        setOutTgtEqtList([]);
         showToast?.('조회된 출고 내역이 없습니다.', 'info');
       } else {
-        showToast?.(`${allResults.length}건의 출고 내역을 조회했습니다.`, 'success');
+        // 수령 상태를 먼저 계산한 후 목록 표시 (배지가 함께 표시되도록)
+        const resultsWithStatus = await Promise.all(
+          allResults.map(async (item) => {
+            try {
+              const equipments = await getOutEquipmentTargetList({ OUT_REQ_NO: item.OUT_REQ_NO });
+              const eqList = Array.isArray(equipments) ? equipments : (equipments.output1 || []);
 
-        // 백그라운드에서 수령 상태 계산
-        const calculateReceiveStatus = async () => {
-          const updatedResults = await Promise.all(
-            allResults.map(async (item) => {
-              try {
-                const equipments = await getOutEquipmentTargetList({ OUT_REQ_NO: item.OUT_REQ_NO });
-                const eqList = Array.isArray(equipments) ? equipments : (equipments.output1 || []);
-
-                if (eqList.length === 0) {
-                  return { ...item, _receiveStatus: 'none' as const, _receivedCount: 0, _totalCount: 0 };
-                }
-
-                const receivedCount = eqList.filter((eq: any) => eq.PROC_YN === 'Y').length;
-                const totalCount = eqList.length;
-
-                let status: 'received' | 'partial' | 'none' = 'none';
-                if (receivedCount === totalCount) {
-                  status = 'received';
-                } else if (receivedCount > 0) {
-                  status = 'partial';
-                }
-
-                return { ...item, _receiveStatus: status, _receivedCount: receivedCount, _totalCount: totalCount };
-              } catch {
+              if (eqList.length === 0) {
                 return { ...item, _receiveStatus: 'none' as const, _receivedCount: 0, _totalCount: 0 };
               }
-            })
-          );
-          setEqtOutList(updatedResults);
-        };
 
-        calculateReceiveStatus();
+              const receivedCount = eqList.filter((eq: any) => eq.PROC_YN === 'Y').length;
+              const totalCount = eqList.length;
+
+              let status: 'received' | 'partial' | 'none' = 'none';
+              if (receivedCount === totalCount) {
+                status = 'received';
+              } else if (receivedCount > 0) {
+                status = 'partial';
+              }
+
+              return { ...item, _receiveStatus: status, _receivedCount: receivedCount, _totalCount: totalCount };
+            } catch {
+              return { ...item, _receiveStatus: 'none' as const, _receivedCount: 0, _totalCount: 0 };
+            }
+          })
+        );
+        
+        setEqtOutList(resultsWithStatus);
+        setSelectedEqtOut(null);
+        setOutTgtEqtList([]);
+        showToast?.(`${resultsWithStatus.length}건의 출고 내역을 조회했습니다.`, 'success');
       }
     } catch (error: any) {
       console.error('❌ [장비할당] 조회 실패:', error);
@@ -319,6 +318,11 @@ const EquipmentAssignment: React.FC<EquipmentAssignmentProps> = ({ onBack, showT
       if (equipmentList.length === 0) {
         showToast?.('출고된 장비 내역이 없습니다.', 'info');
       }
+      
+      // 입고대상장비 섹션으로 스크롤
+      setTimeout(() => {
+        equipmentListRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }, 100);
     } catch (error: any) {
       console.error('❌ [장비할당] 출고 장비 조회 실패:', error);
       showToast?.(error.message || '출고 장비 조회에 실패했습니다.', 'error');
@@ -588,7 +592,7 @@ const EquipmentAssignment: React.FC<EquipmentAssignmentProps> = ({ onBack, showT
 
         {/* 입고 대상 장비 리스트 */}
         {selectedEqtOut && (
-          <div>
+          <div ref={equipmentListRef}>
             <div className="flex items-center justify-between mb-2">
               <h3 className="text-sm font-semibold text-gray-700">입고 대상 장비</h3>
               {outTgtEqtList.length > 0 && (
