@@ -593,7 +593,7 @@ const EquipmentAssignment: React.FC<EquipmentAssignmentProps> = ({ onBack, showT
         {/* 입고 대상 장비 리스트 */}
         {selectedEqtOut && (
           <div ref={equipmentListRef}>
-            <div className="flex items-center justify-between mb-2">
+            <div className="flex items-center justify-between mb-3">
               <h3 className="text-sm font-semibold text-gray-700">입고 대상 장비</h3>
               {outTgtEqtList.length > 0 && (
                 <span className="text-xs text-gray-500">{outTgtEqtList.filter(i => i.CHK && i.PROC_YN !== 'Y').length}/{outTgtEqtList.filter(i => i.PROC_YN !== 'Y').length}</span>
@@ -744,7 +744,7 @@ const EquipmentAssignment: React.FC<EquipmentAssignmentProps> = ({ onBack, showT
                               />
                               <div className="flex-1 min-w-0">
                                 {/* 상단: 품목 배지 + 장비명 + 상태 */}
-                                <div className="flex items-center justify-between mb-2">
+                                <div className="flex items-center justify-between mb-3">
                                   <div className="flex items-center gap-2 min-w-0 flex-1 mr-2">
                                     <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium flex-shrink-0 ${getItemColor(item.ITEM_MID_CD)}`}>
                                       {item.ITEM_MID_CD_NM || '장비'}
@@ -762,23 +762,43 @@ const EquipmentAssignment: React.FC<EquipmentAssignmentProps> = ({ onBack, showT
                                   </span>
                                 </div>
 
-                                {/* 중단: S/N + MAC */}
-                                <div className="grid grid-cols-2 gap-2 text-xs mb-2">
-                                  <div>
-                                    <span className="text-gray-500">S/N: </span>
-                                    <span className="font-mono text-gray-800">{item.EQT_SERNO || '-'}</span>
-                                  </div>
-                                  <div>
-                                    <span className="text-gray-500">MAC: </span>
-                                    <span className="font-mono text-gray-800">{formatMac(item.MAC_ADDRESS || '')}</span>
-                                  </div>
-                                </div>
+                                {/* 상세 정보 - 장비처리와 동일한 회색 박스 레이아웃 */}
+                                <div className="bg-gray-50 rounded-lg p-3">
+                                  <div className="space-y-1.5 text-xs">
+                                    {/* S/N */}
+                                    <div className="flex items-center gap-2">
+                                      <span className="text-gray-400">S/N</span>
+                                      <span className="font-mono text-gray-700 font-medium">{item.EQT_SERNO || '-'}</span>
+                                    </div>
 
-                                {/* 하단: 수량 정보 */}
-                                <div className="flex items-center gap-4 text-[10px] text-gray-500 pt-2 border-t border-gray-100">
-                                  <span>요청: <strong className="text-gray-700">{item.OUT_REQ_QTY || 0}</strong></span>
-                                  <span>출고: <strong className="text-green-600">{item.OUT_QTY || 0}</strong></span>
-                                  <span>입고: <strong className="text-blue-600">{item.IBGO_QTY || 0}</strong></span>
+                                    {/* MAC */}
+                                    <div className="flex items-center gap-2">
+                                      <span className="text-gray-400">MAC</span>
+                                      <span className="font-mono text-gray-700">{formatMac(item.MAC_ADDRESS || '')}</span>
+                                    </div>
+
+                                    {/* 수량 정보 */}
+                                    <div className="flex items-center gap-2">
+                                      <span className="text-gray-400">요청</span>
+                                      <span className="text-gray-700 font-medium">{item.OUT_REQ_QTY || 0}</span>
+                                    </div>
+
+                                    <div className="flex items-center gap-2">
+                                      <span className="text-gray-400">출고</span>
+                                      <span className="text-green-600 font-medium">{item.OUT_QTY || 0}</span>
+                                    </div>
+
+                                    <div className="flex items-center gap-2">
+                                      <span className="text-gray-400">입고</span>
+                                      <span className="text-blue-600 font-medium">{item.IBGO_QTY || 0}</span>
+                                    </div>
+                                  </div>
+                                  {item.REMARK && (
+                                    <div className="mt-2 pt-1.5 border-t border-gray-200">
+                                      <span className="text-gray-400 text-xs">비고: </span>
+                                      <span className="text-gray-600 text-xs">{item.REMARK}</span>
+                                    </div>
+                                  )}
                                 </div>
                               </div>
                             </div>
