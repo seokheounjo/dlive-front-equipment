@@ -934,7 +934,7 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
   // 그룹 접기/펼치기
   const toggleGroup = (groupKey: string) => {
     setCollapsedGroups(prev => {
-      const newSet = new Set(prev);
+      const newSet = new Set(Array.from(prev));
       if (newSet.has(groupKey)) newSet.delete(groupKey);
       else newSet.add(groupKey);
       return newSet;

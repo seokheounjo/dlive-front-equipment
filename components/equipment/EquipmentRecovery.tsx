@@ -180,7 +180,7 @@ const EquipmentRecovery: React.FC<EquipmentRecoveryProps> = ({ onBack }) => {
   // Toggle group collapse
   const toggleGroup = (groupKey: string) => {
     setCollapsedGroups(prev => {
-      const newSet = new Set(prev);
+      const newSet = new Set(Array.from(prev));
       if (newSet.has(groupKey)) {
         newSet.delete(groupKey);
       } else {
@@ -499,65 +499,38 @@ const EquipmentRecovery: React.FC<EquipmentRecoveryProps> = ({ onBack }) => {
             title={!canSelect ? 'Only lost equipment can be recovered' : ''}
           />
           <div className="flex-1 min-w-0">
-            {viewMode === 'simple' && (
-              <>
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2 min-w-0 flex-1 mr-2">
-                    <span className="px-1.5 py-0.5 bg-orange-100 text-orange-700 text-[10px] rounded font-medium flex-shrink-0">
-                      {item.EQT_CL_NM || '장비'}
-                    </span>
-                    <span className={`text-sm font-medium truncate ${canSelect ? 'text-gray-900' : 'text-gray-500'}`}>{item.ITEM_NM || '-'}</span>
-                    {item.isScanned && (
-                      <span className="px-1.5 py-0.5 bg-orange-500 text-white text-[10px] rounded font-medium flex-shrink-0">스캔</span>
-                    )}
-                  </div>
-                  <div className="flex items-center gap-1">
-                    {isLost ? (
-                      <span className="px-2 py-0.5 rounded text-[10px] flex-shrink-0 bg-red-100 text-red-700">분실</span>
-                    ) : (
-                      <span className="px-2 py-0.5 rounded text-[10px] flex-shrink-0 bg-gray-200 text-gray-500">정상</span>
-                    )}
-                  </div>
-                </div>
-                <div className="font-mono text-xs text-gray-700 mt-1">
-                  {item.EQT_SERNO || '-'}
-                </div>
-              </>
-            )}
+            {/* 헤더 - 항상 표시 */}
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2 min-w-0 flex-1 mr-2">
+                <span className="px-1.5 py-0.5 bg-orange-100 text-orange-700 text-[10px] rounded font-medium flex-shrink-0">
+                  {item.EQT_CL_NM || '장비'}
+                </span>
+                <span className={`text-sm font-medium truncate ${canSelect ? 'text-gray-900' : 'text-gray-500'}`}>{item.ITEM_NM || '-'}</span>
+                {item.isScanned && (
+                  <span className="px-1.5 py-0.5 bg-orange-500 text-white text-[10px] rounded font-medium flex-shrink-0">스캔</span>
+                )}
+              </div>
+              <div className="flex items-center gap-1">
+                {isLost ? (
+                  <span className="px-2 py-0.5 rounded text-[10px] flex-shrink-0 bg-red-100 text-red-700">분실</span>
+                ) : (
+                  <span className="px-2 py-0.5 rounded text-[10px] flex-shrink-0 bg-gray-200 text-gray-500">정상</span>
+                )}
+              </div>
+            </div>
+            {/* S/N */}
+            <div className="font-mono text-xs text-gray-700 mt-1">
+              {item.EQT_SERNO || '-'}
+            </div>
+            {/* 자세히 보기: 추가 정보 (회색 박스) - 한 줄에 하나씩 */}
             {viewMode === 'detail' && (
-              <>
-                {/* 간단히와 동일 헤더 */}
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2 min-w-0 flex-1 mr-2">
-                    <span className="px-1.5 py-0.5 bg-orange-100 text-orange-700 text-[10px] rounded font-medium flex-shrink-0">
-                      {item.EQT_CL_NM || '장비'}
-                    </span>
-                    <span className={`text-sm font-medium truncate ${canSelect ? 'text-gray-900' : 'text-gray-500'}`}>{item.ITEM_NM || '-'}</span>
-                    {item.isScanned && (
-                      <span className="px-1.5 py-0.5 bg-orange-500 text-white text-[10px] rounded font-medium flex-shrink-0">스캔</span>
-                    )}
-                  </div>
-                  <div className="flex items-center gap-1">
-                    {isLost ? (
-                      <span className="px-2 py-0.5 rounded text-[10px] flex-shrink-0 bg-red-100 text-red-700">분실</span>
-                    ) : (
-                      <span className="px-2 py-0.5 rounded text-[10px] flex-shrink-0 bg-gray-200 text-gray-500">정상</span>
-                    )}
-                  </div>
-                </div>
-                {/* S/N */}
-                <div className="font-mono text-xs text-gray-700 mt-1">
-                  {item.EQT_SERNO || '-'}
-                </div>
-                {/* 추가 정보 (회색 박스) - 한 줄에 하나씩 */}
-                <div className="bg-gray-100 rounded-lg p-2 mt-2 text-xs space-y-1">
-                  <div className="text-gray-600">{item.CUST_NM || '-'}</div>
-                  <div><span className="text-gray-500">현재위치</span> <span className="text-gray-800">{item.SO_NM || '-'}</span></div>
-                  <div className="text-gray-600">{item.WRKR_NM || '-'}</div>
-                  <div className="text-gray-600">{item.TRML_DT ? formatDateDot(item.TRML_DT) : '-'}</div>
-                  <div className="text-gray-600">{isLost ? Number(item.LOSS_AMT).toLocaleString() + '원' : '-'}</div>
-                </div>
-              </>
+              <div className="bg-gray-100 rounded-lg p-2 mt-2 text-xs space-y-1">
+                <div className="text-gray-600">{isLost ? '분실' : '정상'}</div>
+                <div><span className="text-gray-500">현재위치</span> <span className="text-gray-800">{item.SO_NM || '-'}</span></div>
+                <div><span className="text-gray-500">이동전위치</span> <span className="text-gray-800">-</span></div>
+                <div className="text-gray-600">{item.CUST_NM || '-'}</div>
+                <div className="text-gray-600">{item.TRML_DT ? formatDateDot(item.TRML_DT) : '-'}</div>
+              </div>
             )}
           </div>
         </div>
@@ -706,14 +679,14 @@ const EquipmentRecovery: React.FC<EquipmentRecoveryProps> = ({ onBack }) => {
                 </button>
               </div>
             </div>
-            {/* View mode buttons */}
+            {/* 뷰 모드 선택 버튼 */}
             <div className="px-4 py-2 border-b border-gray-100">
               <div className="flex gap-1 bg-gray-100 p-1 rounded-lg">
                 <button
                   onClick={() => setViewMode('simple')}
                   className={`flex-1 py-1.5 px-2 text-xs font-medium rounded-md transition-all ${
                     viewMode === 'simple'
-                      ? 'bg-white text-orange-600 shadow-sm'
+                      ? 'bg-white text-blue-600 shadow-sm'
                       : 'text-gray-500 hover:text-gray-700'
                   }`}
                 >
@@ -723,7 +696,7 @@ const EquipmentRecovery: React.FC<EquipmentRecoveryProps> = ({ onBack }) => {
                   onClick={() => setViewMode('detail')}
                   className={`flex-1 py-1.5 px-2 text-xs font-medium rounded-md transition-all ${
                     viewMode === 'detail'
-                      ? 'bg-white text-orange-600 shadow-sm'
+                      ? 'bg-white text-blue-600 shadow-sm'
                       : 'text-gray-500 hover:text-gray-700'
                   }`}
                 >
@@ -743,9 +716,9 @@ const EquipmentRecovery: React.FC<EquipmentRecoveryProps> = ({ onBack }) => {
 
                 return (
                   <div key={soKey} className="border-b border-gray-100 last:border-0">
-                    {/* SO Header */}
+                    {/* 지점 헤더 */}
                     <div
-                      className="px-4 py-2 bg-blue-50 flex items-center justify-between cursor-pointer hover:bg-blue-100 transition-colors"
+                      className="px-4 py-2 bg-blue-50 flex items-center justify-between cursor-pointer hover:bg-blue-100"
                       onClick={() => toggleGroup(`so_${soKey}`)}
                     >
                       <div className="flex items-center gap-2">
@@ -760,10 +733,10 @@ const EquipmentRecovery: React.FC<EquipmentRecoveryProps> = ({ onBack }) => {
                           className="rounded"
                           disabled={soLostCount === 0}
                         />
-                        {isSoCollapsed ? <ChevronUp className="w-4 h-4 text-blue-600" /> : <ChevronDown className="w-4 h-4 text-blue-600" />}
-                        <span className="text-sm font-semibold text-blue-800">{soKey}</span>
-                        <span className="text-xs text-blue-600">({soTotalCount})</span>
+                        <span className="text-sm font-bold text-blue-800">{soKey}</span>
+                        <span className="text-xs text-blue-600 bg-blue-100 px-2 py-0.5 rounded-full">{soTotalCount}건</span>
                       </div>
+                      {isSoCollapsed ? <ChevronDown className="w-4 h-4 text-blue-600" /> : <ChevronUp className="w-4 h-4 text-blue-600" />}
                     </div>
 
                     {/* Item Type Groups */}
@@ -775,9 +748,9 @@ const EquipmentRecovery: React.FC<EquipmentRecoveryProps> = ({ onBack }) => {
 
                       return (
                         <div key={itemTypeKey}>
-                          {/* Item Type Header */}
+                          {/* 장비종류 헤더 */}
                           <div
-                            className="px-6 py-2 bg-gray-50 flex items-center justify-between cursor-pointer hover:bg-gray-100 transition-colors"
+                            className="px-6 py-1.5 bg-gray-50 flex items-center justify-between cursor-pointer hover:bg-gray-100"
                             onClick={() => toggleGroup(`so_${soKey}_type_${itemTypeKey}`)}
                           >
                             <div className="flex items-center gap-2">
@@ -792,10 +765,10 @@ const EquipmentRecovery: React.FC<EquipmentRecoveryProps> = ({ onBack }) => {
                                 className="rounded"
                                 disabled={itemTypeLostCount === 0}
                               />
-                              {isItemTypeCollapsed ? <ChevronUp className="w-3 h-3 text-gray-500" /> : <ChevronDown className="w-3 h-3 text-gray-500" />}
-                              <span className="text-xs font-medium text-gray-700">{itemTypeKey}</span>
-                              <span className="text-xs text-gray-500">({items.length})</span>
+                              <span className="text-xs font-semibold text-gray-700">{itemTypeKey}</span>
+                              <span className="text-[10px] text-gray-500 bg-gray-200 px-1.5 py-0.5 rounded">{items.length}건</span>
                             </div>
+                            {isItemTypeCollapsed ? <ChevronDown className="w-3 h-3 text-gray-500" /> : <ChevronUp className="w-3 h-3 text-gray-500" />}
                           </div>
 
                           {/* Equipment Items */}

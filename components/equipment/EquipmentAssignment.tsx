@@ -197,7 +197,7 @@ const EquipmentAssignment: React.FC<EquipmentAssignmentProps> = ({ onBack, showT
   const [showDetailModal, setShowDetailModal] = useState(false);
   const [selectedEquipmentDetail, setSelectedEquipmentDetail] = useState<OutTgtEqt | null>(null);
   const [viewMode, setViewMode] = useState<'simple' | 'detail'>('simple');
-  const [collapsedGroups, setCollapsedGroups] = useState<Record<string, boolean>>({});
+  const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
 
   // 입고대상장비 섹션 ref (자동 스크롤용)
   const equipmentListRef = useRef<HTMLDivElement>(null);
@@ -308,7 +308,7 @@ const EquipmentAssignment: React.FC<EquipmentAssignmentProps> = ({ onBack, showT
   // 그룹 접기/펼치기
   const toggleGroup = (groupKey: string) => {
     setCollapsedGroups(prev => {
-      const newSet = new Set(prev);
+      const newSet = new Set(Array.from(prev));
       if (newSet.has(groupKey)) newSet.delete(groupKey);
       else newSet.add(groupKey);
       return newSet;
@@ -590,19 +590,19 @@ const EquipmentAssignment: React.FC<EquipmentAssignmentProps> = ({ onBack, showT
                     <div key={soName}>
                       <div
                         className="bg-gray-100 px-3 py-2 border-b border-gray-200 flex items-center justify-between cursor-pointer hover:bg-gray-200 transition-colors"
-                        onClick={() => toggleGroupCollapse(soName)}
+                        onClick={() => toggleGroup(soName)}
                       >
                         <div>
                           <span className="text-xs font-semibold text-gray-700">{soName}</span>
                           <span className="ml-2 text-xs text-gray-500">({grouped[soName].length}건)</span>
                         </div>
-                        {collapsedGroups[soName] ? (
+                        {collapsedGroups.has(soName) ? (
                           <ChevronDown className="w-4 h-4 text-gray-500" />
                         ) : (
                           <ChevronUp className="w-4 h-4 text-gray-500" />
                         )}
                       </div>
-                      {!collapsedGroups[soName] && grouped[soName].map((item, idx) => (
+                      {!collapsedGroups.has(soName) && grouped[soName].map((item, idx) => (
                         <div
                           key={idx}
                           onClick={() => handleEqtOutSelect(item)}
@@ -700,7 +700,7 @@ const EquipmentAssignment: React.FC<EquipmentAssignmentProps> = ({ onBack, showT
                   <div className="divide-y divide-gray-100">
                     {itemTypeKeys.map(itemTypeKey => {
                       const items = groupedByItemType[itemTypeKey];
-                      const isCollapsed = collapsedGroups[itemTypeKey] || false;
+                      const isCollapsed = collapsedGroups.has(itemTypeKey);
                       const itemCount = items.length;
                       const checkedCount = items.filter(i => i.CHK && i.PROC_YN !== 'Y').length;
 
@@ -712,12 +712,12 @@ const EquipmentAssignment: React.FC<EquipmentAssignmentProps> = ({ onBack, showT
                             onClick={() => toggleGroup(itemTypeKey)}
                           >
                             <div className="flex items-center gap-2">
-                              <span className="text-sm font-semibold text-gray-700">{itemTypeKey}</span>
-                              <span className="text-xs text-gray-500 bg-gray-200 px-2 py-0.5 rounded-full">
+                              <span className="text-xs font-semibold text-gray-700">{itemTypeKey}</span>
+                              <span className="text-[10px] text-gray-500 bg-gray-200 px-1.5 py-0.5 rounded">
                                 {itemCount}건 {checkedCount > 0 && `(${checkedCount}선택)`}
                               </span>
                             </div>
-                            {isCollapsed ? <ChevronDown className="w-4 h-4 text-gray-500" /> : <ChevronUp className="w-4 h-4 text-gray-500" />}
+                            {isCollapsed ? <ChevronDown className="w-3 h-3 text-gray-500" /> : <ChevronUp className="w-3 h-3 text-gray-500" />}
                           </div>
 
                           {/* 장비 목록 */}
@@ -777,9 +777,10 @@ const EquipmentAssignment: React.FC<EquipmentAssignmentProps> = ({ onBack, showT
                                 {/* 자세히 보기: 추가 정보 (회색 박스) - 한 줄에 하나씩 */}
                                 {viewMode === 'detail' && (
                                   <div className="bg-gray-100 rounded-lg p-2 mt-2 text-xs space-y-1">
-                                    <div className="text-gray-600">{item.OUT_REQ_NO ? formatDateDot(item.OUT_REQ_NO.slice(0, 8)) : '-'}</div>
+                                    <div className="text-gray-600">{item.PROC_YN === 'Y' ? '입고완료' : '미입고'}</div>
                                     <div><span className="text-gray-500">현재위치</span> <span className="text-gray-800">작업기사</span></div>
                                     <div><span className="text-gray-500">이동전위치</span> <span className="text-gray-800">창고</span></div>
+                                    <div className="text-gray-600">{item.OUT_REQ_NO ? formatDateDot(item.OUT_REQ_NO.slice(0, 8)) : '-'}</div>
                                     <div className="text-gray-600">{item.REMARK || '-'}</div>
                                   </div>
                                 )}
