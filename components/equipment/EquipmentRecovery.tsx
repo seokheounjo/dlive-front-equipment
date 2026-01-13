@@ -1,8 +1,14 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { getUnreturnedEquipmentList, processEquipmentRecovery, getEquipmentHistoryInfo } from '../../services/apiService';
 import { debugApiCall } from './equipmentDebug';
-import { Scan, Check, AlertTriangle, Package } from 'lucide-react';
+import { Scan, Check } from 'lucide-react';
 import BarcodeScanner from './BarcodeScanner';
+
+// SO (지점) 정보 타입
+interface SoInfo {
+  SO_ID: string;
+  SO_NM: string;
+}
 
 interface EquipmentRecoveryProps {
   onBack: () => void;
@@ -68,21 +74,38 @@ const formatDateInput = (dateStr: string): string => {
   return dateStr;
 };
 
-// 회수처리 모달
+// 회수처리 모달 - 회수완료만 + 지점 선택
 const RecoveryModal: React.FC<{
   isOpen: boolean;
   onClose: () => void;
   selectedItems: UnreturnedEqt[];
-  onProcess: (procType: string) => void;
+  onProcess: (procType: string, soId: string) => void;
   isProcessing: boolean;
-}> = ({ isOpen, onClose, selectedItems, onProcess, isProcessing }) => {
+  soList: SoInfo[];
+}> = ({ isOpen, onClose, selectedItems, onProcess, isProcessing, soList }) => {
+  const [selectedSoId, setSelectedSoId] = useState<string>('');
+
+  useEffect(() => {
+    if (isOpen && soList.length > 0 && !selectedSoId) {
+      setSelectedSoId(soList[0].SO_ID);
+    }
+  }, [isOpen, soList, selectedSoId]);
+
   if (!isOpen) return null;
+
+  const handleProcess = () => {
+    if (!selectedSoId) {
+      alert('지점을 선택해주세요.');
+      return;
+    }
+    onProcess('1', selectedSoId);
+  };
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-xl shadow-xl w-full max-w-sm overflow-hidden">
         <div className="p-4 border-b border-gray-100 bg-gradient-to-r from-green-500 to-green-600">
-          <h3 className="font-semibold text-white">미회수 장비 처리</h3>
+          <h3 className="font-semibold text-white">미회수 장비 회수완료</h3>
           <p className="text-xs text-white/80 mt-1">{selectedItems.length}건의 장비를 처리합니다</p>
         </div>
         <div className="p-4 space-y-3">
@@ -94,34 +117,30 @@ const RecoveryModal: React.FC<{
               </div>
             ))}
           </div>
-
           <div className="space-y-2">
-            <button
-              onClick={() => onProcess('1')}
+            <label className="text-xs font-medium text-gray-700">회수 지점 선택</label>
+            <select
+              value={selectedSoId}
+              onChange={(e) => setSelectedSoId(e.target.value)}
+              className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
               disabled={isProcessing}
-              className="w-full py-3 text-sm text-white bg-green-500 hover:bg-green-600 disabled:bg-gray-300 rounded-lg font-medium transition-colors flex items-center justify-center gap-2"
             >
-              <Check className="w-4 h-4" />
-              회수완료
-            </button>
-            <button
-              onClick={() => onProcess('2')}
-              disabled={isProcessing}
-              className="w-full py-3 text-sm text-white bg-yellow-500 hover:bg-yellow-600 disabled:bg-gray-300 rounded-lg font-medium transition-colors flex items-center justify-center gap-2"
-            >
-              <AlertTriangle className="w-4 h-4" />
-              망실처리
-            </button>
-            <button
-              onClick={() => onProcess('3')}
-              disabled={isProcessing}
-              className="w-full py-3 text-sm text-white bg-red-500 hover:bg-red-600 disabled:bg-gray-300 rounded-lg font-medium transition-colors flex items-center justify-center gap-2"
-            >
-              <Package className="w-4 h-4" />
-              고객분실
-            </button>
+              <option value="">지점을 선택하세요</option>
+              {soList.map((so) => (
+                <option key={so.SO_ID} value={so.SO_ID}>
+                  {so.SO_NM} ({so.SO_ID})
+                </option>
+              ))}
+            </select>
           </div>
-
+          <button
+            onClick={handleProcess}
+            disabled={isProcessing || !selectedSoId}
+            className="w-full py-3 text-sm text-white bg-green-500 hover:bg-green-600 disabled:bg-gray-300 rounded-lg font-medium transition-colors flex items-center justify-center gap-2"
+          >
+            <Check className="w-4 h-4" />
+            {isProcessing ? '처리 중...' : '회수완료'}
+          </button>
           <button
             onClick={onClose}
             disabled={isProcessing}
@@ -150,6 +169,27 @@ const EquipmentRecovery: React.FC<EquipmentRecoveryProps> = ({ onBack }) => {
   const [recoveryModalOpen, setRecoveryModalOpen] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [scannedSerials, setScannedSerials] = useState<string[]>([]);
+  const [soList, setSoList] = useState<SoInfo[]>([]);
+
+  // SO 목록 로드
+  useEffect(() => {
+    const userInfoStr = typeof window !== 'undefined' ? sessionStorage.getItem('userInfo') : null;
+    if (userInfoStr) {
+      try {
+        const userInfo = JSON.parse(userInfoStr);
+        const authSoList = userInfo.authSoList || userInfo.AUTH_SO_List || [];
+        if (Array.isArray(authSoList) && authSoList.length > 0) {
+          const mappedList: SoInfo[] = authSoList.map((so: any) => ({
+            SO_ID: so.SO_ID || so.soId || '',
+            SO_NM: so.SO_NM || so.soNm || so.SO_ID || ''
+          })).filter((so: SoInfo) => so.SO_ID);
+          setSoList(mappedList);
+        }
+      } catch (e) {
+        console.error('SO 목록 로드 실패:', e);
+      }
+    }
+  }, []);
 
   // 바코드 스캔 처리
   const handleBarcodeScan = async (serialNo: string) => {
@@ -287,7 +327,7 @@ const EquipmentRecovery: React.FC<EquipmentRecoveryProps> = ({ onBack }) => {
   };
 
   // 회수 처리
-  const handleRecoveryProcess = async (procType: string) => {
+  const handleRecoveryProcess = async (procType: string, soId: string) => {
     const selectedItems = unreturnedList.filter(item => item.CHK);
     if (selectedItems.length === 0) return;
 
@@ -318,9 +358,9 @@ const EquipmentRecovery: React.FC<EquipmentRecoveryProps> = ({ onBack }) => {
             WRK_ID: item.WRK_ID,
             CRR_ID: item.CRR_ID || userInfo.crrId || '',
             WRKR_ID: item.WRKR_ID || userInfo.userId || '',
-            SO_ID: item.SO_ID || userInfo.soId || '',
+            SO_ID: soId || item.SO_ID || userInfo.soId || '',
             CHG_UID: userInfo.userId || '',
-            PROC_UID_SO_ID: userInfo.soId || item.SO_ID || '',
+            PROC_UID_SO_ID: soId || userInfo.soId || item.SO_ID || '',
             RTN_DD: today,
             RTN_TP: '3', // 3=기사회수
             STTL_YN: 'N'
@@ -344,7 +384,7 @@ const EquipmentRecovery: React.FC<EquipmentRecoveryProps> = ({ onBack }) => {
       };
 
       if (successCount > 0) {
-        let msg = `${successCount}건의 장비가 "${procTypeNames[procType]}" 처리되었습니다.`;
+        let msg = successCount + '건의 장비가 회수완료 처리되었습니다.';
         if (skipCount > 0) {
           msg += `\n(${skipCount}건은 EQT_NO 형식 오류로 건너뜀)`;
         }
@@ -590,6 +630,7 @@ const EquipmentRecovery: React.FC<EquipmentRecoveryProps> = ({ onBack }) => {
         selectedItems={unreturnedList.filter(item => item.CHK)}
         onProcess={handleRecoveryProcess}
         isProcessing={isProcessing}
+        soList={soList}
       />
     </div>
   );

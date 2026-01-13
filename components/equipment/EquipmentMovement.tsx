@@ -965,10 +965,10 @@ const EquipmentMovement: React.FC<EquipmentMovementProps> = ({ onBack }) => {
 
       {/* 하단 고정 버튼 - 푸터 위에 위치 */}
       {eqtTrnsList.filter(item => item.CHK).length > 0 && (
-        <div className="fixed bottom-16 left-0 right-0 px-4 pb-2 z-40">
+        <div className="fixed bottom-16 left-0 right-0 px-4 pb-2 z-[45]">
           <button
             onClick={() => setShowTransferModal(true)}
-            className="w-full bg-gradient-to-r from-blue-500 to-blue-600 text-white py-4 rounded-xl font-bold text-base shadow-lg flex items-center justify-center gap-2 active:scale-[0.98] transition-all"
+            className="w-full bg-gradient-to-r from-blue-500 to-blue-600 text-white py-4 rounded-xl font-bold text-base shadow-lg flex items-center justify-center gap-2 active:scale-[0.98] transition-all touch-manipulation"
           >
             <Check className="w-5 h-5" />
             장비 이동 ({eqtTrnsList.filter(item => item.CHK).length}건)
@@ -986,7 +986,7 @@ const EquipmentMovement: React.FC<EquipmentMovementProps> = ({ onBack }) => {
           <div className="w-full grid grid-cols-2 gap-4">
             <button
               onClick={() => setShowTransferModal(false)}
-              className="py-4 text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-xl font-semibold text-base transition-colors"
+              className="py-4 text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-xl font-semibold text-base transition-colors touch-manipulation"
             >
               취소
             </button>
@@ -995,7 +995,7 @@ const EquipmentMovement: React.FC<EquipmentMovementProps> = ({ onBack }) => {
                 setShowTransferModal(false);
                 handleTransfer();
               }}
-              className="py-4 bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-xl font-semibold text-base shadow-lg active:scale-[0.98] transition-all"
+              className="py-4 bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-xl font-semibold text-base shadow-lg active:scale-[0.98] transition-all touch-manipulation"
             >
               이관하기
             </button>
