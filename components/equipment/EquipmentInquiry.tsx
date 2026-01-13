@@ -257,6 +257,37 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
   // 뷰 모드: simple(간단히), detail(자세히)
   const [viewMode, setViewMode] = useState<'simple' | 'detail'>('simple');
 
+  // 카테고리별 필터 (체크박스로 즉시 필터링)
+  const [showStock, setShowStock] = useState(true);           // 재고 (사용가능)
+  const [showInspection, setShowInspection] = useState(true); // 검사대기
+  const [showReturnReq, setShowReturnReq] = useState(true);   // 반납요청중
+
+  // 당일해지 여부 확인
+  const isTodayTermination = (endDt: string) => {
+    if (!endDt) return false;
+    const today = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+    return endDt.slice(0, 8) === today;
+  };
+
+  // 필터 적용된 장비 목록
+  const getFilteredList = () => {
+    return equipmentList.filter(item => {
+      // 반납요청중 (반납요청 카테고리 또는 보유장비 중 반납요청중)
+      const isReturnReq = item._category === 'RETURN_REQUESTED' || item._hasReturnRequest;
+      // 검사대기 (검사대기 카테고리 또는 EQT_USE_ARR_YN=A)
+      const isInspection = item._category === 'INSPECTION_WAITING' || item.EQT_USE_ARR_YN === 'A';
+      // 재고 (사용가능) - 반납요청도 아니고 검사대기도 아닌 것
+      const isStock = !isReturnReq && !isInspection;
+
+      if (isReturnReq && !showReturnReq) return false;
+      if (isInspection && !showInspection) return false;
+      if (isStock && !showStock) return false;
+      return true;
+    });
+  };
+
+  const filteredDisplayList = getFilteredList();
+
   // 상태 변경 결과 (검사대기 다중처리용)
   const [statusChangeResult, setStatusChangeResult] = useState<StatusChangeResult | null>(null);
   const [showStatusChangeResult, setShowStatusChangeResult] = useState(false);
@@ -538,20 +569,22 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
         filteredList = filteredList.filter(item => item.ITEM_MID_CD === selectedItemMidCd);
       }
 
-      // 카테고리별 정렬 (보유 -> 반납요청 -> 검사대기)
-      // 보유장비 중 반납요청중인 것은 맨 하단으로
+      // 카테고리별 정렬: 재고(사용가능) -> 검사대기 -> 반납요청중
       filteredList.sort((a, b) => {
-        const categoryOrder = { 'OWNED': 1, 'RETURN_REQUESTED': 2, 'INSPECTION_WAITING': 3 };
-        const catA = categoryOrder[a._category || 'OWNED'] || 4;
-        const catB = categoryOrder[b._category || 'OWNED'] || 4;
-        if (catA !== catB) return catA - catB;
-        
-        // OWNED 카테고리 내에서: 반납요청중 장비는 하단으로
-        if (a._category === 'OWNED' && b._category === 'OWNED') {
-          if (a._hasReturnRequest && !b._hasReturnRequest) return 1;
-          if (!a._hasReturnRequest && b._hasReturnRequest) return -1;
-        }
-        
+        // 정렬 우선순위 계산
+        const getOrder = (item: any) => {
+          // 반납요청중 (반납요청 카테고리 또는 보유장비 중 반납요청중)
+          if (item._category === 'RETURN_REQUESTED' || item._hasReturnRequest) return 3;
+          // 검사대기 (검사대기 카테고리 또는 EQT_USE_ARR_YN='A')
+          if (item._category === 'INSPECTION_WAITING' || item.EQT_USE_ARR_YN === 'A') return 2;
+          // 재고 (사용가능)
+          return 1;
+        };
+
+        const orderA = getOrder(a);
+        const orderB = getOrder(b);
+        if (orderA !== orderB) return orderA - orderB;
+
         // 같은 그룹 내에서 장비종류별 정렬
         const midA = a.ITEM_MID_CD || '';
         const midB = b.ITEM_MID_CD || '';
@@ -582,11 +615,11 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
     })));
   };
 
-  // 개별 선택
-  const handleCheckItem = (index: number, checked: boolean) => {
-    const newList = [...equipmentList];
-    newList[index].CHK = checked;
-    setEquipmentList(newList);
+  // 개별 선택 (EQT_NO로 찾기 - 필터링 시에도 동작)
+  const handleCheckItem = (eqtNo: string, checked: boolean) => {
+    setEquipmentList(equipmentList.map(item =>
+      item.EQT_NO === eqtNo ? { ...item, CHK: checked } : item
+    ));
   };
 
   // MAC 주소 포맷팅 (2자리마다 : 추가)
@@ -1084,11 +1117,11 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
                     type="checkbox"
                     onChange={(e) => handleCheckAll(e.target.checked)}
                     checked={
-                      equipmentList.length > 0 &&
-                      equipmentList
+                      filteredDisplayList.length > 0 &&
+                      filteredDisplayList
                         .filter(item => !(item._category === 'OWNED' && item._hasReturnRequest))
                         .length > 0 &&
-                      equipmentList
+                      filteredDisplayList
                         .filter(item => !(item._category === 'OWNED' && item._hasReturnRequest))
                         .every(item => item.CHK)
                     }
@@ -1097,9 +1130,49 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
                   <span className="text-sm font-semibold text-gray-800">전체선택</span>
                 </label>
                 <span className="text-xs text-gray-500">
-                  {equipmentList.length}건 (선택: {selectedCount}건)
+                  {filteredDisplayList.length}건 (선택: {filteredDisplayList.filter(i => i.CHK).length}건)
                 </span>
               </div>
+              {/* 카테고리별 필터 체크박스 */}
+              <div className="flex flex-wrap gap-2 mb-2">
+                <label className="flex items-center gap-1.5 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={showStock}
+                    onChange={(e) => setShowStock(e.target.checked)}
+                    className="w-3.5 h-3.5 text-green-500 rounded focus:ring-green-500"
+                  />
+                  <span className="text-xs text-gray-600">재고</span>
+                  <span className="text-[10px] px-1.5 py-0.5 bg-green-100 text-green-700 rounded-full">
+                    {equipmentList.filter(i => i.EQT_USE_ARR_YN === 'Y' && !i._hasReturnRequest && i._category !== 'RETURN_REQUESTED' && i._category !== 'INSPECTION_WAITING').length}
+                  </span>
+                </label>
+                <label className="flex items-center gap-1.5 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={showInspection}
+                    onChange={(e) => setShowInspection(e.target.checked)}
+                    className="w-3.5 h-3.5 text-purple-500 rounded focus:ring-purple-500"
+                  />
+                  <span className="text-xs text-gray-600">검사대기</span>
+                  <span className="text-[10px] px-1.5 py-0.5 bg-purple-100 text-purple-700 rounded-full">
+                    {equipmentList.filter(i => i.EQT_USE_ARR_YN === 'A' || i._category === 'INSPECTION_WAITING').length}
+                  </span>
+                </label>
+                <label className="flex items-center gap-1.5 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={showReturnReq}
+                    onChange={(e) => setShowReturnReq(e.target.checked)}
+                    className="w-3.5 h-3.5 text-orange-500 rounded focus:ring-orange-500"
+                  />
+                  <span className="text-xs text-gray-600">반납요청</span>
+                  <span className="text-[10px] px-1.5 py-0.5 bg-orange-100 text-orange-700 rounded-full">
+                    {equipmentList.filter(i => i._hasReturnRequest || i._category === 'RETURN_REQUESTED').length}
+                  </span>
+                </label>
+              </div>
+
               {/* 뷰 모드 선택 버튼 */}
               <div className="flex gap-1 bg-gray-100 p-1 rounded-lg">
                 <button
@@ -1128,10 +1201,10 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
             {/* 간단히 보기: 장비구분, S/N, MAC, 사용가능 */}
             {viewMode === 'simple' && (
               <div className="p-3 space-y-2">
-                {equipmentList.map((item, idx) => (
+                {filteredDisplayList.map((item, idx) => (
                   <div
-                    key={idx}
-                    onClick={() => { if (!(item._category === 'OWNED' && item._hasReturnRequest)) handleCheckItem(idx, !item.CHK); }}
+                    key={item.EQT_NO || idx}
+                    onClick={() => { if (!(item._category === 'OWNED' && item._hasReturnRequest)) handleCheckItem(item.EQT_NO, !item.CHK); }}
                     className={`p-3 rounded-lg border-2 cursor-pointer transition-all ${
                       item.CHK
                         ? 'bg-blue-50 border-blue-400'
@@ -1146,7 +1219,7 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
                         type="checkbox"
                         checked={item.CHK || false}
                         disabled={item._category === 'OWNED' && item._hasReturnRequest}
-                        onChange={(e) => { e.stopPropagation(); handleCheckItem(idx, e.target.checked); }}
+                        onChange={(e) => { e.stopPropagation(); handleCheckItem(item.EQT_NO, e.target.checked); }}
                         className={`w-5 h-5 rounded focus:ring-blue-500 mt-0.5 ${
                           item._category === 'OWNED' && item._hasReturnRequest 
                             ? 'text-gray-300 cursor-not-allowed' 
@@ -1159,6 +1232,11 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
                             <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium flex-shrink-0 ${getItemColor(item.ITEM_MID_CD)}`}>
                               {item.ITEM_MID_NM || '장비'}
                             </span>
+                            {isTodayTermination(item.EQT_USE_END_DT) && (
+                              <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-red-500 text-white flex-shrink-0">
+                                당일해지
+                              </span>
+                            )}
                             <span className="text-sm font-medium text-gray-900 truncate">
                               {item.EQT_CL_NM || '-'}
                             </span>
@@ -1190,10 +1268,10 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
             {/* 자세히 보기: 모델명, 사용가능, 변경종류, 현재위치, 이동전위치, 장비상태, 지점 */}
             {viewMode === 'detail' && (
               <div className="p-3 space-y-2">
-                {equipmentList.map((item, idx) => (
+                {filteredDisplayList.map((item, idx) => (
                   <div
-                    key={idx}
-                    onClick={() => { if (!(item._category === 'OWNED' && item._hasReturnRequest)) handleCheckItem(idx, !item.CHK); }}
+                    key={item.EQT_NO || idx}
+                    onClick={() => { if (!(item._category === 'OWNED' && item._hasReturnRequest)) handleCheckItem(item.EQT_NO, !item.CHK); }}
                     className={`p-3 rounded-lg border-2 cursor-pointer transition-all ${
                       item.CHK
                         ? 'bg-blue-50 border-blue-400'
@@ -1208,7 +1286,7 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
                         type="checkbox"
                         checked={item.CHK || false}
                         disabled={item._category === 'OWNED' && item._hasReturnRequest}
-                        onChange={(e) => { e.stopPropagation(); handleCheckItem(idx, e.target.checked); }}
+                        onChange={(e) => { e.stopPropagation(); handleCheckItem(item.EQT_NO, e.target.checked); }}
                         className={`w-5 h-5 rounded focus:ring-blue-500 mt-0.5 ${
                           item._category === 'OWNED' && item._hasReturnRequest 
                             ? 'text-gray-300 cursor-not-allowed' 
@@ -1222,6 +1300,11 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
                             <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium flex-shrink-0 ${getItemColor(item.ITEM_MID_CD)}`}>
                               {item.ITEM_MID_NM || '장비'}
                             </span>
+                            {isTodayTermination(item.EQT_USE_END_DT) && (
+                              <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-red-500 text-white flex-shrink-0">
+                                당일해지
+                              </span>
+                            )}
                             <span className="text-sm font-medium text-gray-900 truncate">
                               {item.EQT_CL_NM || '-'}
                             </span>
