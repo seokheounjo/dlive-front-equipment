@@ -383,6 +383,10 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
               }),
               { WRKR_ID: userInfo.userId, CRR_ID: userInfo.crrId }
             );
+            // DEBUG: 첫 아이템의 모든 필드 확인
+            if (Array.isArray(ownedResult) && ownedResult.length > 0) {
+              console.log('📋 [보유장비] 첫 아이템 전체 필드:', JSON.stringify(ownedResult[0], null, 2));
+            }
 
             // 반납요청 목록도 조회하여 중복 체크
             let returnRequestEqtNos = new Set<string>();
@@ -1331,11 +1335,15 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
                         <div className="font-mono text-xs text-gray-700 mt-1">
                           {item.EQT_SERNO || '-'} | {formatMac(item.MAC_ADDRESS)}
                         </div>
-                        {/* 자세히: 추가 정보 (회색 박스) - 현재위치/이동전위치만 라벨 표시 */}
+                        {/* 자세히: 추가 정보 (회색 박스) - 한 줄에 하나씩 */}
                         {viewMode === 'detail' && (
                           <div className="bg-gray-100 rounded-lg p-2 mt-2 text-xs space-y-1">
+                            <div className="text-gray-600">{item.EQT_USE_END_DT ? formatDateDot(item.EQT_USE_END_DT) : '-'}</div>
+                            <div className="text-gray-600">{item.PROC_STAT_NM || (item._category === 'RETURN_REQUESTED' ? '반납요청' : item._category === 'INSPECTION_WAITING' ? '검사대기' : '-')}</div>
                             <div><span className="text-gray-500">현재위치</span> <span className="text-gray-800">{item.EQT_LOC_TP_NM || getEqtLocTpName(item.EQT_LOC_TP_CD || '') || '작업기사'}</span></div>
                             <div><span className="text-gray-500">이동전위치</span> <span className="text-gray-800">-</span></div>
+                            <div className="text-gray-600">{item.EQT_STAT_NM || (item.EQT_USE_ARR_YN === 'Y' ? '사용가능' : item.EQT_USE_ARR_YN === 'A' ? '검사대기' : item.EQT_USE_ARR_YN === 'N' ? '사용불가' : '-')}</div>
+                            <div className="text-gray-600">{item.SO_NM || '-'}</div>
                           </div>
                         )}
                       </div>
