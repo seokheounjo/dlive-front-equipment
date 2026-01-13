@@ -765,33 +765,31 @@ const EquipmentAssignment: React.FC<EquipmentAssignmentProps> = ({ onBack, showT
                                 {/* 상세 정보 - 장비처리와 동일한 회색 박스 레이아웃 */}
                                 <div className="bg-gray-50 rounded-lg p-3">
                                   <div className="space-y-1.5 text-xs">
-                                    {/* S/N */}
+                                    {/* 요청수량 (값만) */}
+                                    <div className="text-gray-700">{item.OUT_REQ_QTY || 0}개 요청</div>
+
+                                    {/* 출고수량 (값만) */}
+                                    <div className="text-green-600">{item.OUT_QTY || 0}개 출고</div>
+
+                                    {/* 현재위치 (라벨 유지) */}
                                     <div className="flex items-center gap-2">
-                                      <span className="text-gray-400">S/N</span>
-                                      <span className="font-mono text-gray-700 font-medium">{item.EQT_SERNO || '-'}</span>
+                                      <span className="text-gray-400">현재위치</span>
+                                      <span className="text-gray-700 font-medium">작업기사</span>
                                     </div>
 
-                                    {/* MAC */}
+                                    {/* 이전위치 (라벨 유지) */}
                                     <div className="flex items-center gap-2">
-                                      <span className="text-gray-400">MAC</span>
-                                      <span className="font-mono text-gray-700">{formatMac(item.MAC_ADDRESS || '')}</span>
+                                      <span className="text-gray-400">이전위치</span>
+                                      <span className="text-gray-700">창고</span>
                                     </div>
 
-                                    {/* 수량 정보 */}
-                                    <div className="flex items-center gap-2">
-                                      <span className="text-gray-400">요청</span>
-                                      <span className="text-gray-700 font-medium">{item.OUT_REQ_QTY || 0}</span>
+                                    {/* 입고수량 (값만) */}
+                                    <div className={`font-medium ${(item.IBGO_QTY || 0) > 0 ? 'text-blue-600' : 'text-gray-600'}`}>
+                                      {item.IBGO_QTY || 0}개 입고
                                     </div>
 
-                                    <div className="flex items-center gap-2">
-                                      <span className="text-gray-400">출고</span>
-                                      <span className="text-green-600 font-medium">{item.OUT_QTY || 0}</span>
-                                    </div>
-
-                                    <div className="flex items-center gap-2">
-                                      <span className="text-gray-400">입고</span>
-                                      <span className="text-blue-600 font-medium">{item.IBGO_QTY || 0}</span>
-                                    </div>
+                                    {/* 장비분류 (값만) */}
+                                    <div className="text-gray-600">{item.EQT_CL_NM || '-'}</div>
                                   </div>
                                   {item.REMARK && (
                                     <div className="mt-2 pt-1.5 border-t border-gray-200">
