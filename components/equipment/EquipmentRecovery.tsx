@@ -170,6 +170,7 @@ const EquipmentRecovery: React.FC<EquipmentRecoveryProps> = ({ onBack }) => {
   const [isProcessing, setIsProcessing] = useState(false);
   const [scannedSerials, setScannedSerials] = useState<string[]>([]);
   const [soList, setSoList] = useState<SoInfo[]>([]);
+  const [viewMode, setViewMode] = useState<'simple' | 'detail'>('simple');
 
   // SO 목록 로드
   useEffect(() => {
@@ -527,6 +528,31 @@ const EquipmentRecovery: React.FC<EquipmentRecoveryProps> = ({ onBack }) => {
                 전체선택
               </label>
             </div>
+            {/* 뷰 모드 선택 버튼 */}
+            <div className="px-4 pb-3">
+              <div className="flex gap-1 bg-gray-100 p-1 rounded-lg">
+                <button
+                  onClick={() => setViewMode('simple')}
+                  className={`flex-1 py-1.5 px-2 text-xs font-medium rounded-md transition-all ${
+                    viewMode === 'simple'
+                      ? 'bg-white text-orange-600 shadow-sm'
+                      : 'text-gray-500 hover:text-gray-700'
+                  }`}
+                >
+                  간단히
+                </button>
+                <button
+                  onClick={() => setViewMode('detail')}
+                  className={`flex-1 py-1.5 px-2 text-xs font-medium rounded-md transition-all ${
+                    viewMode === 'detail'
+                      ? 'bg-white text-orange-600 shadow-sm'
+                      : 'text-gray-500 hover:text-gray-700'
+                  }`}
+                >
+                  자세히
+                </button>
+              </div>
+            </div>
             <div className="max-h-[50vh] overflow-y-auto divide-y divide-gray-50">
               {unreturnedList.map((item, idx) => (
                 <div
@@ -541,50 +567,64 @@ const EquipmentRecovery: React.FC<EquipmentRecoveryProps> = ({ onBack }) => {
                       className="rounded mt-0.5"
                     />
                     <div className="flex-1 min-w-0">
-                      {/* S/N 및 스캔 표시 */}
-                      <div className="flex items-center gap-2">
-                        <span className="text-sm font-bold text-gray-900 font-mono">{item.EQT_SERNO}</span>
-                        {item.isScanned && (
-                          <span className="px-1.5 py-0.5 bg-orange-500 text-white text-[10px] rounded font-medium">스캔</span>
-                        )}
-                        <span className={`px-2 py-0.5 rounded text-[10px] ${item.RETN_REQ_YN === 'Y' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600'}`}>
-                          {item.RETN_REQ_YN === 'Y' ? '회수요청' : '미요청'}
-                        </span>
-                      </div>
-
-                      {/* 장비 정보 */}
-                      <div className="text-xs text-gray-600 mt-1">{item.EQT_CL_NM || item.ITEM_NM}</div>
-
-                      {/* 고객 정보 */}
-                      <div className="text-xs text-gray-700 mt-1">
-                        <span className="font-medium">고객:</span> {item.CUST_NM}
-                      </div>
-
-                      {/* 보유기사/지점 정보 */}
-                      {(item.WRKR_NM || item.SO_NM) && (
-                        <div className="flex items-center gap-3 mt-1 text-xs">
-                          {item.WRKR_NM && (
-                            <span className="text-blue-600">
-                              <span className="text-gray-500">기사:</span> {item.WRKR_NM}
+                      {/* 간단히 보기 */}
+                      {viewMode === 'simple' && (
+                        <>
+                          {/* [품목] S/N [상태] - 한 줄 */}
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2 min-w-0 flex-1 mr-2">
+                              <span className="px-1.5 py-0.5 bg-orange-100 text-orange-700 text-[10px] rounded font-medium flex-shrink-0">
+                                {item.EQT_CL_NM || item.ITEM_NM || '장비'}
+                              </span>
+                              <span className="font-mono text-xs text-gray-800 truncate">{item.EQT_SERNO}</span>
+                              {item.isScanned && (
+                                <span className="px-1.5 py-0.5 bg-orange-500 text-white text-[10px] rounded font-medium flex-shrink-0">스캔</span>
+                              )}
+                            </div>
+                            <span className={`px-2 py-0.5 rounded text-[10px] flex-shrink-0 ${item.RETN_REQ_YN === 'Y' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600'}`}>
+                              {item.RETN_REQ_YN === 'Y' ? '회수요청' : '미요청'}
                             </span>
-                          )}
-                          {item.SO_NM && (
-                            <span className="text-purple-600">
-                              <span className="text-gray-500">지점:</span> {item.SO_NM}
-                            </span>
-                          )}
-                        </div>
+                          </div>
+                        </>
                       )}
-
-                      {/* 해지일/손실금액 */}
-                      <div className="flex items-center gap-3 mt-1 text-xs text-gray-500">
-                        {item.TRML_DT && (
-                          <span>해지: {formatDateDot(item.TRML_DT)}</span>
-                        )}
-                        {item.LOSS_AMT && (
-                          <span className="text-red-600">손실: {Number(item.LOSS_AMT).toLocaleString()}원</span>
-                        )}
-                      </div>
+                      {/* 자세히 보기 */}
+                      {viewMode === 'detail' && (
+                        <>
+                          {/* 간단히와 동일: [품목] S/N [상태] */}
+                          <div className="flex items-center justify-between mb-2">
+                            <div className="flex items-center gap-2 min-w-0 flex-1 mr-2">
+                              <span className="px-1.5 py-0.5 bg-orange-100 text-orange-700 text-[10px] rounded font-medium flex-shrink-0">
+                                {item.EQT_CL_NM || item.ITEM_NM || '장비'}
+                              </span>
+                              <span className="font-mono text-xs text-gray-800 truncate">{item.EQT_SERNO}</span>
+                              {item.isScanned && (
+                                <span className="px-1.5 py-0.5 bg-orange-500 text-white text-[10px] rounded font-medium flex-shrink-0">스캔</span>
+                              )}
+                            </div>
+                            <span className={`px-2 py-0.5 rounded text-[10px] flex-shrink-0 ${item.RETN_REQ_YN === 'Y' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600'}`}>
+                              {item.RETN_REQ_YN === 'Y' ? '회수요청' : '미요청'}
+                            </span>
+                          </div>
+                          {/* 추가 정보 (회색 박스) */}
+                          <div className="bg-gray-50 rounded-lg p-2">
+                            <div className="space-y-1 text-xs">
+                              {/* 고객명 (값만) */}
+                              <div className="text-gray-700 font-medium">{item.CUST_NM || '-'}</div>
+                              {/* 현재위치 (라벨+값) */}
+                              <div className="flex items-center gap-2">
+                                <span className="text-gray-400">현재위치</span>
+                                <span className="text-gray-700">{item.SO_NM || '-'}</span>
+                              </div>
+                              {/* 보유자 (값만) */}
+                              {item.WRKR_NM && <div className="text-gray-600">{item.WRKR_NM}</div>}
+                              {/* 해지일 (값만) */}
+                              {item.TRML_DT && <div className="text-gray-500">{formatDateDot(item.TRML_DT)}</div>}
+                              {/* 손실금액 (값만) */}
+                              {item.LOSS_AMT && <div className="text-red-600">{Number(item.LOSS_AMT).toLocaleString()}원</div>}
+                            </div>
+                          </div>
+                        </>
+                      )}
                     </div>
                   </div>
                 </div>
