@@ -255,7 +255,7 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
   const [lossReason, setLossReason] = useState<string>('');
 
   // 뷰 모드: simple(간단히), detail(자세히)
-  const [viewMode, setViewMode] = useState<'simple' | 'detail'>('detail');
+  const [viewMode, setViewMode] = useState<'simple' | 'detail'>('simple');
 
   // 상태 변경 결과 (검사대기 다중처리용)
   const [statusChangeResult, setStatusChangeResult] = useState<StatusChangeResult | null>(null);
@@ -1100,11 +1100,95 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
                   {equipmentList.length}건 (선택: {selectedCount}건)
                 </span>
               </div>
-
+              {/* 뷰 모드 선택 버튼 */}
+              <div className="flex gap-1 bg-gray-100 p-1 rounded-lg">
+                <button
+                  onClick={() => setViewMode('simple')}
+                  className={`flex-1 py-1.5 px-2 text-xs font-medium rounded-md transition-all ${
+                    viewMode === 'simple'
+                      ? 'bg-white text-blue-600 shadow-sm'
+                      : 'text-gray-500 hover:text-gray-700'
+                  }`}
+                >
+                  간단히
+                </button>
+                <button
+                  onClick={() => setViewMode('detail')}
+                  className={`flex-1 py-1.5 px-2 text-xs font-medium rounded-md transition-all ${
+                    viewMode === 'detail'
+                      ? 'bg-white text-blue-600 shadow-sm'
+                      : 'text-gray-500 hover:text-gray-700'
+                  }`}
+                >
+                  자세히
+                </button>
+              </div>
             </div>
 
+            {/* 간단히 보기: 장비구분, S/N, MAC, 사용가능 */}
+            {viewMode === 'simple' && (
+              <div className="p-3 space-y-2">
+                {equipmentList.map((item, idx) => (
+                  <div
+                    key={idx}
+                    onClick={() => { if (!(item._category === 'OWNED' && item._hasReturnRequest)) handleCheckItem(idx, !item.CHK); }}
+                    className={`p-3 rounded-lg border-2 cursor-pointer transition-all ${
+                      item.CHK
+                        ? 'bg-blue-50 border-blue-400'
+                        : item._category === 'OWNED' ? 'bg-green-50/50 border-green-200 hover:border-green-300'
+                        : item._category === 'RETURN_REQUESTED' ? 'bg-amber-50/50 border-amber-200 hover:border-amber-300'
+                        : item._category === 'INSPECTION_WAITING' ? 'bg-purple-50/50 border-purple-200 hover:border-purple-300'
+                        : 'bg-gray-50 border-transparent hover:border-gray-200'
+                    }`}
+                  >
+                    <div className="flex items-start gap-3">
+                      <input
+                        type="checkbox"
+                        checked={item.CHK || false}
+                        disabled={item._category === 'OWNED' && item._hasReturnRequest}
+                        onChange={(e) => { e.stopPropagation(); handleCheckItem(idx, e.target.checked); }}
+                        className={`w-5 h-5 rounded focus:ring-blue-500 mt-0.5 ${
+                          item._category === 'OWNED' && item._hasReturnRequest 
+                            ? 'text-gray-300 cursor-not-allowed' 
+                            : 'text-blue-500'
+                        }`}
+                      />
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center justify-between mb-2">
+                          <div className="flex items-center gap-2 min-w-0 flex-1 mr-2">
+                            <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium flex-shrink-0 ${getItemColor(item.ITEM_MID_CD)}`}>
+                              {item.ITEM_MID_NM || '장비'}
+                            </span>
+                            <span className="text-sm font-medium text-gray-900 truncate">
+                              {item.EQT_CL_NM || '-'}
+                            </span>
+                          </div>
+                          <span className={`px-2 py-1 rounded-full text-xs font-semibold ${
+                            (item._hasReturnRequest || item._category === 'RETURN_REQUESTED') ? 'bg-orange-100 text-orange-700' :
+                            item.EQT_USE_ARR_YN === 'Y' ? 'bg-green-100 text-green-700' :
+                            item.EQT_USE_ARR_YN === 'A' ? 'bg-purple-100 text-purple-700' :
+                            item.EQT_USE_ARR_YN === 'N' ? 'bg-red-100 text-red-700' :
+                            'bg-gray-100 text-gray-700'
+                          }`}>
+                            {(item._hasReturnRequest || item._category === 'RETURN_REQUESTED') ? '반납요청중' :
+                             item.EQT_USE_ARR_YN === 'Y' ? '사용가능' :
+                             item.EQT_USE_ARR_YN === 'A' ? '검사대기' :
+                             item.EQT_USE_ARR_YN === 'N' ? '사용불가' : '-'}
+                          </span>
+                        </div>
+                        <div className="space-y-0.5 text-xs">
+                          <div className="font-mono text-gray-800 text-[11px]">{item.EQT_SERNO || '-'}</div>
+                          <div className="font-mono text-gray-600 text-[11px]">{formatMac(item.MAC_ADDRESS)}</div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+
             {/* 자세히 보기: 모델명, 사용가능, 변경종류, 현재위치, 이동전위치, 장비상태, 지점 */}
-            {true && (
+            {viewMode === 'detail' && (
               <div className="p-3 space-y-2">
                 {equipmentList.map((item, idx) => (
                   <div
@@ -1156,34 +1240,34 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
                           </span>
                         </div>
 
-                        {/* 상세 정보 */}
+                        {/* 상세 정보 - 값만 표시, 현재위치/이전위치만 라벨 유지 */}
                         <div className="bg-gray-50 rounded-lg p-3">
-                          <div className="space-y-2 text-xs">
-                            {/* S/N */}
+                          <div className="space-y-1.5 text-xs">
+                            {/* 사용가능 날짜 (값만) */}
+                            <div className="text-gray-700">{item.USE_END_DT || item.EXPIRE_DT || item.EQT_USE_END_DT || '-'}</div>
+
+                            {/* 변경종류 (값만) */}
+                            <div className="text-gray-700">{item.CHG_TP_NM || item.PROC_STAT_NM || item.EQT_CHG_TP_NM || '-'}</div>
+
+                            {/* 현재위치 (라벨 유지) */}
                             <div className="flex items-center gap-2">
-                              <span className="text-gray-400 w-12">S/N</span>
-                              <span className="font-mono text-gray-900 font-medium">{item.EQT_SERNO || '-'}</span>
+                              <span className="text-gray-400">현재위치</span>
+                              <span className="text-gray-700 font-medium">{item.EQT_LOC_TP_NM || getEqtLocTpName(item.EQT_LOC_TP_CD || '') || '-'}</span>
                             </div>
 
-                            {/* MAC 주소 */}
+                            {/* 이전위치 (라벨 유지) */}
                             <div className="flex items-center gap-2">
-                              <span className="text-gray-400 w-12">MAC</span>
-                              <span className="font-mono text-gray-700">{item.MAC_ADDRESS || '-'}</span>
+                              <span className="text-gray-400">이전위치</span>
+                              <span className="text-gray-700">{item.BEF_EQT_LOC_NM || item.BEF_LOC_NM || '-'}</span>
                             </div>
 
-                            {/* 지점 */}
-                            <div className="flex items-center gap-2">
-                              <span className="text-gray-400 w-12">지점</span>
-                              <span className="text-gray-700">{item.SO_NM || item.SO_ID || '-'}</span>
+                            {/* 장비상태 (값만) */}
+                            <div className={`font-medium ${item.EQT_STAT_CD === '10' ? 'text-green-600' : item.EQT_STAT_CD === '20' ? 'text-blue-600' : 'text-gray-600'}`}>
+                              {item.EQT_STAT_NM || getEqtStatName(item.EQT_STAT_CD) || '-'}
                             </div>
 
-                            {/* 장비상태 */}
-                            <div className="flex items-center gap-2">
-                              <span className="text-gray-400 w-12">상태</span>
-                              <span className={`font-medium ${item.EQT_STAT_CD === '10' ? 'text-green-600' : item.EQT_STAT_CD === '20' ? 'text-blue-600' : 'text-gray-600'}`}>
-                                {item.EQT_STAT_NM || getEqtStatName(item.EQT_STAT_CD) || '-'}
-                              </span>
-                            </div>
+                            {/* 지점 (값만) */}
+                            <div className="text-gray-600">{item.SO_NM || item.SO_ID || '-'}</div>
                           </div>
                           {item.RETN_RESN_NM && (
                             <div className="mt-2 pt-1.5 border-t border-gray-200">
