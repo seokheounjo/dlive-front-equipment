@@ -1120,7 +1120,7 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
           <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
             {/* 헤더: 전체 선택 + 카테고리별 선택 + 뷰 모드 선택 */}
             <div className="px-4 py-3 bg-gradient-to-r from-gray-50 to-white border-b border-gray-100">
-              <div className="flex items-center justify-between mb-2">
+              <div className="flex items-center justify-between">
                 <label className="flex items-center gap-2 cursor-pointer">
                   <input
                     type="checkbox"
@@ -1238,7 +1238,7 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
                         }`}
                       />
                       <div className="flex-1 min-w-0">
-                        <div className="flex items-center justify-between mb-2">
+                        <div className="flex items-center justify-between">
                           <div className="flex items-center gap-2 min-w-0 flex-1 mr-2">
                             <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium flex-shrink-0 ${getItemColor(item.ITEM_MID_CD)}`}>
                               {item.ITEM_MID_NM || '장비'}
@@ -1252,7 +1252,7 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
                               {item.EQT_CL_NM || '-'}
                             </span>
                           </div>
-                          <span className={`px-2 py-1 rounded-full text-xs font-semibold ${
+                          <span className={`px-2 py-1 rounded-full text-xs font-semibold flex-shrink-0 ${
                             (item._hasReturnRequest || item._category === 'RETURN_REQUESTED') ? 'bg-orange-100 text-orange-700' :
                             item.EQT_USE_ARR_YN === 'Y' ? 'bg-green-100 text-green-700' :
                             item.EQT_USE_ARR_YN === 'A' ? 'bg-purple-100 text-purple-700' :
@@ -1265,9 +1265,9 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
                              item.EQT_USE_ARR_YN === 'N' ? '사용불가' : '-'}
                           </span>
                         </div>
-                        <div className="space-y-0.5 text-xs">
-                          <div className="font-mono text-gray-800 text-[11px]">{item.EQT_SERNO || '-'}</div>
-                          <div className="font-mono text-gray-600 text-[11px]">{formatMac(item.MAC_ADDRESS)}</div>
+                        {/* S/N | MAC - 한 줄 */}
+                        <div className="font-mono text-xs text-gray-700 mt-1">
+                          {item.EQT_SERNO || '-'} | {formatMac(item.MAC_ADDRESS)}
                         </div>
                       </div>
                     </div>
@@ -1305,7 +1305,7 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
                         }`}
                       />
                       <div className="flex-1 min-w-0">
-                        {/* 상단: 품목 배지 + 모델명 + 사용가능 */}
+                        {/* 간단히와 동일: [품목] S/N | MAC [상태] */}
                         <div className="flex items-center justify-between mb-3">
                           <div className="flex items-center gap-2 min-w-0 flex-1 mr-2">
                             <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium flex-shrink-0 ${getItemColor(item.ITEM_MID_CD)}`}>
@@ -1320,7 +1320,7 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
                               {item.EQT_CL_NM || '-'}
                             </span>
                           </div>
-                          <span className={`px-2 py-1 rounded-full text-xs font-semibold ${
+                          <span className={`px-2 py-1 rounded-full text-xs font-semibold flex-shrink-0 ${
                             (item._hasReturnRequest || item._category === 'RETURN_REQUESTED') ? 'bg-orange-100 text-orange-700' :
                             item.EQT_USE_ARR_YN === 'Y' ? 'bg-green-100 text-green-700' :
                             item.EQT_USE_ARR_YN === 'A' ? 'bg-purple-100 text-purple-700' :
@@ -1333,27 +1333,37 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
                              item.EQT_USE_ARR_YN === 'N' ? '사용불가' : '-'}
                           </span>
                         </div>
+                        {/* S/N | MAC - 한 줄 */}
+                        <div className="font-mono text-xs text-gray-700 mt-1">
+                          {item.EQT_SERNO || '-'} | {formatMac(item.MAC_ADDRESS)}
+                        </div>
 
-                        {/* 상세 정보 - 값만 표시, 현재위치/이전위치만 라벨 유지 */}
+                        {/* 추가 정보 (회색 박스) */}
                         <div className="bg-gray-50 rounded-lg p-3">
                           <div className="space-y-1.5 text-xs">
+                            {/* 모델명 (값만) */}
+                            <div className="text-gray-700 font-medium">{item.EQT_CL_NM || '-'}</div>
+
                             {/* 사용가능 날짜 (값만) */}
-                            <div className="text-gray-700">{item.USE_END_DT || item.EXPIRE_DT || item.EQT_USE_END_DT || '-'}</div>
+                            <div className="text-gray-600">{item.USE_END_DT || item.EXPIRE_DT || item.EQT_USE_END_DT || '-'}</div>
 
                             {/* 변경종류 (값만) */}
-                            <div className="text-gray-700">{item.CHG_TP_NM || item.PROC_STAT_NM || item.EQT_CHG_TP_NM || '-'}</div>
+                            <div className="text-gray-600">{item.CHG_TP_NM || item.PROC_STAT_NM || item.EQT_CHG_TP_NM || '-'}</div>
 
-                            {/* 현재위치 (라벨 유지) */}
+                            {/* 현재위치 (라벨+값) */}
                             <div className="flex items-center gap-2">
                               <span className="text-gray-400">현재위치</span>
-                              <span className="text-gray-700 font-medium">{item.EQT_LOC_TP_NM || getEqtLocTpName(item.EQT_LOC_TP_CD || '') || '-'}</span>
+                              <span className="text-gray-700">{item.EQT_LOC_TP_NM || getEqtLocTpName(item.EQT_LOC_TP_CD || '') || '-'}</span>
                             </div>
 
-                            {/* 이전위치 (라벨 유지) */}
+                            {/* 이전위치 (라벨+값) */}
                             <div className="flex items-center gap-2">
                               <span className="text-gray-400">이전위치</span>
                               <span className="text-gray-700">{item.BEF_EQT_LOC_NM || item.BEF_LOC_NM || '-'}</span>
                             </div>
+
+                            {/* 장비상태 (값만) */}
+                            <div className="text-gray-600">{item.EQT_STAT_NM || item.EQT_STAT_CD || '-'}</div>
 
                             {/* 지점 (값만) */}
                             <div className="text-gray-600">{item.SO_NM || item.SO_ID || '-'}</div>

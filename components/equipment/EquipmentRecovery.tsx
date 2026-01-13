@@ -570,13 +570,13 @@ const EquipmentRecovery: React.FC<EquipmentRecoveryProps> = ({ onBack }) => {
                       {/* 간단히 보기 */}
                       {viewMode === 'simple' && (
                         <>
-                          {/* [품목] S/N [상태] - 한 줄 */}
+                          {/* [품목] 모델명 [상태] */}
                           <div className="flex items-center justify-between">
                             <div className="flex items-center gap-2 min-w-0 flex-1 mr-2">
                               <span className="px-1.5 py-0.5 bg-orange-100 text-orange-700 text-[10px] rounded font-medium flex-shrink-0">
-                                {item.EQT_CL_NM || item.ITEM_NM || '장비'}
+                                {item.EQT_CL_NM || '장비'}
                               </span>
-                              <span className="font-mono text-xs text-gray-800 truncate">{item.EQT_SERNO}</span>
+                              <span className="text-sm font-medium text-gray-900 truncate">{item.ITEM_NM || '-'}</span>
                               {item.isScanned && (
                                 <span className="px-1.5 py-0.5 bg-orange-500 text-white text-[10px] rounded font-medium flex-shrink-0">스캔</span>
                               )}
@@ -584,6 +584,10 @@ const EquipmentRecovery: React.FC<EquipmentRecoveryProps> = ({ onBack }) => {
                             <span className={`px-2 py-0.5 rounded text-[10px] flex-shrink-0 ${item.RETN_REQ_YN === 'Y' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600'}`}>
                               {item.RETN_REQ_YN === 'Y' ? '회수요청' : '미요청'}
                             </span>
+                          </div>
+                          {/* S/N - 한 줄 (MAC 없음) */}
+                          <div className="font-mono text-xs text-gray-700 mt-1">
+                            {item.EQT_SERNO || '-'}
                           </div>
                         </>
                       )}

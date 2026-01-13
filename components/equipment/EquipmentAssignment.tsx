@@ -550,7 +550,7 @@ const EquipmentAssignment: React.FC<EquipmentAssignmentProps> = ({ onBack, showT
                 <span className="w-16 text-center">출고일</span>
                 <span className="w-20 text-center">협력업체</span>
                 <span className="flex-1 text-center">출고번호</span>
-                <span className="w-16 text-center">수령</span>
+                <span className="w-16 text-center">수령/미수령</span>
               </div>
               {/* 지점별 그룹핑된 리스트 */}
               <div>
@@ -696,14 +696,14 @@ const EquipmentAssignment: React.FC<EquipmentAssignmentProps> = ({ onBack, showT
                                 }`}
                               />
                               <div className="flex-1 min-w-0">
-                                {/* [품목] S/N | MAC [상태] - 한 줄 */}
+                                {/* [품목] 모델명 [상태] */}
                                 <div className="flex items-center justify-between">
                                   <div className="flex items-center gap-2 min-w-0 flex-1 mr-2">
                                     <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium flex-shrink-0 ${getItemColor(item.ITEM_MID_CD)}`}>
                                       {item.ITEM_MID_CD_NM || '장비'}
                                     </span>
-                                    <span className="font-mono text-xs text-gray-800 truncate">
-                                      {item.EQT_SERNO || '-'} | {formatMac(item.MAC_ADDRESS || '')}
+                                    <span className="text-sm font-medium text-gray-900 truncate">
+                                      {item.EQT_CL_NM || '-'}
                                     </span>
                                   </div>
                                   <span className={`px-2 py-1 rounded-full text-xs font-semibold flex-shrink-0 ${
@@ -713,6 +713,10 @@ const EquipmentAssignment: React.FC<EquipmentAssignmentProps> = ({ onBack, showT
                                   }`}>
                                     {isReceived ? '입고완료' : !hasSerial ? '미할당' : '대기'}
                                   </span>
+                                </div>
+                                {/* S/N | MAC - 한 줄 */}
+                                <div className="font-mono text-xs text-gray-700 mt-1">
+                                  {item.EQT_SERNO || '-'} | {formatMac(item.MAC_ADDRESS || '')}
                                 </div>
                               </div>
                             </div>

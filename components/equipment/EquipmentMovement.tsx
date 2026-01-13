@@ -962,19 +962,23 @@ const EquipmentMovement: React.FC<EquipmentMovementProps> = ({ onBack }) => {
                               {/* 간단히 보기 */}
                               {viewMode === 'simple' && (
                                 <div className="flex-1 min-w-0">
-                                  {/* [품목] S/N | MAC - 한 줄 */}
+                                  {/* [품목] 모델명 [스캔] */}
                                   <div className="flex items-center justify-between">
                                     <div className="flex items-center gap-2 min-w-0 flex-1 mr-2">
                                       <span className="px-1.5 py-0.5 bg-blue-100 text-blue-700 text-[10px] rounded font-medium flex-shrink-0">
-                                        {item.ITEM_MID_NM || item.EQT_CL_NM || '장비'}
+                                        {item.ITEM_MID_NM || '장비'}
                                       </span>
-                                      <span className="font-mono text-xs text-gray-800 truncate">
-                                        {item.EQT_SERNO || '-'} | {item.MAC_ADDRESS || '-'}
+                                      <span className="text-sm font-medium text-gray-900 truncate">
+                                        {item.ITEM_NM || item.EQT_CL_NM || '-'}
                                       </span>
                                     </div>
                                     {item.isScanned && (
                                       <span className="px-1.5 py-0.5 bg-purple-500 text-white text-[10px] rounded font-medium flex-shrink-0">스캔</span>
                                     )}
+                                  </div>
+                                  {/* S/N | MAC - 한 줄 */}
+                                  <div className="font-mono text-xs text-gray-700 mt-1">
+                                    {item.EQT_SERNO || '-'} | {item.MAC_ADDRESS || '-'}
                                   </div>
                                 </div>
                               )}
