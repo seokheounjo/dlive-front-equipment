@@ -1083,7 +1083,15 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
                   <input
                     type="checkbox"
                     onChange={(e) => handleCheckAll(e.target.checked)}
-                    checked={equipmentList.length > 0 && equipmentList.every(item => item.CHK)}
+                    checked={
+                      equipmentList.length > 0 &&
+                      equipmentList
+                        .filter(item => !(item._category === 'OWNED' && item._hasReturnRequest))
+                        .length > 0 &&
+                      equipmentList
+                        .filter(item => !(item._category === 'OWNED' && item._hasReturnRequest))
+                        .every(item => item.CHK)
+                    }
                     className="w-4 h-4 text-blue-500 rounded focus:ring-blue-500"
                   />
                   <span className="text-sm font-semibold text-gray-800">전체선택</span>
