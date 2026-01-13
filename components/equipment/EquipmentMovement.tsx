@@ -627,10 +627,19 @@ const EquipmentMovement: React.FC<EquipmentMovementProps> = ({ onBack }) => {
   };
 
   // 지점별 전체 체크
-  const handleCheckCategory = (category: string, checked: boolean) => {
+  const handleCheckSo = (soKey: string, checked: boolean) => {
     setEqtTrnsList(eqtTrnsList.map(item => {
-      const itemCategory = item.SO_NM || item.SO_ID || '미지정';
-      return itemCategory === category ? { ...item, CHK: checked } : item;
+      const itemSo = item.SO_NM || item.SO_ID || '미지정';
+      return itemSo === soKey ? { ...item, CHK: checked } : item;
+    }));
+  };
+
+  // 장비종류별 전체 체크
+  const handleCheckItemType = (soKey: string, itemTypeKey: string, checked: boolean) => {
+    setEqtTrnsList(eqtTrnsList.map(item => {
+      const itemSo = item.SO_NM || item.SO_ID || '미지정';
+      const itemType = item.ITEM_MID_NM || '기타';
+      return (itemSo === soKey && itemType === itemTypeKey) ? { ...item, CHK: checked } : item;
     }));
   };
 
@@ -644,15 +653,17 @@ const EquipmentMovement: React.FC<EquipmentMovementProps> = ({ onBack }) => {
     });
   };
 
-  // 지점별로 그룹화
-  const groupedEquipment = eqtTrnsList.reduce((acc, item) => {
-    const category = item.SO_NM || item.SO_ID || '미지정';
-    if (!acc[category]) acc[category] = [];
-    acc[category].push(item);
+  // 지점 > 장비종류로 2단계 그룹화
+  const groupedByLocation = eqtTrnsList.reduce((acc, item, idx) => {
+    const soKey = item.SO_NM || item.SO_ID || '미지정';
+    const itemKey = item.ITEM_MID_NM || '기타';
+    if (!acc[soKey]) acc[soKey] = {};
+    if (!acc[soKey][itemKey]) acc[soKey][itemKey] = [];
+    acc[soKey][itemKey].push({ ...item, _globalIdx: idx });
     return acc;
-  }, {} as Record<string, EqtTrns[]>);
+  }, {} as Record<string, Record<string, (EqtTrns & { _globalIdx: number })[]>>);
 
-  const categories = Object.keys(groupedEquipment);
+  const soKeys = Object.keys(groupedByLocation).sort();
 
   // 스캔 초기화
   const handleClearScanned = () => {
@@ -912,43 +923,75 @@ const EquipmentMovement: React.FC<EquipmentMovementProps> = ({ onBack }) => {
               </div>
             </div>
 
-            {/* 종류별 그룹 */}
+            {/* 지점 > 장비종류 2단계 그룹 */}
             <div className="divide-y divide-gray-100">
-              {categories.map(category => {
-                const items = groupedEquipment[category];
-                const isCollapsed = collapsedCategories.has(category);
-                const allChecked = items.every(item => item.CHK);
-                const someChecked = items.some(item => item.CHK);
+              {soKeys.map(soKey => {
+                const itemGroups = groupedByLocation[soKey];
+                const itemKeys = Object.keys(itemGroups).sort();
+                const soCollapsed = collapsedCategories.has(soKey);
+                const soItemCount = itemKeys.reduce((sum, k) => sum + itemGroups[k].length, 0);
+                const soAllItems = itemKeys.flatMap(k => itemGroups[k]);
+                const soAllChecked = soAllItems.every(i => i.CHK);
+                const soSomeChecked = soAllItems.some(i => i.CHK);
 
                 return (
-                  <div key={category}>
-                    {/* 카테고리 헤더 */}
+                  <div key={soKey}>
+                    {/* 지점 헤더 */}
                     <div
-                      className="px-4 py-3 bg-gray-50 flex items-center justify-between cursor-pointer hover:bg-gray-100 transition-colors"
-                      onClick={() => toggleCategory(category)}
+                      className="px-4 py-2 bg-blue-50 flex items-center justify-between cursor-pointer hover:bg-blue-100"
+                      onClick={() => toggleCategory(soKey)}
                     >
                       <div className="flex items-center gap-3">
                         <input
                           type="checkbox"
-                          checked={allChecked}
-                          onChange={(e) => { e.stopPropagation(); handleCheckCategory(category, e.target.checked); }}
+                          checked={soAllChecked}
+                          onChange={(e) => { e.stopPropagation(); handleCheckSo(soKey, e.target.checked); }}
                           className="rounded"
                         />
-                        <span className="text-sm font-semibold text-gray-700">{category}</span>
-                        <span className="text-xs text-gray-500 bg-gray-200 px-2 py-0.5 rounded-full">
-                          {items.length}건
-                          {someChecked && !allChecked && ` (${items.filter(i => i.CHK).length} 선택)`}
+                        <span className="text-sm font-bold text-blue-800">{soKey}</span>
+                        <span className="text-xs text-blue-600 bg-blue-100 px-2 py-0.5 rounded-full">
+                          {soItemCount}건 {soSomeChecked && !soAllChecked && `(${soAllItems.filter(i => i.CHK).length}선택)`}
                         </span>
                       </div>
-                      {isCollapsed ? <ChevronDown className="w-4 h-4 text-gray-500" /> : <ChevronUp className="w-4 h-4 text-gray-500" />}
+                      {soCollapsed ? <ChevronDown className="w-4 h-4 text-blue-600" /> : <ChevronUp className="w-4 h-4 text-blue-600" />}
                     </div>
 
-                    {/* 장비 목록 */}
-                    {!isCollapsed && (
-                      <div className="divide-y divide-gray-50">
-                        {items.map((item, idx) => {
-                          const globalIndex = eqtTrnsList.findIndex(e => e.EQT_NO === item.EQT_NO);
-                          return (
+                    {/* 지점 내 장비종류 */}
+                    {!soCollapsed && itemKeys.map(itemTypeKey => {
+                      const items = itemGroups[itemTypeKey];
+                      const itemGroupKey = `${soKey}-${itemTypeKey}`;
+                      const itemCollapsed = collapsedCategories.has(itemGroupKey);
+                      const allChecked = items.every(i => i.CHK);
+                      const someChecked = items.some(i => i.CHK);
+
+                      return (
+                        <div key={itemGroupKey}>
+                          {/* 장비종류 헤더 */}
+                          <div
+                            className="px-6 py-1.5 bg-gray-50 flex items-center justify-between cursor-pointer hover:bg-gray-100"
+                            onClick={() => toggleCategory(itemGroupKey)}
+                          >
+                            <div className="flex items-center gap-2">
+                              <input
+                                type="checkbox"
+                                checked={allChecked}
+                                onChange={(e) => { e.stopPropagation(); handleCheckItemType(soKey, itemTypeKey, e.target.checked); }}
+                                className="rounded w-4 h-4"
+                              />
+                              <span className="text-xs font-semibold text-gray-700">{itemTypeKey}</span>
+                              <span className="text-[10px] text-gray-500 bg-gray-200 px-1.5 py-0.5 rounded">
+                                {items.length}건 {someChecked && !allChecked && `(${items.filter(i => i.CHK).length}선택)`}
+                              </span>
+                            </div>
+                            {itemCollapsed ? <ChevronDown className="w-3 h-3 text-gray-500" /> : <ChevronUp className="w-3 h-3 text-gray-500" />}
+                          </div>
+
+                          {/* 장비 목록 */}
+                          {!itemCollapsed && (
+                            <div className="divide-y divide-gray-50">
+                              {items.map((item) => {
+                                const globalIndex = item._globalIdx;
+                                return (
                             <div
                               key={item.EQT_NO || idx}
                               className={`px-4 py-3 flex items-start gap-3 transition-colors ${item.isScanned ? 'bg-purple-50' : 'hover:bg-blue-50/50'}`}
@@ -1016,10 +1059,13 @@ const EquipmentMovement: React.FC<EquipmentMovementProps> = ({ onBack }) => {
                                 </div>
                               )}
                             </div>
-                          );
-                        })}
-                      </div>
-                    )}
+                                );
+                              })}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
                   </div>
                 );
               })}
