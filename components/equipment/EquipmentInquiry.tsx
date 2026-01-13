@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { ChevronDown, ChevronUp } from 'lucide-react';
 import {
   getWorkerEquipmentList,
   getEquipmentReturnRequestList,
@@ -256,6 +257,7 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
 
   // 뷰 모드: simple(간단히), detail(자세히)
   const [viewMode, setViewMode] = useState<'simple' | 'detail'>('simple');
+  const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
 
   // 카테고리별 필터 (체크박스로 즉시 필터링)
   const [showStock, setShowStock] = useState(true);           // 재고 (사용가능)
@@ -930,6 +932,29 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
     ));
   };
 
+  // 그룹 접기/펼치기
+  const toggleGroup = (groupKey: string) => {
+    setCollapsedGroups(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(groupKey)) newSet.delete(groupKey);
+      else newSet.add(groupKey);
+      return newSet;
+    });
+  };
+
+  // 지점 > 장비종류로 그룹화
+  const groupedByLocation = filteredDisplayList.reduce((acc, item) => {
+    const soKey = item.SO_NM || item.SO_ID || '미지정';
+    const itemKey = item.ITEM_MID_NM || '기타';
+    if (!acc[soKey]) acc[soKey] = {};
+    if (!acc[soKey][itemKey]) acc[soKey][itemKey] = [];
+    acc[soKey][itemKey].push(item);
+    return acc;
+  }, {} as Record<string, Record<string, EquipmentItem[]>>);
+
+  const soKeys = Object.keys(groupedByLocation).sort();
+
+
   return (
     <div className="h-full overflow-y-auto bg-gray-50 px-4 py-4 space-y-3">
         {/* 검색 조건 선택 박스 - 체크박스로 복수 선택 가능 */}
@@ -1209,10 +1234,52 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
               </div>
             </div>
 
-            {/* 간단히 보기: 장비구분, S/N, MAC, 사용가능 */}
-            {viewMode === 'simple' && (
-              <div className="p-3 space-y-2">
-                {filteredDisplayList.map((item, idx) => (
+            {/* 그룹핑된 장비 목록: 지점 > 장비종류 > 장비 */}
+            <div className="divide-y divide-gray-100">
+              {soKeys.map(soKey => {
+                const itemGroups = groupedByLocation[soKey];
+                const itemKeys = Object.keys(itemGroups).sort();
+                const soCollapsed = collapsedGroups.has(soKey);
+                const soItemCount = itemKeys.reduce((sum, k) => sum + itemGroups[k].length, 0);
+
+                return (
+                  <div key={soKey}>
+                    {/* 지점 헤더 */}
+                    <div
+                      className="px-4 py-2 bg-blue-50 flex items-center justify-between cursor-pointer hover:bg-blue-100"
+                      onClick={() => toggleGroup(soKey)}
+                    >
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm font-bold text-blue-800">{soKey}</span>
+                        <span className="text-xs text-blue-600 bg-blue-100 px-2 py-0.5 rounded-full">{soItemCount}건</span>
+                      </div>
+                      {soCollapsed ? <ChevronDown className="w-4 h-4 text-blue-600" /> : <ChevronUp className="w-4 h-4 text-blue-600" />}
+                    </div>
+
+                    {/* 지점 내 장비종류 */}
+                    {!soCollapsed && itemKeys.map(itemKey => {
+                      const items = itemGroups[itemKey];
+                      const itemGroupKey = `${soKey}-${itemKey}`;
+                      const itemCollapsed = collapsedGroups.has(itemGroupKey);
+
+                      return (
+                        <div key={itemGroupKey}>
+                          {/* 장비종류 헤더 */}
+                          <div
+                            className="px-6 py-1.5 bg-gray-50 flex items-center justify-between cursor-pointer hover:bg-gray-100"
+                            onClick={() => toggleGroup(itemGroupKey)}
+                          >
+                            <div className="flex items-center gap-2">
+                              <span className="text-xs font-semibold text-gray-700">{itemKey}</span>
+                              <span className="text-[10px] text-gray-500 bg-gray-200 px-1.5 py-0.5 rounded">{items.length}건</span>
+                            </div>
+                            {itemCollapsed ? <ChevronDown className="w-3 h-3 text-gray-500" /> : <ChevronUp className="w-3 h-3 text-gray-500" />}
+                          </div>
+
+                          {/* 장비 목록 */}
+                          {!itemCollapsed && (
+                            <div className="divide-y divide-gray-50">
+                              {items.map((item, idx) => (
                   <div
                     key={item.EQT_NO || idx}
                     onClick={() => { if (!(item._category === 'OWNED' && item._hasReturnRequest)) handleCheckItem(item.EQT_NO, !item.CHK); }}
@@ -1272,11 +1339,19 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
                       </div>
                     </div>
                   </div>
-                ))}
-              </div>
-            )}
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                );
+              })}
+            </div>
 
-            {/* 자세히 보기: 모델명, 사용가능, 변경종류, 현재위치, 이동전위치, 장비상태, 지점 */}
+            {/* 자세히 보기 - 제거됨 (간단히와 통합)
+            {false && ( 모델명, 사용가능, 변경종류, 현재위치, 이동전위치, 장비상태, 지점 */}
             {viewMode === 'detail' && (
               <div className="p-3 space-y-2">
                 {filteredDisplayList.map((item, idx) => (
