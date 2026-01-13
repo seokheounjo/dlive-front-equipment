@@ -764,22 +764,13 @@ const EquipmentAssignment: React.FC<EquipmentAssignmentProps> = ({ onBack, showT
                                 <div className="font-mono text-xs text-gray-700 mt-1">
                                   {item.EQT_SERNO || '-'} | {formatMac(item.MAC_ADDRESS || '')}
                                 </div>
-                                {/* 자세히 보기: 추가 정보 확장 */}
+                                {/* 자세히 보기: 추가 정보 (회색 박스) - 한 줄에 하나씩 */}
                                 {viewMode === 'detail' && (
-                                  <div className="bg-gray-50 rounded-lg p-2 mt-2">
-                                    <div className="space-y-1 text-xs">
-                                      <div className="flex items-center gap-2">
-                                        <span className="text-gray-400">현재위치</span>
-                                        <span className="text-gray-700">작업기사</span>
-                                      </div>
-                                      <div className="flex items-center gap-2">
-                                        <span className="text-gray-400">이전위치</span>
-                                        <span className="text-gray-700">창고</span>
-                                      </div>
-                                      {item.REMARK && (
-                                        <div className="text-gray-600 pt-1 border-t border-gray-200 mt-1">{item.REMARK}</div>
-                                      )}
-                                    </div>
+                                  <div className="bg-gray-100 rounded-lg p-2 mt-2 text-xs space-y-1">
+                                    <div className="text-gray-600">출고요청일 {item.OUT_REQ_NO ? formatDateDot(item.OUT_REQ_NO.slice(0, 8)) : '-'}</div>
+                                    <div><span className="text-gray-500">현재위치</span> <span className="text-gray-800">작업기사</span></div>
+                                    <div><span className="text-gray-500">이동전위치</span> <span className="text-gray-800">창고</span></div>
+                                    {item.REMARK && <div className="text-gray-600">비고 {item.REMARK}</div>}
                                   </div>
                                 )}
                               </div>

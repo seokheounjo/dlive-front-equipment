@@ -1028,33 +1028,29 @@ const EquipmentMovement: React.FC<EquipmentMovementProps> = ({ onBack }) => {
                               {/* 자세히 보기 */}
                               {viewMode === 'detail' && (
                                 <div className="flex-1 min-w-0">
-                                  {/* 간단히와 동일: [품목] S/N | MAC */}
-                                  <div className="flex items-center justify-between mb-2">
+                                  {/* 간단히와 동일 헤더 */}
+                                  <div className="flex items-center justify-between">
                                     <div className="flex items-center gap-2 min-w-0 flex-1 mr-2">
                                       <span className="px-1.5 py-0.5 bg-blue-100 text-blue-700 text-[10px] rounded font-medium flex-shrink-0">
-                                        {item.ITEM_MID_NM || item.EQT_CL_NM || '장비'}
+                                        {item.ITEM_MID_NM || '장비'}
                                       </span>
-                                      <span className="font-mono text-xs text-gray-800 truncate">
-                                        {item.EQT_SERNO || '-'} | {item.MAC_ADDRESS || '-'}
+                                      <span className="text-sm font-medium text-gray-900 truncate">
+                                        {item.ITEM_NM || item.EQT_CL_NM || '-'}
                                       </span>
                                     </div>
                                     {item.isScanned && (
                                       <span className="px-1.5 py-0.5 bg-purple-500 text-white text-[10px] rounded font-medium flex-shrink-0">스캔</span>
                                     )}
                                   </div>
-                                  {/* 추가 정보 (회색 박스) */}
-                                  <div className="bg-gray-50 rounded-lg p-2">
-                                    <div className="space-y-1 text-xs">
-                                      {/* 장비명 (값만) */}
-                                      <div className="text-gray-700 font-medium">{item.ITEM_NM || item.EQT_CL_NM || '-'}</div>
-                                      {/* 현재위치 (라벨+값) */}
-                                      <div className="flex items-center gap-2">
-                                        <span className="text-gray-400">현재위치</span>
-                                        <span className="text-gray-700">{item.SO_NM || item.SO_ID || '-'}</span>
-                                      </div>
-                                      {/* 보유자 (값만) */}
-                                      <div className="text-gray-600">{item.WRKR_NM || '-'}</div>
-                                    </div>
+                                  {/* S/N | MAC - 한 줄 */}
+                                  <div className="font-mono text-xs text-gray-700 mt-1">
+                                    {item.EQT_SERNO || '-'} | {item.MAC_ADDRESS || '-'}
+                                  </div>
+                                  {/* 추가 정보 (회색 박스) - 한 줄에 하나씩 */}
+                                  <div className="bg-gray-100 rounded-lg p-2 mt-2 text-xs space-y-1">
+                                    <div><span className="text-gray-500">현재위치</span> <span className="text-gray-800">{item.SO_NM || '작업기사'}</span></div>
+                                    <div><span className="text-gray-500">이동전위치</span> <span className="text-gray-800">-</span></div>
+                                    <div className="text-gray-600">보유자 {item.WRKR_NM || '-'}</div>
                                   </div>
                                 </div>
                               )}

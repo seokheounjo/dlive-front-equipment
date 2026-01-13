@@ -108,8 +108,8 @@ const RecoveryModal: React.FC<{
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-xl shadow-xl w-full max-w-sm overflow-hidden">
         <div className="p-4 border-b border-gray-100 bg-gradient-to-r from-green-500 to-green-600">
-          <h3 className="font-semibold text-white">Unreturned Equipment Recovery</h3>
-          <p className="text-xs text-white/80 mt-1">{selectedItems.length} items to process</p>
+          <h3 className="font-semibold text-white">미회수 장비 회수</h3>
+          <p className="text-xs text-white/80 mt-1">{selectedItems.length}건 처리 예정</p>
         </div>
         <div className="p-4 space-y-3">
           <div className="bg-gray-50 rounded-lg p-3 max-h-32 overflow-y-auto">
@@ -121,14 +121,14 @@ const RecoveryModal: React.FC<{
             ))}
           </div>
           <div className="space-y-2">
-            <label className="text-xs font-medium text-gray-700">Select Recovery Branch</label>
+            <label className="text-xs font-medium text-gray-700">회수 지점 선택</label>
             <select
               value={selectedSoId}
               onChange={(e) => setSelectedSoId(e.target.value)}
               className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
               disabled={isProcessing}
             >
-              <option value="">Select branch</option>
+              <option value="">지점 선택</option>
               {soList.map((so) => (
                 <option key={so.SO_ID} value={so.SO_ID}>
                   {so.SO_NM} ({so.SO_ID})
@@ -142,14 +142,14 @@ const RecoveryModal: React.FC<{
             className="w-full py-3 text-sm text-white bg-green-500 hover:bg-green-600 disabled:bg-gray-300 rounded-lg font-medium transition-colors flex items-center justify-center gap-2"
           >
             <Check className="w-4 h-4" />
-            {isProcessing ? 'Processing...' : 'Complete Recovery'}
+            {isProcessing ? '처리 중...' : '회수 완료'}
           </button>
           <button
             onClick={onClose}
             disabled={isProcessing}
             className="w-full py-2.5 text-sm text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-lg font-medium transition-colors"
           >
-            Cancel
+            취소
           </button>
         </div>
       </div>
@@ -504,18 +504,18 @@ const EquipmentRecovery: React.FC<EquipmentRecoveryProps> = ({ onBack }) => {
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2 min-w-0 flex-1 mr-2">
                     <span className="px-1.5 py-0.5 bg-orange-100 text-orange-700 text-[10px] rounded font-medium flex-shrink-0">
-                      {item.EQT_CL_NM || 'Equipment'}
+                      {item.EQT_CL_NM || '장비'}
                     </span>
                     <span className={`text-sm font-medium truncate ${canSelect ? 'text-gray-900' : 'text-gray-500'}`}>{item.ITEM_NM || '-'}</span>
                     {item.isScanned && (
-                      <span className="px-1.5 py-0.5 bg-orange-500 text-white text-[10px] rounded font-medium flex-shrink-0">Scanned</span>
+                      <span className="px-1.5 py-0.5 bg-orange-500 text-white text-[10px] rounded font-medium flex-shrink-0">스캔</span>
                     )}
                   </div>
                   <div className="flex items-center gap-1">
                     {isLost ? (
-                      <span className="px-2 py-0.5 rounded text-[10px] flex-shrink-0 bg-red-100 text-red-700">Lost</span>
+                      <span className="px-2 py-0.5 rounded text-[10px] flex-shrink-0 bg-red-100 text-red-700">분실</span>
                     ) : (
-                      <span className="px-2 py-0.5 rounded text-[10px] flex-shrink-0 bg-gray-200 text-gray-500">N/A</span>
+                      <span className="px-2 py-0.5 rounded text-[10px] flex-shrink-0 bg-gray-200 text-gray-500">정상</span>
                     )}
                   </div>
                 </div>
@@ -526,35 +526,36 @@ const EquipmentRecovery: React.FC<EquipmentRecoveryProps> = ({ onBack }) => {
             )}
             {viewMode === 'detail' && (
               <>
-                <div className="flex items-center justify-between mb-2">
+                {/* 간단히와 동일 헤더 */}
+                <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2 min-w-0 flex-1 mr-2">
                     <span className="px-1.5 py-0.5 bg-orange-100 text-orange-700 text-[10px] rounded font-medium flex-shrink-0">
-                      {item.EQT_CL_NM || item.ITEM_NM || 'Equipment'}
+                      {item.EQT_CL_NM || '장비'}
                     </span>
-                    <span className={`font-mono text-xs truncate ${canSelect ? 'text-gray-800' : 'text-gray-500'}`}>{item.EQT_SERNO}</span>
+                    <span className={`text-sm font-medium truncate ${canSelect ? 'text-gray-900' : 'text-gray-500'}`}>{item.ITEM_NM || '-'}</span>
                     {item.isScanned && (
-                      <span className="px-1.5 py-0.5 bg-orange-500 text-white text-[10px] rounded font-medium flex-shrink-0">Scanned</span>
+                      <span className="px-1.5 py-0.5 bg-orange-500 text-white text-[10px] rounded font-medium flex-shrink-0">스캔</span>
                     )}
                   </div>
                   <div className="flex items-center gap-1">
                     {isLost ? (
-                      <span className="px-2 py-0.5 rounded text-[10px] flex-shrink-0 bg-red-100 text-red-700">Lost</span>
+                      <span className="px-2 py-0.5 rounded text-[10px] flex-shrink-0 bg-red-100 text-red-700">분실</span>
                     ) : (
-                      <span className="px-2 py-0.5 rounded text-[10px] flex-shrink-0 bg-gray-200 text-gray-500">N/A</span>
+                      <span className="px-2 py-0.5 rounded text-[10px] flex-shrink-0 bg-gray-200 text-gray-500">정상</span>
                     )}
                   </div>
                 </div>
-                <div className="bg-gray-50 rounded-lg p-2">
-                  <div className="space-y-1 text-xs">
-                    <div className="text-gray-700 font-medium">{item.CUST_NM || '-'}</div>
-                    <div className="flex items-center gap-2">
-                      <span className="text-gray-400">Location</span>
-                      <span className="text-gray-700">{item.SO_NM || '-'}</span>
-                    </div>
-                    {item.WRKR_NM && <div className="text-gray-600">{item.WRKR_NM}</div>}
-                    {item.TRML_DT && <div className="text-gray-500">{formatDateDot(item.TRML_DT)}</div>}
-                    {item.LOSS_AMT && <div className="text-red-600">{Number(item.LOSS_AMT).toLocaleString()}won</div>}
-                  </div>
+                {/* S/N */}
+                <div className="font-mono text-xs text-gray-700 mt-1">
+                  {item.EQT_SERNO || '-'}
+                </div>
+                {/* 추가 정보 (회색 박스) - 한 줄에 하나씩 */}
+                <div className="bg-gray-100 rounded-lg p-2 mt-2 text-xs space-y-1">
+                  <div className="text-gray-600">고객명 {item.CUST_NM || '-'}</div>
+                  <div><span className="text-gray-500">현재위치</span> <span className="text-gray-800">{item.SO_NM || '-'}</span></div>
+                  <div className="text-gray-600">담당기사 {item.WRKR_NM || '-'}</div>
+                  <div className="text-gray-600">해지일 {item.TRML_DT ? formatDateDot(item.TRML_DT) : '-'}</div>
+                  {isLost && <div className="text-red-600">분실금액 {Number(item.LOSS_AMT).toLocaleString()}원</div>}
                 </div>
               </>
             )}
@@ -570,12 +571,12 @@ const EquipmentRecovery: React.FC<EquipmentRecoveryProps> = ({ onBack }) => {
       {scannedSerials.length > 0 && (
         <div className="bg-orange-50 border border-orange-200 rounded-xl p-3">
           <div className="flex items-center justify-between mb-2">
-            <span className="text-xs font-medium text-orange-700">Scanned Equipment ({scannedSerials.length})</span>
+            <span className="text-xs font-medium text-orange-700">스캔된 장비 ({scannedSerials.length})</span>
             <button
               onClick={() => setScannedSerials([])}
               className="text-xs text-orange-600 hover:text-orange-800"
             >
-              Clear
+              초기화
             </button>
           </div>
           <div className="flex flex-wrap gap-1">
@@ -598,29 +599,29 @@ const EquipmentRecovery: React.FC<EquipmentRecoveryProps> = ({ onBack }) => {
               value={searchParams.EQT_SERNO}
               onChange={(e) => setSearchParams({...searchParams, EQT_SERNO: e.target.value.toUpperCase()})}
               className="flex-1 px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-all font-mono"
-              placeholder="Equipment S/N"
+              placeholder="장비 S/N"
             />
           </div>
 
           <div className="flex items-center gap-2">
-            <label className="text-xs font-medium text-gray-600 w-14 flex-shrink-0">Cust ID</label>
+            <label className="text-xs font-medium text-gray-600 w-14 flex-shrink-0">고객ID</label>
             <input
               type="text"
               value={searchParams.CUST_ID}
               onChange={(e) => setSearchParams({...searchParams, CUST_ID: e.target.value})}
               className="flex-1 px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-all"
-              placeholder="Customer ID"
+              placeholder="고객 ID"
             />
           </div>
 
           <div className="flex items-center gap-2">
-            <label className="text-xs font-medium text-gray-600 w-14 flex-shrink-0">Name</label>
+            <label className="text-xs font-medium text-gray-600 w-14 flex-shrink-0">고객명</label>
             <input
               type="text"
               value={searchParams.CUST_NM}
               onChange={(e) => setSearchParams({...searchParams, CUST_NM: e.target.value})}
               className="flex-1 px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-all"
-              placeholder="Customer Name"
+              placeholder="고객명"
             />
           </div>
 
@@ -631,7 +632,7 @@ const EquipmentRecovery: React.FC<EquipmentRecoveryProps> = ({ onBack }) => {
               className="flex-1 bg-blue-500 hover:bg-blue-600 disabled:bg-gray-300 text-white py-2.5 rounded-lg font-semibold text-sm shadow-sm transition-all active:scale-[0.98] touch-manipulation"
               style={{ WebkitTapHighlightColor: 'transparent' }}
             >
-              {isLoading ? 'Searching...' : 'Search'}
+              {isLoading ? '조회 중...' : '조회'}
             </button>
             <button
               onClick={() => setScanModalOpen(true)}
@@ -639,7 +640,7 @@ const EquipmentRecovery: React.FC<EquipmentRecoveryProps> = ({ onBack }) => {
               style={{ WebkitTapHighlightColor: 'transparent' }}
             >
               <Scan className="w-4 h-4" />
-              Scan
+              스캔
             </button>
           </div>
         </div>
@@ -653,11 +654,11 @@ const EquipmentRecovery: React.FC<EquipmentRecoveryProps> = ({ onBack }) => {
               <div className="flex items-center justify-between mb-2">
                 <div>
                   <span className="text-sm font-semibold text-gray-800">
-                    Results: {filteredList.length} items
+                    조회결과: {filteredList.length}건
                   </span>
                   {selectedCount > 0 && (
                     <span className="text-sm text-orange-600 ml-2 font-medium">
-                      (Selected: {selectedCount})
+                      (선택: {selectedCount}건)
                     </span>
                   )}
                 </div>
@@ -668,10 +669,10 @@ const EquipmentRecovery: React.FC<EquipmentRecoveryProps> = ({ onBack }) => {
                     checked={filteredList.length > 0 && filteredList.filter(item => isLostEquipment(item)).every(item => item.CHK)}
                     className="rounded"
                   />
-                  Select All
+                  전체선택
                 </label>
               </div>
-              {/* Loss filter buttons */}
+              {/* 분실 필터 버튼 */}
               <div className="flex gap-1 bg-gray-100 p-1 rounded-lg">
                 <button
                   onClick={() => setLossFilter('all')}
@@ -681,7 +682,7 @@ const EquipmentRecovery: React.FC<EquipmentRecoveryProps> = ({ onBack }) => {
                       : 'text-gray-500 hover:text-gray-700'
                   }`}
                 >
-                  All ({unreturnedList.length})
+                  전체 ({unreturnedList.length})
                 </button>
                 <button
                   onClick={() => setLossFilter('lost')}
@@ -691,7 +692,7 @@ const EquipmentRecovery: React.FC<EquipmentRecoveryProps> = ({ onBack }) => {
                       : 'text-gray-500 hover:text-gray-700'
                   }`}
                 >
-                  Lost ({lostCount})
+                  분실 ({lostCount})
                 </button>
                 <button
                   onClick={() => setLossFilter('notLost')}
@@ -701,7 +702,7 @@ const EquipmentRecovery: React.FC<EquipmentRecoveryProps> = ({ onBack }) => {
                       : 'text-gray-500 hover:text-gray-700'
                   }`}
                 >
-                  Not Lost ({notLostCount})
+                  정상 ({notLostCount})
                 </button>
               </div>
             </div>
@@ -716,7 +717,7 @@ const EquipmentRecovery: React.FC<EquipmentRecoveryProps> = ({ onBack }) => {
                       : 'text-gray-500 hover:text-gray-700'
                   }`}
                 >
-                  Simple
+                  간단히
                 </button>
                 <button
                   onClick={() => setViewMode('detail')}
@@ -726,7 +727,7 @@ const EquipmentRecovery: React.FC<EquipmentRecoveryProps> = ({ onBack }) => {
                       : 'text-gray-500 hover:text-gray-700'
                   }`}
                 >
-                  Detail
+                  자세히
                 </button>
               </div>
             </div>
@@ -812,14 +813,14 @@ const EquipmentRecovery: React.FC<EquipmentRecoveryProps> = ({ onBack }) => {
             </div>
           </div>
 
-          {/* Recovery button */}
+          {/* 회수 버튼 */}
           <button
             onClick={() => setRecoveryModalOpen(true)}
             disabled={selectedCount === 0}
             className="w-full bg-gradient-to-r from-green-500 to-green-600 disabled:from-gray-300 disabled:to-gray-400 text-white py-4 rounded-xl font-bold text-base shadow-lg flex items-center justify-center gap-2 active:scale-[0.98] transition-all"
           >
             <Check className="w-5 h-5" />
-            Process Recovery ({selectedCount})
+            회수 처리 ({selectedCount}건)
           </button>
         </>
       ) : (
@@ -830,8 +831,8 @@ const EquipmentRecovery: React.FC<EquipmentRecoveryProps> = ({ onBack }) => {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
               </svg>
             </div>
-            <p className="text-gray-500 text-sm">
-              {isLoading ? 'Searching...' : 'Scan barcode or enter search criteria\nto find unreturned equipment'}
+            <p className="text-gray-500 text-sm whitespace-pre-line">
+              {isLoading ? '조회 중...' : '바코드 스캔 또는 검색 조건을 입력하여\n미회수 장비를 조회하세요'}
             </p>
           </div>
         </div>
