@@ -1313,32 +1313,23 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
                               {item.EQT_CL_NM || item.ITEM_NM || '-'}
                             </span>
                           </div>
-                          <div className="flex flex-col items-end gap-1 flex-shrink-0">
-                            {/* 첫 번째 뱃지: 반납요청이면 반납요청, 아니면 EQT_USE_ARR_YN 기반 */}
-                            <span className={`px-2 py-1 rounded-full text-xs font-semibold ${
-                              (item._hasReturnRequest || item._category === 'RETURN_REQUESTED') ? 'bg-orange-100 text-orange-700' :
-                              item.EQT_USE_ARR_YN === 'Y' ? 'bg-green-100 text-green-700' :
-                              item.EQT_USE_ARR_YN === 'A' ? 'bg-purple-100 text-purple-700' :
-                              item.EQT_USE_ARR_YN === 'N' ? 'bg-red-100 text-red-700' :
-                              'bg-gray-100 text-gray-700'
-                            }`}>
-                              {(item._hasReturnRequest || item._category === 'RETURN_REQUESTED') ? '반납요청' :
-                               item.EQT_USE_ARR_YN === 'Y' ? '사용가능' :
-                               item.EQT_USE_ARR_YN === 'A' ? '검사대기' :
-                               item.EQT_USE_ARR_YN === 'N' ? '사용불가' : '-'}
-                            </span>
-                            {/* 두 번째 뱃지: 반납요청인 경우에만 EQT_USE_ARR_YN 기반 뱃지 추가 */}
+                          {/* 상태 뱃지: 우선순위 보유 > 반납요청 > 검사대기 */}
+                          <div className="flex flex-col items-end gap-0.5 flex-shrink-0">
+                            {/* 1순위: 보유 (EQT_USE_ARR_YN === 'Y') */}
+                            {item.EQT_USE_ARR_YN === 'Y' && (
+                              <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-green-100 text-green-700">보유</span>
+                            )}
+                            {/* 2순위: 반납요청 */}
                             {(item._hasReturnRequest || item._category === 'RETURN_REQUESTED') && (
-                              <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold ${
-                                item.EQT_USE_ARR_YN === 'Y' ? 'bg-green-100 text-green-700' :
-                                item.EQT_USE_ARR_YN === 'A' ? 'bg-purple-100 text-purple-700' :
-                                item.EQT_USE_ARR_YN === 'N' ? 'bg-red-100 text-red-700' :
-                                'bg-gray-100 text-gray-700'
-                              }`}>
-                                {item.EQT_USE_ARR_YN === 'Y' ? '사용가능' :
-                                 item.EQT_USE_ARR_YN === 'A' ? '검사대기' :
-                                 item.EQT_USE_ARR_YN === 'N' ? '사용불가' : '-'}
-                              </span>
+                              <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-orange-100 text-orange-700">반납요청</span>
+                            )}
+                            {/* 3순위: 검사대기 (EQT_USE_ARR_YN === 'A') */}
+                            {item.EQT_USE_ARR_YN === 'A' && (
+                              <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-purple-100 text-purple-700">검사대기</span>
+                            )}
+                            {/* 사용불가 (EQT_USE_ARR_YN === 'N') */}
+                            {item.EQT_USE_ARR_YN === 'N' && (
+                              <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-red-100 text-red-700">사용불가</span>
                             )}
                           </div>
                         </div>
