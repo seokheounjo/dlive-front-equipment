@@ -1331,26 +1331,15 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
                         <div className="font-mono text-xs text-gray-700 mt-1">
                           {item.EQT_SERNO || '-'} | {formatMac(item.MAC_ADDRESS)}
                         </div>
-                        {/* 자세히: 추가 정보 (회색 박스) */}
+                        {/* 자세히: 추가 정보 (회색 박스) - 한 줄에 하나씩 */}
                         {viewMode === 'detail' && (
                           <div className="bg-gray-100 rounded-lg p-2 mt-2 text-xs space-y-1">
-                            {/* 모델명 (값만) */}
-                            <div className="text-gray-800 font-medium">{item.EQT_CL_NM || item.ITEM_NM || '-'}</div>
-                            {/* 사용가능일자, 변경종류 (값만) */}
-                            <div className="flex gap-4 text-gray-600">
-                              <span>{item.EQT_USE_END_DT ? formatDateDot(item.EQT_USE_END_DT) : '-'}</span>
-                              <span>{item.PROC_STAT_NM || '-'}</span>
-                            </div>
-                            {/* 현재위치, 이동전위치 (라벨+값) */}
-                            <div className="flex gap-4">
-                              <span><span className="text-gray-500">현재위치</span> <span className="text-gray-800">{item.EQT_LOC_TP_NM || getEqtLocTpName(item.EQT_LOC_TP_CD || '') || '작업기사'}</span></span>
-                              <span><span className="text-gray-500">이동전위치</span> <span className="text-gray-800">-</span></span>
-                            </div>
-                            {/* 장비상태, 지점명 (값만) */}
-                            <div className="flex gap-4 text-gray-600">
-                              <span>{item.EQT_STAT_NM || getEqtStatName(item.EQT_STAT_CD) || '-'}</span>
-                              <span>{item.SO_NM || '-'}</span>
-                            </div>
+                            <div className="text-gray-600">사용종료일 {item.EQT_USE_END_DT ? formatDateDot(item.EQT_USE_END_DT) : '-'}</div>
+                            <div className="text-gray-600">변경종류 {item.PROC_STAT_NM || '-'}</div>
+                            <div><span className="text-gray-500">현재위치</span> <span className="text-gray-800">{item.EQT_LOC_TP_NM || getEqtLocTpName(item.EQT_LOC_TP_CD || '') || '작업기사'}</span></div>
+                            <div><span className="text-gray-500">이동전위치</span> <span className="text-gray-800">-</span></div>
+                            <div className="text-gray-600">장비상태 {item.EQT_STAT_NM || getEqtStatName(item.EQT_STAT_CD) || '-'}</div>
+                            <div className="text-gray-600">지점명 {item.SO_NM || '-'}</div>
                           </div>
                         )}
                       </div>
