@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { getUnreturnedEquipmentList, processEquipmentRecovery, getEquipmentHistoryInfo } from '../../services/apiService';
 import { debugApiCall } from './equipmentDebug';
-import { Scan, Check } from 'lucide-react';
+import { Scan, Check, ChevronDown, ChevronUp } from 'lucide-react';
 import BarcodeScanner from './BarcodeScanner';
 
-// SO (지점) 정보 타입
+// SO (jijum) info type
 interface SoInfo {
   SO_ID: string;
   SO_NM: string;
@@ -41,10 +41,13 @@ interface UnreturnedEqt {
   PHONE_NO: string;
   ADDRESS: string;
   RETN_REQ_YN: string;
-  LOSS_AMT: string;CRR_ID: string;CMPL_DATE: string;isScanned?: boolean;
+  LOSS_AMT: string;
+  CRR_ID: string;
+  CMPL_DATE: string;
+  isScanned?: boolean;
 }
 
-// 날짜 포맷 함수 (YYYY.MM.DD)
+// Date format function (YYYY.MM.DD)
 const formatDateDot = (dateStr: string): string => {
   if (!dateStr) return '';
   if (dateStr.length === 8 && !dateStr.includes('-') && !dateStr.includes('.')) {
@@ -56,13 +59,13 @@ const formatDateDot = (dateStr: string): string => {
   return dateStr;
 };
 
-// 날짜를 YYYYMMDD로 변환 (API용)
+// Date to YYYYMMDD (API)
 const formatDateApi = (dateStr: string): string => {
   if (!dateStr) return '';
   return dateStr.replace(/[-\.]/g, '');
 };
 
-// 날짜를 YYYY-MM-DD로 변환 (input용)
+// Date to YYYY-MM-DD (input)
 const formatDateInput = (dateStr: string): string => {
   if (!dateStr) return '';
   if (dateStr.length === 8 && !dateStr.includes('-') && !dateStr.includes('.')) {
@@ -74,7 +77,7 @@ const formatDateInput = (dateStr: string): string => {
   return dateStr;
 };
 
-// 회수처리 모달 - 회수완료만 + 지점 선택
+// Recovery Modal
 const RecoveryModal: React.FC<{
   isOpen: boolean;
   onClose: () => void;
@@ -95,7 +98,7 @@ const RecoveryModal: React.FC<{
 
   const handleProcess = () => {
     if (!selectedSoId) {
-      alert('지점을 선택해주세요.');
+      alert('jijum selection required.');
       return;
     }
     onProcess('1', selectedSoId);
@@ -105,8 +108,8 @@ const RecoveryModal: React.FC<{
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-xl shadow-xl w-full max-w-sm overflow-hidden">
         <div className="p-4 border-b border-gray-100 bg-gradient-to-r from-green-500 to-green-600">
-          <h3 className="font-semibold text-white">미회수 장비 회수완료</h3>
-          <p className="text-xs text-white/80 mt-1">{selectedItems.length}건의 장비를 처리합니다</p>
+          <h3 className="font-semibold text-white">Unreturned Equipment Recovery</h3>
+          <p className="text-xs text-white/80 mt-1">{selectedItems.length} items to process</p>
         </div>
         <div className="p-4 space-y-3">
           <div className="bg-gray-50 rounded-lg p-3 max-h-32 overflow-y-auto">
@@ -118,14 +121,14 @@ const RecoveryModal: React.FC<{
             ))}
           </div>
           <div className="space-y-2">
-            <label className="text-xs font-medium text-gray-700">회수 지점 선택</label>
+            <label className="text-xs font-medium text-gray-700">Select Recovery Branch</label>
             <select
               value={selectedSoId}
               onChange={(e) => setSelectedSoId(e.target.value)}
               className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
               disabled={isProcessing}
             >
-              <option value="">지점을 선택하세요</option>
+              <option value="">Select branch</option>
               {soList.map((so) => (
                 <option key={so.SO_ID} value={so.SO_ID}>
                   {so.SO_NM} ({so.SO_ID})
@@ -139,14 +142,14 @@ const RecoveryModal: React.FC<{
             className="w-full py-3 text-sm text-white bg-green-500 hover:bg-green-600 disabled:bg-gray-300 rounded-lg font-medium transition-colors flex items-center justify-center gap-2"
           >
             <Check className="w-4 h-4" />
-            {isProcessing ? '처리 중...' : '회수완료'}
+            {isProcessing ? 'Processing...' : 'Complete Recovery'}
           </button>
           <button
             onClick={onClose}
             disabled={isProcessing}
             className="w-full py-2.5 text-sm text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-lg font-medium transition-colors"
           >
-            취소
+            Cancel
           </button>
         </div>
       </div>
@@ -172,14 +175,24 @@ const EquipmentRecovery: React.FC<EquipmentRecoveryProps> = ({ onBack }) => {
   const [soList, setSoList] = useState<SoInfo[]>([]);
   const [viewMode, setViewMode] = useState<'simple' | 'detail'>('simple');
   const [lossFilter, setLossFilter] = useState<'all' | 'lost' | 'notLost'>('all');
+  const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
+
+  // Toggle group collapse
+  const toggleGroup = (groupKey: string) => {
+    setCollapsedGroups(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(groupKey)) {
+        newSet.delete(groupKey);
+      } else {
+        newSet.add(groupKey);
+      }
+      return newSet;
+    });
+  };
 
   // Lost equipment check (LOSS_AMT > 0 means lost)
-  const isLostEquipment = (item: UnreturnedEqt | null | undefined): boolean => {
-    if (!item || !item.LOSS_AMT) return false;
-    const amt = item.LOSS_AMT;
-    if (amt === '' || amt === '0' || amt === 'null' || amt === 'undefined') return false;
-    const numAmt = Number(amt);
-    return !isNaN(numAmt) && numAmt > 0;
+  const isLostEquipment = (item: UnreturnedEqt): boolean => {
+    return item.LOSS_AMT !== '' && item.LOSS_AMT !== '0' && Number(item.LOSS_AMT) > 0;
   };
 
   // Filtered list
@@ -193,7 +206,38 @@ const EquipmentRecovery: React.FC<EquipmentRecoveryProps> = ({ onBack }) => {
   const lostCount = unreturnedList.filter(item => isLostEquipment(item)).length;
   const notLostCount = unreturnedList.length - lostCount;
 
-  // SO 목록 로드
+  // 2-level grouping: Branch > Equipment Type
+  const groupedByLocation = filteredList.reduce((acc, item, idx) => {
+    const soKey = item.SO_NM || item.SO_ID || 'Unassigned';
+    const itemTypeKey = item.EQT_CL_NM || 'Other';
+    if (!acc[soKey]) acc[soKey] = {};
+    if (!acc[soKey][itemTypeKey]) acc[soKey][itemTypeKey] = [];
+    acc[soKey][itemTypeKey].push({ ...item, _globalIdx: idx });
+    return acc;
+  }, {} as Record<string, Record<string, (UnreturnedEqt & { _globalIdx: number })[]>>);
+
+  const soKeys = Object.keys(groupedByLocation).sort();
+
+  // Check all in SO group
+  const handleCheckSo = (soKey: string, checked: boolean) => {
+    setUnreturnedList(unreturnedList.map(item => {
+      const itemSo = item.SO_NM || item.SO_ID || 'Unassigned';
+      const isLost = isLostEquipment(item);
+      return itemSo === soKey && isLost ? { ...item, CHK: checked } : item;
+    }));
+  };
+
+  // Check all in item type group
+  const handleCheckItemType = (soKey: string, itemTypeKey: string, checked: boolean) => {
+    setUnreturnedList(unreturnedList.map(item => {
+      const itemSo = item.SO_NM || item.SO_ID || 'Unassigned';
+      const itemType = item.EQT_CL_NM || 'Other';
+      const isLost = isLostEquipment(item);
+      return (itemSo === soKey && itemType === itemTypeKey && isLost) ? { ...item, CHK: checked } : item;
+    }));
+  };
+
+  // SO list load
   useEffect(() => {
     const userInfoStr = typeof window !== 'undefined' ? sessionStorage.getItem('userInfo') : null;
     if (userInfoStr) {
@@ -208,19 +252,17 @@ const EquipmentRecovery: React.FC<EquipmentRecoveryProps> = ({ onBack }) => {
           setSoList(mappedList);
         }
       } catch (e) {
-        console.error('SO 목록 로드 실패:', e);
+        console.error('SO list load failed:', e);
       }
     }
   }, []);
 
-  // 바코드 스캔 처리
+  // Barcode scan handler
   const handleBarcodeScan = async (serialNo: string) => {
     setIsLoading(true);
     try {
-      // 스캔된 S/N 저장
       setScannedSerials(prev => [...new Set([serialNo, ...prev])]);
 
-      // S/N으로 미회수 장비 조회
       const params = {
         EQT_SERNO: serialNo
       };
@@ -233,7 +275,6 @@ const EquipmentRecovery: React.FC<EquipmentRecoveryProps> = ({ onBack }) => {
       );
 
       if (result && result.length > 0) {
-        // 미회수 장비에서 찾음
         const transformedList: UnreturnedEqt[] = result.map((item: any) => ({
           CHK: item.EQT_SERNO === serialNo,
           CUST_ID: item.CUST_ID || '',
@@ -260,7 +301,6 @@ const EquipmentRecovery: React.FC<EquipmentRecoveryProps> = ({ onBack }) => {
         }));
         setUnreturnedList(transformedList);
       } else {
-        // 미회수 목록에 없으면 장비 정보 조회 후 안내
         const eqtResult = await debugApiCall(
           'EquipmentRecovery',
           'getEquipmentHistoryInfo',
@@ -270,24 +310,23 @@ const EquipmentRecovery: React.FC<EquipmentRecoveryProps> = ({ onBack }) => {
 
         if (eqtResult && eqtResult.length > 0) {
           const eqt = eqtResult[0];
-          alert(`장비(${serialNo})는 미회수 장비가 아닙니다.\n\n보유기사: ${eqt.WRKR_NM || '없음'}\n지점: ${eqt.SO_NM || '없음'}\n상태: ${eqt.EQT_STAT_NM || eqt.EQT_STAT_CD || '알수없음'}`);
+          alert(`Equipment (${serialNo}) is not unreturned.\n\nHolder: ${eqt.WRKR_NM || 'None'}\nBranch: ${eqt.SO_NM || 'None'}\nStatus: ${eqt.EQT_STAT_NM || eqt.EQT_STAT_CD || 'Unknown'}`);
         } else {
-          alert(`장비(${serialNo})를 찾을 수 없습니다.`);
+          alert(`Equipment (${serialNo}) not found.`);
         }
         setUnreturnedList([]);
       }
     } catch (error) {
-      console.error('바코드 스캔 처리 실패:', error);
-      alert('장비 조회에 실패했습니다.');
+      console.error('Barcode scan failed:', error);
+      alert('Equipment lookup failed.');
     } finally {
       setIsLoading(false);
     }
   };
 
   const handleSearch = async () => {
-    // 검색 조건 검증 - 최소 1개 이상 필수
     if (!searchParams.EQT_SERNO && !searchParams.CUST_ID && !searchParams.CUST_NM) {
-      alert('S/N, 고객ID, 고객명 중 하나 이상을 입력해주세요.');
+      alert('Enter at least one of S/N, Customer ID, or Customer Name.');
       return;
     }
 
@@ -331,7 +370,6 @@ const EquipmentRecovery: React.FC<EquipmentRecoveryProps> = ({ onBack }) => {
         isScanned: scannedSerials.includes(item.EQT_SERNO)
       }));
 
-      // 스캔된 장비 상위 정렬
       transformedList.sort((a, b) => {
         if (a.isScanned && !b.isScanned) return -1;
         if (!a.isScanned && b.isScanned) return 1;
@@ -340,15 +378,15 @@ const EquipmentRecovery: React.FC<EquipmentRecoveryProps> = ({ onBack }) => {
 
       setUnreturnedList(transformedList);
     } catch (error) {
-      console.error('미회수 장비 조회 실패:', error);
-      alert('미회수 장비 조회에 실패했습니다.');
+      console.error('Unreturned equipment lookup failed:', error);
+      alert('Unreturned equipment lookup failed.');
       setUnreturnedList([]);
     } finally {
       setIsLoading(false);
     }
   };
 
-  // 회수 처리
+  // Recovery process
   const handleRecoveryProcess = async (procType: string, soId: string) => {
     const selectedItems = unreturnedList.filter(item => item.CHK);
     if (selectedItems.length === 0) return;
@@ -359,14 +397,12 @@ const EquipmentRecovery: React.FC<EquipmentRecoveryProps> = ({ onBack }) => {
       let skipCount = 0;
       for (const item of selectedItems) {
         try {
-          // EQT_NO 형식 검증 (20자리 숫자여야 함)
           if (!item.EQT_NO || item.EQT_NO.length !== 20 || !/^\d+$/.test(item.EQT_NO)) {
-            console.warn('잘못된 EQT_NO 형식 (처리 불가):', item.EQT_SERNO, item.EQT_NO);
+            console.warn('Invalid EQT_NO format:', item.EQT_SERNO, item.EQT_NO);
             skipCount++;
             continue;
           }
 
-          // Get user info for CHG_UID
           const userInfoStr = typeof window !== 'undefined' ? sessionStorage.getItem('userInfo') : null;
           const userInfo = userInfoStr ? JSON.parse(userInfoStr) : {};
           const today = new Date().toISOString().slice(0,10).replace(/-/g, '');
@@ -374,7 +410,7 @@ const EquipmentRecovery: React.FC<EquipmentRecoveryProps> = ({ onBack }) => {
           const params = {
             EQT_NO: item.EQT_NO,
             EQT_SERNO: item.EQT_SERNO,
-            PROC_CL: procType, // 1=회수완료, 2=망실처리, 3=고객분실
+            PROC_CL: procType,
             CUST_ID: item.CUST_ID,
             CTRT_ID: item.CTRT_ID,
             WRK_ID: item.WRK_ID,
@@ -384,7 +420,7 @@ const EquipmentRecovery: React.FC<EquipmentRecoveryProps> = ({ onBack }) => {
             CHG_UID: userInfo.userId || '',
             PROC_UID_SO_ID: soId || userInfo.soId || item.SO_ID || '',
             RTN_DD: today,
-            RTN_TP: '3', // 3=기사회수
+            RTN_TP: '3',
             STTL_YN: 'N'
           };
           await debugApiCall(
@@ -395,38 +431,31 @@ const EquipmentRecovery: React.FC<EquipmentRecoveryProps> = ({ onBack }) => {
           );
           successCount++;
         } catch (err) {
-          console.error('회수 처리 실패:', item.EQT_SERNO, err);
+          console.error('Recovery process failed:', item.EQT_SERNO, err);
         }
       }
 
-      const procTypeNames: Record<string, string> = {
-        '1': '회수완료',
-        '2': '망실처리',
-        '3': '고객분실'
-      };
-
       if (successCount > 0) {
-        let msg = successCount + '건의 장비가 회수완료 처리되었습니다.';
+        let msg = successCount + ' items recovery completed.';
         if (skipCount > 0) {
-          msg += `\n(${skipCount}건은 EQT_NO 형식 오류로 건너뜀)`;
+          msg += `\n(${skipCount} items skipped due to EQT_NO format error)`;
         }
         alert(msg);
         setRecoveryModalOpen(false);
         setScannedSerials([]);
-        // 목록 새로고침
         handleSearch();
       } else {
-        throw new Error('처리에 실패했습니다.');
+        throw new Error('Process failed.');
       }
     } catch (error) {
-      console.error('회수 처리 실패:', error);
-      alert('회수 처리에 실패했습니다.');
+      console.error('Recovery process failed:', error);
+      alert('Recovery process failed.');
     } finally {
       setIsProcessing(false);
     }
   };
 
-  // 전체 체크 (분실장비만 체크 가능)
+  // Check all (only lost equipment)
   const handleCheckAll = (checked: boolean) => {
     setUnreturnedList(unreturnedList.map(item => {
       const isLost = isLostEquipment(item);
@@ -434,13 +463,10 @@ const EquipmentRecovery: React.FC<EquipmentRecoveryProps> = ({ onBack }) => {
     }));
   };
 
-  // 개별 체크 (분실장비만 체크 가능)
+  // Individual check (only lost equipment)
   const handleCheckItem = (index: number, checked: boolean) => {
-    if (index < 0 || index >= unreturnedList.length) return;
     const newList = [...unreturnedList];
     const item = newList[index];
-    if (!item) return;
-    // Only allow checking lost equipment
     if (isLostEquipment(item)) {
       newList[index].CHK = checked;
       setUnreturnedList(newList);
@@ -449,18 +475,107 @@ const EquipmentRecovery: React.FC<EquipmentRecoveryProps> = ({ onBack }) => {
 
   const selectedCount = unreturnedList.filter(item => item.CHK).length;
 
+  // Render equipment item
+  const renderEquipmentItem = (item: UnreturnedEqt & { _globalIdx: number }) => {
+    const isLost = isLostEquipment(item);
+    const canSelect = isLost;
+    const originalIdx = unreturnedList.findIndex(u => u.EQT_SERNO === item.EQT_SERNO);
+
+    return (
+      <div
+        key={item._globalIdx}
+        className={`px-4 py-3 transition-colors ${
+          !canSelect ? 'opacity-60 bg-gray-50' :
+          item.isScanned ? 'bg-orange-50' : 'hover:bg-blue-50/50'
+        }`}
+      >
+        <div className="flex items-start gap-3">
+          <input
+            type="checkbox"
+            checked={item.CHK || false}
+            onChange={(e) => handleCheckItem(originalIdx, e.target.checked)}
+            disabled={!canSelect}
+            className={`rounded mt-0.5 ${!canSelect ? 'cursor-not-allowed' : ''}`}
+            title={!canSelect ? 'Only lost equipment can be recovered' : ''}
+          />
+          <div className="flex-1 min-w-0">
+            {viewMode === 'simple' && (
+              <>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2 min-w-0 flex-1 mr-2">
+                    <span className="px-1.5 py-0.5 bg-orange-100 text-orange-700 text-[10px] rounded font-medium flex-shrink-0">
+                      {item.EQT_CL_NM || 'Equipment'}
+                    </span>
+                    <span className={`text-sm font-medium truncate ${canSelect ? 'text-gray-900' : 'text-gray-500'}`}>{item.ITEM_NM || '-'}</span>
+                    {item.isScanned && (
+                      <span className="px-1.5 py-0.5 bg-orange-500 text-white text-[10px] rounded font-medium flex-shrink-0">Scanned</span>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-1">
+                    {isLost ? (
+                      <span className="px-2 py-0.5 rounded text-[10px] flex-shrink-0 bg-red-100 text-red-700">Lost</span>
+                    ) : (
+                      <span className="px-2 py-0.5 rounded text-[10px] flex-shrink-0 bg-gray-200 text-gray-500">N/A</span>
+                    )}
+                  </div>
+                </div>
+                <div className="font-mono text-xs text-gray-700 mt-1">
+                  {item.EQT_SERNO || '-'}
+                </div>
+              </>
+            )}
+            {viewMode === 'detail' && (
+              <>
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center gap-2 min-w-0 flex-1 mr-2">
+                    <span className="px-1.5 py-0.5 bg-orange-100 text-orange-700 text-[10px] rounded font-medium flex-shrink-0">
+                      {item.EQT_CL_NM || item.ITEM_NM || 'Equipment'}
+                    </span>
+                    <span className={`font-mono text-xs truncate ${canSelect ? 'text-gray-800' : 'text-gray-500'}`}>{item.EQT_SERNO}</span>
+                    {item.isScanned && (
+                      <span className="px-1.5 py-0.5 bg-orange-500 text-white text-[10px] rounded font-medium flex-shrink-0">Scanned</span>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-1">
+                    {isLost ? (
+                      <span className="px-2 py-0.5 rounded text-[10px] flex-shrink-0 bg-red-100 text-red-700">Lost</span>
+                    ) : (
+                      <span className="px-2 py-0.5 rounded text-[10px] flex-shrink-0 bg-gray-200 text-gray-500">N/A</span>
+                    )}
+                  </div>
+                </div>
+                <div className="bg-gray-50 rounded-lg p-2">
+                  <div className="space-y-1 text-xs">
+                    <div className="text-gray-700 font-medium">{item.CUST_NM || '-'}</div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-gray-400">Location</span>
+                      <span className="text-gray-700">{item.SO_NM || '-'}</span>
+                    </div>
+                    {item.WRKR_NM && <div className="text-gray-600">{item.WRKR_NM}</div>}
+                    {item.TRML_DT && <div className="text-gray-500">{formatDateDot(item.TRML_DT)}</div>}
+                    {item.LOSS_AMT && <div className="text-red-600">{Number(item.LOSS_AMT).toLocaleString()}won</div>}
+                  </div>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   return (
     <div className="h-full overflow-y-auto bg-gray-50 px-4 py-4 space-y-3">
-      {/* 스캔된 장비 표시 */}
+      {/* Scanned equipment display */}
       {scannedSerials.length > 0 && (
         <div className="bg-orange-50 border border-orange-200 rounded-xl p-3">
           <div className="flex items-center justify-between mb-2">
-            <span className="text-xs font-medium text-orange-700">스캔된 장비 ({scannedSerials.length})</span>
+            <span className="text-xs font-medium text-orange-700">Scanned Equipment ({scannedSerials.length})</span>
             <button
               onClick={() => setScannedSerials([])}
               className="text-xs text-orange-600 hover:text-orange-800"
             >
-              초기화
+              Clear
             </button>
           </div>
           <div className="flex flex-wrap gap-1">
@@ -473,10 +588,9 @@ const EquipmentRecovery: React.FC<EquipmentRecoveryProps> = ({ onBack }) => {
         </div>
       )}
 
-      {/* 검색 영역 */}
+      {/* Search area */}
       <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4">
         <div className="space-y-3">
-          {/* S/N 검색 */}
           <div className="flex items-center gap-2">
             <label className="text-xs font-medium text-gray-600 w-14 flex-shrink-0">S/N</label>
             <input
@@ -484,31 +598,29 @@ const EquipmentRecovery: React.FC<EquipmentRecoveryProps> = ({ onBack }) => {
               value={searchParams.EQT_SERNO}
               onChange={(e) => setSearchParams({...searchParams, EQT_SERNO: e.target.value.toUpperCase()})}
               className="flex-1 px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-all font-mono"
-              placeholder="장비 S/N 입력"
+              placeholder="Equipment S/N"
             />
           </div>
 
-          {/* 고객ID */}
           <div className="flex items-center gap-2">
-            <label className="text-xs font-medium text-gray-600 w-14 flex-shrink-0">고객ID</label>
+            <label className="text-xs font-medium text-gray-600 w-14 flex-shrink-0">Cust ID</label>
             <input
               type="text"
               value={searchParams.CUST_ID}
               onChange={(e) => setSearchParams({...searchParams, CUST_ID: e.target.value})}
               className="flex-1 px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-all"
-              placeholder="고객ID 입력"
+              placeholder="Customer ID"
             />
           </div>
 
-          {/* 고객명 */}
           <div className="flex items-center gap-2">
-            <label className="text-xs font-medium text-gray-600 w-14 flex-shrink-0">고객명</label>
+            <label className="text-xs font-medium text-gray-600 w-14 flex-shrink-0">Name</label>
             <input
               type="text"
               value={searchParams.CUST_NM}
               onChange={(e) => setSearchParams({...searchParams, CUST_NM: e.target.value})}
               className="flex-1 px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-all"
-              placeholder="고객명 입력"
+              placeholder="Customer Name"
             />
           </div>
 
@@ -519,7 +631,7 @@ const EquipmentRecovery: React.FC<EquipmentRecoveryProps> = ({ onBack }) => {
               className="flex-1 bg-blue-500 hover:bg-blue-600 disabled:bg-gray-300 text-white py-2.5 rounded-lg font-semibold text-sm shadow-sm transition-all active:scale-[0.98] touch-manipulation"
               style={{ WebkitTapHighlightColor: 'transparent' }}
             >
-              {isLoading ? '조회 중...' : '조회'}
+              {isLoading ? 'Searching...' : 'Search'}
             </button>
             <button
               onClick={() => setScanModalOpen(true)}
@@ -527,13 +639,13 @@ const EquipmentRecovery: React.FC<EquipmentRecoveryProps> = ({ onBack }) => {
               style={{ WebkitTapHighlightColor: 'transparent' }}
             >
               <Scan className="w-4 h-4" />
-              스캔
+              Scan
             </button>
           </div>
         </div>
       </div>
 
-      {/* 미회수 장비 목록 */}
+      {/* Unreturned equipment list */}
       {unreturnedList.length > 0 ? (
         <>
           <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
@@ -541,11 +653,11 @@ const EquipmentRecovery: React.FC<EquipmentRecoveryProps> = ({ onBack }) => {
               <div className="flex items-center justify-between mb-2">
                 <div>
                   <span className="text-sm font-semibold text-gray-800">
-                    조회 결과: {filteredList.length}건
+                    Results: {filteredList.length} items
                   </span>
                   {selectedCount > 0 && (
                     <span className="text-sm text-orange-600 ml-2 font-medium">
-                      (선택: {selectedCount}건)
+                      (Selected: {selectedCount})
                     </span>
                   )}
                 </div>
@@ -556,7 +668,7 @@ const EquipmentRecovery: React.FC<EquipmentRecoveryProps> = ({ onBack }) => {
                     checked={filteredList.length > 0 && filteredList.filter(item => isLostEquipment(item)).every(item => item.CHK)}
                     className="rounded"
                   />
-                  전체선택
+                  Select All
                 </label>
               </div>
               {/* Loss filter buttons */}
@@ -569,7 +681,7 @@ const EquipmentRecovery: React.FC<EquipmentRecoveryProps> = ({ onBack }) => {
                       : 'text-gray-500 hover:text-gray-700'
                   }`}
                 >
-                  전체 ({unreturnedList.length})
+                  All ({unreturnedList.length})
                 </button>
                 <button
                   onClick={() => setLossFilter('lost')}
@@ -579,7 +691,7 @@ const EquipmentRecovery: React.FC<EquipmentRecoveryProps> = ({ onBack }) => {
                       : 'text-gray-500 hover:text-gray-700'
                   }`}
                 >
-                  분실 ({lostCount})
+                  Lost ({lostCount})
                 </button>
                 <button
                   onClick={() => setLossFilter('notLost')}
@@ -589,12 +701,12 @@ const EquipmentRecovery: React.FC<EquipmentRecoveryProps> = ({ onBack }) => {
                       : 'text-gray-500 hover:text-gray-700'
                   }`}
                 >
-                  비분실 ({notLostCount})
+                  Not Lost ({notLostCount})
                 </button>
               </div>
             </div>
-            {/* 뷰 모드 선택 버튼 */}
-            <div className="px-4 pb-3">
+            {/* View mode buttons */}
+            <div className="px-4 py-2 border-b border-gray-100">
               <div className="flex gap-1 bg-gray-100 p-1 rounded-lg">
                 <button
                   onClick={() => setViewMode('simple')}
@@ -604,7 +716,7 @@ const EquipmentRecovery: React.FC<EquipmentRecoveryProps> = ({ onBack }) => {
                       : 'text-gray-500 hover:text-gray-700'
                   }`}
                 >
-                  간단히
+                  Simple
                 </button>
                 <button
                   onClick={() => setViewMode('detail')}
@@ -614,119 +726,100 @@ const EquipmentRecovery: React.FC<EquipmentRecoveryProps> = ({ onBack }) => {
                       : 'text-gray-500 hover:text-gray-700'
                   }`}
                 >
-                  자세히
+                  Detail
                 </button>
               </div>
             </div>
-            <div className="max-h-[50vh] overflow-y-auto divide-y divide-gray-50">
-              {filteredList.map((item, idx) => {
-                const isLost = isLostEquipment(item);
-                const canSelect = isLost;
-                const originalIdx = unreturnedList.findIndex(u => u.EQT_SERNO === item.EQT_SERNO);
+            {/* Grouped list */}
+            <div className="max-h-[50vh] overflow-y-auto">
+              {soKeys.map(soKey => {
+                const soItems = groupedByLocation[soKey];
+                const itemTypeKeys = Object.keys(soItems).sort();
+                const soTotalCount = itemTypeKeys.reduce((sum, k) => sum + soItems[k].length, 0);
+                const soCheckedCount = itemTypeKeys.reduce((sum, k) => sum + soItems[k].filter(i => i.CHK).length, 0);
+                const soLostCount = itemTypeKeys.reduce((sum, k) => sum + soItems[k].filter(i => isLostEquipment(i)).length, 0);
+                const isSoCollapsed = collapsedGroups.has(`so_${soKey}`);
+
                 return (
-                <div
-                  key={idx}
-                  className={`px-4 py-3 transition-colors ${
-                    !canSelect ? 'opacity-60 bg-gray-50' :
-                    item.isScanned ? 'bg-orange-50' : 'hover:bg-blue-50/50'
-                  }`}
-                >
-                  <div className="flex items-start gap-3">
-                    <input
-                      type="checkbox"
-                      checked={item.CHK || false}
-                      onChange={(e) => handleCheckItem(originalIdx, e.target.checked)}
-                      disabled={!canSelect}
-                      className={`rounded mt-0.5 ${!canSelect ? 'cursor-not-allowed' : ''}`}
-                      title={!canSelect ? '분실장비만 회수 가능' : ''}
-                    />
-                    <div className="flex-1 min-w-0">
-                      {/* 간단히 보기 */}
-                      {viewMode === 'simple' && (
-                        <>
-                          {/* [품목] 모델명 [상태] */}
-                          <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-2 min-w-0 flex-1 mr-2">
-                              <span className="px-1.5 py-0.5 bg-orange-100 text-orange-700 text-[10px] rounded font-medium flex-shrink-0">
-                                {item.EQT_CL_NM || '장비'}
-                              </span>
-                              <span className={`text-sm font-medium truncate ${canSelect ? 'text-gray-900' : 'text-gray-500'}`}>{item.ITEM_NM || '-'}</span>
-                              {item.isScanned && (
-                                <span className="px-1.5 py-0.5 bg-orange-500 text-white text-[10px] rounded font-medium flex-shrink-0">스캔</span>
-                              )}
-                            </div>
-                            <div className="flex items-center gap-1">
-                              {isLost ? (
-                                <span className="px-2 py-0.5 rounded text-[10px] flex-shrink-0 bg-red-100 text-red-700">분실</span>
-                              ) : (
-                                <span className="px-2 py-0.5 rounded text-[10px] flex-shrink-0 bg-gray-200 text-gray-500">회수불가</span>
-                              )}
-                            </div>
-                          </div>
-                          {/* S/N - 한 줄 (MAC 없음) */}
-                          <div className="font-mono text-xs text-gray-700 mt-1">
-                            {item.EQT_SERNO || '-'}
-                          </div>
-                        </>
-                      )}
-                      {/* 자세히 보기 */}
-                      {viewMode === 'detail' && (
-                        <>
-                          {/* 간단히와 동일: [품목] S/N [상태] */}
-                          <div className="flex items-center justify-between mb-2">
-                            <div className="flex items-center gap-2 min-w-0 flex-1 mr-2">
-                              <span className="px-1.5 py-0.5 bg-orange-100 text-orange-700 text-[10px] rounded font-medium flex-shrink-0">
-                                {item.EQT_CL_NM || item.ITEM_NM || '장비'}
-                              </span>
-                              <span className={`font-mono text-xs truncate ${canSelect ? 'text-gray-800' : 'text-gray-500'}`}>{item.EQT_SERNO}</span>
-                              {item.isScanned && (
-                                <span className="px-1.5 py-0.5 bg-orange-500 text-white text-[10px] rounded font-medium flex-shrink-0">스캔</span>
-                              )}
-                            </div>
-                            <div className="flex items-center gap-1">
-                              {isLost ? (
-                                <span className="px-2 py-0.5 rounded text-[10px] flex-shrink-0 bg-red-100 text-red-700">분실</span>
-                              ) : (
-                                <span className="px-2 py-0.5 rounded text-[10px] flex-shrink-0 bg-gray-200 text-gray-500">회수불가</span>
-                              )}
-                            </div>
-                          </div>
-                          {/* 추가 정보 (회색 박스) */}
-                          <div className="bg-gray-50 rounded-lg p-2">
-                            <div className="space-y-1 text-xs">
-                              {/* 고객명 (값만) */}
-                              <div className="text-gray-700 font-medium">{item.CUST_NM || '-'}</div>
-                              {/* 현재위치 (라벨+값) */}
-                              <div className="flex items-center gap-2">
-                                <span className="text-gray-400">현재위치</span>
-                                <span className="text-gray-700">{item.SO_NM || '-'}</span>
-                              </div>
-                              {/* 보유자 (값만) */}
-                              {item.WRKR_NM && <div className="text-gray-600">{item.WRKR_NM}</div>}
-                              {/* 해지일 (값만) */}
-                              {item.TRML_DT && <div className="text-gray-500">{formatDateDot(item.TRML_DT)}</div>}
-                              {/* 손실금액 (값만) */}
-                              {item.LOSS_AMT && <div className="text-red-600">{Number(item.LOSS_AMT).toLocaleString()}원</div>}
-                            </div>
-                          </div>
-                        </>
-                      )}
+                  <div key={soKey} className="border-b border-gray-100 last:border-0">
+                    {/* SO Header */}
+                    <div
+                      className="px-4 py-2 bg-blue-50 flex items-center justify-between cursor-pointer hover:bg-blue-100 transition-colors"
+                      onClick={() => toggleGroup(`so_${soKey}`)}
+                    >
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="checkbox"
+                          checked={soLostCount > 0 && soCheckedCount === soLostCount}
+                          onChange={(e) => {
+                            e.stopPropagation();
+                            handleCheckSo(soKey, e.target.checked);
+                          }}
+                          onClick={(e) => e.stopPropagation()}
+                          className="rounded"
+                          disabled={soLostCount === 0}
+                        />
+                        {isSoCollapsed ? <ChevronUp className="w-4 h-4 text-blue-600" /> : <ChevronDown className="w-4 h-4 text-blue-600" />}
+                        <span className="text-sm font-semibold text-blue-800">{soKey}</span>
+                        <span className="text-xs text-blue-600">({soTotalCount})</span>
+                      </div>
                     </div>
+
+                    {/* Item Type Groups */}
+                    {!isSoCollapsed && itemTypeKeys.map(itemTypeKey => {
+                      const items = soItems[itemTypeKey];
+                      const itemTypeLostCount = items.filter(i => isLostEquipment(i)).length;
+                      const itemTypeCheckedCount = items.filter(i => i.CHK).length;
+                      const isItemTypeCollapsed = collapsedGroups.has(`so_${soKey}_type_${itemTypeKey}`);
+
+                      return (
+                        <div key={itemTypeKey}>
+                          {/* Item Type Header */}
+                          <div
+                            className="px-6 py-2 bg-gray-50 flex items-center justify-between cursor-pointer hover:bg-gray-100 transition-colors"
+                            onClick={() => toggleGroup(`so_${soKey}_type_${itemTypeKey}`)}
+                          >
+                            <div className="flex items-center gap-2">
+                              <input
+                                type="checkbox"
+                                checked={itemTypeLostCount > 0 && itemTypeCheckedCount === itemTypeLostCount}
+                                onChange={(e) => {
+                                  e.stopPropagation();
+                                  handleCheckItemType(soKey, itemTypeKey, e.target.checked);
+                                }}
+                                onClick={(e) => e.stopPropagation()}
+                                className="rounded"
+                                disabled={itemTypeLostCount === 0}
+                              />
+                              {isItemTypeCollapsed ? <ChevronUp className="w-3 h-3 text-gray-500" /> : <ChevronDown className="w-3 h-3 text-gray-500" />}
+                              <span className="text-xs font-medium text-gray-700">{itemTypeKey}</span>
+                              <span className="text-xs text-gray-500">({items.length})</span>
+                            </div>
+                          </div>
+
+                          {/* Equipment Items */}
+                          {!isItemTypeCollapsed && (
+                            <div className="divide-y divide-gray-50">
+                              {items.map(item => renderEquipmentItem(item))}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
                   </div>
-                </div>
                 );
               })}
             </div>
           </div>
 
-          {/* 회수 처리 버튼 */}
+          {/* Recovery button */}
           <button
             onClick={() => setRecoveryModalOpen(true)}
             disabled={selectedCount === 0}
             className="w-full bg-gradient-to-r from-green-500 to-green-600 disabled:from-gray-300 disabled:to-gray-400 text-white py-4 rounded-xl font-bold text-base shadow-lg flex items-center justify-center gap-2 active:scale-[0.98] transition-all"
           >
             <Check className="w-5 h-5" />
-            회수 처리 ({selectedCount}건)
+            Process Recovery ({selectedCount})
           </button>
         </>
       ) : (
@@ -738,13 +831,13 @@ const EquipmentRecovery: React.FC<EquipmentRecoveryProps> = ({ onBack }) => {
               </svg>
             </div>
             <p className="text-gray-500 text-sm">
-              {isLoading ? '조회 중...' : '바코드를 스캔하거나 조건을 입력하여\n미회수 장비를 조회하세요'}
+              {isLoading ? 'Searching...' : 'Scan barcode or enter search criteria\nto find unreturned equipment'}
             </p>
           </div>
         </div>
       )}
 
-      {/* 바코드 스캐너 */}
+      {/* Barcode Scanner */}
       <BarcodeScanner
         isOpen={scanModalOpen}
         onClose={() => setScanModalOpen(false)}
