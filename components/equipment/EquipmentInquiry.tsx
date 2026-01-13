@@ -1355,11 +1355,6 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
                               <span className="text-gray-700">{item.BEF_EQT_LOC_NM || item.BEF_LOC_NM || '-'}</span>
                             </div>
 
-                            {/* 장비상태 (값만) */}
-                            <div className={`font-medium ${item.EQT_STAT_CD === '10' ? 'text-green-600' : item.EQT_STAT_CD === '20' ? 'text-blue-600' : 'text-gray-600'}`}>
-                              {item.EQT_STAT_NM || getEqtStatName(item.EQT_STAT_CD) || '-'}
-                            </div>
-
                             {/* 지점 (값만) */}
                             <div className="text-gray-600">{item.SO_NM || item.SO_ID || '-'}</div>
                           </div>

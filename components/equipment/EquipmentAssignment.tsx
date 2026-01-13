@@ -668,7 +668,7 @@ const EquipmentAssignment: React.FC<EquipmentAssignmentProps> = ({ onBack, showT
                       {outTgtEqtList.map((item, idx) => {
                         const isReceived = item.PROC_YN === 'Y';
                         const hasSerial = item.EQT_SERNO && item.EQT_SERNO.trim() !== '';
-                        const canSelect = !isReceived && hasSerial;  // 입고완료 또는 미할당은 선택 불가
+                        const canSelect = !isReceived && hasSerial;
 
                         return (
                           <div
@@ -695,26 +695,23 @@ const EquipmentAssignment: React.FC<EquipmentAssignmentProps> = ({ onBack, showT
                                 }`}
                               />
                               <div className="flex-1 min-w-0">
-                                <div className="flex items-center justify-between mb-2">
+                                {/* [품목] S/N | MAC [상태] - 한 줄 */}
+                                <div className="flex items-center justify-between">
                                   <div className="flex items-center gap-2 min-w-0 flex-1 mr-2">
                                     <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium flex-shrink-0 ${getItemColor(item.ITEM_MID_CD)}`}>
                                       {item.ITEM_MID_CD_NM || '장비'}
                                     </span>
-                                    <span className="text-sm font-medium text-gray-900 truncate">
-                                      {item.EQT_CL_NM || '-'}
+                                    <span className="font-mono text-xs text-gray-800 truncate">
+                                      {item.EQT_SERNO || '-'} | {formatMac(item.MAC_ADDRESS || '')}
                                     </span>
                                   </div>
-                                  <span className={`px-2 py-1 rounded-full text-xs font-semibold ${
+                                  <span className={`px-2 py-1 rounded-full text-xs font-semibold flex-shrink-0 ${
                                     isReceived ? 'bg-green-100 text-green-700' :
                                     !hasSerial ? 'bg-gray-100 text-gray-700' :
                                     'bg-blue-100 text-blue-700'
                                   }`}>
                                     {isReceived ? '입고완료' : !hasSerial ? '미할당' : '대기'}
                                   </span>
-                                </div>
-                                <div className="space-y-0.5 text-xs">
-                                  <div className="font-mono text-gray-800 text-[11px]">{item.EQT_SERNO || '-'}</div>
-                                  <div className="font-mono text-gray-600 text-[11px]">{formatMac(item.MAC_ADDRESS || '')}</div>
                                 </div>
                               </div>
                             </div>
@@ -730,7 +727,7 @@ const EquipmentAssignment: React.FC<EquipmentAssignmentProps> = ({ onBack, showT
                       {outTgtEqtList.map((item, idx) => {
                         const isReceived = item.PROC_YN === 'Y';
                         const hasSerial = item.EQT_SERNO && item.EQT_SERNO.trim() !== '';
-                        const canSelect = !isReceived && hasSerial;  // 입고완료 또는 미할당은 선택 불가
+                        const canSelect = !isReceived && hasSerial;
 
                         return (
                           <div
@@ -756,17 +753,17 @@ const EquipmentAssignment: React.FC<EquipmentAssignmentProps> = ({ onBack, showT
                                 }`}
                               />
                               <div className="flex-1 min-w-0">
-                                {/* 상단: 품목 배지 + 장비명 + 상태 */}
+                                {/* 간단히와 동일: [품목] S/N | MAC [상태] */}
                                 <div className="flex items-center justify-between mb-3">
                                   <div className="flex items-center gap-2 min-w-0 flex-1 mr-2">
                                     <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium flex-shrink-0 ${getItemColor(item.ITEM_MID_CD)}`}>
                                       {item.ITEM_MID_CD_NM || '장비'}
                                     </span>
-                                    <span className="text-sm font-medium text-gray-900 truncate">
-                                      {item.EQT_CL_NM || '-'}
+                                    <span className="font-mono text-xs text-gray-800 truncate">
+                                      {item.EQT_SERNO || '-'} | {formatMac(item.MAC_ADDRESS || '')}
                                     </span>
                                   </div>
-                                  <span className={`px-2 py-1 rounded-full text-xs font-semibold ${
+                                  <span className={`px-2 py-1 rounded-full text-xs font-semibold flex-shrink-0 ${
                                     isReceived ? 'bg-green-100 text-green-700' :
                                     !hasSerial ? 'bg-gray-100 text-gray-700' :
                                     'bg-blue-100 text-blue-700'
@@ -775,38 +772,29 @@ const EquipmentAssignment: React.FC<EquipmentAssignmentProps> = ({ onBack, showT
                                   </span>
                                 </div>
 
-                                {/* 상세 정보 - 장비처리와 동일한 회색 박스 레이아웃 */}
+                                {/* 추가 정보 (회색 박스) */}
                                 <div className="bg-gray-50 rounded-lg p-3">
                                   <div className="space-y-1.5 text-xs">
-                                    {/* 요청수량 (값만) */}
-                                    <div className="text-gray-700">{item.OUT_REQ_QTY || 0}개 요청</div>
+                                    {/* 장비분류 (값만) */}
+                                    <div className="text-gray-700 font-medium">{item.EQT_CL_NM || '-'}</div>
 
-                                    {/* 출고수량 (값만) */}
-                                    <div className="text-green-600">{item.OUT_QTY || 0}개 출고</div>
+                                    {/* 요청/출고/입고 수량 (값만) */}
+                                    <div className="text-gray-600">{item.OUT_REQ_QTY || 0}개 요청 / {item.OUT_QTY || 0}개 출고 / {item.IBGO_QTY || 0}개 입고</div>
 
-                                    {/* 현재위치 (라벨 유지) */}
+                                    {/* 현재위치 (라벨+값) */}
                                     <div className="flex items-center gap-2">
                                       <span className="text-gray-400">현재위치</span>
-                                      <span className="text-gray-700 font-medium">작업기사</span>
+                                      <span className="text-gray-700">작업기사</span>
                                     </div>
 
-                                    {/* 이전위치 (라벨 유지) */}
+                                    {/* 이전위치 (라벨+값) */}
                                     <div className="flex items-center gap-2">
                                       <span className="text-gray-400">이전위치</span>
                                       <span className="text-gray-700">창고</span>
                                     </div>
-
-                                    {/* 입고수량 (값만) */}
-                                    <div className={`font-medium ${(item.IBGO_QTY || 0) > 0 ? 'text-blue-600' : 'text-gray-600'}`}>
-                                      {item.IBGO_QTY || 0}개 입고
-                                    </div>
-
-                                    {/* 장비분류 (값만) */}
-                                    <div className="text-gray-600">{item.EQT_CL_NM || '-'}</div>
                                   </div>
                                   {item.REMARK && (
                                     <div className="mt-2 pt-1.5 border-t border-gray-200">
-                                      <span className="text-gray-400 text-xs">비고: </span>
                                       <span className="text-gray-600 text-xs">{item.REMARK}</span>
                                     </div>
                                   )}
