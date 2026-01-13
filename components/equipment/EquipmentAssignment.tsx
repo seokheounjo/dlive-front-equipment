@@ -183,6 +183,13 @@ const EquipmentAssignment: React.FC<EquipmentAssignmentProps> = ({ onBack, showT
     loadSoList();
   }, []);
 
+  // 지점 변경 시 리스트 초기화
+  useEffect(() => {
+    setEqtOutList([]);
+    setSelectedEqtOut(null);
+    setOutTgtEqtList([]);
+  }, [selectedSoId]);
+
   // UI 상태
   const [isLoading, setIsLoading] = useState(false);
   const [isLoadingDetail, setIsLoadingDetail] = useState(false);
@@ -574,7 +581,8 @@ const EquipmentAssignment: React.FC<EquipmentAssignmentProps> = ({ onBack, showT
                           <div className="flex items-center text-xs">
                             <span className="w-20 text-gray-900 whitespace-nowrap">{formatOutDttm(item.OUT_DTTM || item.OUT_REQ_DT)}</span>
                             <span className="flex-1 text-gray-600 truncate">{item.CRR_NM || '-'}</span>
-                            <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold mr-2 ${getReceiveStatusDisplay(item).color}`}>
+                            <span className="text-[10px] text-gray-500 mr-2 font-mono">{item.OUT_REQ_NO}</span>
+                            <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold ${getReceiveStatusDisplay(item).color}`}>
                               {getReceiveStatusDisplay(item).label}
                             </span>
                           </div>
@@ -660,16 +668,19 @@ const EquipmentAssignment: React.FC<EquipmentAssignmentProps> = ({ onBack, showT
                       {outTgtEqtList.map((item, idx) => {
                         const isReceived = item.PROC_YN === 'Y';
                         const hasSerial = item.EQT_SERNO && item.EQT_SERNO.trim() !== '';
-                        const canSelect = !isReceived;
+                        const canSelect = !isReceived && hasSerial;  // 입고완료 또는 미할당은 선택 불가
 
                         return (
                           <div
                             key={idx}
                             onClick={() => canSelect && handleCheckItem(idx, !item.CHK)}
-                            className={`p-3 rounded-lg border-2 cursor-pointer transition-all ${
+                            className={`p-3 rounded-lg border-2 transition-all ${
+                              canSelect ? 'cursor-pointer' : 'cursor-not-allowed opacity-70'
+                            } ${
                               item.CHK
                                 ? 'bg-blue-50 border-blue-400'
                                 : isReceived ? 'bg-green-50/50 border-green-200'
+                                : !hasSerial ? 'bg-gray-100/50 border-gray-200'
                                 : 'bg-gray-50 border-transparent hover:border-gray-200'
                             }`}
                           >
@@ -680,7 +691,7 @@ const EquipmentAssignment: React.FC<EquipmentAssignmentProps> = ({ onBack, showT
                                 onChange={(e) => { e.stopPropagation(); canSelect && handleCheckItem(idx, e.target.checked); }}
                                 disabled={!canSelect}
                                 className={`w-5 h-5 rounded focus:ring-blue-500 mt-0.5 ${
-                                  isReceived ? 'text-green-500 cursor-not-allowed' : 'text-blue-500'
+                                  !canSelect ? 'text-gray-300 cursor-not-allowed' : 'text-blue-500'
                                 }`}
                               />
                               <div className="flex-1 min-w-0">
@@ -719,13 +730,15 @@ const EquipmentAssignment: React.FC<EquipmentAssignmentProps> = ({ onBack, showT
                       {outTgtEqtList.map((item, idx) => {
                         const isReceived = item.PROC_YN === 'Y';
                         const hasSerial = item.EQT_SERNO && item.EQT_SERNO.trim() !== '';
-                        const canSelect = !isReceived;
+                        const canSelect = !isReceived && hasSerial;  // 입고완료 또는 미할당은 선택 불가
 
                         return (
                           <div
                             key={idx}
                             onClick={() => canSelect && handleCheckItem(idx, !item.CHK)}
-                            className={`p-3 rounded-lg border-2 cursor-pointer transition-all ${
+                            className={`p-3 rounded-lg border-2 transition-all ${
+                              canSelect ? 'cursor-pointer' : 'cursor-not-allowed opacity-70'
+                            } ${
                               item.CHK
                                 ? 'bg-blue-50 border-blue-400'
                                 : isReceived ? 'bg-green-50/30 border-green-200'
