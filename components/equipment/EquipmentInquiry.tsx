@@ -637,8 +637,8 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
     }
 
     try {
-      // 대량 처리 시 진행 상태 표시 (3개 이상일 때)
-      const showProgress = checkedItems.length >= 3;
+      // 진행 상태 표시: 반납요청은 항상, 반납취소는 3개 이상일 때
+      const showProgress = action === 'RETURN' || checkedItems.length >= 3;
       if (showProgress) {
         setProgressInfo({ current: 0, total: checkedItems.length, item: '', action: action === 'CANCEL' ? '반납취소' : '반납요청' });
         setShowProgressModal(true);
