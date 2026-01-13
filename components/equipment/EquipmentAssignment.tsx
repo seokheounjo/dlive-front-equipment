@@ -706,13 +706,11 @@ const EquipmentAssignment: React.FC<EquipmentAssignmentProps> = ({ onBack, showT
                                       {item.EQT_CL_NM || '-'}
                                     </span>
                                   </div>
-                                  <span className={`px-2 py-1 rounded-full text-xs font-semibold flex-shrink-0 ${
-                                    isReceived ? 'bg-green-100 text-green-700' :
-                                    !hasSerial ? 'bg-gray-100 text-gray-700' :
-                                    'bg-blue-100 text-blue-700'
-                                  }`}>
-                                    {isReceived ? '입고완료' : !hasSerial ? '미할당' : '대기'}
-                                  </span>
+                                  {isReceived && (
+                                    <span className="px-2 py-1 rounded-full text-xs font-semibold flex-shrink-0 bg-green-100 text-green-700">
+                                      입고완료
+                                    </span>
+                                  )}
                                 </div>
                                 {/* S/N | MAC - 한 줄 */}
                                 <div className="font-mono text-xs text-gray-700 mt-1">
@@ -768,13 +766,11 @@ const EquipmentAssignment: React.FC<EquipmentAssignmentProps> = ({ onBack, showT
                                       {item.EQT_SERNO || '-'} | {formatMac(item.MAC_ADDRESS || '')}
                                     </span>
                                   </div>
-                                  <span className={`px-2 py-1 rounded-full text-xs font-semibold flex-shrink-0 ${
-                                    isReceived ? 'bg-green-100 text-green-700' :
-                                    !hasSerial ? 'bg-gray-100 text-gray-700' :
-                                    'bg-blue-100 text-blue-700'
-                                  }`}>
-                                    {isReceived ? '입고완료' : !hasSerial ? '미할당' : '대기'}
-                                  </span>
+                                  {isReceived && (
+                                    <span className="px-2 py-1 rounded-full text-xs font-semibold flex-shrink-0 bg-green-100 text-green-700">
+                                      입고완료
+                                    </span>
+                                  )}
                                 </div>
 
                                 {/* 추가 정보 (회색 박스) */}
@@ -782,9 +778,6 @@ const EquipmentAssignment: React.FC<EquipmentAssignmentProps> = ({ onBack, showT
                                   <div className="space-y-1.5 text-xs">
                                     {/* 장비분류 (값만) */}
                                     <div className="text-gray-700 font-medium">{item.EQT_CL_NM || '-'}</div>
-
-                                    {/* 요청/출고/입고 수량 (값만) */}
-                                    <div className="text-gray-600">{item.OUT_REQ_QTY || 0}개 요청 / {item.OUT_QTY || 0}개 출고 / {item.IBGO_QTY || 0}개 입고</div>
 
                                     {/* 현재위치 (라벨+값) */}
                                     <div className="flex items-center gap-2">
