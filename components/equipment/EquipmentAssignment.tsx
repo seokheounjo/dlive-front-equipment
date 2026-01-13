@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { ChevronDown, ChevronUp } from 'lucide-react';
 import '../../styles/buttons.css';
 import {
   getEquipmentOutList,
@@ -196,6 +197,7 @@ const EquipmentAssignment: React.FC<EquipmentAssignmentProps> = ({ onBack, showT
   const [showDetailModal, setShowDetailModal] = useState(false);
   const [selectedEquipmentDetail, setSelectedEquipmentDetail] = useState<OutTgtEqt | null>(null);
   const [viewMode, setViewMode] = useState<'simple' | 'detail'>('simple');
+  const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
 
   // 입고대상장비 섹션 ref (자동 스크롤용)
   const equipmentListRef = useRef<HTMLDivElement>(null);
@@ -301,6 +303,27 @@ const EquipmentAssignment: React.FC<EquipmentAssignmentProps> = ({ onBack, showT
   };
 
   // 자동 조회 제거 - 조회 버튼 클릭 시에만 조회
+
+
+  // 그룹 접기/펼치기
+  const toggleGroup = (groupKey: string) => {
+    setCollapsedGroups(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(groupKey)) newSet.delete(groupKey);
+      else newSet.add(groupKey);
+      return newSet;
+    });
+  };
+
+  // 장비종류로 그룹화
+  const groupedByItemType = outTgtEqtList.reduce((acc, item, idx) => {
+    const key = item.ITEM_MID_CD_NM || '기타';
+    if (!acc[key]) acc[key] = [];
+    acc[key].push({ ...item, _idx: idx });
+    return acc;
+  }, {} as Record<string, (OutTgtEqt & { _idx: number })[]>);
+
+  const itemTypeKeys = Object.keys(groupedByItemType).sort();
 
   const handleEqtOutSelect = async (item: EqtOut) => {
     setSelectedEqtOut(item);
@@ -663,15 +686,40 @@ const EquipmentAssignment: React.FC<EquipmentAssignmentProps> = ({ onBack, showT
                     </div>
                   </div>
 
-                  {/* 간단히 보기 */}
-                  {viewMode === 'simple' && (
-                    <div className="p-3 space-y-2">
-                      {outTgtEqtList.map((item, idx) => {
-                        const isReceived = item.PROC_YN === 'Y';
-                        const hasSerial = item.EQT_SERNO && item.EQT_SERNO.trim() !== '';
-                        const canSelect = !isReceived && hasSerial;
+                  {/* 장비종류별 그룹핑된 목록 */}
+                  <div className="divide-y divide-gray-100">
+                    {itemTypeKeys.map(itemTypeKey => {
+                      const items = groupedByItemType[itemTypeKey];
+                      const isCollapsed = collapsedGroups.has(itemTypeKey);
+                      const itemCount = items.length;
+                      const checkedCount = items.filter(i => i.CHK && i.PROC_YN !== 'Y').length;
 
-                        return (
+                      return (
+                        <div key={itemTypeKey}>
+                          {/* 장비종류 헤더 */}
+                          <div
+                            className="px-4 py-2 bg-gray-50 flex items-center justify-between cursor-pointer hover:bg-gray-100"
+                            onClick={() => toggleGroup(itemTypeKey)}
+                          >
+                            <div className="flex items-center gap-2">
+                              <span className="text-sm font-semibold text-gray-700">{itemTypeKey}</span>
+                              <span className="text-xs text-gray-500 bg-gray-200 px-2 py-0.5 rounded-full">
+                                {itemCount}건 {checkedCount > 0 && `(${checkedCount}선택)`}
+                              </span>
+                            </div>
+                            {isCollapsed ? <ChevronDown className="w-4 h-4 text-gray-500" /> : <ChevronUp className="w-4 h-4 text-gray-500" />}
+                          </div>
+
+                          {/* 장비 목록 */}
+                          {!isCollapsed && (
+                            <div className="divide-y divide-gray-50">
+                              {items.map((item) => {
+                                const idx = item._idx;
+                                const isReceived = item.PROC_YN === 'Y';
+                                const hasSerial = item.EQT_SERNO && item.EQT_SERNO.trim() !== '';
+                                const canSelect = !isReceived && hasSerial;
+
+                                return (
                           <div
                             key={idx}
                             onClick={() => canSelect && handleCheckItem(idx, !item.CHK)}
@@ -737,10 +785,14 @@ const EquipmentAssignment: React.FC<EquipmentAssignmentProps> = ({ onBack, showT
                               </div>
                             </div>
                           </div>
-                        );
-                      })}
-                    </div>
-                  )}
+                                );
+                              })}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
 
                   {/* 기존 자세히 보기 블록 - 비활성화 */}
                   {false && (
