@@ -1279,6 +1279,8 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
             {/* 자세히 보기: 모델명, 사용가능, 변경종류, 현재위치, 이동전위치, 장비상태, 지점 */}
             {viewMode === 'detail' && (
               <div className="p-3 space-y-2">
+                {/* 디버그: 아이템 수 표시 */}
+                <div className="text-xs text-red-500 font-bold bg-yellow-100 p-2 rounded">자세히 모드 - 총 {filteredDisplayList.length}건</div>
                 {filteredDisplayList.map((item, idx) => (
                   <div
                     key={item.EQT_NO || idx}
