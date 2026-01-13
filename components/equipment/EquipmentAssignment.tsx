@@ -706,16 +706,34 @@ const EquipmentAssignment: React.FC<EquipmentAssignmentProps> = ({ onBack, showT
                                       {item.EQT_CL_NM || '-'}
                                     </span>
                                   </div>
-                                  {isReceived && (
-                                    <span className="px-2 py-1 rounded-full text-xs font-semibold flex-shrink-0 bg-green-100 text-green-700">
-                                      입고완료
-                                    </span>
-                                  )}
+                                  <span className={`px-2 py-1 rounded-full text-xs font-semibold flex-shrink-0 ${
+                                    isReceived ? 'bg-green-100 text-green-700' : 'bg-blue-100 text-blue-700'
+                                  }`}>
+                                    {isReceived ? '입고완료' : '입고대기'}
+                                  </span>
                                 </div>
                                 {/* S/N | MAC - 한 줄 */}
                                 <div className="font-mono text-xs text-gray-700 mt-1">
                                   {item.EQT_SERNO || '-'} | {formatMac(item.MAC_ADDRESS || '')}
                                 </div>
+                                {/* 자세히 보기: 추가 정보 확장 */}
+                                {viewMode === 'detail' && (
+                                  <div className="bg-gray-50 rounded-lg p-2 mt-2">
+                                    <div className="space-y-1 text-xs">
+                                      <div className="flex items-center gap-2">
+                                        <span className="text-gray-400">현재위치</span>
+                                        <span className="text-gray-700">작업기사</span>
+                                      </div>
+                                      <div className="flex items-center gap-2">
+                                        <span className="text-gray-400">이전위치</span>
+                                        <span className="text-gray-700">창고</span>
+                                      </div>
+                                      {item.REMARK && (
+                                        <div className="text-gray-600 pt-1 border-t border-gray-200 mt-1">{item.REMARK}</div>
+                                      )}
+                                    </div>
+                                  </div>
+                                )}
                               </div>
                             </div>
                           </div>
@@ -724,8 +742,8 @@ const EquipmentAssignment: React.FC<EquipmentAssignmentProps> = ({ onBack, showT
                     </div>
                   )}
 
-                  {/* 자세히 보기 */}
-                  {viewMode === 'detail' && (
+                  {/* 기존 자세히 보기 블록 - 비활성화 */}
+                  {false && (
                     <div className="p-3 space-y-2">
                       {outTgtEqtList.map((item, idx) => {
                         const isReceived = item.PROC_YN === 'Y';
