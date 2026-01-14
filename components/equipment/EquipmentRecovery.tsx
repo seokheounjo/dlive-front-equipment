@@ -45,6 +45,13 @@ interface UnreturnedEqt {
   CRR_ID: string;
   CMPL_DATE: string;
   isScanned?: boolean;
+  // 통일된 간단히/자세히 형식용 필드
+  MAC_ADDRESS?: string;
+  EQT_USE_END_DT?: string;
+  EQT_STAT_NM?: string;
+  CHG_TP_NM?: string;
+  EQT_LOC_TP_NM?: string;
+  BEF_EQT_LOC_NM?: string;
 }
 
 // Date format function (YYYY.MM.DD)
@@ -57,6 +64,14 @@ const formatDateDot = (dateStr: string): string => {
     return dateStr.replace(/-/g, '.');
   }
   return dateStr;
+};
+
+// MAC address format (XX:XX:XX:XX:XX:XX)
+const formatMac = (mac: string | null | undefined): string => {
+  if (!mac) return '-';
+  const cleaned = mac.replace(/[^A-Fa-f0-9]/g, '');
+  if (cleaned.length !== 12) return mac;
+  return cleaned.match(/.{2}/g)?.join(':') || mac;
 };
 
 // Date to YYYYMMDD (API)
@@ -475,7 +490,7 @@ const EquipmentRecovery: React.FC<EquipmentRecoveryProps> = ({ onBack }) => {
 
   const selectedCount = unreturnedList.filter(item => item.CHK).length;
 
-  // Render equipment item - 장비처리와 동일한 레이아웃
+  // Render equipment item - 통일된 간단히/자세히 형식
   const renderEquipmentItem = (item: UnreturnedEqt & { _globalIdx: number }) => {
     const isLost = isLostEquipment(item);
     const canSelect = isLost;
@@ -485,73 +500,59 @@ const EquipmentRecovery: React.FC<EquipmentRecoveryProps> = ({ onBack }) => {
       <div
         key={item._globalIdx}
         onClick={() => canSelect && handleCheckItem(originalIdx, !item.CHK)}
-        className={`p-3 rounded-lg border-2 cursor-pointer transition-all ${
+        className={`px-4 py-3 flex items-start gap-3 transition-colors ${
           item.CHK
-            ? 'bg-blue-50 border-blue-400'
+            ? 'bg-blue-50'
             : !canSelect
-              ? 'opacity-60 bg-gray-100 border-gray-200 cursor-not-allowed'
+              ? 'opacity-60 bg-gray-50'
               : item.isScanned
-                ? 'bg-orange-50 border-orange-200 hover:border-orange-300'
-                : 'bg-white border-gray-100 hover:border-gray-300'
+                ? 'bg-orange-50'
+                : 'hover:bg-blue-50/50'
         }`}
       >
-        <div className="flex items-start gap-3">
-          <input
-            type="checkbox"
-            checked={item.CHK || false}
-            onChange={(e) => { e.stopPropagation(); handleCheckItem(originalIdx, e.target.checked); }}
-            disabled={!canSelect}
-            className={`w-5 h-5 rounded focus:ring-blue-500 mt-0.5 ${
-              !canSelect ? 'text-gray-300 cursor-not-allowed' : 'text-blue-500'
-            }`}
-          />
-          <div className="flex-1 min-w-0">
-            {/* 상단: 품목 배지 + 장비명 + 상태 배지 */}
-            <div className="flex items-center justify-between mb-1">
-              <div className="flex items-center gap-2 min-w-0 flex-1 mr-2">
-                <span className="px-1.5 py-0.5 bg-orange-100 text-orange-700 text-[10px] rounded font-medium flex-shrink-0">
-                  {item.EQT_CL_NM || '장비'}
-                </span>
-                {item.isScanned && (
-                  <span className="px-1.5 py-0.5 bg-orange-500 text-white text-[10px] rounded font-medium flex-shrink-0">스캔</span>
-                )}
-                <span className={`text-sm font-medium truncate ${canSelect ? 'text-gray-900' : 'text-gray-500'}`}>
-                  {item.ITEM_NM || item.EQT_CL_NM || '-'}
-                </span>
-              </div>
-              <span className={`px-2 py-1 rounded-full text-xs font-semibold flex-shrink-0 ${
+        <input
+          type="checkbox"
+          checked={item.CHK || false}
+          onChange={(e) => { e.stopPropagation(); handleCheckItem(originalIdx, e.target.checked); }}
+          disabled={!canSelect}
+          className={`w-5 h-5 rounded focus:ring-blue-500 mt-0.5 ${
+            !canSelect ? 'text-gray-300 cursor-not-allowed' : 'text-blue-500'
+          }`}
+        />
+        <div className="flex-1 min-w-0">
+          {/* 간단히 보기: 1줄 - S/N + 상태뱃지 */}
+          <div className="flex items-center justify-between">
+            <span className="font-mono text-sm font-medium text-gray-900">{item.EQT_SERNO || '-'}</span>
+            <div className="flex items-center gap-1 flex-shrink-0">
+              {item.isScanned && (
+                <span className="px-1.5 py-0.5 bg-orange-500 text-white text-[10px] rounded font-medium">스캔</span>
+              )}
+              <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold ${
                 isLost ? 'bg-red-100 text-red-700' : 'bg-gray-100 text-gray-500'
               }`}>
                 {isLost ? '분실' : '정상'}
               </span>
             </div>
-
-            {/* 간단히 보기: S/N + 상태배지 (1줄), 해지일 + 고객명 (2줄) - 장비처리와 동일 형식 */}
-            <div className="flex items-center justify-between">
-              <span className="font-mono text-sm font-medium text-gray-900">{item.EQT_SERNO || '-'}</span>
-            </div>
-            <div className="flex items-center justify-between mt-1">
-              <span className="text-xs text-gray-600">{formatDateDot(item.TRML_DT) || '-'}</span>
-              <span className="text-xs text-gray-600 truncate max-w-[120px]">{item.CUST_NM || '-'}</span>
-            </div>
-
-            {/* 자세히 보기: 장비처리와 동일한 회색 박스 레이아웃 */}
-            {viewMode === 'detail' && (
-              <div className="bg-gray-100 rounded-lg p-2 mt-2 text-xs space-y-1">
-                {/* 1줄: 품목명 + 지점명 */}
-                <div className="flex items-center justify-between">
-                  <span className="font-medium text-gray-900">{item.ITEM_NM || item.EQT_CL_NM || '-'}</span>
-                  <span className="text-gray-600">{item.SO_NM || '-'}</span>
-                </div>
-                <div><span className="text-gray-500">해지일    : </span><span className="text-gray-800">{formatDateDot(item.TRML_DT) || '-'}</span></div>
-                <div><span className="text-gray-500">현재위치  : </span><span className="text-gray-800">고객</span></div>
-                <div><span className="text-gray-500">고객명    : </span><span className="text-gray-800">{item.CUST_NM || '-'}</span></div>
-                {isLost && item.LOSS_AMT && (
-                  <div><span className="text-gray-500">분실금액  : </span><span className="text-red-600 font-medium">{Number(item.LOSS_AMT).toLocaleString()}원</span></div>
-                )}
-              </div>
-            )}
           </div>
+          {/* 간단히 보기: 2줄 - MAC + 사용가능일자 */}
+          <div className="flex items-center justify-between mt-1">
+            <span className="font-mono text-xs text-gray-600">{formatMac(item.MAC_ADDRESS) || '-'}</span>
+            <span className="text-xs text-gray-600">{formatDateDot(item.EQT_USE_END_DT) || '-'}</span>
+          </div>
+          {/* 자세히 보기: 추가 정보 */}
+          {viewMode === 'detail' && (
+            <div className="bg-gray-100 rounded-lg p-2 mt-2 text-xs space-y-1">
+              {/* 1줄: 모델명 + 지점명 */}
+              <div className="flex items-center justify-between">
+                <span className="font-medium text-gray-900">{item.EQT_CL_NM || item.ITEM_NM || '-'}</span>
+                <span className="text-gray-600">{item.SO_NM || '-'}</span>
+              </div>
+              <div><span className="text-gray-500">장비상태  : </span><span className="text-gray-800">{item.EQT_STAT_NM || '-'}</span></div>
+              <div><span className="text-gray-500">변경종류  : </span><span className="text-gray-800">{item.CHG_TP_NM || '-'}</span></div>
+              <div><span className="text-gray-500">현재위치  : </span><span className="text-gray-800">{item.EQT_LOC_TP_NM || '-'}</span></div>
+              <div><span className="text-gray-500">이전위치  : </span><span className="text-gray-800">{item.BEF_EQT_LOC_NM || '-'}</span></div>
+            </div>
+          )}
         </div>
       </div>
     );

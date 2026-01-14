@@ -70,6 +70,12 @@ interface OutTgtEqt {
   EQT_CHECK: string;
   REMARK: string;
   CHK: boolean;
+  // 통일된 간단히/자세히 형식용 필드
+  EQT_USE_END_DT?: string;
+  EQT_STAT_NM?: string;
+  CHG_TP_NM?: string;
+  EQT_LOC_TP_NM?: string;
+  BEF_EQT_LOC_NM?: string;
 }
 
 interface SoListItem {
@@ -763,7 +769,7 @@ const EquipmentAssignment: React.FC<EquipmentAssignmentProps> = ({ onBack, showT
                                 {/* 간단히 보기: 2줄 - MAC + 사용가능일자 */}
                                 <div className="flex items-center justify-between mt-1">
                                   <span className="font-mono text-xs text-gray-600">{formatMac(item.MAC_ADDRESS || '')}</span>
-                                  <span className="text-xs text-gray-600">-</span>
+                                  <span className="text-xs text-gray-600">{formatDateDot(item.EQT_USE_END_DT || '')}</span>
                                 </div>
                                 {/* 자세히 보기: 추가 정보 */}
                                 {viewMode === 'detail' && (
@@ -773,10 +779,10 @@ const EquipmentAssignment: React.FC<EquipmentAssignmentProps> = ({ onBack, showT
                                       <span className="font-medium text-gray-900">{item.EQT_CL_NM || '-'}</span>
                                       <span className="text-gray-600">{soNm || '-'}</span>
                                     </div>
-                                    <div><span className="text-gray-500">장비상태  : </span><span className="text-gray-800">재고</span></div>
-                                    <div><span className="text-gray-500">변경종류  : </span><span className="text-gray-800">출고</span></div>
-                                    <div><span className="text-gray-500">현재위치  : </span><span className="text-gray-800">작업기사</span></div>
-                                    <div><span className="text-gray-500">이전위치  : </span><span className="text-gray-800">창고</span></div>
+                                    <div><span className="text-gray-500">장비상태  : </span><span className="text-gray-800">{item.EQT_STAT_NM || '-'}</span></div>
+                                    <div><span className="text-gray-500">변경종류  : </span><span className="text-gray-800">{item.CHG_TP_NM || '-'}</span></div>
+                                    <div><span className="text-gray-500">현재위치  : </span><span className="text-gray-800">{item.EQT_LOC_TP_NM || '-'}</span></div>
+                                    <div><span className="text-gray-500">이전위치  : </span><span className="text-gray-800">{item.BEF_EQT_LOC_NM || '-'}</span></div>
                                   </div>
                                 )}
                               </div>
