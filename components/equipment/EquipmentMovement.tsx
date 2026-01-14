@@ -920,17 +920,24 @@ const EquipmentMovement: React.FC<EquipmentMovementProps> = ({ onBack }) => {
             <p className="text-xs text-gray-500 mt-0.5">기사를 검색하여 보유 장비를 조회합니다</p>
           </div>
           <div className="space-y-3">
-            {/* 보유기사 입력 - 전체 영역 클릭 시 팝업 */}
+            {/* 보유기사 입력 - 이름/ID 분리 */}
             <div
               className="flex items-center gap-2 cursor-pointer"
               onClick={openWorkerSearchModal}
             >
               <input
                 type="text"
-                value={workerInfo.WRKR_NM ? `${workerInfo.WRKR_NM} (${workerInfo.WRKR_ID})` : ''}
+                value={workerInfo.WRKR_NM || ''}
                 readOnly
                 className="flex-1 min-w-0 px-3 py-2.5 text-sm border border-gray-200 rounded-lg bg-gray-50 cursor-pointer"
-                placeholder="기사명 또는 ID 검색"
+                placeholder="기사명"
+              />
+              <input
+                type="text"
+                value={workerInfo.WRKR_ID || ''}
+                readOnly
+                className="w-28 px-3 py-2.5 text-sm border border-gray-200 rounded-lg bg-gray-50 cursor-pointer font-mono"
+                placeholder="ID"
               />
             </div>
 

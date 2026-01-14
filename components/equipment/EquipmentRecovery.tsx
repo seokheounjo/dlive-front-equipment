@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { getUnreturnedEquipmentList, processEquipmentRecovery, getEquipmentHistoryInfo } from '../../services/apiService';
 import { searchCustomer, CustomerInfo } from '../../services/customerApi';
 import { debugApiCall } from './equipmentDebug';
-import { Scan, Check, ChevronDown, ChevronUp, Search, User, X, Loader2, Phone } from 'lucide-react';
+import { Scan, Check, ChevronDown, ChevronUp, Search, User, X, Loader2, Phone, FileText, Cpu } from 'lucide-react';
 import BarcodeScanner from './BarcodeScanner';
 
 // SO (jijum) info type
