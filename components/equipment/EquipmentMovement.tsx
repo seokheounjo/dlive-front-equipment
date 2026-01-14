@@ -433,10 +433,13 @@ const EquipmentMovement: React.FC<EquipmentMovementProps> = ({ onBack }) => {
           setIsSearchingWorker(false);
           return;
         }
-        console.log('[장비이동] 이름 검색:', keyword, '지점:', modalSelectedSoId);
+        console.log('[장비이동] 이름 검색:', keyword, '지점:', modalSelectedSoId, '협력업체:', loggedInUser.crrId);
 
-        // 지점별 전체 작업자 조회
-        const allWorkers = await findUserList({ SO_ID: modalSelectedSoId });
+        // 지점별 전체 작업자 조회 (CRR_ID 필수)
+        const allWorkers = await findUserList({
+          SO_ID: modalSelectedSoId,
+          CRR_ID: loggedInUser.crrId  // 협력업체 필수
+        });
         console.log('[장비이동] 지점 작업자 전체:', allWorkers.length, '명');
 
         // 클라이언트에서 이름 필터링 (부분 일치)

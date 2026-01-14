@@ -3268,6 +3268,7 @@ export const findUserList = async (params: {
   USR_NM?: string;
   USR_ID?: string;
   SO_ID?: string;
+  CRR_ID?: string;  // 협력업체 ID (필수)
 }): Promise<any[]> => {
   console.log('🔍 [기사검색] API 호출:', params);
 
@@ -3286,6 +3287,9 @@ export const findUserList = async (params: {
     }
     if (params.SO_ID) {
       searchParams.SO_ID = params.SO_ID;
+    }
+    if (params.CRR_ID) {
+      searchParams.CRR_ID = params.CRR_ID;  // 협력업체 필수
     }
 
     console.log('🔍 [기사검색] 정리된 파라미터:', searchParams);
