@@ -134,6 +134,7 @@ const EquipmentMovement: React.FC<EquipmentMovementProps> = ({ onBack }) => {
 
   // 모달 내 장비 선택 상태
   const [modalSelectedWorker, setModalSelectedWorker] = useState<{ USR_ID: string; USR_NM: string; CRR_ID?: string } | null>(null);
+  const [modalSelectedSoId, setModalSelectedSoId] = useState<string>('');  // 모달 내 지점 선택
   const [modalEquipmentList, setModalEquipmentList] = useState<EqtTrns[]>([]);
   const [isLoadingModalEquipment, setIsLoadingModalEquipment] = useState(false);
 
@@ -398,8 +399,8 @@ const EquipmentMovement: React.FC<EquipmentMovementProps> = ({ onBack }) => {
       let params: any;
       if (isNameSearch) {
         // 이름 검색: searchWorkersByName API 사용 (부분 일치)
-        console.log('[장비이동] 이름 검색:', keyword);
-        const workers = await searchWorkersByName({ WRKR_NM: keyword, CRR_ID: '' });
+        console.log('[장비이동] 이름 검색:', keyword, '지점:', modalSelectedSoId);
+        const workers = await searchWorkersByName({ WRKR_NM: keyword, CRR_ID: '', SO_ID: modalSelectedSoId || undefined });
         if (workers && workers.length > 0) {
           const formattedWorkers = workers.map((w: any) => ({
             USR_ID: w.WRKR_ID,
@@ -415,8 +416,8 @@ const EquipmentMovement: React.FC<EquipmentMovementProps> = ({ onBack }) => {
         }
       } else {
         // ID 검색: getWrkrHaveEqtList API 사용
-        console.log('[장비이동] ID 검색:', keyword.toUpperCase());
-        const params = { WRKR_ID: keyword.toUpperCase(), CRR_ID: '' };
+        console.log('[장비이동] ID 검색:', keyword.toUpperCase(), '지점:', modalSelectedSoId);
+        const params = { WRKR_ID: keyword.toUpperCase(), CRR_ID: '', SO_ID: modalSelectedSoId || undefined };
         const equipmentResult = await debugApiCall('EquipmentMovement', 'getWrkrHaveEqtList',
           () => getWrkrHaveEqtList(params),
           params);
@@ -425,7 +426,9 @@ const EquipmentMovement: React.FC<EquipmentMovementProps> = ({ onBack }) => {
           const workerCrrId = equipmentResult[0].CRR_ID || '';
           setSearchedWorkers([{ USR_ID: keyword.toUpperCase(), USR_NM: workerName, CRR_ID: workerCrrId, EQT_COUNT: equipmentResult.length }]);
         } else {
-          setSearchedWorkers([{ USR_ID: keyword.toUpperCase(), USR_NM: keyword.toUpperCase(), CRR_ID: '', EQT_COUNT: 0 }]);
+          // 장비가 없는 기사는 표시하지 않음
+        setSearchedWorkers([]);
+        alert('해당 ID의 기사가 없거나 보유 장비가 없습니다.');
         }
       }
     } catch (error) {
@@ -1067,12 +1070,17 @@ const EquipmentMovement: React.FC<EquipmentMovementProps> = ({ onBack }) => {
         </div>
       )}
 
-      {/* 하단 고정 버튼 - 푸터 위에 위치 */}
-      {eqtTrnsList.filter(item => item.CHK).length > 0 && (
+      {/* 하단 고정 버튼 - 항상 표시 (장비 목록이 있을 때) */}
+      {eqtTrnsList.length > 0 && (
         <div className="fixed bottom-16 left-0 right-0 px-4 pb-2 z-[45]">
           <button
             onClick={() => setShowTransferModal(true)}
-            className="w-full bg-gradient-to-r from-blue-500 to-blue-600 text-white py-4 rounded-xl font-bold text-base shadow-lg flex items-center justify-center gap-2 active:scale-[0.98] transition-all touch-manipulation"
+            disabled={eqtTrnsList.filter(item => item.CHK).length === 0}
+            className={`w-full py-4 rounded-xl font-bold text-base shadow-lg flex items-center justify-center gap-2 active:scale-[0.98] transition-all touch-manipulation ${
+              eqtTrnsList.filter(item => item.CHK).length > 0
+                ? 'bg-gradient-to-r from-blue-500 to-blue-600 text-white'
+                : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+            }`}
           >
             <Check className="w-5 h-5" />
             장비 이동 ({eqtTrnsList.filter(item => item.CHK).length}건)
@@ -1182,6 +1190,7 @@ const EquipmentMovement: React.FC<EquipmentMovementProps> = ({ onBack }) => {
           setModalEquipmentList([]);
           setSearchedWorkers([]);
           setWorkerSearchKeyword('');
+          setModalSelectedSoId('');
         }}
         title={modalSelectedWorker ? `${modalSelectedWorker.USR_NM} 보유장비` : '기사 검색'}
         size="large"
@@ -1206,23 +1215,41 @@ const EquipmentMovement: React.FC<EquipmentMovementProps> = ({ onBack }) => {
               </label>
             </div>
           ) : (
-            <div className="flex gap-2">
-              <input
-                type="text"
-                value={workerSearchKeyword}
-                onChange={(e) => setWorkerSearchKeyword(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && handleWorkerModalSearch()}
-                className="flex-1 px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-green-500"
-                placeholder="이름 또는 ID 입력"
-                autoFocus
-              />
-              <button
-                onClick={handleWorkerModalSearch}
-                disabled={isSearchingWorker}
-                className="px-4 py-2 bg-green-500 hover:bg-green-600 disabled:bg-gray-300 text-white rounded-lg font-medium text-sm touch-manipulation"
-              >
-                {isSearchingWorker ? '...' : '검색'}
-              </button>
+            <div className="space-y-2">
+              {/* 지점 선택 */}
+              {userAuthSoList.length > 0 && (
+                <select
+                  value={modalSelectedSoId}
+                  onChange={(e) => setModalSelectedSoId(e.target.value)}
+                  className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-green-500 bg-white"
+                >
+                  <option value="">전체 지점</option>
+                  {userAuthSoList.map((so) => (
+                    <option key={so.SO_ID} value={so.SO_ID}>
+                      {so.SO_NM}
+                    </option>
+                  ))}
+                </select>
+              )}
+              {/* 검색 입력 */}
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  value={workerSearchKeyword}
+                  onChange={(e) => setWorkerSearchKeyword(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && handleWorkerModalSearch()}
+                  className="flex-1 px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-green-500"
+                  placeholder="이름 또는 ID 입력"
+                  autoFocus
+                />
+                <button
+                  onClick={handleWorkerModalSearch}
+                  disabled={isSearchingWorker}
+                  className="px-4 py-2 bg-green-500 hover:bg-green-600 disabled:bg-gray-300 text-white rounded-lg font-medium text-sm touch-manipulation"
+                >
+                  {isSearchingWorker ? '...' : '검색'}
+                </button>
+              </div>
             </div>
           )
         }
