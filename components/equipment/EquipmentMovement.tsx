@@ -165,6 +165,7 @@ const EquipmentMovement: React.FC<EquipmentMovementProps> = ({ onBack }) => {
   const [modalSelectedSoId, setModalSelectedSoId] = useState<string>('');  // 모달 내 지점 선택
   const [modalEquipmentList, setModalEquipmentList] = useState<EqtTrns[]>([]);
   const [isLoadingModalEquipment, setIsLoadingModalEquipment] = useState(false);
+  const [modalModelFilter, setModalModelFilter] = useState<string>('');  // 모델 필터 (빈값=전체)
 
   // 이관지점 선택 (AUTH_SO_List 기반)
   const [userAuthSoList, setUserAuthSoList] = useState<{ SO_ID: string; SO_NM: string }[]>([]);
@@ -512,6 +513,7 @@ const EquipmentMovement: React.FC<EquipmentMovementProps> = ({ onBack }) => {
   const handleWorkerClickInModal = async (worker: { USR_ID: string; USR_NM: string; CRR_ID?: string }) => {
     setModalSelectedWorker(worker);
     setIsLoadingModalEquipment(true);
+    setModalModelFilter('');  // 모델 필터 초기화
     try {
       const params: any = { WRKR_ID: worker.USR_ID, CRR_ID: '' };
       const result = await debugApiCall('EquipmentMovement', 'getWrkrHaveEqtList (modal)', () => getWrkrHaveEqtList(params), params);
@@ -555,9 +557,15 @@ const EquipmentMovement: React.FC<EquipmentMovementProps> = ({ onBack }) => {
     setModalEquipmentList(newList);
   };
 
-  // 모달 내 전체 선택
+  // 모달 내 전체 선택 (필터 적용)
   const handleModalCheckAll = (checked: boolean) => {
-    setModalEquipmentList(modalEquipmentList.map(item => ({ ...item, CHK: checked })));
+    setModalEquipmentList(modalEquipmentList.map(item => {
+      // 필터가 없으면 전체 선택, 필터가 있으면 해당 모델만 선택
+      if (!modalModelFilter || (item.ITEM_MID_NM || item.EQT_CL_NM || '기타') === modalModelFilter) {
+        return { ...item, CHK: checked };
+      }
+      return item;
+    }));
   };
 
   // 모달에서 선택 확정 - 메인 리스트로 이동
@@ -1285,10 +1293,15 @@ const EquipmentMovement: React.FC<EquipmentMovementProps> = ({ onBack }) => {
                 <input
                   type="checkbox"
                   onChange={(e) => handleModalCheckAll(e.target.checked)}
-                  checked={modalEquipmentList.length > 0 && modalEquipmentList.every(item => item.CHK)}
+                  checked={(() => {
+                    const filtered = modalEquipmentList.filter(item =>
+                      !modalModelFilter || (item.ITEM_MID_NM || item.EQT_CL_NM || '기타') === modalModelFilter
+                    );
+                    return filtered.length > 0 && filtered.every(item => item.CHK);
+                  })()}
                   className="rounded"
                 />
-                전체선택
+                {modalModelFilter ? `${modalModelFilter} 전체선택` : '전체선택'}
               </label>
             </div>
           ) : (
@@ -1368,34 +1381,62 @@ const EquipmentMovement: React.FC<EquipmentMovementProps> = ({ onBack }) => {
               보유 장비가 없습니다
             </div>
           ) : (
-            <div className="divide-y divide-gray-100 max-h-80 overflow-y-auto">
-              {modalEquipmentList.map((item, idx) => (
-                <div
-                  key={item.EQT_NO || idx}
-                  className={`px-4 py-3 flex items-center gap-3 ${item.CHK ? 'bg-blue-50' : 'hover:bg-gray-50'}`}
-                >
-                  <input
-                    type="checkbox"
-                    checked={item.CHK || false}
-                    onChange={(e) => handleModalEquipmentCheck(idx, e.target.checked)}
-                    className="rounded flex-shrink-0"
-                  />
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2">
-                      <span className="px-1.5 py-0.5 bg-blue-100 text-blue-700 text-[10px] rounded font-medium">
-                        {item.ITEM_MID_NM || item.EQT_CL_NM || '장비'}
-                      </span>
-                      <span className="font-mono text-xs text-gray-800 truncate">
-                        {item.EQT_SERNO || '-'}
-                      </span>
-                    </div>
-                    <div className="text-[10px] text-gray-500 mt-1">
-                      {item.SO_NM || item.SO_ID || '미지정'}
+            <>
+              {/* 모델 필터 드롭다운 */}
+              <div className="px-4 py-2 border-b border-gray-100 bg-gray-50">
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-gray-600 font-medium">모델:</span>
+                  <select
+                    value={modalModelFilter}
+                    onChange={(e) => setModalModelFilter(e.target.value)}
+                    className="flex-1 text-xs border border-gray-200 rounded-lg px-2 py-1.5 bg-white focus:outline-none focus:ring-1 focus:ring-blue-500"
+                  >
+                    <option value="">전체 ({modalEquipmentList.length}건)</option>
+                    {Array.from(new Set(modalEquipmentList.map(item => item.ITEM_MID_NM || item.EQT_CL_NM || '기타')))
+                      .sort()
+                      .map(model => {
+                        const count = modalEquipmentList.filter(item => (item.ITEM_MID_NM || item.EQT_CL_NM || '기타') === model).length;
+                        return (
+                          <option key={model} value={model}>{model} ({count}건)</option>
+                        );
+                      })
+                    }
+                  </select>
+                </div>
+              </div>
+              {/* 장비 목록 */}
+              <div className="divide-y divide-gray-100 max-h-72 overflow-y-auto">
+                {modalEquipmentList
+                  .map((item, idx) => ({ item, idx }))
+                  .filter(({ item }) => !modalModelFilter || (item.ITEM_MID_NM || item.EQT_CL_NM || '기타') === modalModelFilter)
+                  .map(({ item, idx }) => (
+                  <div
+                    key={item.EQT_NO || idx}
+                    className={`px-4 py-3 flex items-center gap-3 ${item.CHK ? 'bg-blue-50' : 'hover:bg-gray-50'}`}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={item.CHK || false}
+                      onChange={(e) => handleModalEquipmentCheck(idx, e.target.checked)}
+                      className="rounded flex-shrink-0"
+                    />
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <span className="px-1.5 py-0.5 bg-blue-100 text-blue-700 text-[10px] rounded font-medium">
+                          {item.ITEM_MID_NM || item.EQT_CL_NM || '장비'}
+                        </span>
+                        <span className="font-mono text-xs text-gray-800 truncate">
+                          {item.EQT_SERNO || '-'}
+                        </span>
+                      </div>
+                      <div className="text-[10px] text-gray-500 mt-1">
+                        {item.SO_NM || item.SO_ID || '미지정'}
+                      </div>
                     </div>
                   </div>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            </>
           )
         ) : (
           /* 기사 목록 보기 (초기 상태) */
