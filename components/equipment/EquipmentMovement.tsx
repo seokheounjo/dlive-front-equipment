@@ -450,14 +450,34 @@ const EquipmentMovement: React.FC<EquipmentMovementProps> = ({ onBack }) => {
         });
 
         if (filteredWorkers.length > 0) {
-          const formattedWorkers = filteredWorkers.slice(0, 50).map((w: any) => ({
-            USR_ID: w.USR_ID || w.WRKR_ID,
-            USR_NM: w.USR_NAME_EN || w.USR_NM || w.WRKR_NM || '-',
-            CRR_ID: w.CRR_ID || '',
-            EQT_COUNT: 0  // 장비 수는 나중에 조회
-          }));
-          console.log('[장비이동] 이름 검색 결과:', formattedWorkers.length, '명');
-          setSearchedWorkers(formattedWorkers);
+          const workersToShow = filteredWorkers.slice(0, 20);  // 최대 20명 (장비 조회 때문에)
+          console.log('[장비이동] 이름 검색 결과:', workersToShow.length, '명, 장비 수 조회 중...');
+
+          // 각 기사별 장비 수 병렬 조회
+          const workersWithCount = await Promise.all(
+            workersToShow.map(async (w: any) => {
+              const wrkrId = w.USR_ID || w.WRKR_ID;
+              try {
+                const eqtResult = await getWrkrHaveEqtList({ WRKR_ID: wrkrId, CRR_ID: '' });
+                return {
+                  USR_ID: wrkrId,
+                  USR_NM: w.USR_NAME_EN || w.USR_NM || w.WRKR_NM || '-',
+                  CRR_ID: w.CRR_ID || '',
+                  EQT_COUNT: Array.isArray(eqtResult) ? eqtResult.length : 0
+                };
+              } catch {
+                return {
+                  USR_ID: wrkrId,
+                  USR_NM: w.USR_NAME_EN || w.USR_NM || w.WRKR_NM || '-',
+                  CRR_ID: w.CRR_ID || '',
+                  EQT_COUNT: 0
+                };
+              }
+            })
+          );
+
+          console.log('[장비이동] 장비 수 조회 완료:', workersWithCount.map(w => `${w.USR_NM}(${w.EQT_COUNT}건)`).join(', '));
+          setSearchedWorkers(workersWithCount);
         } else {
           setSearchedWorkers([]);
           alert('해당 이름의 기사를 찾을 수 없습니다.');
