@@ -526,44 +526,28 @@ const EquipmentRecovery: React.FC<EquipmentRecoveryProps> = ({ onBack }) => {
               </span>
             </div>
 
-            {/* 간단히 보기: S/N만 표시 */}
-            {viewMode === 'simple' && (
-              <div className="font-mono text-xs text-gray-700">
-                {item.EQT_SERNO || '-'}
-              </div>
-            )}
+            {/* 간단히 보기: S/N + 상태배지 (1줄), 해지일 + 고객명 (2줄) - 장비처리와 동일 형식 */}
+            <div className="flex items-center justify-between">
+              <span className="font-mono text-sm font-medium text-gray-900">{item.EQT_SERNO || '-'}</span>
+            </div>
+            <div className="flex items-center justify-between mt-1">
+              <span className="text-xs text-gray-600">{formatDateDot(item.TRML_DT) || '-'}</span>
+              <span className="text-xs text-gray-600 truncate max-w-[120px]">{item.CUST_NM || '-'}</span>
+            </div>
 
             {/* 자세히 보기: 장비처리와 동일한 회색 박스 레이아웃 */}
             {viewMode === 'detail' && (
-              <div className="bg-gray-50 rounded-lg p-3 mt-2">
-                <div className="space-y-1.5 text-xs">
-                  {/* S/N */}
-                  <div className="font-mono text-gray-700 font-medium">{item.EQT_SERNO || '-'}</div>
-
-                  {/* 해지일 */}
-                  <div className="text-gray-700">{formatDateDot(item.TRML_DT) || '-'}</div>
-
-                  {/* 현재위치 */}
-                  <div className="flex items-center gap-2">
-                    <span className="text-gray-400">현재위치</span>
-                    <span className="text-gray-700 font-medium">고객</span>
-                  </div>
-
-                  {/* 고객명 */}
-                  <div className="flex items-center gap-2">
-                    <span className="text-gray-400">고객</span>
-                    <span className="text-gray-700">{item.CUST_NM || '-'}</span>
-                  </div>
-
-                  {/* 지점 */}
-                  <div className="text-gray-600">{item.SO_NM || '-'}</div>
+              <div className="bg-gray-100 rounded-lg p-2 mt-2 text-xs space-y-1">
+                {/* 1줄: 품목명 + 지점명 */}
+                <div className="flex items-center justify-between">
+                  <span className="font-medium text-gray-900">{item.ITEM_NM || item.EQT_CL_NM || '-'}</span>
+                  <span className="text-gray-600">{item.SO_NM || '-'}</span>
                 </div>
-                {/* 분실금액 표시 (분실인 경우) */}
+                <div><span className="text-gray-500">해지일    : </span><span className="text-gray-800">{formatDateDot(item.TRML_DT) || '-'}</span></div>
+                <div><span className="text-gray-500">현재위치  : </span><span className="text-gray-800">고객</span></div>
+                <div><span className="text-gray-500">고객명    : </span><span className="text-gray-800">{item.CUST_NM || '-'}</span></div>
                 {isLost && item.LOSS_AMT && (
-                  <div className="mt-2 pt-1.5 border-t border-gray-200">
-                    <span className="text-gray-400 text-xs">분실금액: </span>
-                    <span className="text-red-600 text-xs font-medium">{Number(item.LOSS_AMT).toLocaleString()}원</span>
-                  </div>
+                  <div><span className="text-gray-500">분실금액  : </span><span className="text-red-600 font-medium">{Number(item.LOSS_AMT).toLocaleString()}원</span></div>
                 )}
               </div>
             )}
