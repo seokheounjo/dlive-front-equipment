@@ -166,6 +166,7 @@ const EquipmentMovement: React.FC<EquipmentMovementProps> = ({ onBack }) => {
   const [modalEquipmentList, setModalEquipmentList] = useState<EqtTrns[]>([]);
   const [isLoadingModalEquipment, setIsLoadingModalEquipment] = useState(false);
   const [modalModelFilter, setModalModelFilter] = useState<string>('');  // 모델 필터 (빈값=전체)
+  const [modalSearchModelFilter, setModalSearchModelFilter] = useState<string>('');  // 검색 시 모델 필터
 
   // 이관지점 선택 (AUTH_SO_List 기반)
   const [userAuthSoList, setUserAuthSoList] = useState<{ SO_ID: string; SO_NM: string }[]>([]);
@@ -452,19 +453,27 @@ const EquipmentMovement: React.FC<EquipmentMovementProps> = ({ onBack }) => {
 
         if (filteredWorkers.length > 0) {
           const workersToShow = filteredWorkers.slice(0, 20);  // 최대 20명 (장비 조회 때문에)
-          console.log('[장비이동] 이름 검색 결과:', workersToShow.length, '명, 장비 수 조회 중...');
+          console.log('[장비이동] 이름 검색 결과:', workersToShow.length, '명, 장비 수 조회 중...', modalSearchModelFilter ? `(모델: ${modalSearchModelFilter})` : '');
 
-          // 각 기사별 장비 수 병렬 조회
+          // 각 기사별 장비 수 병렬 조회 (모델 필터 적용)
           const workersWithCount = await Promise.all(
             workersToShow.map(async (w: any) => {
               const wrkrId = w.USR_ID || w.WRKR_ID;
               try {
                 const eqtResult = await getWrkrHaveEqtList({ WRKR_ID: wrkrId, CRR_ID: '' });
+                // 모델 필터가 있으면 해당 모델만 카운트
+                let filteredEqt = Array.isArray(eqtResult) ? eqtResult : [];
+                if (modalSearchModelFilter && filteredEqt.length > 0) {
+                  filteredEqt = filteredEqt.filter((e: any) => {
+                    const modelName = e.ITEM_MID_NM || e.EQT_CL_NM || '';
+                    return modelName.includes(modalSearchModelFilter);
+                  });
+                }
                 return {
                   USR_ID: wrkrId,
                   USR_NM: w.USR_NAME_EN || w.USR_NM || w.WRKR_NM || '-',
                   CRR_ID: w.CRR_ID || '',
-                  EQT_COUNT: Array.isArray(eqtResult) ? eqtResult.length : 0
+                  EQT_COUNT: filteredEqt.length
                 };
               } catch {
                 return {
@@ -477,15 +486,24 @@ const EquipmentMovement: React.FC<EquipmentMovementProps> = ({ onBack }) => {
             })
           );
 
-          console.log('[장비이동] 장비 수 조회 완료:', workersWithCount.map(w => `${w.USR_NM}(${w.EQT_COUNT}건)`).join(', '));
-          setSearchedWorkers(workersWithCount);
+          // 모델 필터 시 0건인 기사 제외 옵션 (장비가 있는 기사만 표시)
+          const finalWorkers = modalSearchModelFilter
+            ? workersWithCount.filter(w => w.EQT_COUNT > 0)
+            : workersWithCount;
+
+          console.log('[장비이동] 장비 수 조회 완료:', finalWorkers.map(w => `${w.USR_NM}(${w.EQT_COUNT}건)`).join(', '));
+          setSearchedWorkers(finalWorkers);
+
+          if (modalSearchModelFilter && finalWorkers.length === 0) {
+            alert(`'${modalSearchModelFilter}' 장비를 보유한 기사가 없습니다.`);
+          }
         } else {
           setSearchedWorkers([]);
           alert('해당 이름의 기사를 찾을 수 없습니다.');
         }
       } else {
         // ID 검색: getWrkrHaveEqtList API 사용
-        console.log('[장비이동] ID 검색:', keyword.toUpperCase(), '지점:', modalSelectedSoId);
+        console.log('[장비이동] ID 검색:', keyword.toUpperCase(), '지점:', modalSelectedSoId, modalSearchModelFilter ? `모델: ${modalSearchModelFilter}` : '');
         const params = { WRKR_ID: keyword.toUpperCase(), CRR_ID: '', SO_ID: modalSelectedSoId || undefined };
         const equipmentResult = await debugApiCall('EquipmentMovement', 'getWrkrHaveEqtList',
           () => getWrkrHaveEqtList(params),
@@ -493,11 +511,26 @@ const EquipmentMovement: React.FC<EquipmentMovementProps> = ({ onBack }) => {
         if (equipmentResult && equipmentResult.length > 0) {
           const workerName = equipmentResult[0].WRKR_NM || keyword.toUpperCase();
           const workerCrrId = equipmentResult[0].CRR_ID || '';
-          setSearchedWorkers([{ USR_ID: keyword.toUpperCase(), USR_NM: workerName, CRR_ID: workerCrrId, EQT_COUNT: equipmentResult.length }]);
+
+          // 모델 필터 적용
+          let filteredEqt = equipmentResult;
+          if (modalSearchModelFilter) {
+            filteredEqt = equipmentResult.filter((e: any) => {
+              const modelName = e.ITEM_MID_NM || e.EQT_CL_NM || '';
+              return modelName.includes(modalSearchModelFilter);
+            });
+          }
+
+          if (filteredEqt.length > 0) {
+            setSearchedWorkers([{ USR_ID: keyword.toUpperCase(), USR_NM: workerName, CRR_ID: workerCrrId, EQT_COUNT: filteredEqt.length }]);
+          } else {
+            setSearchedWorkers([]);
+            alert(`해당 기사가 '${modalSearchModelFilter}' 장비를 보유하지 않습니다.`);
+          }
         } else {
           // 장비가 없는 기사는 표시하지 않음
-        setSearchedWorkers([]);
-        alert('해당 ID의 기사가 없거나 보유 장비가 없습니다.');
+          setSearchedWorkers([]);
+          alert('해당 ID의 기사가 없거나 보유 장비가 없습니다.');
         }
       }
     } catch (error) {
@@ -513,7 +546,8 @@ const EquipmentMovement: React.FC<EquipmentMovementProps> = ({ onBack }) => {
   const handleWorkerClickInModal = async (worker: { USR_ID: string; USR_NM: string; CRR_ID?: string }) => {
     setModalSelectedWorker(worker);
     setIsLoadingModalEquipment(true);
-    setModalModelFilter('');  // 모델 필터 초기화
+    // 검색 시 선택한 모델 필터가 있으면 적용, 없으면 초기화
+    setModalModelFilter(modalSearchModelFilter || '');
     try {
       const params: any = { WRKR_ID: worker.USR_ID, CRR_ID: '' };
       const result = await debugApiCall('EquipmentMovement', 'getWrkrHaveEqtList (modal)', () => getWrkrHaveEqtList(params), params);
@@ -1306,21 +1340,38 @@ const EquipmentMovement: React.FC<EquipmentMovementProps> = ({ onBack }) => {
             </div>
           ) : (
             <div className="space-y-2">
-              {/* 지점 선택 */}
-              {userAuthSoList.length > 0 && (
+              {/* 지점 + 모델 선택 */}
+              <div className="flex gap-2">
+                {userAuthSoList.length > 0 && (
+                  <select
+                    value={modalSelectedSoId}
+                    onChange={(e) => setModalSelectedSoId(e.target.value)}
+                    className="flex-1 px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-green-500 bg-white"
+                  >
+                    <option value="">전체 지점</option>
+                    {userAuthSoList.map((so) => (
+                      <option key={so.SO_ID} value={so.SO_ID}>
+                        {so.SO_NM}
+                      </option>
+                    ))}
+                  </select>
+                )}
                 <select
-                  value={modalSelectedSoId}
-                  onChange={(e) => setModalSelectedSoId(e.target.value)}
-                  className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-green-500 bg-white"
+                  value={modalSearchModelFilter}
+                  onChange={(e) => setModalSearchModelFilter(e.target.value)}
+                  className="flex-1 px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-green-500 bg-white"
                 >
-                  <option value="">전체 지점</option>
-                  {userAuthSoList.map((so) => (
-                    <option key={so.SO_ID} value={so.SO_ID}>
-                      {so.SO_NM}
-                    </option>
-                  ))}
+                  <option value="">전체 모델</option>
+                  <option value="STB">STB</option>
+                  <option value="모뎀">모뎀</option>
+                  <option value="Smart card">Smart card</option>
+                  <option value="CVT">CVT</option>
+                  <option value="Cable Card">Cable Card</option>
+                  <option value="Converter">Converter</option>
+                  <option value="IP폰">IP폰</option>
+                  <option value="HANDY">HANDY</option>
                 </select>
-              )}
+              </div>
               {/* 검색 입력 */}
               <div className="flex gap-2">
                 <input
@@ -1456,8 +1507,8 @@ const EquipmentMovement: React.FC<EquipmentMovementProps> = ({ onBack }) => {
                     <span className="font-medium text-gray-900">{worker.USR_NM}</span>
                     <span className="text-xs text-gray-500">{worker.USR_ID}</span>
                   </div>
-                  <span className="text-xs text-blue-600 bg-blue-50 px-2 py-1 rounded">
-                    {worker.EQT_COUNT !== undefined ? `${worker.EQT_COUNT}건` : ''}
+                  <span className={`text-xs px-2 py-1 rounded ${modalSearchModelFilter ? 'text-green-600 bg-green-50' : 'text-blue-600 bg-blue-50'}`}>
+                    {worker.EQT_COUNT !== undefined ? `${worker.EQT_COUNT}건${modalSearchModelFilter ? ` (${modalSearchModelFilter})` : ''}` : ''}
                   </span>
                 </button>
               ))}
