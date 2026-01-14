@@ -525,7 +525,7 @@ const EquipmentMovement: React.FC<EquipmentMovementProps> = ({ onBack }) => {
     setModalEquipmentList([]);
   };
 
-  // 기사 선택 - CRR_ID도 함께 저장 (타기사 장비 조회용) - 이제 사용 안함
+  // 기사 선택 - 클릭 시 바로 workerInfo 설정하고 모달 닫기
   const handleWorkerSelect = (worker: { USR_ID: string; USR_NM: string; CRR_ID?: string; EQT_COUNT?: number }) => {
     setWorkerInfo(prev => ({ ...prev, WRKR_ID: worker.USR_ID, WRKR_NM: worker.USR_NM, CRR_ID: worker.CRR_ID || '' }));
     setWorkerModalOpen(false);
@@ -1331,19 +1331,16 @@ const EquipmentMovement: React.FC<EquipmentMovementProps> = ({ onBack }) => {
               {searchedWorkers.map((worker, idx) => (
                 <button
                   key={idx}
-                  onClick={() => handleWorkerClickInModal(worker)}
+                  onClick={() => handleWorkerSelect(worker)}
                   className="w-full px-4 py-3 text-left hover:bg-green-50 flex justify-between items-center transition-colors active:bg-green-100 touch-manipulation"
                 >
                   <div className="flex flex-col">
                     <span className="font-medium text-gray-900">{worker.USR_NM}</span>
                     <span className="text-xs text-gray-500">{worker.USR_ID}</span>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs text-blue-600 bg-blue-50 px-2 py-1 rounded">
-                      {worker.EQT_COUNT !== undefined ? `${worker.EQT_COUNT}건` : ''}
-                    </span>
-                    <ChevronDown className="w-4 h-4 text-gray-400 rotate-[-90deg]" />
-                  </div>
+                  <span className="text-xs text-blue-600 bg-blue-50 px-2 py-1 rounded">
+                    {worker.EQT_COUNT !== undefined ? `${worker.EQT_COUNT}건` : ''}
+                  </span>
                 </button>
               ))}
             </div>
