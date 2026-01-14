@@ -70,12 +70,14 @@ interface OutTgtEqt {
   EQT_CHECK: string;
   REMARK: string;
   CHK: boolean;
-  // 통일된 간단히/자세히 형식용 필드
-  EQT_USE_END_DT?: string;
-  EQT_STAT_NM?: string;
-  CHG_TP_NM?: string;
-  EQT_LOC_TP_NM?: string;
-  BEF_EQT_LOC_NM?: string;
+  // 통일된 간단히/자세히 형식용 필드 (실제 API 응답 필드명)
+  EQT_USE_END_DT?: string;      // 사용가능일자
+  EQT_STAT_CD_NM?: string;      // 장비상태 (API: EQT_STAT_CD_NM)
+  CHG_KND_NM?: string;          // 변경유형 (API: CHG_KND_NM)
+  EQT_LOC_TP_NM?: string;       // 장비위치유형
+  EQT_LOC_NM?: string;          // 장비위치
+  OLD_EQT_LOC_NM?: string;      // 이전장비위치 (API: OLD_EQT_LOC_NM)
+  OLD_EQT_LOC_TP_NM?: string;   // 이전장비위치유형
 }
 
 interface SoListItem {
@@ -777,12 +779,12 @@ const EquipmentAssignment: React.FC<EquipmentAssignmentProps> = ({ onBack, showT
                                     {/* 1줄: 모델명 + 지점명 */}
                                     <div className="flex items-center justify-between">
                                       <span className="font-medium text-gray-900">{item.EQT_CL_NM || '-'}</span>
-                                      <span className="text-gray-600">{soNm || '-'}</span>
+                                      <span className="text-gray-600">{selectedEqtOut?.SO_NM || '-'}</span>
                                     </div>
-                                    <div><span className="text-gray-500">장비상태  : </span><span className="text-gray-800">{item.EQT_STAT_NM || '-'}</span></div>
-                                    <div><span className="text-gray-500">변경종류  : </span><span className="text-gray-800">{item.CHG_TP_NM || '-'}</span></div>
-                                    <div><span className="text-gray-500">현재위치  : </span><span className="text-gray-800">{item.EQT_LOC_TP_NM || '-'}</span></div>
-                                    <div><span className="text-gray-500">이전위치  : </span><span className="text-gray-800">{item.BEF_EQT_LOC_NM || '-'}</span></div>
+                                    <div><span className="text-gray-500">장비상태  : </span><span className="text-gray-800">{item.EQT_STAT_CD_NM || '-'}</span></div>
+                                    <div><span className="text-gray-500">변경종류  : </span><span className="text-gray-800">{item.CHG_KND_NM || '-'}</span></div>
+                                    <div><span className="text-gray-500">현재위치  : </span><span className="text-gray-800">{item.EQT_LOC_NM || item.EQT_LOC_TP_NM || '-'}</span></div>
+                                    <div><span className="text-gray-500">이전위치  : </span><span className="text-gray-800">{item.OLD_EQT_LOC_NM || '-'}</span></div>
                                   </div>
                                 )}
                               </div>

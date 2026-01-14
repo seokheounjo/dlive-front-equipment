@@ -46,13 +46,14 @@ interface UnreturnedEqt {
   CRR_ID: string;
   CMPL_DATE: string;
   isScanned?: boolean;
-  // 통일된 간단히/자세히 형식용 필드
+  // 통일된 간단히/자세히 형식용 필드 (실제 API 응답 필드명)
   MAC_ADDRESS?: string;
-  EQT_USE_END_DT?: string;
-  EQT_STAT_NM?: string;
-  CHG_TP_NM?: string;
-  EQT_LOC_TP_NM?: string;
-  BEF_EQT_LOC_NM?: string;
+  EQT_USE_END_DT?: string;      // 사용가능일자
+  EQT_STAT_CD_NM?: string;      // 장비상태 (API: EQT_STAT_CD_NM)
+  CHG_KND_NM?: string;          // 변경유형 (API: CHG_KND_NM)
+  EQT_LOC_TP_NM?: string;       // 장비위치유형
+  EQT_LOC_NM?: string;          // 장비위치
+  OLD_EQT_LOC_NM?: string;      // 이전장비위치 (API: OLD_EQT_LOC_NM)
 }
 
 // Date format function (YYYY.MM.DD)
@@ -381,10 +382,10 @@ const EquipmentRecovery: React.FC<EquipmentRecoveryProps> = ({ onBack }) => {
     });
   };
 
-  // Lost equipment check (EQT_STAT_NM='분실' or LOSS_AMT > 0)
+  // Lost equipment check (EQT_STAT_CD_NM='분실' or LOSS_AMT > 0)
   const isLostEquipment = (item: UnreturnedEqt): boolean => {
-    // EQT_STAT_NM이 '분실'이면 분실 장비
-    if (item.EQT_STAT_NM === '분실') return true;
+    // EQT_STAT_CD_NM이 '분실'이면 분실 장비 (API 필드명: EQT_STAT_CD_NM)
+    if (item.EQT_STAT_CD_NM === '분실') return true;
     // LOSS_AMT > 0이면 분실 장비 (레거시 호환)
     return item.LOSS_AMT !== '' && item.LOSS_AMT !== '0' && Number(item.LOSS_AMT) > 0;
   };
@@ -491,7 +492,7 @@ const EquipmentRecovery: React.FC<EquipmentRecoveryProps> = ({ onBack }) => {
           LOSS_AMT: item.LOSS_AMT || '',
           CRR_ID: item.CRR_ID || '',
           CMPL_DATE: item.CMPL_DATE || '',
-          EQT_STAT_NM: item.EQT_STAT_NM || '',
+          EQT_STAT_CD_NM: item.EQT_STAT_CD_NM || item.EQT_STAT_NM || '',
           isScanned: item.EQT_SERNO === serialNo
         }));
         setUnreturnedList(transformedList);
@@ -505,7 +506,7 @@ const EquipmentRecovery: React.FC<EquipmentRecoveryProps> = ({ onBack }) => {
 
         if (eqtResult && eqtResult.length > 0) {
           const eqt = eqtResult[0];
-          alert(`Equipment (${serialNo}) is not unreturned.\n\nHolder: ${eqt.WRKR_NM || 'None'}\nBranch: ${eqt.SO_NM || 'None'}\nStatus: ${eqt.EQT_STAT_NM || eqt.EQT_STAT_CD || 'Unknown'}`);
+          alert(`Equipment (${serialNo}) is not unreturned.\n\nHolder: ${eqt.WRKR_NM || 'None'}\nBranch: ${eqt.SO_NM || 'None'}\nStatus: ${eqt.EQT_STAT_CD_NM || eqt.EQT_STAT_NM || eqt.EQT_STAT_CD || 'Unknown'}`);
         } else {
           alert(`Equipment (${serialNo}) not found.`);
         }
@@ -567,7 +568,7 @@ const EquipmentRecovery: React.FC<EquipmentRecoveryProps> = ({ onBack }) => {
         LOSS_AMT: item.LOSS_AMT || '',
         CRR_ID: item.CRR_ID || '',
         CMPL_DATE: item.CMPL_DATE || '',
-        EQT_STAT_NM: item.EQT_STAT_NM || '',
+        EQT_STAT_CD_NM: item.EQT_STAT_CD_NM || item.EQT_STAT_NM || '',
         isScanned: scannedSerials.includes(item.EQT_SERNO)
       }));
 
@@ -733,10 +734,10 @@ const EquipmentRecovery: React.FC<EquipmentRecoveryProps> = ({ onBack }) => {
                 <span className="font-medium text-gray-900">{item.EQT_CL_NM || item.ITEM_NM || '-'}</span>
                 <span className="text-gray-600">{item.SO_NM || '-'}</span>
               </div>
-              <div><span className="text-gray-500">장비상태  : </span><span className="text-gray-800">{item.EQT_STAT_NM || '-'}</span></div>
-              <div><span className="text-gray-500">변경종류  : </span><span className="text-gray-800">{item.CHG_TP_NM || '-'}</span></div>
-              <div><span className="text-gray-500">현재위치  : </span><span className="text-gray-800">{item.EQT_LOC_TP_NM || '-'}</span></div>
-              <div><span className="text-gray-500">이전위치  : </span><span className="text-gray-800">{item.BEF_EQT_LOC_NM || '-'}</span></div>
+              <div><span className="text-gray-500">장비상태  : </span><span className="text-gray-800">{item.EQT_STAT_CD_NM || '-'}</span></div>
+              <div><span className="text-gray-500">변경종류  : </span><span className="text-gray-800">{item.CHG_KND_NM || '-'}</span></div>
+              <div><span className="text-gray-500">현재위치  : </span><span className="text-gray-800">{item.EQT_LOC_NM || item.EQT_LOC_TP_NM || '-'}</span></div>
+              <div><span className="text-gray-500">이전위치  : </span><span className="text-gray-800">{item.OLD_EQT_LOC_NM || '-'}</span></div>
             </div>
           )}
         </div>
