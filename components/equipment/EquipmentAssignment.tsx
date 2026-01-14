@@ -751,35 +751,32 @@ const EquipmentAssignment: React.FC<EquipmentAssignmentProps> = ({ onBack, showT
                                 }`}
                               />
                               <div className="flex-1 min-w-0">
-                                {/* [품목] 모델명 [상태] */}
+                                {/* 간단히 보기: 1줄 - S/N + 상태뱃지 */}
                                 <div className="flex items-center justify-between">
-                                  <div className="flex items-center gap-2 min-w-0 flex-1 mr-2">
-                                    <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium flex-shrink-0 ${getItemColor(item.ITEM_MID_CD)}`}>
-                                      {item.ITEM_MID_CD_NM || '장비'}
-                                    </span>
-                                    <span className="text-sm font-medium text-gray-900 truncate">
-                                      {item.EQT_CL_NM || '-'}
-                                    </span>
-                                  </div>
-                                  <span className={`px-2 py-1 rounded-full text-xs font-semibold flex-shrink-0 ${
+                                  <span className="font-mono text-sm font-medium text-gray-900">{item.EQT_SERNO || '-'}</span>
+                                  <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold flex-shrink-0 ${
                                     isReceived ? 'bg-green-100 text-green-700' : 'bg-blue-100 text-blue-700'
                                   }`}>
                                     {isReceived ? '입고완료' : '입고대기'}
                                   </span>
                                 </div>
-                                {/* S/N | MAC - 한 줄 */}
-                                <div className="font-mono text-xs text-gray-700 mt-1">
-                                  {item.EQT_SERNO || '-'} | {formatMac(item.MAC_ADDRESS || '')}
+                                {/* 간단히 보기: 2줄 - MAC + 사용가능일자 */}
+                                <div className="flex items-center justify-between mt-1">
+                                  <span className="font-mono text-xs text-gray-600">{formatMac(item.MAC_ADDRESS || '')}</span>
+                                  <span className="text-xs text-gray-600">-</span>
                                 </div>
-                                {/* 자세히 보기: 추가 정보 (회색 박스) - 한 줄에 하나씩 */}
+                                {/* 자세히 보기: 추가 정보 */}
                                 {viewMode === 'detail' && (
                                   <div className="bg-gray-100 rounded-lg p-2 mt-2 text-xs space-y-1">
-                                    <div className="text-gray-800">-</div>
-                                    <div className="text-gray-800">출고</div>
-                                    <div><span className="text-gray-500">현재위치</span> <span className="text-gray-800">작업기사</span></div>
-                                    <div><span className="text-gray-500">이동전위치</span> <span className="text-gray-800">창고</span></div>
-                                    <div className="text-gray-800">재고</div>
-                                    <div className="text-gray-600">{soNm || '-'}</div>
+                                    {/* 1줄: 모델명 + 지점명 */}
+                                    <div className="flex items-center justify-between">
+                                      <span className="font-medium text-gray-900">{item.EQT_CL_NM || '-'}</span>
+                                      <span className="text-gray-600">{soNm || '-'}</span>
+                                    </div>
+                                    <div><span className="text-gray-500">장비상태  : </span><span className="text-gray-800">재고</span></div>
+                                    <div><span className="text-gray-500">변경종류  : </span><span className="text-gray-800">출고</span></div>
+                                    <div><span className="text-gray-500">현재위치  : </span><span className="text-gray-800">작업기사</span></div>
+                                    <div><span className="text-gray-500">이전위치  : </span><span className="text-gray-800">창고</span></div>
                                   </div>
                                 )}
                               </div>

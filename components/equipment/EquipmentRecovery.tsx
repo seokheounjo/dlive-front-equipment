@@ -475,7 +475,7 @@ const EquipmentRecovery: React.FC<EquipmentRecoveryProps> = ({ onBack }) => {
 
   const selectedCount = unreturnedList.filter(item => item.CHK).length;
 
-  // Render equipment item
+  // Render equipment item - 장비처리와 동일한 레이아웃
   const renderEquipmentItem = (item: UnreturnedEqt & { _globalIdx: number }) => {
     const isLost = isLostEquipment(item);
     const canSelect = isLost;
@@ -484,53 +484,87 @@ const EquipmentRecovery: React.FC<EquipmentRecoveryProps> = ({ onBack }) => {
     return (
       <div
         key={item._globalIdx}
-        className={`px-4 py-3 transition-colors ${
-          !canSelect ? 'opacity-60 bg-gray-50' :
-          item.isScanned ? 'bg-orange-50' : 'hover:bg-blue-50/50'
+        onClick={() => canSelect && handleCheckItem(originalIdx, !item.CHK)}
+        className={`p-3 rounded-lg border-2 cursor-pointer transition-all ${
+          item.CHK
+            ? 'bg-blue-50 border-blue-400'
+            : !canSelect
+              ? 'opacity-60 bg-gray-100 border-gray-200 cursor-not-allowed'
+              : item.isScanned
+                ? 'bg-orange-50 border-orange-200 hover:border-orange-300'
+                : 'bg-white border-gray-100 hover:border-gray-300'
         }`}
       >
         <div className="flex items-start gap-3">
           <input
             type="checkbox"
             checked={item.CHK || false}
-            onChange={(e) => handleCheckItem(originalIdx, e.target.checked)}
+            onChange={(e) => { e.stopPropagation(); handleCheckItem(originalIdx, e.target.checked); }}
             disabled={!canSelect}
-            className={`rounded mt-0.5 ${!canSelect ? 'cursor-not-allowed' : ''}`}
-            title={!canSelect ? 'Only lost equipment can be recovered' : ''}
+            className={`w-5 h-5 rounded focus:ring-blue-500 mt-0.5 ${
+              !canSelect ? 'text-gray-300 cursor-not-allowed' : 'text-blue-500'
+            }`}
           />
           <div className="flex-1 min-w-0">
-            {/* 헤더 - 항상 표시 */}
-            <div className="flex items-center justify-between">
+            {/* 상단: 품목 배지 + 장비명 + 상태 배지 */}
+            <div className="flex items-center justify-between mb-1">
               <div className="flex items-center gap-2 min-w-0 flex-1 mr-2">
                 <span className="px-1.5 py-0.5 bg-orange-100 text-orange-700 text-[10px] rounded font-medium flex-shrink-0">
                   {item.EQT_CL_NM || '장비'}
                 </span>
-                <span className={`text-sm font-medium truncate ${canSelect ? 'text-gray-900' : 'text-gray-500'}`}>{item.ITEM_NM || '-'}</span>
                 {item.isScanned && (
                   <span className="px-1.5 py-0.5 bg-orange-500 text-white text-[10px] rounded font-medium flex-shrink-0">스캔</span>
                 )}
+                <span className={`text-sm font-medium truncate ${canSelect ? 'text-gray-900' : 'text-gray-500'}`}>
+                  {item.ITEM_NM || item.EQT_CL_NM || '-'}
+                </span>
               </div>
-              <div className="flex items-center gap-1">
-                {isLost ? (
-                  <span className="px-2 py-0.5 rounded text-[10px] flex-shrink-0 bg-red-100 text-red-700">분실</span>
-                ) : (
-                  <span className="px-2 py-0.5 rounded text-[10px] flex-shrink-0 bg-gray-200 text-gray-500">정상</span>
-                )}
+              <span className={`px-2 py-1 rounded-full text-xs font-semibold flex-shrink-0 ${
+                isLost ? 'bg-red-100 text-red-700' : 'bg-gray-100 text-gray-500'
+              }`}>
+                {isLost ? '분실' : '정상'}
+              </span>
+            </div>
+
+            {/* 간단히 보기: S/N만 표시 */}
+            {viewMode === 'simple' && (
+              <div className="font-mono text-xs text-gray-700">
+                {item.EQT_SERNO || '-'}
               </div>
-            </div>
-            {/* S/N */}
-            <div className="font-mono text-xs text-gray-700 mt-1">
-              {item.EQT_SERNO || '-'}
-            </div>
-            {/* 자세히 보기: 추가 정보 (회색 박스) - 한 줄에 하나씩 */}
+            )}
+
+            {/* 자세히 보기: 장비처리와 동일한 회색 박스 레이아웃 */}
             {viewMode === 'detail' && (
-              <div className="bg-gray-100 rounded-lg p-2 mt-2 text-xs space-y-1">
-                <div className="text-gray-800">-</div>
-                <div className="text-gray-800">미회수</div>
-                <div><span className="text-gray-500">현재위치</span> <span className="text-gray-800">고객</span></div>
-                <div><span className="text-gray-500">이동전위치</span> <span className="text-gray-800">-</span></div>
-                <div className="text-gray-800">설치</div>
-                <div className="text-gray-600">{item.SO_NM || '-'}</div>
+              <div className="bg-gray-50 rounded-lg p-3 mt-2">
+                <div className="space-y-1.5 text-xs">
+                  {/* S/N */}
+                  <div className="font-mono text-gray-700 font-medium">{item.EQT_SERNO || '-'}</div>
+
+                  {/* 해지일 */}
+                  <div className="text-gray-700">{formatDateDot(item.TRML_DT) || '-'}</div>
+
+                  {/* 현재위치 */}
+                  <div className="flex items-center gap-2">
+                    <span className="text-gray-400">현재위치</span>
+                    <span className="text-gray-700 font-medium">고객</span>
+                  </div>
+
+                  {/* 고객명 */}
+                  <div className="flex items-center gap-2">
+                    <span className="text-gray-400">고객</span>
+                    <span className="text-gray-700">{item.CUST_NM || '-'}</span>
+                  </div>
+
+                  {/* 지점 */}
+                  <div className="text-gray-600">{item.SO_NM || '-'}</div>
+                </div>
+                {/* 분실금액 표시 (분실인 경우) */}
+                {isLost && item.LOSS_AMT && (
+                  <div className="mt-2 pt-1.5 border-t border-gray-200">
+                    <span className="text-gray-400 text-xs">분실금액: </span>
+                    <span className="text-red-600 text-xs font-medium">{Number(item.LOSS_AMT).toLocaleString()}원</span>
+                  </div>
+                )}
               </div>
             )}
           </div>
