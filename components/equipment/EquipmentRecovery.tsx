@@ -175,28 +175,47 @@ const RecoveryModal: React.FC<{
 };
 
 // 고객 검색 모달
+type SearchType = 'CUSTOMER_ID' | 'CONTRACT_ID' | 'PHONE_NAME' | 'EQUIPMENT_NO';
+
 const CustomerSearchModal: React.FC<{
   isOpen: boolean;
   onClose: () => void;
   onSelect: (customer: { CUST_ID: string; CUST_NM: string }) => void;
 }> = ({ isOpen, onClose, onSelect }) => {
-  const [searchType, setSearchType] = useState<'CUSTOMER_ID' | 'PHONE_NAME'>('CUSTOMER_ID');
+  const [searchType, setSearchType] = useState<SearchType>('CUSTOMER_ID');
   const [customerId, setCustomerId] = useState('');
+  const [contractId, setContractId] = useState('');
   const [phoneNumber, setPhoneNumber] = useState('');
   const [customerName, setCustomerName] = useState('');
+  const [equipmentNo, setEquipmentNo] = useState('');
   const [isSearching, setIsSearching] = useState(false);
   const [searchResults, setSearchResults] = useState<CustomerInfo[]>([]);
   const [hasSearched, setHasSearched] = useState(false);
 
   if (!isOpen) return null;
 
+  const handleTypeChange = (type: SearchType) => {
+    setSearchType(type);
+    setSearchResults([]);
+    setHasSearched(false);
+  };
+
   const handleSearch = async () => {
+    // 유효성 검사
     if (searchType === 'CUSTOMER_ID' && customerId.length < 4) {
       alert('고객ID를 4자리 이상 입력해주세요.');
       return;
     }
+    if (searchType === 'CONTRACT_ID' && contractId.length < 4) {
+      alert('계약ID를 4자리 이상 입력해주세요.');
+      return;
+    }
     if (searchType === 'PHONE_NAME' && phoneNumber.length < 4 && customerName.length < 2) {
       alert('전화번호(4자리 이상) 또는 이름(2자 이상)을 입력해주세요.');
+      return;
+    }
+    if (searchType === 'EQUIPMENT_NO' && equipmentNo.length < 4) {
+      alert('장비번호를 4자리 이상 입력해주세요.');
       return;
     }
 
@@ -206,8 +225,10 @@ const CustomerSearchModal: React.FC<{
       const response = await searchCustomer({
         searchType,
         customerId: searchType === 'CUSTOMER_ID' ? customerId : undefined,
+        contractId: searchType === 'CONTRACT_ID' ? contractId : undefined,
         phoneNumber: searchType === 'PHONE_NAME' ? phoneNumber : undefined,
         customerName: searchType === 'PHONE_NAME' ? customerName : undefined,
+        equipmentNo: searchType === 'EQUIPMENT_NO' ? equipmentNo : undefined,
       });
 
       if (response.success && response.data) {
@@ -248,11 +269,11 @@ const CustomerSearchModal: React.FC<{
         </div>
 
         <div className="p-4 space-y-3 flex-1 overflow-y-auto">
-          {/* 검색 유형 선택 */}
-          <div className="flex gap-2">
+          {/* 검색 유형 선택 - 2x2 그리드 */}
+          <div className="grid grid-cols-2 gap-2">
             <button
-              onClick={() => { setSearchType('CUSTOMER_ID'); setSearchResults([]); setHasSearched(false); }}
-              className={`flex-1 py-2 px-3 rounded-lg text-sm font-medium transition-colors flex items-center justify-center gap-1 ${
+              onClick={() => handleTypeChange('CUSTOMER_ID')}
+              className={`py-2 px-3 rounded-lg text-sm font-medium transition-colors flex items-center justify-center gap-1 ${
                 searchType === 'CUSTOMER_ID' ? 'bg-blue-500 text-white' : 'bg-gray-100 text-gray-600'
               }`}
             >
@@ -260,18 +281,36 @@ const CustomerSearchModal: React.FC<{
               고객ID
             </button>
             <button
-              onClick={() => { setSearchType('PHONE_NAME'); setSearchResults([]); setHasSearched(false); }}
-              className={`flex-1 py-2 px-3 rounded-lg text-sm font-medium transition-colors flex items-center justify-center gap-1 ${
+              onClick={() => handleTypeChange('CONTRACT_ID')}
+              className={`py-2 px-3 rounded-lg text-sm font-medium transition-colors flex items-center justify-center gap-1 ${
+                searchType === 'CONTRACT_ID' ? 'bg-blue-500 text-white' : 'bg-gray-100 text-gray-600'
+              }`}
+            >
+              <FileText className="w-4 h-4" />
+              계약ID
+            </button>
+            <button
+              onClick={() => handleTypeChange('PHONE_NAME')}
+              className={`py-2 px-3 rounded-lg text-sm font-medium transition-colors flex items-center justify-center gap-1 ${
                 searchType === 'PHONE_NAME' ? 'bg-blue-500 text-white' : 'bg-gray-100 text-gray-600'
               }`}
             >
               <Phone className="w-4 h-4" />
               전화번호/이름
             </button>
+            <button
+              onClick={() => handleTypeChange('EQUIPMENT_NO')}
+              className={`py-2 px-3 rounded-lg text-sm font-medium transition-colors flex items-center justify-center gap-1 ${
+                searchType === 'EQUIPMENT_NO' ? 'bg-blue-500 text-white' : 'bg-gray-100 text-gray-600'
+              }`}
+            >
+              <Cpu className="w-4 h-4" />
+              장비번호
+            </button>
           </div>
 
           {/* 검색 입력 */}
-          {searchType === 'CUSTOMER_ID' ? (
+          {searchType === 'CUSTOMER_ID' && (
             <input
               type="text"
               value={customerId}
@@ -281,7 +320,19 @@ const CustomerSearchModal: React.FC<{
               className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500"
               autoFocus
             />
-          ) : (
+          )}
+          {searchType === 'CONTRACT_ID' && (
+            <input
+              type="text"
+              value={contractId}
+              onChange={(e) => setContractId(e.target.value)}
+              onKeyPress={handleKeyPress}
+              placeholder="계약ID 입력"
+              className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500"
+              autoFocus
+            />
+          )}
+          {searchType === 'PHONE_NAME' && (
             <div className="space-y-2">
               <input
                 type="tel"
@@ -301,6 +352,17 @@ const CustomerSearchModal: React.FC<{
                 className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500"
               />
             </div>
+          )}
+          {searchType === 'EQUIPMENT_NO' && (
+            <input
+              type="text"
+              value={equipmentNo}
+              onChange={(e) => setEquipmentNo(e.target.value.toUpperCase())}
+              onKeyPress={handleKeyPress}
+              placeholder="장비번호 (S/N 또는 MAC)"
+              className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 font-mono"
+              autoFocus
+            />
           )}
 
           <button
