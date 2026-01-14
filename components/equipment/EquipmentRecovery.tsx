@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { getUnreturnedEquipmentList, processEquipmentRecovery, getEquipmentHistoryInfo } from '../../services/apiService';
+import { searchCustomer, CustomerInfo } from '../../services/customerApi';
 import { debugApiCall } from './equipmentDebug';
-import { Scan, Check, ChevronDown, ChevronUp } from 'lucide-react';
+import { Scan, Check, ChevronDown, ChevronUp, Search, User, X, Loader2, Phone } from 'lucide-react';
 import BarcodeScanner from './BarcodeScanner';
 
 // SO (jijum) info type
@@ -172,6 +173,179 @@ const RecoveryModal: React.FC<{
   );
 };
 
+// 고객 검색 모달
+const CustomerSearchModal: React.FC<{
+  isOpen: boolean;
+  onClose: () => void;
+  onSelect: (customer: { CUST_ID: string; CUST_NM: string }) => void;
+}> = ({ isOpen, onClose, onSelect }) => {
+  const [searchType, setSearchType] = useState<'CUSTOMER_ID' | 'PHONE_NAME'>('CUSTOMER_ID');
+  const [customerId, setCustomerId] = useState('');
+  const [phoneNumber, setPhoneNumber] = useState('');
+  const [customerName, setCustomerName] = useState('');
+  const [isSearching, setIsSearching] = useState(false);
+  const [searchResults, setSearchResults] = useState<CustomerInfo[]>([]);
+  const [hasSearched, setHasSearched] = useState(false);
+
+  if (!isOpen) return null;
+
+  const handleSearch = async () => {
+    if (searchType === 'CUSTOMER_ID' && customerId.length < 4) {
+      alert('고객ID를 4자리 이상 입력해주세요.');
+      return;
+    }
+    if (searchType === 'PHONE_NAME' && phoneNumber.length < 4 && customerName.length < 2) {
+      alert('전화번호(4자리 이상) 또는 이름(2자 이상)을 입력해주세요.');
+      return;
+    }
+
+    setIsSearching(true);
+    setHasSearched(true);
+    try {
+      const response = await searchCustomer({
+        searchType,
+        customerId: searchType === 'CUSTOMER_ID' ? customerId : undefined,
+        phoneNumber: searchType === 'PHONE_NAME' ? phoneNumber : undefined,
+        customerName: searchType === 'PHONE_NAME' ? customerName : undefined,
+      });
+
+      if (response.success && response.data) {
+        setSearchResults(response.data);
+        if (response.data.length === 1) {
+          onSelect({ CUST_ID: response.data[0].CUST_ID, CUST_NM: response.data[0].CUST_NM });
+          onClose();
+        }
+      } else {
+        setSearchResults([]);
+      }
+    } catch (error) {
+      console.error('Customer search error:', error);
+      setSearchResults([]);
+    } finally {
+      setIsSearching(false);
+    }
+  };
+
+  const handleKeyPress = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') handleSearch();
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-xl shadow-xl w-full max-w-md overflow-hidden max-h-[80vh] flex flex-col">
+        <div className="p-4 border-b border-gray-100 bg-gradient-to-r from-blue-500 to-blue-600 flex items-center justify-between">
+          <div>
+            <h3 className="font-semibold text-white flex items-center gap-2">
+              <User className="w-4 h-4" />
+              고객 검색
+            </h3>
+            <p className="text-xs text-white/80 mt-0.5">고객을 검색하여 선택하세요</p>
+          </div>
+          <button onClick={onClose} className="text-white/80 hover:text-white">
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+
+        <div className="p-4 space-y-3 flex-1 overflow-y-auto">
+          {/* 검색 유형 선택 */}
+          <div className="flex gap-2">
+            <button
+              onClick={() => { setSearchType('CUSTOMER_ID'); setSearchResults([]); setHasSearched(false); }}
+              className={`flex-1 py-2 px-3 rounded-lg text-sm font-medium transition-colors flex items-center justify-center gap-1 ${
+                searchType === 'CUSTOMER_ID' ? 'bg-blue-500 text-white' : 'bg-gray-100 text-gray-600'
+              }`}
+            >
+              <User className="w-4 h-4" />
+              고객ID
+            </button>
+            <button
+              onClick={() => { setSearchType('PHONE_NAME'); setSearchResults([]); setHasSearched(false); }}
+              className={`flex-1 py-2 px-3 rounded-lg text-sm font-medium transition-colors flex items-center justify-center gap-1 ${
+                searchType === 'PHONE_NAME' ? 'bg-blue-500 text-white' : 'bg-gray-100 text-gray-600'
+              }`}
+            >
+              <Phone className="w-4 h-4" />
+              전화번호/이름
+            </button>
+          </div>
+
+          {/* 검색 입력 */}
+          {searchType === 'CUSTOMER_ID' ? (
+            <input
+              type="text"
+              value={customerId}
+              onChange={(e) => setCustomerId(e.target.value)}
+              onKeyPress={handleKeyPress}
+              placeholder="고객ID 입력"
+              className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500"
+              autoFocus
+            />
+          ) : (
+            <div className="space-y-2">
+              <input
+                type="tel"
+                value={phoneNumber}
+                onChange={(e) => setPhoneNumber(e.target.value.replace(/[^0-9]/g, ''))}
+                onKeyPress={handleKeyPress}
+                placeholder="전화번호"
+                className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500"
+                autoFocus
+              />
+              <input
+                type="text"
+                value={customerName}
+                onChange={(e) => setCustomerName(e.target.value)}
+                onKeyPress={handleKeyPress}
+                placeholder="고객명"
+                className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+          )}
+
+          <button
+            onClick={handleSearch}
+            disabled={isSearching}
+            className="w-full py-2.5 text-sm text-white bg-blue-500 hover:bg-blue-600 disabled:bg-gray-300 rounded-lg font-medium flex items-center justify-center gap-2"
+          >
+            {isSearching ? <Loader2 className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />}
+            {isSearching ? '검색 중...' : '검색'}
+          </button>
+
+          {/* 검색 결과 */}
+          {hasSearched && (
+            <div className="border-t border-gray-100 pt-3">
+              {searchResults.length > 0 ? (
+                <div className="space-y-2 max-h-48 overflow-y-auto">
+                  <div className="text-xs text-gray-500 mb-2">검색 결과: {searchResults.length}건</div>
+                  {searchResults.map((customer, idx) => (
+                    <button
+                      key={customer.CUST_ID || idx}
+                      onClick={() => { onSelect({ CUST_ID: customer.CUST_ID, CUST_NM: customer.CUST_NM }); onClose(); }}
+                      className="w-full p-3 bg-gray-50 hover:bg-blue-50 rounded-lg border border-gray-200 hover:border-blue-300 text-left"
+                    >
+                      <div className="font-medium text-gray-800">
+                        {customer.CUST_NM}
+                        <span className="ml-2 text-sm text-gray-500">({customer.CUST_ID})</span>
+                      </div>
+                      {customer.TEL_NO && (
+                        <div className="text-sm text-gray-600 mt-1">{customer.TEL_NO}</div>
+                      )}
+                    </button>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-4 text-gray-500 text-sm">
+                  검색 결과가 없습니다.
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
+
 const EquipmentRecovery: React.FC<EquipmentRecoveryProps> = ({ onBack }) => {
   const [searchParams, setSearchParams] = useState<UnreturnedEqtSearch>({
     CUST_ID: '',
@@ -180,6 +354,8 @@ const EquipmentRecovery: React.FC<EquipmentRecoveryProps> = ({ onBack }) => {
     EQT_CL_CD: '',
     EQT_SERNO: ''
   });
+  const [customerModalOpen, setCustomerModalOpen] = useState(false);
+  const [selectedCustomer, setSelectedCustomer] = useState<{ CUST_ID: string; CUST_NM: string } | null>(null);
 
   const [unreturnedList, setUnreturnedList] = useState<UnreturnedEqt[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -343,9 +519,15 @@ const EquipmentRecovery: React.FC<EquipmentRecoveryProps> = ({ onBack }) => {
     }
   };
 
+  // 고객 선택 핸들러
+  const handleCustomerSelect = (customer: { CUST_ID: string; CUST_NM: string }) => {
+    setSelectedCustomer(customer);
+    setSearchParams({...searchParams, CUST_ID: customer.CUST_ID, CUST_NM: customer.CUST_NM});
+  };
+
   const handleSearch = async () => {
-    if (!searchParams.EQT_SERNO && !searchParams.CUST_ID && !searchParams.CUST_NM) {
-      alert('Enter at least one of S/N, Customer ID, or Customer Name.');
+    if (!searchParams.EQT_SERNO && !selectedCustomer) {
+      alert('고객을 선택하거나 S/N을 입력해주세요.');
       return;
     }
 
@@ -354,8 +536,7 @@ const EquipmentRecovery: React.FC<EquipmentRecoveryProps> = ({ onBack }) => {
       const params: any = {};
 
       if (searchParams.EQT_SERNO) params.EQT_SERNO = searchParams.EQT_SERNO;
-      if (searchParams.CUST_ID) params.CUST_ID = searchParams.CUST_ID;
-      if (searchParams.CUST_NM) params.CUST_NM = searchParams.CUST_NM;
+      if (selectedCustomer) params.CUST_ID = selectedCustomer.CUST_ID;
 
       const result = await debugApiCall(
         'EquipmentRecovery',
@@ -590,6 +771,46 @@ const EquipmentRecovery: React.FC<EquipmentRecoveryProps> = ({ onBack }) => {
       {/* Search area */}
       <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4">
         <div className="space-y-3">
+          {/* 고객 검색 - 클릭 시 팝업 */}
+          <div>
+            <div className="flex items-center gap-2 mb-1.5">
+              <User className="w-4 h-4 text-gray-500" />
+              <span className="text-xs font-medium text-gray-600">고객 검색</span>
+            </div>
+            <div
+              onClick={() => setCustomerModalOpen(true)}
+              className="flex gap-2 cursor-pointer"
+            >
+              <input
+                type="text"
+                value={selectedCustomer?.CUST_ID || ''}
+                readOnly
+                className="flex-1 px-3 py-2.5 text-sm border border-gray-200 rounded-lg bg-gray-50 cursor-pointer"
+                placeholder="고객ID"
+              />
+              <input
+                type="text"
+                value={selectedCustomer?.CUST_NM || ''}
+                readOnly
+                className="flex-1 px-3 py-2.5 text-sm border border-gray-200 rounded-lg bg-gray-50 cursor-pointer"
+                placeholder="고객명"
+              />
+              {selectedCustomer && (
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setSelectedCustomer(null);
+                    setSearchParams({...searchParams, CUST_ID: '', CUST_NM: ''});
+                  }}
+                  className="px-2 text-gray-400 hover:text-gray-600"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              )}
+            </div>
+          </div>
+
+          {/* S/N 입력 */}
           <div className="flex items-center gap-2">
             <label className="text-xs font-medium text-gray-600 w-14 flex-shrink-0">S/N</label>
             <input
@@ -597,36 +818,14 @@ const EquipmentRecovery: React.FC<EquipmentRecoveryProps> = ({ onBack }) => {
               value={searchParams.EQT_SERNO}
               onChange={(e) => setSearchParams({...searchParams, EQT_SERNO: e.target.value.toUpperCase()})}
               className="flex-1 px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-all font-mono"
-              placeholder="장비 S/N"
-            />
-          </div>
-
-          <div className="flex items-center gap-2">
-            <label className="text-xs font-medium text-gray-600 w-14 flex-shrink-0">고객ID</label>
-            <input
-              type="text"
-              value={searchParams.CUST_ID}
-              onChange={(e) => setSearchParams({...searchParams, CUST_ID: e.target.value})}
-              className="flex-1 px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-all"
-              placeholder="고객 ID"
-            />
-          </div>
-
-          <div className="flex items-center gap-2">
-            <label className="text-xs font-medium text-gray-600 w-14 flex-shrink-0">고객명</label>
-            <input
-              type="text"
-              value={searchParams.CUST_NM}
-              onChange={(e) => setSearchParams({...searchParams, CUST_NM: e.target.value})}
-              className="flex-1 px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-all"
-              placeholder="고객명"
+              placeholder="장비 S/N (선택)"
             />
           </div>
 
           <div className="flex gap-2">
             <button
               onClick={handleSearch}
-              disabled={isLoading}
+              disabled={isLoading || (!selectedCustomer && !searchParams.EQT_SERNO)}
               className="flex-1 bg-blue-500 hover:bg-blue-600 disabled:bg-gray-300 text-white py-2.5 rounded-lg font-semibold text-sm shadow-sm transition-all active:scale-[0.98] touch-manipulation"
               style={{ WebkitTapHighlightColor: 'transparent' }}
             >
@@ -850,6 +1049,12 @@ const EquipmentRecovery: React.FC<EquipmentRecoveryProps> = ({ onBack }) => {
         onProcess={handleRecoveryProcess}
         isProcessing={isProcessing}
         soList={soList}
+      />
+
+      <CustomerSearchModal
+        isOpen={customerModalOpen}
+        onClose={() => setCustomerModalOpen(false)}
+        onSelect={handleCustomerSelect}
       />
     </div>
   );
