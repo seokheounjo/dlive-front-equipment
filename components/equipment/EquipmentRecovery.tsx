@@ -205,8 +205,11 @@ const EquipmentRecovery: React.FC<EquipmentRecoveryProps> = ({ onBack }) => {
     });
   };
 
-  // Lost equipment check (LOSS_AMT > 0 means lost)
+  // Lost equipment check (EQT_STAT_NM='분실' or LOSS_AMT > 0)
   const isLostEquipment = (item: UnreturnedEqt): boolean => {
+    // EQT_STAT_NM이 '분실'이면 분실 장비
+    if (item.EQT_STAT_NM === '분실') return true;
+    // LOSS_AMT > 0이면 분실 장비 (레거시 호환)
     return item.LOSS_AMT !== '' && item.LOSS_AMT !== '0' && Number(item.LOSS_AMT) > 0;
   };
 
@@ -299,19 +302,20 @@ const EquipmentRecovery: React.FC<EquipmentRecoveryProps> = ({ onBack }) => {
           EQT_SERNO: item.EQT_SERNO || '',
           EQT_CL_CD: item.EQT_CL_CD || '',
           EQT_CL_NM: item.EQT_CL_NM || item.EQT_NM || '',
-          ITEM_NM: item.ITEM_NM || '',
-          TRML_DT: item.TRML_DT || '',
+          ITEM_NM: item.ITEM_NM || item.EQT_NM || '',
+          TRML_DT: item.TRML_DT || item.CMPL_DATE?.split(' ')[0]?.replace(/-/g, '') || '',
           WRK_ID: item.WRK_ID || '',
           WRKR_ID: item.WRKR_ID || '',
           WRKR_NM: item.WRKR_NM || '',
           SO_ID: item.SO_ID || '',
           SO_NM: item.SO_NM || '',
-          PHONE_NO: item.PHONE_NO || '',
-          ADDRESS: item.ADDRESS || '',
+          PHONE_NO: item.PHONE_NO || item.TEL_NO || '',
+          ADDRESS: item.ADDRESS || item.WORK_ADDR || item.CTRT_ADDR || '',
           RETN_REQ_YN: item.RETN_REQ_YN || '',
           LOSS_AMT: item.LOSS_AMT || '',
           CRR_ID: item.CRR_ID || '',
           CMPL_DATE: item.CMPL_DATE || '',
+          EQT_STAT_NM: item.EQT_STAT_NM || '',
           isScanned: item.EQT_SERNO === serialNo
         }));
         setUnreturnedList(transformedList);
@@ -369,19 +373,20 @@ const EquipmentRecovery: React.FC<EquipmentRecoveryProps> = ({ onBack }) => {
         EQT_SERNO: item.EQT_SERNO || '',
         EQT_CL_CD: item.EQT_CL_CD || '',
         EQT_CL_NM: item.EQT_CL_NM || item.EQT_NM || '',
-        ITEM_NM: item.ITEM_NM || '',
-        TRML_DT: item.TRML_DT || '',
+        ITEM_NM: item.ITEM_NM || item.EQT_NM || '',
+        TRML_DT: item.TRML_DT || item.CMPL_DATE?.split(' ')[0]?.replace(/-/g, '') || '',
         WRK_ID: item.WRK_ID || '',
         WRKR_ID: item.WRKR_ID || '',
         WRKR_NM: item.WRKR_NM || '',
         SO_ID: item.SO_ID || '',
         SO_NM: item.SO_NM || '',
-        PHONE_NO: item.PHONE_NO || '',
-        ADDRESS: item.ADDRESS || '',
+        PHONE_NO: item.PHONE_NO || item.TEL_NO || '',
+        ADDRESS: item.ADDRESS || item.WORK_ADDR || item.CTRT_ADDR || '',
         RETN_REQ_YN: item.RETN_REQ_YN || '',
         LOSS_AMT: item.LOSS_AMT || '',
         CRR_ID: item.CRR_ID || '',
         CMPL_DATE: item.CMPL_DATE || '',
+        EQT_STAT_NM: item.EQT_STAT_NM || '',
         isScanned: scannedSerials.includes(item.EQT_SERNO)
       }));
 
