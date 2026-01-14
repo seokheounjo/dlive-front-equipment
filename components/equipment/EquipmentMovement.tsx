@@ -425,15 +425,32 @@ const EquipmentMovement: React.FC<EquipmentMovementProps> = ({ onBack }) => {
     try {
       let params: any;
       if (isNameSearch) {
-        // 이름 검색: searchWorkersByName API 사용 (부분 일치)
+        // 이름 검색: SO_ID로 지점 작업자 전체 조회 후 클라이언트 필터링
+        // (레거시 API가 이름 검색을 지원하지 않음)
+        if (!modalSelectedSoId) {
+          alert('이름으로 검색하려면 지점을 먼저 선택해주세요.');
+          setIsSearchingWorker(false);
+          return;
+        }
         console.log('[장비이동] 이름 검색:', keyword, '지점:', modalSelectedSoId);
-        const workers = await searchWorkersByName({ WRKR_NM: keyword, CRR_ID: '', SO_ID: modalSelectedSoId || undefined });
-        if (workers && workers.length > 0) {
-          const formattedWorkers = workers.map((w: any) => ({
-            USR_ID: w.WRKR_ID,
-            USR_NM: w.WRKR_NM,
+
+        // 지점별 전체 작업자 조회
+        const allWorkers = await findUserList({ SO_ID: modalSelectedSoId });
+        console.log('[장비이동] 지점 작업자 전체:', allWorkers.length, '명');
+
+        // 클라이언트에서 이름 필터링 (부분 일치)
+        const searchLower = keyword.toLowerCase();
+        const filteredWorkers = allWorkers.filter((w: any) => {
+          const name = w.USR_NAME_EN || w.USR_NM || w.WRKR_NM || '';
+          return name.toLowerCase().includes(searchLower);
+        });
+
+        if (filteredWorkers.length > 0) {
+          const formattedWorkers = filteredWorkers.slice(0, 50).map((w: any) => ({
+            USR_ID: w.USR_ID || w.WRKR_ID,
+            USR_NM: w.USR_NAME_EN || w.USR_NM || w.WRKR_NM || '-',
             CRR_ID: w.CRR_ID || '',
-            EQT_COUNT: w.EQT_COUNT || 0
+            EQT_COUNT: 0  // 장비 수는 나중에 조회
           }));
           console.log('[장비이동] 이름 검색 결과:', formattedWorkers.length, '명');
           setSearchedWorkers(formattedWorkers);
