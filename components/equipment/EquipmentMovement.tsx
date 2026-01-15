@@ -37,16 +37,6 @@ const formatDateDash = (dateStr: string): string => {
   return dateStr;
 };
 
-// EQT_NO validity check - valid EQT_NO should be 20-digit numeric and different from EQT_SERNO
-const isValidEqtNo = (eqtNo: string | null | undefined, eqtSerno: string | null | undefined): boolean => {
-  if (!eqtNo) return false;
-  // Check if EQT_NO is same as EQT_SERNO (invalid data)
-  if (eqtNo === eqtSerno) return false;
-  // Valid EQT_NO should be 20-digit numeric
-  const is20DigitNumeric = /^\d{20}$/.test(eqtNo);
-  return is20DigitNumeric;
-};
-
 // Scan mode type: scan(단일스캔), equipment(장비번호), worker(보유기사)
 type ScanMode = 'scan' | 'equipment' | 'worker';
 
@@ -686,45 +676,21 @@ const EquipmentMovement: React.FC<EquipmentMovementProps> = ({ onBack }) => {
       return;
     }
 
-    // EQT_NO 유효성 검증 - 무효한 장비 필터링
-    const validItems = checkedItems.filter(item => isValidEqtNo(item.EQT_NO, item.EQT_SERNO));
-    const invalidItems = checkedItems.filter(item => !isValidEqtNo(item.EQT_NO, item.EQT_SERNO));
-
-    if (invalidItems.length > 0) {
-      const invalidList = invalidItems.map(i => i.EQT_SERNO).join(', ');
-      if (validItems.length === 0) {
-        alert(`선택한 모든 장비(${invalidItems.length}건)가 EQT_NO 오류로 이관 불가합니다.\n\n해당 장비: ${invalidList}\n\n* DB 데이터 문제로 관리자에게 문의하세요.`);
-        return;
-      } else {
-        const proceed = confirm(`선택한 ${checkedItems.length}건 중 ${invalidItems.length}건은 EQT_NO 오류로 이관 불가합니다.\n\n이관 불가 장비: ${invalidList}\n\n나머지 ${validItems.length}건만 이관하시겠습니까?`);
-        if (!proceed) return;
-      }
-    }
-
     setIsLoading(true);
     const results: TransferResult = { success: [], failed: [] };
 
-    // 무효 EQT_NO 장비는 즉시 실패 처리
-    for (const item of invalidItems) {
-      results.failed.push({
-        EQT_SERNO: item.EQT_SERNO,
-        EQT_NO: item.EQT_NO,
-        ITEM_NM: item.ITEM_NM || item.EQT_CL_NM,
-        error: 'EQT_NO 오류 (장비원장 정보 없음)'
-      });
-    }
-
     try {
-      // 유효한 EQT_NO를 가진 장비만 API 호출
-      for (const item of validItems) {
+      for (const item of checkedItems) {
         try {
+          // SO_ID는 반드시 사용자의 AUTH_SO_List에 있는 값이어야 함 (Oracle 프로시저 검증)
+          const authorizedSoId = targetSoId || (userAuthSoList.length > 0 ? userAuthSoList[0].SO_ID : loggedInUser.soId);
           const params = {
             EQT_NO: item.EQT_NO,
             EQT_SERNO: item.EQT_SERNO,
-            SO_ID: item.SO_ID || '',
+            SO_ID: authorizedSoId,  // 장비의 SO_ID가 아닌 사용자 권한 SO_ID 사용
             FROM_WRKR_ID: workerInfo.WRKR_ID,
             TO_WRKR_ID: loggedInUser.userId,
-            MV_SO_ID: targetSoId || loggedInUser.soId,  // 선택된 이관지점
+            MV_SO_ID: authorizedSoId,  // 선택된 이관지점 (SO_ID와 동일해야 함)
             MV_CRR_ID: loggedInUser.crrId,    // 이관 협력업체 (이관받는 기사의 CRR_ID)
             CHG_UID: loggedInUser.userId      // 변경자 ID
           };
@@ -1185,17 +1151,12 @@ const EquipmentMovement: React.FC<EquipmentMovementProps> = ({ onBack }) => {
                                   className="w-5 h-5 rounded focus:ring-blue-500 mt-0.5 text-blue-500"
                                 />
                                 <div className="flex-1 min-w-0">
-                                  {/* Line 1: 모델명 + 스캔뱃지 + 이관불가 경고 */}
+                                  {/* Line 1: 모델명 + 스캔뱃지 */}
                                   <div className="flex items-center justify-between">
                                     <span className="text-base font-bold text-gray-900 truncate">{item.EQT_CL_NM || item.ITEM_NM || '-'}</span>
-                                    <div className="flex items-center gap-1 flex-shrink-0 ml-2">
-                                      {!isValidEqtNo(item.EQT_NO, item.EQT_SERNO) && (
-                                        <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-700" title="EQT_NO가 유효하지 않아 이관 불가">이관불가</span>
-                                      )}
-                                      {item.isScanned && (
-                                        <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-700">스캔</span>
-                                      )}
-                                    </div>
+                                    {item.isScanned && (
+                                      <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-700 flex-shrink-0 ml-2">스캔</span>
+                                    )}
                                   </div>
                                   {/* Line 2: S/N + [EQT_USE_ARR_YN] 뱃지 */}
                                   <div className="flex items-center justify-between mt-1">
