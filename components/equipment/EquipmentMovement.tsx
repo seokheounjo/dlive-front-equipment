@@ -312,8 +312,10 @@ const EquipmentMovement: React.FC<EquipmentMovementProps> = ({ onBack }) => {
         { EQT_SERNO: normalizedSN }
       );
 
-      if (eqtResult && eqtResult.length > 0) {
-        const eqt = eqtResult[0];
+      // API가 단일 객체 또는 배열 반환 가능
+      const eqt = Array.isArray(eqtResult) ? eqtResult[0] : eqtResult;
+
+      if (eqt && eqt.EQT_SERNO) {
         const ownerWrkrId = eqt.WRKR_ID || eqt.OWNER_WRKR_ID;
         const ownerWrkrNm = eqt.WRKR_NM || eqt.OWNER_WRKR_NM || '알수없음';
         const ownerCrrId = eqt.CRR_ID || '';
@@ -324,7 +326,8 @@ const EquipmentMovement: React.FC<EquipmentMovementProps> = ({ onBack }) => {
           await searchEquipmentByWorker(ownerWrkrId, ownerWrkrNm, ownerCrrId, normalizedSN);
           setHasSearched(true);
         } else {
-          alert('장비(' + normalizedSN + ')의 보유기사 정보가 없습니다.');
+          // WRKR_ID 없으면 WRKR_NM으로 장비 정보만 표시
+          alert('장비(' + normalizedSN + ')의 보유기사 ID가 없습니다.\n현재 보유: ' + ownerWrkrNm);
         }
       } else {
         alert('장비(' + normalizedSN + ')를 찾을 수 없습니다.');
