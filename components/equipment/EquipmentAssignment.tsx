@@ -99,6 +99,20 @@ const formatDateDot = (dateStr: string): string => {
   return dateStr;
 };
 
+// 날짜 포맷 함수 (YYYY-MM-DD)
+const formatDateDash = (dateStr: string): string => {
+  if (!dateStr) return '-';
+  // YYYYMMDD -> YYYY-MM-DD
+  if (dateStr.length === 8 && !dateStr.includes('-') && !dateStr.includes('.')) {
+    return `${dateStr.slice(0, 4)}-${dateStr.slice(4, 6)}-${dateStr.slice(6, 8)}`;
+  }
+  // YYYY.MM.DD -> YYYY-MM-DD
+  if (dateStr.includes('.')) {
+    return dateStr.replace(/\./g, '-');
+  }
+  return dateStr;
+};
+
 // API Base URL
 const API_BASE = typeof window !== 'undefined' && window.location.hostname !== 'localhost'
   ? `${window.location.protocol}//${window.location.hostname}:8080/api`
@@ -768,34 +782,44 @@ const EquipmentAssignment: React.FC<EquipmentAssignmentProps> = ({ onBack, showT
                                 }`}
                               />
                               <div className="flex-1 min-w-0">
-                                {/* 간단히 보기: 1줄 - 모델명 */}
-                                <div>
+                                {/* Line 1: 모델명 + [입고완료/입고대기] 뱃지 */}
+                                <div className="flex items-center justify-between">
                                   <span className="text-base font-bold text-gray-900 truncate">{item.EQT_CL_NM || '-'}</span>
-                                </div>
-                                {/* 간단히 보기: 2줄 - S/N + 상태뱃지 */}
-                                <div className="flex items-center justify-between mt-1">
-                                  <span className="font-mono text-sm text-gray-700">{item.EQT_SERNO || '-'}</span>
-                                  <span className={`px-2 py-0.5 rounded-full text-sm font-semibold flex-shrink-0 ${
+                                  <span className={`px-2 py-0.5 rounded-full text-xs font-medium flex-shrink-0 ml-2 ${
                                     isReceived ? 'bg-green-100 text-green-700' : 'bg-blue-100 text-blue-700'
                                   }`}>
                                     {isReceived ? '입고완료' : '입고대기'}
                                   </span>
                                 </div>
-                                {/* 간단히 보기: 3줄 - MAC + 사용가능일자 */}
+                                {/* Line 2: S/N + [EQT_USE_ARR_YN] 뱃지 */}
+                                <div className="flex items-center justify-between mt-1">
+                                  <span className="text-sm text-gray-600">{item.EQT_SERNO || '-'}</span>
+                                  <span className={`px-2 py-0.5 rounded-full text-xs font-medium flex-shrink-0 ml-2 ${
+                                    item.EQT_USE_ARR_YN === 'Y' ? 'bg-green-100 text-green-700' :
+                                    item.EQT_USE_ARR_YN === 'A' ? 'bg-purple-100 text-purple-700' :
+                                    item.EQT_USE_ARR_YN === 'N' ? 'bg-red-100 text-red-700' :
+                                    'bg-gray-100 text-gray-700'
+                                  }`}>
+                                    {item.EQT_USE_ARR_YN === 'Y' ? '사용가능' :
+                                     item.EQT_USE_ARR_YN === 'A' ? '검사대기' :
+                                     item.EQT_USE_ARR_YN === 'N' ? '사용불가' : 'n/a'}
+                                  </span>
+                                </div>
+                                {/* Line 3: MAC + 날짜 (YYYY-MM-DD) */}
                                 <div className="flex items-center justify-between mt-0.5">
-                                  <span className="font-mono text-sm text-gray-500">{formatMac(item.MAC_ADDRESS || '')}</span>
-                                  <span className="text-sm text-gray-500">{formatDateDot(item.EQT_USE_END_DT || '')}</span>
+                                  <span className="text-sm text-gray-600">{formatMac(item.MAC_ADDRESS || '')}</span>
+                                  <span className="text-sm text-gray-600">{formatDateDash(item.EQT_USE_END_DT || '')}</span>
                                 </div>
                               </div>
                             </div>
-                            {/* 자세히 보기: 추가 정보 - 간단히 텍스트와 세로 라인 맞춤 */}
+                            {/* 자세히 보기: 추가 정보 */}
                             {viewMode === 'detail' && (
                               <div className="bg-gray-100 rounded-lg p-2 mt-2 ml-6 text-sm space-y-1">
-                                <div><span className="text-sm text-gray-500">지점          </span><span className="text-sm font-medium text-gray-800">{selectedEqtOut?.SO_NM || '-'}</span></div>
-                                <div><span className="text-sm text-gray-500">장비상태  : </span><span className="text-sm text-gray-800">{item.EQT_STAT_CD_NM || '-'}</span></div>
-                                <div><span className="text-sm text-gray-500">변경종류  : </span><span className="text-sm text-gray-800">{item.CHG_KND_NM || '-'}</span></div>
-                                <div><span className="text-sm text-gray-500">현재위치  : </span><span className="text-sm text-gray-800">{item.EQT_LOC_NM || item.EQT_LOC_TP_NM || '-'}</span></div>
-                                <div><span className="text-sm text-gray-500">이전위치  : </span><span className="text-sm text-gray-800">{item.OLD_EQT_LOC_NM || '-'}</span></div>
+                                <div className="flex items-center justify-between"><span className="text-gray-800">{item.ITEM_MODEL || item.MODEL_NM || '-'}</span><span className="font-medium text-gray-800">{selectedEqtOut?.SO_NM || '-'}</span></div>
+                                <div><span className="text-gray-500">장비상태  : </span><span className="text-gray-800">{item.EQT_STAT_CD_NM || '-'}</span></div>
+                                <div><span className="text-gray-500">변경종류  : </span><span className="text-gray-800">{item.CHG_KND_NM || '-'}</span></div>
+                                <div><span className="text-gray-500">현재위치  : </span><span className="text-gray-800">{item.EQT_LOC_NM || item.EQT_LOC_TP_NM || '-'}</span></div>
+                                <div><span className="text-gray-500">이전위치  : </span><span className="text-gray-800">{item.OLD_EQT_LOC_NM || '-'}</span></div>
                               </div>
                             )}
                           </div>
