@@ -85,6 +85,18 @@ const formatDateDot = (dateStr: string): string => {
   return dateStr;
 };
 
+// 날짜 포맷 함수 (YYYYMMDD -> YYYY-MM-DD)
+const formatDateDash = (dateStr: string): string => {
+  if (!dateStr) return '-';
+  if (dateStr.length === 8 && !dateStr.includes('-') && !dateStr.includes('.')) {
+    return `${dateStr.slice(0, 4)}-${dateStr.slice(4, 6)}-${dateStr.slice(6, 8)}`;
+  }
+  if (dateStr.includes('.')) {
+    return dateStr.replace(/\./g, '-');
+  }
+  return dateStr;
+};
+
 // 장비 아이템 인터페이스
 interface EquipmentItem {
   CHK: boolean;
@@ -1324,17 +1336,17 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
                             )}
                           </div>
                         </div>
-                        {/* Line 3: MAC + 날짜 */}
+                        {/* Line 3: MAC + 날짜 (YYYY-MM-DD) */}
                         <div className="flex items-center justify-between mt-0.5">
                           <span className="text-sm text-gray-600">{formatMac(item.MAC_ADDRESS)}</span>
-                          <span className="text-sm text-gray-600">{formatDateDot(item.EQT_USE_END_DT || item.USE_END_DT || '')}</span>
+                          <span className="text-sm text-gray-600">{formatDateDash(item.EQT_USE_END_DT || item.USE_END_DT || '')}</span>
                         </div>
                       </div>
                     </div>
-                    {/* 자세히 보기: 추가 정보 - 간단히 텍스트와 세로 라인 맞춤 */}
+                    {/* 자세히 보기: 추가 정보 */}
                     {viewMode === 'detail' && (
                       <div className="bg-gray-100 rounded-lg p-2 mt-2 ml-6 text-sm space-y-1">
-                        <div><span className="text-gray-500">지점          </span><span className="font-medium text-gray-800">{item.SO_NM || '-'}</span></div>
+                        <div className="flex items-center justify-between"><span className="text-gray-800">{item.ITEM_MODEL || item.MODEL_NM || '-'}</span><span className="font-medium text-gray-800">{item.SO_NM || '-'}</span></div>
                         <div><span className="text-gray-500">장비상태  : </span><span className="text-gray-800">{item.EQT_STAT_NM || item.EQT_STAT_CD_NM || getEqtStatName(item.EQT_STAT_CD || '') || '-'}</span></div>
                         <div><span className="text-gray-500">변경종류  : </span><span className="text-gray-800">{item.CHG_KND_NM || '-'}</span></div>
                         <div><span className="text-gray-500">현재위치  : </span><span className="text-gray-800">{item.EQT_LOC_NM || item.EQT_LOC_TP_NM || getEqtLocTpName(item.EQT_LOC_TP_CD || '') || '-'}</span></div>
