@@ -5,7 +5,6 @@ import EquipmentInquiry from '../equipment/EquipmentInquiry';
 import EquipmentMovement from '../equipment/EquipmentMovement';
 import EquipmentRecovery from '../equipment/EquipmentRecovery';
 import EquipmentList from '../equipment/EquipmentList';
-import EquipmentApiTester from '../equipment/EquipmentApiTester';
 
 interface EquipmentManagementMenuProps {
   onNavigateToMenu: () => void;
@@ -13,10 +12,10 @@ interface EquipmentManagementMenuProps {
 }
 
 /**
- * 장비관리 메뉴 (1안 기준 - 4개 메인 메뉴 + API 테스터)
+ * 장비관리 메뉴 (5개 메인 메뉴)
  *
  * 1. 장비할당: 파트너사에서 출고된 장비를 기사가 입고 확인
- * 2. 장비처리: 나의 보유 장비 조회 및 반납/분실/사용가능변경 처리 (미회수 제외)
+ * 2. 장비처리: 나의 보유 장비 조회 및 반납/분실/사용가능변경 처리
  * 3. 장비조회: S/N 또는 바코드로 장비 상세 조회 (복수 스캔 지원)
  * 4. 장비이동: 타기사의 장비를 나의 장비로 이관 (바코드 스캔 지원)
  * 5. 미회수장비: 해지 철거시 미회수된 장비 회수 처리 (바코드 스캔)
@@ -29,8 +28,7 @@ const EquipmentManagementMenu: React.FC<EquipmentManagementMenuProps> = ({ onNav
     { id: 'equipment-inquiry', title: '장비처리', description: '나의 보유 장비 반납 / 분실 / 사용가능변경' },
     { id: 'equipment-list', title: '장비조회', description: 'S/N 또는 바코드로 장비 상세 조회' },
     { id: 'equipment-movement', title: '장비이동', description: '바코드 스캔으로 타기사 장비 이관' },
-    { id: 'equipment-recovery', title: '미회수장비', description: '미회수 장비 회수 처리' },
-    { id: 'api-tester', title: '🔧 API', description: 'API 테스트' }
+    { id: 'equipment-recovery', title: '미회수장비', description: '미회수 장비 회수 처리' }
   ];
 
   const handleTabChange = (tabId: string) => {
@@ -49,8 +47,6 @@ const EquipmentManagementMenu: React.FC<EquipmentManagementMenuProps> = ({ onNav
         return <EquipmentMovement onBack={onNavigateToMenu} />;
       case 'equipment-recovery':
         return <EquipmentRecovery onBack={onNavigateToMenu} />;
-      case 'api-tester':
-        return <EquipmentApiTester />;
       default:
         return null;
     }
