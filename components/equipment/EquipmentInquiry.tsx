@@ -1288,22 +1288,22 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
                           <span className="font-mono text-sm text-gray-500">{formatMac(item.MAC_ADDRESS)}</span>
                           <span className="text-sm text-gray-500">{formatDateDot(item.EQT_USE_END_DT || item.USE_END_DT || '')}</span>
                         </div>
-                        {/* 자세히 보기: 추가 정보 */}
-                        {viewMode === 'detail' && (
-                          <div className="bg-gray-100 rounded-lg p-2 mt-2 text-sm space-y-1">
-                            {/* 1줄: 지점명 */}
-                            <div className="flex items-center justify-between">
-                              <span className="text-gray-500">지점</span>
-                              <span className="font-medium text-gray-800">{item.SO_NM || '-'}</span>
-                            </div>
-                            <div><span className="text-gray-500">장비상태  : </span><span className="text-gray-800">{item.EQT_STAT_CD_NM || item.EQT_STAT_NM || getEqtStatName(item.EQT_STAT_CD || '') || '-'}</span></div>
-                            <div><span className="text-gray-500">변경종류  : </span><span className="text-gray-800">{item.CHG_KND_NM || item.CHG_TP_NM || item.PROC_STAT_NM || item.EQT_CHG_TP_NM || '-'}</span></div>
-                            <div><span className="text-gray-500">현재위치  : </span><span className="text-gray-800">{item.EQT_LOC_NM || item.EQT_LOC_TP_NM || getEqtLocTpName(item.EQT_LOC_TP_CD || '') || '-'}</span></div>
-                            <div><span className="text-gray-500">이전위치  : </span><span className="text-gray-800">{item.OLD_EQT_LOC_NM || item.BEF_EQT_LOC_NM || item.BEF_LOC_NM || '-'}</span></div>
-                          </div>
-                        )}
                       </div>
                     </div>
+                    {/* 자세히 보기: 추가 정보 - 전체 너비로 표시 */}
+                    {viewMode === 'detail' && (
+                      <div className="bg-gray-100 rounded-lg p-2 mt-2 text-sm space-y-1">
+                        {/* 1줄: 지점명 */}
+                        <div className="flex items-center justify-between">
+                          <span className="text-gray-500">지점</span>
+                          <span className="font-medium text-gray-800">{item.SO_NM || '-'}</span>
+                        </div>
+                        <div><span className="text-gray-500">장비상태  : </span><span className="text-gray-800">{item.EQT_STAT_CD_NM || item.EQT_STAT_NM || getEqtStatName(item.EQT_STAT_CD || '') || '-'}</span></div>
+                        <div><span className="text-gray-500">변경종류  : </span><span className="text-gray-800">{item.CHG_KND_NM || item.CHG_TP_NM || item.PROC_STAT_NM || item.EQT_CHG_TP_NM || '-'}</span></div>
+                        <div><span className="text-gray-500">현재위치  : </span><span className="text-gray-800">{item.EQT_LOC_NM || item.EQT_LOC_TP_NM || getEqtLocTpName(item.EQT_LOC_TP_CD || '') || '-'}</span></div>
+                        <div><span className="text-gray-500">이전위치  : </span><span className="text-gray-800">{item.OLD_EQT_LOC_NM || item.BEF_EQT_LOC_NM || item.BEF_LOC_NM || '-'}</span></div>
+                      </div>
+                    )}
                   </div>
                         ))}
                       </div>
