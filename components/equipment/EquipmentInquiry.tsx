@@ -611,6 +611,8 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
         WRKR_NM: item.WRKR_NM || userInfo.userName,
         CUST_ID: item.CUST_ID || '',
         CTRT_ID: item.CTRT_ID || '',
+        CTRT_STAT: item.CTRT_STAT || '',
+        WRK_ID: item.WRK_ID || '',
         EQT_USE_END_DT: item.EQT_USE_END_DT || item.USE_END_DT || item.EXPIRE_DT || '',
         RETN_RESN_CD: item.RETN_RESN_CD || '',
         RETN_RESN_NM: item.RETN_RESN_NM || item.RETN_RESN_CD_NM || '',
