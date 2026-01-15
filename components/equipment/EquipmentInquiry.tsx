@@ -964,15 +964,15 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
     });
   };
 
-  // 모델명(EQT_CL_NM) 기준 그룹화
-  const groupedByModel = filteredDisplayList.reduce((acc, item) => {
-    const modelKey = item.EQT_CL_NM || item.ITEM_NM || '기타';
-    if (!acc[modelKey]) acc[modelKey] = [];
-    acc[modelKey].push(item);
+  // 장비중분류(ITEM_MID_NM) 기준 그룹화
+  const groupedByItemMid = filteredDisplayList.reduce((acc, item) => {
+    const itemMidKey = item.ITEM_MID_NM || '기타';
+    if (!acc[itemMidKey]) acc[itemMidKey] = [];
+    acc[itemMidKey].push(item);
     return acc;
   }, {} as Record<string, EquipmentItem[]>);
 
-  const modelKeys = Object.keys(groupedByModel).sort();
+  const itemMidKeys = Object.keys(groupedByItemMid).sort();
 
 
   return (
@@ -1212,28 +1212,28 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
               </div>
             </div>
 
-            {/* 그룹핑된 장비 목록: 모델명(EQT_CL_NM) 기준 */}
+            {/* 그룹핑된 장비 목록: 장비중분류(ITEM_MID_NM) 기준 */}
             <div className="divide-y divide-gray-100">
-              {modelKeys.map(modelKey => {
-                const items = groupedByModel[modelKey];
-                const modelCollapsed = collapsedGroups.has(modelKey);
+              {itemMidKeys.map(itemMidKey => {
+                const items = groupedByItemMid[itemMidKey];
+                const itemMidCollapsed = collapsedGroups.has(itemMidKey);
 
                 return (
-                  <div key={modelKey}>
-                    {/* 모델명 헤더 */}
+                  <div key={itemMidKey}>
+                    {/* 장비중분류 헤더 */}
                     <div
                       className="px-4 py-2 bg-blue-50 flex items-center justify-between cursor-pointer hover:bg-blue-100"
-                      onClick={() => toggleGroup(modelKey)}
+                      onClick={() => toggleGroup(itemMidKey)}
                     >
                       <div className="flex items-center gap-2">
-                        <span className="text-sm font-bold text-blue-800">{modelKey}</span>
+                        <span className="text-sm font-bold text-blue-800">{itemMidKey}</span>
                         <span className="text-xs text-blue-600 bg-blue-100 px-2 py-0.5 rounded-full">{items.length}건</span>
                       </div>
-                      {modelCollapsed ? <ChevronDown className="w-4 h-4 text-blue-600" /> : <ChevronUp className="w-4 h-4 text-blue-600" />}
+                      {itemMidCollapsed ? <ChevronDown className="w-4 h-4 text-blue-600" /> : <ChevronUp className="w-4 h-4 text-blue-600" />}
                     </div>
 
                     {/* 장비 목록 */}
-                    {!modelCollapsed && (
+                    {!itemMidCollapsed && (
                       <div className="divide-y divide-gray-50">
                         {items.map((item, idx) => (
                   <div
