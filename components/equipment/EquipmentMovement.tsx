@@ -712,17 +712,18 @@ const EquipmentMovement: React.FC<EquipmentMovementProps> = ({ onBack }) => {
     try {
       for (const item of checkedItems) {
         try {
-          // SO_ID는 반드시 사용자의 AUTH_SO_List에 있는 값이어야 함 (Oracle 프로시저 검증)
-          const authorizedSoId = targetSoId || (userAuthSoList.length > 0 ? userAuthSoList[0].SO_ID : loggedInUser.soId);
+          // SO_ID: 장비의 실제 SO_ID (프로시저가 SO_ID + EQT_NO로 장비원장 조회)
+          // MV_SO_ID: 이관받을 지점 (장비의 SO_ID와 동일해야 함)
+          // 권한 검증: 장비의 SO_ID가 사용자의 AUTH_SO_List에 있어야 함 (UI에서 사전 필터링)
           const params = {
             EQT_NO: item.EQT_NO,
             EQT_SERNO: item.EQT_SERNO,
-            SO_ID: authorizedSoId,  // 장비의 SO_ID가 아닌 사용자 권한 SO_ID 사용
+            SO_ID: item.SO_ID,                 // 장비의 실제 SO_ID (필수!)
             FROM_WRKR_ID: workerInfo.WRKR_ID,
             TO_WRKR_ID: loggedInUser.userId,
-            MV_SO_ID: authorizedSoId,  // 선택된 이관지점 (SO_ID와 동일해야 함)
-            MV_CRR_ID: loggedInUser.crrId,    // 이관 협력업체 (이관받는 기사의 CRR_ID)
-            CHG_UID: loggedInUser.userId      // 변경자 ID
+            MV_SO_ID: item.SO_ID,              // 이관 지점 (장비의 SO_ID와 동일)
+            MV_CRR_ID: loggedInUser.crrId,     // 이관 협력업체 (이관받는 기사의 CRR_ID)
+            CHG_UID: loggedInUser.userId       // 변경자 ID
           };
           await debugApiCall('EquipmentMovement', 'changeEquipmentWorker', () => changeEquipmentWorker(params), params);
           results.success.push({
