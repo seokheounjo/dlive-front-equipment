@@ -446,12 +446,13 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
               if (selectedItemMidCd) {
                 filtered = ownedResult.filter((item: any) => item.ITEM_MID_CD === selectedItemMidCd);
               }
-              // 보유장비: EQT_USE_ARR_YN='Y' (사용가능)만 표시 (검사대기 제외)
-              // 반납요청 중이더라도 사용가능인 것만 표시
+              // 보유장비: EQT_USE_ARR_YN='Y' 또는 NULL(미설정)인 장비 표시
+              // 검사대기='A', 사용불가='N'만 제외
               filtered = filtered.filter((item: any) => {
-                const isUsable = item.EQT_USE_ARR_YN === 'Y';
-                // 사용가능만 표시 (검사대기='A', 사용불가='N' 제외)
-                return isUsable;
+                const yn = item.EQT_USE_ARR_YN;
+                // Y(사용가능) 또는 NULL/빈값(미설정)은 보유장비로 표시
+                // A(검사대기), N(사용불가)만 제외
+                return yn === 'Y' || !yn || yn === '';
               });
               console.log('[보유장비] 사용가능 필터 후:', filtered.length, '건');
               // 보유장비 표시용 태그 추가 + 반납요청 중인지 표시
