@@ -651,9 +651,14 @@ const EquipmentMovement: React.FC<EquipmentMovementProps> = ({ onBack }) => {
   };
 
   // 기사 선택 - 클릭 시 바로 workerInfo 설정하고 모달 닫기
+  // 기사 변경 시 이전 조회 결과 초기화
   const handleWorkerSelect = (worker: { USR_ID: string; USR_NM: string; CRR_ID?: string; EQT_COUNT?: number }) => {
     setWorkerInfo(prev => ({ ...prev, WRKR_ID: worker.USR_ID, WRKR_NM: worker.USR_NM, CRR_ID: worker.CRR_ID || '' }));
     setWorkerModalOpen(false);
+    // 이전 조회 결과 초기화
+    setEqtTrnsList([]);
+    setScannedSerials([]);
+    setHasSearched(false);
   };
 
   // 초기화 (검색 모드로 복귀)
