@@ -467,41 +467,73 @@ const EquipmentRecovery: React.FC<EquipmentRecoveryProps> = ({ onBack }) => {
     }));
   };
 
-  // SO list load
+  // SO list load (장비처리와 동일한 방식)
   useEffect(() => {
-    const userInfoStr = typeof window !== 'undefined' ? sessionStorage.getItem('userInfo') : null;
-    console.log('[EquipmentRecovery] userInfoStr:', userInfoStr);
-    if (userInfoStr) {
+    const loadSoList = () => {
       try {
-        const userInfo = JSON.parse(userInfoStr);
-        console.log('[EquipmentRecovery] userInfo:', userInfo);
-        console.log('[EquipmentRecovery] authSoList:', userInfo.authSoList);
-        console.log('[EquipmentRecovery] AUTH_SO_List:', userInfo.AUTH_SO_List);
+        // 1순위: localStorage의 branchList
+        const branchList = localStorage.getItem('branchList');
+        if (branchList) {
+          const parsed = JSON.parse(branchList);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            console.log('[미회수장비] branchList에서 지점 목록 로드:', parsed.length, '건');
+            const mappedList: SoInfo[] = parsed.map((so: any) => ({
+              SO_ID: so.SO_ID || so.soId || '',
+              SO_NM: so.SO_NM || so.soNm || so.SO_ID || ''
+            })).filter((so: SoInfo) => so.SO_ID);
+            setSoList(mappedList);
+            return;
+          }
+        }
 
-        // 다양한 필드명으로 시도
-        const authSoList = userInfo.authSoList || userInfo.AUTH_SO_List || userInfo.soList || [];
-        console.log('[EquipmentRecovery] Final authSoList:', authSoList);
+        // 2순위: localStorage의 userInfo.authSoList
+        const userInfoStr = localStorage.getItem('userInfo');
+        if (userInfoStr) {
+          const userInfo = JSON.parse(userInfoStr);
+          const authSoList = userInfo.authSoList || userInfo.AUTH_SO_List || [];
+          if (Array.isArray(authSoList) && authSoList.length > 0) {
+            console.log('[미회수장비] authSoList에서 지점 목록 로드:', authSoList.length, '건');
+            const mappedList: SoInfo[] = authSoList.map((so: any) => ({
+              SO_ID: so.SO_ID || so.soId || '',
+              SO_NM: so.SO_NM || so.soNm || so.SO_ID || ''
+            })).filter((so: SoInfo) => so.SO_ID);
+            setSoList(mappedList);
+            return;
+          }
+        }
 
-        if (Array.isArray(authSoList) && authSoList.length > 0) {
-          const mappedList: SoInfo[] = authSoList.map((so: any) => ({
-            SO_ID: so.SO_ID || so.soId || so.so_id || '',
-            SO_NM: so.SO_NM || so.soNm || so.so_nm || so.SO_ID || so.soId || ''
-          })).filter((so: SoInfo) => so.SO_ID);
-          console.log('[EquipmentRecovery] Mapped soList:', mappedList);
-          setSoList(mappedList);
-        } else {
-          // authSoList가 없으면 단일 SO 정보로 fallback
+        // 3순위: sessionStorage의 userInfo (fallback)
+        const sessionUserInfoStr = sessionStorage.getItem('userInfo');
+        if (sessionUserInfoStr) {
+          const userInfo = JSON.parse(sessionUserInfoStr);
+          const authSoList = userInfo.authSoList || userInfo.AUTH_SO_List || [];
+          if (Array.isArray(authSoList) && authSoList.length > 0) {
+            console.log('[미회수장비] sessionStorage authSoList에서 지점 목록 로드:', authSoList.length, '건');
+            const mappedList: SoInfo[] = authSoList.map((so: any) => ({
+              SO_ID: so.SO_ID || so.soId || '',
+              SO_NM: so.SO_NM || so.soNm || so.SO_ID || ''
+            })).filter((so: SoInfo) => so.SO_ID);
+            setSoList(mappedList);
+            return;
+          }
+
+          // 단일 SO 정보로 fallback
           const singleSo = userInfo.soId || userInfo.SO_ID;
           const singleSoNm = userInfo.soNm || userInfo.SO_NM || singleSo;
           if (singleSo) {
-            console.log('[EquipmentRecovery] Using single SO:', singleSo, singleSoNm);
+            console.log('[미회수장비] 단일 SO 정보 사용:', singleSo, singleSoNm);
             setSoList([{ SO_ID: singleSo, SO_NM: singleSoNm }]);
+            return;
           }
         }
+
+        console.log('[미회수장비] 지점 목록 없음');
       } catch (e) {
-        console.error('SO list load failed:', e);
+        console.error('[미회수장비] SO list load failed:', e);
       }
-    }
+    };
+
+    loadSoList();
   }, []);
 
   // Barcode scan handler
