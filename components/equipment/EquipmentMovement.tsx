@@ -63,6 +63,7 @@ interface EqtTrns {
   WRKR_NM: string;
   CRR_NM: string;
   isScanned?: boolean;
+  isTransferable?: boolean;  // 이관 가능 여부 (장비의 SO_ID가 사용자의 AUTH_SO_List에 있는지)
   // 통일된 간단히/자세히 형식용 필드 (실제 API 응답 필드명)
   EQT_USE_ARR_YN?: string;
   EQT_USE_END_DT?: string;      // 사용가능일자
@@ -362,26 +363,36 @@ const EquipmentMovement: React.FC<EquipmentMovementProps> = ({ onBack }) => {
       const result = await debugApiCall('EquipmentMovement', 'getWrkrHaveEqtList', () => getWrkrHaveEqtList(params), params);
 
       if (Array.isArray(result) && result.length > 0) {
-        let transformedList: EqtTrns[] = result.map((item: any) => ({
-          CHK: false,
-          EQT_NO: item.EQT_NO || '',
-          ITEM_MAX_NM: item.ITEM_MAX_NM || '',
-          ITEM_MID_NM: item.ITEM_MID_NM || '',
-          EQT_CL_CD: item.EQT_CL_CD || '',
-          EQT_CL_NM: item.EQT_CL_NM || '',
-          ITEM_NM: item.ITEM_NM || '',
-          ITEM_SPEC: item.ITEM_SPEC || '',
-          MST_SO_ID: item.MST_SO_ID || '',
-          MST_SO_NM: item.MST_SO_NM || '',
-          SO_ID: item.SO_ID || workerInfo.SO_ID,
-          SO_NM: item.SO_NM || '',
-          EQT_SERNO: item.EQT_SERNO || '',
-          MAC_ADDRESS: item.MAC_ADDRESS || '',
-          TA_MAC_ADDRESS: item.TA_MAC_ADDRESS || '',
-          WRKR_NM: item.WRKR_NM || wrkrNm,
-          CRR_NM: item.CRR_NM || '',
-          isScanned: scannedSN ? item.EQT_SERNO === scannedSN || scannedSerials.includes(item.EQT_SERNO) : scannedSerials.includes(item.EQT_SERNO)
-        }));
+        // 이관 가능 SO_ID 목록 (사용자의 AUTH_SO_List)
+        const authSoIds = userAuthSoList.map(so => so.SO_ID);
+
+        let transformedList: EqtTrns[] = result.map((item: any) => {
+          const itemSoId = item.SO_ID || '';
+          // 이관 가능 여부: 장비의 SO_ID가 사용자의 AUTH_SO_List에 있어야 함
+          const isTransferable = authSoIds.includes(itemSoId);
+
+          return {
+            CHK: false,
+            EQT_NO: item.EQT_NO || '',
+            ITEM_MAX_NM: item.ITEM_MAX_NM || '',
+            ITEM_MID_NM: item.ITEM_MID_NM || '',
+            EQT_CL_CD: item.EQT_CL_CD || '',
+            EQT_CL_NM: item.EQT_CL_NM || '',
+            ITEM_NM: item.ITEM_NM || '',
+            ITEM_SPEC: item.ITEM_SPEC || '',
+            MST_SO_ID: item.MST_SO_ID || '',
+            MST_SO_NM: item.MST_SO_NM || '',
+            SO_ID: itemSoId,
+            SO_NM: item.SO_NM || '',
+            EQT_SERNO: item.EQT_SERNO || '',
+            MAC_ADDRESS: item.MAC_ADDRESS || '',
+            TA_MAC_ADDRESS: item.TA_MAC_ADDRESS || '',
+            WRKR_NM: item.WRKR_NM || wrkrNm,
+            CRR_NM: item.CRR_NM || '',
+            isScanned: scannedSN ? item.EQT_SERNO === scannedSN || scannedSerials.includes(item.EQT_SERNO) : scannedSerials.includes(item.EQT_SERNO),
+            isTransferable
+          };
+        });
 
         // 스캔된 장비를 상위로 정렬
         transformedList.sort((a, b) => {
@@ -567,26 +578,36 @@ const EquipmentMovement: React.FC<EquipmentMovementProps> = ({ onBack }) => {
       const params: any = { WRKR_ID: worker.USR_ID, CRR_ID: '' };
       const result = await debugApiCall('EquipmentMovement', 'getWrkrHaveEqtList (modal)', () => getWrkrHaveEqtList(params), params);
       if (Array.isArray(result) && result.length > 0) {
-        const transformedList: EqtTrns[] = result.map((item: any) => ({
-          CHK: false,
-          EQT_NO: item.EQT_NO || '',
-          ITEM_MAX_NM: item.ITEM_MAX_NM || '',
-          ITEM_MID_NM: item.ITEM_MID_NM || '',
-          EQT_CL_CD: item.EQT_CL_CD || '',
-          EQT_CL_NM: item.EQT_CL_NM || '',
-          ITEM_NM: item.ITEM_NM || '',
-          ITEM_SPEC: item.ITEM_SPEC || '',
-          MST_SO_ID: item.MST_SO_ID || '',
-          MST_SO_NM: item.MST_SO_NM || '',
-          SO_ID: item.SO_ID || '',
-          SO_NM: item.SO_NM || '',
-          EQT_SERNO: item.EQT_SERNO || '',
-          MAC_ADDRESS: item.MAC_ADDRESS || '',
-          TA_MAC_ADDRESS: item.TA_MAC_ADDRESS || '',
-          WRKR_NM: item.WRKR_NM || worker.USR_NM,
-          CRR_NM: item.CRR_NM || '',
-          isScanned: false
-        }));
+        // 이관 가능 SO_ID 목록 (사용자의 AUTH_SO_List)
+        const authSoIds = userAuthSoList.map(so => so.SO_ID);
+
+        const transformedList: EqtTrns[] = result.map((item: any) => {
+          const itemSoId = item.SO_ID || '';
+          // 이관 가능 여부: 장비의 SO_ID가 사용자의 AUTH_SO_List에 있어야 함
+          const isTransferable = authSoIds.includes(itemSoId);
+
+          return {
+            CHK: false,
+            EQT_NO: item.EQT_NO || '',
+            ITEM_MAX_NM: item.ITEM_MAX_NM || '',
+            ITEM_MID_NM: item.ITEM_MID_NM || '',
+            EQT_CL_CD: item.EQT_CL_CD || '',
+            EQT_CL_NM: item.EQT_CL_NM || '',
+            ITEM_NM: item.ITEM_NM || '',
+            ITEM_SPEC: item.ITEM_SPEC || '',
+            MST_SO_ID: item.MST_SO_ID || '',
+            MST_SO_NM: item.MST_SO_NM || '',
+            SO_ID: itemSoId,
+            SO_NM: item.SO_NM || '',
+            EQT_SERNO: item.EQT_SERNO || '',
+            MAC_ADDRESS: item.MAC_ADDRESS || '',
+            TA_MAC_ADDRESS: item.TA_MAC_ADDRESS || '',
+            WRKR_NM: item.WRKR_NM || worker.USR_NM,
+            CRR_NM: item.CRR_NM || '',
+            isScanned: false,
+            isTransferable
+          };
+        });
         setModalEquipmentList(transformedList);
       } else {
         setModalEquipmentList([]);
@@ -606,9 +627,13 @@ const EquipmentMovement: React.FC<EquipmentMovementProps> = ({ onBack }) => {
     setModalEquipmentList(newList);
   };
 
-  // 모달 내 전체 선택 (필터 적용)
+  // 모달 내 전체 선택 (필터 적용, 이관가능 장비만)
   const handleModalCheckAll = (checked: boolean) => {
     setModalEquipmentList(modalEquipmentList.map(item => {
+      // 이관불가 장비는 선택 불가
+      if (item.isTransferable === false) {
+        return item;
+      }
       // 필터가 없으면 전체 선택, 필터가 있으면 해당 모델만 선택
       if (!modalModelFilter || (item.ITEM_MID_NM || item.EQT_CL_NM || '기타') === modalModelFilter) {
         return { ...item, CHK: checked };
@@ -750,8 +775,11 @@ const EquipmentMovement: React.FC<EquipmentMovementProps> = ({ onBack }) => {
     }
   };
 
-  // 전체 체크
-  const handleCheckAll = (checked: boolean) => setEqtTrnsList(eqtTrnsList.map(item => ({ ...item, CHK: checked })));
+  // 전체 체크 (이관가능 장비만)
+  const handleCheckAll = (checked: boolean) => setEqtTrnsList(eqtTrnsList.map(item => ({
+    ...item,
+    CHK: item.isTransferable !== false ? checked : false
+  })));
 
   // 개별 체크
   const handleCheckItem = (index: number, checked: boolean) => {
@@ -760,20 +788,26 @@ const EquipmentMovement: React.FC<EquipmentMovementProps> = ({ onBack }) => {
     setEqtTrnsList(newList);
   };
 
-  // 지점별 전체 체크
+  // 지점별 전체 체크 (이관가능 장비만)
   const handleCheckSo = (soKey: string, checked: boolean) => {
     setEqtTrnsList(eqtTrnsList.map(item => {
       const itemSo = item.SO_NM || item.SO_ID || '미지정';
-      return itemSo === soKey ? { ...item, CHK: checked } : item;
+      if (itemSo === soKey && item.isTransferable !== false) {
+        return { ...item, CHK: checked };
+      }
+      return item;
     }));
   };
 
-  // 장비종류별 전체 체크
+  // 장비종류별 전체 체크 (이관가능 장비만)
   const handleCheckItemType = (soKey: string, itemTypeKey: string, checked: boolean) => {
     setEqtTrnsList(eqtTrnsList.map(item => {
       const itemSo = item.SO_NM || item.SO_ID || '미지정';
       const itemType = item.ITEM_MID_NM || '기타';
-      return (itemSo === soKey && itemType === itemTypeKey) ? { ...item, CHK: checked } : item;
+      if (itemSo === soKey && itemType === itemTypeKey && item.isTransferable !== false) {
+        return { ...item, CHK: checked };
+      }
+      return item;
     }));
   };
 
@@ -1146,22 +1180,36 @@ const EquipmentMovement: React.FC<EquipmentMovementProps> = ({ onBack }) => {
                                 return (
                             <div
                               key={item.EQT_NO || idx}
-                              className={`p-3 rounded-lg border-2 transition-all ${item.isScanned ? 'bg-purple-50 border-purple-200' : 'bg-gray-50 border-transparent hover:border-gray-200'}`}
+                              className={`p-3 rounded-lg border-2 transition-all ${
+                                item.isTransferable === false ? 'bg-red-50 border-red-200 opacity-60' :
+                                item.isScanned ? 'bg-purple-50 border-purple-200' :
+                                'bg-gray-50 border-transparent hover:border-gray-200'
+                              }`}
                             >
                               <div className="flex items-start gap-3">
                                 <input
                                   type="checkbox"
                                   checked={item.CHK || false}
                                   onChange={(e) => handleCheckItem(globalIndex, e.target.checked)}
-                                  className="w-5 h-5 rounded focus:ring-blue-500 mt-0.5 text-blue-500"
+                                  disabled={item.isTransferable === false}
+                                  className={`w-5 h-5 rounded focus:ring-blue-500 mt-0.5 ${
+                                    item.isTransferable === false ? 'text-gray-300 cursor-not-allowed' : 'text-blue-500'
+                                  }`}
                                 />
                                 <div className="flex-1 min-w-0">
-                                  {/* Line 1: 모델명 + 스캔뱃지 */}
+                                  {/* Line 1: 모델명 + 이관불가/스캔뱃지 */}
                                   <div className="flex items-center justify-between">
-                                    <span className="text-base font-bold text-gray-900 truncate">{item.EQT_CL_NM || item.ITEM_NM || '-'}</span>
-                                    {item.isScanned && (
-                                      <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-700 flex-shrink-0 ml-2">스캔</span>
-                                    )}
+                                    <span className={`text-base font-bold truncate ${
+                                      item.isTransferable === false ? 'text-gray-500' : 'text-gray-900'
+                                    }`}>{item.EQT_CL_NM || item.ITEM_NM || '-'}</span>
+                                    <div className="flex items-center gap-1 flex-shrink-0 ml-2">
+                                      {item.isTransferable === false && (
+                                        <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-700">이관불가</span>
+                                      )}
+                                      {item.isScanned && (
+                                        <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-700">스캔</span>
+                                      )}
+                                    </div>
                                   </div>
                                   {/* Line 2: S/N + [EQT_USE_ARR_YN] 뱃지 */}
                                   <div className="flex items-center justify-between mt-1">
@@ -1502,20 +1550,30 @@ const EquipmentMovement: React.FC<EquipmentMovementProps> = ({ onBack }) => {
                   .map(({ item, idx }) => (
                   <div
                     key={item.EQT_NO || idx}
-                    className={`px-4 py-3 flex items-center gap-3 ${item.CHK ? 'bg-blue-50' : 'hover:bg-gray-50'}`}
+                    className={`px-4 py-3 flex items-center gap-3 ${
+                      item.isTransferable === false ? 'bg-red-50 opacity-60' :
+                      item.CHK ? 'bg-blue-50' : 'hover:bg-gray-50'
+                    }`}
                   >
                     <input
                       type="checkbox"
                       checked={item.CHK || false}
                       onChange={(e) => handleModalEquipmentCheck(idx, e.target.checked)}
-                      className="rounded flex-shrink-0"
+                      disabled={item.isTransferable === false}
+                      className={`rounded flex-shrink-0 ${
+                        item.isTransferable === false ? 'text-gray-300 cursor-not-allowed' : ''
+                      }`}
                     />
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2">
-                        <span className="px-1.5 py-0.5 bg-blue-100 text-blue-700 text-[10px] rounded font-medium">
-                          {item.ITEM_MID_NM || item.EQT_CL_NM || '장비'}
+                        <span className={`px-1.5 py-0.5 text-[10px] rounded font-medium ${
+                          item.isTransferable === false ? 'bg-red-100 text-red-700' : 'bg-blue-100 text-blue-700'
+                        }`}>
+                          {item.isTransferable === false ? '이관불가' : (item.ITEM_MID_NM || item.EQT_CL_NM || '장비')}
                         </span>
-                        <span className="font-mono text-xs text-gray-800 truncate">
+                        <span className={`font-mono text-xs truncate ${
+                          item.isTransferable === false ? 'text-gray-500' : 'text-gray-800'
+                        }`}>
                           {item.EQT_SERNO || '-'}
                         </span>
                       </div>
