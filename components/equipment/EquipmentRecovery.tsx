@@ -175,14 +175,11 @@ const RecoveryModal: React.FC<{
 };
 
 // 고객 검색 모달
-type SearchType = 'CUSTOMER_ID' | 'CONTRACT_ID' | 'PHONE_NAME' | 'EQUIPMENT_NO';
-
 const CustomerSearchModal: React.FC<{
   isOpen: boolean;
   onClose: () => void;
   onSelect: (customer: { CUST_ID: string; CUST_NM: string }) => void;
 }> = ({ isOpen, onClose, onSelect }) => {
-  const [searchType, setSearchType] = useState<SearchType>('CUSTOMER_ID');
   const [customerId, setCustomerId] = useState('');
   const [contractId, setContractId] = useState('');
   const [phoneNumber, setPhoneNumber] = useState('');
@@ -194,41 +191,34 @@ const CustomerSearchModal: React.FC<{
 
   if (!isOpen) return null;
 
-  const handleTypeChange = (type: SearchType) => {
-    setSearchType(type);
-    setSearchResults([]);
-    setHasSearched(false);
-  };
-
   const handleSearch = async () => {
-    // 유효성 검사
-    if (searchType === 'CUSTOMER_ID' && customerId.length < 4) {
-      alert('고객ID를 4자리 이상 입력해주세요.');
+    // 최소 하나의 검색 조건 필요
+    const hasCustomerId = customerId.length >= 4;
+    const hasContractId = contractId.length >= 4;
+    const hasPhoneName = phoneNumber.length >= 4 || customerName.length >= 2;
+    const hasEquipmentNo = equipmentNo.length >= 4;
+
+    if (!hasCustomerId && !hasContractId && !hasPhoneName && !hasEquipmentNo) {
+      alert('검색 조건을 하나 이상 입력해주세요.');
       return;
     }
-    if (searchType === 'CONTRACT_ID' && contractId.length < 4) {
-      alert('계약ID를 4자리 이상 입력해주세요.');
-      return;
-    }
-    if (searchType === 'PHONE_NAME' && phoneNumber.length < 4 && customerName.length < 2) {
-      alert('전화번호(4자리 이상) 또는 이름(2자 이상)을 입력해주세요.');
-      return;
-    }
-    if (searchType === 'EQUIPMENT_NO' && equipmentNo.length < 4) {
-      alert('장비번호를 4자리 이상 입력해주세요.');
-      return;
-    }
+
+    // 검색 유형 결정 (우선순위: 고객ID > 계약ID > 장비번호 > 전화번호/이름)
+    let searchType: 'CUSTOMER_ID' | 'CONTRACT_ID' | 'PHONE_NAME' | 'EQUIPMENT_NO' = 'PHONE_NAME';
+    if (hasCustomerId) searchType = 'CUSTOMER_ID';
+    else if (hasContractId) searchType = 'CONTRACT_ID';
+    else if (hasEquipmentNo) searchType = 'EQUIPMENT_NO';
 
     setIsSearching(true);
     setHasSearched(true);
     try {
       const response = await searchCustomer({
         searchType,
-        customerId: searchType === 'CUSTOMER_ID' ? customerId : undefined,
-        contractId: searchType === 'CONTRACT_ID' ? contractId : undefined,
-        phoneNumber: searchType === 'PHONE_NAME' ? phoneNumber : undefined,
-        customerName: searchType === 'PHONE_NAME' ? customerName : undefined,
-        equipmentNo: searchType === 'EQUIPMENT_NO' ? equipmentNo : undefined,
+        customerId: hasCustomerId ? customerId : undefined,
+        contractId: hasContractId ? contractId : undefined,
+        phoneNumber: hasPhoneName ? phoneNumber : undefined,
+        customerName: hasPhoneName ? customerName : undefined,
+        equipmentNo: hasEquipmentNo ? equipmentNo : undefined,
       });
 
       if (response.success && response.data) {
@@ -252,6 +242,16 @@ const CustomerSearchModal: React.FC<{
     if (e.key === 'Enter') handleSearch();
   };
 
+  const handleClear = () => {
+    setCustomerId('');
+    setContractId('');
+    setPhoneNumber('');
+    setCustomerName('');
+    setEquipmentNo('');
+    setSearchResults([]);
+    setHasSearched(false);
+  };
+
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-xl shadow-xl w-full max-w-md overflow-hidden max-h-[80vh] flex flex-col">
@@ -261,7 +261,7 @@ const CustomerSearchModal: React.FC<{
               <User className="w-4 h-4" />
               고객 검색
             </h3>
-            <p className="text-xs text-white/80 mt-0.5">고객을 검색하여 선택하세요</p>
+            <p className="text-xs text-white/80 mt-0.5">검색 조건을 입력하세요</p>
           </div>
           <button onClick={onClose} className="text-white/80 hover:text-white">
             <X className="w-5 h-5" />
@@ -269,116 +269,89 @@ const CustomerSearchModal: React.FC<{
         </div>
 
         <div className="p-4 space-y-3 flex-1 overflow-y-auto">
-          {/* 검색 유형 선택 - 2x2 그리드 */}
-          <div className="grid grid-cols-2 gap-2">
-            <button
-              onClick={() => handleTypeChange('CUSTOMER_ID')}
-              className={`py-2 px-3 rounded-lg text-sm font-medium transition-colors flex items-center justify-center gap-1 ${
-                searchType === 'CUSTOMER_ID' ? 'bg-blue-500 text-white' : 'bg-gray-100 text-gray-600'
-              }`}
-            >
-              <User className="w-4 h-4" />
-              고객ID
-            </button>
-            <button
-              onClick={() => handleTypeChange('CONTRACT_ID')}
-              className={`py-2 px-3 rounded-lg text-sm font-medium transition-colors flex items-center justify-center gap-1 ${
-                searchType === 'CONTRACT_ID' ? 'bg-blue-500 text-white' : 'bg-gray-100 text-gray-600'
-              }`}
-            >
-              <FileText className="w-4 h-4" />
-              계약ID
-            </button>
-            <button
-              onClick={() => handleTypeChange('PHONE_NAME')}
-              className={`py-2 px-3 rounded-lg text-sm font-medium transition-colors flex items-center justify-center gap-1 ${
-                searchType === 'PHONE_NAME' ? 'bg-blue-500 text-white' : 'bg-gray-100 text-gray-600'
-              }`}
-            >
-              <Phone className="w-4 h-4" />
-              전화번호/이름
-            </button>
-            <button
-              onClick={() => handleTypeChange('EQUIPMENT_NO')}
-              className={`py-2 px-3 rounded-lg text-sm font-medium transition-colors flex items-center justify-center gap-1 ${
-                searchType === 'EQUIPMENT_NO' ? 'bg-blue-500 text-white' : 'bg-gray-100 text-gray-600'
-              }`}
-            >
-              <Cpu className="w-4 h-4" />
-              장비번호
-            </button>
-          </div>
-
-          {/* 검색 입력 */}
-          {searchType === 'CUSTOMER_ID' && (
+          {/* 고객ID */}
+          <div className="flex items-center gap-2">
+            <label className="text-xs font-medium text-gray-600 w-16 flex-shrink-0">고객ID</label>
             <input
               type="text"
               value={customerId}
               onChange={(e) => setCustomerId(e.target.value)}
               onKeyPress={handleKeyPress}
-              placeholder="고객ID 입력"
-              className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500"
-              autoFocus
+              placeholder="고객ID"
+              className="flex-1 px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500"
             />
-          )}
-          {searchType === 'CONTRACT_ID' && (
+          </div>
+
+          {/* 계약ID */}
+          <div className="flex items-center gap-2">
+            <label className="text-xs font-medium text-gray-600 w-16 flex-shrink-0">계약ID</label>
             <input
               type="text"
               value={contractId}
               onChange={(e) => setContractId(e.target.value)}
               onKeyPress={handleKeyPress}
-              placeholder="계약ID 입력"
-              className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500"
-              autoFocus
+              placeholder="계약ID"
+              className="flex-1 px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500"
             />
-          )}
-          {searchType === 'PHONE_NAME' && (
-            <div className="space-y-2">
-              <input
-                type="tel"
-                value={phoneNumber}
-                onChange={(e) => setPhoneNumber(e.target.value.replace(/[^0-9]/g, ''))}
-                onKeyPress={handleKeyPress}
-                placeholder="전화번호"
-                className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500"
-                autoFocus
-              />
-              <input
-                type="text"
-                value={customerName}
-                onChange={(e) => setCustomerName(e.target.value)}
-                onKeyPress={handleKeyPress}
-                placeholder="고객명"
-                className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500"
-              />
-            </div>
-          )}
-          {searchType === 'EQUIPMENT_NO' && (
+          </div>
+
+          {/* 전화번호 + 이름 */}
+          <div className="flex items-center gap-2">
+            <label className="text-xs font-medium text-gray-600 w-16 flex-shrink-0">전화번호</label>
+            <input
+              type="tel"
+              value={phoneNumber}
+              onChange={(e) => setPhoneNumber(e.target.value.replace(/[^0-9]/g, ''))}
+              onKeyPress={handleKeyPress}
+              placeholder="전화번호"
+              className="flex-1 px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500"
+            />
+            <input
+              type="text"
+              value={customerName}
+              onChange={(e) => setCustomerName(e.target.value)}
+              onKeyPress={handleKeyPress}
+              placeholder="이름"
+              className="w-24 px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500"
+            />
+          </div>
+
+          {/* 장비번호 */}
+          <div className="flex items-center gap-2">
+            <label className="text-xs font-medium text-gray-600 w-16 flex-shrink-0">장비번호</label>
             <input
               type="text"
               value={equipmentNo}
               onChange={(e) => setEquipmentNo(e.target.value.toUpperCase())}
               onKeyPress={handleKeyPress}
-              placeholder="장비번호 (S/N 또는 MAC)"
-              className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 font-mono"
-              autoFocus
+              placeholder="S/N 또는 MAC"
+              className="flex-1 px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 font-mono"
             />
-          )}
+          </div>
 
-          <button
-            onClick={handleSearch}
-            disabled={isSearching}
-            className="w-full py-2.5 text-sm text-white bg-blue-500 hover:bg-blue-600 disabled:bg-gray-300 rounded-lg font-medium flex items-center justify-center gap-2"
-          >
-            {isSearching ? <Loader2 className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />}
-            {isSearching ? '검색 중...' : '검색'}
-          </button>
+          {/* 버튼 */}
+          <div className="flex gap-2 pt-1">
+            <button
+              onClick={handleSearch}
+              disabled={isSearching}
+              className="flex-1 py-2.5 text-sm text-white bg-blue-500 hover:bg-blue-600 disabled:bg-gray-300 rounded-lg font-medium flex items-center justify-center gap-2"
+            >
+              {isSearching ? <Loader2 className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />}
+              {isSearching ? '검색 중...' : '검색'}
+            </button>
+            <button
+              onClick={handleClear}
+              className="px-4 py-2.5 text-sm text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-lg font-medium"
+            >
+              초기화
+            </button>
+          </div>
 
           {/* 검색 결과 */}
           {hasSearched && (
             <div className="border-t border-gray-100 pt-3">
               {searchResults.length > 0 ? (
-                <div className="space-y-2 max-h-48 overflow-y-auto">
+                <div className="space-y-2 max-h-40 overflow-y-auto">
                   <div className="text-xs text-gray-500 mb-2">검색 결과: {searchResults.length}건</div>
                   {searchResults.map((customer, idx) => (
                     <button
