@@ -538,28 +538,29 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
           }
         }
 
-        // 검사대기 선택 시 - EQT_USE_ARR_YN='A'인 모든 장비 표시
+        // 검사대기 선택 시 - 보유장비 API 결과에서 EQT_USE_ARR_YN='A'인 장비만 필터링
+        // (검사대기 전용 API가 빈 배열 반환하므로 보유장비 API 활용)
         if (selectedCategory === 'INSPECTION_WAITING') {
-          const inspectionParams = {
-            WRKR_ID: userInfo.userId,
-            CRR_ID: userInfo.crrId, // CRR_ID = WRKR_ID (기사 본인)
-            SO_ID: selectedSoId || userInfo.soId || undefined,
-            EQT_SERNO: undefined, // 전체 조회
-          };
           try {
-            const inspectionResult = await debugApiCall(
+            // 보유장비 API 호출
+            const ownedResult = await debugApiCall(
               'EquipmentInquiry',
-              'getEquipmentChkStndByAAll (검사대기)',
-              () => getEquipmentChkStndByAAll(inspectionParams),
-              inspectionParams
+              'getWrkrHaveEqtListAll (검사대기용)',
+              () => getWrkrHaveEqtListAll({
+                WRKR_ID: userInfo.userId,
+                CRR_ID: userInfo.crrId || '',
+                SO_ID: selectedSoId || '',
+              }),
+              { WRKR_ID: userInfo.userId, CRR_ID: userInfo.crrId }
             );
-            if (Array.isArray(inspectionResult)) {
+            if (Array.isArray(ownedResult)) {
+              // EQT_USE_ARR_YN='A' (검사대기)인 장비만 필터링
+              let filtered = ownedResult.filter((item: any) => item.EQT_USE_ARR_YN === 'A');
               // ITEM_MID_CD 필터 적용 (프론트엔드에서) - 선택된 경우만
-              let filtered = inspectionResult;
               if (selectedItemMidCd) {
-                filtered = inspectionResult.filter((item: any) => item.ITEM_MID_CD === selectedItemMidCd);
+                filtered = filtered.filter((item: any) => item.ITEM_MID_CD === selectedItemMidCd);
               }
-              console.log('[검사대기] 전체 조회:', inspectionResult.length, '건, 필터 후:', filtered.length, '건');
+              console.log('[검사대기] 보유장비에서 필터:', ownedResult.length, '건 중 검사대기:', filtered.length, '건');
               // 검사대기 표시용 태그 추가
               allResults.push(...filtered.map(item => ({ ...item, _category: 'INSPECTION_WAITING' })));
             }
