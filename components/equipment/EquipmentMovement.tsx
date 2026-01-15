@@ -37,6 +37,16 @@ const formatDateDash = (dateStr: string): string => {
   return dateStr;
 };
 
+// EQT_NO validity check - valid EQT_NO should be 20-digit numeric and different from EQT_SERNO
+const isValidEqtNo = (eqtNo: string | null | undefined, eqtSerno: string | null | undefined): boolean => {
+  if (!eqtNo) return false;
+  // Check if EQT_NO is same as EQT_SERNO (invalid data)
+  if (eqtNo === eqtSerno) return false;
+  // Valid EQT_NO should be 20-digit numeric
+  const is20DigitNumeric = /^\d{20}$/.test(eqtNo);
+  return is20DigitNumeric;
+};
+
 // Scan mode type: scan(단일스캔), equipment(장비번호), worker(보유기사)
 type ScanMode = 'scan' | 'equipment' | 'worker';
 
@@ -675,13 +685,38 @@ const EquipmentMovement: React.FC<EquipmentMovementProps> = ({ onBack }) => {
       alert('본인에게는 장비를 이동할 수 없습니다.');
       return;
     }
-    // confirm is now handled in the modal
+
+    // EQT_NO 유효성 검증 - 무효한 장비 필터링
+    const validItems = checkedItems.filter(item => isValidEqtNo(item.EQT_NO, item.EQT_SERNO));
+    const invalidItems = checkedItems.filter(item => !isValidEqtNo(item.EQT_NO, item.EQT_SERNO));
+
+    if (invalidItems.length > 0) {
+      const invalidList = invalidItems.map(i => i.EQT_SERNO).join(', ');
+      if (validItems.length === 0) {
+        alert(`선택한 모든 장비(${invalidItems.length}건)가 EQT_NO 오류로 이관 불가합니다.\n\n해당 장비: ${invalidList}\n\n* DB 데이터 문제로 관리자에게 문의하세요.`);
+        return;
+      } else {
+        const proceed = confirm(`선택한 ${checkedItems.length}건 중 ${invalidItems.length}건은 EQT_NO 오류로 이관 불가합니다.\n\n이관 불가 장비: ${invalidList}\n\n나머지 ${validItems.length}건만 이관하시겠습니까?`);
+        if (!proceed) return;
+      }
+    }
 
     setIsLoading(true);
     const results: TransferResult = { success: [], failed: [] };
 
+    // 무효 EQT_NO 장비는 즉시 실패 처리
+    for (const item of invalidItems) {
+      results.failed.push({
+        EQT_SERNO: item.EQT_SERNO,
+        EQT_NO: item.EQT_NO,
+        ITEM_NM: item.ITEM_NM || item.EQT_CL_NM,
+        error: 'EQT_NO 오류 (장비원장 정보 없음)'
+      });
+    }
+
     try {
-      for (const item of checkedItems) {
+      // 유효한 EQT_NO를 가진 장비만 API 호출
+      for (const item of validItems) {
         try {
           const params = {
             EQT_NO: item.EQT_NO,
@@ -1150,12 +1185,17 @@ const EquipmentMovement: React.FC<EquipmentMovementProps> = ({ onBack }) => {
                                   className="w-5 h-5 rounded focus:ring-blue-500 mt-0.5 text-blue-500"
                                 />
                                 <div className="flex-1 min-w-0">
-                                  {/* Line 1: 모델명 + 스캔뱃지 */}
+                                  {/* Line 1: 모델명 + 스캔뱃지 + 이관불가 경고 */}
                                   <div className="flex items-center justify-between">
                                     <span className="text-base font-bold text-gray-900 truncate">{item.EQT_CL_NM || item.ITEM_NM || '-'}</span>
-                                    {item.isScanned && (
-                                      <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-700 flex-shrink-0 ml-2">스캔</span>
-                                    )}
+                                    <div className="flex items-center gap-1 flex-shrink-0 ml-2">
+                                      {!isValidEqtNo(item.EQT_NO, item.EQT_SERNO) && (
+                                        <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-700" title="EQT_NO가 유효하지 않아 이관 불가">이관불가</span>
+                                      )}
+                                      {item.isScanned && (
+                                        <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-700">스캔</span>
+                                      )}
+                                    </div>
                                   </div>
                                   {/* Line 2: S/N + [EQT_USE_ARR_YN] 뱃지 */}
                                   <div className="flex items-center justify-between mt-1">
