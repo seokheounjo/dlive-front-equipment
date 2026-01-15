@@ -1131,7 +1131,8 @@ const EquipmentMovement: React.FC<EquipmentMovementProps> = ({ onBack }) => {
                         <input
                           type="checkbox"
                           checked={soAllChecked}
-                          onChange={(e) => { e.stopPropagation(); handleCheckSo(soKey, e.target.checked); }}
+                          onClick={(e) => e.stopPropagation()}
+                          onChange={(e) => handleCheckSo(soKey, e.target.checked)}
                           className="rounded"
                         />
                         <span className="text-sm font-bold text-blue-800">{soKey}</span>
@@ -1161,7 +1162,8 @@ const EquipmentMovement: React.FC<EquipmentMovementProps> = ({ onBack }) => {
                               <input
                                 type="checkbox"
                                 checked={allChecked}
-                                onChange={(e) => { e.stopPropagation(); handleCheckItemType(soKey, itemTypeKey, e.target.checked); }}
+                                onClick={(e) => e.stopPropagation()}
+                                onChange={(e) => handleCheckItemType(soKey, itemTypeKey, e.target.checked)}
                                 className="rounded w-4 h-4"
                               />
                               <span className="text-xs font-semibold text-gray-700">{itemTypeKey}</span>
