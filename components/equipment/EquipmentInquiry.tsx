@@ -1295,35 +1295,39 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
                         }`}
                       />
                       <div className="flex-1 min-w-0">
-                        {/* 간단히 보기: 1줄 - 모델명(EQT_CL_NM) */}
-                        <div>
+                        {/* Line 1: 모델명 + [반납요청/보유] 뱃지 */}
+                        <div className="flex items-center justify-between">
                           <span className="text-base font-bold text-gray-900 truncate">{item.EQT_CL_NM || item.ITEM_NM || '-'}</span>
-                        </div>
-                        {/* 간단히 보기: 2줄 - S/N + 상태뱃지 */}
-                        <div className="flex items-center justify-between mt-1">
-                          <span className="font-mono text-sm text-gray-700">{item.EQT_SERNO || '-'}</span>
-                          <div className="flex-shrink-0">
-                            {item.EQT_USE_ARR_YN === 'Y' && !item._hasReturnRequest && item._category !== 'RETURN_REQUESTED' && (
-                              <span className="px-2 py-0.5 rounded-full text-sm font-semibold bg-green-100 text-green-700">보유</span>
-                            )}
-                            {(item._hasReturnRequest || item._category === 'RETURN_REQUESTED') && (
-                              <span className="px-2 py-0.5 rounded-full text-sm font-semibold bg-orange-100 text-orange-700">반납요청</span>
-                            )}
-                            {item.EQT_USE_ARR_YN === 'A' && (
-                              <span className="px-2 py-0.5 rounded-full text-sm font-semibold bg-purple-100 text-purple-700">검사대기</span>
-                            )}
-                            {item.EQT_USE_ARR_YN === 'N' && (
-                              <span className="px-2 py-0.5 rounded-full text-sm font-semibold bg-red-100 text-red-700">사용불가</span>
-                            )}
-                            {!item.EQT_USE_ARR_YN && !item._hasReturnRequest && item._category !== 'RETURN_REQUESTED' && (
-                              <span className="px-2 py-0.5 rounded-full text-sm font-semibold bg-gray-100 text-gray-700">n/a</span>
+                          <div className="flex-shrink-0 ml-2">
+                            {(item._hasReturnRequest || item._category === 'RETURN_REQUESTED') ? (
+                              <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-orange-100 text-orange-700">반납요청</span>
+                            ) : (
+                              <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-700">보유</span>
                             )}
                           </div>
                         </div>
-                        {/* 간단히 보기: 3줄 - MAC + 사용가능일자 */}
+                        {/* Line 2: S/N + [EQT_USE_ARR_YN] 뱃지 */}
+                        <div className="flex items-center justify-between mt-1">
+                          <span className="text-sm text-gray-600">{item.EQT_SERNO || '-'}</span>
+                          <div className="flex-shrink-0 ml-2">
+                            {item.EQT_USE_ARR_YN === 'Y' && (
+                              <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-700">사용가능</span>
+                            )}
+                            {item.EQT_USE_ARR_YN === 'A' && (
+                              <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-700">검사대기</span>
+                            )}
+                            {item.EQT_USE_ARR_YN === 'N' && (
+                              <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-700">사용불가</span>
+                            )}
+                            {!item.EQT_USE_ARR_YN && (
+                              <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-700">n/a</span>
+                            )}
+                          </div>
+                        </div>
+                        {/* Line 3: MAC + 날짜 */}
                         <div className="flex items-center justify-between mt-0.5">
-                          <span className="font-mono text-sm text-gray-500">{formatMac(item.MAC_ADDRESS)}</span>
-                          <span className="text-sm text-gray-500">{formatDateDot(item.EQT_USE_END_DT || item.USE_END_DT || '')}</span>
+                          <span className="text-sm text-gray-600">{formatMac(item.MAC_ADDRESS)}</span>
+                          <span className="text-sm text-gray-600">{formatDateDot(item.EQT_USE_END_DT || item.USE_END_DT || '')}</span>
                         </div>
                       </div>
                     </div>
@@ -1332,9 +1336,9 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
                       <div className="bg-gray-100 rounded-lg p-2 mt-2 ml-6 text-sm space-y-1">
                         <div><span className="text-gray-500">지점          </span><span className="font-medium text-gray-800">{item.SO_NM || '-'}</span></div>
                         <div><span className="text-gray-500">장비상태  : </span><span className="text-gray-800">{item.EQT_STAT_NM || item.EQT_STAT_CD_NM || getEqtStatName(item.EQT_STAT_CD || '') || '-'}</span></div>
-                        <div><span className="text-gray-500">변경종류  : </span><span className="text-gray-800">{item.CHG_KND_NM || item.CHG_TP_NM || item.PROC_STAT_NM || item.EQT_CHG_TP_NM || '-'}</span></div>
+                        <div><span className="text-gray-500">변경종류  : </span><span className="text-gray-800">{item.CHG_KND_NM || '-'}</span></div>
                         <div><span className="text-gray-500">현재위치  : </span><span className="text-gray-800">{item.EQT_LOC_NM || item.EQT_LOC_TP_NM || getEqtLocTpName(item.EQT_LOC_TP_CD || '') || '-'}</span></div>
-                        <div><span className="text-gray-500">이전위치  : </span><span className="text-gray-800">{item.OLD_EQT_LOC_NM || item.BEF_EQT_LOC_NM || item.BEF_LOC_NM || '-'}</span></div>
+                        <div><span className="text-gray-500">이전위치  : </span><span className="text-gray-800">{item.OLD_EQT_LOC_NM || '-'}</span></div>
                       </div>
                     )}
                   </div>
