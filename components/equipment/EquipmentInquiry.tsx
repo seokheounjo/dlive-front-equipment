@@ -101,8 +101,16 @@ interface EquipmentItem {
   SO_NM: string;
   EQT_STAT_CD: string;
   EQT_STAT_NM: string;
+  EQT_STAT_CD_NM?: string;    // API: 장비상태명
   EQT_LOC_TP_CD?: string;
   EQT_LOC_TP_NM?: string;
+  EQT_LOC_NM?: string;        // API: 현재위치명
+  OLD_EQT_LOC_NM?: string;    // API: 이전위치명
+  CHG_KND_NM?: string;        // API: 변경종류명
+  CHG_TP_NM?: string;         // fallback: 변경유형
+  BEF_EQT_LOC_NM?: string;    // fallback: 이전장비위치
+  BEF_LOC_NM?: string;        // fallback: 이전위치
+  EQT_CHG_TP_NM?: string;     // fallback: 장비변경유형
   PROC_STAT?: string;
   PROC_STAT_NM?: string;
   WRKR_ID?: string;
@@ -113,6 +121,7 @@ interface EquipmentItem {
   WRK_ID?: string;
   CRR_ID?: string;
   EQT_USE_END_DT?: string;
+  USE_END_DT?: string;      // fallback: 사용종료일
   REQ_DT?: string;          // 반납요청일자
   RETURN_TP?: string;       // 반납유형
   EQT_USE_ARR_YN?: string;  // 장비사용도착여부
@@ -122,6 +131,8 @@ interface EquipmentItem {
   _category?: 'OWNED' | 'RETURN_REQUESTED' | 'INSPECTION_WAITING';
   // 보유장비이면서 반납요청 중인 장비 표시
   _hasReturnRequest?: boolean;
+  // 반납취소 시 모든 REQ_DT 삭제용
+  _allReqDts?: { REQ_DT: string; RETURN_TP: string; EQT_USE_ARR_YN: string }[];
 }
 
 // 상태 변경 결과 인터페이스
@@ -1178,48 +1189,6 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
                   {filteredDisplayList.length}건 (선택: {filteredDisplayList.filter(i => i.CHK).length}건)
                 </span>
               </div>
-              {/* 카테고리별 필터 체크박스 - 보유장비에서만 표시 */}
-              {selectedCategory === 'OWNED' && (
-                <div className="flex flex-wrap gap-2 mb-2">
-                  <label className="flex items-center gap-1.5 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={showStock}
-                      onChange={(e) => setShowStock(e.target.checked)}
-                      className="w-3.5 h-3.5 text-green-500 rounded focus:ring-green-500"
-                    />
-                    <span className="text-xs text-gray-600">재고</span>
-                    <span className="text-[10px] px-1.5 py-0.5 bg-green-100 text-green-700 rounded-full">
-                      {equipmentList.filter(i => i.EQT_USE_ARR_YN === 'Y' && !i._hasReturnRequest && i._category !== 'RETURN_REQUESTED' && i._category !== 'INSPECTION_WAITING').length}
-                    </span>
-                  </label>
-                  <label className="flex items-center gap-1.5 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={showInspection}
-                      onChange={(e) => setShowInspection(e.target.checked)}
-                      className="w-3.5 h-3.5 text-purple-500 rounded focus:ring-purple-500"
-                    />
-                    <span className="text-xs text-gray-600">검사대기</span>
-                    <span className="text-[10px] px-1.5 py-0.5 bg-purple-100 text-purple-700 rounded-full">
-                      {equipmentList.filter(i => i.EQT_USE_ARR_YN === 'A' || i._category === 'INSPECTION_WAITING').length}
-                    </span>
-                  </label>
-                  <label className="flex items-center gap-1.5 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={showReturnReq}
-                      onChange={(e) => setShowReturnReq(e.target.checked)}
-                      className="w-3.5 h-3.5 text-orange-500 rounded focus:ring-orange-500"
-                    />
-                    <span className="text-xs text-gray-600">반납요청</span>
-                    <span className="text-[10px] px-1.5 py-0.5 bg-orange-100 text-orange-700 rounded-full">
-                      {equipmentList.filter(i => i._hasReturnRequest || i._category === 'RETURN_REQUESTED').length}
-                    </span>
-                  </label>
-                </div>
-              )}
-
               {/* 뷰 모드 선택 버튼 */}
               <div className="flex gap-1 bg-gray-100 p-1 rounded-lg">
                 <button
@@ -1321,7 +1290,7 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
                           <span className="font-mono text-sm font-medium text-gray-900">{item.EQT_SERNO || '-'}</span>
                           <div className="flex flex-col items-end gap-0.5 flex-shrink-0">
                             {item.EQT_USE_ARR_YN === 'Y' && (
-                              <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-green-100 text-green-700">사용가능</span>
+                              <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-green-100 text-green-700">보유</span>
                             )}
                             {(item._hasReturnRequest || item._category === 'RETURN_REQUESTED') && (
                               <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-orange-100 text-orange-700">반납요청</span>
