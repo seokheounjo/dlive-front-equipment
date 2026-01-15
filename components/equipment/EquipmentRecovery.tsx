@@ -544,7 +544,7 @@ const EquipmentRecovery: React.FC<EquipmentRecoveryProps> = ({ onBack }) => {
           LOSS_AMT: item.LOSS_AMT || '',
           CRR_ID: item.CRR_ID || '',
           CMPL_DATE: item.CMPL_DATE || '',
-          EQT_STAT_CD_NM: item.EQT_STAT_CD_NM || item.EQT_STAT_NM || '',
+          EQT_STAT_CD_NM: item.EQT_STAT_NM || item.EQT_STAT_CD_NM || '재고',
           isScanned: item.EQT_SERNO === serialNo
         }));
         setUnreturnedList(transformedList);
@@ -558,7 +558,7 @@ const EquipmentRecovery: React.FC<EquipmentRecoveryProps> = ({ onBack }) => {
 
         if (eqtResult && eqtResult.length > 0) {
           const eqt = eqtResult[0];
-          alert(`Equipment (${serialNo}) is not unreturned.\n\nHolder: ${eqt.WRKR_NM || 'None'}\nBranch: ${eqt.SO_NM || 'None'}\nStatus: ${eqt.EQT_STAT_CD_NM || eqt.EQT_STAT_NM || eqt.EQT_STAT_CD || 'Unknown'}`);
+          alert(`Equipment (${serialNo}) is not unreturned.\n\nHolder: ${eqt.WRKR_NM || 'None'}\nBranch: ${eqt.SO_NM || 'None'}\nStatus: ${eqt.EQT_STAT_NM || eqt.EQT_STAT_CD_NM || eqt.EQT_STAT_CD || 'Unknown'}`);
         } else {
           alert(`Equipment (${serialNo}) not found.`);
         }
@@ -620,7 +620,7 @@ const EquipmentRecovery: React.FC<EquipmentRecoveryProps> = ({ onBack }) => {
         LOSS_AMT: item.LOSS_AMT || '',
         CRR_ID: item.CRR_ID || '',
         CMPL_DATE: item.CMPL_DATE || '',
-        EQT_STAT_CD_NM: item.EQT_STAT_CD_NM || item.EQT_STAT_NM || '',
+        EQT_STAT_CD_NM: item.EQT_STAT_NM || item.EQT_STAT_CD_NM || '재고',
         isScanned: scannedSerials.includes(item.EQT_SERNO)
       }));
 

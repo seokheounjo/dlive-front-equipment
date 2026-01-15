@@ -39,9 +39,9 @@ interface UserInfo {
 // 검색 카테고리 (단일 선택)
 type SearchCategory = 'OWNED' | 'RETURN_REQUESTED' | 'INSPECTION_WAITING';
 
-// 장비 상태 코드 매핑 (CMEP301)
+// 장비 상태 코드 매핑 (CMEP301) - EQT_STAT_NM 기준으로 통일
 const EQT_STAT_CODE_MAP: Record<string, string> = {
-  '10': '양호',
+  '10': '재고',
   '11': '사용불가(불량)',
   '20': '설치완료',
   '35': '검수대기',
@@ -574,7 +574,7 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
         SO_ID: item.SO_ID || selectedSoId,
         SO_NM: item.SO_NM || '',
         EQT_STAT_CD: item.EQT_STAT_CD || item.STATUS || '',
-        EQT_STAT_NM: item.EQT_STAT_NM || item.STATUS_NM || item.EQT_STAT_CD_NM || getEqtStatName(item.EQT_STAT_CD || item.STATUS || ''),
+        EQT_STAT_NM: item.EQT_STAT_NM || item.STATUS_NM || getEqtStatName(item.EQT_STAT_CD || item.STATUS || '') || '재고',
         EQT_LOC_TP_CD: item.EQT_LOC_TP_CD || '',
         EQT_LOC_TP_NM: item.EQT_LOC_TP_NM || item.EQT_LOC_TP_CD_NM || getEqtLocTpName(item.EQT_LOC_TP_CD || ''),
         PROC_STAT: item.PROC_STAT || '',
@@ -1306,7 +1306,7 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
                     {viewMode === 'detail' && (
                       <div className="bg-gray-100 rounded-lg p-2 mt-2 ml-6 text-sm space-y-1">
                         <div><span className="text-gray-500">지점          </span><span className="font-medium text-gray-800">{item.SO_NM || '-'}</span></div>
-                        <div><span className="text-gray-500">장비상태  : </span><span className="text-gray-800">{item.EQT_STAT_CD_NM || item.EQT_STAT_NM || getEqtStatName(item.EQT_STAT_CD || '') || '-'}</span></div>
+                        <div><span className="text-gray-500">장비상태  : </span><span className="text-gray-800">{item.EQT_STAT_NM || item.EQT_STAT_CD_NM || getEqtStatName(item.EQT_STAT_CD || '') || '-'}</span></div>
                         <div><span className="text-gray-500">변경종류  : </span><span className="text-gray-800">{item.CHG_KND_NM || item.CHG_TP_NM || item.PROC_STAT_NM || item.EQT_CHG_TP_NM || '-'}</span></div>
                         <div><span className="text-gray-500">현재위치  : </span><span className="text-gray-800">{item.EQT_LOC_NM || item.EQT_LOC_TP_NM || getEqtLocTpName(item.EQT_LOC_TP_CD || '') || '-'}</span></div>
                         <div><span className="text-gray-500">이전위치  : </span><span className="text-gray-800">{item.OLD_EQT_LOC_NM || item.BEF_EQT_LOC_NM || item.BEF_LOC_NM || '-'}</span></div>
@@ -1408,7 +1408,7 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
                             </div>
 
                             {/* 장비상태 (값만) */}
-                            <div className="text-gray-600">{item.EQT_STAT_CD_NM || item.EQT_STAT_NM || item.EQT_STAT_CD || '-'}</div>
+                            <div className="text-gray-600">{item.EQT_STAT_NM || item.EQT_STAT_CD_NM || item.EQT_STAT_CD || '-'}</div>
 
                             {/* 지점 (값만) */}
                             <div className="text-gray-600">{item.SO_NM || item.SO_ID || '-'}</div>

@@ -3,9 +3,9 @@ import { getWrkrHaveEqtListAll as getWrkrHaveEqtList, getEquipmentHistoryInfo } 
 import { debugApiCall } from './equipmentDebug';
 import BarcodeScanner from './BarcodeScanner';
 
-// 장비 상태 코드 매핑 (CMEP301)
+// 장비 상태 코드 매핑 (CMEP301) - EQT_STAT_NM 기준으로 통일
 const EQT_STAT_CODE_MAP: Record<string, string> = {
-  '10': '양호',
+  '10': '재고',
   '11': '사용불가(불량)',
   '20': '설치완료',
   '35': '검수대기',
