@@ -1290,6 +1290,9 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
                             {item.EQT_USE_ARR_YN === 'N' && (
                               <span className="px-2 py-0.5 rounded-full text-sm font-semibold bg-red-100 text-red-700">사용불가</span>
                             )}
+                            {!item.EQT_USE_ARR_YN && !item._hasReturnRequest && item._category !== 'RETURN_REQUESTED' && (
+                              <span className="px-2 py-0.5 rounded-full text-sm font-semibold bg-gray-100 text-gray-700">n/a</span>
+                            )}
                           </div>
                         </div>
                         {/* 간단히 보기: 3줄 - MAC + 사용가능일자 */}
@@ -1372,7 +1375,7 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
                             {(item._hasReturnRequest || item._category === 'RETURN_REQUESTED') ? '반납요청' :
                              item.EQT_USE_ARR_YN === 'Y' ? '사용가능' :
                              item.EQT_USE_ARR_YN === 'A' ? '검사대기' :
-                             item.EQT_USE_ARR_YN === 'N' ? '사용불가' : '-'}
+                             item.EQT_USE_ARR_YN === 'N' ? '사용불가' : 'n/a'}
                           </span>
                         </div>
                         {/* S/N | MAC - 한 줄 */}
@@ -1549,8 +1552,8 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
                       <td className="px-2 py-1.5">{item.ITEM_NM || item.EQT_CL_NM}</td>
                       <td className="px-2 py-1.5 font-mono text-[10px]">{item.EQT_SERNO}</td>
                       <td className="px-2 py-1.5">
-                        <span className={`px-1 py-0.5 rounded text-[10px] ${item.EQT_USE_ARR_YN === 'Y' ? 'bg-green-100 text-green-700' : item.EQT_USE_ARR_YN === 'A' ? 'bg-amber-100 text-amber-700' : 'bg-gray-100 text-gray-600'}`}>
-                          {item.EQT_STAT_NM || (item.EQT_USE_ARR_YN === 'Y' ? '사용가능' : item.EQT_USE_ARR_YN === 'A' ? '검사대기' : '-')}
+                        <span className={`px-1 py-0.5 rounded text-[10px] ${item.EQT_USE_ARR_YN === 'Y' ? 'bg-green-100 text-green-700' : item.EQT_USE_ARR_YN === 'A' ? 'bg-amber-100 text-amber-700' : item.EQT_USE_ARR_YN === 'N' ? 'bg-red-100 text-red-700' : 'bg-gray-100 text-gray-600'}`}>
+                          {item.EQT_STAT_NM || (item.EQT_USE_ARR_YN === 'Y' ? '사용가능' : item.EQT_USE_ARR_YN === 'A' ? '검사대기' : item.EQT_USE_ARR_YN === 'N' ? '사용불가' : 'n/a')}
                         </span>
                       </td>
                     </tr>
@@ -1655,8 +1658,8 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
                       <td className="px-2 py-1.5">{selectedEquipment.ITEM_NM || selectedEquipment.EQT_CL_NM}</td>
                       <td className="px-2 py-1.5 font-mono text-[10px]">{selectedEquipment.EQT_SERNO}</td>
                       <td className="px-2 py-1.5">
-                        <span className={`px-1 py-0.5 rounded text-[10px] ${selectedEquipment.EQT_USE_ARR_YN === 'Y' ? 'bg-green-100 text-green-700' : selectedEquipment.EQT_USE_ARR_YN === 'A' ? 'bg-amber-100 text-amber-700' : 'bg-gray-100 text-gray-600'}`}>
-                          {selectedEquipment.EQT_STAT_NM || (selectedEquipment.EQT_USE_ARR_YN === 'Y' ? '사용가능' : selectedEquipment.EQT_USE_ARR_YN === 'A' ? '검사대기' : '-')}
+                        <span className={`px-1 py-0.5 rounded text-[10px] ${selectedEquipment.EQT_USE_ARR_YN === 'Y' ? 'bg-green-100 text-green-700' : selectedEquipment.EQT_USE_ARR_YN === 'A' ? 'bg-amber-100 text-amber-700' : selectedEquipment.EQT_USE_ARR_YN === 'N' ? 'bg-red-100 text-red-700' : 'bg-gray-100 text-gray-600'}`}>
+                          {selectedEquipment.EQT_STAT_NM || (selectedEquipment.EQT_USE_ARR_YN === 'Y' ? '사용가능' : selectedEquipment.EQT_USE_ARR_YN === 'A' ? '검사대기' : selectedEquipment.EQT_USE_ARR_YN === 'N' ? '사용불가' : 'n/a')}
                         </span>
                       </td>
                     </tr>

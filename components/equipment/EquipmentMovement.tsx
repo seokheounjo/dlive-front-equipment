@@ -1114,24 +1114,27 @@ const EquipmentMovement: React.FC<EquipmentMovementProps> = ({ onBack }) => {
                                 return (
                             <div
                               key={item.EQT_NO || idx}
-                              className={`px-4 py-3 flex items-start gap-3 transition-colors ${item.isScanned ? 'bg-purple-50' : 'hover:bg-blue-50/50'}`}
+                              className={`p-3 rounded-lg border-2 transition-all ${item.isScanned ? 'bg-purple-50 border-purple-200' : 'bg-gray-50 border-transparent hover:border-gray-200'}`}
                             >
-                              <input
-                                type="checkbox"
-                                checked={item.CHK || false}
-                                onChange={(e) => handleCheckItem(globalIndex, e.target.checked)}
-                                className="rounded mt-0.5"
-                              />
-                              {/* 장비 정보 */}
-                              <div className="flex-1 min-w-0">
-                                {/* 간단히 보기: 1줄 - S/N + 상태뱃지 */}
-                                <div className="flex items-center justify-between">
-                                  <span className="font-mono text-sm font-medium text-gray-900">{item.EQT_SERNO || '-'}</span>
-                                  <div className="flex items-center gap-1 flex-shrink-0">
+                              <div className="flex items-start gap-3">
+                                <input
+                                  type="checkbox"
+                                  checked={item.CHK || false}
+                                  onChange={(e) => handleCheckItem(globalIndex, e.target.checked)}
+                                  className="w-5 h-5 rounded focus:ring-blue-500 mt-0.5 text-blue-500"
+                                />
+                                <div className="flex-1 min-w-0">
+                                  {/* 간단히 보기: 1줄 - 모델명 */}
+                                  <div className="flex items-center gap-2">
+                                    <span className="text-base font-bold text-gray-900 truncate">{item.EQT_CL_NM || item.ITEM_NM || '-'}</span>
                                     {item.isScanned && (
-                                      <span className="px-1.5 py-0.5 bg-purple-500 text-white text-[10px] rounded font-medium">스캔</span>
+                                      <span className="px-1.5 py-0.5 bg-purple-500 text-white text-xs rounded font-medium flex-shrink-0">스캔</span>
                                     )}
-                                    <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold ${
+                                  </div>
+                                  {/* 간단히 보기: 2줄 - S/N + 상태뱃지 */}
+                                  <div className="flex items-center justify-between mt-1">
+                                    <span className="font-mono text-sm text-gray-700">{item.EQT_SERNO || '-'}</span>
+                                    <span className={`px-2 py-0.5 rounded-full text-sm font-semibold flex-shrink-0 ${
                                       item.EQT_USE_ARR_YN === 'Y' ? 'bg-green-100 text-green-700' :
                                       item.EQT_USE_ARR_YN === 'A' ? 'bg-purple-100 text-purple-700' :
                                       item.EQT_USE_ARR_YN === 'N' ? 'bg-red-100 text-red-700' :
@@ -1139,30 +1142,26 @@ const EquipmentMovement: React.FC<EquipmentMovementProps> = ({ onBack }) => {
                                     }`}>
                                       {item.EQT_USE_ARR_YN === 'Y' ? '사용가능' :
                                        item.EQT_USE_ARR_YN === 'A' ? '검사대기' :
-                                       item.EQT_USE_ARR_YN === 'N' ? '사용불가' : '-'}
+                                       item.EQT_USE_ARR_YN === 'N' ? '사용불가' : 'n/a'}
                                     </span>
                                   </div>
-                                </div>
-                                {/* 간단히 보기: 2줄 - MAC + 사용가능일자 */}
-                                <div className="flex items-center justify-between mt-1">
-                                  <span className="font-mono text-xs text-gray-600">{formatMac(item.MAC_ADDRESS)}</span>
-                                  <span className="text-xs text-gray-600">{formatDateDot(item.EQT_USE_END_DT || '')}</span>
-                                </div>
-                                {/* 자세히 보기: 추가 정보 */}
-                                {viewMode === 'detail' && (
-                                  <div className="bg-gray-100 rounded-lg p-2 mt-2 text-xs space-y-1">
-                                    {/* 1줄: 모델명 + 지점명 */}
-                                    <div className="flex items-center justify-between">
-                                      <span className="font-medium text-gray-900">{item.EQT_CL_NM || item.ITEM_NM || '-'}</span>
-                                      <span className="text-gray-600">{item.SO_NM || '-'}</span>
-                                    </div>
-                                    <div><span className="text-gray-500">장비상태  : </span><span className="text-gray-800">{item.EQT_STAT_CD_NM || '-'}</span></div>
-                                    <div><span className="text-gray-500">변경종류  : </span><span className="text-gray-800">{item.CHG_KND_NM || '-'}</span></div>
-                                    <div><span className="text-gray-500">현재위치  : </span><span className="text-gray-800">{item.EQT_LOC_NM || item.EQT_LOC_TP_NM || '-'}</span></div>
-                                    <div><span className="text-gray-500">이전위치  : </span><span className="text-gray-800">{item.OLD_EQT_LOC_NM || '-'}</span></div>
+                                  {/* 간단히 보기: 3줄 - MAC + 사용가능일자 */}
+                                  <div className="flex items-center justify-between mt-0.5">
+                                    <span className="font-mono text-sm text-gray-500">{formatMac(item.MAC_ADDRESS)}</span>
+                                    <span className="text-sm text-gray-500">{formatDateDot(item.EQT_USE_END_DT || '')}</span>
                                   </div>
-                                )}
+                                </div>
                               </div>
+                              {/* 자세히 보기 - 체크박스 영역 바깥, ml-6으로 정렬 */}
+                              {viewMode === 'detail' && (
+                                <div className="bg-gray-100 rounded-lg p-2 mt-2 ml-6 text-sm space-y-1">
+                                  <div><span className="text-sm text-gray-500">지점          </span><span className="text-sm font-medium text-gray-800">{item.SO_NM || '-'}</span></div>
+                                  <div><span className="text-sm text-gray-500">장비상태  : </span><span className="text-sm text-gray-800">{item.EQT_STAT_CD_NM || '-'}</span></div>
+                                  <div><span className="text-sm text-gray-500">변경종류  : </span><span className="text-sm text-gray-800">{item.CHG_KND_NM || '-'}</span></div>
+                                  <div><span className="text-sm text-gray-500">현재위치  : </span><span className="text-sm text-gray-800">{item.EQT_LOC_NM || item.EQT_LOC_TP_NM || '-'}</span></div>
+                                  <div><span className="text-sm text-gray-500">이전위치  : </span><span className="text-sm text-gray-800">{item.OLD_EQT_LOC_NM || '-'}</span></div>
+                                </div>
+                              )}
                             </div>
                                 );
                               })}
