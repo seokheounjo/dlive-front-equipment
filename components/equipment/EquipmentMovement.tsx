@@ -769,7 +769,7 @@ const EquipmentMovement: React.FC<EquipmentMovementProps> = ({ onBack }) => {
     });
   };
 
-  // 지점 > 장비종류로 2단계 그룹화
+  // 지점 > 장비중분류로 2단계 그룹화 + 그룹 내 EQT_CL_NM 정렬
   const groupedByLocation = eqtTrnsList.reduce((acc, item, idx) => {
     const soKey = item.SO_NM || item.SO_ID || '미지정';
     const itemKey = item.ITEM_MID_NM || '기타';
@@ -778,6 +778,17 @@ const EquipmentMovement: React.FC<EquipmentMovementProps> = ({ onBack }) => {
     acc[soKey][itemKey].push({ ...item, _globalIdx: idx });
     return acc;
   }, {} as Record<string, Record<string, (EqtTrns & { _globalIdx: number })[]>>);
+
+  // 각 그룹 내에서 EQT_CL_NM(모델명) 기준 정렬
+  Object.keys(groupedByLocation).forEach(soKey => {
+    Object.keys(groupedByLocation[soKey]).forEach(itemMidKey => {
+      groupedByLocation[soKey][itemMidKey].sort((a, b) => {
+        const aModel = a.EQT_CL_NM || a.ITEM_NM || '';
+        const bModel = b.EQT_CL_NM || b.ITEM_NM || '';
+        return aModel.localeCompare(bModel);
+      });
+    });
+  });
 
   const soKeys = Object.keys(groupedByLocation).sort();
 

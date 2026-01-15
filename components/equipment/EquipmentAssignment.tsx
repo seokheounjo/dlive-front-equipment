@@ -323,13 +323,22 @@ const EquipmentAssignment: React.FC<EquipmentAssignmentProps> = ({ onBack, showT
     });
   };
 
-  // 장비종류로 그룹화
+  // 장비중분류(ITEM_MID_CD_NM)로 그룹화 + 그룹 내 EQT_CL_NM 정렬
   const groupedByItemType = outTgtEqtList.reduce((acc, item, idx) => {
     const key = item.ITEM_MID_CD_NM || '기타';
     if (!acc[key]) acc[key] = [];
     acc[key].push({ ...item, _idx: idx });
     return acc;
   }, {} as Record<string, (OutTgtEqt & { _idx: number })[]>);
+
+  // 각 그룹 내에서 EQT_CL_NM(모델명) 기준 정렬
+  Object.keys(groupedByItemType).forEach(itemTypeKey => {
+    groupedByItemType[itemTypeKey].sort((a, b) => {
+      const aModel = a.EQT_CL_NM || '';
+      const bModel = b.EQT_CL_NM || '';
+      return aModel.localeCompare(bModel);
+    });
+  });
 
   const itemTypeKeys = Object.keys(groupedByItemType).sort();
 

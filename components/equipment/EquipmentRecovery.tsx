@@ -33,6 +33,7 @@ interface UnreturnedEqt {
   EQT_CL_CD: string;
   EQT_CL_NM: string;
   ITEM_NM: string;
+  ITEM_MID_NM?: string;           // 장비중분류 (그룹핑용)
   TRML_DT: string;
   WRK_ID: string;
   WRKR_ID: string;
@@ -436,34 +437,45 @@ const EquipmentRecovery: React.FC<EquipmentRecoveryProps> = ({ onBack }) => {
   const lostCount = unreturnedList.filter(item => isLostEquipment(item)).length;
   const notLostCount = unreturnedList.length - lostCount;
 
-  // 2-level grouping: Branch > Equipment Type
+  // 지점 > 장비중분류로 2단계 그룹화 + 그룹 내 EQT_CL_NM 정렬
   const groupedByLocation = filteredList.reduce((acc, item, idx) => {
-    const soKey = item.SO_NM || item.SO_ID || 'Unassigned';
-    const itemTypeKey = item.EQT_CL_NM || 'Other';
+    const soKey = item.SO_NM || item.SO_ID || '미지정';
+    const itemMidKey = item.ITEM_MID_NM || item.EQT_CL_NM || '기타';
     if (!acc[soKey]) acc[soKey] = {};
-    if (!acc[soKey][itemTypeKey]) acc[soKey][itemTypeKey] = [];
-    acc[soKey][itemTypeKey].push({ ...item, _globalIdx: idx });
+    if (!acc[soKey][itemMidKey]) acc[soKey][itemMidKey] = [];
+    acc[soKey][itemMidKey].push({ ...item, _globalIdx: idx });
     return acc;
   }, {} as Record<string, Record<string, (UnreturnedEqt & { _globalIdx: number })[]>>);
+
+  // 각 그룹 내에서 EQT_CL_NM(모델명) 기준 정렬
+  Object.keys(groupedByLocation).forEach(soKey => {
+    Object.keys(groupedByLocation[soKey]).forEach(itemMidKey => {
+      groupedByLocation[soKey][itemMidKey].sort((a, b) => {
+        const aModel = a.EQT_CL_NM || a.ITEM_NM || '';
+        const bModel = b.EQT_CL_NM || b.ITEM_NM || '';
+        return aModel.localeCompare(bModel);
+      });
+    });
+  });
 
   const soKeys = Object.keys(groupedByLocation).sort();
 
   // Check all in SO group
   const handleCheckSo = (soKey: string, checked: boolean) => {
     setUnreturnedList(unreturnedList.map(item => {
-      const itemSo = item.SO_NM || item.SO_ID || 'Unassigned';
+      const itemSo = item.SO_NM || item.SO_ID || '미지정';
       const isLost = isLostEquipment(item);
       return itemSo === soKey && isLost ? { ...item, CHK: checked } : item;
     }));
   };
 
   // Check all in item type group
-  const handleCheckItemType = (soKey: string, itemTypeKey: string, checked: boolean) => {
+  const handleCheckItemType = (soKey: string, itemMidKey: string, checked: boolean) => {
     setUnreturnedList(unreturnedList.map(item => {
-      const itemSo = item.SO_NM || item.SO_ID || 'Unassigned';
-      const itemType = item.EQT_CL_NM || 'Other';
+      const itemSo = item.SO_NM || item.SO_ID || '미지정';
+      const itemMid = item.ITEM_MID_NM || item.EQT_CL_NM || '기타';
       const isLost = isLostEquipment(item);
-      return (itemSo === soKey && itemType === itemTypeKey && isLost) ? { ...item, CHK: checked } : item;
+      return (itemSo === soKey && itemMid === itemMidKey && isLost) ? { ...item, CHK: checked } : item;
     }));
   };
 

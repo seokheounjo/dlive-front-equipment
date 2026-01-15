@@ -964,24 +964,28 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
     });
   };
 
-  // 장비중분류(ITEM_MID_NM) 기준 그룹화 + 그룹 내 EQT_CL_NM 정렬
-  const groupedByItemMid = filteredDisplayList.reduce((acc, item) => {
+  // 지점(SO_NM) > 장비중분류(ITEM_MID_NM) 2단계 그룹화 + 그룹 내 EQT_CL_NM 정렬
+  const groupedByLocation = filteredDisplayList.reduce((acc, item, idx) => {
+    const soKey = item.SO_NM || item.SO_ID || '미지정';
     const itemMidKey = item.ITEM_MID_NM || '기타';
-    if (!acc[itemMidKey]) acc[itemMidKey] = [];
-    acc[itemMidKey].push(item);
+    if (!acc[soKey]) acc[soKey] = {};
+    if (!acc[soKey][itemMidKey]) acc[soKey][itemMidKey] = [];
+    acc[soKey][itemMidKey].push({ ...item, _globalIdx: idx });
     return acc;
-  }, {} as Record<string, EquipmentItem[]>);
+  }, {} as Record<string, Record<string, (EquipmentItem & { _globalIdx: number })[]>>);
 
   // 각 그룹 내에서 EQT_CL_NM(모델명) 기준 정렬
-  Object.keys(groupedByItemMid).forEach(key => {
-    groupedByItemMid[key].sort((a, b) => {
-      const aModel = a.EQT_CL_NM || a.ITEM_NM || '';
-      const bModel = b.EQT_CL_NM || b.ITEM_NM || '';
-      return aModel.localeCompare(bModel);
+  Object.keys(groupedByLocation).forEach(soKey => {
+    Object.keys(groupedByLocation[soKey]).forEach(itemMidKey => {
+      groupedByLocation[soKey][itemMidKey].sort((a, b) => {
+        const aModel = a.EQT_CL_NM || a.ITEM_NM || '';
+        const bModel = b.EQT_CL_NM || b.ITEM_NM || '';
+        return aModel.localeCompare(bModel);
+      });
     });
   });
 
-  const itemMidKeys = Object.keys(groupedByItemMid).sort();
+  const soKeys = Object.keys(groupedByLocation).sort();
 
 
   return (
@@ -1221,30 +1225,51 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
               </div>
             </div>
 
-            {/* 그룹핑된 장비 목록: 장비중분류(ITEM_MID_NM) 기준 */}
+            {/* 그룹핑된 장비 목록: 지점(SO_NM) > 장비중분류(ITEM_MID_NM) */}
             <div className="divide-y divide-gray-100">
-              {itemMidKeys.map(itemMidKey => {
-                const items = groupedByItemMid[itemMidKey];
-                const itemMidCollapsed = collapsedGroups.has(itemMidKey);
+              {soKeys.map(soKey => {
+                const itemMidGroups = groupedByLocation[soKey];
+                const itemMidKeys = Object.keys(itemMidGroups).sort();
+                const soTotalCount = itemMidKeys.reduce((sum, k) => sum + itemMidGroups[k].length, 0);
+                const isSoCollapsed = collapsedGroups.has(`so_${soKey}`);
 
                 return (
-                  <div key={itemMidKey}>
-                    {/* 장비중분류 헤더 */}
+                  <div key={soKey} className="border-b border-gray-100 last:border-0">
+                    {/* 지점 헤더 */}
                     <div
                       className="px-4 py-2 bg-blue-50 flex items-center justify-between cursor-pointer hover:bg-blue-100"
-                      onClick={() => toggleGroup(itemMidKey)}
+                      onClick={() => toggleGroup(`so_${soKey}`)}
                     >
                       <div className="flex items-center gap-2">
-                        <span className="text-sm font-bold text-blue-800">{itemMidKey}</span>
-                        <span className="text-xs text-blue-600 bg-blue-100 px-2 py-0.5 rounded-full">{items.length}건</span>
+                        <span className="text-sm font-bold text-blue-800">{soKey}</span>
+                        <span className="text-xs text-blue-600 bg-blue-100 px-2 py-0.5 rounded-full">{soTotalCount}건</span>
                       </div>
-                      {itemMidCollapsed ? <ChevronDown className="w-4 h-4 text-blue-600" /> : <ChevronUp className="w-4 h-4 text-blue-600" />}
+                      {isSoCollapsed ? <ChevronDown className="w-4 h-4 text-blue-600" /> : <ChevronUp className="w-4 h-4 text-blue-600" />}
                     </div>
 
-                    {/* 장비 목록 */}
-                    {!itemMidCollapsed && (
-                      <div className="divide-y divide-gray-50">
-                        {items.map((item, idx) => (
+                    {/* 장비중분류 그룹 */}
+                    {!isSoCollapsed && itemMidKeys.map(itemMidKey => {
+                      const items = itemMidGroups[itemMidKey];
+                      const isItemMidCollapsed = collapsedGroups.has(`so_${soKey}_mid_${itemMidKey}`);
+
+                      return (
+                        <div key={itemMidKey}>
+                          {/* 장비중분류 헤더 */}
+                          <div
+                            className="px-6 py-1.5 bg-gray-50 flex items-center justify-between cursor-pointer hover:bg-gray-100"
+                            onClick={() => toggleGroup(`so_${soKey}_mid_${itemMidKey}`)}
+                          >
+                            <div className="flex items-center gap-2">
+                              <span className="text-xs font-semibold text-gray-700">{itemMidKey}</span>
+                              <span className="text-[10px] text-gray-500 bg-gray-200 px-1.5 py-0.5 rounded">{items.length}건</span>
+                            </div>
+                            {isItemMidCollapsed ? <ChevronDown className="w-3 h-3 text-gray-500" /> : <ChevronUp className="w-3 h-3 text-gray-500" />}
+                          </div>
+
+                          {/* 장비 목록 */}
+                          {!isItemMidCollapsed && (
+                            <div className="divide-y divide-gray-50">
+                              {items.map((item, idx) => (
                   <div
                     key={item.EQT_NO || idx}
                     onClick={() => { if (!(item._category === 'OWNED' && item._hasReturnRequest)) handleCheckItem(item.EQT_NO, !item.CHK); }}
@@ -1313,9 +1338,12 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
                       </div>
                     )}
                   </div>
-                        ))}
-                      </div>
-                    )}
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
                   </div>
                 );
               })}
