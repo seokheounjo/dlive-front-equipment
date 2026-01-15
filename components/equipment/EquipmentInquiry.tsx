@@ -1299,9 +1299,9 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
                         </div>
                       </div>
                     </div>
-                    {/* 자세히 보기: 추가 정보 - 전체 너비로 표시 */}
+                    {/* 자세히 보기: 추가 정보 - 간단히와 같은 라인 시작 (ml-8 = 체크박스w-5 + gap-3) */}
                     {viewMode === 'detail' && (
-                      <div className="bg-gray-100 rounded-lg p-2 mt-2 text-sm space-y-1">
+                      <div className="bg-gray-100 rounded-lg p-2 mt-2 ml-8 text-sm space-y-1">
                         <div><span className="text-sm text-gray-500">지점          </span><span className="text-sm font-medium text-gray-800">{item.SO_NM || '-'}</span></div>
                         <div><span className="text-sm text-gray-500">장비상태  : </span><span className="text-sm text-gray-800">{item.EQT_STAT_CD_NM || item.EQT_STAT_NM || getEqtStatName(item.EQT_STAT_CD || '') || '-'}</span></div>
                         <div><span className="text-sm text-gray-500">변경종류  : </span><span className="text-sm text-gray-800">{item.CHG_KND_NM || item.CHG_TP_NM || item.PROC_STAT_NM || item.EQT_CHG_TP_NM || '-'}</span></div>
