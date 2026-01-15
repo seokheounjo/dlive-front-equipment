@@ -228,7 +228,11 @@ const DEFAULT_ITEM_MID_LIST: ItemMidItem[] = [
   { COMMON_CD: '03', COMMON_CD_NM: 'CVT' },
   { COMMON_CD: '04', COMMON_CD_NM: 'STB' },
   { COMMON_CD: '05', COMMON_CD_NM: 'Smart card' },
+  { COMMON_CD: '06', COMMON_CD_NM: '캐치온필터' },
   { COMMON_CD: '07', COMMON_CD_NM: 'Cable Card' },
+  { COMMON_CD: '08', COMMON_CD_NM: 'IP폰' },
+  { COMMON_CD: '10', COMMON_CD_NM: '유무선공유기(AP)' },
+  { COMMON_CD: '23', COMMON_CD_NM: 'OTT_STB(체험형)' },
 ];
 
 const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }) => {
