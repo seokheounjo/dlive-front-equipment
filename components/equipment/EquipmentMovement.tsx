@@ -1222,7 +1222,7 @@ const EquipmentMovement: React.FC<EquipmentMovementProps> = ({ onBack }) => {
                                     }`}>
                                       {item.EQT_USE_ARR_YN === 'Y' ? '사용가능' :
                                        item.EQT_USE_ARR_YN === 'A' ? '검사대기' :
-                                       item.EQT_USE_ARR_YN === 'N' ? '사용불가' : 'n/a'}
+                                       item.EQT_USE_ARR_YN === 'N' ? '사용불가' : 'N/A'}
                                     </span>
                                   </div>
                                   {/* Line 3: MAC + 날짜 (YYYY-MM-DD) */}

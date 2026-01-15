@@ -1436,7 +1436,7 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
                             {(item._hasReturnRequest || item._category === 'RETURN_REQUESTED') ? '반납요청' :
                              item.EQT_USE_ARR_YN === 'Y' ? '사용가능' :
                              item.EQT_USE_ARR_YN === 'A' ? '검사대기' :
-                             item.EQT_USE_ARR_YN === 'N' ? '사용불가' : 'n/a'}
+                             item.EQT_USE_ARR_YN === 'N' ? '사용불가' : 'N/A'}
                           </span>
                         </div>
                         {/* S/N | MAC - 한 줄 */}
