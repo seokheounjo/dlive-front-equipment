@@ -497,11 +497,11 @@ const EquipmentAssignment: React.FC<EquipmentAssignmentProps> = ({ onBack, showT
     }
     switch (item._receiveStatus) {
       case 'received':
-        return { label: '수령', color: 'bg-green-500 text-white' };
+        return { label: '입고', color: 'bg-green-500 text-white' };
       case 'partial':
         return { label: `일부(${item._receivedCount}/${item._totalCount})`, color: 'bg-yellow-500 text-white' };
       case 'none':
-        return { label: '미수령', color: 'bg-red-500 text-white' };
+        return { label: '미입고', color: 'bg-red-500 text-white' };
       default:
         return { label: '-', color: 'bg-gray-400 text-white' };
     }
@@ -604,7 +604,7 @@ const EquipmentAssignment: React.FC<EquipmentAssignmentProps> = ({ onBack, showT
                 <span className="w-16 text-center">출고일</span>
                 <span className="w-20 text-center">협력업체</span>
                 <span className="flex-1 text-center">출고번호</span>
-                <span className="w-16 text-center">수령/미수령</span>
+                <span className="w-16 text-center">입고/미입고</span>
               </div>
               {/* 지점별 그룹핑된 리스트 */}
               <div>

@@ -221,13 +221,14 @@ const fetchAuthSoList = async (): Promise<SoListItem[]> => {
   }
 };
 
-// 장비 중분류 목록
+// 장비 중분류 목록 (ITEM_MID_CD, ITEM_MID_NM)
 const DEFAULT_ITEM_MID_LIST: ItemMidItem[] = [
   { COMMON_CD: '', COMMON_CD_NM: '전체' },
-  { COMMON_CD: '03', COMMON_CD_NM: '추가장비' },
-  { COMMON_CD: '04', COMMON_CD_NM: '모뎀' },
-  { COMMON_CD: '05', COMMON_CD_NM: '셋톱박스' },
-  { COMMON_CD: '07', COMMON_CD_NM: '특수장비' },
+  { COMMON_CD: '02', COMMON_CD_NM: '모뎀' },
+  { COMMON_CD: '03', COMMON_CD_NM: 'CVT' },
+  { COMMON_CD: '04', COMMON_CD_NM: 'STB' },
+  { COMMON_CD: '05', COMMON_CD_NM: 'Smart card' },
+  { COMMON_CD: '07', COMMON_CD_NM: 'Cable Card' },
 ];
 
 const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }) => {
@@ -1343,7 +1344,7 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
                               <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-700">사용불가</span>
                             )}
                             {!item.EQT_USE_ARR_YN && (
-                              <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-700">n/a</span>
+                              <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-700">N/A</span>
                             )}
                           </div>
                         </div>
