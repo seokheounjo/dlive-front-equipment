@@ -446,6 +446,14 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
               if (selectedItemMidCd) {
                 filtered = ownedResult.filter((item: any) => item.ITEM_MID_CD === selectedItemMidCd);
               }
+              // 보유장비: EQT_USE_ARR_YN='Y' (사용가능)만 표시 (검사대기 제외)
+              // 반납요청 중이더라도 사용가능인 것만 표시
+              filtered = filtered.filter((item: any) => {
+                const isUsable = item.EQT_USE_ARR_YN === 'Y';
+                // 사용가능만 표시 (검사대기='A', 사용불가='N' 제외)
+                return isUsable;
+              });
+              console.log('[보유장비] 사용가능 필터 후:', filtered.length, '건');
               // 보유장비 표시용 태그 추가 + 반납요청 중인지 표시
               allResults.push(...filtered.map((item: any) => {
                 const hasReturn = returnRequestEqtNos.has(item.EQT_NO);
@@ -530,7 +538,7 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
           }
         }
 
-        // 검사대기 선택 시 - 레거시 API 조건만 사용 (ITEM_MID_CD='04' STB만)
+        // 검사대기 선택 시 - EQT_USE_ARR_YN='A'인 모든 장비 표시
         if (selectedCategory === 'INSPECTION_WAITING') {
           const inspectionParams = {
             WRKR_ID: userInfo.userId,
@@ -546,12 +554,14 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
               inspectionParams
             );
             if (Array.isArray(inspectionResult)) {
-              // 레거시 API 조건: ITEM_MID_CD='04' (STB만) 필터링
-              // 백엔드 Strategy 2에서 추가된 다른 장비 제외
-              const stbOnly = inspectionResult.filter((item: any) => item.ITEM_MID_CD === '04');
-              console.log('[검사대기] STB만 필터링:', inspectionResult.length, '->', stbOnly.length);
+              // ITEM_MID_CD 필터 적용 (프론트엔드에서) - 선택된 경우만
+              let filtered = inspectionResult;
+              if (selectedItemMidCd) {
+                filtered = inspectionResult.filter((item: any) => item.ITEM_MID_CD === selectedItemMidCd);
+              }
+              console.log('[검사대기] 전체 조회:', inspectionResult.length, '건, 필터 후:', filtered.length, '건');
               // 검사대기 표시용 태그 추가
-              allResults.push(...stbOnly.map(item => ({ ...item, _category: 'INSPECTION_WAITING' })));
+              allResults.push(...filtered.map(item => ({ ...item, _category: 'INSPECTION_WAITING' })));
             }
           } catch (e) {
             console.log('검사대기 조회 실패:', e);
