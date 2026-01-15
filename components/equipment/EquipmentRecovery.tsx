@@ -116,7 +116,7 @@ const RecoveryModal: React.FC<{
 
   const handleProcess = () => {
     if (!selectedSoId) {
-      alert('jijum selection required.');
+      alert('회수 지점을 선택해주세요.');
       return;
     }
     onProcess('1', selectedSoId);
@@ -602,15 +602,15 @@ const EquipmentRecovery: React.FC<EquipmentRecoveryProps> = ({ onBack }) => {
 
         if (eqtResult && eqtResult.length > 0) {
           const eqt = eqtResult[0];
-          alert(`Equipment (${serialNo}) is not unreturned.\n\nHolder: ${eqt.WRKR_NM || 'None'}\nBranch: ${eqt.SO_NM || 'None'}\nStatus: ${eqt.EQT_STAT_NM || eqt.EQT_STAT_CD_NM || eqt.EQT_STAT_CD || 'Unknown'}`);
+          alert(`장비 (${serialNo})는 미회수 대상이 아닙니다.\n\n보유자: ${eqt.WRKR_NM || '없음'}\n지점: ${eqt.SO_NM || '없음'}\n상태: ${eqt.EQT_STAT_NM || eqt.EQT_STAT_CD_NM || eqt.EQT_STAT_CD || '알 수 없음'}`);
         } else {
-          alert(`Equipment (${serialNo}) not found.`);
+          alert(`장비 (${serialNo})를 찾을 수 없습니다.`);
         }
         setUnreturnedList([]);
       }
     } catch (error) {
       console.error('Barcode scan failed:', error);
-      alert('Equipment lookup failed.');
+      alert('장비 조회에 실패했습니다.');
     } finally {
       setIsLoading(false);
     }
@@ -677,7 +677,7 @@ const EquipmentRecovery: React.FC<EquipmentRecoveryProps> = ({ onBack }) => {
       setUnreturnedList(transformedList);
     } catch (error) {
       console.error('Unreturned equipment lookup failed:', error);
-      alert('Unreturned equipment lookup failed.');
+      alert('미회수장비 조회에 실패했습니다.');
       setUnreturnedList([]);
     } finally {
       setIsLoading(false);
@@ -719,7 +719,13 @@ const EquipmentRecovery: React.FC<EquipmentRecoveryProps> = ({ onBack }) => {
             PROC_UID_SO_ID: soId || userInfo.soId || item.SO_ID || '',
             RTN_DD: today,
             RTN_TP: '3',
-            STTL_YN: 'N'
+            STTL_YN: 'N',
+            // 레거시 PCMWK_NOT_REV_EQT 프로시저 필수 파라미터
+            BILL_YN: (item as any).BILL_YN || 'N',
+            RCPT_YN: (item as any).RCPT_YN || '0',
+            EQT_PROD_CMPS_ID: (item as any).EQT_PROD_CMPS_ID || '',
+            EQT_CL_CD: item.EQT_CL_CD || (item as any).EQT_CL || '',
+            EQT_USE_STAT_CD: (item as any).EQT_USE_STAT_CD || '1'
           };
           await debugApiCall(
             'EquipmentRecovery',
@@ -734,20 +740,20 @@ const EquipmentRecovery: React.FC<EquipmentRecoveryProps> = ({ onBack }) => {
       }
 
       if (successCount > 0) {
-        let msg = successCount + ' items recovery completed.';
+        let msg = successCount + '건 회수처리 완료';
         if (skipCount > 0) {
-          msg += `\n(${skipCount} items skipped due to EQT_NO format error)`;
+          msg += `\n(${skipCount}건 EQT_NO 형식 오류로 건너뜀)`;
         }
         alert(msg);
         setRecoveryModalOpen(false);
         setScannedSerials([]);
         handleSearch();
       } else {
-        throw new Error('Process failed.');
+        throw new Error('회수처리 실패');
       }
     } catch (error) {
       console.error('Recovery process failed:', error);
-      alert('Recovery process failed.');
+      alert('회수처리에 실패했습니다.');
     } finally {
       setIsProcessing(false);
     }
