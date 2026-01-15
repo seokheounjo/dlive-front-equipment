@@ -1358,10 +1358,11 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
                     {viewMode === 'detail' && (
                       <div className="bg-gray-100 rounded-lg p-2 mt-2 ml-6 text-sm space-y-1">
                         <div className="flex items-center justify-between"><span className="text-gray-800">{item.ITEM_MODEL || item.MODEL_NM || '-'}</span><span className="font-medium text-gray-800">{item.SO_NM || '-'}</span></div>
-                        <div><span className="text-gray-500">장비상태  : </span><span className="text-gray-800">{item.EQT_STAT_NM || item.EQT_STAT_CD_NM || getEqtStatName(item.EQT_STAT_CD || '') || '-'}</span></div>
+                        <div className="flex items-center justify-between"><span><span className="text-gray-500">장비상태  : </span><span className="text-gray-800">{item.EQT_STAT_NM || item.EQT_STAT_CD_NM || getEqtStatName(item.EQT_STAT_CD || '') || '-'}</span></span><span className="text-gray-400 text-xs">{item.EQT_NO || '-'}</span></div>
                         <div><span className="text-gray-500">변경종류  : </span><span className="text-gray-800">{item.CHG_KND_NM || '-'}</span></div>
                         <div><span className="text-gray-500">현재위치  : </span><span className="text-gray-800">{item.EQT_LOC_NM || item.EQT_LOC_TP_NM || getEqtLocTpName(item.EQT_LOC_TP_CD || '') || '-'}</span></div>
                         <div><span className="text-gray-500">이전위치  : </span><span className="text-gray-800">{item.OLD_EQT_LOC_NM || '-'}</span></div>
+                        <div><span className="text-gray-500">MAC주소   : </span><span className="text-gray-800">{item.MAC_ADDRESS || '-'}</span></div>
                       </div>
                     )}
                   </div>
