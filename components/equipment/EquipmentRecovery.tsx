@@ -908,24 +908,26 @@ const EquipmentRecovery: React.FC<EquipmentRecoveryProps> = ({ onBack }) => {
               <User className="w-4 h-4 text-gray-500" />
               <span className="text-xs font-medium text-gray-600">고객 검색</span>
             </div>
-            <div
-              onClick={() => setCustomerModalOpen(true)}
-              className="flex gap-2 cursor-pointer"
-            >
-              <input
-                type="text"
-                value={selectedCustomer?.CUST_ID || ''}
-                readOnly
-                className="flex-1 px-3 py-2.5 text-sm border border-gray-200 rounded-lg bg-gray-50 cursor-pointer"
-                placeholder="고객ID"
-              />
-              <input
-                type="text"
-                value={selectedCustomer?.CUST_NM || ''}
-                readOnly
-                className="flex-1 px-3 py-2.5 text-sm border border-gray-200 rounded-lg bg-gray-50 cursor-pointer"
-                placeholder="고객명"
-              />
+            <div className="flex gap-2">
+              <div
+                onClick={() => setCustomerModalOpen(true)}
+                className="flex-1 flex gap-2 cursor-pointer min-w-0"
+              >
+                <input
+                  type="text"
+                  value={selectedCustomer?.CUST_ID || ''}
+                  readOnly
+                  className="flex-1 min-w-0 px-3 py-2.5 text-sm border border-gray-200 rounded-lg bg-gray-50 cursor-pointer"
+                  placeholder="고객ID"
+                />
+                <input
+                  type="text"
+                  value={selectedCustomer?.CUST_NM || ''}
+                  readOnly
+                  className="flex-1 min-w-0 px-3 py-2.5 text-sm border border-gray-200 rounded-lg bg-gray-50 cursor-pointer"
+                  placeholder="고객명"
+                />
+              </div>
               {selectedCustomer && (
                 <button
                   onClick={(e) => {
@@ -933,7 +935,7 @@ const EquipmentRecovery: React.FC<EquipmentRecoveryProps> = ({ onBack }) => {
                     setSelectedCustomer(null);
                     setSearchParams({...searchParams, CUST_ID: '', CUST_NM: ''});
                   }}
-                  className="px-2 text-gray-400 hover:text-gray-600"
+                  className="flex-shrink-0 px-2 text-gray-400 hover:text-gray-600"
                 >
                   <X className="w-4 h-4" />
                 </button>
