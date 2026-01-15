@@ -594,12 +594,16 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
         ITEM_MID_CD: item.ITEM_MID_CD || '',
         ITEM_MID_NM: item.ITEM_MID_NM || '',
         ITEM_NM: item.ITEM_NM || item.ITEM_MODEL || '',
+        ITEM_MODEL: item.ITEM_MODEL || item.MODEL_NM || '',  // 모델명
         SO_ID: item.SO_ID || selectedSoId,
         SO_NM: item.SO_NM || '',
         EQT_STAT_CD: item.EQT_STAT_CD || item.STATUS || '',
-        EQT_STAT_NM: item.EQT_STAT_NM || item.STATUS_NM || getEqtStatName(item.EQT_STAT_CD || item.STATUS || '') || '재고',
+        EQT_STAT_NM: item.EQT_STAT_NM || item.EQT_STAT_CD_NM || getEqtStatName(item.EQT_STAT_CD || item.STATUS || '') || '재고',
         EQT_LOC_TP_CD: item.EQT_LOC_TP_CD || '',
         EQT_LOC_TP_NM: item.EQT_LOC_TP_NM || item.EQT_LOC_TP_CD_NM || getEqtLocTpName(item.EQT_LOC_TP_CD || ''),
+        EQT_LOC_NM: item.EQT_LOC_NM || '',  // 현재위치 상세
+        OLD_EQT_LOC_NM: item.OLD_EQT_LOC_NM || item.BEF_EQT_LOC_NM || item.BEF_LOC_NM || '',  // 이전위치
+        CHG_KND_NM: item.CHG_KND_NM || item.CHG_TP_NM || item.EQT_CHG_TP_NM || '',  // 변경종류
         PROC_STAT: item.PROC_STAT || '',
         PROC_STAT_NM: item.PROC_STAT_NM || '',
         WRKR_ID: item.WRKR_ID || userInfo.userId,
