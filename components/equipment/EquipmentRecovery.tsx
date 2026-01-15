@@ -470,16 +470,33 @@ const EquipmentRecovery: React.FC<EquipmentRecoveryProps> = ({ onBack }) => {
   // SO list load
   useEffect(() => {
     const userInfoStr = typeof window !== 'undefined' ? sessionStorage.getItem('userInfo') : null;
+    console.log('[EquipmentRecovery] userInfoStr:', userInfoStr);
     if (userInfoStr) {
       try {
         const userInfo = JSON.parse(userInfoStr);
-        const authSoList = userInfo.authSoList || userInfo.AUTH_SO_List || [];
+        console.log('[EquipmentRecovery] userInfo:', userInfo);
+        console.log('[EquipmentRecovery] authSoList:', userInfo.authSoList);
+        console.log('[EquipmentRecovery] AUTH_SO_List:', userInfo.AUTH_SO_List);
+
+        // 다양한 필드명으로 시도
+        const authSoList = userInfo.authSoList || userInfo.AUTH_SO_List || userInfo.soList || [];
+        console.log('[EquipmentRecovery] Final authSoList:', authSoList);
+
         if (Array.isArray(authSoList) && authSoList.length > 0) {
           const mappedList: SoInfo[] = authSoList.map((so: any) => ({
-            SO_ID: so.SO_ID || so.soId || '',
-            SO_NM: so.SO_NM || so.soNm || so.SO_ID || ''
+            SO_ID: so.SO_ID || so.soId || so.so_id || '',
+            SO_NM: so.SO_NM || so.soNm || so.so_nm || so.SO_ID || so.soId || ''
           })).filter((so: SoInfo) => so.SO_ID);
+          console.log('[EquipmentRecovery] Mapped soList:', mappedList);
           setSoList(mappedList);
+        } else {
+          // authSoList가 없으면 단일 SO 정보로 fallback
+          const singleSo = userInfo.soId || userInfo.SO_ID;
+          const singleSoNm = userInfo.soNm || userInfo.SO_NM || singleSo;
+          if (singleSo) {
+            console.log('[EquipmentRecovery] Using single SO:', singleSo, singleSoNm);
+            setSoList([{ SO_ID: singleSo, SO_NM: singleSoNm }]);
+          }
         }
       } catch (e) {
         console.error('SO list load failed:', e);
@@ -1046,15 +1063,8 @@ const EquipmentRecovery: React.FC<EquipmentRecoveryProps> = ({ onBack }) => {
             </div>
           </div>
 
-          {/* 회수 버튼 */}
-          <button
-            onClick={() => setRecoveryModalOpen(true)}
-            disabled={selectedCount === 0}
-            className="w-full bg-gradient-to-r from-green-500 to-green-600 disabled:from-gray-300 disabled:to-gray-400 text-white py-4 rounded-xl font-bold text-base shadow-lg flex items-center justify-center gap-2 active:scale-[0.98] transition-all"
-          >
-            <Check className="w-5 h-5" />
-            회수 처리 ({selectedCount}건)
-          </button>
+          {/* 하단 버튼 영역 확보용 여백 */}
+          <div className="h-20"></div>
         </>
       ) : (
         <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-8">
@@ -1068,6 +1078,25 @@ const EquipmentRecovery: React.FC<EquipmentRecoveryProps> = ({ onBack }) => {
               {isLoading ? '조회 중...' : '바코드 스캔 또는 검색 조건을 입력하여\n미회수 장비를 조회하세요'}
             </p>
           </div>
+        </div>
+      )}
+
+      {/* 하단 고정 버튼 영역 - 네비게이션 바 바로 위 */}
+      {unreturnedList.length > 0 && (
+        <div className="fixed bottom-[56px] left-0 right-0 p-3 z-40" style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}>
+          <button
+            onClick={() => setRecoveryModalOpen(true)}
+            disabled={selectedCount === 0}
+            className={`w-full py-3 px-4 rounded-lg font-semibold text-sm shadow-sm transition-all active:scale-[0.98] touch-manipulation flex items-center justify-center gap-2 ${
+              selectedCount > 0
+                ? 'bg-green-500 hover:bg-green-600 text-white'
+                : 'bg-gray-300 text-white cursor-not-allowed'
+            }`}
+            style={{ WebkitTapHighlightColor: 'transparent' }}
+          >
+            <Check className="w-4 h-4" />
+            회수 처리 {selectedCount > 0 && `(${selectedCount})`}
+          </button>
         </div>
       )}
 
