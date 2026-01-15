@@ -1263,34 +1263,34 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
                       <div className="flex-1 min-w-0">
                         {/* 간단히 보기: 1줄 - 모델명(EQT_CL_NM) + 상태뱃지 */}
                         <div className="flex items-center justify-between">
-                          <span className="text-sm font-bold text-gray-900 truncate">{item.EQT_CL_NM || item.ITEM_NM || '-'}</span>
+                          <span className="text-base font-bold text-gray-900 truncate">{item.EQT_CL_NM || item.ITEM_NM || '-'}</span>
                           <div className="flex flex-col items-end gap-0.5 flex-shrink-0">
                             {item.EQT_USE_ARR_YN === 'Y' && !item._hasReturnRequest && item._category !== 'RETURN_REQUESTED' && (
-                              <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-green-100 text-green-700">보유</span>
+                              <span className="px-2 py-0.5 rounded-full text-xs font-semibold bg-green-100 text-green-700">보유</span>
                             )}
                             {(item._hasReturnRequest || item._category === 'RETURN_REQUESTED') && (
-                              <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-orange-100 text-orange-700">반납요청</span>
+                              <span className="px-2 py-0.5 rounded-full text-xs font-semibold bg-orange-100 text-orange-700">반납요청</span>
                             )}
                             {item.EQT_USE_ARR_YN === 'A' && (
-                              <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-purple-100 text-purple-700">검사대기</span>
+                              <span className="px-2 py-0.5 rounded-full text-xs font-semibold bg-purple-100 text-purple-700">검사대기</span>
                             )}
                             {item.EQT_USE_ARR_YN === 'N' && (
-                              <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-red-100 text-red-700">사용불가</span>
+                              <span className="px-2 py-0.5 rounded-full text-xs font-semibold bg-red-100 text-red-700">사용불가</span>
                             )}
                           </div>
                         </div>
                         {/* 간단히 보기: 2줄 - S/N */}
                         <div className="mt-1">
-                          <span className="font-mono text-xs text-gray-700">{item.EQT_SERNO || '-'}</span>
+                          <span className="font-mono text-sm text-gray-700">{item.EQT_SERNO || '-'}</span>
                         </div>
                         {/* 간단히 보기: 3줄 - MAC + 사용가능일자 */}
                         <div className="flex items-center justify-between mt-0.5">
-                          <span className="font-mono text-xs text-gray-500">{formatMac(item.MAC_ADDRESS)}</span>
-                          <span className="text-xs text-gray-500">{formatDateDot(item.EQT_USE_END_DT || item.USE_END_DT || '')}</span>
+                          <span className="font-mono text-sm text-gray-500">{formatMac(item.MAC_ADDRESS)}</span>
+                          <span className="text-sm text-gray-500">{formatDateDot(item.EQT_USE_END_DT || item.USE_END_DT || '')}</span>
                         </div>
                         {/* 자세히 보기: 추가 정보 */}
                         {viewMode === 'detail' && (
-                          <div className="bg-gray-100 rounded-lg p-2 mt-2 text-xs space-y-1">
+                          <div className="bg-gray-100 rounded-lg p-2 mt-2 text-sm space-y-1">
                             {/* 1줄: 지점명 */}
                             <div className="flex items-center justify-between">
                               <span className="text-gray-500">지점</span>
