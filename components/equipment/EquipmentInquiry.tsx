@@ -539,27 +539,24 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
           }
         }
 
-        // 검사대기 선택 시 - 보유장비 API 결과에서 EQT_USE_ARR_YN='A'인 장비만 필터링
-        // (검사대기 전용 API가 빈 배열 반환하므로 보유장비 API 활용)
+        // 검사대기 선택 시 - getEquipmentChkStndByA_All API 사용 + STB만 표시
         if (selectedCategory === 'INSPECTION_WAITING') {
+          const inspectionParams = {
+            WRKR_ID: userInfo.userId,
+            CRR_ID: userInfo.crrId || '',
+            SO_ID: selectedSoId || '',
+          };
           try {
-            // 보유장비 API 호출
-            const ownedResult = await debugApiCall(
+            const inspectionResult = await debugApiCall(
               'EquipmentInquiry',
-              'getWrkrHaveEqtListAll (검사대기용)',
-              () => getWrkrHaveEqtListAll({
-                WRKR_ID: userInfo.userId,
-                CRR_ID: userInfo.crrId || '',
-                SO_ID: selectedSoId || '',
-              }),
-              { WRKR_ID: userInfo.userId, CRR_ID: userInfo.crrId }
+              'getEquipmentChkStndByAAll (검사대기)',
+              () => getEquipmentChkStndByAAll(inspectionParams),
+              inspectionParams
             );
-            if (Array.isArray(ownedResult)) {
-              // EQT_USE_ARR_YN='A' (검사대기) + STB(ITEM_MID_CD='04')만 필터링
-              let filtered = ownedResult.filter((item: any) =>
-                item.EQT_USE_ARR_YN === 'A' && item.ITEM_MID_CD === '04'
-              );
-              console.log('[검사대기] STB 검사대기:', filtered.length, '건');
+            if (Array.isArray(inspectionResult)) {
+              // STB(ITEM_MID_CD='04')만 필터링
+              let filtered = inspectionResult.filter((item: any) => item.ITEM_MID_CD === '04');
+              console.log('[검사대기] API 결과:', inspectionResult.length, '건, STB만:', filtered.length, '건');
               // 검사대기 표시용 태그 추가
               allResults.push(...filtered.map(item => ({ ...item, _category: 'INSPECTION_WAITING' })));
             }
