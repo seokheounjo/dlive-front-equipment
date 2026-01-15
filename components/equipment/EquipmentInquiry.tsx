@@ -964,13 +964,22 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
     });
   };
 
-  // 장비중분류(ITEM_MID_NM) 기준 그룹화
+  // 장비중분류(ITEM_MID_NM) 기준 그룹화 + 그룹 내 EQT_CL_NM 정렬
   const groupedByItemMid = filteredDisplayList.reduce((acc, item) => {
     const itemMidKey = item.ITEM_MID_NM || '기타';
     if (!acc[itemMidKey]) acc[itemMidKey] = [];
     acc[itemMidKey].push(item);
     return acc;
   }, {} as Record<string, EquipmentItem[]>);
+
+  // 각 그룹 내에서 EQT_CL_NM(모델명) 기준 정렬
+  Object.keys(groupedByItemMid).forEach(key => {
+    groupedByItemMid[key].sort((a, b) => {
+      const aModel = a.EQT_CL_NM || a.ITEM_NM || '';
+      const bModel = b.EQT_CL_NM || b.ITEM_NM || '';
+      return aModel.localeCompare(bModel);
+    });
+  });
 
   const itemMidKeys = Object.keys(groupedByItemMid).sort();
 
