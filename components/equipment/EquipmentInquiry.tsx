@@ -964,17 +964,15 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
     });
   };
 
-  // 지점 > 장비종류로 그룹화
-  const groupedByLocation = filteredDisplayList.reduce((acc, item) => {
-    const soKey = item.SO_NM || item.SO_ID || '미지정';
-    const itemKey = item.ITEM_MID_NM || '기타';
-    if (!acc[soKey]) acc[soKey] = {};
-    if (!acc[soKey][itemKey]) acc[soKey][itemKey] = [];
-    acc[soKey][itemKey].push(item);
+  // 모델명(EQT_CL_NM) 기준 그룹화
+  const groupedByModel = filteredDisplayList.reduce((acc, item) => {
+    const modelKey = item.EQT_CL_NM || item.ITEM_NM || '기타';
+    if (!acc[modelKey]) acc[modelKey] = [];
+    acc[modelKey].push(item);
     return acc;
-  }, {} as Record<string, Record<string, EquipmentItem[]>>);
+  }, {} as Record<string, EquipmentItem[]>);
 
-  const soKeys = Object.keys(groupedByLocation).sort();
+  const modelKeys = Object.keys(groupedByModel).sort();
 
 
   return (
@@ -1214,52 +1212,30 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
               </div>
             </div>
 
-            {/* 그룹핑된 장비 목록: 지점 > 장비종류 > 장비 */}
+            {/* 그룹핑된 장비 목록: 모델명(EQT_CL_NM) 기준 */}
             <div className="divide-y divide-gray-100">
-              {soKeys.map(soKey => {
-                const itemGroups = groupedByLocation[soKey];
-                const itemKeys = Object.keys(itemGroups).sort();
-                const soCollapsed = collapsedGroups.has(soKey);
-                const soItemCount = itemKeys.reduce((sum, k) => sum + itemGroups[k].length, 0);
+              {modelKeys.map(modelKey => {
+                const items = groupedByModel[modelKey];
+                const modelCollapsed = collapsedGroups.has(modelKey);
 
                 return (
-                  <div key={soKey}>
-                    {/* 지점 헤더 */}
+                  <div key={modelKey}>
+                    {/* 모델명 헤더 */}
                     <div
                       className="px-4 py-2 bg-blue-50 flex items-center justify-between cursor-pointer hover:bg-blue-100"
-                      onClick={() => toggleGroup(soKey)}
+                      onClick={() => toggleGroup(modelKey)}
                     >
                       <div className="flex items-center gap-2">
-                        <span className="text-sm font-bold text-blue-800">{soKey}</span>
-                        <span className="text-xs text-blue-600 bg-blue-100 px-2 py-0.5 rounded-full">{soItemCount}건</span>
+                        <span className="text-sm font-bold text-blue-800">{modelKey}</span>
+                        <span className="text-xs text-blue-600 bg-blue-100 px-2 py-0.5 rounded-full">{items.length}건</span>
                       </div>
-                      {soCollapsed ? <ChevronDown className="w-4 h-4 text-blue-600" /> : <ChevronUp className="w-4 h-4 text-blue-600" />}
+                      {modelCollapsed ? <ChevronDown className="w-4 h-4 text-blue-600" /> : <ChevronUp className="w-4 h-4 text-blue-600" />}
                     </div>
 
-                    {/* 지점 내 장비종류 */}
-                    {!soCollapsed && itemKeys.map(itemKey => {
-                      const items = itemGroups[itemKey];
-                      const itemGroupKey = `${soKey}-${itemKey}`;
-                      const itemCollapsed = collapsedGroups.has(itemGroupKey);
-
-                      return (
-                        <div key={itemGroupKey}>
-                          {/* 장비종류 헤더 */}
-                          <div
-                            className="px-6 py-1.5 bg-gray-50 flex items-center justify-between cursor-pointer hover:bg-gray-100"
-                            onClick={() => toggleGroup(itemGroupKey)}
-                          >
-                            <div className="flex items-center gap-2">
-                              <span className="text-xs font-semibold text-gray-700">{itemKey}</span>
-                              <span className="text-[10px] text-gray-500 bg-gray-200 px-1.5 py-0.5 rounded">{items.length}건</span>
-                            </div>
-                            {itemCollapsed ? <ChevronDown className="w-3 h-3 text-gray-500" /> : <ChevronUp className="w-3 h-3 text-gray-500" />}
-                          </div>
-
-                          {/* 장비 목록 */}
-                          {!itemCollapsed && (
-                            <div className="divide-y divide-gray-50">
-                              {items.map((item, idx) => (
+                    {/* 장비 목록 */}
+                    {!modelCollapsed && (
+                      <div className="divide-y divide-gray-50">
+                        {items.map((item, idx) => (
                   <div
                     key={item.EQT_NO || idx}
                     onClick={() => { if (!(item._category === 'OWNED' && item._hasReturnRequest)) handleCheckItem(item.EQT_NO, !item.CHK); }}
@@ -1285,11 +1261,11 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
                         }`}
                       />
                       <div className="flex-1 min-w-0">
-                        {/* 간단히 보기: 1줄 - S/N + 상태뱃지 */}
+                        {/* 간단히 보기: 1줄 - 모델명(EQT_CL_NM) + 상태뱃지 */}
                         <div className="flex items-center justify-between">
-                          <span className="font-mono text-sm font-medium text-gray-900">{item.EQT_SERNO || '-'}</span>
+                          <span className="text-sm font-bold text-gray-900 truncate">{item.EQT_CL_NM || item.ITEM_NM || '-'}</span>
                           <div className="flex flex-col items-end gap-0.5 flex-shrink-0">
-                            {item.EQT_USE_ARR_YN === 'Y' && (
+                            {item.EQT_USE_ARR_YN === 'Y' && !item._hasReturnRequest && item._category !== 'RETURN_REQUESTED' && (
                               <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-green-100 text-green-700">보유</span>
                             )}
                             {(item._hasReturnRequest || item._category === 'RETURN_REQUESTED') && (
@@ -1303,18 +1279,22 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
                             )}
                           </div>
                         </div>
-                        {/* 간단히 보기: 2줄 - MAC + 사용가능일자 */}
-                        <div className="flex items-center justify-between mt-1">
-                          <span className="font-mono text-xs text-gray-600">{formatMac(item.MAC_ADDRESS)}</span>
-                          <span className="text-xs text-gray-600">{formatDateDot(item.EQT_USE_END_DT || item.USE_END_DT || '')}</span>
+                        {/* 간단히 보기: 2줄 - S/N */}
+                        <div className="mt-1">
+                          <span className="font-mono text-xs text-gray-700">{item.EQT_SERNO || '-'}</span>
+                        </div>
+                        {/* 간단히 보기: 3줄 - MAC + 사용가능일자 */}
+                        <div className="flex items-center justify-between mt-0.5">
+                          <span className="font-mono text-xs text-gray-500">{formatMac(item.MAC_ADDRESS)}</span>
+                          <span className="text-xs text-gray-500">{formatDateDot(item.EQT_USE_END_DT || item.USE_END_DT || '')}</span>
                         </div>
                         {/* 자세히 보기: 추가 정보 */}
                         {viewMode === 'detail' && (
                           <div className="bg-gray-100 rounded-lg p-2 mt-2 text-xs space-y-1">
-                            {/* 1줄: 모델명 + 지점명 */}
+                            {/* 1줄: 지점명 */}
                             <div className="flex items-center justify-between">
-                              <span className="font-medium text-gray-900">{item.EQT_CL_NM || item.ITEM_NM || '-'}</span>
-                              <span className="text-gray-600">{item.SO_NM || '-'}</span>
+                              <span className="text-gray-500">지점</span>
+                              <span className="font-medium text-gray-800">{item.SO_NM || '-'}</span>
                             </div>
                             <div><span className="text-gray-500">장비상태  : </span><span className="text-gray-800">{item.EQT_STAT_CD_NM || item.EQT_STAT_NM || getEqtStatName(item.EQT_STAT_CD || '') || '-'}</span></div>
                             <div><span className="text-gray-500">변경종류  : </span><span className="text-gray-800">{item.CHG_KND_NM || item.CHG_TP_NM || item.PROC_STAT_NM || item.EQT_CHG_TP_NM || '-'}</span></div>
@@ -1325,12 +1305,9 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
                       </div>
                     </div>
                   </div>
-                              ))}
-                            </div>
-                          )}
-                        </div>
-                      );
-                    })}
+                        ))}
+                      </div>
+                    )}
                   </div>
                 );
               })}
