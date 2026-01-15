@@ -555,13 +555,11 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
               { WRKR_ID: userInfo.userId, CRR_ID: userInfo.crrId }
             );
             if (Array.isArray(ownedResult)) {
-              // EQT_USE_ARR_YN='A' (검사대기)인 장비만 필터링
-              let filtered = ownedResult.filter((item: any) => item.EQT_USE_ARR_YN === 'A');
-              // ITEM_MID_CD 필터 적용 (프론트엔드에서) - 선택된 경우만
-              if (selectedItemMidCd) {
-                filtered = filtered.filter((item: any) => item.ITEM_MID_CD === selectedItemMidCd);
-              }
-              console.log('[검사대기] 보유장비에서 필터:', ownedResult.length, '건 중 검사대기:', filtered.length, '건');
+              // EQT_USE_ARR_YN='A' (검사대기) + STB(ITEM_MID_CD='04')만 필터링
+              let filtered = ownedResult.filter((item: any) =>
+                item.EQT_USE_ARR_YN === 'A' && item.ITEM_MID_CD === '04'
+              );
+              console.log('[검사대기] STB 검사대기:', filtered.length, '건');
               // 검사대기 표시용 태그 추가
               allResults.push(...filtered.map(item => ({ ...item, _category: 'INSPECTION_WAITING' })));
             }
