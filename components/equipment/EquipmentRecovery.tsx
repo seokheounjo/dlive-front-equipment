@@ -732,12 +732,15 @@ const EquipmentRecovery: React.FC<EquipmentRecoveryProps> = ({ onBack }) => {
             RTN_DD: today,
             RTN_TP: '3',
             STTL_YN: 'N',
-            // 레거시 PCMWK_NOT_REV_EQT 프로시저 필수 파라미터
+            // PCMWK_NOT_REV_EQT Oracle procedure required parameters
             BILL_YN: (item as any).BILL_YN || 'N',
             RCPT_YN: (item as any).RCPT_YN || '0',
             EQT_PROD_CMPS_ID: (item as any).EQT_PROD_CMPS_ID || '',
+            BASIC_PROD_CMPS_ID: (item as any).BASIC_PROD_CMPS_ID || '',
             EQT_CL_CD: item.EQT_CL_CD || (item as any).EQT_CL || '',
-            EQT_USE_STAT_CD: (item as any).EQT_USE_STAT_CD || '1'
+            EQT_USE_STAT_CD: (item as any).EQT_USE_STAT_CD || '1',
+            SVC_CD: (item as any).SVC_CD || '',
+            IF_DTL_ID: (item as any).IF_DTL_ID || '0000000000'
           };
           await debugApiCall(
             'EquipmentRecovery',
