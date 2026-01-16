@@ -40,6 +40,14 @@ const formatDateDash = (dateStr: string): string => {
 // Scan mode type: scan(단일스캔), equipment(장비번호), worker(보유기사)
 type ScanMode = 'scan' | 'equipment' | 'worker';
 
+// 레거시 방식: 타지점 이동 제한 지점 (경기동부, 강남방송, 서초지점)
+const RESTRICTED_SO_IDS = ['401', '402', '328'];
+const RESTRICTED_SO_NAMES: { [key: string]: string } = {
+  '401': '경기동부',
+  '402': '강남방송',
+  '328': '서초지점'
+};
+
 interface EquipmentMovementProps {
   onBack: () => void;
 }
@@ -191,6 +199,35 @@ const EquipmentMovement: React.FC<EquipmentMovementProps> = ({ onBack }) => {
   useEffect(() => {
     loadInitialData();
   }, []);
+
+  // targetSoId 변경 시 장비 목록의 isTransferable 재계산
+  useEffect(() => {
+    if (eqtTrnsList.length > 0 && targetSoId) {
+      setEqtTrnsList(prev => prev.map(item => {
+        const itemSoId = item.SO_ID || '';
+        const isRestrictedSo = RESTRICTED_SO_IDS.includes(itemSoId);
+        const isTransferable = isRestrictedSo ? (targetSoId === itemSoId) : true;
+        return {
+          ...item,
+          isTransferable,
+          CHK: isTransferable ? item.CHK : false  // 이관불가 장비는 체크 해제
+        };
+      }));
+    }
+    // 모달 내 장비 목록도 재계산
+    if (modalEquipmentList.length > 0 && targetSoId) {
+      setModalEquipmentList(prev => prev.map(item => {
+        const itemSoId = item.SO_ID || '';
+        const isRestrictedSo = RESTRICTED_SO_IDS.includes(itemSoId);
+        const isTransferable = isRestrictedSo ? (targetSoId === itemSoId) : true;
+        return {
+          ...item,
+          isTransferable,
+          CHK: isTransferable ? item.CHK : false
+        };
+      }));
+    }
+  }, [targetSoId]);
 
   const loadInitialData = async () => {
     try {
@@ -363,13 +400,15 @@ const EquipmentMovement: React.FC<EquipmentMovementProps> = ({ onBack }) => {
       const result = await debugApiCall('EquipmentMovement', 'getWrkrHaveEqtList', () => getWrkrHaveEqtList(params), params);
 
       if (Array.isArray(result) && result.length > 0) {
-        // 이관 가능 SO_ID 목록 (사용자의 AUTH_SO_List)
-        const authSoIds = userAuthSoList.map(so => so.SO_ID);
+        // 레거시 방식: 특정 지점(401, 402, 328)만 타지점 이동 제한
 
         let transformedList: EqtTrns[] = result.map((item: any) => {
           const itemSoId = item.SO_ID || '';
-          // 이관 가능 여부: 장비의 SO_ID가 사용자의 AUTH_SO_List에 있어야 함
-          const isTransferable = authSoIds.includes(itemSoId);
+          // 이관 가능 여부:
+          // - 제한 지점(401, 402, 328) 장비 → 해당 지점으로만 이동 가능 (targetSoId와 일치해야 함)
+          // - 다른 지점 장비 → 자유롭게 이동 가능
+          const isRestrictedSo = RESTRICTED_SO_IDS.includes(itemSoId);
+          const isTransferable = isRestrictedSo ? (targetSoId === itemSoId) : true;
 
           return {
             CHK: false,
@@ -578,13 +617,15 @@ const EquipmentMovement: React.FC<EquipmentMovementProps> = ({ onBack }) => {
       const params: any = { WRKR_ID: worker.USR_ID, CRR_ID: '' };
       const result = await debugApiCall('EquipmentMovement', 'getWrkrHaveEqtList (modal)', () => getWrkrHaveEqtList(params), params);
       if (Array.isArray(result) && result.length > 0) {
-        // 이관 가능 SO_ID 목록 (사용자의 AUTH_SO_List)
-        const authSoIds = userAuthSoList.map(so => so.SO_ID);
+        // 레거시 방식: 특정 지점(401, 402, 328)만 타지점 이동 제한
 
         const transformedList: EqtTrns[] = result.map((item: any) => {
           const itemSoId = item.SO_ID || '';
-          // 이관 가능 여부: 장비의 SO_ID가 사용자의 AUTH_SO_List에 있어야 함
-          const isTransferable = authSoIds.includes(itemSoId);
+          // 이관 가능 여부:
+          // - 제한 지점(401, 402, 328) 장비 → 해당 지점으로만 이동 가능
+          // - 다른 지점 장비 → 자유롭게 이동 가능
+          const isRestrictedSo = RESTRICTED_SO_IDS.includes(itemSoId);
+          const isTransferable = isRestrictedSo ? (targetSoId === itemSoId) : true;
 
           return {
             CHK: false,
@@ -712,16 +753,16 @@ const EquipmentMovement: React.FC<EquipmentMovementProps> = ({ onBack }) => {
     try {
       for (const item of checkedItems) {
         try {
-          // SO_ID: 장비의 실제 SO_ID (프로시저가 SO_ID + EQT_NO로 장비원장 조회)
-          // MV_SO_ID: 이관받을 지점 (장비의 SO_ID와 동일해야 함)
-          // 권한 검증: 장비의 SO_ID가 사용자의 AUTH_SO_List에 있어야 함 (UI에서 사전 필터링)
+          // 레거시 방식: SO_ID는 사용자가 선택한 이관지점(targetSoId) 사용
+          // 제한 지점(401, 402, 328)은 프론트에서 사전 차단됨
+          // 다른 지점은 사용자 선택 지점으로 이관 가능
           const params = {
             EQT_NO: item.EQT_NO,
             EQT_SERNO: item.EQT_SERNO,
-            SO_ID: item.SO_ID,                 // 장비의 실제 SO_ID (필수!)
+            SO_ID: targetSoId || loggedInUser.soId,  // 사용자가 선택한 이관지점
             FROM_WRKR_ID: workerInfo.WRKR_ID,
             TO_WRKR_ID: loggedInUser.userId,
-            MV_SO_ID: item.SO_ID,              // 이관 지점 (장비의 SO_ID와 동일)
+            MV_SO_ID: targetSoId || loggedInUser.soId,  // 이관 지점
             MV_CRR_ID: loggedInUser.crrId,     // 이관 협력업체 (이관받는 기사의 CRR_ID)
             CHG_UID: loggedInUser.userId       // 변경자 ID
           };
