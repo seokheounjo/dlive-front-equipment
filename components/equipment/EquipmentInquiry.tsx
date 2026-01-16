@@ -971,9 +971,6 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
             EQT_NO: item.EQT_NO,
             ITEM_NM: item.ITEM_NM || item.ITEM_MID_NM || ''
           });
-
-          // 다음 호출 전 100ms 대기 (같은 초 내 중복 INSERT 방지)
-          await new Promise(resolve => setTimeout(resolve, 100));
         } catch (err: any) {
           console.error('장비 처리 결과:', item.EQT_SERNO, err);
           result.failed.push({
@@ -983,6 +980,9 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
             error: err?.message || '당일해지 후 당일설치 조건 미충족'
           });
         }
+
+        // 다음 호출 전 150ms 대기 (성공/실패 상관없이 - ORA-00001 중복 INSERT 방지)
+        await new Promise(resolve => setTimeout(resolve, 150));
       }
 
       // 결과 모달 표시
