@@ -889,20 +889,49 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
     setShowStatusChangeConfirm(true);
   };
 
+  // 사용가능변경 처리 중 상태 (중복 클릭 방지)
+  const [isStatusChanging, setIsStatusChanging] = useState(false);
+
   // 사용가능변경 실행 (확인 후)
   const executeStatusChange = async () => {
+    // 중복 클릭 방지
+    if (isStatusChanging) {
+      console.log('[사용가능변경] 이미 처리 중입니다.');
+      return;
+    }
+
     setShowStatusChangeConfirm(false);
     const checkedItems = pendingStatusChangeItems;
-    
+
     if (checkedItems.length === 0) return;
+
+    // 이미 사용가능(Y)인 장비는 제외
+    const itemsToProcess = checkedItems.filter(item => item.EQT_USE_ARR_YN !== 'Y');
+    if (itemsToProcess.length === 0) {
+      showToast?.('선택된 장비가 이미 사용가능 상태입니다.', 'info');
+      setPendingStatusChangeItems([]);
+      return;
+    }
+
+    setIsStatusChanging(true);
 
     const result: StatusChangeResult = {
       success: [],
       failed: []
     };
 
+    // 처리된 EQT_NO 추적 (중복 호출 방지)
+    const processedEqtNos = new Set<string>();
+
     try {
-      for (const item of checkedItems) {
+      for (const item of itemsToProcess) {
+        // 같은 장비 중복 호출 방지
+        if (processedEqtNos.has(item.EQT_NO)) {
+          console.log('[사용가능변경] 중복 장비 건너뜀:', item.EQT_SERNO);
+          continue;
+        }
+        processedEqtNos.add(item.EQT_NO);
+
         const params = {
           EQT_NO: item.EQT_NO,
           SO_ID: item.SO_ID || userInfo?.soId || '',
@@ -928,6 +957,9 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
             EQT_NO: item.EQT_NO,
             ITEM_NM: item.ITEM_NM || item.ITEM_MID_NM || ''
           });
+
+          // 다음 호출 전 100ms 대기 (같은 초 내 중복 INSERT 방지)
+          await new Promise(resolve => setTimeout(resolve, 100));
         } catch (err: any) {
           console.error('장비 처리 결과:', item.EQT_SERNO, err);
           result.failed.push({
@@ -943,13 +975,15 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
       setStatusChangeResult(result);
       setShowStatusChangeResult(true);
       setPendingStatusChangeItems([]);
-      
+
       if (result.success.length > 0) {
         await handleSearch(); // 리스트 새로고침
       }
     } catch (error: any) {
       console.error('❌ 처리 결과:', error);
       showToast?.(error.message || '상태 변경에 실패했습니다.', 'error');
+    } finally {
+      setIsStatusChanging(false);
     }
   };
 
@@ -1574,15 +1608,15 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
           {totalInspection > 0 && (
             <button
               onClick={handleStatusChangeClick}
-              disabled={selectedInspection === 0}
+              disabled={selectedInspection === 0 || isStatusChanging}
               className={`flex-1 py-3 px-4 rounded-lg font-semibold text-sm shadow-sm transition-all active:scale-[0.98] touch-manipulation ${
-                selectedInspection > 0
+                selectedInspection > 0 && !isStatusChanging
                   ? 'bg-green-500 hover:bg-green-600 text-white'
                   : 'bg-gray-300 text-white cursor-not-allowed'
               }`}
               style={{ WebkitTapHighlightColor: 'transparent' }}
             >
-              사용가능변경 {selectedInspection > 0 && `(${selectedInspection})`}
+              {isStatusChanging ? '처리중...' : `사용가능변경 ${selectedInspection > 0 ? `(${selectedInspection})` : ''}`}
             </button>
           )}
         </div>
@@ -1828,9 +1862,14 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
               </button>
               <button
                 onClick={executeStatusChange}
-                className="flex-1 py-2.5 bg-blue-500 hover:bg-blue-600 text-white rounded-lg font-medium transition-colors"
+                disabled={isStatusChanging}
+                className={`flex-1 py-2.5 rounded-lg font-medium transition-colors ${
+                  isStatusChanging
+                    ? 'bg-gray-400 text-white cursor-not-allowed'
+                    : 'bg-blue-500 hover:bg-blue-600 text-white'
+                }`}
               >
-                변경하기
+                {isStatusChanging ? '처리중...' : '변경하기'}
               </button>
             </div>
           </div>
