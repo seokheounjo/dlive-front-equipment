@@ -4,8 +4,7 @@ import '../../styles/buttons.css';
 import {
   getEquipmentOutList,
   getOutEquipmentTargetList,
-  addEquipmentQuota,
-  changeEquipmentWorker
+  addEquipmentQuota
 } from '../../services/apiService';
 import BaseModal from '../common/BaseModal';
 import { debugApiCall } from './equipmentDebug';
@@ -442,43 +441,8 @@ const EquipmentAssignment: React.FC<EquipmentAssignmentProps> = ({ onBack, showT
         params
       );
 
-      // 입고처리 성공 후 장비 위치를 기사로 변경 (changeEqtWrkr_3 호출)
-      console.log('[입고처리] 장비 위치 변경 시작...');
-      let locationChangeSuccess = 0;
-      let locationChangeFail = 0;
-
-      for (const item of validItems) {
-        if (!item.EQT_SERNO) continue;  // 시리얼 없는 장비는 스킵
-
-        try {
-          const changeParams = {
-            EQT_NO: item.EQT_NO || '',
-            EQT_SERNO: item.EQT_SERNO,
-            SO_ID: selectedEqtOut.SO_ID || userInfo?.soId || '',
-            FROM_WRKR_ID: '',  // 창고에서 오는 장비
-            TO_WRKR_ID: userInfo?.userId || '',  // 로그인한 기사에게 이관
-            MV_SO_ID: userInfo?.soId || selectedEqtOut.SO_ID || '',
-            MV_CRR_ID: userInfo?.crrId || '',
-            CHG_UID: userInfo?.userId || ''
-          };
-
-          console.log(`[입고처리] 장비 위치 변경: ${item.EQT_SERNO}`, changeParams);
-
-          await changeEquipmentWorker(changeParams);
-          locationChangeSuccess++;
-        } catch (err) {
-          console.error(`[입고처리] 장비 위치 변경 실패: ${item.EQT_SERNO}`, err);
-          locationChangeFail++;
-        }
-      }
-
-      console.log(`[입고처리] 위치 변경 완료 - 성공: ${locationChangeSuccess}, 실패: ${locationChangeFail}`);
-
-      if (locationChangeFail > 0) {
-        showToast?.(`${validItems.length}건 입고완료 (위치변경: ${locationChangeSuccess}건 성공, ${locationChangeFail}건 실패)`, 'warning');
-      } else {
-        showToast?.(`${validItems.length}건의 장비 입고처리가 완료되었습니다.`, 'success');
-      }
+      // 입고처리 완료 - 레거시 서비스가 장비 마스터(위치/소유자)를 자동 업데이트함
+      showToast?.(`${validItems.length}건의 장비 입고처리가 완료되었습니다.`, 'success');
       await handleSearch();
     } catch (error: any) {
       console.error('❌ [장비할당] 입고처리 실패:', error);
