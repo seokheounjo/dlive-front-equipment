@@ -753,17 +753,18 @@ const EquipmentMovement: React.FC<EquipmentMovementProps> = ({ onBack }) => {
     try {
       for (const item of checkedItems) {
         try {
-          // SO_ID는 장비의 실제 SO_ID 사용 (Oracle 프로시저가 SO_ID + EQT_NO로 장비원장 조회)
-          // 제한 지점(401, 402, 328) 장비는 프론트에서 isTransferable=false로 사전 차단됨
+          // SO_ID는 MST_SO_ID 사용 (Oracle 프로시저가 SO_ID + EQT_NO로 장비원장 조회)
+          // 조회 API의 SO_ID와 원장 테이블의 SO_ID가 다를 수 있음 (SO_ID=600, MST_SO_ID=100 등)
+          // 원장 테이블은 MST_SO_ID 기준으로 저장되어 있음
           const params = {
             EQT_NO: item.EQT_NO,
             EQT_SERNO: item.EQT_SERNO,
-            SO_ID: item.SO_ID,                 // 장비의 실제 SO_ID (필수!)
+            SO_ID: item.MST_SO_ID || item.SO_ID,  // MST_SO_ID 우선 사용 (원장 조회용)
             FROM_WRKR_ID: workerInfo.WRKR_ID,
             TO_WRKR_ID: loggedInUser.userId,
-            MV_SO_ID: targetSoId || item.SO_ID,  // 이관 지점 (선택한 지점 또는 장비 SO_ID)
-            MV_CRR_ID: loggedInUser.crrId,     // 이관 협력업체 (이관받는 기사의 CRR_ID)
-            CHG_UID: loggedInUser.userId       // 변경자 ID
+            MV_SO_ID: targetSoId || item.SO_ID,   // 이관 지점 (선택한 지점 또는 장비 SO_ID)
+            MV_CRR_ID: loggedInUser.crrId,        // 이관 협력업체 (이관받는 기사의 CRR_ID)
+            CHG_UID: loggedInUser.userId          // 변경자 ID
           };
           await debugApiCall('EquipmentMovement', 'changeEquipmentWorker', () => changeEquipmentWorker(params), params);
           results.success.push({
