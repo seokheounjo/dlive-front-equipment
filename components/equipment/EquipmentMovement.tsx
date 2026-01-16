@@ -818,13 +818,14 @@ const EquipmentMovement: React.FC<EquipmentMovementProps> = ({ onBack }) => {
     try {
       for (const item of checkedItems) {
         try {
-          // SO_ID는 MST_SO_ID 사용 (Oracle 프로시저가 SO_ID + EQT_NO로 장비원장 조회)
-          // 조회 API의 SO_ID와 원장 테이블의 SO_ID가 다를 수 있음 (SO_ID=600, MST_SO_ID=100 등)
-          // 원장 테이블은 MST_SO_ID 기준으로 저장되어 있음
+          // SO_ID는 장비의 원래 SO_ID 사용 (Oracle 프로시저가 SO_ID + EQT_NO로 장비원장 조회)
+          // 중요: MST_SO_ID가 아닌 SO_ID를 사용해야 함!
+          // - 테스트 결과: SO_ID=402로 성공, MST_SO_ID=100으로 실패
+          // - 원장 테이블은 조회 API의 SO_ID 기준으로 저장됨
           const params = {
             EQT_NO: item.EQT_NO,
             EQT_SERNO: item.EQT_SERNO,
-            SO_ID: item.MST_SO_ID || item.SO_ID,  // MST_SO_ID 우선 사용 (원장 조회용)
+            SO_ID: item.SO_ID,                    // 장비의 원래 SO_ID 사용! (MST_SO_ID 아님!)
             FROM_WRKR_ID: workerInfo.WRKR_ID,
             TO_WRKR_ID: loggedInUser.userId,
             MV_SO_ID: targetSoId || item.SO_ID,   // 이관 지점 (선택한 지점 또는 장비 SO_ID)
