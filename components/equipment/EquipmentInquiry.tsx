@@ -999,8 +999,11 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
               console.log(`[사용가능변경] ORA-00001 최종 실패, 장비 상태 조회:`, item.EQT_SERNO);
               try {
                 const checkResult = await getEquipmentHistoryInfo({ EQT_SERNO: item.EQT_SERNO });
+                console.log(`[사용가능변경] 장비 조회 결과:`, checkResult);
                 const equipData = checkResult?.data?.[0] || checkResult?.resultList?.[0];
+                console.log(`[사용가능변경] 장비 데이터:`, equipData);
                 const currentStatus = equipData?.EQT_USE_ARR_YN;
+                console.log(`[사용가능변경] 현재 상태 EQT_USE_ARR_YN:`, currentStatus);
 
                 if (currentStatus === 'Y') {
                   // 상태가 Y로 변경됨 = 실제로는 성공 (UPDATE는 됐으나 INSERT에서 에러)
@@ -1013,6 +1016,8 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
                   });
                   apiSuccess = true;
                   break;
+                } else {
+                  console.log(`[사용가능변경] 장비 상태가 Y가 아님 (${currentStatus}), 실패 처리`);
                 }
               } catch (checkErr) {
                 console.error('[사용가능변경] 장비 상태 조회 실패:', checkErr);
