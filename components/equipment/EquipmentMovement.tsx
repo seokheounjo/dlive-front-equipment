@@ -1057,32 +1057,31 @@ const EquipmentMovement: React.FC<EquipmentMovementProps> = ({ onBack }) => {
           <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
             {/* 헤더 */}
             <div className="px-4 py-3 bg-gradient-to-r from-gray-50 to-white border-b border-gray-100">
-              <div className="flex items-center justify-between mb-2">
-                <div className="flex items-center gap-2">
+              <div className="flex items-center justify-between gap-2 mb-2">
+                <div className="flex items-center gap-2 min-w-0 flex-1">
                   <button
                     onClick={handleReset}
-                    className="p-1.5 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+                    className="p-1.5 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors flex-shrink-0"
                     title="초기화"
                   >
                     <RotateCcw className="w-4 h-4" />
                   </button>
-                  <div>
-                    <span className="text-sm font-semibold text-gray-800">
-                      {workerInfo.WRKR_NM} 보유장비: {eqtTrnsList.length}건
-                    </span>
-                    <span className="text-sm text-blue-600 ml-2 font-medium">
-                      (선택: {eqtTrnsList.filter(item => item.CHK).length}건)
-                    </span>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-1 text-sm">
+                      <span className="font-semibold text-gray-800 truncate max-w-[120px]">{workerInfo.WRKR_NM}</span>
+                      <span className="text-gray-600 whitespace-nowrap">{eqtTrnsList.length}건</span>
+                      <span className="text-blue-600 font-medium whitespace-nowrap">(선택:{eqtTrnsList.filter(item => item.CHK).length})</span>
+                    </div>
                   </div>
                 </div>
-                <label className="flex items-center gap-2 text-xs">
+                <label className="flex items-center gap-2 text-xs flex-shrink-0 whitespace-nowrap">
                   <input
                     type="checkbox"
                     onChange={(e) => handleCheckAll(e.target.checked)}
                     checked={eqtTrnsList.length > 0 && eqtTrnsList.every(item => item.CHK)}
                     className="rounded"
                   />
-                  전체선택
+                  전체
                 </label>
               </div>
               {/* 뷰 모드 선택 버튼 */}
