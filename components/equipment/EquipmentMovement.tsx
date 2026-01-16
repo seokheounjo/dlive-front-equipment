@@ -1245,8 +1245,10 @@ const EquipmentMovement: React.FC<EquipmentMovementProps> = ({ onBack }) => {
                                       item.isTransferable === false ? 'text-gray-500' : 'text-gray-900'
                                     }`}>{item.EQT_CL_NM || item.ITEM_NM || '-'}</span>
                                     <div className="flex items-center gap-1 flex-shrink-0 ml-2">
-                                      {item.isTransferable === false && (
-                                        <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-700">이관불가</span>
+                                      {item.isTransferable === false && RESTRICTED_SO_IDS.includes(item.SO_ID) && (
+                                        <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-700">
+                                          {RESTRICTED_SO_NAMES[item.SO_ID]}전용
+                                        </span>
                                       )}
                                       {item.isScanned && (
                                         <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-700">스캔</span>
@@ -1611,7 +1613,9 @@ const EquipmentMovement: React.FC<EquipmentMovementProps> = ({ onBack }) => {
                         <span className={`px-1.5 py-0.5 text-[10px] rounded font-medium ${
                           item.isTransferable === false ? 'bg-red-100 text-red-700' : 'bg-blue-100 text-blue-700'
                         }`}>
-                          {item.isTransferable === false ? '이관불가' : (item.ITEM_MID_NM || item.EQT_CL_NM || '장비')}
+                          {item.isTransferable === false && RESTRICTED_SO_IDS.includes(item.SO_ID)
+                            ? `${RESTRICTED_SO_NAMES[item.SO_ID]}전용`
+                            : (item.ITEM_MID_NM || item.EQT_CL_NM || '장비')}
                         </span>
                         <span className={`font-mono text-xs truncate ${
                           item.isTransferable === false ? 'text-gray-500' : 'text-gray-800'
