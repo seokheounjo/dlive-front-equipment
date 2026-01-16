@@ -984,6 +984,18 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
     ));
   };
 
+  // 장비중분류별 그룹 체크 핸들러
+  const handleCheckItemMid = (soKey: string, itemMidKey: string, checked: boolean) => {
+    setEquipmentList(equipmentList.map(item => {
+      const itemSoKey = item.SO_NM || item.SO_ID || '미지정';
+      const itemMid = item.ITEM_MID_NM || '기타';
+      if (itemSoKey !== soKey || itemMid !== itemMidKey) return item;
+      // 보유장비 중 반납요청중인 장비는 선택 불가
+      if (item._category === 'OWNED' && item._hasReturnRequest) return item;
+      return { ...item, CHK: checked };
+    }));
+  };
+
   // 그룹 접기/펼치기
   const toggleGroup = (groupKey: string) => {
     setCollapsedGroups(prev => {
@@ -1281,6 +1293,9 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
                     {!isSoCollapsed && itemMidKeys.map(itemMidKey => {
                       const items = itemMidGroups[itemMidKey];
                       const isItemMidCollapsed = collapsedGroups.has(`so_${soKey}_mid_${itemMidKey}`);
+                      const selectableItems = items.filter(i => !(i._category === 'OWNED' && i._hasReturnRequest));
+                      const checkedCount = selectableItems.filter(i => i.CHK).length;
+                      const allChecked = selectableItems.length > 0 && checkedCount === selectableItems.length;
 
                       return (
                         <div key={itemMidKey}>
@@ -1290,8 +1305,18 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
                             onClick={() => toggleGroup(`so_${soKey}_mid_${itemMidKey}`)}
                           >
                             <div className="flex items-center gap-2">
+                              <input
+                                type="checkbox"
+                                checked={allChecked}
+                                onClick={(e) => e.stopPropagation()}
+                                onChange={(e) => handleCheckItemMid(soKey, itemMidKey, e.target.checked)}
+                                className="rounded w-4 h-4"
+                                disabled={selectableItems.length === 0}
+                              />
                               <span className="text-xs font-semibold text-gray-700">{itemMidKey}</span>
-                              <span className="text-[10px] text-gray-500 bg-gray-200 px-1.5 py-0.5 rounded">{items.length}건</span>
+                              <span className="text-[10px] text-gray-500 bg-gray-200 px-1.5 py-0.5 rounded">
+                                {items.length}건 {checkedCount > 0 && `(${checkedCount}선택)`}
+                              </span>
                             </div>
                             {isItemMidCollapsed ? <ChevronDown className="w-3 h-3 text-gray-500" /> : <ChevronUp className="w-3 h-3 text-gray-500" />}
                           </div>
