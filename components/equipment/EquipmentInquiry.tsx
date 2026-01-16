@@ -149,7 +149,7 @@ interface EquipmentItem {
 
 // 상태 변경 결과 인터페이스
 interface StatusChangeResult {
-  success: { EQT_SERNO: string; EQT_NO: string; ITEM_NM: string }[];
+  success: { EQT_SERNO: string; EQT_NO: string; ITEM_NM: string; note?: string }[];
   failed: { EQT_SERNO: string; EQT_NO: string; ITEM_NM: string; error: string }[];
 }
 
@@ -964,6 +964,7 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
         let retryCount = 0;
         const maxRetries = 2;
         let lastError: any = null;
+        let apiSuccess = false;
 
         while (retryCount <= maxRetries) {
           try {
@@ -978,6 +979,7 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
               EQT_NO: item.EQT_NO,
               ITEM_NM: item.ITEM_NM || item.ITEM_MID_NM || ''
             });
+            apiSuccess = true;
             break; // 성공 시 루프 종료
           } catch (err: any) {
             lastError = err;
@@ -990,6 +992,31 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
               // 1초 대기 (Oracle 프로시저가 초 단위 EFFECT_DTTM 사용하므로 다른 초가 되도록)
               await new Promise(resolve => setTimeout(resolve, 1000));
               continue;
+            }
+
+            // ORA-00001 최종 실패 시: 장비 상태 조회하여 실제 변경 여부 확인
+            if (errorMsg.includes('ORA-00001')) {
+              console.log(`[사용가능변경] ORA-00001 최종 실패, 장비 상태 조회:`, item.EQT_SERNO);
+              try {
+                const checkResult = await getEquipmentHistoryInfo({ EQT_SERNO: item.EQT_SERNO });
+                const equipData = checkResult?.data?.[0] || checkResult?.resultList?.[0];
+                const currentStatus = equipData?.EQT_USE_ARR_YN;
+
+                if (currentStatus === 'Y') {
+                  // 상태가 Y로 변경됨 = 실제로는 성공 (UPDATE는 됐으나 INSERT에서 에러)
+                  console.log(`[사용가능변경] 장비 상태 Y 확인, 성공 처리:`, item.EQT_SERNO);
+                  result.success.push({
+                    EQT_SERNO: item.EQT_SERNO,
+                    EQT_NO: item.EQT_NO,
+                    ITEM_NM: item.ITEM_NM || item.ITEM_MID_NM || '',
+                    note: 'ORA-00001 해결 필요 (히스토리 기록 누락)'
+                  });
+                  apiSuccess = true;
+                  break;
+                }
+              } catch (checkErr) {
+                console.error('[사용가능변경] 장비 상태 조회 실패:', checkErr);
+              }
             }
 
             // 재시도 횟수 초과 또는 다른 에러
@@ -1941,9 +1968,14 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
                   <h4 className="text-sm font-semibold text-green-700 mb-2">성공 ({statusChangeResult.success.length}건)</h4>
                   <div className="space-y-1">
                     {statusChangeResult.success.map((item, idx) => (
-                      <div key={idx} className="flex items-center justify-between p-2 bg-green-50 rounded-lg text-xs">
-                        <span className="font-mono text-green-800">{item.EQT_SERNO}</span>
-                        <span className="text-green-600">{item.ITEM_NM}</span>
+                      <div key={idx} className="p-2 bg-green-50 rounded-lg text-xs">
+                        <div className="flex items-center justify-between">
+                          <span className="font-mono text-green-800">{item.EQT_SERNO}</span>
+                          <span className="text-green-600">{item.ITEM_NM}</span>
+                        </div>
+                        {item.note && (
+                          <div className="text-amber-600 mt-1 text-[10px]">⚠️ {item.note}</div>
+                        )}
                       </div>
                     ))}
                   </div>
