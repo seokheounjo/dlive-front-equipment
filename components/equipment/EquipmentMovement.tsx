@@ -388,7 +388,12 @@ const EquipmentMovement: React.FC<EquipmentMovementProps> = ({ onBack }) => {
 
       if (eqtResult && eqtResult.length > 0) {
         const eqt = eqtResult[0];
-        const ownerWrkrId = eqt.WRKR_ID || eqt.OWNER_WRKR_ID;
+        // WRKR_ID 추출: 직접 필드 또는 EQT_LOC_NM에서 추출 (형식: "이름(ID)")
+        let ownerWrkrId = eqt.WRKR_ID || eqt.OWNER_WRKR_ID;
+        if (!ownerWrkrId && eqt.EQT_LOC_NM) {
+          const match = eqt.EQT_LOC_NM.match(/\(([A-Z]\d+)\)$/);
+          if (match) ownerWrkrId = match[1];
+        }
         const ownerWrkrNm = eqt.WRKR_NM || eqt.OWNER_WRKR_NM || '알수없음';
         const ownerCrrId = eqt.CRR_ID || '';
 
@@ -430,7 +435,13 @@ const EquipmentMovement: React.FC<EquipmentMovementProps> = ({ onBack }) => {
       const eqt = Array.isArray(eqtResult) ? eqtResult[0] : eqtResult;
 
       if (eqt && eqt.EQT_SERNO) {
-        const ownerWrkrId = eqt.WRKR_ID || eqt.OWNER_WRKR_ID;
+        // WRKR_ID 추출: 직접 필드 또는 EQT_LOC_NM에서 추출 (형식: "이름(ID)")
+        let ownerWrkrId = eqt.WRKR_ID || eqt.OWNER_WRKR_ID;
+        if (!ownerWrkrId && eqt.EQT_LOC_NM) {
+          // EQT_LOC_NM: "오현민(할당불가)(A20117965)" -> A20117965 추출
+          const match = eqt.EQT_LOC_NM.match(/\(([A-Z]\d+)\)$/);
+          if (match) ownerWrkrId = match[1];
+        }
         const ownerWrkrNm = eqt.WRKR_NM || eqt.OWNER_WRKR_NM || '알수없음';
         const ownerCrrId = eqt.CRR_ID || '';
 
