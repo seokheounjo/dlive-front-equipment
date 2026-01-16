@@ -959,30 +959,55 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
           CTRT_STAT: item.CTRT_STAT || '',
           PROG_GB: 'Y'
         };
-        try {
-          await debugApiCall(
-            'EquipmentInquiry',
-            'setEquipmentCheckStandby',
-            () => setEquipmentCheckStandby(params),
-            params
-          );
-          result.success.push({
-            EQT_SERNO: item.EQT_SERNO,
-            EQT_NO: item.EQT_NO,
-            ITEM_NM: item.ITEM_NM || item.ITEM_MID_NM || ''
-          });
-        } catch (err: any) {
-          console.error('장비 처리 결과:', item.EQT_SERNO, err);
-          result.failed.push({
-            EQT_SERNO: item.EQT_SERNO,
-            EQT_NO: item.EQT_NO,
-            ITEM_NM: item.ITEM_NM || item.ITEM_MID_NM || '',
-            error: err?.message || '당일해지 후 당일설치 조건 미충족'
-          });
+
+        // ORA-00001 재시도 로직 (Oracle 프로시저가 초 단위 PK 사용)
+        let retryCount = 0;
+        const maxRetries = 2;
+        let lastError: any = null;
+
+        while (retryCount <= maxRetries) {
+          try {
+            await debugApiCall(
+              'EquipmentInquiry',
+              'setEquipmentCheckStandby',
+              () => setEquipmentCheckStandby(params),
+              params
+            );
+            result.success.push({
+              EQT_SERNO: item.EQT_SERNO,
+              EQT_NO: item.EQT_NO,
+              ITEM_NM: item.ITEM_NM || item.ITEM_MID_NM || ''
+            });
+            break; // 성공 시 루프 종료
+          } catch (err: any) {
+            lastError = err;
+            const errorMsg = err?.message || '';
+
+            // ORA-00001 (무결성 제약 조건 위배) 에러인 경우 재시도
+            if (errorMsg.includes('ORA-00001') && retryCount < maxRetries) {
+              retryCount++;
+              console.log(`[사용가능변경] ORA-00001 발생, ${retryCount}/${maxRetries} 재시도 (1초 대기):`, item.EQT_SERNO);
+              // 1초 대기 (Oracle 프로시저가 초 단위 EFFECT_DTTM 사용하므로 다른 초가 되도록)
+              await new Promise(resolve => setTimeout(resolve, 1000));
+              continue;
+            }
+
+            // 재시도 횟수 초과 또는 다른 에러
+            console.error('장비 처리 결과:', item.EQT_SERNO, err);
+            result.failed.push({
+              EQT_SERNO: item.EQT_SERNO,
+              EQT_NO: item.EQT_NO,
+              ITEM_NM: item.ITEM_NM || item.ITEM_MID_NM || '',
+              error: retryCount > 0
+                ? `${errorMsg} (${retryCount}회 재시도 후 실패)`
+                : (errorMsg || '당일해지 후 당일설치 조건 미충족')
+            });
+            break;
+          }
         }
 
-        // 다음 호출 전 150ms 대기 (성공/실패 상관없이 - ORA-00001 중복 INSERT 방지)
-        await new Promise(resolve => setTimeout(resolve, 150));
+        // 다음 장비 호출 전 200ms 대기 (ORA-00001 방지)
+        await new Promise(resolve => setTimeout(resolve, 200));
       }
 
       // 결과 모달 표시
