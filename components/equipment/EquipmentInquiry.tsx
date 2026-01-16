@@ -915,6 +915,10 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
 
     setIsStatusChanging(true);
 
+    // 진행 상태 모달 표시
+    setProgressInfo({ current: 0, total: itemsToProcess.length, item: '', action: '사용가능변경' });
+    setShowProgressModal(true);
+
     const result: StatusChangeResult = {
       success: [],
       failed: []
@@ -922,6 +926,7 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
 
     // 처리된 EQT_NO 추적 (중복 호출 방지)
     const processedEqtNos = new Set<string>();
+    let processedCount = 0;
 
     try {
       for (const item of itemsToProcess) {
@@ -931,6 +936,15 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
           continue;
         }
         processedEqtNos.add(item.EQT_NO);
+
+        // 진행 상태 업데이트
+        processedCount++;
+        setProgressInfo({
+          current: processedCount,
+          total: itemsToProcess.length,
+          item: item.EQT_SERNO || '',
+          action: '사용가능변경'
+        });
 
         const params = {
           EQT_NO: item.EQT_NO,
@@ -983,6 +997,7 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
       console.error('❌ 처리 결과:', error);
       showToast?.(error.message || '상태 변경에 실패했습니다.', 'error');
     } finally {
+      setShowProgressModal(false);
       setIsStatusChanging(false);
     }
   };
