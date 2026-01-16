@@ -453,11 +453,9 @@ const EquipmentAssignment: React.FC<EquipmentAssignmentProps> = ({ onBack, showT
     setOutTgtEqtList(outTgtEqtList.map(item => {
       const isReceived = item.PROC_YN === 'Y';
       const hasSerial = item.EQT_SERNO && item.EQT_SERNO.trim() !== '';
-      const canSelect = !isReceived;  // 입고완료가 아니면 선택 가능 (미할당도 선택 가능)
-      return {
-        ...item,
-        CHK: canSelect ? checked : (isReceived ? true : false)
-      };
+      const canSelect = !isReceived && hasSerial;  // 미입고 + 시리얼 있어야 선택 가능
+      // 선택 가능한 항목만 CHK 변경, 나머지는 현재 상태 유지
+      return canSelect ? { ...item, CHK: checked } : item;
     }));
   };
 
@@ -616,7 +614,7 @@ const EquipmentAssignment: React.FC<EquipmentAssignmentProps> = ({ onBack, showT
                 <span className="w-16 text-center">출고일</span>
                 <span className="w-20 text-center">협력업체</span>
                 <span className="flex-1 text-center">출고번호</span>
-                <span className="w-16 text-center">입고/미입고</span>
+                <span className="w-20 text-center flex-shrink-0">입고상태</span>
               </div>
               {/* 지점별 그룹핑된 리스트 */}
               <div>
@@ -659,7 +657,7 @@ const EquipmentAssignment: React.FC<EquipmentAssignmentProps> = ({ onBack, showT
                             <span className="w-16 text-center text-gray-900">{formatOutDttm(item.OUT_DTTM || item.OUT_REQ_DT)}</span>
                             <span className="w-20 text-center text-gray-600 truncate">{item.CRR_NM || '-'}</span>
                             <span className="flex-1 text-center text-gray-700 font-mono">{item.OUT_REQ_NO}</span>
-                            <span className={`w-16 text-center px-1.5 py-0.5 rounded text-[10px] font-bold ${getReceiveStatusDisplay(item).color}`}>
+                            <span className={`w-20 text-center px-1.5 py-0.5 rounded text-[10px] font-bold whitespace-nowrap flex-shrink-0 ${getReceiveStatusDisplay(item).color}`}>
                               {getReceiveStatusDisplay(item).label}
                             </span>
                           </div>
@@ -806,16 +804,16 @@ const EquipmentAssignment: React.FC<EquipmentAssignmentProps> = ({ onBack, showT
                               <div className="flex-1 min-w-0">
                                 {/* Line 1: 모델명 + [입고완료/입고대기] 뱃지 */}
                                 <div className="flex items-center justify-between">
-                                  <span className="text-base font-bold text-gray-900 truncate">{item.EQT_CL_NM || '-'}</span>
+                                  <span className="text-base font-bold text-gray-900 truncate">{item.EQT_CL_NM || item.ITEM_MID_CD_NM || '(미할당)'}</span>
                                   <span className={`px-2 py-0.5 rounded-full text-xs font-medium flex-shrink-0 ml-2 ${
-                                    isReceived ? 'bg-green-100 text-green-700' : 'bg-blue-100 text-blue-700'
+                                    isReceived ? 'bg-green-100 text-green-700' : hasSerial ? 'bg-blue-100 text-blue-700' : 'bg-gray-200 text-gray-500'
                                   }`}>
-                                    {isReceived ? '입고완료' : '입고대기'}
+                                    {isReceived ? '입고완료' : hasSerial ? '입고대기' : '미할당'}
                                   </span>
                                 </div>
                                 {/* Line 2: S/N + [EQT_USE_ARR_YN] 뱃지 */}
                                 <div className="flex items-center justify-between mt-1">
-                                  <span className="text-sm text-gray-600">{item.EQT_SERNO || '-'}</span>
+                                  <span className={`text-sm ${hasSerial ? 'text-gray-600' : 'text-gray-400 italic'}`}>{item.EQT_SERNO || '(시리얼 미할당)'}</span>
                                   <span className={`px-2 py-0.5 rounded-full text-xs font-medium flex-shrink-0 ml-2 ${
                                     item.EQT_USE_ARR_YN === 'Y' ? 'bg-green-100 text-green-700' :
                                     item.EQT_USE_ARR_YN === 'A' ? 'bg-purple-100 text-purple-700' :
@@ -837,10 +835,10 @@ const EquipmentAssignment: React.FC<EquipmentAssignmentProps> = ({ onBack, showT
                             {/* 자세히 보기: 추가 정보 */}
                             {viewMode === 'detail' && (
                               <div className="bg-gray-100 rounded-lg p-2 mt-2 ml-6 text-sm space-y-1">
-                                <div className="flex items-center justify-between"><span className="text-gray-800">{item.ITEM_MODEL || item.MODEL_NM || '-'}</span><span className="font-medium text-gray-800">{selectedEqtOut?.SO_NM || '-'}</span></div>
-                                <div className="flex items-center justify-between"><span><span className="text-gray-500">장비상태  : </span><span className="text-gray-800">{item.EQT_STAT_CD_NM || '-'}</span></span><span className="text-gray-400 text-xs">{item.EQT_NO || '-'}</span></div>
+                                <div className="flex items-center justify-between"><span className="text-gray-800">{item.ITEM_MID_CD_NM || item.EQT_CL_NM || '(미할당)'}</span><span className="font-medium text-gray-800">{selectedEqtOut?.SO_NM || '-'}</span></div>
+                                <div className="flex items-center justify-between"><span><span className="text-gray-500">장비상태  : </span><span className="text-gray-800">{item.EQT_STAT_CD_NM || (hasSerial ? '-' : '미정')}</span></span><span className="text-gray-400 text-xs">{item.EQT_NO || (hasSerial ? '-' : '미할당')}</span></div>
                                 <div><span className="text-gray-500">변경종류  : </span><span className="text-gray-800">{item.CHG_KND_NM || '-'}</span></div>
-                                <div><span className="text-gray-500">현재위치  : </span><span className="text-gray-800">{item.EQT_LOC_NM || item.EQT_LOC_TP_NM || '-'}</span></div>
+                                <div><span className="text-gray-500">현재위치  : </span><span className="text-gray-800">{item.EQT_LOC_NM || item.EQT_LOC_TP_NM || (hasSerial ? '-' : '창고(대기)')}</span></div>
                                 <div><span className="text-gray-500">이전위치  : </span><span className="text-gray-800">{item.OLD_EQT_LOC_NM || '-'}</span></div>
                                 <div><span className="text-gray-500">MAC주소   : </span><span className="text-gray-800">{item.MAC_ADDRESS || '-'}</span></div>
                               </div>
