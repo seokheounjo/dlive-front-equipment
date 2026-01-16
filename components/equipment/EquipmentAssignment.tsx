@@ -804,11 +804,11 @@ const EquipmentAssignment: React.FC<EquipmentAssignmentProps> = ({ onBack, showT
                               <div className="flex-1 min-w-0">
                                 {/* Line 1: 모델명 + [입고완료/입고대기] 뱃지 */}
                                 <div className="flex items-center justify-between">
-                                  <span className="text-base font-bold text-gray-900 truncate">{item.EQT_CL_NM || item.ITEM_MID_CD_NM || '(미할당)'}</span>
+                                  <span className="text-base font-bold text-gray-900 truncate">{item.EQT_CL_NM || item.ITEM_MID_CD_NM || '(정보없음)'}</span>
                                   <span className={`px-2 py-0.5 rounded-full text-xs font-medium flex-shrink-0 ml-2 ${
-                                    isReceived ? 'bg-green-100 text-green-700' : hasSerial ? 'bg-blue-100 text-blue-700' : 'bg-gray-200 text-gray-500'
+                                    isReceived ? 'bg-green-100 text-green-700' : hasSerial ? 'bg-blue-100 text-blue-700' : 'bg-red-100 text-red-600'
                                   }`}>
-                                    {isReceived ? '입고완료' : hasSerial ? '입고대기' : '미할당'}
+                                    {isReceived ? '입고완료' : hasSerial ? '입고대기' : '수령불가'}
                                   </span>
                                 </div>
                                 {/* Line 2: S/N + [EQT_USE_ARR_YN] 뱃지 */}
@@ -835,8 +835,8 @@ const EquipmentAssignment: React.FC<EquipmentAssignmentProps> = ({ onBack, showT
                             {/* 자세히 보기: 추가 정보 */}
                             {viewMode === 'detail' && (
                               <div className="bg-gray-100 rounded-lg p-2 mt-2 ml-6 text-sm space-y-1">
-                                <div className="flex items-center justify-between"><span className="text-gray-800">{item.ITEM_MID_CD_NM || item.EQT_CL_NM || '(미할당)'}</span><span className="font-medium text-gray-800">{selectedEqtOut?.SO_NM || '-'}</span></div>
-                                <div className="flex items-center justify-between"><span><span className="text-gray-500">장비상태  : </span><span className="text-gray-800">{item.EQT_STAT_CD_NM || (hasSerial ? '-' : '미정')}</span></span><span className="text-gray-400 text-xs">{item.EQT_NO || (hasSerial ? '-' : '미할당')}</span></div>
+                                <div className="flex items-center justify-between"><span className="text-gray-800">{item.ITEM_MID_CD_NM || item.EQT_CL_NM || '(정보없음)'}</span><span className="font-medium text-gray-800">{selectedEqtOut?.SO_NM || '-'}</span></div>
+                                <div className="flex items-center justify-between"><span><span className="text-gray-500">장비상태  : </span><span className="text-gray-800">{item.EQT_STAT_CD_NM || (hasSerial ? '-' : '수령불가')}</span></span><span className="text-gray-400 text-xs">{item.EQT_NO || (hasSerial ? '-' : '-')}</span></div>
                                 <div><span className="text-gray-500">변경종류  : </span><span className="text-gray-800">{item.CHG_KND_NM || '-'}</span></div>
                                 <div><span className="text-gray-500">현재위치  : </span><span className="text-gray-800">{item.EQT_LOC_NM || item.EQT_LOC_TP_NM || (hasSerial ? '-' : '창고(대기)')}</span></div>
                                 <div><span className="text-gray-500">이전위치  : </span><span className="text-gray-800">{item.OLD_EQT_LOC_NM || '-'}</span></div>
