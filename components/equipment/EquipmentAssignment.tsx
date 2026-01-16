@@ -467,6 +467,18 @@ const EquipmentAssignment: React.FC<EquipmentAssignmentProps> = ({ onBack, showT
     setOutTgtEqtList(newList);
   };
 
+  // 장비종류별 그룹 체크
+  const handleCheckItemType = (itemType: string, checked: boolean) => {
+    setOutTgtEqtList(outTgtEqtList.map(item => {
+      const itemTypeNm = item.ITEM_MID_NM || item.EQT_CL_NM || 'Unknown';
+      if (itemTypeNm !== itemType) return item;
+      const isReceived = item.PROC_YN === 'Y';
+      const hasSerial = item.EQT_SERNO && item.EQT_SERNO.trim() !== '';
+      const canSelect = !isReceived && hasSerial;
+      return canSelect ? { ...item, CHK: checked } : item;
+    }));
+  };
+
   const handleShowDetail = (equipment: OutTgtEqt) => {
     setSelectedEquipmentDetail(equipment);
     setShowDetailModal(true);
@@ -730,16 +742,26 @@ const EquipmentAssignment: React.FC<EquipmentAssignmentProps> = ({ onBack, showT
                       const items = groupedByItemType[itemTypeKey];
                       const isCollapsed = collapsedGroups.has(itemTypeKey);
                       const itemCount = items.length;
-                      const checkedCount = items.filter(i => i.CHK && i.PROC_YN !== 'Y').length;
+                      const selectableItems = items.filter(i => i.PROC_YN !== 'Y' && i.EQT_SERNO && i.EQT_SERNO.trim() !== '');
+                      const checkedCount = selectableItems.filter(i => i.CHK).length;
+                      const allChecked = selectableItems.length > 0 && checkedCount === selectableItems.length;
 
                       return (
                         <div key={itemTypeKey}>
                           {/* 장비종류 헤더 */}
                           <div
-                            className="px-4 py-2 bg-gray-50 flex items-center justify-between cursor-pointer hover:bg-gray-100"
+                            className="px-6 py-1.5 bg-gray-50 flex items-center justify-between cursor-pointer hover:bg-gray-100"
                             onClick={() => toggleGroup(itemTypeKey)}
                           >
                             <div className="flex items-center gap-2">
+                              <input
+                                type="checkbox"
+                                checked={allChecked}
+                                onClick={(e) => e.stopPropagation()}
+                                onChange={(e) => handleCheckItemType(itemTypeKey, e.target.checked)}
+                                className="rounded w-4 h-4"
+                                disabled={selectableItems.length === 0}
+                              />
                               <span className="text-xs font-semibold text-gray-700">{itemTypeKey}</span>
                               <span className="text-[10px] text-gray-500 bg-gray-200 px-1.5 py-0.5 rounded">
                                 {itemCount}건 {checkedCount > 0 && `(${checkedCount}선택)`}
