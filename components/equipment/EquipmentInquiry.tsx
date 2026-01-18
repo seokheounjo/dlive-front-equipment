@@ -619,7 +619,10 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
         // 반납취소 DELETE SQL WHERE 조건 필수 파라미터 (CRITICAL!)
         REQ_DT: item.REQ_DT || '',               // 반납요청일자 (예: "20251229104116")
         RETURN_TP: item.RETURN_TP || '2',        // 반납유형 (항상 "2")
-        EQT_USE_ARR_YN: item.EQT_USE_ARR_YN || '',  // 장비사용도착여부 (null/빈값 → N/A 표시)
+        // EQT_USE_ARR_YN: 레거시 API가 null 반환하는 경우 기본값 처리
+        // - 검사대기 카테고리: 'A' (API에서 필터링됨)
+        // - 보유장비/반납요청: 'Y' (재고 상태 장비는 보통 사용가능)
+        EQT_USE_ARR_YN: item.EQT_USE_ARR_YN || (item._category === 'INSPECTION_WAITING' ? 'A' : 'Y'),
         // 카테고리 유지 (API 호출시 추가된 _category)
         _category: item._category || undefined,
         // 반납요청 중인 장비 플래그 유지
