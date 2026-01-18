@@ -980,29 +980,48 @@ const EquipmentRecovery: React.FC<EquipmentRecoveryProps> = ({ onBack }) => {
       {unreturnedList.length > 0 ? (
         <>
           <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
-            <div className="px-4 py-3 bg-gradient-to-r from-gray-50 to-white border-b border-gray-100">
-              <div className="flex items-center justify-between mb-2">
-                <div>
-                  <span className="text-sm font-semibold text-gray-800">
-                    조회결과: {filteredList.length}건
-                  </span>
-                  {selectedCount > 0 && (
-                    <span className="text-sm text-orange-600 ml-2 font-medium">
-                      (선택: {selectedCount}건)
-                    </span>
-                  )}
-                </div>
-                <label className="flex items-center gap-2 text-xs">
+            {/* 헤더: 전체선택 + 카운트 (좌) / 간단히-자세히 (우) - EquipmentInquiry 통일 */}
+            <div className="px-4 py-2.5 bg-gradient-to-r from-gray-50 to-white border-b border-gray-100 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <label className="flex items-center gap-2 cursor-pointer">
                   <input
                     type="checkbox"
                     onChange={(e) => handleCheckAll(e.target.checked)}
                     checked={filteredList.length > 0 && filteredList.filter(item => isLostEquipment(item)).every(item => item.CHK)}
-                    className="rounded"
+                    className="w-4 h-4 text-blue-500 rounded focus:ring-blue-500"
                   />
-                  전체선택
+                  <span className="text-sm font-semibold text-gray-800">전체선택</span>
                 </label>
+                <span className="text-xs text-gray-500">
+                  {filteredList.length}건 (선택: {selectedCount}건)
+                </span>
               </div>
-              {/* 분실 필터 버튼 */}
+              {/* 뷰 모드 선택 버튼 */}
+              <div className="flex gap-1 bg-gray-100 p-1 rounded-lg">
+                <button
+                  onClick={() => setViewMode('simple')}
+                  className={`flex-1 py-1.5 px-2 text-xs font-medium rounded-md transition-all ${
+                    viewMode === 'simple'
+                      ? 'bg-white text-blue-600 shadow-sm'
+                      : 'text-gray-500 hover:text-gray-700'
+                  }`}
+                >
+                  간단히
+                </button>
+                <button
+                  onClick={() => setViewMode('detail')}
+                  className={`flex-1 py-1.5 px-2 text-xs font-medium rounded-md transition-all ${
+                    viewMode === 'detail'
+                      ? 'bg-white text-blue-600 shadow-sm'
+                      : 'text-gray-500 hover:text-gray-700'
+                  }`}
+                >
+                  자세히
+                </button>
+              </div>
+            </div>
+            {/* 분실 필터 버튼 */}
+            <div className="px-4 py-2 border-b border-gray-100">
               <div className="flex gap-1 bg-gray-100 p-1 rounded-lg">
                 <button
                   onClick={() => setLossFilter('all')}
@@ -1036,33 +1055,8 @@ const EquipmentRecovery: React.FC<EquipmentRecoveryProps> = ({ onBack }) => {
                 </button>
               </div>
             </div>
-            {/* 뷰 모드 선택 버튼 */}
-            <div className="px-4 py-2 border-b border-gray-100">
-              <div className="flex gap-1 bg-gray-100 p-1 rounded-lg">
-                <button
-                  onClick={() => setViewMode('simple')}
-                  className={`flex-1 py-1.5 px-2 text-xs font-medium rounded-md transition-all ${
-                    viewMode === 'simple'
-                      ? 'bg-white text-blue-600 shadow-sm'
-                      : 'text-gray-500 hover:text-gray-700'
-                  }`}
-                >
-                  간단히
-                </button>
-                <button
-                  onClick={() => setViewMode('detail')}
-                  className={`flex-1 py-1.5 px-2 text-xs font-medium rounded-md transition-all ${
-                    viewMode === 'detail'
-                      ? 'bg-white text-blue-600 shadow-sm'
-                      : 'text-gray-500 hover:text-gray-700'
-                  }`}
-                >
-                  자세히
-                </button>
-              </div>
-            </div>
-            {/* Grouped list */}
-            <div className="max-h-[50vh] overflow-y-auto">
+            {/* Grouped list - 내부 스크롤 제거, 페이지 스크롤 사용 */}
+            <div className="divide-y divide-gray-100">
               {soKeys.map(soKey => {
                 const soItems = groupedByLocation[soKey];
                 const itemTypeKeys = Object.keys(soItems).sort();

@@ -466,10 +466,10 @@ const EquipmentAssignment: React.FC<EquipmentAssignmentProps> = ({ onBack, showT
     setOutTgtEqtList(newList);
   };
 
-  // 장비종류별 그룹 체크
+  // 장비종류별 그룹 체크 (그룹핑 키와 동일하게 ITEM_MID_CD_NM 사용)
   const handleCheckItemType = (itemType: string, checked: boolean) => {
     setOutTgtEqtList(outTgtEqtList.map(item => {
-      const itemTypeNm = item.ITEM_MID_NM || item.EQT_CL_NM || 'Unknown';
+      const itemTypeNm = item.ITEM_MID_CD_NM || '기타';  // 그룹핑과 동일한 키 사용
       if (itemTypeNm !== itemType) return item;
       const isReceived = item.PROC_YN === 'Y';
       const hasSerial = item.EQT_SERNO && item.EQT_SERNO.trim() !== '';
@@ -692,9 +692,9 @@ const EquipmentAssignment: React.FC<EquipmentAssignmentProps> = ({ onBack, showT
             ) : outTgtEqtList.length > 0 ? (
               <>
                 <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
-                  {/* 헤더: 전체선택 + 뷰모드 */}
-                  <div className="px-4 py-3 bg-gradient-to-r from-gray-50 to-white border-b border-gray-100">
-                    <div className="flex items-center justify-between mb-2">
+                  {/* 헤더: 전체선택 + 카운트 (좌) / 간단히-자세히 (우) - EquipmentInquiry 통일 */}
+                  <div className="px-4 py-2.5 bg-gradient-to-r from-gray-50 to-white border-b border-gray-100 flex items-center justify-between">
+                    <div className="flex items-center gap-3">
                       <label className="flex items-center gap-2 cursor-pointer">
                         <input
                           type="checkbox"

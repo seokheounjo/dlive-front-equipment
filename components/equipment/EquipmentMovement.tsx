@@ -463,11 +463,27 @@ const EquipmentMovement: React.FC<EquipmentMovementProps> = ({ onBack }) => {
   };
 
   // 기사 보유장비 조회 - CRR_ID=""로 전체 협력업체 조회 가능
+  // EQT_SERNO 파라미터 추가 시 특정 장비만 조회 (효율적)
   const searchEquipmentByWorker = async (wrkrId: string, wrkrNm: string, crrId?: string, scannedSN?: string) => {
     setIsLoading(true);
     try {
       // CRR_ID=""로 전체 협력업체 조회 (타기사 장비 조회용)
       const params: any = { WRKR_ID: wrkrId, CRR_ID: '' };
+
+      // 장비번호가 있으면 EQT_SERNO 파라미터 추가 (효율적인 필터링)
+      // 백엔드 SQL: A.EQT_SERNO IN ($EQT_SERNO$)
+      if (scannedSN) {
+        // 단일 장비번호 또는 여러 스캔된 장비가 있으면 함께 조회
+        const allSerials = scannedSerials.length > 0
+          ? [...new Set([scannedSN, ...scannedSerials])]
+          : [scannedSN];
+        params.EQT_SERNO = allSerials.map(s => `'${s}'`).join(',');
+      } else if (scannedSerials.length > 0) {
+        // 스캔된 장비들만 조회
+        params.EQT_SERNO = scannedSerials.map(s => `'${s}'`).join(',');
+      }
+      // EQT_SERNO 없으면 기사의 전체 장비 조회 (기존 동작)
+
       const result = await debugApiCall('EquipmentMovement', 'getWrkrHaveEqtList', () => getWrkrHaveEqtList(params), params);
 
       if (Array.isArray(result) && result.length > 0) {
