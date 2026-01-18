@@ -37,8 +37,6 @@ const formatDateDash = (dateStr: string): string => {
   return dateStr;
 };
 
-// Scan mode type: scan(단일스캔), equipment(장비번호), worker(보유기사)
-type ScanMode = 'scan' | 'equipment' | 'worker';
 
 // 레거시 방식: 타지점 이동 제한 지점 (경기동부, 강남방송, 서초지점)
 const RESTRICTED_SO_IDS = ['401', '402', '328'];
@@ -158,8 +156,6 @@ const EquipmentMovement: React.FC<EquipmentMovementProps> = ({ onBack }) => {
   const [showBarcodeScanner, setShowBarcodeScanner] = useState(false);
   const [searchedWorkers, setSearchedWorkers] = useState<{ USR_ID: string; USR_NM: string }[]>([]);
 
-  // 조회 모드: equipment(장비조회), worker(보유기사)
-  const [scanMode, setScanMode] = useState<ScanMode>('scan');
 
   // 장비번호 입력
   const [serialInput, setSerialInput] = useState<string>('');
@@ -1080,61 +1076,59 @@ const EquipmentMovement: React.FC<EquipmentMovementProps> = ({ onBack }) => {
 
   return (
     <div className="h-full overflow-y-auto bg-gray-50 px-4 py-4 space-y-3">
-      {/* 검색 영역 - 항상 표시 */}
-      <>
-          {/* 조회 모드 선택 - 3개 버튼 */}
-          <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-1">
-            <div className="grid grid-cols-3 gap-2">
-          <button
-            onClick={() => setScanMode('scan')}
-            className={`py-2 px-2 rounded-lg text-sm font-medium transition-all ${
-              scanMode === 'scan'
-                ? 'bg-purple-500 text-white shadow-sm'
-                : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-            }`}
-          >스캔</button>
-          <button
-            onClick={() => setScanMode('equipment')}
-            className={`py-2 px-2 rounded-lg text-sm font-medium transition-all ${
-              scanMode === 'equipment'
-                ? 'bg-blue-500 text-white shadow-sm'
-                : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-            }`}
-          >장비번호</button>
-          <button
-            onClick={() => setScanMode('worker')}
-            className={`py-2 px-2 rounded-lg text-sm font-medium transition-all ${
-              scanMode === 'worker'
-                ? 'bg-green-500 text-white shadow-sm'
-                : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-            }`}
-          >보유기사</button>
+      {/* 통합 검색 영역 */}
+      <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4">
+        <div className="mb-3">
+          <h3 className="text-sm font-semibold text-gray-800 flex items-center gap-2">
+            <Search className="w-4 h-4" />
+            장비 조회
+          </h3>
+          <p className="text-xs text-gray-500 mt-0.5">기사 또는 장비번호로 조회합니다</p>
         </div>
-      </div>
-
-      {/* 단일스캔 영역 (scan 모드) - 바코드 스캔만 */}
-      {scanMode === 'scan' && (
-        <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4">
-          <div className="mb-3">
-            <h3 className="text-sm font-semibold text-gray-800 flex items-center gap-2">
-              <Scan className="w-4 h-4" />
-              바코드 스캔
-            </h3>
-            <p className="text-xs text-gray-500 mt-0.5">바코드를 스캔하여 장비를 조회합니다</p>
+        <div className="space-y-3">
+          {/* 보유기사 입력 - 이름/ID 분리 */}
+          <div
+            className="flex items-center gap-2 cursor-pointer"
+            onClick={openWorkerSearchModal}
+          >
+            <input
+              type="text"
+              value={workerInfo.WRKR_NM || ''}
+              readOnly
+              className="flex-1 min-w-0 px-3 py-2.5 text-sm border border-gray-200 rounded-lg bg-gray-50 cursor-pointer"
+              placeholder="기사명 (클릭하여 검색)"
+            />
+            <input
+              type="text"
+              value={workerInfo.WRKR_ID || ''}
+              readOnly
+              className="w-28 px-3 py-2.5 text-sm border border-gray-200 rounded-lg bg-gray-50 cursor-pointer font-mono"
+              placeholder="ID"
+            />
           </div>
 
-          {/* 바코드 스캔 버튼 */}
-          <button
-            onClick={() => setShowBarcodeScanner(true)}
-            className="w-full py-4 rounded-xl font-semibold text-base shadow-lg flex items-center justify-center gap-3 active:scale-[0.98] transition-all touch-manipulation bg-gradient-to-r from-purple-500 to-purple-600 text-white"
-          >
-            <Scan className="w-6 h-6" />
-            바코드 스캔
-          </button>
+          {/* 장비번호 입력 + 스캔 버튼 */}
+          <div className="flex items-center gap-2">
+            <input
+              type="text"
+              value={serialInput}
+              onChange={(e) => setSerialInput(e.target.value.toUpperCase())}
+              onKeyDown={(e) => e.key === 'Enter' && serialInput.trim() && handleSerialSearch()}
+              className="flex-1 min-w-0 px-3 py-2.5 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 font-mono uppercase"
+              placeholder="장비번호 (S/N)"
+            />
+            <button
+              onClick={() => setShowBarcodeScanner(true)}
+              className="px-4 py-2.5 bg-purple-500 hover:bg-purple-600 text-white rounded-lg font-medium text-sm transition-all active:scale-[0.98] touch-manipulation flex items-center gap-1.5"
+            >
+              <Scan className="w-4 h-4" />
+              스캔
+            </button>
+          </div>
 
           {/* 스캔된 장비 표시 영역 */}
           {scannedSerials.length > 0 && (
-            <div className="mt-3 p-3 bg-purple-50 border border-purple-200 rounded-lg">
+            <div className="p-3 bg-purple-50 border border-purple-200 rounded-lg">
               <div className="flex items-center justify-between mb-2">
                 <span className="text-xs font-medium text-purple-700">스캔된 장비 ({scannedSerials.length}건)</span>
                 <button
@@ -1144,7 +1138,7 @@ const EquipmentMovement: React.FC<EquipmentMovementProps> = ({ onBack }) => {
                   전체 삭제
                 </button>
               </div>
-              <div className="space-y-1 max-h-24 overflow-y-auto">
+              <div className="space-y-1 max-h-20 overflow-y-auto">
                 {scannedSerials.map((sn, idx) => (
                   <div key={idx} className="flex items-center justify-between text-xs bg-white px-2 py-1 rounded">
                     <span className="font-mono text-gray-800">{sn}</span>
@@ -1157,125 +1151,29 @@ const EquipmentMovement: React.FC<EquipmentMovementProps> = ({ onBack }) => {
                   </div>
                 ))}
               </div>
-              <button
-                onClick={handleScannedSearch}
-                disabled={isLoading}
-                className="w-full mt-2 py-2 bg-purple-500 hover:bg-purple-600 disabled:bg-gray-300 text-white rounded-lg font-semibold text-sm transition-all active:scale-[0.98]"
-              >
-                {isLoading ? '조회 중...' : '조회'}
-              </button>
             </div>
           )}
-        </div>
-      )}
 
-      {/* 장비번호 영역 (equipment 모드) - S/N 입력만 */}
-      {scanMode === 'equipment' && (
-        <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4">
-          <div className="mb-3">
-            <h3 className="text-sm font-semibold text-gray-800 flex items-center gap-2">
-              <Search className="w-4 h-4" />
-              장비번호 조회
-            </h3>
-            <p className="text-xs text-gray-500 mt-0.5">S/N 또는 MAC 주소를 입력하여 조회합니다</p>
-          </div>
-
-          {/* S/N 직접 입력 */}
-          <div className="space-y-3">
-            <input
-              type="text"
-              value={serialInput}
-              onChange={(e) => setSerialInput(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && handleSerialSearch()}
-              className="w-full px-4 py-3 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 font-mono uppercase"
-              placeholder="S/N 또는 MAC 주소 입력"
-            />
-            <button
-              onClick={handleSerialSearch}
-              disabled={isLoading || !serialInput.trim()}
-              className="w-full py-3 bg-blue-500 hover:bg-blue-600 disabled:bg-gray-300 text-white rounded-lg font-semibold text-sm shadow-sm transition-all active:scale-[0.98]"
-            >
-              {isLoading ? '조회 중...' : '조회'}
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* 보유기사 조회 영역 (worker 모드) - 지점 제거, ID로만 조회 */}
-
-      {scanMode === 'worker' && (
-        <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4">
-          <div className="mb-3">
-            <h3 className="text-sm font-semibold text-gray-800 flex items-center gap-2">
-              <User className="w-4 h-4" />
-              보유기사 검색
-            </h3>
-            <p className="text-xs text-gray-500 mt-0.5">기사를 검색하여 보유 장비를 조회합니다</p>
-          </div>
-          <div className="space-y-3">
-            {/* 보유기사 입력 - 이름/ID 분리 */}
-            <div
-              className="flex items-center gap-2 cursor-pointer"
-              onClick={openWorkerSearchModal}
-            >
-              <input
-                type="text"
-                value={workerInfo.WRKR_NM || ''}
-                readOnly
-                className="flex-1 min-w-0 px-3 py-2.5 text-sm border border-gray-200 rounded-lg bg-gray-50 cursor-pointer"
-                placeholder="기사명"
-              />
-              <input
-                type="text"
-                value={workerInfo.WRKR_ID || ''}
-                readOnly
-                className="w-28 px-3 py-2.5 text-sm border border-gray-200 rounded-lg bg-gray-50 cursor-pointer font-mono"
-                placeholder="ID"
-              />
-            </div>
-
-            {/* 조회 버튼 */}
-            <button
-              onClick={handleSearch}
-              disabled={isLoading || !workerInfo.WRKR_ID}
-              className="w-full bg-green-500 hover:bg-green-600 disabled:bg-gray-300 text-white py-2.5 rounded-lg font-semibold text-sm shadow-sm transition-all active:scale-[0.98] touch-manipulation"
-            >
-              {isLoading ? '조회 중...' : '조회'}
-            </button>
-          </div>
-        </div>
-      )}
-      </>
-
-      {/* 스캔된 장비 표시 - 조회 전에만 */}
-      {!hasSearched && scannedSerials.length > 0 && (
-        <div className="bg-purple-50 border border-purple-200 rounded-xl p-3">
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-xs font-medium text-purple-700">스캔된 장비 ({scannedSerials.length})</span>
-            <button
-              onClick={() => setScannedSerials([])}
-              className="text-xs text-purple-600 hover:text-purple-800"
-            >
-              초기화
-            </button>
-          </div>
-          <div className="flex flex-wrap gap-1 mb-3">
-            {scannedSerials.map((sn, idx) => (
-              <span key={idx} className="px-2 py-1 bg-purple-100 text-purple-800 text-xs rounded-md font-mono">
-                {sn}
-              </span>
-            ))}
-          </div>
           {/* 조회 버튼 */}
           <button
-            onClick={handleScannedSearch}
-            disabled={isLoading}
-            className="w-full bg-purple-500 hover:bg-purple-600 disabled:bg-gray-300 text-white py-3 rounded-lg font-semibold text-sm shadow-sm transition-all active:scale-[0.98]"
+            onClick={() => {
+              if (serialInput.trim()) {
+                handleSerialSearch();
+              } else if (scannedSerials.length > 0) {
+                handleScannedSearch();
+              } else if (workerInfo.WRKR_ID) {
+                handleSearch();
+              } else {
+                alert('기사를 선택하거나 장비번호를 입력해주세요.');
+              }
+            }}
+            disabled={isLoading || (!workerInfo.WRKR_ID && !serialInput.trim() && scannedSerials.length === 0)}
+            className="w-full bg-blue-500 hover:bg-blue-600 disabled:bg-gray-300 text-white py-2.5 rounded-lg font-semibold text-sm shadow-sm transition-all active:scale-[0.98] touch-manipulation"
           >
             {isLoading ? '조회 중...' : '조회'}
           </button>
         </div>
-      )}
+      </div>
 
       {/* 조회 결과 - 종류별 그룹화 */}
       {eqtTrnsList.length > 0 && (
@@ -1527,7 +1425,7 @@ const EquipmentMovement: React.FC<EquipmentMovementProps> = ({ onBack }) => {
       {eqtTrnsList.length === 0 && !isLoading && (
         <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-8">
           <p className="text-center text-gray-500 text-sm">
-            바코드를 스캔하거나 기사를 검색하여<br />장비를 조회하세요
+            기사를 선택하거나 장비번호를 입력하여<br />조회 버튼을 눌러주세요
           </p>
         </div>
       )}
