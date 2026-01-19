@@ -33,7 +33,8 @@ interface UnreturnedEqt {
   EQT_CL_CD: string;
   EQT_CL_NM: string;
   ITEM_NM: string;
-  ITEM_MID_NM?: string;           // 장비중분류 (그룹핑용)
+  ITEM_MID_NM?: string;           // 장비중분류 (2단계)
+  BIZ_CL_NM?: string;             // 업무분류 (1단계: DTV, CVT 등)
   TRML_DT: string;
   WRK_ID: string;
   WRKR_ID: string;
@@ -465,10 +466,10 @@ const EquipmentRecovery: React.FC<EquipmentRecoveryProps> = ({ onBack }) => {
   const lostCount = unreturnedList.filter(item => isLostEquipment(item)).length;
   const notLostCount = unreturnedList.length - lostCount;
 
-  // 지점 > 장비중분류로 2단계 그룹화 + 그룹 내 EQT_CL_NM 정렬
+  // 지점 > 업무분류(1단계)로 그룹화 + 그룹 내 EQT_CL_NM 정렬
   const groupedByLocation = filteredList.reduce((acc, item, idx) => {
     const soKey = item.SO_NM || item.SO_ID || '미지정';
-    const itemMidKey = item.ITEM_MID_NM || item.EQT_CL_NM || '기타';
+    const itemMidKey = item.BIZ_CL_NM || item.ITEM_MID_NM || item.EQT_CL_NM || '기타';
     if (!acc[soKey]) acc[soKey] = {};
     if (!acc[soKey][itemMidKey]) acc[soKey][itemMidKey] = [];
     acc[soKey][itemMidKey].push({ ...item, _globalIdx: idx });
@@ -501,7 +502,7 @@ const EquipmentRecovery: React.FC<EquipmentRecoveryProps> = ({ onBack }) => {
   const handleCheckItemType = (soKey: string, itemMidKey: string, checked: boolean) => {
     setUnreturnedList(unreturnedList.map(item => {
       const itemSo = item.SO_NM || item.SO_ID || '미지정';
-      const itemMid = item.ITEM_MID_NM || item.EQT_CL_NM || '기타';
+      const itemMid = item.BIZ_CL_NM || item.ITEM_MID_NM || item.EQT_CL_NM || '기타';
       const isLost = isLostEquipment(item);
       return (itemSo === soKey && itemMid === itemMidKey && isLost) ? { ...item, CHK: checked } : item;
     }));
@@ -638,6 +639,7 @@ const EquipmentRecovery: React.FC<EquipmentRecoveryProps> = ({ onBack }) => {
           OLD_EQT_LOC_NM: item.OLD_EQT_LOC_NM || '',
           ITEM_MODEL: item.ITEM_MODEL || item.MODEL_NM || '',
           EQT_USE_ARR_YN: item.EQT_USE_ARR_YN || '',
+          BIZ_CL_NM: item.BIZ_CL_NM || '',
         } as UnreturnedEqt));
         setUnreturnedList(transformedList);
       } else {
@@ -726,6 +728,7 @@ const EquipmentRecovery: React.FC<EquipmentRecoveryProps> = ({ onBack }) => {
         OLD_EQT_LOC_NM: item.OLD_EQT_LOC_NM || '',
         ITEM_MODEL: item.ITEM_MODEL || item.MODEL_NM || '',
         EQT_USE_ARR_YN: item.EQT_USE_ARR_YN || '',
+        BIZ_CL_NM: item.BIZ_CL_NM || '',
       } as UnreturnedEqt));
 
       transformedList.sort((a, b) => {
