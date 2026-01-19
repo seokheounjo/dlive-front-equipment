@@ -1,25 +1,22 @@
 import React, { useState, useEffect } from 'react';
-import { findUserList, getWrkrHaveEqtListAll as getWrkrHaveEqtList, changeEquipmentWorker, getEquipmentHistoryInfo, saveTransferredEquipment, getEqtMasterInfo } from '../../services/apiService';
+import { findUserList, getWrkrHaveEqtListAll as getWrkrHaveEqtList, changeEquipmentWorker, getEquipmentHistoryInfo, saveTransferredEquipment, getEqtMasterInfo, getEquipmentTypeList } from '../../services/apiService';
 import { debugApiCall } from './equipmentDebug';
 import { Scan, Search, ChevronDown, ChevronUp, Check, X, User, RotateCcw, AlertTriangle } from 'lucide-react';
 import BarcodeScanner from './BarcodeScanner';
 import BaseModal from '../common/BaseModal';
 
-// 장비 대분류 코드 (ITEM_MAX_CD)
-const ITEM_MAX_OPTIONS = [
-  { code: '', name: '전체' },
-  { code: '09', name: '가입자단말장치' },
-];
-
-// 장비 중분류 코드 (ITEM_MID_CD) - CMEP102
+// 장비 중분류 코드 (ITEM_MID_CD) - 장비조회와 동일
 const ITEM_MID_OPTIONS = [
   { code: '', name: '전체' },
   { code: '02', name: '모뎀' },
-  { code: '03', name: '추가장비' },
+  { code: '03', name: 'CVT' },
   { code: '04', name: 'STB' },
-  { code: '05', name: '셋톱박스' },
-  { code: '07', name: '특수장비' },
+  { code: '05', name: 'Smart card' },
+  { code: '06', name: '캐치온필터' },
+  { code: '07', name: 'Cable Card' },
+  { code: '08', name: 'IP폰' },
   { code: '10', name: '유무선공유기(AP)' },
+  { code: '23', name: 'OTT_STB(체험형)' },
 ];
 
 // MAC address format (XX:XX:XX:XX:XX:XX)
@@ -217,9 +214,11 @@ const EquipmentMovement: React.FC<EquipmentMovementProps> = ({ onBack }) => {
   // 이관 확인 모달
   const [showTransferModal, setShowTransferModal] = useState(false);
 
-  // 모델 필터 (1단계: 대분류, 2단계: 중분류)
-  const [selectedItemMaxCd, setSelectedItemMaxCd] = useState<string>('');  // 대분류 (ITEM_MAX_CD)
+  // 모델 필터 (중분류, 소분류)
   const [selectedItemMidCd, setSelectedItemMidCd] = useState<string>('');  // 중분류 (ITEM_MID_CD)
+  const [selectedEqtClCd, setSelectedEqtClCd] = useState<string>('');      // 소분류 (EQT_CL_CD)
+  const [eqtClOptions, setEqtClOptions] = useState<{ code: string; name: string }[]>([]);  // 소분류 옵션 (동적 로드)
+  const [isLoadingEqtCl, setIsLoadingEqtCl] = useState(false);             // 소분류 로딩 상태
 
   // 고객사용중 장비 팝업
   const [showCustomerEquipmentModal, setShowCustomerEquipmentModal] = useState(false);
@@ -236,6 +235,41 @@ const EquipmentMovement: React.FC<EquipmentMovementProps> = ({ onBack }) => {
   useEffect(() => {
     loadInitialData();
   }, []);
+
+  // 중분류(모델1) 변경 시 소분류(모델2) 목록 동적 로드
+  useEffect(() => {
+    const loadEqtClOptions = async () => {
+      // 중분류 선택 해제 시 소분류도 초기화
+      if (!selectedItemMidCd) {
+        setEqtClOptions([]);
+        setSelectedEqtClCd('');
+        return;
+      }
+
+      setIsLoadingEqtCl(true);
+      try {
+        const result = await getEquipmentTypeList({ ITEM_MID_CD: selectedItemMidCd });
+        if (Array.isArray(result) && result.length > 0) {
+          const options = result.map(item => ({
+            code: item.COMMON_CD || '',
+            name: item.COMMON_CD_NM || ''
+          }));
+          setEqtClOptions(options);
+        } else {
+          setEqtClOptions([]);
+        }
+        // 중분류 변경 시 소분류 선택 초기화
+        setSelectedEqtClCd('');
+      } catch (error) {
+        console.error('소분류 목록 조회 실패:', error);
+        setEqtClOptions([]);
+      } finally {
+        setIsLoadingEqtCl(false);
+      }
+    };
+
+    loadEqtClOptions();
+  }, [selectedItemMidCd]);
 
   // 선택된 장비 기준으로 선택 모드 결정
   const getSelectionModeFromCheckedItems = (items: EqtTrns[]): string => {
@@ -584,19 +618,23 @@ const EquipmentMovement: React.FC<EquipmentMovementProps> = ({ onBack }) => {
       // EQT_SERNO 없으면 기사의 전체 장비 조회 (기존 동작)
 
       // 모델 필터 파라미터 추가 (백엔드에서 지원하면 사용)
-      if (selectedItemMaxCd) params.ITEM_MAX_CD = selectedItemMaxCd;
       if (selectedItemMidCd) params.ITEM_MID_CD = selectedItemMidCd;
+      if (selectedEqtClCd) params.EQT_CL_CD = selectedEqtClCd;
 
       const result = await debugApiCall('EquipmentMovement', 'getWrkrHaveEqtList', () => getWrkrHaveEqtList(params), params);
 
       if (Array.isArray(result) && result.length > 0) {
         // 모델 필터 클라이언트 필터링 (백엔드에서 지원 안 할 경우 대비)
         let filteredResult = result;
-        if (selectedItemMaxCd || selectedItemMidCd) {
+        if (selectedItemMidCd) {
           filteredResult = result.filter((item: any) => {
-            const matchMax = !selectedItemMaxCd || item.ITEM_MAX_CD === selectedItemMaxCd;
-            const matchMid = !selectedItemMidCd || item.ITEM_MID_CD === selectedItemMidCd;
-            return matchMax && matchMid;
+            return item.ITEM_MID_CD === selectedItemMidCd;
+          });
+        }
+        // 소분류 필터 추가
+        if (selectedEqtClCd) {
+          filteredResult = filteredResult.filter((item: any) => {
+            return item.EQT_CL_CD === selectedEqtClCd;
           });
         }
 
@@ -651,18 +689,22 @@ const EquipmentMovement: React.FC<EquipmentMovementProps> = ({ onBack }) => {
         } else {
           // 모델 필터로 인해 결과 없음
           setEqtTrnsList([]);
-          const filterMsg = [];
-          if (selectedItemMaxCd) filterMsg.push(ITEM_MAX_OPTIONS.find(o => o.code === selectedItemMaxCd)?.name || selectedItemMaxCd);
-          if (selectedItemMidCd) filterMsg.push(ITEM_MID_OPTIONS.find(o => o.code === selectedItemMidCd)?.name || selectedItemMidCd);
-          setSearchConditionMessage(`기사: ${wrkrNm}${filterMsg.length > 0 ? ', 모델: ' + filterMsg.join('/') : ''}`);
+          const model1Name = selectedItemMidCd ? ITEM_MID_OPTIONS.find(o => o.code === selectedItemMidCd)?.name : '';
+          const model2Name = selectedEqtClCd ? eqtClOptions.find(o => o.code === selectedEqtClCd)?.name : '';
+          let modelText = '';
+          if (model1Name) modelText += `, 모델1: ${model1Name}`;
+          if (model2Name) modelText += `, 모델2: ${model2Name}`;
+          setSearchConditionMessage(`기사: ${wrkrNm}${modelText}`);
         }
       } else {
         setEqtTrnsList([]);
         // 검색 조건 메시지 설정
-        const filterMsg = [];
-        if (selectedItemMaxCd) filterMsg.push(ITEM_MAX_OPTIONS.find(o => o.code === selectedItemMaxCd)?.name || selectedItemMaxCd);
-        if (selectedItemMidCd) filterMsg.push(ITEM_MID_OPTIONS.find(o => o.code === selectedItemMidCd)?.name || selectedItemMidCd);
-        setSearchConditionMessage(`기사: ${wrkrNm}${filterMsg.length > 0 ? ', 모델: ' + filterMsg.join('/') : ''}`);
+        const model1Name = selectedItemMidCd ? ITEM_MID_OPTIONS.find(o => o.code === selectedItemMidCd)?.name : '';
+        const model2Name = selectedEqtClCd ? eqtClOptions.find(o => o.code === selectedEqtClCd)?.name : '';
+        let modelText = '';
+        if (model1Name) modelText += `, 모델1: ${model1Name}`;
+        if (model2Name) modelText += `, 모델2: ${model2Name}`;
+        setSearchConditionMessage(`기사: ${wrkrNm}${modelText}`);
       }
     } catch (error) {
       console.error('장비 조회 실패:', error);
@@ -1246,27 +1288,9 @@ const EquipmentMovement: React.FC<EquipmentMovementProps> = ({ onBack }) => {
             </div>
           </div>
 
-          {/* 2. 모델 1단계 (대분류) */}
+          {/* 2. 모델1 (중분류) */}
           <div className="flex items-center gap-2">
             <label className="text-xs font-medium text-gray-600 w-14 flex-shrink-0">모델1</label>
-            <select
-              value={selectedItemMaxCd}
-              onChange={(e) => {
-                setSelectedItemMaxCd(e.target.value);
-                // 대분류 변경 시 중분류 초기화
-                if (!e.target.value) setSelectedItemMidCd('');
-              }}
-              className="flex-1 px-3 py-2.5 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            >
-              {ITEM_MAX_OPTIONS.map(opt => (
-                <option key={opt.code} value={opt.code}>{opt.name}</option>
-              ))}
-            </select>
-          </div>
-
-          {/* 3. 모델 2단계 (중분류) */}
-          <div className="flex items-center gap-2">
-            <label className="text-xs font-medium text-gray-600 w-14 flex-shrink-0">모델2</label>
             <select
               value={selectedItemMidCd}
               onChange={(e) => setSelectedItemMidCd(e.target.value)}
@@ -1277,6 +1301,24 @@ const EquipmentMovement: React.FC<EquipmentMovementProps> = ({ onBack }) => {
               ))}
             </select>
           </div>
+
+          {/* 3. 모델2 (소분류) - 모델1 선택 시 표시 */}
+          {selectedItemMidCd && (
+            <div className="flex items-center gap-2">
+              <label className="text-xs font-medium text-gray-600 w-14 flex-shrink-0">모델2</label>
+              <select
+                value={selectedEqtClCd}
+                onChange={(e) => setSelectedEqtClCd(e.target.value)}
+                disabled={isLoadingEqtCl || eqtClOptions.length === 0}
+                className="flex-1 px-3 py-2.5 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-100 disabled:cursor-not-allowed"
+              >
+                <option value="">{isLoadingEqtCl ? '로딩중...' : (eqtClOptions.length === 0 ? '소분류 없음' : '전체')}</option>
+                {eqtClOptions.map(opt => (
+                  <option key={opt.code} value={opt.code}>{opt.name}</option>
+                ))}
+              </select>
+            </div>
+          )}
 
           {/* 4. 장비번호 + 스캔 */}
           <div className="flex items-center gap-2">
@@ -1331,13 +1373,13 @@ const EquipmentMovement: React.FC<EquipmentMovementProps> = ({ onBack }) => {
               // 조회 조건 메시지 생성
               const conditions: string[] = [];
               if (workerInfo.WRKR_NM) conditions.push(`기사: ${workerInfo.WRKR_NM}`);
-              if (selectedItemMaxCd) {
-                const maxName = ITEM_MAX_OPTIONS.find(o => o.code === selectedItemMaxCd)?.name;
-                if (maxName) conditions.push(`대분류: ${maxName}`);
-              }
               if (selectedItemMidCd) {
                 const midName = ITEM_MID_OPTIONS.find(o => o.code === selectedItemMidCd)?.name;
-                if (midName) conditions.push(`중분류: ${midName}`);
+                if (midName) conditions.push(`모델1: ${midName}`);
+              }
+              if (selectedEqtClCd) {
+                const eqtClName = eqtClOptions.find(o => o.code === selectedEqtClCd)?.name;
+                if (eqtClName) conditions.push(`모델2: ${eqtClName}`);
               }
               if (serialInput.trim()) conditions.push(`S/N: ${serialInput.trim()}`);
               setSearchConditionMessage(conditions.join(', ') || '전체');

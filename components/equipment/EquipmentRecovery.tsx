@@ -434,6 +434,18 @@ const EquipmentRecovery: React.FC<EquipmentRecoveryProps> = ({ onBack }) => {
   const [lossFilter, setLossFilter] = useState<'all' | 'lost'>('all');
   const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
 
+  // SO_ID로 SO_NM을 찾는 헬퍼 함수
+  const getSoName = (soIdOrNm: string): string => {
+    if (!soIdOrNm) return '미지정';
+    // 이미 지점명이면 그대로 반환
+    const found = soList.find(s => s.SO_NM === soIdOrNm);
+    if (found) return soIdOrNm;
+    // SO_ID로 검색
+    const foundById = soList.find(s => s.SO_ID === soIdOrNm);
+    if (foundById) return foundById.SO_NM || soIdOrNm;
+    return soIdOrNm;
+  };
+
   // Toggle group collapse
   const toggleGroup = (groupKey: string) => {
     setCollapsedGroups(prev => {
@@ -895,8 +907,9 @@ const EquipmentRecovery: React.FC<EquipmentRecoveryProps> = ({ onBack }) => {
               <span className="text-sm text-gray-600">{item.EQT_SERNO || '-'}</span>
               {(() => {
                 const arrYn = item.EQT_USE_ARR_YN;
+                if (!arrYn) return null; // 값 없으면 뱃지 숨김
                 let bgColor = 'bg-gray-100 text-gray-700';
-                let label = arrYn || '-';
+                let label = arrYn;
                 if (arrYn === 'Y') { bgColor = 'bg-green-100 text-green-700'; label = '사용가능'; }
                 else if (arrYn === 'A') { bgColor = 'bg-purple-100 text-purple-700'; label = '검사대기'; }
                 else if (arrYn === 'N') { bgColor = 'bg-red-100 text-red-700'; label = '사용불가'; }
@@ -1120,7 +1133,7 @@ const EquipmentRecovery: React.FC<EquipmentRecoveryProps> = ({ onBack }) => {
                           className="rounded"
                           disabled={soLostCount === 0}
                         />
-                        <span className="text-sm font-bold text-blue-800">{soKey}</span>
+                        <span className="text-sm font-bold text-blue-800">{getSoName(soKey)}</span>
                         <span className="text-xs text-blue-600 bg-blue-100 px-2 py-0.5 rounded-full">{soTotalCount}건</span>
                       </div>
                       {isSoCollapsed ? <ChevronDown className="w-4 h-4 text-blue-600" /> : <ChevronUp className="w-4 h-4 text-blue-600" />}
