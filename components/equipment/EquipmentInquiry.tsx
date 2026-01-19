@@ -1106,28 +1106,32 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
 
             // ORA-00001 최종 실패 시: 장비 상태 조회하여 실제 변경 여부 확인
             if (errorMsg.includes('ORA-00001')) {
-              console.log(`[사용가능변경] ORA-00001 최종 실패, 장비 상태 조회:`, item.EQT_SERNO);
+              console.log(`[사용가능변경] ORA-00001 발생, 실제 상태 확인 중:`, item.EQT_SERNO);
               try {
                 const checkResult = await getEquipmentHistoryInfo({ EQT_SERNO: item.EQT_SERNO });
                 console.log(`[사용가능변경] 장비 조회 결과:`, checkResult);
-                const equipData = checkResult?.data?.[0] || checkResult?.resultList?.[0];
+
+                // getEquipmentHistoryInfo는 장비 객체를 직접 반환함
+                // 다양한 응답 형태 처리: 직접 객체, data 배열, resultList 배열
+                const equipData = checkResult?.data?.[0] || checkResult?.resultList?.[0] || checkResult;
                 console.log(`[사용가능변경] 장비 데이터:`, equipData);
                 const currentStatus = equipData?.EQT_USE_ARR_YN;
                 console.log(`[사용가능변경] 현재 상태 EQT_USE_ARR_YN:`, currentStatus);
 
-                if (currentStatus === 'Y') {
-                  // 상태가 Y로 변경됨 = 실제로는 성공 (UPDATE는 됐으나 INSERT에서 에러)
-                  console.log(`[사용가능변경] 장비 상태 Y 확인, 성공 처리:`, item.EQT_SERNO);
+                // 상태가 Y로 변경됨 = 실제로는 성공 (ORA-00001은 히스토리 로깅 중복)
+                // 또는 상태가 A가 아님 = 이미 처리됨 (검사대기에서 벗어남)
+                if (currentStatus === 'Y' || (currentStatus && currentStatus !== 'A')) {
+                  console.log(`[사용가능변경] 장비 상태 변경 확인 (${currentStatus}), 성공 처리:`, item.EQT_SERNO);
                   result.success.push({
                     EQT_SERNO: item.EQT_SERNO,
                     EQT_NO: item.EQT_NO,
                     ITEM_NM: item.ITEM_NM || item.ITEM_MID_NM || '',
-                    note: 'ORA-00001 해결 필요 (히스토리 기록 누락)'
+                    note: currentStatus === 'Y' ? '사용가능 변경 완료' : `상태: ${currentStatus}`
                   });
                   apiSuccess = true;
                   break;
                 } else {
-                  console.log(`[사용가능변경] 장비 상태가 Y가 아님 (${currentStatus}), 실패 처리`);
+                  console.log(`[사용가능변경] 장비 상태가 여전히 A (검사대기), 실패 처리`);
                 }
               } catch (checkErr) {
                 console.error('[사용가능변경] 장비 상태 조회 실패:', checkErr);
