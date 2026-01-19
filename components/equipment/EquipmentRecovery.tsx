@@ -132,22 +132,18 @@ const RecoveryModal: React.FC<{
 }> = ({ isOpen, onClose, selectedItems, onProcess, isProcessing, soList, userSoId }) => {
   const [selectedSoId, setSelectedSoId] = useState<string>('');
 
+  // 모달이 열릴 때마다 지점 선택 초기화 (항상 "지점 선택"으로 시작)
   useEffect(() => {
-    if (isOpen && soList.length > 0) {
-      // userSoId가 있고 soList에 존재하면 해당 지점을 기본값으로
-      if (userSoId && soList.some(so => so.SO_ID === userSoId)) {
-        setSelectedSoId(userSoId);
-      } else if (!selectedSoId) {
-        setSelectedSoId(soList[0].SO_ID);
-      }
+    if (isOpen) {
+      setSelectedSoId('');
     }
-  }, [isOpen, soList, userSoId]);
+  }, [isOpen]);
 
   if (!isOpen) return null;
 
   const handleProcess = () => {
     if (!selectedSoId) {
-      alert('회수 지점을 선택해주세요.');
+      alert('지점을 선택해야 회수 처리를 할 수 있습니다.\n회수 지점을 선택해주세요.');
       return;
     }
     onProcess('1', selectedSoId);
@@ -187,7 +183,7 @@ const RecoveryModal: React.FC<{
           </div>
           <button
             onClick={handleProcess}
-            disabled={isProcessing || !selectedSoId}
+            disabled={isProcessing}
             className="w-full py-3 text-sm text-white bg-green-500 hover:bg-green-600 disabled:bg-gray-300 rounded-lg font-medium transition-colors flex items-center justify-center gap-2"
           >
             <Check className="w-4 h-4" />
