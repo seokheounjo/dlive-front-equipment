@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { getUnreturnedEquipmentList, processEquipmentRecovery, getEquipmentHistoryInfo } from '../../services/apiService';
 import { searchCustomer, CustomerInfo } from '../../services/customerApi';
 import { debugApiCall } from './equipmentDebug';
-import { Scan, Check, ChevronDown, ChevronUp, Search, User, X, Loader2, Phone, FileText, Cpu } from 'lucide-react';
+import { Check, ChevronDown, ChevronUp, Search, User, X, Loader2, Phone, FileText, Cpu } from 'lucide-react';
 import BarcodeScanner from './BarcodeScanner';
 
 // SO (jijum) info type
@@ -1020,36 +1020,36 @@ const EquipmentRecovery: React.FC<EquipmentRecoveryProps> = ({ onBack }) => {
             </div>
           </div>
 
-          {/* S/N 입력 */}
+          {/* S/N 입력 + 스캔 */}
           <div className="flex items-center gap-2">
-            <label className="text-xs font-medium text-gray-600 w-14 flex-shrink-0">S/N</label>
             <input
               type="text"
               value={searchParams.EQT_SERNO}
               onChange={(e) => setSearchParams({...searchParams, EQT_SERNO: e.target.value.toUpperCase()})}
-              className="flex-1 px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-all font-mono"
-              placeholder="장비 S/N (선택)"
+              className="flex-1 px-4 py-3 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent uppercase font-mono transition-all"
+              placeholder="S/N 또는 MAC 주소 입력"
             />
-          </div>
-
-          <div className="flex gap-2">
-            <button
-              onClick={handleSearch}
-              disabled={isLoading || (!selectedCustomer && !searchParams.EQT_SERNO)}
-              className="flex-1 bg-blue-500 hover:bg-blue-600 disabled:bg-gray-300 text-white py-2.5 rounded-lg font-semibold text-sm shadow-sm transition-all active:scale-[0.98] touch-manipulation"
-              style={{ WebkitTapHighlightColor: 'transparent' }}
-            >
-              {isLoading ? '조회 중...' : '조회'}
-            </button>
             <button
               onClick={() => setScanModalOpen(true)}
-              className="flex-1 bg-orange-500 hover:bg-orange-600 text-white py-2.5 rounded-lg font-semibold text-sm shadow-sm transition-all active:scale-[0.98] touch-manipulation flex items-center justify-center gap-2"
+              className="px-4 py-3 bg-green-500 hover:bg-green-600 text-white rounded-lg font-semibold text-sm transition-all active:scale-[0.98] touch-manipulation flex items-center gap-1.5"
               style={{ WebkitTapHighlightColor: 'transparent' }}
             >
-              <Scan className="w-4 h-4" />
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z" />
+              </svg>
               스캔
             </button>
           </div>
+
+          {/* 조회 버튼 */}
+          <button
+            onClick={handleSearch}
+            disabled={isLoading || (!selectedCustomer && !searchParams.EQT_SERNO)}
+            className="w-full bg-blue-500 hover:bg-blue-600 disabled:bg-gray-300 text-white py-3 rounded-lg font-semibold text-sm shadow-sm transition-all active:scale-[0.98] touch-manipulation"
+            style={{ WebkitTapHighlightColor: 'transparent' }}
+          >
+            {isLoading ? '조회 중...' : '조회'}
+          </button>
         </div>
       </div>
 
