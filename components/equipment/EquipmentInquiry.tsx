@@ -1224,7 +1224,8 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
 
   // 지점(SO_NM) > 장비중분류(ITEM_MID_NM) 2단계 그룹화 + 그룹 내 EQT_CL_NM 정렬
   const groupedByLocation = filteredDisplayList.reduce((acc, item, idx) => {
-    const soKey = item.SO_NM || item.SO_ID || '미지정';
+    // SO_NM이 없으면 MST_SO_NM 사용, 둘 다 없으면 '본부' 표시
+    const soKey = item.SO_NM || item.MST_SO_NM || (item.MST_SO_ID === '100' ? '본부' : item.SO_ID) || '미지정';
     const itemMidKey = item.ITEM_MID_NM || '기타';
     if (!acc[soKey]) acc[soKey] = {};
     if (!acc[soKey][itemMidKey]) acc[soKey][itemMidKey] = [];

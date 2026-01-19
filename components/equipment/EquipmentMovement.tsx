@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { findUserList, getWrkrHaveEqtListAll as getWrkrHaveEqtList, changeEquipmentWorker, getEquipmentHistoryInfo, saveTransferredEquipment, getEqtMasterInfo } from '../../services/apiService';
+import { findUserList, searchWorkersByName, getWrkrHaveEqtListAll as getWrkrHaveEqtList, changeEquipmentWorker, getEquipmentHistoryInfo, saveTransferredEquipment, getEqtMasterInfo } from '../../services/apiService';
 import { debugApiCall } from './equipmentDebug';
 import { Search, ChevronDown, ChevronUp, Check, X, User, RotateCcw, AlertTriangle } from 'lucide-react';
 import BarcodeScanner from './BarcodeScanner';
@@ -727,7 +727,7 @@ const EquipmentMovement: React.FC<EquipmentMovementProps> = ({ onBack }) => {
     setWorkerModalOpen(true);
   };
 
-  // 기사 검색 (팝업 내에서) - 보유장비 API로 기사 확인
+  // 기사 검색 (팝업 내에서) - 장비 수량 조회 없이 빠른 검색
   const handleWorkerModalSearch = async () => {
     const keyword = workerSearchKeyword.trim();
     if (!keyword) {
@@ -746,103 +746,43 @@ const EquipmentMovement: React.FC<EquipmentMovementProps> = ({ onBack }) => {
     setIsSearchingWorker(true);
     try {
       if (isNameSearch) {
-        // 이름 검색: getFindUsrList3 API 사용 (SO_NM, CORP_NM 포함)
+        // 이름 검색: searchWorkersByName API 사용 (WRKR_NM 파라미터)
         console.log('[장비이동] 이름 검색:', keyword);
 
-        // getFindUsrList3로 기사 조회 (지점명, 파트너사 포함) - 전체 지점 검색
-        const searchParams: any = { USR_NM: keyword };
-
-        const allWorkers = await findUserList(searchParams);
+        const allWorkers = await searchWorkersByName({ WRKR_NM: keyword });
         console.log('[장비이동] 이름 검색 결과:', allWorkers.length, '명');
 
         if (allWorkers.length > 0) {
-          const workersToShow = allWorkers.slice(0, 20);  // 최대 20명
-
-          // 각 기사별 장비 수 병렬 조회
-          const workersWithCount = await Promise.all(
-            workersToShow.map(async (w: any) => {
-              const wrkrId = w.USR_ID || w.WRKR_ID;
-              try {
-                const eqtResult = await getWrkrHaveEqtList({ WRKR_ID: wrkrId, CRR_ID: '' });
-                const eqtCount = Array.isArray(eqtResult) ? eqtResult.length : 0;
-                return {
-                  USR_ID: wrkrId,
-                  USR_NM: w.USR_NM || w.USR_NAME_EN || w.WRKR_NM || '-',
-                  CRR_ID: w.CRR_ID || '',
-                  SO_ID: w.SO_ID || '',
-                  SO_NM: w.SO_NM || '',       // 지점명
-                  CORP_NM: w.CORP_NM || '',   // 파트너사명
-                  EQT_COUNT: eqtCount
-                };
-              } catch {
-                return {
-                  USR_ID: wrkrId,
-                  USR_NM: w.USR_NM || w.USR_NAME_EN || w.WRKR_NM || '-',
-                  CRR_ID: w.CRR_ID || '',
-                  SO_ID: w.SO_ID || '',
-                  SO_NM: w.SO_NM || '',
-                  CORP_NM: w.CORP_NM || '',
-                  EQT_COUNT: 0
-                };
-              }
-            })
-          );
-
-          console.log('[장비이동] 장비 수 조회 완료:', workersWithCount.map(w => `${w.USR_NM}(${w.SO_NM}/${w.CORP_NM}:${w.EQT_COUNT}건)`).join(', '));
-          setSearchedWorkers(workersWithCount);
+          const workersToShow = allWorkers.slice(0, 30).map((w: any) => ({
+            USR_ID: w.USR_ID || w.WRKR_ID || '',
+            USR_NM: w.USR_NM || w.USR_NAME_EN || w.WRKR_NM || '-',
+            CRR_ID: w.CRR_ID || '',
+            SO_ID: w.SO_ID || '',
+            SO_NM: w.SO_NM || '',
+            CORP_NM: w.CORP_NM || ''
+          }));
+          setSearchedWorkers(workersToShow);
         } else {
           setSearchedWorkers([]);
         }
       } else {
-        // ID 검색: getFindUsrList3 + getWrkrHaveEqtList 조합
+        // ID 검색: findUserList API 사용 (USR_ID 파라미터)
         console.log('[장비이동] ID 검색:', keyword.toUpperCase());
 
-        // 먼저 getFindUsrList3로 기사 정보 조회 (SO_NM, CORP_NM 획득)
         const userSearchResult = await findUserList({ USR_ID: keyword.toUpperCase() });
 
         if (userSearchResult && userSearchResult.length > 0) {
           const userInfo = userSearchResult[0];
-          const wrkrId = userInfo.USR_ID || keyword.toUpperCase();
-
-          // 장비 수 조회
-          const eqtParams = { WRKR_ID: wrkrId, CRR_ID: '' };
-          const equipmentResult = await debugApiCall('EquipmentMovement', 'getWrkrHaveEqtList',
-            () => getWrkrHaveEqtList(eqtParams),
-            eqtParams);
-
-          const eqtCount = Array.isArray(equipmentResult) ? equipmentResult.length : 0;
-
           setSearchedWorkers([{
-            USR_ID: wrkrId,
-            USR_NM: userInfo.USR_NM || userInfo.WRKR_NM || wrkrId,
+            USR_ID: userInfo.USR_ID || keyword.toUpperCase(),
+            USR_NM: userInfo.USR_NM || userInfo.WRKR_NM || keyword.toUpperCase(),
             CRR_ID: userInfo.CRR_ID || '',
             SO_ID: userInfo.SO_ID || '',
-            SO_NM: userInfo.SO_NM || '',       // 지점명
-            CORP_NM: userInfo.CORP_NM || '',   // 파트너사명
-            EQT_COUNT: eqtCount
+            SO_NM: userInfo.SO_NM || '',
+            CORP_NM: userInfo.CORP_NM || ''
           }]);
         } else {
-          // getFindUsrList3에서 못 찾으면 기존 방식으로 fallback
-          const eqtParams = { WRKR_ID: keyword.toUpperCase(), CRR_ID: '' };
-          const equipmentResult = await debugApiCall('EquipmentMovement', 'getWrkrHaveEqtList',
-            () => getWrkrHaveEqtList(eqtParams),
-            eqtParams);
-
-          if (equipmentResult && equipmentResult.length > 0) {
-            const workerName = equipmentResult[0].WRKR_NM || keyword.toUpperCase();
-            const workerSoNm = equipmentResult[0].SO_NM || '';
-            setSearchedWorkers([{
-              USR_ID: keyword.toUpperCase(),
-              USR_NM: workerName,
-              CRR_ID: equipmentResult[0].CRR_ID || '',
-              SO_ID: equipmentResult[0].SO_ID || '',
-              SO_NM: workerSoNm,
-              CORP_NM: '',
-              EQT_COUNT: equipmentResult.length
-            }]);
-          } else {
-            setSearchedWorkers([]);
-          }
+          setSearchedWorkers([]);
         }
       }
     } catch (error) {
