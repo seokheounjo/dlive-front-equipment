@@ -433,12 +433,20 @@ const EquipmentRecovery: React.FC<EquipmentRecoveryProps> = ({ onBack }) => {
   // SO_ID로 SO_NM을 찾는 헬퍼 함수
   const getSoName = (soIdOrNm: string): string => {
     if (!soIdOrNm) return '미지정';
-    // 이미 지점명이면 그대로 반환
-    const found = soList.find(s => s.SO_NM === soIdOrNm);
-    if (found) return soIdOrNm;
+    // 숫자만 있는지 확인 (SO_ID인 경우)
+    const isNumericId = /^\d+$/.test(soIdOrNm);
+    // 이미 지점명이면 그대로 반환 (숫자가 아닌 경우)
+    if (!isNumericId) {
+      const found = soList.find(s => s.SO_NM === soIdOrNm);
+      if (found) return soIdOrNm;
+    }
     // SO_ID로 검색
     const foundById = soList.find(s => s.SO_ID === soIdOrNm);
-    if (foundById) return foundById.SO_NM || soIdOrNm;
+    if (foundById && foundById.SO_NM) return foundById.SO_NM;
+    // soList에 없으면 "지점(ID)" 형식으로 반환
+    if (isNumericId) {
+      return `지점(${soIdOrNm})`;
+    }
     return soIdOrNm;
   };
 
@@ -541,6 +549,17 @@ const EquipmentRecovery: React.FC<EquipmentRecoveryProps> = ({ onBack }) => {
               SO_ID: so.SO_ID || so.soId || '',
               SO_NM: so.SO_NM || so.soNm || so.SO_ID || ''
             })).filter((so: SoInfo) => so.SO_ID);
+            // MST_SO_ID(본부) 정보도 추가 (중복 제거)
+            const mstSoIds = new Set<string>();
+            parsed.forEach((so: any) => {
+              const mstId = so.MST_SO_ID || so.mstSoId;
+              if (mstId && !mappedList.some(s => s.SO_ID === mstId)) {
+                mstSoIds.add(mstId);
+              }
+            });
+            mstSoIds.forEach(mstId => {
+              mappedList.push({ SO_ID: mstId, SO_NM: `본부(${mstId})` });
+            });
             setSoList(mappedList);
             return;
           }
