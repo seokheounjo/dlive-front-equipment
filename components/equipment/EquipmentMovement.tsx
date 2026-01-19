@@ -68,6 +68,7 @@ interface EqtTrns {
   CHK: boolean;
   EQT_NO: string;
   ITEM_MAX_NM: string;
+  ITEM_MID_CD: string;    // 중분류 코드 (모델2 필터용)
   ITEM_MID_NM: string;
   EQT_CL_CD: string;
   EQT_CL_NM: string;
@@ -236,40 +237,58 @@ const EquipmentMovement: React.FC<EquipmentMovementProps> = ({ onBack }) => {
     loadInitialData();
   }, []);
 
-  // 중분류(모델1) 변경 시 소분류(모델2) 목록 동적 로드
+  // 중분류(모델1) 변경 또는 장비 목록 변경 시 소분류(모델2) 목록 동적 추출
   useEffect(() => {
-    const loadEqtClOptions = async () => {
-      // 중분류 선택 해제 시 소분류도 초기화
-      if (!selectedItemMidCd) {
-        setEqtClOptions([]);
-        setSelectedEqtClCd('');
-        return;
-      }
+    // 중분류 선택 해제 시 소분류도 초기화
+    if (!selectedItemMidCd) {
+      setEqtClOptions([]);
+      setSelectedEqtClCd('');
+      return;
+    }
 
-      setIsLoadingEqtCl(true);
-      try {
-        const result = await getEquipmentTypeList({ ITEM_MID_CD: selectedItemMidCd });
-        if (Array.isArray(result) && result.length > 0) {
-          const options = result.map(item => ({
-            code: item.COMMON_CD || '',
-            name: item.COMMON_CD_NM || ''
-          }));
-          setEqtClOptions(options);
-        } else {
-          setEqtClOptions([]);
+    // 장비 목록에서 해당 중분류의 소분류 목록 추출
+    if (eqtTrnsList.length > 0) {
+      const uniqueEqtCl = new Map<string, string>();
+      eqtTrnsList.forEach(item => {
+        if (item.ITEM_MID_CD === selectedItemMidCd && item.EQT_CL_CD && item.EQT_CL_NM) {
+          uniqueEqtCl.set(item.EQT_CL_CD, item.EQT_CL_NM);
         }
-        // 중분류 변경 시 소분류 선택 초기화
-        setSelectedEqtClCd('');
-      } catch (error) {
-        console.error('소분류 목록 조회 실패:', error);
-        setEqtClOptions([]);
-      } finally {
-        setIsLoadingEqtCl(false);
-      }
-    };
+      });
 
-    loadEqtClOptions();
-  }, [selectedItemMidCd]);
+      const options = Array.from(uniqueEqtCl.entries()).map(([code, name]) => ({
+        code,
+        name
+      })).sort((a, b) => a.name.localeCompare(b.name));
+
+      setEqtClOptions(options);
+    } else {
+      // 장비 목록이 없으면 API 시도 (fallback)
+      const loadEqtClOptions = async () => {
+        setIsLoadingEqtCl(true);
+        try {
+          const result = await getEquipmentTypeList({ ITEM_MID_CD: selectedItemMidCd });
+          if (Array.isArray(result) && result.length > 0) {
+            const options = result.map(item => ({
+              code: item.COMMON_CD || '',
+              name: item.COMMON_CD_NM || ''
+            }));
+            setEqtClOptions(options);
+          } else {
+            setEqtClOptions([]);
+          }
+        } catch (error) {
+          console.error('소분류 목록 조회 실패:', error);
+          setEqtClOptions([]);
+        } finally {
+          setIsLoadingEqtCl(false);
+        }
+      };
+      loadEqtClOptions();
+    }
+
+    // 중분류 변경 시 소분류 선택 초기화
+    setSelectedEqtClCd('');
+  }, [selectedItemMidCd, eqtTrnsList]);
 
   // 선택된 장비 기준으로 선택 모드 결정
   const getSelectionModeFromCheckedItems = (items: EqtTrns[]): string => {
@@ -652,6 +671,7 @@ const EquipmentMovement: React.FC<EquipmentMovementProps> = ({ onBack }) => {
             CHK: false,
             EQT_NO: item.EQT_NO || '',
             ITEM_MAX_NM: item.ITEM_MAX_NM || '',
+            ITEM_MID_CD: item.ITEM_MID_CD || '',
             ITEM_MID_NM: item.ITEM_MID_NM || '',
             EQT_CL_CD: item.EQT_CL_CD || '',
             EQT_CL_NM: item.EQT_CL_NM || '',
@@ -880,6 +900,7 @@ const EquipmentMovement: React.FC<EquipmentMovementProps> = ({ onBack }) => {
             CHK: false,
             EQT_NO: item.EQT_NO || '',
             ITEM_MAX_NM: item.ITEM_MAX_NM || '',
+            ITEM_MID_CD: item.ITEM_MID_CD || '',
             ITEM_MID_NM: item.ITEM_MID_NM || '',
             EQT_CL_CD: item.EQT_CL_CD || '',
             EQT_CL_NM: item.EQT_CL_NM || '',
