@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { findUserList, getWrkrHaveEqtListAll as getWrkrHaveEqtList, searchWorkersByName, changeEquipmentWorker, getEquipmentHistoryInfo, saveTransferredEquipment, getFindUsrList3, getEqtMasterInfo, getCommonCodeList } from '../../services/apiService';
+import React, { useState, useEffect } from 'react';
+import { findUserList, getWrkrHaveEqtListAll as getWrkrHaveEqtList, changeEquipmentWorker, getEquipmentHistoryInfo, saveTransferredEquipment, getEqtMasterInfo } from '../../services/apiService';
 import { debugApiCall } from './equipmentDebug';
 import { Scan, Search, ChevronDown, ChevronUp, Check, X, User, RotateCcw, AlertTriangle } from 'lucide-react';
 import BarcodeScanner from './BarcodeScanner';
@@ -467,6 +467,29 @@ const EquipmentMovement: React.FC<EquipmentMovementProps> = ({ onBack }) => {
       const eqt = Array.isArray(eqtResult) ? eqtResult[0] : eqtResult;
 
       if (eqt && eqt.EQT_SERNO) {
+        // 고객사용중(EQT_LOC_TP_CD='4') 또는 협력업체(EQT_LOC_TP_CD_NM='협력업체') 체크
+        const eqtLocTpCd = eqt.EQT_LOC_TP_CD || '';
+        const eqtLocTpNm = eqt.EQT_LOC_TP_CD_NM || eqt.EQT_LOC_TP_NM || '';
+
+        if (eqtLocTpCd === '4') {
+          // 고객사용중 장비 - 팝업으로 정보 표시
+          setCustomerEquipmentInfo({
+            EQT_SERNO: eqt.EQT_SERNO,
+            EQT_NO: eqt.EQT_NO || '',
+            ITEM_NM: eqt.ITEM_NM || eqt.EQT_CL_NM || '',
+            ITEM_MID_NM: eqt.ITEM_MID_NM || '',
+            SO_NM: eqt.SO_NM || '',
+            EQT_LOC_NM: eqt.EQT_LOC_NM || '',
+            EQT_LOC_TP_NM: '고객사용중',
+            MAC_ADDRESS: eqt.MAC_ADDRESS || '',
+            WRKR_NM: eqt.WRKR_NM || eqt.OWNER_WRKR_NM || '-'
+          });
+          setShowCustomerEquipmentModal(true);
+          setIsLoading(false);
+          setSerialInput('');
+          return;
+        }
+
         // WRKR_ID 추출: 직접 필드 또는 EQT_LOC_NM에서 추출 (형식: "이름(ID)")
         let ownerWrkrId = eqt.WRKR_ID || eqt.OWNER_WRKR_ID;
         if (!ownerWrkrId && eqt.EQT_LOC_NM) {
@@ -483,10 +506,50 @@ const EquipmentMovement: React.FC<EquipmentMovementProps> = ({ onBack }) => {
           await searchEquipmentByWorker(ownerWrkrId, ownerWrkrNm, ownerCrrId, normalizedSN);
           setHasSearched(true);
         } else {
-          // WRKR_ID 없으면 WRKR_NM으로 장비 정보만 표시
-          alert('장비(' + normalizedSN + ')의 보유기사 ID가 없습니다.\n현재 보유: ' + ownerWrkrNm);
+          // 보유기사 없는 장비 - getEqtMasterInfo로 추가 정보 조회 후 표시
+          console.log('[장비이동] 보유기사 없는 장비:', normalizedSN, '위치:', eqtLocTpNm);
+
+          // 장비 마스터 정보 조회 시도
+          try {
+            const masterInfo = await getEqtMasterInfo({ EQT_SERNO: normalizedSN });
+            const masterData = Array.isArray(masterInfo) ? masterInfo[0] : masterInfo;
+
+            // 위치 정보 표시
+            const locInfo = masterData?.EQT_LOC_TP_NM || eqtLocTpNm || '알수없음';
+            const displayLoc = locInfo === '협력업체' ? '협력업체' : locInfo;
+
+            setCustomerEquipmentInfo({
+              EQT_SERNO: normalizedSN,
+              EQT_NO: masterData?.EQT_NO || eqt.EQT_NO || '',
+              ITEM_NM: masterData?.ITEM_NM || eqt.ITEM_NM || eqt.EQT_CL_NM || '',
+              ITEM_MID_NM: masterData?.ITEM_MID_NM || eqt.ITEM_MID_NM || '',
+              SO_NM: masterData?.SO_NM || eqt.SO_NM || '',
+              EQT_LOC_NM: masterData?.EQT_LOC_NM || eqt.EQT_LOC_NM || '',
+              EQT_LOC_TP_NM: displayLoc,
+              MAC_ADDRESS: masterData?.MAC_ADDRESS || eqt.MAC_ADDRESS || '',
+              WRKR_NM: ownerWrkrNm
+            });
+            setShowCustomerEquipmentModal(true);
+          } catch (err) {
+            // 마스터 정보 조회 실패해도 기본 정보 표시
+            const displayLoc = eqtLocTpNm === '협력업체' ? '협력업체' : (eqtLocTpNm || '보유기사 없음');
+            setCustomerEquipmentInfo({
+              EQT_SERNO: normalizedSN,
+              EQT_NO: eqt.EQT_NO || '',
+              ITEM_NM: eqt.ITEM_NM || eqt.EQT_CL_NM || '',
+              ITEM_MID_NM: eqt.ITEM_MID_NM || '',
+              SO_NM: eqt.SO_NM || '',
+              EQT_LOC_NM: eqt.EQT_LOC_NM || '',
+              EQT_LOC_TP_NM: displayLoc,
+              MAC_ADDRESS: eqt.MAC_ADDRESS || '',
+              WRKR_NM: ownerWrkrNm
+            });
+            setShowCustomerEquipmentModal(true);
+          }
         }
       } else {
+        setSearchConditionMessage(`S/N: ${normalizedSN}`);
+        setHasSearched(true);
         alert('장비(' + normalizedSN + ')를 찾을 수 없습니다.');
       }
     } catch (error) {
@@ -520,12 +583,26 @@ const EquipmentMovement: React.FC<EquipmentMovementProps> = ({ onBack }) => {
       }
       // EQT_SERNO 없으면 기사의 전체 장비 조회 (기존 동작)
 
+      // 모델 필터 파라미터 추가 (백엔드에서 지원하면 사용)
+      if (selectedItemMaxCd) params.ITEM_MAX_CD = selectedItemMaxCd;
+      if (selectedItemMidCd) params.ITEM_MID_CD = selectedItemMidCd;
+
       const result = await debugApiCall('EquipmentMovement', 'getWrkrHaveEqtList', () => getWrkrHaveEqtList(params), params);
 
       if (Array.isArray(result) && result.length > 0) {
+        // 모델 필터 클라이언트 필터링 (백엔드에서 지원 안 할 경우 대비)
+        let filteredResult = result;
+        if (selectedItemMaxCd || selectedItemMidCd) {
+          filteredResult = result.filter((item: any) => {
+            const matchMax = !selectedItemMaxCd || item.ITEM_MAX_CD === selectedItemMaxCd;
+            const matchMid = !selectedItemMidCd || item.ITEM_MID_CD === selectedItemMidCd;
+            return matchMax && matchMid;
+          });
+        }
+
         // 레거시 방식: 특정 지점(401, 402, 328)만 타지점 이동 제한
 
-        let transformedList: EqtTrns[] = result.map((item: any) => {
+        let transformedList: EqtTrns[] = filteredResult.map((item: any) => {
           const itemSoId = item.SO_ID || '';
           // 이관 가능 여부:
           // - 제한 지점(401, 402, 328) 장비 → 해당 지점으로만 이동 가능 (targetSoId와 일치해야 함)
@@ -569,10 +646,23 @@ const EquipmentMovement: React.FC<EquipmentMovementProps> = ({ onBack }) => {
           CHK: item.isScanned || false
         }));
 
-        setEqtTrnsList(transformedList);
+        if (transformedList.length > 0) {
+          setEqtTrnsList(transformedList);
+        } else {
+          // 모델 필터로 인해 결과 없음
+          setEqtTrnsList([]);
+          const filterMsg = [];
+          if (selectedItemMaxCd) filterMsg.push(ITEM_MAX_OPTIONS.find(o => o.code === selectedItemMaxCd)?.name || selectedItemMaxCd);
+          if (selectedItemMidCd) filterMsg.push(ITEM_MID_OPTIONS.find(o => o.code === selectedItemMidCd)?.name || selectedItemMidCd);
+          setSearchConditionMessage(`기사: ${wrkrNm}${filterMsg.length > 0 ? ', 모델: ' + filterMsg.join('/') : ''}`);
+        }
       } else {
         setEqtTrnsList([]);
-        alert('조회된 장비가 없습니다.');
+        // 검색 조건 메시지 설정
+        const filterMsg = [];
+        if (selectedItemMaxCd) filterMsg.push(ITEM_MAX_OPTIONS.find(o => o.code === selectedItemMaxCd)?.name || selectedItemMaxCd);
+        if (selectedItemMidCd) filterMsg.push(ITEM_MID_OPTIONS.find(o => o.code === selectedItemMidCd)?.name || selectedItemMidCd);
+        setSearchConditionMessage(`기사: ${wrkrNm}${filterMsg.length > 0 ? ', 모델: ' + filterMsg.join('/') : ''}`);
       }
     } catch (error) {
       console.error('장비 조회 실패:', error);
@@ -600,7 +690,7 @@ const EquipmentMovement: React.FC<EquipmentMovementProps> = ({ onBack }) => {
   const handleWorkerModalSearch = async () => {
     const keyword = workerSearchKeyword.trim();
     if (!keyword) {
-      alert('기사 ID를 입력해주세요.');
+      alert('기사명 또는 ID를 입력해주세요.');
       return;
     }
 
@@ -614,111 +704,105 @@ const EquipmentMovement: React.FC<EquipmentMovementProps> = ({ onBack }) => {
     }
     setIsSearchingWorker(true);
     try {
-      let params: any;
       if (isNameSearch) {
-        // 이름 검색: SO_ID로 지점 작업자 전체 조회 후 클라이언트 필터링
-        // (레거시 API가 이름 검색을 지원하지 않음)
-        if (!modalSelectedSoId) {
-          alert('이름으로 검색하려면 지점을 먼저 선택해주세요.');
-          setIsSearchingWorker(false);
-          return;
-        }
-        console.log('[장비이동] 이름 검색:', keyword, '지점:', modalSelectedSoId, '협력업체:', loggedInUser.crrId);
+        // 이름 검색: getFindUsrList3 API 사용 (SO_NM, CORP_NM 포함)
+        console.log('[장비이동] 이름 검색:', keyword, '지점:', modalSelectedSoId || '전체');
 
-        // 지점별 전체 작업자 조회 (CRR_ID 필수)
-        const allWorkers = await findUserList({
-          SO_ID: modalSelectedSoId,
-          CRR_ID: loggedInUser.crrId  // 협력업체 필수
-        });
-        console.log('[장비이동] 지점 작업자 전체:', allWorkers.length, '명');
+        // getFindUsrList3로 기사 조회 (지점명, 파트너사 포함)
+        const searchParams: any = { USR_NM: keyword };
+        if (modalSelectedSoId) searchParams.SO_ID = modalSelectedSoId;
 
-        // 클라이언트에서 이름 필터링 (부분 일치)
-        const searchLower = keyword.toLowerCase();
-        const filteredWorkers = allWorkers.filter((w: any) => {
-          const name = w.USR_NAME_EN || w.USR_NM || w.WRKR_NM || '';
-          return name.toLowerCase().includes(searchLower);
-        });
+        const allWorkers = await findUserList(searchParams);
+        console.log('[장비이동] 이름 검색 결과:', allWorkers.length, '명');
 
-        if (filteredWorkers.length > 0) {
-          const workersToShow = filteredWorkers.slice(0, 20);  // 최대 20명 (장비 조회 때문에)
-          console.log('[장비이동] 이름 검색 결과:', workersToShow.length, '명, 장비 수 조회 중...', modalSearchModelFilter ? `(모델: ${modalSearchModelFilter})` : '');
+        if (allWorkers.length > 0) {
+          const workersToShow = allWorkers.slice(0, 20);  // 최대 20명
 
-          // 각 기사별 장비 수 병렬 조회 (모델 필터 적용)
+          // 각 기사별 장비 수 병렬 조회
           const workersWithCount = await Promise.all(
             workersToShow.map(async (w: any) => {
               const wrkrId = w.USR_ID || w.WRKR_ID;
               try {
                 const eqtResult = await getWrkrHaveEqtList({ WRKR_ID: wrkrId, CRR_ID: '' });
-                // 모델 필터가 있으면 해당 모델만 카운트
-                let filteredEqt = Array.isArray(eqtResult) ? eqtResult : [];
-                if (modalSearchModelFilter && filteredEqt.length > 0) {
-                  filteredEqt = filteredEqt.filter((e: any) => {
-                    const modelName = e.ITEM_MID_NM || e.EQT_CL_NM || '';
-                    return modelName.includes(modalSearchModelFilter);
-                  });
-                }
+                const eqtCount = Array.isArray(eqtResult) ? eqtResult.length : 0;
                 return {
                   USR_ID: wrkrId,
-                  USR_NM: w.USR_NAME_EN || w.USR_NM || w.WRKR_NM || '-',
+                  USR_NM: w.USR_NM || w.USR_NAME_EN || w.WRKR_NM || '-',
                   CRR_ID: w.CRR_ID || '',
-                  EQT_COUNT: filteredEqt.length
+                  SO_ID: w.SO_ID || '',
+                  SO_NM: w.SO_NM || '',       // 지점명
+                  CORP_NM: w.CORP_NM || '',   // 파트너사명
+                  EQT_COUNT: eqtCount
                 };
               } catch {
                 return {
                   USR_ID: wrkrId,
-                  USR_NM: w.USR_NAME_EN || w.USR_NM || w.WRKR_NM || '-',
+                  USR_NM: w.USR_NM || w.USR_NAME_EN || w.WRKR_NM || '-',
                   CRR_ID: w.CRR_ID || '',
+                  SO_ID: w.SO_ID || '',
+                  SO_NM: w.SO_NM || '',
+                  CORP_NM: w.CORP_NM || '',
                   EQT_COUNT: 0
                 };
               }
             })
           );
 
-          // 모델 필터 시 0건인 기사 제외 옵션 (장비가 있는 기사만 표시)
-          const finalWorkers = modalSearchModelFilter
-            ? workersWithCount.filter(w => w.EQT_COUNT > 0)
-            : workersWithCount;
-
-          console.log('[장비이동] 장비 수 조회 완료:', finalWorkers.map(w => `${w.USR_NM}(${w.EQT_COUNT}건)`).join(', '));
-          setSearchedWorkers(finalWorkers);
-
-          if (modalSearchModelFilter && finalWorkers.length === 0) {
-            alert(`'${modalSearchModelFilter}' 장비를 보유한 기사가 없습니다.`);
-          }
+          console.log('[장비이동] 장비 수 조회 완료:', workersWithCount.map(w => `${w.USR_NM}(${w.SO_NM}/${w.CORP_NM}:${w.EQT_COUNT}건)`).join(', '));
+          setSearchedWorkers(workersWithCount);
         } else {
           setSearchedWorkers([]);
-          alert('해당 이름의 기사를 찾을 수 없습니다.');
         }
       } else {
-        // ID 검색: getWrkrHaveEqtList API 사용
-        console.log('[장비이동] ID 검색:', keyword.toUpperCase(), '지점:', modalSelectedSoId, modalSearchModelFilter ? `모델: ${modalSearchModelFilter}` : '');
-        const params = { WRKR_ID: keyword.toUpperCase(), CRR_ID: '', SO_ID: modalSelectedSoId || undefined };
-        const equipmentResult = await debugApiCall('EquipmentMovement', 'getWrkrHaveEqtList',
-          () => getWrkrHaveEqtList(params),
-          params);
-        if (equipmentResult && equipmentResult.length > 0) {
-          const workerName = equipmentResult[0].WRKR_NM || keyword.toUpperCase();
-          const workerCrrId = equipmentResult[0].CRR_ID || '';
+        // ID 검색: getFindUsrList3 + getWrkrHaveEqtList 조합
+        console.log('[장비이동] ID 검색:', keyword.toUpperCase());
 
-          // 모델 필터 적용
-          let filteredEqt = equipmentResult;
-          if (modalSearchModelFilter) {
-            filteredEqt = equipmentResult.filter((e: any) => {
-              const modelName = e.ITEM_MID_NM || e.EQT_CL_NM || '';
-              return modelName.includes(modalSearchModelFilter);
-            });
-          }
+        // 먼저 getFindUsrList3로 기사 정보 조회 (SO_NM, CORP_NM 획득)
+        const userSearchResult = await findUserList({ USR_ID: keyword.toUpperCase() });
 
-          if (filteredEqt.length > 0) {
-            setSearchedWorkers([{ USR_ID: keyword.toUpperCase(), USR_NM: workerName, CRR_ID: workerCrrId, EQT_COUNT: filteredEqt.length }]);
+        if (userSearchResult && userSearchResult.length > 0) {
+          const userInfo = userSearchResult[0];
+          const wrkrId = userInfo.USR_ID || keyword.toUpperCase();
+
+          // 장비 수 조회
+          const eqtParams = { WRKR_ID: wrkrId, CRR_ID: '' };
+          const equipmentResult = await debugApiCall('EquipmentMovement', 'getWrkrHaveEqtList',
+            () => getWrkrHaveEqtList(eqtParams),
+            eqtParams);
+
+          const eqtCount = Array.isArray(equipmentResult) ? equipmentResult.length : 0;
+
+          setSearchedWorkers([{
+            USR_ID: wrkrId,
+            USR_NM: userInfo.USR_NM || userInfo.WRKR_NM || wrkrId,
+            CRR_ID: userInfo.CRR_ID || '',
+            SO_ID: userInfo.SO_ID || '',
+            SO_NM: userInfo.SO_NM || '',       // 지점명
+            CORP_NM: userInfo.CORP_NM || '',   // 파트너사명
+            EQT_COUNT: eqtCount
+          }]);
+        } else {
+          // getFindUsrList3에서 못 찾으면 기존 방식으로 fallback
+          const eqtParams = { WRKR_ID: keyword.toUpperCase(), CRR_ID: '' };
+          const equipmentResult = await debugApiCall('EquipmentMovement', 'getWrkrHaveEqtList',
+            () => getWrkrHaveEqtList(eqtParams),
+            eqtParams);
+
+          if (equipmentResult && equipmentResult.length > 0) {
+            const workerName = equipmentResult[0].WRKR_NM || keyword.toUpperCase();
+            const workerSoNm = equipmentResult[0].SO_NM || '';
+            setSearchedWorkers([{
+              USR_ID: keyword.toUpperCase(),
+              USR_NM: workerName,
+              CRR_ID: equipmentResult[0].CRR_ID || '',
+              SO_ID: equipmentResult[0].SO_ID || '',
+              SO_NM: workerSoNm,
+              CORP_NM: '',
+              EQT_COUNT: equipmentResult.length
+            }]);
           } else {
             setSearchedWorkers([]);
-            alert(`해당 기사가 '${modalSearchModelFilter}' 장비를 보유하지 않습니다.`);
           }
-        } else {
-          // 장비가 없는 기사는 표시하지 않음
-          setSearchedWorkers([]);
-          alert('해당 ID의 기사가 없거나 보유 장비가 없습니다.');
         }
       }
     } catch (error) {
@@ -1429,7 +1513,7 @@ const EquipmentMovement: React.FC<EquipmentMovementProps> = ({ onBack }) => {
                           {/* 장비 목록 */}
                           {!itemCollapsed && (
                             <div className="divide-y divide-gray-50">
-                              {items.map((item) => {
+                              {items.map((item, idx) => {
                                 const globalIndex = item._globalIdx;
                                 return (
                             <div
@@ -1526,7 +1610,14 @@ const EquipmentMovement: React.FC<EquipmentMovementProps> = ({ onBack }) => {
       {eqtTrnsList.length === 0 && !isLoading && (
         <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-8">
           <p className="text-center text-gray-500 text-sm">
-            기사를 선택하거나 장비번호를 입력하여<br />조회 버튼을 눌러주세요
+            {hasSearched && searchConditionMessage ? (
+              <>
+                <span className="text-amber-600 font-medium">{searchConditionMessage}</span>
+                <span className="text-gray-600"> 조건에 충족하는 값이 없습니다</span>
+              </>
+            ) : (
+              <>기사를 선택하거나 장비번호를 입력하여<br />조회 버튼을 눌러주세요</>
+            )}
           </p>
         </div>
       )}
@@ -1719,38 +1810,21 @@ const EquipmentMovement: React.FC<EquipmentMovementProps> = ({ onBack }) => {
             </div>
           ) : (
             <div className="space-y-2">
-              {/* 지점 + 모델 선택 */}
-              <div className="flex gap-2">
-                {userAuthSoList.length > 0 && (
-                  <select
-                    value={modalSelectedSoId}
-                    onChange={(e) => setModalSelectedSoId(e.target.value)}
-                    className="flex-1 px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-green-500 bg-white"
-                  >
-                    <option value="">전체 지점</option>
-                    {userAuthSoList.map((so) => (
-                      <option key={so.SO_ID} value={so.SO_ID}>
-                        {so.SO_NM}
-                      </option>
-                    ))}
-                  </select>
-                )}
+              {/* 지점 선택 */}
+              {userAuthSoList.length > 0 && (
                 <select
-                  value={modalSearchModelFilter}
-                  onChange={(e) => setModalSearchModelFilter(e.target.value)}
-                  className="flex-1 px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-green-500 bg-white"
+                  value={modalSelectedSoId}
+                  onChange={(e) => setModalSelectedSoId(e.target.value)}
+                  className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-green-500 bg-white"
                 >
-                  <option value="">전체 모델</option>
-                  <option value="STB">STB</option>
-                  <option value="모뎀">모뎀</option>
-                  <option value="Smart card">Smart card</option>
-                  <option value="CVT">CVT</option>
-                  <option value="Cable Card">Cable Card</option>
-                  <option value="Converter">Converter</option>
-                  <option value="IP폰">IP폰</option>
-                  <option value="HANDY">HANDY</option>
+                  <option value="">전체 지점</option>
+                  {userAuthSoList.map((so) => (
+                    <option key={so.SO_ID} value={so.SO_ID}>
+                      {so.SO_NM}
+                    </option>
+                  ))}
                 </select>
-              </div>
+              )}
               {/* 검색 입력 */}
               <div className="flex gap-2">
                 <input
@@ -1759,7 +1833,7 @@ const EquipmentMovement: React.FC<EquipmentMovementProps> = ({ onBack }) => {
                   onChange={(e) => setWorkerSearchKeyword(e.target.value)}
                   onKeyDown={(e) => e.key === 'Enter' && handleWorkerModalSearch()}
                   className="flex-1 px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-green-500"
-                  placeholder="이름 또는 ID 입력"
+                  placeholder="기사명 또는 ID 입력"
                   autoFocus
                 />
                 <button
@@ -1894,12 +1968,26 @@ const EquipmentMovement: React.FC<EquipmentMovementProps> = ({ onBack }) => {
                   onClick={() => handleWorkerSelect(worker)}
                   className="w-full px-4 py-3 text-left hover:bg-green-50 flex justify-between items-center transition-colors active:bg-green-100 touch-manipulation"
                 >
-                  <div className="flex flex-col">
-                    <span className="font-medium text-gray-900">{worker.USR_NM}</span>
-                    <span className="text-xs text-gray-500">{worker.USR_ID}</span>
+                  <div className="flex flex-col gap-0.5">
+                    <div className="flex items-center gap-2">
+                      <span className="font-semibold text-gray-900">{worker.USR_NM}</span>
+                      <span className="text-xs text-gray-500 font-mono">({worker.USR_ID})</span>
+                    </div>
+                    {/* 지점명, 파트너사 표시 */}
+                    <div className="flex items-center gap-2 text-xs">
+                      {worker.SO_NM && (
+                        <span className="text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded">{worker.SO_NM}</span>
+                      )}
+                      {worker.CORP_NM && (
+                        <span className="text-purple-600 bg-purple-50 px-1.5 py-0.5 rounded">{worker.CORP_NM}</span>
+                      )}
+                      {!worker.SO_NM && !worker.CORP_NM && (
+                        <span className="text-gray-400">-</span>
+                      )}
+                    </div>
                   </div>
-                  <span className={`text-xs px-2 py-1 rounded ${modalSearchModelFilter ? 'text-green-600 bg-green-50' : 'text-blue-600 bg-blue-50'}`}>
-                    {worker.EQT_COUNT !== undefined ? `${worker.EQT_COUNT}건${modalSearchModelFilter ? ` (${modalSearchModelFilter})` : ''}` : ''}
+                  <span className="text-xs px-2 py-1 rounded text-blue-600 bg-blue-50 font-medium">
+                    {worker.EQT_COUNT !== undefined ? `${worker.EQT_COUNT}건` : ''}
                   </span>
                 </button>
               ))}
@@ -1986,6 +2074,103 @@ const EquipmentMovement: React.FC<EquipmentMovementProps> = ({ onBack }) => {
                 onClick={() => {
                   setShowResultModal(false);
                   setTransferResult(null);
+                }}
+                className="w-full py-2.5 bg-gray-800 hover:bg-gray-900 text-white rounded-lg font-medium transition-colors"
+              >
+                확인
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 고객사용중/보유기사없음 장비 정보 팝업 */}
+      {showCustomerEquipmentModal && customerEquipmentInfo && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-md overflow-hidden">
+            {/* 헤더 */}
+            <div className={`p-4 ${
+              customerEquipmentInfo.EQT_LOC_TP_NM === '고객사용중'
+                ? 'bg-gradient-to-r from-amber-500 to-amber-600'
+                : 'bg-gradient-to-r from-purple-500 to-purple-600'
+            }`}>
+              <h3 className="font-semibold text-white text-lg flex items-center gap-2">
+                <AlertTriangle className="w-5 h-5" />
+                {customerEquipmentInfo.EQT_LOC_TP_NM === '고객사용중' ? '고객사용중 장비' : '장비 정보'}
+              </h3>
+              <p className="text-white/80 text-sm mt-1">
+                이 장비는 {customerEquipmentInfo.EQT_LOC_TP_NM === '고객사용중'
+                  ? '현재 고객이 사용중입니다'
+                  : customerEquipmentInfo.EQT_LOC_TP_NM === '협력업체'
+                    ? '협력업체에 있습니다'
+                    : '보유기사가 없습니다'}
+              </p>
+            </div>
+
+            {/* 장비 정보 */}
+            <div className="p-4 space-y-3">
+              <div className="bg-gray-50 rounded-lg p-3 space-y-2">
+                <div className="flex justify-between text-sm">
+                  <span className="text-gray-500">S/N</span>
+                  <span className="font-mono font-medium text-gray-900">{customerEquipmentInfo.EQT_SERNO}</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-gray-500">모델</span>
+                  <span className="font-medium text-gray-900">{customerEquipmentInfo.ITEM_NM || '-'}</span>
+                </div>
+                {customerEquipmentInfo.ITEM_MID_NM && (
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-500">분류</span>
+                    <span className="text-gray-700">{customerEquipmentInfo.ITEM_MID_NM}</span>
+                  </div>
+                )}
+                <div className="flex justify-between text-sm">
+                  <span className="text-gray-500">지점</span>
+                  <span className="text-gray-700">{customerEquipmentInfo.SO_NM || '-'}</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-gray-500">위치</span>
+                  <span className={`font-medium ${
+                    customerEquipmentInfo.EQT_LOC_TP_NM === '고객사용중' ? 'text-amber-600' :
+                    customerEquipmentInfo.EQT_LOC_TP_NM === '협력업체' ? 'text-purple-600' :
+                    'text-gray-600'
+                  }`}>
+                    {customerEquipmentInfo.EQT_LOC_TP_NM}
+                  </span>
+                </div>
+                {customerEquipmentInfo.EQT_LOC_NM && (
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-500">상세위치</span>
+                    <span className="text-gray-700 text-right max-w-[200px] truncate">{customerEquipmentInfo.EQT_LOC_NM}</span>
+                  </div>
+                )}
+                {customerEquipmentInfo.WRKR_NM && customerEquipmentInfo.WRKR_NM !== '-' && (
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-500">보유기사</span>
+                    <span className="text-gray-700">{customerEquipmentInfo.WRKR_NM}</span>
+                  </div>
+                )}
+                {customerEquipmentInfo.MAC_ADDRESS && (
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-500">MAC</span>
+                    <span className="font-mono text-xs text-gray-600">{formatMac(customerEquipmentInfo.MAC_ADDRESS)}</span>
+                  </div>
+                )}
+              </div>
+
+              {customerEquipmentInfo.EQT_LOC_TP_NM === '고객사용중' && (
+                <p className="text-xs text-amber-600 bg-amber-50 p-2 rounded-lg">
+                  고객사용중 장비는 이동할 수 없습니다. 해지/반납 후 이동 가능합니다.
+                </p>
+              )}
+            </div>
+
+            {/* 닫기 버튼 */}
+            <div className="p-4 border-t border-gray-100 bg-gray-50">
+              <button
+                onClick={() => {
+                  setShowCustomerEquipmentModal(false);
+                  setCustomerEquipmentInfo(null);
                 }}
                 className="w-full py-2.5 bg-gray-800 hover:bg-gray-900 text-white rounded-lg font-medium transition-colors"
               >

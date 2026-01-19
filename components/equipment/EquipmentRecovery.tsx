@@ -55,6 +55,8 @@ interface UnreturnedEqt {
   EQT_LOC_TP_NM?: string;       // 장비위치유형
   EQT_LOC_NM?: string;          // 장비위치
   OLD_EQT_LOC_NM?: string;      // 이전장비위치 (API: OLD_EQT_LOC_NM)
+  ITEM_MODEL?: string;          // 모델명
+  EQT_USE_ARR_YN?: string;      // 장비사용도착여부 (Y/A/N/W/R/D)
 }
 
 // Date format function (YYYY.MM.DD)
@@ -610,7 +612,7 @@ const EquipmentRecovery: React.FC<EquipmentRecoveryProps> = ({ onBack }) => {
           CTRT_ID: item.CTRT_ID || '',
           EQT_NO: item.EQT_NO || '',
           EQT_SERNO: item.EQT_SERNO || '',
-          EQT_CL_CD: item.EQT_CL_CD || '',
+          EQT_CL_CD: item.EQT_CL_CD || item.EQT_CL || '',
           EQT_CL_NM: item.EQT_CL_NM || item.EQT_NM || '',
           ITEM_NM: item.ITEM_NM || item.EQT_NM || '',
           TRML_DT: item.TRML_DT || item.CMPL_DATE?.split(' ')[0]?.replace(/-/g, '') || '',
@@ -619,15 +621,24 @@ const EquipmentRecovery: React.FC<EquipmentRecoveryProps> = ({ onBack }) => {
           WRKR_NM: item.WRKR_NM || '',
           SO_ID: item.SO_ID || '',
           SO_NM: item.SO_NM || '',
-          PHONE_NO: item.PHONE_NO || item.TEL_NO || '',
+          PHONE_NO: item.PHONE_NO || item.TEL_NO || item.TEL_NO_1 || '',
           ADDRESS: item.ADDRESS || item.WORK_ADDR || item.CTRT_ADDR || '',
           RETN_REQ_YN: item.RETN_REQ_YN || '',
           LOSS_AMT: item.LOSS_AMT || '',
           CRR_ID: item.CRR_ID || '',
           CMPL_DATE: item.CMPL_DATE || '',
           EQT_STAT_CD_NM: item.EQT_STAT_NM || item.EQT_STAT_CD_NM || '재고',
-          isScanned: item.EQT_SERNO === serialNo
-        }));
+          isScanned: item.EQT_SERNO === serialNo,
+          // 자세히 보기용 필드
+          MAC_ADDRESS: item.MAC_ADDRESS || item.MAC_ADDR || '',
+          EQT_USE_END_DT: item.EQT_USE_END_DT || '',
+          CHG_KND_NM: item.CHG_KND_NM || '',
+          EQT_LOC_NM: item.EQT_LOC_NM || '',
+          EQT_LOC_TP_NM: item.EQT_LOC_TP_NM || '',
+          OLD_EQT_LOC_NM: item.OLD_EQT_LOC_NM || '',
+          ITEM_MODEL: item.ITEM_MODEL || item.MODEL_NM || '',
+          EQT_USE_ARR_YN: item.EQT_USE_ARR_YN || '',
+        } as UnreturnedEqt));
         setUnreturnedList(transformedList);
       } else {
         const eqtResult = await debugApiCall(
@@ -689,7 +700,7 @@ const EquipmentRecovery: React.FC<EquipmentRecoveryProps> = ({ onBack }) => {
         CTRT_ID: item.CTRT_ID || '',
         EQT_NO: item.EQT_NO || '',
         EQT_SERNO: item.EQT_SERNO || '',
-        EQT_CL_CD: item.EQT_CL_CD || '',
+        EQT_CL_CD: item.EQT_CL_CD || item.EQT_CL || '',
         EQT_CL_NM: item.EQT_CL_NM || item.EQT_NM || '',
         ITEM_NM: item.ITEM_NM || item.EQT_NM || '',
         TRML_DT: item.TRML_DT || item.CMPL_DATE?.split(' ')[0]?.replace(/-/g, '') || '',
@@ -698,15 +709,24 @@ const EquipmentRecovery: React.FC<EquipmentRecoveryProps> = ({ onBack }) => {
         WRKR_NM: item.WRKR_NM || '',
         SO_ID: item.SO_ID || '',
         SO_NM: item.SO_NM || '',
-        PHONE_NO: item.PHONE_NO || item.TEL_NO || '',
+        PHONE_NO: item.PHONE_NO || item.TEL_NO || item.TEL_NO_1 || '',
         ADDRESS: item.ADDRESS || item.WORK_ADDR || item.CTRT_ADDR || '',
         RETN_REQ_YN: item.RETN_REQ_YN || '',
         LOSS_AMT: item.LOSS_AMT || '',
         CRR_ID: item.CRR_ID || '',
         CMPL_DATE: item.CMPL_DATE || '',
         EQT_STAT_CD_NM: item.EQT_STAT_NM || item.EQT_STAT_CD_NM || '재고',
-        isScanned: scannedSerials.includes(item.EQT_SERNO)
-      }));
+        isScanned: scannedSerials.includes(item.EQT_SERNO),
+        // 자세히 보기용 필드
+        MAC_ADDRESS: item.MAC_ADDRESS || item.MAC_ADDR || '',
+        EQT_USE_END_DT: item.EQT_USE_END_DT || '',
+        CHG_KND_NM: item.CHG_KND_NM || '',
+        EQT_LOC_NM: item.EQT_LOC_NM || '',
+        EQT_LOC_TP_NM: item.EQT_LOC_TP_NM || '',
+        OLD_EQT_LOC_NM: item.OLD_EQT_LOC_NM || '',
+        ITEM_MODEL: item.ITEM_MODEL || item.MODEL_NM || '',
+        EQT_USE_ARR_YN: item.EQT_USE_ARR_YN || '',
+      } as UnreturnedEqt));
 
       transformedList.sort((a, b) => {
         if (a.isScanned && !b.isScanned) return -1;
@@ -871,7 +891,7 @@ const EquipmentRecovery: React.FC<EquipmentRecoveryProps> = ({ onBack }) => {
             <div className="flex items-center justify-between mt-1">
               <span className="text-sm text-gray-600">{item.EQT_SERNO || '-'}</span>
               {(() => {
-                const arrYn = (item as any).EQT_USE_ARR_YN;
+                const arrYn = item.EQT_USE_ARR_YN;
                 let bgColor = 'bg-gray-100 text-gray-700';
                 let label = arrYn || '-';
                 if (arrYn === 'Y') { bgColor = 'bg-green-100 text-green-700'; label = '사용가능'; }
@@ -897,7 +917,7 @@ const EquipmentRecovery: React.FC<EquipmentRecoveryProps> = ({ onBack }) => {
         {/* 자세히 보기: 추가 정보 */}
         {viewMode === 'detail' && (
           <div className="bg-gray-100 rounded-lg p-2 mt-2 text-xs space-y-1">
-            <div className="flex items-center justify-between"><span className="text-gray-800">{(item as any).ITEM_MODEL || (item as any).MODEL_NM || '-'}</span><span className="font-medium text-gray-800">{item.SO_NM || '-'}</span></div>
+            <div className="flex items-center justify-between"><span className="text-gray-800">{item.ITEM_MODEL || '-'}</span><span className="font-medium text-gray-800">{item.SO_NM || '-'}</span></div>
             <div className="flex items-center justify-between"><span><span className="text-gray-500">장비상태  : </span><span className="text-gray-800">{item.EQT_STAT_CD_NM || '-'}</span></span><span className="text-gray-400 text-xs">{item.EQT_NO || '-'}</span></div>
             <div><span className="text-gray-500">변경종류  : </span><span className="text-gray-800">{item.CHG_KND_NM || '-'}</span></div>
             <div><span className="text-gray-500">현재위치  : </span><span className="text-gray-800">{item.EQT_LOC_NM || item.EQT_LOC_TP_NM || '-'}</span></div>
