@@ -285,7 +285,14 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
   const [showLossModal, setShowLossModal] = useState(false);
   const [selectedEquipment, setSelectedEquipment] = useState<EquipmentItem | null>(null);
   const [returnReason, setReturnReason] = useState<string>('');
+  const [returnReasonText, setReturnReasonText] = useState<string>('');  // 기타 사유 입력
   const [lossReason, setLossReason] = useState<string>('');
+
+  // 카테고리 전환 시 장비 목록 초기화
+  useEffect(() => {
+    setEquipmentList([]);
+    setSelectedEquipment(null);
+  }, [selectedCategory]);
 
   // 뷰 모드: simple(간단히), detail(자세히)
   const [viewMode, setViewMode] = useState<'simple' | 'detail'>('simple');
@@ -863,6 +870,19 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
           cancelParams
         );
       } else {
+        // 반납사유 필수 체크
+        if (!returnReason) {
+          showToast?.('반납사유를 선택해주세요.', 'warning');
+          setShowProgressModal(false);
+          return;
+        }
+        // 기타 선택 시 사유 입력 필수
+        if (returnReason === '03' && !returnReasonText.trim()) {
+          showToast?.('기타 사유를 입력해주세요.', 'warning');
+          setShowProgressModal(false);
+          return;
+        }
+
         // 반납요청은 addEquipmentReturnRequest API 사용
         const params = {
           WRKR_ID: userInfo?.userId || '',
@@ -870,11 +890,13 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
           SO_ID: checkedItems[0]?.SO_ID || selectedSoId || userInfo?.soId || '',
           MST_SO_ID: userInfo?.mstSoId || userInfo?.soId || '',
           RETURN_TP: '2',                          // 2 = 작업기사 반납
+          RETN_RESN_TEXT: returnReason === '03' ? returnReasonText : undefined,  // 기타 사유 텍스트
           equipmentList: checkedItems.map(item => ({
             EQT_NO: item.EQT_NO,
             EQT_SERNO: item.EQT_SERNO,
             ACTION: action,
-            RETN_RESN_CD: returnReason || '01',
+            RETN_RESN_CD: returnReason,
+            EQT_USE_ARR_YN: item.EQT_USE_ARR_YN,  // Y/A 값 그대로 전달
           })),
         };
 
@@ -896,6 +918,7 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
       );
       setShowReturnModal(false);
       setReturnReason('');
+      setReturnReasonText('');  // 기타 사유도 초기화
       await handleSearch(); // 리스트 새로고침
     } catch (error: any) {
       console.error('❌ 반납 처리 실패:', error);
@@ -1799,20 +1822,48 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
             />
           </div>
 
-          {/* 반납 사유 선택 */}
+          {/* 반납 사유 선택 (필수) */}
           <div>
-            <label className="block text-xs font-medium text-gray-600 mb-1">반납 사유</label>
+            <label className="block text-xs font-medium text-gray-600 mb-1">
+              반납 사유 <span className="text-red-500">*</span>
+            </label>
             <select
               value={returnReason}
-              onChange={(e) => setReturnReason(e.target.value)}
-              className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded"
+              onChange={(e) => {
+                setReturnReason(e.target.value);
+                if (e.target.value !== '03') setReturnReasonText('');  // 기타 아니면 입력 초기화
+              }}
+              className={`w-full px-2 py-1.5 text-sm border rounded ${!returnReason ? 'border-red-300' : 'border-gray-300'}`}
             >
-              <option value="">선택</option>
+              <option value="">선택해주세요</option>
               <option value="01">장비 사용일 만료</option>
               <option value="02">장비 불량 (고객 설치 불가)</option>
               <option value="03">기타</option>
             </select>
           </div>
+
+          {/* 기타 사유 입력 (기타 선택 시에만 표시) */}
+          {returnReason === '03' && (
+            <div>
+              <label className="block text-xs font-medium text-gray-600 mb-1">
+                기타 사유 <span className="text-red-500">*</span>
+                <span className="text-gray-400 ml-1">({returnReasonText.length}/100 bytes)</span>
+              </label>
+              <textarea
+                value={returnReasonText}
+                onChange={(e) => {
+                  // 100바이트 제한 (한글 3바이트, 영문/숫자 1바이트)
+                  const text = e.target.value;
+                  const byteLength = new Blob([text]).size;
+                  if (byteLength <= 100) {
+                    setReturnReasonText(text);
+                  }
+                }}
+                className={`w-full px-2 py-1.5 text-sm border rounded h-20 resize-none ${!returnReasonText.trim() ? 'border-red-300' : 'border-gray-300'}`}
+                placeholder="기타 사유를 입력해주세요 (최대 100바이트)"
+              />
+            </div>
+          )}
 
           {/* 선택된 장비 리스트 */}
           <div>
@@ -1846,11 +1897,15 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
           {/* 버튼 */}
           <div className="flex gap-2">
             <button
-              onClick={() => setShowReturnModal(false)}
+              onClick={() => {
+                setShowReturnModal(false);
+                setReturnReason('');
+                setReturnReasonText('');
+              }}
               className="flex-1 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg font-semibold text-sm transition-all active:scale-[0.98] touch-manipulation"
               style={{ WebkitTapHighlightColor: 'transparent' }}
             >
-              재선택
+              닫기
             </button>
             <button
               onClick={() => handleReturnRequest('RETURN')}
@@ -1863,9 +1918,9 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
         </div>
       </BaseModal>
 
-      {/* 대량 처리 진행 상태 모달 */}
+      {/* 대량 처리 진행 상태 모달 - BaseModal(z-100)보다 위에 표시 */}
       {showProgressModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[200]">
           <div className="bg-white rounded-xl p-6 w-80 shadow-2xl">
             <div className="text-center">
               <div className="text-lg font-semibold text-gray-800 mb-4">
