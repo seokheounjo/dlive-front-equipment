@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { findUserList, searchWorkersByName, getWrkrHaveEqtListAll as getWrkrHaveEqtList, changeEquipmentWorker, getEquipmentHistoryInfo, saveTransferredEquipment, getEqtMasterInfo, getEquipmentTypeList } from '../../services/apiService';
+import { findUserList, searchWorkersByName, getWrkrHaveEqtListAll as getWrkrHaveEqtList, changeEquipmentWorker, getEquipmentHistoryInfo, saveTransferredEquipment, getEqtMasterInfo } from '../../services/apiService';
 import { debugApiCall } from './equipmentDebug';
 import { Search, ChevronDown, ChevronUp, Check, X, User, RotateCcw, AlertTriangle } from 'lucide-react';
 import BarcodeScanner from './BarcodeScanner';
@@ -236,7 +236,7 @@ const EquipmentMovement: React.FC<EquipmentMovementProps> = ({ onBack }) => {
     loadInitialData();
   }, []);
 
-  // 중분류(모델1) 변경 시 소분류(모델2) 목록 API로 로드
+  // 중분류(모델1) 변경 시 소분류(모델2) 목록을 장비 목록에서 추출
   useEffect(() => {
     // 중분류 선택 해제 시 소분류도 초기화
     if (!selectedItemMidCd) {
@@ -245,70 +245,25 @@ const EquipmentMovement: React.FC<EquipmentMovementProps> = ({ onBack }) => {
       return;
     }
 
-    // API로 소분류 목록 가져오기
-    const loadEqtClOptions = async () => {
-      setIsLoadingEqtCl(true);
-      try {
-        const result = await getEquipmentTypeList({ ITEM_MID_CD: selectedItemMidCd });
-        if (result && Array.isArray(result) && result.length > 0) {
-          // API 응답에서 소분류 목록 추출 (중복 제거)
-          const uniqueEqtCl = new Map<string, string>();
-          result.forEach((item: any) => {
-            if (item.EQT_CL_CD && item.EQT_CL_NM) {
-              uniqueEqtCl.set(item.EQT_CL_CD, item.EQT_CL_NM);
-            }
-          });
-
-          const options = Array.from(uniqueEqtCl.entries()).map(([code, name]) => ({
-            code,
-            name
-          })).sort((a, b) => a.name.localeCompare(b.name));
-
-          setEqtClOptions(options);
-          console.log('[장비이동] 소분류 목록 로드:', options.length, '개');
-        } else {
-          // API 결과가 없으면 장비 목록에서 추출 시도
-          const uniqueEqtCl = new Map<string, string>();
-          eqtTrnsList.forEach(item => {
-            if (item.ITEM_MID_CD === selectedItemMidCd && item.EQT_CL_CD && item.EQT_CL_NM) {
-              uniqueEqtCl.set(item.EQT_CL_CD, item.EQT_CL_NM);
-            }
-          });
-
-          const options = Array.from(uniqueEqtCl.entries()).map(([code, name]) => ({
-            code,
-            name
-          })).sort((a, b) => a.name.localeCompare(b.name));
-
-          setEqtClOptions(options);
-          console.log('[장비이동] 소분류 목록 (장비 목록에서 추출):', options.length, '개');
-        }
-      } catch (error) {
-        console.error('[장비이동] 소분류 목록 로드 실패:', error);
-        // 실패 시 장비 목록에서 추출
-        const uniqueEqtCl = new Map<string, string>();
-        eqtTrnsList.forEach(item => {
-          if (item.ITEM_MID_CD === selectedItemMidCd && item.EQT_CL_CD && item.EQT_CL_NM) {
-            uniqueEqtCl.set(item.EQT_CL_CD, item.EQT_CL_NM);
-          }
-        });
-
-        const options = Array.from(uniqueEqtCl.entries()).map(([code, name]) => ({
-          code,
-          name
-        })).sort((a, b) => a.name.localeCompare(b.name));
-
-        setEqtClOptions(options);
-      } finally {
-        setIsLoadingEqtCl(false);
+    // 장비 목록에서 해당 중분류의 소분류 추출 (중복 제거)
+    const uniqueEqtCl = new Map<string, string>();
+    eqtTrnsList.forEach(item => {
+      if (item.ITEM_MID_CD === selectedItemMidCd && item.EQT_CL_CD && item.EQT_CL_NM) {
+        uniqueEqtCl.set(item.EQT_CL_CD, item.EQT_CL_NM);
       }
-    };
+    });
 
-    loadEqtClOptions();
+    const options = Array.from(uniqueEqtCl.entries()).map(([code, name]) => ({
+      code,
+      name
+    })).sort((a, b) => a.name.localeCompare(b.name));
+
+    setEqtClOptions(options);
+    console.log('[장비이동] 소분류 목록 추출:', options.length, '개', options);
 
     // 중분류 변경 시 소분류 선택 초기화
     setSelectedEqtClCd('');
-  }, [selectedItemMidCd]);
+  }, [selectedItemMidCd, eqtTrnsList]);
 
   // 선택된 장비 기준으로 선택 모드 결정
   const getSelectionModeFromCheckedItems = (items: EqtTrns[]): string => {
