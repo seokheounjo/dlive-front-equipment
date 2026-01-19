@@ -1,9 +1,26 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { findUserList, getWrkrHaveEqtListAll as getWrkrHaveEqtList, searchWorkersByName, changeEquipmentWorker, getEquipmentHistoryInfo, saveTransferredEquipment } from '../../services/apiService';
+import { findUserList, getWrkrHaveEqtListAll as getWrkrHaveEqtList, searchWorkersByName, changeEquipmentWorker, getEquipmentHistoryInfo, saveTransferredEquipment, getFindUsrList3, getEqtMasterInfo, getCommonCodeList } from '../../services/apiService';
 import { debugApiCall } from './equipmentDebug';
-import { Scan, Search, ChevronDown, ChevronUp, Check, X, User, RotateCcw } from 'lucide-react';
+import { Scan, Search, ChevronDown, ChevronUp, Check, X, User, RotateCcw, AlertTriangle } from 'lucide-react';
 import BarcodeScanner from './BarcodeScanner';
 import BaseModal from '../common/BaseModal';
+
+// 장비 대분류 코드 (ITEM_MAX_CD)
+const ITEM_MAX_OPTIONS = [
+  { code: '', name: '전체' },
+  { code: '09', name: '가입자단말장치' },
+];
+
+// 장비 중분류 코드 (ITEM_MID_CD) - CMEP102
+const ITEM_MID_OPTIONS = [
+  { code: '', name: '전체' },
+  { code: '02', name: '모뎀' },
+  { code: '03', name: '추가장비' },
+  { code: '04', name: 'STB' },
+  { code: '05', name: '셋톱박스' },
+  { code: '07', name: '특수장비' },
+  { code: '10', name: '유무선공유기(AP)' },
+];
 
 // MAC address format (XX:XX:XX:XX:XX:XX)
 const formatMac = (mac: string | null | undefined): string => {
@@ -154,7 +171,15 @@ const EquipmentMovement: React.FC<EquipmentMovementProps> = ({ onBack }) => {
 
   const [workerModalOpen, setWorkerModalOpen] = useState(false);
   const [showBarcodeScanner, setShowBarcodeScanner] = useState(false);
-  const [searchedWorkers, setSearchedWorkers] = useState<{ USR_ID: string; USR_NM: string }[]>([]);
+  const [searchedWorkers, setSearchedWorkers] = useState<{
+    USR_ID: string;
+    USR_NM: string;
+    CRR_ID?: string;
+    SO_ID?: string;
+    SO_NM?: string;      // 지점명
+    CORP_NM?: string;    // 파트너사명
+    EQT_COUNT?: number;  // 보유장비 수
+  }[]>([]);
 
 
   // 장비번호 입력
@@ -191,6 +216,17 @@ const EquipmentMovement: React.FC<EquipmentMovementProps> = ({ onBack }) => {
 
   // 이관 확인 모달
   const [showTransferModal, setShowTransferModal] = useState(false);
+
+  // 모델 필터 (1단계: 대분류, 2단계: 중분류)
+  const [selectedItemMaxCd, setSelectedItemMaxCd] = useState<string>('');  // 대분류 (ITEM_MAX_CD)
+  const [selectedItemMidCd, setSelectedItemMidCd] = useState<string>('');  // 중분류 (ITEM_MID_CD)
+
+  // 고객사용중 장비 팝업
+  const [showCustomerEquipmentModal, setShowCustomerEquipmentModal] = useState(false);
+  const [customerEquipmentInfo, setCustomerEquipmentInfo] = useState<any>(null);
+
+  // 조회 조건 메시지 (결과 없을 때 표시용)
+  const [searchConditionMessage, setSearchConditionMessage] = useState<string>('');
 
   // 선택 모드: 'none' | 'restricted-{soId}' | 'normal'
   // 제한지점(401,402,328) 장비 선택 시 해당 지점만 선택 가능
@@ -1097,34 +1133,70 @@ const EquipmentMovement: React.FC<EquipmentMovementProps> = ({ onBack }) => {
         <div className="mb-3">
           <h3 className="text-sm font-semibold text-gray-800 flex items-center gap-2">
             <Search className="w-4 h-4" />
-            장비 조회
+            장비 이동
           </h3>
-          <p className="text-xs text-gray-500 mt-0.5">기사 또는 장비번호로 조회합니다</p>
+          <p className="text-xs text-gray-500 mt-0.5">타 기사의 장비를 나에게 이동합니다</p>
         </div>
         <div className="space-y-3">
-          {/* 보유기사 입력 - 이름/ID 분리 */}
-          <div
-            className="flex items-center gap-2 cursor-pointer"
-            onClick={openWorkerSearchModal}
-          >
-            <input
-              type="text"
-              value={workerInfo.WRKR_NM || ''}
-              readOnly
-              className="flex-1 min-w-0 px-3 py-2.5 text-sm border border-gray-200 rounded-lg bg-gray-50 cursor-pointer"
-              placeholder="기사명 (클릭하여 검색)"
-            />
-            <input
-              type="text"
-              value={workerInfo.WRKR_ID || ''}
-              readOnly
-              className="w-28 px-3 py-2.5 text-sm border border-gray-200 rounded-lg bg-gray-50 cursor-pointer font-mono"
-              placeholder="ID"
-            />
+          {/* 1. 기사명 (보유기사 검색) */}
+          <div className="flex items-center gap-2">
+            <label className="text-xs font-medium text-gray-600 w-14 flex-shrink-0">기사명</label>
+            <div
+              className="flex-1 flex items-center gap-2 cursor-pointer"
+              onClick={openWorkerSearchModal}
+            >
+              <input
+                type="text"
+                value={workerInfo.WRKR_NM || ''}
+                readOnly
+                className="flex-1 min-w-0 px-3 py-2.5 text-sm border border-gray-200 rounded-lg bg-gray-50 cursor-pointer"
+                placeholder="클릭하여 기사 검색"
+              />
+              <input
+                type="text"
+                value={workerInfo.WRKR_ID || ''}
+                readOnly
+                className="w-24 px-2 py-2.5 text-sm border border-gray-200 rounded-lg bg-gray-50 cursor-pointer font-mono text-center"
+                placeholder="ID"
+              />
+            </div>
           </div>
 
-          {/* 장비번호 입력 + 스캔 버튼 */}
+          {/* 2. 모델 1단계 (대분류) */}
           <div className="flex items-center gap-2">
+            <label className="text-xs font-medium text-gray-600 w-14 flex-shrink-0">모델1</label>
+            <select
+              value={selectedItemMaxCd}
+              onChange={(e) => {
+                setSelectedItemMaxCd(e.target.value);
+                // 대분류 변경 시 중분류 초기화
+                if (!e.target.value) setSelectedItemMidCd('');
+              }}
+              className="flex-1 px-3 py-2.5 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            >
+              {ITEM_MAX_OPTIONS.map(opt => (
+                <option key={opt.code} value={opt.code}>{opt.name}</option>
+              ))}
+            </select>
+          </div>
+
+          {/* 3. 모델 2단계 (중분류) */}
+          <div className="flex items-center gap-2">
+            <label className="text-xs font-medium text-gray-600 w-14 flex-shrink-0">모델2</label>
+            <select
+              value={selectedItemMidCd}
+              onChange={(e) => setSelectedItemMidCd(e.target.value)}
+              className="flex-1 px-3 py-2.5 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            >
+              {ITEM_MID_OPTIONS.map(opt => (
+                <option key={opt.code} value={opt.code}>{opt.name}</option>
+              ))}
+            </select>
+          </div>
+
+          {/* 4. 장비번호 + 스캔 */}
+          <div className="flex items-center gap-2">
+            <label className="text-xs font-medium text-gray-600 w-14 flex-shrink-0">S/N</label>
             <input
               type="text"
               value={serialInput}
@@ -1135,10 +1207,9 @@ const EquipmentMovement: React.FC<EquipmentMovementProps> = ({ onBack }) => {
             />
             <button
               onClick={() => setShowBarcodeScanner(true)}
-              className="px-4 py-2.5 bg-purple-500 hover:bg-purple-600 text-white rounded-lg font-medium text-sm transition-all active:scale-[0.98] touch-manipulation flex items-center gap-1.5"
+              className="px-3 py-2.5 bg-purple-500 hover:bg-purple-600 text-white rounded-lg font-medium text-sm transition-all active:scale-[0.98] touch-manipulation flex items-center gap-1"
             >
               <Scan className="w-4 h-4" />
-              스캔
             </button>
           </div>
 
@@ -1170,9 +1241,23 @@ const EquipmentMovement: React.FC<EquipmentMovementProps> = ({ onBack }) => {
             </div>
           )}
 
-          {/* 조회 버튼 */}
+          {/* 5. 조회 버튼 */}
           <button
             onClick={() => {
+              // 조회 조건 메시지 생성
+              const conditions: string[] = [];
+              if (workerInfo.WRKR_NM) conditions.push(`기사: ${workerInfo.WRKR_NM}`);
+              if (selectedItemMaxCd) {
+                const maxName = ITEM_MAX_OPTIONS.find(o => o.code === selectedItemMaxCd)?.name;
+                if (maxName) conditions.push(`대분류: ${maxName}`);
+              }
+              if (selectedItemMidCd) {
+                const midName = ITEM_MID_OPTIONS.find(o => o.code === selectedItemMidCd)?.name;
+                if (midName) conditions.push(`중분류: ${midName}`);
+              }
+              if (serialInput.trim()) conditions.push(`S/N: ${serialInput.trim()}`);
+              setSearchConditionMessage(conditions.join(', ') || '전체');
+
               if (serialInput.trim()) {
                 handleSerialSearch();
               } else if (scannedSerials.length > 0) {

@@ -107,6 +107,16 @@ const formatDateInput = (dateStr: string): string => {
   return dateStr;
 };
 
+// CTRT_ID format (XXX-XXX-XXXX) 3-3-4
+const formatCtrtId = (ctrtId: string): string => {
+  if (!ctrtId) return '-';
+  const cleaned = ctrtId.replace(/[^0-9]/g, '');
+  if (cleaned.length === 10) {
+    return `${cleaned.slice(0, 3)}-${cleaned.slice(3, 6)}-${cleaned.slice(6, 10)}`;
+  }
+  return ctrtId;
+};
+
 // Recovery Modal
 const RecoveryModal: React.FC<{
   isOpen: boolean;
@@ -115,14 +125,20 @@ const RecoveryModal: React.FC<{
   onProcess: (procType: string, soId: string) => void;
   isProcessing: boolean;
   soList: SoInfo[];
-}> = ({ isOpen, onClose, selectedItems, onProcess, isProcessing, soList }) => {
+  userSoId?: string;
+}> = ({ isOpen, onClose, selectedItems, onProcess, isProcessing, soList, userSoId }) => {
   const [selectedSoId, setSelectedSoId] = useState<string>('');
 
   useEffect(() => {
-    if (isOpen && soList.length > 0 && !selectedSoId) {
-      setSelectedSoId(soList[0].SO_ID);
+    if (isOpen && soList.length > 0) {
+      // userSoId가 있고 soList에 존재하면 해당 지점을 기본값으로
+      if (userSoId && soList.some(so => so.SO_ID === userSoId)) {
+        setSelectedSoId(userSoId);
+      } else if (!selectedSoId) {
+        setSelectedSoId(soList[0].SO_ID);
+      }
     }
-  }, [isOpen, soList, selectedSoId]);
+  }, [isOpen, soList, userSoId]);
 
   if (!isOpen) return null;
 
@@ -236,10 +252,7 @@ const CustomerSearchModal: React.FC<{
 
       if (response.success && response.data) {
         setSearchResults(response.data);
-        if (response.data.length === 1) {
-          onSelect({ CUST_ID: response.data[0].CUST_ID, CUST_NM: response.data[0].CUST_NM });
-          onClose();
-        }
+        // 1건이어도 자동 선택하지 않음 - 사용자가 직접 선택하도록
       } else {
         setSearchResults([]);
       }
@@ -413,8 +426,9 @@ const EquipmentRecovery: React.FC<EquipmentRecoveryProps> = ({ onBack }) => {
   const [isProcessing, setIsProcessing] = useState(false);
   const [scannedSerials, setScannedSerials] = useState<string[]>([]);
   const [soList, setSoList] = useState<SoInfo[]>([]);
+  const [userSoId, setUserSoId] = useState<string>('');
   const [viewMode, setViewMode] = useState<'simple' | 'detail'>('simple');
-  const [lossFilter, setLossFilter] = useState<'all' | 'lost' | 'notLost'>('all');
+  const [lossFilter, setLossFilter] = useState<'all' | 'lost'>('all');
   const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
 
   // Toggle group collapse
@@ -495,6 +509,17 @@ const EquipmentRecovery: React.FC<EquipmentRecoveryProps> = ({ onBack }) => {
   useEffect(() => {
     const loadSoList = () => {
       try {
+        // 먼저 사용자 기본 지점 가져오기
+        const sessionUserInfoStr = sessionStorage.getItem('userInfo');
+        if (sessionUserInfoStr) {
+          const userInfo = JSON.parse(sessionUserInfoStr);
+          const defaultSoId = userInfo.soId || userInfo.SO_ID || '';
+          if (defaultSoId) {
+            setUserSoId(defaultSoId);
+            console.log('[미회수장비] 사용자 기본 지점:', defaultSoId);
+          }
+        }
+
         // 1순위: localStorage의 branchList
         const branchList = localStorage.getItem('branchList');
         if (branchList) {
@@ -527,7 +552,6 @@ const EquipmentRecovery: React.FC<EquipmentRecoveryProps> = ({ onBack }) => {
         }
 
         // 3순위: sessionStorage의 userInfo (fallback)
-        const sessionUserInfoStr = sessionStorage.getItem('userInfo');
         if (sessionUserInfoStr) {
           const userInfo = JSON.parse(sessionUserInfoStr);
           const authSoList = userInfo.authSoList || userInfo.AUTH_SO_List || [];
@@ -542,8 +566,9 @@ const EquipmentRecovery: React.FC<EquipmentRecoveryProps> = ({ onBack }) => {
           }
 
           // 단일 SO 정보로 fallback
-          const singleSo = userInfo.soId || userInfo.SO_ID;
-          const singleSoNm = userInfo.soNm || userInfo.SO_NM || singleSo;
+          const userInfo2 = JSON.parse(sessionUserInfoStr);
+          const singleSo = userInfo2.soId || userInfo2.SO_ID;
+          const singleSoNm = userInfo2.soNm || userInfo2.SO_NM || singleSo;
           if (singleSo) {
             console.log('[미회수장비] 단일 SO 정보 사용:', singleSo, singleSoNm);
             setSoList([{ SO_ID: singleSo, SO_NM: singleSoNm }]);
@@ -630,6 +655,9 @@ const EquipmentRecovery: React.FC<EquipmentRecoveryProps> = ({ onBack }) => {
 
   // 고객 선택 핸들러
   const handleCustomerSelect = (customer: { CUST_ID: string; CUST_NM: string }) => {
+    // 새 고객 선택 시 이전 결과 초기화
+    setUnreturnedList([]);
+    setScannedSerials([]);
     setSelectedCustomer(customer);
     setSearchParams({...searchParams, CUST_ID: customer.CUST_ID, CUST_NM: customer.CUST_NM});
   };
@@ -825,7 +853,7 @@ const EquipmentRecovery: React.FC<EquipmentRecoveryProps> = ({ onBack }) => {
             }`}
           />
           <div className="flex-1 min-w-0">
-            {/* Line 1: 모델명 + [분실/정상] 뱃지 */}
+            {/* Line 1: 모델명 + [장비상태] 뱃지 */}
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2 min-w-0">
                 <span className="text-base font-bold text-gray-900 truncate">{item.EQT_CL_NM || item.ITEM_NM || '-'}</span>
@@ -834,24 +862,30 @@ const EquipmentRecovery: React.FC<EquipmentRecoveryProps> = ({ onBack }) => {
                 )}
               </div>
               <span className={`px-2 py-0.5 rounded-full text-xs font-medium flex-shrink-0 ml-2 ${
-                isLost ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'
+                isLost ? 'bg-red-100 text-red-700' : 'bg-blue-100 text-blue-700'
               }`}>
-                {isLost ? '분실' : '정상'}
+                {isLost ? '분실' : (item.EQT_STAT_CD_NM || '재고')}
               </span>
             </div>
             {/* Line 2: S/N + [EQT_USE_ARR_YN] 뱃지 */}
             <div className="flex items-center justify-between mt-1">
               <span className="text-sm text-gray-600">{item.EQT_SERNO || '-'}</span>
-              <span className={`px-2 py-0.5 rounded-full text-xs font-medium flex-shrink-0 ml-2 ${
-                (item as any).EQT_USE_ARR_YN === 'Y' ? 'bg-green-100 text-green-700' :
-                (item as any).EQT_USE_ARR_YN === 'A' ? 'bg-purple-100 text-purple-700' :
-                (item as any).EQT_USE_ARR_YN === 'N' ? 'bg-red-100 text-red-700' :
-                'bg-gray-100 text-gray-700'
-              }`}>
-                {(item as any).EQT_USE_ARR_YN === 'Y' ? '사용가능' :
-                 (item as any).EQT_USE_ARR_YN === 'A' ? '검사대기' :
-                 (item as any).EQT_USE_ARR_YN === 'N' ? '사용불가' : 'N/A'}
-              </span>
+              {(() => {
+                const arrYn = (item as any).EQT_USE_ARR_YN;
+                let bgColor = 'bg-gray-100 text-gray-700';
+                let label = arrYn || '-';
+                if (arrYn === 'Y') { bgColor = 'bg-green-100 text-green-700'; label = '사용가능'; }
+                else if (arrYn === 'A') { bgColor = 'bg-purple-100 text-purple-700'; label = '검사대기'; }
+                else if (arrYn === 'N') { bgColor = 'bg-red-100 text-red-700'; label = '사용불가'; }
+                else if (arrYn === 'W') { bgColor = 'bg-blue-100 text-blue-700'; label = '입고대기'; }
+                else if (arrYn === 'R') { bgColor = 'bg-yellow-100 text-yellow-700'; label = '반납요청'; }
+                else if (arrYn === 'D') { bgColor = 'bg-orange-100 text-orange-700'; label = '폐기대기'; }
+                return (
+                  <span className={`px-2 py-0.5 rounded-full text-xs font-medium flex-shrink-0 ml-2 ${bgColor}`}>
+                    {label}
+                  </span>
+                );
+              })()}
             </div>
             {/* Line 3: MAC + 날짜 (YYYY-MM-DD) */}
             <div className="flex items-center justify-between mt-0.5">
@@ -869,6 +903,7 @@ const EquipmentRecovery: React.FC<EquipmentRecoveryProps> = ({ onBack }) => {
             <div><span className="text-gray-500">현재위치  : </span><span className="text-gray-800">{item.EQT_LOC_NM || item.EQT_LOC_TP_NM || '-'}</span></div>
             <div><span className="text-gray-500">이전위치  : </span><span className="text-gray-800">{item.OLD_EQT_LOC_NM || '-'}</span></div>
             <div><span className="text-gray-500">MAC주소   : </span><span className="text-gray-800">{item.MAC_ADDRESS || '-'}</span></div>
+            <div><span className="text-gray-500">계약ID    : </span><span className="text-gray-800 font-mono">{formatCtrtId(item.CTRT_ID)}</span></div>
           </div>
         )}
       </div>
@@ -928,18 +963,6 @@ const EquipmentRecovery: React.FC<EquipmentRecoveryProps> = ({ onBack }) => {
                   placeholder="고객명"
                 />
               </div>
-              {selectedCustomer && (
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setSelectedCustomer(null);
-                    setSearchParams({...searchParams, CUST_ID: '', CUST_NM: ''});
-                  }}
-                  className="flex-shrink-0 px-2 text-gray-400 hover:text-gray-600"
-                >
-                  <X className="w-4 h-4" />
-                </button>
-              )}
             </div>
           </div>
 
@@ -1042,16 +1065,6 @@ const EquipmentRecovery: React.FC<EquipmentRecoveryProps> = ({ onBack }) => {
                   }`}
                 >
                   분실 ({lostCount})
-                </button>
-                <button
-                  onClick={() => setLossFilter('notLost')}
-                  className={`flex-1 py-1.5 px-2 text-xs font-medium rounded-md transition-all ${
-                    lossFilter === 'notLost'
-                      ? 'bg-white text-gray-700 shadow-sm'
-                      : 'text-gray-500 hover:text-gray-700'
-                  }`}
-                >
-                  정상 ({notLostCount})
                 </button>
               </div>
             </div>
@@ -1188,6 +1201,7 @@ const EquipmentRecovery: React.FC<EquipmentRecoveryProps> = ({ onBack }) => {
         onProcess={handleRecoveryProcess}
         isProcessing={isProcessing}
         soList={soList}
+        userSoId={userSoId}
       />
 
       <CustomerSearchModal

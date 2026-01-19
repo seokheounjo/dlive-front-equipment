@@ -3328,6 +3328,49 @@ export const findUserList = async (params: {
 };
 
 /**
+ * 장비 마스터 정보 조회 (EQT_NO로 조회)
+ * @param params EQT_NO 또는 EQT_SERNO
+ * @returns 장비 마스터 정보
+ */
+export const getEqtMasterInfo = async (params: {
+  EQT_NO?: string;
+  EQT_SERNO?: string;
+}): Promise<any> => {
+  console.log('🔍 [장비마스터] API 호출:', params);
+
+  try {
+    const origin = typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000';
+
+    const response = await fetchWithRetry(`${API_BASE}/customer/equipment/getEqtMasterInfo`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Origin': origin
+      },
+      credentials: 'include',
+      body: JSON.stringify(params),
+    });
+
+    const result = await response.json();
+    console.log('✅ 장비 마스터 조회 결과:', result);
+
+    if (Array.isArray(result)) {
+      return result;
+    }
+    if (result.data && Array.isArray(result.data)) {
+      return result.data;
+    }
+    if (result.output1 && Array.isArray(result.output1)) {
+      return result.output1;
+    }
+    return result;
+  } catch (error: any) {
+    console.error('❌ 장비 마스터 조회 실패:', error);
+    throw error;
+  }
+};
+
+/**
  * 문자 발송 (장비 인수 알림)
  * @param params 문자 정보
  * @returns 처리 결과
