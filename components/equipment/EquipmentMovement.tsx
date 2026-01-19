@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { findUserList, getWrkrHaveEqtListAll as getWrkrHaveEqtList, changeEquipmentWorker, getEquipmentHistoryInfo, saveTransferredEquipment, getEqtMasterInfo, getEquipmentTypeList } from '../../services/apiService';
+import { findUserList, getWrkrHaveEqtListAll as getWrkrHaveEqtList, changeEquipmentWorker, getEquipmentHistoryInfo, saveTransferredEquipment, getEqtMasterInfo } from '../../services/apiService';
 import { debugApiCall } from './equipmentDebug';
 import { Scan, Search, ChevronDown, ChevronUp, Check, X, User, RotateCcw, AlertTriangle } from 'lucide-react';
 import BarcodeScanner from './BarcodeScanner';
@@ -202,7 +202,6 @@ const EquipmentMovement: React.FC<EquipmentMovementProps> = ({ onBack }) => {
 
   // 모달 내 장비 선택 상태
   const [modalSelectedWorker, setModalSelectedWorker] = useState<{ USR_ID: string; USR_NM: string; CRR_ID?: string } | null>(null);
-  const [modalSelectedSoId, setModalSelectedSoId] = useState<string>('');  // 모달 내 지점 선택
   const [modalEquipmentList, setModalEquipmentList] = useState<EqtTrns[]>([]);
   const [isLoadingModalEquipment, setIsLoadingModalEquipment] = useState(false);
   const [modalModelFilter, setModalModelFilter] = useState<string>('');  // 모델 필터 (빈값=전체)
@@ -262,28 +261,8 @@ const EquipmentMovement: React.FC<EquipmentMovementProps> = ({ onBack }) => {
 
       setEqtClOptions(options);
     } else {
-      // 장비 목록이 없으면 API 시도 (fallback)
-      const loadEqtClOptions = async () => {
-        setIsLoadingEqtCl(true);
-        try {
-          const result = await getEquipmentTypeList({ ITEM_MID_CD: selectedItemMidCd });
-          if (Array.isArray(result) && result.length > 0) {
-            const options = result.map(item => ({
-              code: item.COMMON_CD || '',
-              name: item.COMMON_CD_NM || ''
-            }));
-            setEqtClOptions(options);
-          } else {
-            setEqtClOptions([]);
-          }
-        } catch (error) {
-          console.error('소분류 목록 조회 실패:', error);
-          setEqtClOptions([]);
-        } finally {
-          setIsLoadingEqtCl(false);
-        }
-      };
-      loadEqtClOptions();
+      // 장비 목록이 없으면 빈 목록 (조회 후 채워짐)
+      setEqtClOptions([]);
     }
 
     // 중분류 변경 시 소분류 선택 초기화
@@ -768,11 +747,10 @@ const EquipmentMovement: React.FC<EquipmentMovementProps> = ({ onBack }) => {
     try {
       if (isNameSearch) {
         // 이름 검색: getFindUsrList3 API 사용 (SO_NM, CORP_NM 포함)
-        console.log('[장비이동] 이름 검색:', keyword, '지점:', modalSelectedSoId || '전체');
+        console.log('[장비이동] 이름 검색:', keyword);
 
-        // getFindUsrList3로 기사 조회 (지점명, 파트너사 포함)
+        // getFindUsrList3로 기사 조회 (지점명, 파트너사 포함) - 전체 지점 검색
         const searchParams: any = { USR_NM: keyword };
-        if (modalSelectedSoId) searchParams.SO_ID = modalSelectedSoId;
 
         const allWorkers = await findUserList(searchParams);
         console.log('[장비이동] 이름 검색 결과:', allWorkers.length, '명');
@@ -1873,21 +1851,6 @@ const EquipmentMovement: React.FC<EquipmentMovementProps> = ({ onBack }) => {
             </div>
           ) : (
             <div className="space-y-2">
-              {/* 지점 선택 */}
-              {userAuthSoList.length > 0 && (
-                <select
-                  value={modalSelectedSoId}
-                  onChange={(e) => setModalSelectedSoId(e.target.value)}
-                  className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-green-500 bg-white"
-                >
-                  <option value="">전체 지점</option>
-                  {userAuthSoList.map((so) => (
-                    <option key={so.SO_ID} value={so.SO_ID}>
-                      {so.SO_NM}
-                    </option>
-                  ))}
-                </select>
-              )}
               {/* 검색 입력 */}
               <div className="flex gap-2">
                 <input
