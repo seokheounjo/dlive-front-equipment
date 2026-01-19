@@ -707,6 +707,8 @@ const EquipmentRecovery: React.FC<EquipmentRecoveryProps> = ({ onBack }) => {
           ITEM_MODEL: item.ITEM_MODEL || item.MODEL_NM || '',
           EQT_USE_ARR_YN: item.EQT_USE_ARR_YN || '',
           BIZ_CL_NM: item.BIZ_CL_NM || '',
+          MST_SO_ID: item.MST_SO_ID || '',
+          MST_SO_NM: item.MST_SO_NM || '',
         } as UnreturnedEqt));
         setUnreturnedList(transformedList);
       } else {
@@ -796,6 +798,8 @@ const EquipmentRecovery: React.FC<EquipmentRecoveryProps> = ({ onBack }) => {
         ITEM_MODEL: item.ITEM_MODEL || item.MODEL_NM || '',
         EQT_USE_ARR_YN: item.EQT_USE_ARR_YN || '',
         BIZ_CL_NM: item.BIZ_CL_NM || '',
+        MST_SO_ID: item.MST_SO_ID || '',
+        MST_SO_NM: item.MST_SO_NM || '',
       } as UnreturnedEqt));
 
       transformedList.sort((a, b) => {
