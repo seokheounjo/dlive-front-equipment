@@ -1204,7 +1204,23 @@ const EquipmentMovement: React.FC<EquipmentMovementProps> = ({ onBack }) => {
 
   // 지점 > 장비중분류로 2단계 그룹화 + 그룹 내 EQT_CL_NM 정렬
   const groupedByLocation = eqtTrnsList.reduce((acc, item, idx) => {
-    const soKey = item.SO_NM || item.SO_ID || '미지정';
+    // 지점명 결정: SO_NM > MST_SO_NM > '본부' (100인 경우) > SO_ID
+    let soKey = '미지정';
+    const soNm = item.SO_NM?.trim();
+    const mstSoNm = item.MST_SO_NM?.trim();
+    const soId = item.SO_ID?.trim();
+    const mstSoId = item.MST_SO_ID?.trim();
+
+    if (soNm && soNm !== '100') {
+      soKey = soNm;
+    } else if (mstSoNm && mstSoNm !== '100') {
+      soKey = mstSoNm;
+    } else if (soId === '100' || mstSoId === '100' || soNm === '100' || mstSoNm === '100') {
+      soKey = '본부';
+    } else if (soId) {
+      soKey = soId;
+    }
+
     const itemKey = item.ITEM_MID_NM || '기타';
     if (!acc[soKey]) acc[soKey] = {};
     if (!acc[soKey][itemKey]) acc[soKey][itemKey] = [];

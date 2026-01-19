@@ -58,6 +58,8 @@ interface UnreturnedEqt {
   OLD_EQT_LOC_NM?: string;      // 이전장비위치 (API: OLD_EQT_LOC_NM)
   ITEM_MODEL?: string;          // 모델명
   EQT_USE_ARR_YN?: string;      // 장비사용도착여부 (Y/A/N/W/R/D)
+  MST_SO_ID?: string;           // 본부 SO ID (100 = 본부)
+  MST_SO_NM?: string;           // 본부 SO 명
 }
 
 // Date format function (YYYY.MM.DD)
@@ -484,7 +486,23 @@ const EquipmentRecovery: React.FC<EquipmentRecoveryProps> = ({ onBack }) => {
 
   // 지점 > 업무분류(1단계)로 그룹화 + 그룹 내 EQT_CL_NM 정렬
   const groupedByLocation = filteredList.reduce((acc, item, idx) => {
-    const soKey = item.SO_NM || item.SO_ID || '미지정';
+    // 지점명 결정: SO_NM > MST_SO_NM > '본부' (100인 경우) > SO_ID
+    let soKey = '미지정';
+    const soNm = item.SO_NM?.trim();
+    const mstSoNm = item.MST_SO_NM?.trim();
+    const soId = item.SO_ID?.trim();
+    const mstSoId = item.MST_SO_ID?.trim();
+
+    if (soNm && soNm !== '100') {
+      soKey = soNm;
+    } else if (mstSoNm && mstSoNm !== '100') {
+      soKey = mstSoNm;
+    } else if (soId === '100' || mstSoId === '100' || soNm === '100' || mstSoNm === '100') {
+      soKey = '본부';
+    } else if (soId) {
+      soKey = soId;
+    }
+
     const itemMidKey = item.BIZ_CL_NM || item.ITEM_MID_NM || item.EQT_CL_NM || '기타';
     if (!acc[soKey]) acc[soKey] = {};
     if (!acc[soKey][itemMidKey]) acc[soKey][itemMidKey] = [];
