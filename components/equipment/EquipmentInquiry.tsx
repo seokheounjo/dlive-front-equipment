@@ -257,17 +257,9 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
   // 검색 카테고리 - 라디오 버튼으로 단일 선택
   const [selectedCategory, setSelectedCategory] = useState<SearchCategory>('OWNED');
   
-  // 필터 패널 열림/닫힘 상태
-  const [isFilterOpen, setIsFilterOpen] = useState(false);
-  
-  // 필터 카운트 (적용된 필터 개수)
-  const getFilterCount = () => {
-    let count = 0;
-    if (selectedSoId) count++;
-    if (selectedItemMidCd) count++;
-    if (eqtSerno) count++;
-    return count;
-  };
+  // 복수 결과 선택 모달 상태
+  const [showMultipleResultModal, setShowMultipleResultModal] = useState(false);
+  const [multipleResults, setMultipleResults] = useState<EquipmentItem[]>([]);
 
   // 데이터
   const [equipmentList, setEquipmentList] = useState<EquipmentItem[]>([]);
@@ -670,6 +662,86 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
     } finally {
       setIsLoading(false);
     }
+  };
+
+  // 스캔 검색 (장비번호로 직접 검색 - 복수 결과시 팝업)
+  const handleScanSearch = async () => {
+    if (!eqtSerno.trim()) {
+      showToast?.('장비번호를 입력해주세요.', 'warning');
+      return;
+    }
+
+    if (!userInfo?.userId) {
+      showToast?.('로그인 정보가 없습니다. 다시 로그인해주세요.', 'error');
+      return;
+    }
+
+    setIsLoading(true);
+    setEquipmentList([]);
+
+    try {
+      console.log('[스캔검색] 시작:', eqtSerno);
+
+      // 보유장비에서 검색
+      const ownedResult = await getWrkrHaveEqtListAll({
+        WRKR_ID: userInfo.userId,
+        CRR_ID: userInfo.crrId || '',
+        SO_ID: '',
+      });
+
+      let matchedItems: EquipmentItem[] = [];
+      const searchSerno = eqtSerno.toUpperCase().trim();
+
+      if (Array.isArray(ownedResult)) {
+        matchedItems = ownedResult
+          .filter((item: any) => {
+            const itemSerno = (item.EQT_SERNO || '').toUpperCase();
+            const itemMac = (item.MAC_ADDRESS || '').toUpperCase().replace(/[:-]/g, '');
+            const searchNoSeparator = searchSerno.replace(/[:-]/g, '');
+            return itemSerno.includes(searchSerno) || itemMac.includes(searchNoSeparator);
+          })
+          .map((item: any) => ({
+            ...item,
+            CHK: false,
+            EQT_SERNO: item.EQT_SERNO || '',
+            MAC_ADDRESS: item.MAC_ADDRESS || '',
+            EQT_CL_NM: item.EQT_CL_NM || item.ITEM_NM || '',
+            ITEM_MID_NM: item.ITEM_MID_NM || item.ITEM_MID_CD_NM || '',
+            EQT_STAT_NM: item.EQT_STAT_CD_NM || getEqtStatName(item.EQT_STAT_CD || ''),
+            EQT_USE_ARR_YN: item.EQT_USE_ARR_YN || 'Y',
+            _category: 'OWNED' as const,
+          }));
+      }
+
+      console.log('[스캔검색] 결과:', matchedItems.length, '건');
+
+      if (matchedItems.length === 0) {
+        showToast?.('일치하는 장비가 없습니다.', 'info');
+      } else if (matchedItems.length === 1) {
+        // 1건이면 바로 선택
+        matchedItems[0].CHK = true;
+        setEquipmentList(matchedItems);
+        showToast?.('장비를 조회했습니다.', 'success');
+      } else {
+        // 복수 결과면 선택 팝업 표시
+        setMultipleResults(matchedItems);
+        setShowMultipleResultModal(true);
+      }
+    } catch (error: any) {
+      console.error('[스캔검색] 실패:', error);
+      showToast?.(error.message || '스캔 검색에 실패했습니다.', 'error');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // 복수 결과 중 하나 선택
+  const handleSelectFromMultiple = (item: EquipmentItem) => {
+    item.CHK = true;
+    setEquipmentList([item]);
+    setShowMultipleResultModal(false);
+    setMultipleResults([]);
+    showToast?.('장비를 선택했습니다.', 'success');
   };
 
   // 전체 선택/해제 (반납요청중 장비는 제외)
@@ -1224,77 +1296,34 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
           </div>
         </div>
 
-        {/* 상세 필터 영역 - 접기/펼치기 */}
-        <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
-          {/* 필터 헤더 (토글 버튼) */}
-          <button
-            onClick={() => setIsFilterOpen(!isFilterOpen)}
-            className="w-full px-4 py-3 flex items-center justify-between bg-gray-50 hover:bg-gray-100 transition-colors"
-          >
-            <div className="flex items-center gap-2">
-              <svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
-              </svg>
-              <span className="text-sm font-semibold text-gray-700">상세 필터</span>
-              {(selectedSoId || selectedItemMidCd || eqtSerno) && (
-                <span className="px-1.5 py-0.5 bg-blue-500 text-white text-[10px] rounded-full font-medium">
-                  {[selectedSoId, selectedItemMidCd, eqtSerno].filter(Boolean).length}
-                </span>
-              )}
-            </div>
-            <svg
-              className={`w-5 h-5 text-gray-400 transition-transform duration-200 ${isFilterOpen ? 'rotate-180' : ''}`}
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
+        {/* 장비번호 입력 + 스캔 버튼 */}
+        <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-3">
+          <div className="flex items-center gap-2">
+            <label className="text-xs font-medium text-gray-600 flex-shrink-0">장비번호</label>
+            <input
+              type="text"
+              value={eqtSerno}
+              onChange={(e) => setEqtSerno(e.target.value.toUpperCase())}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  handleScanSearch();
+                }
+              }}
+              className="flex-1 px-3 py-2.5 text-sm border border-gray-200 rounded-lg uppercase focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+              placeholder="S/N 또는 바코드 입력"
+            />
+            <button
+              onClick={handleScanSearch}
+              disabled={isLoading || !eqtSerno.trim()}
+              className="px-4 py-2.5 bg-green-500 hover:bg-green-600 disabled:bg-gray-300 text-white rounded-lg font-semibold text-sm transition-all active:scale-[0.98] touch-manipulation flex items-center gap-1.5"
+              style={{ WebkitTapHighlightColor: 'transparent' }}
             >
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-            </svg>
-          </button>
-
-          {/* 필터 내용 (접기/펼치기) */}
-          {isFilterOpen && (
-            <div className="p-4 border-t border-gray-100 space-y-3">
-              {/* 지점 */}
-              <div className="flex items-center gap-2">
-                <label className="text-xs font-medium text-gray-600 w-16 flex-shrink-0">지점</label>
-                <select
-                  value={selectedSoId}
-                  onChange={(e) => setSelectedSoId(e.target.value)}
-                  className="flex-1 px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
-                >
-                  <option value="">전체</option>
-                  {soList.map((item) => (
-                    <option key={item.SO_ID} value={item.SO_ID}>{item.SO_NM}</option>
-                  ))}
-                </select>
-              </div>
-              {/* 장비종류 */}
-              <div className="flex items-center gap-2">
-                <label className="text-xs font-medium text-gray-600 w-16 flex-shrink-0">장비종류</label>
-                <select
-                  value={selectedItemMidCd}
-                  onChange={(e) => setSelectedItemMidCd(e.target.value)}
-                  className="flex-1 px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
-                >
-                  {itemMidList.map((item) => (
-                    <option key={item.COMMON_CD} value={item.COMMON_CD}>{item.COMMON_CD_NM}</option>
-                  ))}
-                </select>
-              </div>
-              {/* S/N */}
-              <div className="flex items-center gap-2">
-                <label className="text-xs font-medium text-gray-600 w-16 flex-shrink-0">S/N</label>
-                <input
-                  type="text"
-                  value={eqtSerno}
-                  onChange={(e) => setEqtSerno(e.target.value.toUpperCase())}
-                  className="flex-1 px-3 py-2 text-sm border border-gray-200 rounded-lg uppercase focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
-                  placeholder="바코드 또는 일련번호"
-                />
-              </div>
-            </div>
-          )}
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z" />
+              </svg>
+              스캔
+            </button>
+          </div>
         </div>
 
         {/* 조회 버튼 */}
@@ -1696,6 +1725,60 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
           )}
         </div>
       </div>
+
+      {/* 복수 결과 선택 모달 */}
+      <BaseModal
+        isOpen={showMultipleResultModal}
+        onClose={() => {
+          setShowMultipleResultModal(false);
+          setMultipleResults([]);
+        }}
+        title="장비 선택"
+        size="md"
+      >
+        <div className="space-y-4">
+          <p className="text-sm text-gray-600">
+            {multipleResults.length}건의 장비가 검색되었습니다. 선택할 장비를 클릭하세요.
+          </p>
+          <div className="max-h-80 overflow-y-auto border border-gray-200 rounded-lg divide-y divide-gray-100">
+            {multipleResults.map((item, idx) => (
+              <button
+                key={idx}
+                onClick={() => handleSelectFromMultiple(item)}
+                className="w-full p-3 text-left hover:bg-blue-50 transition-colors active:bg-blue-100"
+              >
+                <div className="flex items-center justify-between">
+                  <div>
+                    <div className="font-semibold text-gray-900">{item.EQT_CL_NM || item.ITEM_NM || '장비'}</div>
+                    <div className="text-sm text-gray-600 font-mono">{item.EQT_SERNO}</div>
+                    <div className="text-xs text-gray-500">{item.SO_NM} | {formatMac(item.MAC_ADDRESS)}</div>
+                  </div>
+                  <div className="flex flex-col items-end gap-1">
+                    <span className={`px-2 py-0.5 rounded text-xs font-medium ${
+                      item.EQT_USE_ARR_YN === 'Y' ? 'bg-green-100 text-green-700' :
+                      item.EQT_USE_ARR_YN === 'A' ? 'bg-purple-100 text-purple-700' :
+                      'bg-gray-100 text-gray-700'
+                    }`}>
+                      {item.EQT_USE_ARR_YN === 'Y' ? '사용가능' :
+                       item.EQT_USE_ARR_YN === 'A' ? '검사대기' : 'N/A'}
+                    </span>
+                    <span className="text-xs text-gray-400">{item.ITEM_MID_NM}</span>
+                  </div>
+                </div>
+              </button>
+            ))}
+          </div>
+          <button
+            onClick={() => {
+              setShowMultipleResultModal(false);
+              setMultipleResults([]);
+            }}
+            className="w-full py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg font-semibold text-sm transition-all"
+          >
+            취소
+          </button>
+        </div>
+      </BaseModal>
 
       {/* 장비반납 모달 */}
       <BaseModal
