@@ -1224,8 +1224,24 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
 
   // 지점(SO_NM) > 장비중분류(ITEM_MID_NM) 2단계 그룹화 + 그룹 내 EQT_CL_NM 정렬
   const groupedByLocation = filteredDisplayList.reduce((acc, item, idx) => {
-    // SO_NM이 없으면 MST_SO_NM 사용, 둘 다 없으면 '본부' 표시
-    const soKey = item.SO_NM || item.MST_SO_NM || (item.MST_SO_ID === '100' ? '본부' : item.SO_ID) || '미지정';
+    // 지점명 결정: SO_NM > MST_SO_NM > '본부' (100인 경우) > SO_ID
+    // '100'은 본부를 의미하므로 '본부'로 표시
+    let soKey = '미지정';
+    const soNm = item.SO_NM?.trim();
+    const mstSoNm = item.MST_SO_NM?.trim();
+    const soId = item.SO_ID?.trim();
+    const mstSoId = item.MST_SO_ID?.trim();
+
+    if (soNm && soNm !== '100') {
+      soKey = soNm;
+    } else if (mstSoNm && mstSoNm !== '100') {
+      soKey = mstSoNm;
+    } else if (soId === '100' || mstSoId === '100' || soNm === '100' || mstSoNm === '100') {
+      soKey = '본부';
+    } else if (soId) {
+      soKey = soId;
+    }
+
     const itemMidKey = item.ITEM_MID_NM || '기타';
     if (!acc[soKey]) acc[soKey] = {};
     if (!acc[soKey][itemMidKey]) acc[soKey][itemMidKey] = [];
