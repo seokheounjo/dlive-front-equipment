@@ -189,7 +189,11 @@ const EquipmentList: React.FC<EquipmentListProps> = ({ onBack, showToast }) => {
   const [isLoadingMyEquipments, setIsLoadingMyEquipments] = useState(false);
 
   // 조회 모드: single(스캔), multi(복수스캔), manual(장비번호 입력)
-  const [scanMode, setScanMode] = useState<ScanMode>('single');
+  const [scanMode, setScanMode] = useState<ScanMode>('manual');
+
+  // 복수 결과 선택 모달
+  const [showMultipleResultModal, setShowMultipleResultModal] = useState(false);
+  const [multipleResults, setMultipleResults] = useState<EquipmentDetail[]>([]);
 
   // 복수 스캔 누적 조회 기능
   const [scannedItems, setScannedItems] = useState<EquipmentDetail[]>([]);
@@ -402,8 +406,8 @@ const EquipmentList: React.FC<EquipmentListProps> = ({ onBack, showToast }) => {
       return;
     }
 
-    // 단일 장비 검색 헬퍼 함수
-    const searchSingleEquipment = async (val: string): Promise<{ found: boolean; equipment?: EquipmentDetail; source?: string }> => {
+    // 단일 장비 검색 헬퍼 함수 (복수 결과 반환 가능)
+    const searchSingleEquipment = async (val: string): Promise<{ found: boolean; equipment?: EquipmentDetail; equipments?: EquipmentDetail[]; source?: string; isMultiple?: boolean }> => {
       if (myEquipments.length > 0) {
         const foundInMy = searchInMyEquipments(val);
         if (foundInMy) return { found: true, equipment: foundInMy as EquipmentDetail, source: 'myEquipments' };
@@ -412,9 +416,14 @@ const EquipmentList: React.FC<EquipmentListProps> = ({ onBack, showToast }) => {
         const userInfo = getLoggedInUser();
         const historyParams = { EQT_SERNO: val, SO_ID: userInfo?.soId || undefined, WRKR_ID: userInfo?.userId };
         const historyResult = await debugApiCall('EquipmentList', 'getEquipmentHistoryInfo', () => getEquipmentHistoryInfo(historyParams), historyParams);
-        if (historyResult && (Array.isArray(historyResult) ? historyResult.length > 0 : true)) {
-          const equipment = Array.isArray(historyResult) ? historyResult[0] : historyResult;
-          return { found: true, equipment: equipment as EquipmentDetail, source: 'getEquipmentHistoryInfo' };
+        if (historyResult) {
+          const resultArray = Array.isArray(historyResult) ? historyResult : [historyResult];
+          if (resultArray.length > 1) {
+            // 복수 결과 - 모달 표시 필요
+            return { found: true, equipments: resultArray as EquipmentDetail[], source: 'getEquipmentHistoryInfo', isMultiple: true };
+          } else if (resultArray.length === 1) {
+            return { found: true, equipment: resultArray[0] as EquipmentDetail, source: 'getEquipmentHistoryInfo' };
+          }
         }
       } catch (e) { console.error('[장비처리] 검색 에러:', val, e); }
       return { found: false };
@@ -481,26 +490,38 @@ const EquipmentList: React.FC<EquipmentListProps> = ({ onBack, showToast }) => {
     const searchVal = searchValues[0];
     const result = await searchSingleEquipment(searchVal);
 
-    if (result.found && result.equipment) {
-      const equipment = result.equipment;
+    if (result.found) {
+      // 복수 결과인 경우 모달 표시
+      if (result.isMultiple && result.equipments && result.equipments.length > 1) {
+        setMultipleResults(result.equipments);
+        setShowMultipleResultModal(true);
+        setSearchValue('');
+        showToast?.(`${result.equipments.length}건의 장비가 검색되었습니다. 선택해주세요.`, 'info');
+        setIsLoading(false);
+        return;
+      }
 
-      if (isMultiScanMode) {
-        const added = handleAddToScannedList(equipment);
-        if (added) {
-          const scannedSNs = Array.from(scannedBarcodesRef.current).join(', ');
-          setSearchValue(scannedSNs);
-          showToast?.(`장비가 추가되었습니다. (${scannedItems.length + 1}건)`, 'success');
+      // 단일 결과
+      const equipment = result.equipment;
+      if (equipment) {
+        if (isMultiScanMode) {
+          const added = handleAddToScannedList(equipment);
+          if (added) {
+            const scannedSNs = Array.from(scannedBarcodesRef.current).join(', ');
+            setSearchValue(scannedSNs);
+            showToast?.(`장비가 추가되었습니다. (${scannedItems.length + 1}건)`, 'success');
+          } else {
+            const normalizedBarcode = searchVal.toUpperCase().replace(/[\s:-]/g, '');
+            scannedBarcodesRef.current.delete(normalizedBarcode);
+            setScanAttemptCount(scannedBarcodesRef.current.size);
+            const scannedSNs = Array.from(scannedBarcodesRef.current).join(', ');
+            setSearchValue(scannedSNs || '');
+          }
         } else {
-          const normalizedBarcode = searchVal.toUpperCase().replace(/[\s:-]/g, '');
-          scannedBarcodesRef.current.delete(normalizedBarcode);
-          setScanAttemptCount(scannedBarcodesRef.current.size);
-          const scannedSNs = Array.from(scannedBarcodesRef.current).join(', ');
-          setSearchValue(scannedSNs || '');
+          setEquipmentDetail(enrichEquipmentData(equipment));
+          setRawResponse({ successApi: result.source, data: equipment, source: result.source });
+          showToast?.('장비 정보를 조회했습니다.', 'success');
         }
-      } else {
-        setEquipmentDetail(enrichEquipmentData(equipment));
-        setRawResponse({ successApi: result.source, data: equipment, source: result.source });
-        showToast?.('장비 정보를 조회했습니다.', 'success');
       }
     } else {
       if (isMultiScanMode) {
@@ -625,112 +646,54 @@ const EquipmentList: React.FC<EquipmentListProps> = ({ onBack, showToast }) => {
   return (
     <div className="h-full overflow-y-auto bg-gray-50 px-4 py-4 space-y-3">
 
-        {/* 조회 모드 선택 */}
-        <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-1">
-          <div className="grid grid-cols-2 gap-2">
-            <button
-              onClick={() => setScanMode('single')}
-              className={`py-2 px-2 rounded-lg text-sm font-medium transition-all ${
-                scanMode === 'single'
-                  ? 'bg-blue-500 text-white shadow-sm'
-                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-              }`}
-            >
-              스캔
-            </button>
-            
-            <button
-              onClick={() => setScanMode('manual')}
-              className={`py-2 px-2 rounded-lg text-sm font-medium transition-all ${
-                scanMode === 'manual'
-                  ? 'bg-green-500 text-white shadow-sm'
-                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-              }`}
-            >
-              장비번호
-            </button>
-          </div>
-
-          {/* 복수스캔 모드 결과 표시 */}
-          {scanMode === 'multi' && (scannedItems.length > 0 || failedBarcodes.length > 0 || scanAttemptCount > 0) && (
-            <div className="mt-3 flex items-center justify-between pt-3 border-t border-gray-100">
+        {/* 장비번호 입력 + 스캔 버튼 */}
+        <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4">
+          <div className="space-y-3">
+            <div>
+              <label className="block text-xs font-medium text-gray-600 mb-1.5">장비번호 (S/N 또는 MAC)</label>
               <div className="flex items-center gap-2">
-                {scannedItems.length > 0 && (
-                  <span className="text-xs text-blue-600 font-medium">
-                    성공: {scannedItems.length}건
-                  </span>
-                )}
-                {failedBarcodes.length > 0 && (
-                  <span className="text-xs text-red-500 font-medium">
-                    미등록: {failedBarcodes.length}건
-                  </span>
-                )}
-              </div>
-              <button
-                onClick={handleClearScannedItems}
-                className="text-xs text-red-500 hover:text-red-700 transition-colors"
-              >
-                목록 초기화
-              </button>
-            </div>
-          )}
-        </div>
-
-        {/* 스캔 버튼 (단일/복수스캔 모드) */}
-        {(scanMode === 'single' || scanMode === 'multi') && (
-          <button
-            onClick={() => setShowBarcodeScanner(true)}
-            className={`w-full py-4 rounded-xl font-semibold text-base shadow-lg flex items-center justify-center gap-3 active:scale-[0.98] transition-all touch-manipulation ${
-              scanMode === 'single'
-                ? 'bg-gradient-to-r from-blue-500 to-blue-600 text-white'
-                : 'bg-gradient-to-r from-purple-500 to-purple-600 text-white'
-            }`}
-          >
-            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z" />
-            </svg>
-            {scanMode === 'single' ? '바코드 스캔 (1건)' : '바코드 연속 스캔'}
-          </button>
-        )}
-
-        {/* 장비번호 입력 영역 (manual 모드) */}
-        {scanMode === 'manual' && (
-          <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4">
-            <div className="space-y-3">
-              <div>
-                <label className="block text-xs font-medium text-gray-600 mb-1.5">장비번호 (S/N 또는 MAC)</label>
                 <input
                   ref={inputRef}
                   type="text"
                   value={searchValue}
                   onChange={(e) => setSearchValue(e.target.value.toUpperCase())}
                   onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
-                  className="w-full px-4 py-3 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent uppercase font-mono transition-all"
+                  className="flex-1 px-4 py-3 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent uppercase font-mono transition-all"
                   placeholder="S/N 또는 MAC 주소 입력"
                   autoFocus
                 />
+                <button
+                  onClick={() => setShowBarcodeScanner(true)}
+                  className="px-4 py-3 bg-green-500 hover:bg-green-600 text-white rounded-lg font-semibold text-sm transition-all active:scale-[0.98] touch-manipulation flex items-center gap-1.5"
+                  style={{ WebkitTapHighlightColor: 'transparent' }}
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z" />
+                  </svg>
+                  스캔
+                </button>
               </div>
-              <button
-                onClick={() => handleSearch()}
-                disabled={isLoading}
-                className="w-full bg-blue-500 hover:bg-blue-600 disabled:bg-gray-400 text-white py-3 rounded-lg font-semibold text-sm shadow-sm transition-all active:scale-[0.98] touch-manipulation flex items-center justify-center gap-2"
-                style={{ WebkitTapHighlightColor: 'transparent' }}
-              >
-                {isLoading ? (
-                  <>
-                    <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-                    </svg>
-                    조회 중...
-                  </>
-                ) : (
-                  '조회'
-                )}
-              </button>
             </div>
+            <button
+              onClick={() => handleSearch()}
+              disabled={isLoading || !searchValue.trim()}
+              className="w-full bg-blue-500 hover:bg-blue-600 disabled:bg-gray-300 text-white py-3 rounded-lg font-semibold text-sm shadow-sm transition-all active:scale-[0.98] touch-manipulation flex items-center justify-center gap-2"
+              style={{ WebkitTapHighlightColor: 'transparent' }}
+            >
+              {isLoading ? (
+                <>
+                  <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                  </svg>
+                  조회 중...
+                </>
+              ) : (
+                '조회'
+              )}
+            </button>
           </div>
-        )}
+        </div>
 
         {/* 복수 스캔 모드: 스캔된 장비 목록 */}
         {isMultiScanMode && scannedItems.length > 0 && (
@@ -1123,6 +1086,124 @@ const EquipmentList: React.FC<EquipmentListProps> = ({ onBack, showToast }) => {
           isMultiScanMode={isMultiScanMode}
           scanCount={scanAttemptCount}
         />
+
+        {/* 복수 결과 선택 모달 */}
+        {showMultipleResultModal && multipleResults.length > 0 && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-2xl shadow-xl w-full max-w-md max-h-[80vh] overflow-hidden">
+              {/* 모달 헤더 */}
+              <div className="px-5 py-4 border-b border-gray-100 bg-gradient-to-r from-blue-50 to-white">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-base font-bold text-gray-800 flex items-center gap-2">
+                    <span className="text-blue-500">📋</span>
+                    장비 선택
+                  </h3>
+                  <button
+                    onClick={() => {
+                      setShowMultipleResultModal(false);
+                      setMultipleResults([]);
+                    }}
+                    className="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+                  >
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                </div>
+                <p className="text-xs text-gray-500 mt-1">
+                  {multipleResults.length}건의 장비가 검색되었습니다. 하나를 선택해주세요.
+                </p>
+              </div>
+
+              {/* 장비 목록 */}
+              <div className="overflow-y-auto max-h-[60vh] p-4 space-y-2">
+                {multipleResults.map((equipment, index) => {
+                  const enrichedEquipment = enrichEquipmentData(equipment);
+                  return (
+                    <div
+                      key={index}
+                      className="p-4 bg-gray-50 rounded-xl border border-gray-100 cursor-pointer hover:bg-blue-50 hover:border-blue-200 transition-all active:scale-[0.98]"
+                      onClick={() => {
+                        setEquipmentDetail(enrichedEquipment);
+                        setShowMultipleResultModal(false);
+                        setMultipleResults([]);
+                        setRawResponse({ source: 'multiple_result_selection', data: enrichedEquipment });
+                        showToast?.('장비를 선택했습니다.', 'success');
+                      }}
+                    >
+                      {/* 장비 정보 헤더 */}
+                      <div className="flex items-start justify-between mb-2">
+                        <div className="flex items-center gap-2">
+                          <span className="bg-blue-500 text-white text-xs font-bold px-2 py-0.5 rounded">
+                            #{index + 1}
+                          </span>
+                          <span className="font-bold text-gray-800 text-sm">
+                            {enrichedEquipment.EQT_CL_NM || enrichedEquipment.ITEM_NM || '장비'}
+                          </span>
+                        </div>
+                        <span className={`px-2 py-0.5 rounded text-xs font-semibold ${
+                          enrichedEquipment.EQT_STAT_CD === '10' ? 'bg-green-100 text-green-700' :
+                          enrichedEquipment.EQT_STAT_CD === '20' ? 'bg-blue-100 text-blue-700' :
+                          'bg-gray-100 text-gray-700'
+                        }`}>
+                          {enrichedEquipment.EQT_STAT_CD_NM || '-'}
+                        </span>
+                      </div>
+
+                      {/* 상세 정보 */}
+                      <div className="space-y-1.5 text-xs">
+                        <div className="flex">
+                          <span className="text-gray-400 w-16 flex-shrink-0">S/N</span>
+                          <span className="font-mono text-gray-800">{enrichedEquipment.EQT_SERNO || '-'}</span>
+                        </div>
+                        <div className="flex">
+                          <span className="text-gray-400 w-16 flex-shrink-0">MAC</span>
+                          <span className="font-mono text-gray-700">{enrichedEquipment.MAC_ADDRESS || '-'}</span>
+                        </div>
+                        <div className="flex">
+                          <span className="text-gray-400 w-16 flex-shrink-0">위치</span>
+                          <span className="text-gray-700">
+                            {enrichedEquipment.EQT_LOC_TP_CD_NM || '-'}
+                            {enrichedEquipment.EQT_LOC_NM && ` · ${enrichedEquipment.EQT_LOC_NM}`}
+                          </span>
+                        </div>
+                        {enrichedEquipment.WRKR_NM && (
+                          <div className="flex">
+                            <span className="text-gray-400 w-16 flex-shrink-0">보유자</span>
+                            <span className="text-gray-700">{enrichedEquipment.WRKR_NM}</span>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* 선택 화살표 */}
+                      <div className="flex justify-end mt-2">
+                        <span className="text-blue-500 text-xs flex items-center gap-1">
+                          선택하기
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                          </svg>
+                        </span>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* 모달 푸터 */}
+              <div className="px-5 py-3 border-t border-gray-100 bg-gray-50">
+                <button
+                  onClick={() => {
+                    setShowMultipleResultModal(false);
+                    setMultipleResults([]);
+                  }}
+                  className="w-full py-2.5 bg-gray-200 hover:bg-gray-300 text-gray-700 rounded-lg font-medium text-sm transition-all"
+                >
+                  취소
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
     </div>
   );
 };
