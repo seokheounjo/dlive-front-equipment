@@ -557,6 +557,17 @@ const EquipmentRecovery: React.FC<EquipmentRecoveryProps> = ({ onBack }) => {
               SO_ID: so.SO_ID || so.soId || '',
               SO_NM: so.SO_NM || so.soNm || so.SO_ID || ''
             })).filter((so: SoInfo) => so.SO_ID);
+            // MST_SO_ID(본부) 정보도 추가 (중복 제거)
+            const mstSoIds = new Set<string>();
+            authSoList.forEach((so: any) => {
+              const mstId = so.MST_SO_ID || so.mstSoId;
+              if (mstId && !mappedList.some(s => s.SO_ID === mstId)) {
+                mstSoIds.add(mstId);
+              }
+            });
+            mstSoIds.forEach(mstId => {
+              mappedList.push({ SO_ID: mstId, SO_NM: `본부(${mstId})` });
+            });
             setSoList(mappedList);
             return;
           }
@@ -572,6 +583,17 @@ const EquipmentRecovery: React.FC<EquipmentRecoveryProps> = ({ onBack }) => {
               SO_ID: so.SO_ID || so.soId || '',
               SO_NM: so.SO_NM || so.soNm || so.SO_ID || ''
             })).filter((so: SoInfo) => so.SO_ID);
+            // MST_SO_ID(본부) 정보도 추가 (중복 제거)
+            const mstSoIds = new Set<string>();
+            authSoList.forEach((so: any) => {
+              const mstId = so.MST_SO_ID || so.mstSoId;
+              if (mstId && !mappedList.some(s => s.SO_ID === mstId)) {
+                mstSoIds.add(mstId);
+              }
+            });
+            mstSoIds.forEach(mstId => {
+              mappedList.push({ SO_ID: mstId, SO_NM: `본부(${mstId})` });
+            });
             setSoList(mappedList);
             return;
           }
@@ -929,7 +951,7 @@ const EquipmentRecovery: React.FC<EquipmentRecoveryProps> = ({ onBack }) => {
         {/* 자세히 보기: 추가 정보 */}
         {viewMode === 'detail' && (
           <div className="bg-gray-100 rounded-lg p-2 mt-2 text-xs space-y-1">
-            <div className="flex items-center justify-between"><span className="text-gray-800">{item.ITEM_MODEL || '-'}</span><span className="font-medium text-gray-800">{item.SO_NM || '-'}</span></div>
+            <div className="flex items-center justify-between"><span className="text-gray-800">{item.ITEM_MODEL || '-'}</span><span className="font-medium text-gray-800">{getSoName(item.SO_NM || item.SO_ID) || '-'}</span></div>
             <div className="flex items-center justify-between"><span><span className="text-gray-500">장비상태  : </span><span className="text-gray-800">{item.EQT_STAT_CD_NM || '-'}</span></span><span className="text-gray-400 text-xs">{item.EQT_NO || '-'}</span></div>
             <div><span className="text-gray-500">변경종류  : </span><span className="text-gray-800">{item.CHG_KND_NM || '-'}</span></div>
             <div><span className="text-gray-500">현재위치  : </span><span className="text-gray-800">{item.EQT_LOC_NM || item.EQT_LOC_TP_NM || '-'}</span></div>
