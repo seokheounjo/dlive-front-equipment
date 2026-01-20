@@ -751,15 +751,18 @@ const EquipmentMovement: React.FC<EquipmentMovementProps> = ({ onBack }) => {
 
         // 한글 인코딩 문제로 빈 결과 시, SO_ID 기반 전체 조회 후 클라이언트 필터링
         if (allWorkers.length === 0) {
-          // localStorage에서 userInfo 가져오기
-          const storedUserInfo = localStorage.getItem('userInfo');
-          if (storedUserInfo) {
+          // localStorage에서 user 또는 userInfo 가져오기 (키 이름이 다름)
+          const storedUser = localStorage.getItem('user') || localStorage.getItem('userInfo');
+          if (storedUser) {
             try {
-              const user = JSON.parse(storedUserInfo);
-              if (user.AUTH_SO_List && user.AUTH_SO_List.length > 0) {
-                console.log('[장비이동] 이름 검색 빈 결과 - SO_ID 기반 조회 후 필터링 시도');
-                const firstSoId = user.AUTH_SO_List[0].SO_ID;
+              const user = JSON.parse(storedUser);
+              // AUTH_SO_List 또는 authSoList 둘 다 확인 (App.tsx에서 다른 키로 저장)
+              const authSoList = user.AUTH_SO_List || user.authSoList || [];
+              if (authSoList.length > 0) {
+                console.log('[장비이동] 이름 검색 빈 결과 - SO_ID 기반 조회 후 필터링 시도, SO_ID:', authSoList[0].SO_ID);
+                const firstSoId = authSoList[0].SO_ID;
                 const soWorkers = await findUserList({ SO_ID: firstSoId });
+                console.log('[장비이동] SO_ID 조회 결과:', soWorkers.length, '명');
                 // 이름으로 클라이언트 필터링 (대소문자 무시, 부분 일치)
                 const keywordLower = keyword.toLowerCase();
                 allWorkers = soWorkers.filter((w: any) => {
@@ -769,7 +772,7 @@ const EquipmentMovement: React.FC<EquipmentMovementProps> = ({ onBack }) => {
                 console.log('[장비이동] SO_ID 기반 필터링 결과:', allWorkers.length, '명');
               }
             } catch (e) {
-              console.error('[장비이동] userInfo 파싱 실패:', e);
+              console.error('[장비이동] user 파싱 실패:', e);
             }
           }
         }
