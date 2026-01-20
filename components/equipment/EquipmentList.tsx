@@ -1089,10 +1089,10 @@ const EquipmentList: React.FC<EquipmentListProps> = ({ onBack, showToast }) => {
 
         {/* 복수 결과 선택 모달 */}
         {showMultipleResultModal && multipleResults.length > 0 && (
-          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 overflow-y-auto">
-            <div className="bg-white rounded-2xl shadow-xl w-full max-w-md my-4">
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-2xl shadow-xl w-full max-w-md max-h-[90vh] flex flex-col">
               {/* 모달 헤더 */}
-              <div className="px-5 py-4 border-b border-gray-100 bg-gradient-to-r from-blue-50 to-white">
+              <div className="px-5 py-4 border-b border-gray-100 bg-gradient-to-r from-blue-50 to-white rounded-t-2xl flex-shrink-0">
                 <div className="flex items-center justify-between">
                   <h3 className="text-base font-bold text-gray-800 flex items-center gap-2">
                     <span className="text-blue-500">📋</span>
@@ -1116,7 +1116,7 @@ const EquipmentList: React.FC<EquipmentListProps> = ({ onBack, showToast }) => {
               </div>
 
               {/* 장비 목록 */}
-              <div className="p-4 space-y-3">
+              <div className="p-4 space-y-3 overflow-y-auto flex-1">
                 {multipleResults.map((equipment, index) => {
                   const enrichedEquipment = enrichEquipmentData(equipment) as any;
                   // 폐기 여부 판단: EQT_STAT_CD_NM이 '폐기' 포함 또는 CHG_KND_CD_NM이 '폐기' 포함
@@ -1226,7 +1226,7 @@ const EquipmentList: React.FC<EquipmentListProps> = ({ onBack, showToast }) => {
               </div>
 
               {/* 모달 푸터 */}
-              <div className="px-5 py-3 border-t border-gray-100 bg-gray-50 rounded-b-2xl">
+              <div className="px-5 py-3 border-t border-gray-100 bg-gray-50 rounded-b-2xl flex-shrink-0">
                 <button
                   onClick={() => {
                     setShowMultipleResultModal(false);
