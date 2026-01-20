@@ -1560,7 +1560,7 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
 
                           {/* 장비 목록 */}
                           {!isItemMidCollapsed && (
-                            <div className="divide-y divide-gray-50">
+                            <div className="space-y-2">
                               {items.map((item, idx) => (
                   <div
                     key={item.EQT_NO || idx}
