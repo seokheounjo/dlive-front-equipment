@@ -1548,7 +1548,7 @@ const EquipmentMovement: React.FC<EquipmentMovementProps> = ({ onBack }) => {
                               className={`p-3 rounded-lg border-2 transition-all ${
                                 item.isTransferable === false ? 'bg-red-50 border-red-200 opacity-60' :
                                 item.isScanned ? 'bg-purple-50 border-purple-200' :
-                                'bg-gray-50 border-transparent hover:border-gray-200'
+                                'bg-gray-50 border-gray-200 hover:border-gray-300'
                               }`}
                             >
                               <div className="flex items-start gap-3">

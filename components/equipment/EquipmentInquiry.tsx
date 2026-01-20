@@ -1583,7 +1583,7 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
                         : item._category === 'OWNED' ? 'bg-green-50/50 border-green-200 hover:border-green-300'
                         : item._category === 'RETURN_REQUESTED' ? 'bg-amber-50/50 border-amber-200 hover:border-amber-300'
                         : item._category === 'INSPECTION_WAITING' ? 'bg-purple-50/50 border-purple-200 hover:border-purple-300'
-                        : 'bg-gray-50 border-transparent hover:border-gray-200'
+                        : 'bg-gray-50 border-gray-200 hover:border-gray-300'
                     }`}
                   >
                     <div className="flex items-start gap-3">

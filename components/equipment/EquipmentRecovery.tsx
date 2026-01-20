@@ -935,7 +935,7 @@ const EquipmentRecovery: React.FC<EquipmentRecoveryProps> = ({ onBack }) => {
             ? 'bg-blue-50 border-blue-400'
             : item.isScanned
               ? 'bg-orange-50 border-orange-200'
-              : 'bg-gray-50 border-transparent hover:border-gray-200'
+              : 'bg-gray-50 border-gray-200 hover:border-gray-300'
         }`}
       >
         <div className="flex items-start gap-3">

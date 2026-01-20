@@ -789,7 +789,7 @@ const EquipmentAssignment: React.FC<EquipmentAssignmentProps> = ({ onBack, showT
                                 ? 'bg-blue-50 border-blue-400'
                                 : isReceived ? 'bg-green-50/50 border-green-200'
                                 : !hasSerial ? 'bg-gray-100/50 border-gray-200'
-                                : 'bg-gray-50 border-transparent hover:border-gray-200'
+                                : 'bg-gray-50 border-gray-200 hover:border-gray-300'
                             }`}
                           >
                             <div className="flex items-start gap-3">
