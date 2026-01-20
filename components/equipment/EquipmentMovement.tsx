@@ -1536,7 +1536,7 @@ const EquipmentMovement: React.FC<EquipmentMovementProps> = ({ onBack }) => {
 
                           {/* 장비 목록 */}
                           {!itemCollapsed && (
-                            <div className="divide-y divide-gray-50">
+                            <div className="space-y-2">
                               {items.map((item, idx) => {
                                 const globalIndex = item._globalIdx;
                                 return (

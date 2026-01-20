@@ -1234,7 +1234,7 @@ const EquipmentRecovery: React.FC<EquipmentRecoveryProps> = ({ onBack }) => {
 
                           {/* Equipment Items */}
                           {!isItemTypeCollapsed && (
-                            <div className="divide-y divide-gray-50">
+                            <div className="space-y-2">
                               {items.map(item => renderEquipmentItem(item))}
                             </div>
                           )}

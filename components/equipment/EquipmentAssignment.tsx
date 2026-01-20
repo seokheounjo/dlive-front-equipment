@@ -771,7 +771,7 @@ const EquipmentAssignment: React.FC<EquipmentAssignmentProps> = ({ onBack, showT
 
                           {/* 장비 목록 */}
                           {!isCollapsed && (
-                            <div className="divide-y divide-gray-50">
+                            <div className="space-y-2">
                               {items.map((item) => {
                                 const idx = item._idx;
                                 const isReceived = item.PROC_YN === 'Y';
