@@ -1110,7 +1110,7 @@ const EquipmentList: React.FC<EquipmentListProps> = ({ onBack, showToast }) => {
                     </svg>
                   </button>
                 </div>
-                <p className="text-xs text-gray-500 mt-1">
+                <p className="text-sm text-gray-500 mt-1">
                   {multipleResults.length}건의 장비가 검색되었습니다. 하나를 선택해주세요.
                 </p>
               </div>
@@ -1155,7 +1155,7 @@ const EquipmentList: React.FC<EquipmentListProps> = ({ onBack, showToast }) => {
                             {enrichedEquipment.EQT_USE_ARR_YN_NM || (isUsable ? '사용가능' : '사용불가')}
                           </span>
                         </div>
-                        <span className="text-xs text-gray-400">#{index + 1}</span>
+                        <span className="text-xs text-gray-400">{index + 1}/{multipleResults.length}</span>
                       </div>
 
                       {/* 장비 정보 */}
