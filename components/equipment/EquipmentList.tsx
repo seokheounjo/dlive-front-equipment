@@ -1116,13 +1116,23 @@ const EquipmentList: React.FC<EquipmentListProps> = ({ onBack, showToast }) => {
               </div>
 
               {/* 장비 목록 */}
-              <div className="overflow-y-auto max-h-[60vh] p-4 space-y-2">
+              <div className="overflow-y-auto max-h-[60vh] p-4 space-y-3">
                 {multipleResults.map((equipment, index) => {
-                  const enrichedEquipment = enrichEquipmentData(equipment);
+                  const enrichedEquipment = enrichEquipmentData(equipment) as any;
+                  // 폐기 여부 판단: EQT_STAT_CD_NM이 '폐기' 포함 또는 CHG_KND_CD_NM이 '폐기' 포함
+                  const isDisposed = (enrichedEquipment.EQT_STAT_CD_NM || '').includes('폐기') ||
+                                     (enrichedEquipment.CHG_KND_CD_NM || '').includes('폐기');
+                  const isUsable = enrichedEquipment.EQT_USE_ARR_YN === 'Y' ||
+                                   (enrichedEquipment.EQT_USE_ARR_YN_NM || '').includes('사용가능');
+
                   return (
                     <div
                       key={index}
-                      className="p-4 bg-gray-50 rounded-xl border border-gray-100 cursor-pointer hover:bg-blue-50 hover:border-blue-200 transition-all active:scale-[0.98]"
+                      className={`p-4 rounded-xl border-2 cursor-pointer transition-all active:scale-[0.98] ${
+                        isDisposed
+                          ? 'bg-red-50 border-red-200 hover:bg-red-100 hover:border-red-300'
+                          : 'bg-green-50 border-green-200 hover:bg-green-100 hover:border-green-300'
+                      }`}
                       onClick={() => {
                         setEquipmentDetail(enrichedEquipment);
                         setShowMultipleResultModal(false);
@@ -1131,54 +1141,80 @@ const EquipmentList: React.FC<EquipmentListProps> = ({ onBack, showToast }) => {
                         showToast?.('장비를 선택했습니다.', 'success');
                       }}
                     >
-                      {/* 장비 정보 헤더 */}
-                      <div className="flex items-start justify-between mb-2">
+                      {/* 상태 배지 (폐기/정상) */}
+                      <div className="flex items-center justify-between mb-3">
                         <div className="flex items-center gap-2">
-                          <span className="bg-blue-500 text-white text-xs font-bold px-2 py-0.5 rounded">
-                            #{index + 1}
+                          <span className={`text-xs font-bold px-2 py-1 rounded ${
+                            isDisposed ? 'bg-red-500 text-white' : 'bg-green-500 text-white'
+                          }`}>
+                            {isDisposed ? '⛔ 폐기' : '✅ 정상'}
                           </span>
-                          <span className="font-bold text-gray-800 text-sm">
-                            {enrichedEquipment.EQT_CL_NM || enrichedEquipment.ITEM_NM || '장비'}
+                          <span className={`text-xs px-2 py-0.5 rounded ${
+                            isUsable ? 'bg-blue-100 text-blue-700' : 'bg-gray-200 text-gray-600'
+                          }`}>
+                            {enrichedEquipment.EQT_USE_ARR_YN_NM || (isUsable ? '사용가능' : '사용불가')}
                           </span>
                         </div>
-                        <span className={`px-2 py-0.5 rounded text-xs font-semibold ${
-                          enrichedEquipment.EQT_STAT_CD === '10' ? 'bg-green-100 text-green-700' :
-                          enrichedEquipment.EQT_STAT_CD === '20' ? 'bg-blue-100 text-blue-700' :
-                          'bg-gray-100 text-gray-700'
-                        }`}>
-                          {enrichedEquipment.EQT_STAT_CD_NM || '-'}
-                        </span>
+                        <span className="text-xs text-gray-400">#{index + 1}</span>
+                      </div>
+
+                      {/* 장비 정보 */}
+                      <div className="mb-3">
+                        <div className="font-bold text-gray-800 text-sm mb-1">
+                          {enrichedEquipment.EQT_CL_NM || enrichedEquipment.ITEM_NM || '장비'}
+                        </div>
+                        <div className="text-xs text-gray-500">
+                          {enrichedEquipment.ITEM_MODEL && `모델: ${enrichedEquipment.ITEM_MODEL}`}
+                          {enrichedEquipment.MAKER && ` · ${enrichedEquipment.MAKER}`}
+                        </div>
                       </div>
 
                       {/* 상세 정보 */}
-                      <div className="space-y-1.5 text-xs">
+                      <div className="space-y-1.5 text-xs bg-white/60 rounded-lg p-2.5">
                         <div className="flex">
                           <span className="text-gray-400 w-16 flex-shrink-0">S/N</span>
-                          <span className="font-mono text-gray-800">{enrichedEquipment.EQT_SERNO || '-'}</span>
+                          <span className="font-mono text-gray-800 font-medium">{enrichedEquipment.EQT_SERNO || '-'}</span>
                         </div>
                         <div className="flex">
-                          <span className="text-gray-400 w-16 flex-shrink-0">MAC</span>
-                          <span className="font-mono text-gray-700">{enrichedEquipment.MAC_ADDRESS || '-'}</span>
+                          <span className="text-gray-400 w-16 flex-shrink-0">장비상태</span>
+                          <span className={`font-medium ${isDisposed ? 'text-red-600' : 'text-green-600'}`}>
+                            {enrichedEquipment.EQT_STAT_CD_NM || '-'}
+                          </span>
+                        </div>
+                        <div className="flex">
+                          <span className="text-gray-400 w-16 flex-shrink-0">장비타입</span>
+                          <span className={`${enrichedEquipment.EQT_TP_CD_NM === '불량' ? 'text-orange-600' : 'text-gray-700'}`}>
+                            {enrichedEquipment.EQT_TP_CD_NM || '-'}
+                          </span>
                         </div>
                         <div className="flex">
                           <span className="text-gray-400 w-16 flex-shrink-0">위치</span>
                           <span className="text-gray-700">
-                            {enrichedEquipment.EQT_LOC_TP_CD_NM || '-'}
-                            {enrichedEquipment.EQT_LOC_NM && ` · ${enrichedEquipment.EQT_LOC_NM}`}
+                            {enrichedEquipment.EQT_LOC_NM || enrichedEquipment.SO_NM || '-'}
                           </span>
                         </div>
-                        {enrichedEquipment.WRKR_NM && (
-                          <div className="flex">
-                            <span className="text-gray-400 w-16 flex-shrink-0">보유자</span>
-                            <span className="text-gray-700">{enrichedEquipment.WRKR_NM}</span>
-                          </div>
-                        )}
+                        <div className="flex">
+                          <span className="text-gray-400 w-16 flex-shrink-0">변경이력</span>
+                          <span className={`${isDisposed ? 'text-red-600 font-medium' : 'text-gray-700'}`}>
+                            {enrichedEquipment.CHG_KND_CD_NM || '-'}
+                          </span>
+                        </div>
+                        <div className="flex">
+                          <span className="text-gray-400 w-16 flex-shrink-0">변경일</span>
+                          <span className="text-gray-600">
+                            {enrichedEquipment.CHG_DATE ? enrichedEquipment.CHG_DATE.split(' ')[0] : '-'}
+                          </span>
+                        </div>
                       </div>
 
-                      {/* 선택 화살표 */}
-                      <div className="flex justify-end mt-2">
-                        <span className="text-blue-500 text-xs flex items-center gap-1">
-                          선택하기
+                      {/* 선택 버튼 */}
+                      <div className="flex justify-end mt-3">
+                        <span className={`text-xs flex items-center gap-1 px-3 py-1.5 rounded-lg ${
+                          isDisposed
+                            ? 'bg-red-100 text-red-600'
+                            : 'bg-green-100 text-green-600'
+                        }`}>
+                          이 장비 선택
                           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                           </svg>
