@@ -750,17 +750,28 @@ const EquipmentMovement: React.FC<EquipmentMovementProps> = ({ onBack }) => {
         console.log('[장비이동] 이름 검색 결과:', allWorkers.length, '명');
 
         // 한글 인코딩 문제로 빈 결과 시, SO_ID 기반 전체 조회 후 클라이언트 필터링
-        if (allWorkers.length === 0 && userInfo?.AUTH_SO_List && userInfo.AUTH_SO_List.length > 0) {
-          console.log('[장비이동] 이름 검색 빈 결과 - SO_ID 기반 조회 후 필터링 시도');
-          const firstSoId = userInfo.AUTH_SO_List[0].SO_ID;
-          const soWorkers = await findUserList({ SO_ID: firstSoId });
-          // 이름으로 클라이언트 필터링 (대소문자 무시, 부분 일치)
-          const keywordLower = keyword.toLowerCase();
-          allWorkers = soWorkers.filter((w: any) => {
-            const name = (w.USR_NM || w.USR_NAME_EN || '').toLowerCase();
-            return name.includes(keywordLower);
-          });
-          console.log('[장비이동] SO_ID 기반 필터링 결과:', allWorkers.length, '명');
+        if (allWorkers.length === 0) {
+          // localStorage에서 userInfo 가져오기
+          const storedUserInfo = localStorage.getItem('userInfo');
+          if (storedUserInfo) {
+            try {
+              const user = JSON.parse(storedUserInfo);
+              if (user.AUTH_SO_List && user.AUTH_SO_List.length > 0) {
+                console.log('[장비이동] 이름 검색 빈 결과 - SO_ID 기반 조회 후 필터링 시도');
+                const firstSoId = user.AUTH_SO_List[0].SO_ID;
+                const soWorkers = await findUserList({ SO_ID: firstSoId });
+                // 이름으로 클라이언트 필터링 (대소문자 무시, 부분 일치)
+                const keywordLower = keyword.toLowerCase();
+                allWorkers = soWorkers.filter((w: any) => {
+                  const name = (w.USR_NM || w.USR_NAME_EN || '').toLowerCase();
+                  return name.includes(keywordLower);
+                });
+                console.log('[장비이동] SO_ID 기반 필터링 결과:', allWorkers.length, '명');
+              }
+            } catch (e) {
+              console.error('[장비이동] userInfo 파싱 실패:', e);
+            }
+          }
         }
 
         if (allWorkers.length > 0) {
