@@ -435,6 +435,8 @@ const EquipmentRecovery: React.FC<EquipmentRecoveryProps> = ({ onBack }) => {
   // SO_ID로 SO_NM을 찾는 헬퍼 함수
   const getSoName = (soIdOrNm: string): string => {
     if (!soIdOrNm) return '미지정';
+    // 본부 ID는 '본부'로 반환
+    if (soIdOrNm === '100') return '본부';
     // 숫자만 있는지 확인 (SO_ID인 경우)
     const isNumericId = /^\d+$/.test(soIdOrNm);
     // 이미 지점명이면 그대로 반환 (숫자가 아닌 경우)
