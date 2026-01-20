@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { findUserList, getWrkrHaveEqtListAll as getWrkrHaveEqtList, changeEquipmentWorker, getEquipmentHistoryInfo, saveTransferredEquipment, getEqtMasterInfo } from '../../services/apiService';
+import { findUserList, getWrkrHaveEqtListAll as getWrkrHaveEqtList, changeEquipmentWorker, getEquipmentHistoryInfo, saveTransferredEquipment, getEqtMasterInfo, getEquipmentTypeList } from '../../services/apiService';
 import { debugApiCall } from './equipmentDebug';
 import { Search, ChevronDown, ChevronUp, Check, X, User, RotateCcw, AlertTriangle } from 'lucide-react';
 import BarcodeScanner from './BarcodeScanner';
@@ -236,7 +236,7 @@ const EquipmentMovement: React.FC<EquipmentMovementProps> = ({ onBack }) => {
     loadInitialData();
   }, []);
 
-  // 중분류(모델1) 변경 시 소분류(모델2) 목록을 장비 목록에서 추출
+  // 중분류(모델1) 변경 시 소분류(모델2) 목록을 API로 조회
   useEffect(() => {
     // 중분류 선택 해제 시 소분류도 초기화
     if (!selectedItemMidCd) {
@@ -245,25 +245,44 @@ const EquipmentMovement: React.FC<EquipmentMovementProps> = ({ onBack }) => {
       return;
     }
 
-    // 장비 목록에서 해당 중분류의 소분류 추출 (중복 제거)
-    const uniqueEqtCl = new Map<string, string>();
-    eqtTrnsList.forEach(item => {
-      if (item.ITEM_MID_CD === selectedItemMidCd && item.EQT_CL_CD && item.EQT_CL_NM) {
-        uniqueEqtCl.set(item.EQT_CL_CD, item.EQT_CL_NM);
+    // API로 소분류 목록 조회 (장비 유무와 무관하게 항상 표시)
+    const loadEquipmentTypes = async () => {
+      try {
+        console.log('[장비이동] 소분류 API 호출:', selectedItemMidCd);
+        const result = await getEquipmentTypeList({ ITEM_MID_CD: selectedItemMidCd });
+        console.log('[장비이동] 소분류 API 결과:', result);
+
+        const options = result.map((item: any) => ({
+          code: item.COMMON_CD || item.EQT_CL_CD || '',
+          name: item.COMMON_CD_NM || item.EQT_CL_NM || ''
+        })).filter((opt: any) => opt.code && opt.name)
+          .sort((a: any, b: any) => a.name.localeCompare(b.name));
+
+        setEqtClOptions(options);
+        console.log('[장비이동] 소분류 목록 로드:', options.length, '개', options);
+      } catch (error) {
+        console.error('[장비이동] 소분류 API 실패:', error);
+        // API 실패 시 장비 목록에서 추출 (fallback)
+        const uniqueEqtCl = new Map<string, string>();
+        eqtTrnsList.forEach(item => {
+          if (item.ITEM_MID_CD === selectedItemMidCd && item.EQT_CL_CD && item.EQT_CL_NM) {
+            uniqueEqtCl.set(item.EQT_CL_CD, item.EQT_CL_NM);
+          }
+        });
+        const fallbackOptions = Array.from(uniqueEqtCl.entries()).map(([code, name]) => ({
+          code,
+          name
+        })).sort((a, b) => a.name.localeCompare(b.name));
+        setEqtClOptions(fallbackOptions);
+        console.log('[장비이동] 소분류 fallback:', fallbackOptions.length, '개');
       }
-    });
+    };
 
-    const options = Array.from(uniqueEqtCl.entries()).map(([code, name]) => ({
-      code,
-      name
-    })).sort((a, b) => a.name.localeCompare(b.name));
-
-    setEqtClOptions(options);
-    console.log('[장비이동] 소분류 목록 추출:', options.length, '개', options);
+    loadEquipmentTypes();
 
     // 중분류 변경 시 소분류 선택 초기화
     setSelectedEqtClCd('');
-  }, [selectedItemMidCd, eqtTrnsList]);
+  }, [selectedItemMidCd]);
 
   // 선택된 장비 기준으로 선택 모드 결정
   const getSelectionModeFromCheckedItems = (items: EqtTrns[]): string => {

@@ -5943,6 +5943,45 @@ export const getEquipmentChkStndByAAll = async (params: {
 };
 
 /**
+ * 장비 소분류(EQT_CL_CD) 목록 조회
+ * Legacy: getEquipmentTypeList.req
+ * SQL: SELECT EQT_CL_CD, EQT_CL_NM FROM TCMEP_EQT_CL WHERE ITEM_MID_CD = ?
+ * @param params 중분류 코드
+ * @returns 소분류 목록 [{COMMON_CD: code, COMMON_CD_NM: name}]
+ */
+export const getEquipmentTypeList = async (params: {
+  ITEM_MID_CD: string;
+}): Promise<Array<{COMMON_CD: string; COMMON_CD_NM: string}>> => {
+  console.log('[getEquipmentTypeList] API call:', params);
+
+  try {
+    const origin = typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000';
+
+    const response = await fetchWithRetry(`${API_BASE}/customer/equipment/getEquipmentTypeList`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Origin': origin
+      },
+      credentials: 'include',
+      body: JSON.stringify(params),
+    });
+
+    const result = await response.json();
+    console.log('[getEquipmentTypeList] Result:', result);
+
+    if (!result) return [];
+    if (result.data && Array.isArray(result.data)) {
+      return result.data;
+    }
+    return Array.isArray(result) ? result : result.output1 || [];
+  } catch (error: any) {
+    console.error('[getEquipmentTypeList] Failed:', error);
+    return [];  // 실패 시 빈 배열 반환 (UI에서 처리)
+  }
+};
+
+/**
  * 장비 상세 조회 (분실처리 전 필수 호출)
  * Legacy: getWrkrListDetail.req
  * @param params 조회 조건
