@@ -6177,44 +6177,6 @@ export const searchWorkersByName = async (params: {
   }
 };
 
-/**
- * 장비 소분류(EQT_CL_CD) 목록 조회
- * - 중분류(ITEM_MID_CD) 선택 시 해당하는 소분류 목록을 반환
- * - Legacy: /customer/equipment/getEquipmentTypeList.req
- *
- * @param params ITEM_MID_CD (중분류 코드, 필수)
- * @returns 소분류 목록 [{COMMON_CD: string, COMMON_CD_NM: string}]
- */
-export const getEquipmentTypeList = async (params: {
-  ITEM_MID_CD: string;
-}): Promise<{ COMMON_CD: string; COMMON_CD_NM: string }[]> => {
-  console.log('[getEquipmentTypeList] 장비 소분류 목록 조회:', params);
-
-  if (!params.ITEM_MID_CD) {
-    console.warn('[getEquipmentTypeList] ITEM_MID_CD 필수');
-    return [];
-  }
-
-  try {
-    const response = await fetchWithRetry(`${API_BASE}/customer/equipment/getEquipmentTypeList`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Origin': typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000'
-      },
-      body: JSON.stringify(params),
-      credentials: 'include'
-    });
-
-    const result = await response.json();
-    console.log('[getEquipmentTypeList] 결과:', result.length || 0, '개');
-    return Array.isArray(result) ? result : [];
-  } catch (error: any) {
-    console.error('[getEquipmentTypeList] 실패:', error);
-    return [];
-  }
-};
-
 // ==================== 장비관리 API Aliases ====================
 export const getWrkrHaveEqtList = getWorkerEquipmentList;
 export const apiRequest = async (endpoint: string, method: 'GET' | 'POST' = 'POST', body?: any): Promise<any> => {
