@@ -2920,6 +2920,7 @@ export const addEquipmentReturnRequest = async (
       EQT_SERNO?: string;
       RETN_RESN_CD?: string;
       ACTION?: string;
+      EQT_USE_ARR_YN?: string;  // Y/A 값 유지
     }>;
   },
   onProgress?: (current: number, total: number, item: string) => void
@@ -2960,6 +2961,7 @@ export const addEquipmentReturnRequest = async (
         RETURN_TP: params.RETURN_TP || '2',
         PROC_STAT: '1',
         RETN_PSN_ID: params.WRKR_ID,
+        EQT_USE_ARR_YN: item.EQT_USE_ARR_YN || 'Y',  // Y/A 값 유지 (기본값 Y)
       };
 
       console.log('[addEquipmentReturnRequest] 개별 호출:', item.EQT_SERNO, singleRequestBody);
