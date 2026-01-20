@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { findUserList, searchWorkersByName, getWrkrHaveEqtListAll as getWrkrHaveEqtList, changeEquipmentWorker, getEquipmentHistoryInfo, saveTransferredEquipment, getEqtMasterInfo } from '../../services/apiService';
+import { findUserList, getWrkrHaveEqtListAll as getWrkrHaveEqtList, changeEquipmentWorker, getEquipmentHistoryInfo, saveTransferredEquipment, getEqtMasterInfo } from '../../services/apiService';
 import { debugApiCall } from './equipmentDebug';
 import { Search, ChevronDown, ChevronUp, Check, X, User, RotateCcw, AlertTriangle } from 'lucide-react';
 import BarcodeScanner from './BarcodeScanner';
@@ -742,10 +742,10 @@ const EquipmentMovement: React.FC<EquipmentMovementProps> = ({ onBack }) => {
     setIsSearchingWorker(true);
     try {
       if (isNameSearch) {
-        // 이름 검색: searchWorkersByName API 사용 (WRKR_NM 파라미터)
+        // 이름 검색: findUserList API 사용 (USR_NM 파라미터) - getFindUsrList3.req
         console.log('[장비이동] 이름 검색:', keyword);
 
-        const allWorkers = await searchWorkersByName({ WRKR_NM: keyword });
+        const allWorkers = await findUserList({ USR_NM: keyword });
         console.log('[장비이동] 이름 검색 결과:', allWorkers.length, '명');
 
         if (allWorkers.length > 0) {
