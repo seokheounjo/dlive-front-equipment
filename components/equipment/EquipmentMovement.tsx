@@ -745,8 +745,23 @@ const EquipmentMovement: React.FC<EquipmentMovementProps> = ({ onBack }) => {
         // 이름 검색: findUserList API 사용 (USR_NM 파라미터) - getFindUsrList3.req
         console.log('[장비이동] 이름 검색:', keyword);
 
-        const allWorkers = await findUserList({ USR_NM: keyword });
+        // 먼저 USR_NM으로 직접 검색 시도
+        let allWorkers = await findUserList({ USR_NM: keyword });
         console.log('[장비이동] 이름 검색 결과:', allWorkers.length, '명');
+
+        // 한글 인코딩 문제로 빈 결과 시, SO_ID 기반 전체 조회 후 클라이언트 필터링
+        if (allWorkers.length === 0 && userInfo?.AUTH_SO_List && userInfo.AUTH_SO_List.length > 0) {
+          console.log('[장비이동] 이름 검색 빈 결과 - SO_ID 기반 조회 후 필터링 시도');
+          const firstSoId = userInfo.AUTH_SO_List[0].SO_ID;
+          const soWorkers = await findUserList({ SO_ID: firstSoId });
+          // 이름으로 클라이언트 필터링 (대소문자 무시, 부분 일치)
+          const keywordLower = keyword.toLowerCase();
+          allWorkers = soWorkers.filter((w: any) => {
+            const name = (w.USR_NM || w.USR_NAME_EN || '').toLowerCase();
+            return name.includes(keywordLower);
+          });
+          console.log('[장비이동] SO_ID 기반 필터링 결과:', allWorkers.length, '명');
+        }
 
         if (allWorkers.length > 0) {
           const workersToShow = allWorkers.slice(0, 30).map((w: any) => ({
