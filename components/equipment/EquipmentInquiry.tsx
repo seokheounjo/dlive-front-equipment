@@ -1111,9 +1111,21 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
                 const checkResult = await getEquipmentHistoryInfo({ EQT_SERNO: item.EQT_SERNO });
                 console.log(`[사용가능변경] 장비 조회 결과:`, checkResult);
 
-                // getEquipmentHistoryInfo는 장비 객체를 직접 반환함
-                // 다양한 응답 형태 처리: 직접 객체, data 배열, resultList 배열
-                const equipData = checkResult?.data?.[0] || checkResult?.resultList?.[0] || checkResult;
+                // getEquipmentHistoryInfo 응답 형태 처리:
+                // 1. {data: [...]} - data 배열에서 첫 번째
+                // 2. {resultList: [...]} - resultList에서 첫 번째
+                // 3. [...] - 배열 직접 반환 시 첫 번째 (apiService가 result.data 반환)
+                // 4. {...} - 객체 직접 반환
+                let equipData;
+                if (checkResult?.data?.[0]) {
+                  equipData = checkResult.data[0];
+                } else if (checkResult?.resultList?.[0]) {
+                  equipData = checkResult.resultList[0];
+                } else if (Array.isArray(checkResult) && checkResult.length > 0) {
+                  equipData = checkResult[0];
+                } else {
+                  equipData = checkResult;
+                }
                 console.log(`[사용가능변경] 장비 데이터:`, equipData);
                 const currentStatus = equipData?.EQT_USE_ARR_YN;
                 console.log(`[사용가능변경] 현재 상태 EQT_USE_ARR_YN:`, currentStatus);
