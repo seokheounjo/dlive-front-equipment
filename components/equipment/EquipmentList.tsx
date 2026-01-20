@@ -1226,7 +1226,7 @@ const EquipmentList: React.FC<EquipmentListProps> = ({ onBack, showToast }) => {
               </div>
 
               {/* 모달 푸터 */}
-              <div className="px-5 py-3 border-t border-gray-100 bg-gray-50">
+              <div className="px-5 py-3 border-t border-gray-100 bg-gray-50 rounded-b-2xl">
                 <button
                   onClick={() => {
                     setShowMultipleResultModal(false);
