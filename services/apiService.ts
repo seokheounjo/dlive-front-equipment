@@ -3181,10 +3181,11 @@ export const getEquipmentHistoryInfo = async (params: {
     console.log('✅ 장비 조회 성공:', result);
 
     // API 응답이 { success: true, data: [...] } 형태인 경우 data 추출
+    // 복수 결과를 위해 전체 배열 반환 (선택 팝업에서 처리)
     if (result.success && result.data) {
-      return Array.isArray(result.data) ? result.data[0] : result.data;
+      return result.data;  // 배열 전체 반환
     }
-    return Array.isArray(result) ? result[0] : result;
+    return result;
   } catch (error: any) {
     console.error('❌ 장비 조회 실패:', error);
     if (error instanceof NetworkError) {
