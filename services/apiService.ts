@@ -2961,7 +2961,10 @@ export const addEquipmentReturnRequest = async (
         RETURN_TP: params.RETURN_TP || '2',
         PROC_STAT: '1',
         RETN_PSN_ID: params.WRKR_ID,
-        EQT_USE_ARR_YN: item.EQT_USE_ARR_YN || 'Y',  // Y/A 값 유지 (기본값 Y)
+        // 반납요청 시 EQT_USE_ARR_YN 제어 (레거시 로직)
+        // - A(검사대기)면 A 유지
+        // - 그 외(Y, null 등)는 N으로 변경
+        EQT_USE_ARR_YN: item.EQT_USE_ARR_YN === 'A' ? 'A' : 'N',
       };
 
       console.log('[addEquipmentReturnRequest] 개별 호출:', item.EQT_SERNO, singleRequestBody);
@@ -5741,7 +5744,10 @@ export const delEquipmentReturnRequest = async (
         EQT_NO: item.EQT_NO,
         REQ_DT: item.REQ_DT || '',           // 필수! 반납요청일자
         RETURN_TP: item.RETURN_TP || '2',    // 필수! 반납유형
-        EQT_USE_ARR_YN: item.EQT_USE_ARR_YN || 'Y',
+        // 반납취소 시 EQT_USE_ARR_YN 제어 (레거시 로직)
+        // - A(검사대기)면 A 유지
+        // - 그 외는 Y(사용가능)로 복구
+        EQT_USE_ARR_YN: item.EQT_USE_ARR_YN === 'A' ? 'A' : 'Y',
         WRKR_ID: params.WRKR_ID,
         CRR_ID: params.CRR_ID,
         SO_ID: params.SO_ID || '',
