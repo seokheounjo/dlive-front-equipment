@@ -1089,8 +1089,8 @@ const EquipmentList: React.FC<EquipmentListProps> = ({ onBack, showToast }) => {
 
         {/* 복수 결과 선택 모달 */}
         {showMultipleResultModal && multipleResults.length > 0 && (
-          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-2xl shadow-xl w-full max-w-md max-h-[80vh] overflow-hidden">
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 overflow-y-auto">
+            <div className="bg-white rounded-2xl shadow-xl w-full max-w-md my-4">
               {/* 모달 헤더 */}
               <div className="px-5 py-4 border-b border-gray-100 bg-gradient-to-r from-blue-50 to-white">
                 <div className="flex items-center justify-between">
@@ -1116,7 +1116,7 @@ const EquipmentList: React.FC<EquipmentListProps> = ({ onBack, showToast }) => {
               </div>
 
               {/* 장비 목록 */}
-              <div className="overflow-y-auto max-h-[60vh] p-4 space-y-3">
+              <div className="p-4 space-y-3">
                 {multipleResults.map((equipment, index) => {
                   const enrichedEquipment = enrichEquipmentData(equipment) as any;
                   // 폐기 여부 판단: EQT_STAT_CD_NM이 '폐기' 포함 또는 CHG_KND_CD_NM이 '폐기' 포함
