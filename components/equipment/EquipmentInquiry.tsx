@@ -1084,9 +1084,9 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
           PROG_GB: 'M'  // M=Mobile, C=PC (not Y)
         };
 
-        // ORA-00001 재시도 로직 (Oracle 프로시저가 초 단위 PK 사용)
+        // ORA-00001 재시도 로직 제거 - 1번만 호출
         let retryCount = 0;
-        const maxRetries = 2;
+        const maxRetries = 0;
         let lastError: any = null;
         let apiSuccess = false;
 
