@@ -1469,11 +1469,11 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
             <div className="p-4 border-t border-gray-100 space-y-3">
               {/* 지점 */}
               <div className="flex items-center gap-2">
-                <label className="text-xs font-medium text-gray-600 w-16 flex-shrink-0">지점</label>
+                <label className="text-xs font-medium text-gray-600 w-14 flex-shrink-0">지점</label>
                 <select
                   value={selectedSoId}
                   onChange={(e) => setSelectedSoId(e.target.value)}
-                  className="flex-1 px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                  className="flex-1 px-3 py-2.5 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
                 >
                   <option value="">전체</option>
                   {soList.map((item) => (
@@ -1515,12 +1515,12 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
               </div>
               {/* S/N */}
               <div className="flex items-center gap-2">
-                <label className="text-xs font-medium text-gray-600 w-16 flex-shrink-0">S/N</label>
+                <label className="text-xs font-medium text-gray-600 w-14 flex-shrink-0">S/N</label>
                 <input
                   type="text"
                   value={eqtSerno}
                   onChange={(e) => setEqtSerno(e.target.value.toUpperCase())}
-                  className="flex-1 px-3 py-2 text-sm border border-gray-200 rounded-lg uppercase focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                  className="flex-1 px-3 py-2.5 text-sm border border-gray-200 rounded-lg uppercase focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
                   placeholder="바코드 또는 일련번호"
                 />
               </div>

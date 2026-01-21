@@ -169,6 +169,7 @@ router.post('/customer/equipment/getEquipmentReturnRequestCheck', handleProxy);
 router.post('/customer/equipment/addEquipmentReturnRequest', handleProxy);
 router.post('/customer/equipment/delEquipmentReturnRequest', handleProxy);  // 반납취소
 router.post('/customer/equipment/getWrkrHaveEqtList', handleProxy);
+router.post('/customer/equipment/getEquipmentTypeList', handleProxy);  // Model 2 (소분류) list
 router.post('/customer/equipment/cmplEqtCustLossIndem', handleProxy);
 router.post('/customer/equipment/setEquipmentChkStndByY', handleProxy);
 router.post('/customer/equipment/changeEqtWrkr_3', handleProxy);
