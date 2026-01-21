@@ -1685,33 +1685,23 @@ const EquipmentMovement: React.FC<EquipmentMovementProps> = ({ onBack }) => {
       {eqtTrnsList.length === 0 && !isLoading && (
         <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-8">
           <div className="text-center">
-            <div className={`w-16 h-16 mx-auto mb-4 rounded-full flex items-center justify-center ${searchError ? 'bg-red-100' : 'bg-blue-100'}`}>
-              {searchError ? (
-                <svg className="w-8 h-8 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                </svg>
-              ) : (
-                <svg className="w-8 h-8 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
-                </svg>
-              )}
+            <div className="w-16 h-16 mx-auto mb-4 bg-blue-100 rounded-full flex items-center justify-center">
+              <svg className="w-8 h-8 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+              </svg>
             </div>
             <p className="text-gray-500 text-sm mb-1">
               {searchError ? (
                 <>장비를 찾을 수 없습니다</>
-              ) : hasSearched && searchConditionMessage ? (
-                <>조회된 장비가 없습니다</>
               ) : (
-                <>이동 가능한 장비가 없습니다</>
+                <>조회된 장비가 없습니다</>
               )}
             </p>
             <p className="text-gray-400 text-xs">
               {searchError ? (
-                <>{searchError}</>
-              ) : hasSearched && searchConditionMessage ? (
-                <><span className="text-amber-600">{searchConditionMessage}</span> 조건에 해당하는 장비가 없습니다</>
+                <>S/N 또는 MAC 주소를 확인해주세요</>
               ) : (
-                <>기사를 선택하거나 장비번호를 입력하고 조회하세요</>
+                <>검색 조건을 설정하고 조회 버튼을 눌러주세요</>
               )}
             </p>
           </div>
