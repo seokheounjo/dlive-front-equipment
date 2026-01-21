@@ -1523,16 +1523,26 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
                   ))}
                 </select>
               </div>
-              {/* S/N */}
+              {/* S/N + 스캔 버튼 */}
               <div className="flex items-center gap-2">
                 <label className="text-xs font-medium text-gray-600 w-14 flex-shrink-0">S/N</label>
                 <input
                   type="text"
                   value={eqtSerno}
                   onChange={(e) => setEqtSerno(e.target.value.toUpperCase())}
-                  className="flex-1 px-3 py-2.5 text-sm border border-gray-200 rounded-lg uppercase focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
-                  placeholder="바코드 또는 일련번호"
+                  className="flex-1 px-3 py-2.5 text-sm border border-gray-200 rounded-lg uppercase focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all font-mono"
+                  placeholder="S/N 또는 MAC 주소 입력"
                 />
+                <button
+                  onClick={() => setShowBarcodeScanner(true)}
+                  className="px-4 py-2.5 bg-green-500 hover:bg-green-600 text-white rounded-lg font-semibold text-sm transition-all active:scale-[0.98] touch-manipulation flex items-center gap-1.5 flex-shrink-0"
+                  style={{ WebkitTapHighlightColor: 'transparent' }}
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z" />
+                  </svg>
+                  스캔
+                </button>
               </div>
             </div>
           )}
@@ -2424,7 +2434,12 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
         </div>
       )}
 
-      {/* Barcode Scanner - removed, using S/N input instead */}
+      {/* Barcode Scanner */}
+      <BarcodeScanner
+        isOpen={showBarcodeScanner}
+        onClose={() => setShowBarcodeScanner(false)}
+        onScan={handleBarcodeScan}
+      />
     </div>
   );
 };
