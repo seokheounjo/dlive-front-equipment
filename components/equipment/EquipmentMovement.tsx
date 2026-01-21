@@ -1328,14 +1328,15 @@ const EquipmentMovement: React.FC<EquipmentMovementProps> = ({ onBack }) => {
             </div>
           </div>
 
-          {/* 2. 장비종류 + 소분류 (한 줄) */}
+          {/* 2. 장비종류 (라벨 + select 2개) */}
           <div className="flex items-center gap-2">
+            <label className="text-xs font-medium text-gray-600 w-14 flex-shrink-0">장비종류</label>
             <select
               value={selectedItemMidCd}
               onChange={(e) => setSelectedItemMidCd(e.target.value)}
-              className="w-1/2 px-2 py-2.5 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="flex-1 px-2 py-2.5 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             >
-              <option value="">장비종류</option>
+              <option value="">전체</option>
               {ITEM_MID_OPTIONS.filter(opt => opt.code !== '').map(opt => (
                 <option key={opt.code} value={opt.code}>{opt.name}</option>
               ))}
@@ -1344,12 +1345,12 @@ const EquipmentMovement: React.FC<EquipmentMovementProps> = ({ onBack }) => {
               value={selectedEqtClCd}
               onChange={(e) => setSelectedEqtClCd(e.target.value)}
               disabled={!selectedItemMidCd || isLoadingEqtCl || eqtClOptions.length === 0}
-              className="w-1/2 px-2 py-2.5 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-100 disabled:cursor-not-allowed"
+              className="flex-1 px-2 py-2.5 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-100 disabled:cursor-not-allowed"
             >
               <option value="">
-                {!selectedItemMidCd ? '소분류' :
+                {!selectedItemMidCd ? '-' :
                  isLoadingEqtCl ? '...' :
-                 (eqtClOptions.length === 0 ? '없음' : '전체')}
+                 (eqtClOptions.length === 0 ? '-' : '전체')}
               </option>
               {eqtClOptions.map(opt => (
                 <option key={opt.code} value={opt.code}>{opt.name}</option>
