@@ -432,15 +432,6 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
     console.log('📋 [드롭다운] 초기화 완료');
   };
 
-  // 바코드 스캔 처리
-  const handleBarcodeScan = (scannedValue: string) => {
-    if (!scannedValue) return;
-    // MAC 주소 형식 정규화 (콜론 제거)
-    const normalizedSN = scannedValue.replace(/[:\-\s]/g, '').toUpperCase();
-    setEqtSerno(normalizedSN);
-    setShowBarcodeScanner(false);
-  };
-
   // 장비 조회
   const handleSearch = async () => {
     if (!userInfo?.userId) {
@@ -1271,6 +1262,7 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
   const handleBarcodeScan = (barcode: string) => {
     console.log('Barcode scanned:', barcode);
     setEqtSerno(barcode.toUpperCase());
+    setShowBarcodeScanner(false);  // 스캐너 모달 닫기
     showToast?.(`바코드 스캔 완료: ${barcode}`, 'success');
     // Auto search after scan
     setTimeout(() => {
