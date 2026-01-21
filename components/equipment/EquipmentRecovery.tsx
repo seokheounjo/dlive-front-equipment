@@ -392,8 +392,8 @@ const CustomerSearchModal: React.FC<{
                         <span className="text-sm text-blue-600 font-mono">{customer.CUST_ID}</span>
                         <span className="ml-2">{customer.CUST_NM}</span>
                       </div>
-                      {(customer.INST_ADDR || customer.ADDR) && (
-                        <div className="text-sm text-gray-500 mt-1 truncate">{customer.INST_ADDR || customer.ADDR}</div>
+                      {(customer.INST_ADDR || customer.ADDR || customer.ADDRESS) && (
+                        <div className="text-sm text-gray-500 mt-1 truncate">{customer.INST_ADDR || customer.ADDR || customer.ADDRESS}</div>
                       )}
                     </button>
                   ))}

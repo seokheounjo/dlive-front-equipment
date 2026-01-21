@@ -22,7 +22,7 @@ import BaseModal from '../common/BaseModal';
 // getCustProdInfo 활용 API (테스트 완료: 기사보유장비 조회)
 import { getTechnicianEquipmentFromWork } from '../../services/equipmentWorkApi';
 import { debugApiCall } from './equipmentDebug';
-// BarcodeScanner removed - using S/N input instead
+import BarcodeScanner from './BarcodeScanner';
 
 interface EquipmentInquiryProps {
   onBack: () => void;
@@ -257,6 +257,7 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
   const [eqtClOptions, setEqtClOptions] = useState<{ code: string; name: string }[]>([]);  // 모델2 옵션
   const [isLoadingEqtCl, setIsLoadingEqtCl] = useState(false);  // 모델2 로딩 중
   const [eqtSerno, setEqtSerno] = useState<string>('');
+  const [showBarcodeScanner, setShowBarcodeScanner] = useState(false);  // 바코드 스캐너
 
   // 검색 카테고리 - 라디오 버튼으로 단일 선택
   const [selectedCategory, setSelectedCategory] = useState<SearchCategory>('OWNED');
@@ -429,6 +430,15 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
     // 지점 목록은 useEffect의 fetchAuthSoList()에서 이미 로드됨
     // 이 함수는 다른 드롭다운 데이터가 필요할 경우를 위해 유지
     console.log('📋 [드롭다운] 초기화 완료');
+  };
+
+  // 바코드 스캔 처리
+  const handleBarcodeScan = (scannedValue: string) => {
+    if (!scannedValue) return;
+    // MAC 주소 형식 정규화 (콜론 제거)
+    const normalizedSN = scannedValue.replace(/[:\-\s]/g, '').toUpperCase();
+    setEqtSerno(normalizedSN);
+    setShowBarcodeScanner(false);
   };
 
   // 장비 조회
