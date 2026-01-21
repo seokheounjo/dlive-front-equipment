@@ -308,16 +308,14 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
         const result = await getEquipmentTypeList({ ITEM_MID_CD: selectedItemMidCd });
         console.log('[장비처리] 소분류 API 결과:', result);
 
-        if (result && Array.isArray(result.list)) {
-          // 중복 제거 및 소분류 옵션 구성
-          const optionsMap = new Map<string, string>();
-          result.list.forEach((item: any) => {
-            if (item.ITEM_MID_CD === selectedItemMidCd && item.EQT_CL_CD && item.EQT_CL_NM) {
-              optionsMap.set(item.EQT_CL_CD, item.EQT_CL_NM);
-            }
-          });
+        // API returns array directly with COMMON_CD, COMMON_CD_NM
+        if (result && Array.isArray(result)) {
+          const options = result.map((item: any) => ({
+            code: item.COMMON_CD || item.EQT_CL_CD || '',
+            name: item.COMMON_CD_NM || item.EQT_CL_NM || ''
+          })).filter((opt: any) => opt.code && opt.name)
+            .sort((a: any, b: any) => a.name.localeCompare(b.name));
 
-          const options = Array.from(optionsMap.entries()).map(([code, name]) => ({ code, name }));
           console.log('[장비처리] 소분류 옵션:', options.length, '개');
           setEqtClOptions(options);
         } else {
