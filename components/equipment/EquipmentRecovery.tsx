@@ -1089,18 +1089,19 @@ const EquipmentRecovery: React.FC<EquipmentRecoveryProps> = ({ onBack }) => {
             </div>
           </div>
 
-          {/* S/N 입력 + 스캔 */}
+          {/* S/N + 스캔 버튼 */}
           <div className="flex items-center gap-2">
+            <label className="text-xs font-medium text-gray-600 w-14 flex-shrink-0">S/N</label>
             <input
               type="text"
               value={searchParams.EQT_SERNO}
               onChange={(e) => setSearchParams({...searchParams, EQT_SERNO: e.target.value.toUpperCase()})}
-              className="flex-1 px-4 py-3 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent uppercase font-mono transition-all"
+              className="flex-1 px-3 py-2.5 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent uppercase transition-all font-mono"
               placeholder="S/N 또는 MAC 주소 입력"
             />
             <button
               onClick={() => setScanModalOpen(true)}
-              className="px-4 py-3 bg-green-500 hover:bg-green-600 text-white rounded-lg font-semibold text-sm transition-all active:scale-[0.98] touch-manipulation flex items-center gap-1.5"
+              className="px-4 py-2.5 bg-green-500 hover:bg-green-600 text-white rounded-lg font-semibold text-sm transition-all active:scale-[0.98] touch-manipulation flex items-center gap-1.5 flex-shrink-0"
               style={{ WebkitTapHighlightColor: 'transparent' }}
             >
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
