@@ -1033,10 +1033,6 @@ const EquipmentRecovery: React.FC<EquipmentRecoveryProps> = ({ onBack }) => {
         <div className="space-y-3">
           {/* 고객 검색 - 클릭 시 팝업 */}
           <div>
-            <div className="flex items-center gap-2 mb-1.5">
-              <User className="w-4 h-4 text-gray-500" />
-              <span className="text-xs font-medium text-gray-600">고객 검색</span>
-            </div>
             <div className="flex gap-2">
               <div
                 onClick={() => setCustomerModalOpen(true)}
