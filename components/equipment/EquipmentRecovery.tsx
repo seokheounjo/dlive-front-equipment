@@ -218,6 +218,13 @@ const CustomerSearchModal: React.FC<{
   const [isSearching, setIsSearching] = useState(false);
   const [searchResults, setSearchResults] = useState<CustomerInfo[]>([]);
   const [hasSearched, setHasSearched] = useState(false);
+  const [showScanner, setShowScanner] = useState(false);
+
+  // Barcode scan handler for CustomerSearchModal
+  const handleModalBarcodeScan = (serialNo: string) => {
+    setEquipmentNo(serialNo.toUpperCase());
+    setShowScanner(false);
+  };
 
   if (!isOpen) return null;
 
@@ -355,7 +362,7 @@ const CustomerSearchModal: React.FC<{
               className="flex-1 px-3 py-2.5 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all font-mono"
             />
             <button
-              onClick={() => setScanModalOpen(true)}
+              onClick={() => setShowScanner(true)}
               className="px-4 py-2.5 bg-green-500 hover:bg-green-600 text-white rounded-lg font-semibold text-sm transition-all active:scale-[0.98] touch-manipulation flex items-center gap-1.5 flex-shrink-0"
               style={{ WebkitTapHighlightColor: 'transparent' }}
             >
@@ -413,6 +420,13 @@ const CustomerSearchModal: React.FC<{
           )}
         </div>
       </div>
+
+      {/* Barcode Scanner for CustomerSearchModal */}
+      <BarcodeScanner
+        isOpen={showScanner}
+        onClose={() => setShowScanner(false)}
+        onScan={handleModalBarcodeScan}
+      />
     </div>
   );
 };
