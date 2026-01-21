@@ -1483,32 +1483,28 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
                   ))}
                 </select>
               </div>
-              {/* 모델1 (중분류) */}
-              <div className="flex items-center gap-2">
-                <label className="text-xs font-medium text-gray-600 w-14 flex-shrink-0">모델1</label>
+              {/* 장비종류 (중분류 + 소분류 한 줄) */}
+              <div className="flex items-center gap-2 overflow-hidden">
+                <label className="text-xs font-medium text-gray-600 w-14 flex-shrink-0">장비종류</label>
                 <select
                   value={selectedItemMidCd}
                   onChange={(e) => setSelectedItemMidCd(e.target.value)}
-                  className="flex-1 px-3 py-2.5 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                  className="flex-1 min-w-0 px-2 py-2.5 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent truncate"
                 >
                   {itemMidList.map((item) => (
                     <option key={item.COMMON_CD} value={item.COMMON_CD}>{item.COMMON_CD_NM}</option>
                   ))}
                 </select>
-              </div>
-              {/* 모델2 (소분류) */}
-              <div className="flex items-center gap-2">
-                <label className="text-xs font-medium text-gray-600 w-14 flex-shrink-0">모델2</label>
                 <select
                   value={selectedEqtClCd}
                   onChange={(e) => setSelectedEqtClCd(e.target.value)}
                   disabled={!selectedItemMidCd || isLoadingEqtCl || eqtClOptions.length === 0}
-                  className="flex-1 px-3 py-2.5 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-100 disabled:cursor-not-allowed transition-all"
+                  className="flex-1 min-w-0 px-2 py-2.5 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-100 disabled:cursor-not-allowed truncate"
                 >
                   <option value="">
-                    {!selectedItemMidCd ? '모델1을 먼저 선택하세요' :
-                     isLoadingEqtCl ? '로딩중...' :
-                     (eqtClOptions.length === 0 ? '소분류 없음' : '전체')}
+                    {!selectedItemMidCd ? '-' :
+                     isLoadingEqtCl ? '...' :
+                     (eqtClOptions.length === 0 ? '-' : '전체')}
                   </option>
                   {eqtClOptions.map(opt => (
                     <option key={opt.code} value={opt.code}>{opt.name}</option>

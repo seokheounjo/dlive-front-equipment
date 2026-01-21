@@ -329,7 +329,7 @@ const CustomerSearchModal: React.FC<{
             />
           </div>
 
-          {/* 전화번호 */}
+          {/* 전화번호 + 이름 */}
           <div className="flex items-center gap-2">
             <label className="text-xs font-medium text-gray-600 w-16 flex-shrink-0">전화번호</label>
             <input
@@ -340,18 +340,12 @@ const CustomerSearchModal: React.FC<{
               placeholder="전화번호"
               className="flex-1 px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500"
             />
-          </div>
-
-          {/* 이름 */}
-          <div className="flex items-center gap-2">
-            <label className="text-xs font-medium text-gray-600 w-16 flex-shrink-0">이름</label>
             <input
               type="text"
               value={customerName}
-              onChange={(e) => setCustomerName(e.target.value)}
-              onKeyPress={handleKeyPress}
+              readOnly
               placeholder="이름"
-              className="flex-1 px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500"
+              className="w-20 px-2 py-2 text-sm border border-gray-200 rounded-lg bg-gray-50 text-gray-600"
             />
           </div>
 
