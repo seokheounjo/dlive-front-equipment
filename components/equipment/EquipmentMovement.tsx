@@ -1684,16 +1684,27 @@ const EquipmentMovement: React.FC<EquipmentMovementProps> = ({ onBack }) => {
 
       {eqtTrnsList.length === 0 && !isLoading && (
         <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-8">
-          <p className="text-center text-gray-500 text-sm">
-            {hasSearched && searchConditionMessage ? (
-              <>
-                <span className="text-amber-600 font-medium">{searchConditionMessage}</span>
-                <span className="text-gray-600"> 조건에 충족하는 값이 없습니다</span>
-              </>
-            ) : (
-              <>기사를 선택하거나 장비번호를 입력하여<br />조회 버튼을 눌러주세요</>
-            )}
-          </p>
+          <div className="text-center">
+            <div className="w-16 h-16 mx-auto mb-4 bg-blue-100 rounded-full flex items-center justify-center">
+              <svg className="w-8 h-8 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+              </svg>
+            </div>
+            <p className="text-gray-500 text-sm mb-1">
+              {hasSearched && searchConditionMessage ? (
+                <>조회된 장비가 없습니다</>
+              ) : (
+                <>이동 가능한 장비가 없습니다</>
+              )}
+            </p>
+            <p className="text-gray-400 text-xs">
+              {hasSearched && searchConditionMessage ? (
+                <><span className="text-amber-600">{searchConditionMessage}</span> 조건에 해당하는 장비가 없습니다</>
+              ) : (
+                <>기사를 선택하거나 장비번호를 입력하고 조회하세요</>
+              )}
+            </p>
+          </div>
         </div>
       )}
 
@@ -1941,8 +1952,16 @@ const EquipmentMovement: React.FC<EquipmentMovementProps> = ({ onBack }) => {
               장비 조회 중...
             </div>
           ) : modalEquipmentList.length === 0 ? (
-            <div className="py-8 text-center text-gray-500 text-sm">
-              보유 장비가 없습니다
+            <div className="p-8">
+              <div className="text-center">
+                <div className="w-16 h-16 mx-auto mb-4 bg-blue-100 rounded-full flex items-center justify-center">
+                  <svg className="w-8 h-8 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+                  </svg>
+                </div>
+                <p className="text-gray-500 text-sm mb-1">보유 장비가 없습니다</p>
+                <p className="text-gray-400 text-xs">해당 기사의 보유 장비가 없습니다</p>
+              </div>
             </div>
           ) : (
             <>

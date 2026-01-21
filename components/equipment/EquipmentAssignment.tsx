@@ -950,8 +950,16 @@ const EquipmentAssignment: React.FC<EquipmentAssignmentProps> = ({ onBack, showT
                 </div>
               </>
             ) : (
-              <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-6">
-                <p className="text-center text-gray-500 text-sm">출고된 장비 내역이 없습니다</p>
+              <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-8">
+                <div className="text-center">
+                  <div className="w-16 h-16 mx-auto mb-4 bg-blue-100 rounded-full flex items-center justify-center">
+                    <svg className="w-8 h-8 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+                    </svg>
+                  </div>
+                  <p className="text-gray-500 text-sm mb-1">출고된 장비가 없습니다</p>
+                  <p className="text-gray-400 text-xs">출고 내역을 조회해주세요</p>
+                </div>
               </div>
             )}
           </div>
@@ -966,7 +974,7 @@ const EquipmentAssignment: React.FC<EquipmentAssignmentProps> = ({ onBack, showT
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
                 </svg>
               </div>
-              <p className="text-gray-600 text-sm mb-1">리스트가 없습니다</p>
+              <p className="text-gray-500 text-sm mb-1">할당할 장비가 없습니다</p>
               <p className="text-gray-400 text-xs">검색 조건을 설정하고 조회 버튼을 눌러주세요</p>
             </div>
           </div>

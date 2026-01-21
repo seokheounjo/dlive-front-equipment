@@ -976,18 +976,11 @@ const EquipmentList: React.FC<EquipmentListProps> = ({ onBack, showToast }) => {
             <div className="text-center">
               <div className="w-16 h-16 mx-auto mb-4 bg-blue-100 rounded-full flex items-center justify-center">
                 <svg className="w-8 h-8 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
                 </svg>
               </div>
-              <p className="text-gray-600 text-sm mb-1">장비 일련번호(S/N) 또는 MAC 주소로</p>
-              <p className="text-gray-600 text-sm mb-3">장비 정보를 조회해보세요</p>
-              {myEquipments.length > 0 && (
-                <div className="mt-4 p-3 bg-blue-50 rounded-lg">
-                  <p className="text-xs text-blue-700">
-                    내 보유 장비({myEquipments.length}건)에서 먼저 검색합니다.
-                  </p>
-                </div>
-              )}
+              <p className="text-gray-500 text-sm mb-1">조회된 장비가 없습니다</p>
+              <p className="text-gray-400 text-xs">S/N 또는 MAC 주소를 입력하고 조회하세요</p>
             </div>
           </div>
         )}
