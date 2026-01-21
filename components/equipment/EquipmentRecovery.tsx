@@ -1046,17 +1046,17 @@ const EquipmentRecovery: React.FC<EquipmentRecoveryProps> = ({ onBack }) => {
               >
                 <input
                   type="text"
-                  value={selectedCustomer?.CUST_ID || ''}
-                  readOnly
-                  className="flex-1 min-w-0 px-3 py-2.5 text-sm border border-gray-200 rounded-lg bg-gray-50 cursor-pointer"
-                  placeholder="고객ID"
-                />
-                <input
-                  type="text"
                   value={selectedCustomer?.CUST_NM || ''}
                   readOnly
                   className="flex-1 min-w-0 px-3 py-2.5 text-sm border border-gray-200 rounded-lg bg-gray-50 cursor-pointer"
                   placeholder="고객명"
+                />
+                <input
+                  type="text"
+                  value={selectedCustomer?.CUST_ID || ''}
+                  readOnly
+                  className="flex-1 min-w-0 px-3 py-2.5 text-sm border border-gray-200 rounded-lg bg-gray-50 cursor-pointer"
+                  placeholder="고객ID"
                 />
               </div>
             </div>

@@ -1318,7 +1318,7 @@ const EquipmentMovement: React.FC<EquipmentMovementProps> = ({ onBack }) => {
                 type="text"
                 value={workerInfo.WRKR_ID || ''}
                 readOnly
-                className="w-16 flex-shrink-0 px-1 py-2.5 text-xs border border-gray-200 rounded-lg bg-gray-50 cursor-pointer font-mono text-center"
+                className="flex-1 min-w-0 px-1 py-2.5 text-xs border border-gray-200 rounded-lg bg-gray-50 cursor-pointer font-mono text-center"
                 placeholder="ID"
               />
             </div>
