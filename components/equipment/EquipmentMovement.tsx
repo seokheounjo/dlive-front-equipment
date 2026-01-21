@@ -1385,26 +1385,15 @@ const EquipmentMovement: React.FC<EquipmentMovementProps> = ({ onBack }) => {
             <div className="p-3 bg-purple-50 border border-purple-200 rounded-lg">
               <div className="flex items-center justify-between mb-2">
                 <span className="text-xs font-medium text-purple-700">스캔된 장비 ({scannedSerials.length}건)</span>
-                <div className="flex items-center gap-2">
-                  <button
-                    onClick={() => {
-                      setScannedSerials([]);
-                      setEqtTrnsList([]);  // 조회 결과도 삭제
-                    }}
-                    className="text-xs text-purple-600 hover:text-purple-800"
-                  >
-                    전체 삭제
-                  </button>
-                  <button
-                    onClick={() => {
-                      setScannedSerials([]);
-                      setEqtTrnsList([]);  // 조회 결과도 삭제
-                    }}
-                    className="text-xs text-gray-500 hover:text-gray-700"
-                  >
-                    닫기
-                  </button>
-                </div>
+                <button
+                  onClick={() => {
+                    setScannedSerials([]);
+                    setEqtTrnsList([]);
+                  }}
+                  className="text-xs text-gray-500 hover:text-gray-700"
+                >
+                  닫기
+                </button>
               </div>
               <div className="space-y-1 max-h-20 overflow-y-auto">
                 {scannedSerials.map((sn, idx) => (
@@ -1515,28 +1504,16 @@ const EquipmentMovement: React.FC<EquipmentMovementProps> = ({ onBack }) => {
                 </button>
               </div>
             </div>
-            {/* 선택 모드 표시 */}
-            {selectionMode !== 'none' && (
-              <div className={`mx-4 my-2 px-3 py-2 rounded-lg text-xs font-medium flex items-center justify-between ${
-                selectionMode.startsWith('restricted-')
-                  ? 'bg-amber-100 text-amber-800 border border-amber-200'
-                  : 'bg-blue-100 text-blue-800 border border-blue-200'
-              }`}>
-                <span>
-                  {selectionMode.startsWith('restricted-')
-                    ? `${RESTRICTED_SO_NAMES[selectionMode.replace('restricted-', '')]} 지점 전용 모드`
-                    : '일반 지점 모드 (제한지점 선택 불가)'}
-                </span>
+            {/* 제한지점 전용 모드 표시 (일반 모드는 표시 안 함) */}
+            {selectionMode.startsWith('restricted-') && (
+              <div className="mx-4 my-2 px-3 py-2 rounded-lg text-xs font-medium flex items-center justify-between bg-amber-100 text-amber-800 border border-amber-200">
+                <span>{RESTRICTED_SO_NAMES[selectionMode.replace('restricted-', '')]} 지점 전용 모드</span>
                 <button
                   onClick={() => {
                     setSelectionMode('none');
                     setEqtTrnsList(prev => prev.map(item => ({ ...item, CHK: false, isTransferable: true })));
                   }}
-                  className={`px-2 py-0.5 rounded text-xs ${
-                    selectionMode.startsWith('restricted-')
-                      ? 'bg-amber-200 hover:bg-amber-300'
-                      : 'bg-blue-200 hover:bg-blue-300'
-                  }`}
+                  className="px-2 py-0.5 rounded text-xs bg-amber-200 hover:bg-amber-300"
                 >
                   초기화
                 </button>
