@@ -168,6 +168,7 @@ const EquipmentMovement: React.FC<EquipmentMovementProps> = ({ onBack }) => {
   const [soList, setSoList] = useState<SoListItem[]>([]);
   const [corpList, setCorpList] = useState<CorpListItem[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [searchError, setSearchError] = useState<string | null>(null); // 검색 에러
   const [scannedSerials, setScannedSerials] = useState<string[]>([]); // 스캔된 S/N 목록
 
   const [workerModalOpen, setWorkerModalOpen] = useState(false);
@@ -459,6 +460,7 @@ const EquipmentMovement: React.FC<EquipmentMovementProps> = ({ onBack }) => {
       return;
     }
 
+    setSearchError(null); // 에러 초기화
     setIsLoading(true);
     try {
       // 첫 번째 스캔된 S/N으로 장비 정보 조회
@@ -484,14 +486,14 @@ const EquipmentMovement: React.FC<EquipmentMovementProps> = ({ onBack }) => {
           await searchEquipmentByWorker(ownerWrkrId, ownerWrkrNm, ownerCrrId, firstSN);
           setHasSearched(true);
         } else {
-          alert(`장비(${firstSN})의 보유기사 정보가 없습니다.`);
+          setSearchError(`장비(${firstSN})의 보유기사 정보가 없습니다.`);
         }
       } else {
-        alert(`장비(${firstSN})를 찾을 수 없습니다.`);
+        setSearchError(`장비(${firstSN})를 찾을 수 없습니다.`);
       }
     } catch (error) {
       console.error('장비 조회 실패:', error);
-      alert('장비 조회에 실패했습니다.');
+      setSearchError('장비 조회에 실패했습니다.');
     } finally {
       setIsLoading(false);
     }
@@ -505,6 +507,7 @@ const EquipmentMovement: React.FC<EquipmentMovementProps> = ({ onBack }) => {
       return;
     }
 
+    setSearchError(null); // 에러 초기화
     setIsLoading(true);
     try {
       // 장비 정보로 보유기사 조회
@@ -600,11 +603,11 @@ const EquipmentMovement: React.FC<EquipmentMovementProps> = ({ onBack }) => {
       } else {
         setSearchConditionMessage(`S/N: ${normalizedSN}`);
         setHasSearched(true);
-        alert('장비(' + normalizedSN + ')를 찾을 수 없습니다.');
+        setSearchError(`장비(${normalizedSN})를 찾을 수 없습니다.`);
       }
     } catch (error) {
       console.error('장비 조회 실패:', error);
-      alert('장비 조회에 실패했습니다.');
+      setSearchError('장비 조회에 실패했습니다.');
     } finally {
       setIsLoading(false);
       setSerialInput('');
@@ -735,7 +738,7 @@ const EquipmentMovement: React.FC<EquipmentMovementProps> = ({ onBack }) => {
       }
     } catch (error) {
       console.error('장비 조회 실패:', error);
-      alert('장비 조회에 실패했습니다.');
+      setSearchError('장비 조회에 실패했습니다.');
       setEqtTrnsList([]);
     } finally {
       setIsLoading(false);
@@ -743,6 +746,7 @@ const EquipmentMovement: React.FC<EquipmentMovementProps> = ({ onBack }) => {
   };
 
   const handleSearch = async () => {
+    setSearchError(null); // 검색 시작 시 에러 초기화
     if (!workerInfo.WRKR_ID) { alert('보유기사를 선택해주세요.'); return; }
     await searchEquipmentByWorker(workerInfo.WRKR_ID, workerInfo.WRKR_NM, workerInfo.CRR_ID);
     setHasSearched(true);
@@ -1324,33 +1328,29 @@ const EquipmentMovement: React.FC<EquipmentMovementProps> = ({ onBack }) => {
             </div>
           </div>
 
-          {/* 2. 모델1 (중분류) */}
+          {/* 2. 모델1 + 모델2 (한 줄) */}
           <div className="flex items-center gap-2">
             <label className="text-xs font-medium text-gray-600 w-14 flex-shrink-0">모델1</label>
             <select
               value={selectedItemMidCd}
               onChange={(e) => setSelectedItemMidCd(e.target.value)}
-              className="flex-1 px-3 py-2.5 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="flex-1 px-2 py-2.5 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             >
               {ITEM_MID_OPTIONS.map(opt => (
                 <option key={opt.code} value={opt.code}>{opt.name}</option>
               ))}
             </select>
-          </div>
-
-          {/* 3. 모델2 (소분류) - 항상 표시, 모델1 미선택 시 비활성화 */}
-          <div className="flex items-center gap-2">
-            <label className="text-xs font-medium text-gray-600 w-14 flex-shrink-0">모델2</label>
+            <label className="text-xs font-medium text-gray-600 w-10 flex-shrink-0 text-center">모델2</label>
             <select
               value={selectedEqtClCd}
               onChange={(e) => setSelectedEqtClCd(e.target.value)}
               disabled={!selectedItemMidCd || isLoadingEqtCl || eqtClOptions.length === 0}
-              className="flex-1 px-3 py-2.5 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-100 disabled:cursor-not-allowed"
+              className="flex-1 px-2 py-2.5 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-100 disabled:cursor-not-allowed"
             >
               <option value="">
-                {!selectedItemMidCd ? '모델1을 먼저 선택하세요' :
-                 isLoadingEqtCl ? '로딩중...' :
-                 (eqtClOptions.length === 0 ? '소분류 없음' : '전체')}
+                {!selectedItemMidCd ? '선택' :
+                 isLoadingEqtCl ? '...' :
+                 (eqtClOptions.length === 0 ? '없음' : '전체')}
               </option>
               {eqtClOptions.map(opt => (
                 <option key={opt.code} value={opt.code}>{opt.name}</option>
