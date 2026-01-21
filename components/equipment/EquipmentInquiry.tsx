@@ -299,6 +299,7 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
   const [returnReason, setReturnReason] = useState<string>('');
   const [returnReasonText, setReturnReasonText] = useState<string>('');  // 기타 사유 입력
   const [lossReason, setLossReason] = useState<string>('');
+  const [showReasonWarning, setShowReasonWarning] = useState(false);  // 반납사유 미선택 경고
 
   // 카테고리 전환 시 장비 목록 초기화
   useEffect(() => {
@@ -824,6 +825,19 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
     if (checkedItems.length === 0) {
       showToast?.('처리할 장비를 선택해주세요.', 'warning');
       return;
+    }
+
+    // 반납요청 시 반납사유 필수 검증
+    if (action === 'RETURN') {
+      if (!returnReason) {
+        setShowReasonWarning(true);
+        return;
+      }
+      // 기타 선택 시 사유 텍스트 필수
+      if (returnReason === '03' && !returnReasonText.trim()) {
+        setShowReasonWarning(true);
+        return;
+      }
     }
 
     try {
@@ -2005,6 +2019,39 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
           </div>
         </div>
       </BaseModal>
+
+      {/* 반납사유 미선택 경고 팝업 */}
+      {showReasonWarning && (
+        <div
+          className="fixed inset-0 bg-black/30 flex items-center justify-center z-[250]"
+          onClick={() => setShowReasonWarning(false)}
+        >
+          <div
+            className="bg-white rounded-xl p-5 mx-4 shadow-2xl max-w-sm animate-pulse"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center gap-3 mb-3">
+              <div className="w-10 h-10 bg-red-100 rounded-full flex items-center justify-center flex-shrink-0">
+                <svg className="w-6 h-6 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                </svg>
+              </div>
+              <div>
+                <h3 className="font-bold text-gray-800">반납사유를 선택해주세요</h3>
+                <p className="text-sm text-gray-500 mt-0.5">
+                  {returnReason === '03' ? '기타 사유를 입력해주세요.' : '반납 사유는 필수 항목입니다.'}
+                </p>
+              </div>
+            </div>
+            <button
+              onClick={() => setShowReasonWarning(false)}
+              className="w-full py-2.5 bg-red-500 hover:bg-red-600 text-white rounded-lg font-semibold text-sm transition-all"
+            >
+              확인
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* 대량 처리 진행 상태 모달 - BaseModal(z-100)보다 위에 표시 */}
       {showProgressModal && (
