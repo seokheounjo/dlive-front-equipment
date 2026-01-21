@@ -93,6 +93,9 @@ interface EqtTrns {
   EQT_LOC_TP_NM?: string;       // 장비위치유형
   EQT_LOC_NM?: string;          // 장비위치
   OLD_EQT_LOC_NM?: string;      // 이전장비위치 (API: OLD_EQT_LOC_NM)
+  OLD_EQT_LOC_TP_NM?: string;   // 이전위치유형 (API: OLD_EQT_LOC_TP_NM)
+  ITEM_MODEL?: string;          // 모델명 (API: ITEM_MODEL)
+  MODEL_NM?: string;            // 모델명 (API: MODEL_NM)
 }
 
 interface SoListItem {
@@ -686,6 +689,8 @@ const EquipmentMovement: React.FC<EquipmentMovementProps> = ({ onBack }) => {
             EQT_LOC_TP_NM: item.EQT_LOC_TP_NM || '',
             OLD_EQT_LOC_NM: item.OLD_EQT_LOC_NM || '',
             OLD_EQT_LOC_TP_NM: item.OLD_EQT_LOC_TP_NM || '',
+            ITEM_MODEL: item.ITEM_MODEL || '',
+            MODEL_NM: item.MODEL_NM || '',
             isScanned: scannedSN ? item.EQT_SERNO === scannedSN || scannedSerials.includes(item.EQT_SERNO) : scannedSerials.includes(item.EQT_SERNO),
             isTransferable
           };
@@ -903,6 +908,8 @@ const EquipmentMovement: React.FC<EquipmentMovementProps> = ({ onBack }) => {
             EQT_LOC_TP_NM: item.EQT_LOC_TP_NM || '',
             OLD_EQT_LOC_NM: item.OLD_EQT_LOC_NM || '',
             OLD_EQT_LOC_TP_NM: item.OLD_EQT_LOC_TP_NM || '',
+            ITEM_MODEL: item.ITEM_MODEL || '',
+            MODEL_NM: item.MODEL_NM || '',
             isScanned: false,
             isTransferable
           };
