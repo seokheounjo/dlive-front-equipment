@@ -691,6 +691,8 @@ const EquipmentMovement: React.FC<EquipmentMovementProps> = ({ onBack }) => {
             OLD_EQT_LOC_TP_NM: item.OLD_EQT_LOC_TP_NM || '',
             ITEM_MODEL: item.ITEM_MODEL || '',
             MODEL_NM: item.MODEL_NM || '',
+            EQT_USE_ARR_YN: item.EQT_USE_ARR_YN || '',
+            EQT_USE_END_DT: item.EQT_USE_END_DT || '',
             isScanned: scannedSN ? item.EQT_SERNO === scannedSN || scannedSerials.includes(item.EQT_SERNO) : scannedSerials.includes(item.EQT_SERNO),
             isTransferable
           };
@@ -910,6 +912,8 @@ const EquipmentMovement: React.FC<EquipmentMovementProps> = ({ onBack }) => {
             OLD_EQT_LOC_TP_NM: item.OLD_EQT_LOC_TP_NM || '',
             ITEM_MODEL: item.ITEM_MODEL || '',
             MODEL_NM: item.MODEL_NM || '',
+            EQT_USE_ARR_YN: item.EQT_USE_ARR_YN || '',
+            EQT_USE_END_DT: item.EQT_USE_END_DT || '',
             isScanned: false,
             isTransferable
           };
