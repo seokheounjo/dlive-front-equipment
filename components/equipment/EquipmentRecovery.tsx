@@ -387,11 +387,11 @@ const CustomerSearchModal: React.FC<{
                       className="w-full p-3 bg-gray-50 hover:bg-blue-50 rounded-lg border border-gray-200 hover:border-blue-300 text-left"
                     >
                       <div className="font-medium text-gray-800">
-                        {customer.CUST_NM}
-                        <span className="ml-2 text-sm text-gray-500">({customer.CUST_ID})</span>
+                        <span className="text-sm text-blue-600 font-mono">{customer.CUST_ID}</span>
+                        <span className="ml-2">{customer.CUST_NM}</span>
                       </div>
-                      {customer.TEL_NO && (
-                        <div className="text-sm text-gray-600 mt-1">{customer.TEL_NO}</div>
+                      {(customer.INST_ADDR || customer.ADDR) && (
+                        <div className="text-sm text-gray-500 mt-1 truncate">{customer.INST_ADDR || customer.ADDR}</div>
                       )}
                     </button>
                   ))}
