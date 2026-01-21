@@ -1328,19 +1328,18 @@ const EquipmentMovement: React.FC<EquipmentMovementProps> = ({ onBack }) => {
             </div>
           </div>
 
-          {/* 2. 모델1 + 모델2 (한 줄) */}
+          {/* 2. 장비종류 + 모델2 (한 줄, 라벨 없이 박스 안에 텍스트) */}
           <div className="flex items-center gap-2">
-            <label className="text-xs font-medium text-gray-600 w-14 flex-shrink-0">모델1</label>
             <select
               value={selectedItemMidCd}
               onChange={(e) => setSelectedItemMidCd(e.target.value)}
               className="flex-1 px-2 py-2.5 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             >
-              {ITEM_MID_OPTIONS.map(opt => (
+              <option value="">장비종류</option>
+              {ITEM_MID_OPTIONS.filter(opt => opt.code !== '').map(opt => (
                 <option key={opt.code} value={opt.code}>{opt.name}</option>
               ))}
             </select>
-            <label className="text-xs font-medium text-gray-600 w-10 flex-shrink-0 text-center">모델2</label>
             <select
               value={selectedEqtClCd}
               onChange={(e) => setSelectedEqtClCd(e.target.value)}
@@ -1348,9 +1347,9 @@ const EquipmentMovement: React.FC<EquipmentMovementProps> = ({ onBack }) => {
               className="flex-1 px-2 py-2.5 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-100 disabled:cursor-not-allowed"
             >
               <option value="">
-                {!selectedItemMidCd ? '선택' :
+                {!selectedItemMidCd ? '모델2' :
                  isLoadingEqtCl ? '...' :
-                 (eqtClOptions.length === 0 ? '없음' : '전체')}
+                 (eqtClOptions.length === 0 ? '없음' : '모델2')}
               </option>
               {eqtClOptions.map(opt => (
                 <option key={opt.code} value={opt.code}>{opt.name}</option>
