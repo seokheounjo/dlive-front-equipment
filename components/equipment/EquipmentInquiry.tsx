@@ -1081,7 +1081,7 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
           WRK_ID: item.WRK_ID || '',
           CTRT_ID: item.CTRT_ID || '',
           CTRT_STAT: item.CTRT_STAT || '',
-          PROG_GB: 'Y'
+          PROG_GB: 'M'  // M=Mobile, C=PC (not Y)
         };
 
         // ORA-00001 재시도 로직 (Oracle 프로시저가 초 단위 PK 사용)
