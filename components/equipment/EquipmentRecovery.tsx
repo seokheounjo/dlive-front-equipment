@@ -396,15 +396,13 @@ const CustomerSearchModal: React.FC<{
                     <button
                       key={customer.CUST_ID || idx}
                       onClick={() => { onSelect({ CUST_ID: customer.CUST_ID, CUST_NM: customer.CUST_NM }); onClose(); }}
-                      className="w-full p-3 bg-gray-50 hover:bg-blue-50 rounded-lg border border-gray-200 hover:border-blue-300 text-left"
+                      className="w-full p-2.5 bg-gray-50 hover:bg-blue-50 rounded-lg border border-gray-200 hover:border-blue-300 text-left"
                     >
-                      <div className="font-medium text-gray-800">
-                        <span className="text-sm text-blue-600 font-mono">{customer.CUST_ID}</span>
-                        <span className="ml-2">{customer.CUST_NM}</span>
+                      <div className="flex items-center gap-2 text-sm truncate">
+                        <span className="text-blue-600 font-mono flex-shrink-0">{customer.CUST_ID}</span>
+                        <span className="font-medium text-gray-800 flex-shrink-0">{customer.CUST_NM}</span>
+                        <span className="text-gray-400 truncate">{customer.INST_ADDR || customer.ADDR || customer.ADDRESS || ''}</span>
                       </div>
-                      {(customer.INST_ADDR || customer.ADDR || customer.ADDRESS) && (
-                        <div className="text-sm text-gray-500 mt-1 truncate">{customer.INST_ADDR || customer.ADDR || customer.ADDRESS}</div>
-                      )}
                     </button>
                   ))}
                 </div>
