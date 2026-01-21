@@ -1315,14 +1315,14 @@ const EquipmentMovement: React.FC<EquipmentMovementProps> = ({ onBack }) => {
                 type="text"
                 value={workerInfo.WRKR_NM || ''}
                 readOnly
-                className="flex-1 min-w-0 px-2 py-2.5 text-sm border border-gray-200 rounded-lg bg-gray-50 cursor-pointer truncate"
+                className="flex-1 min-w-0 px-2 py-2.5 text-sm border border-gray-200 rounded-lg bg-gray-50 cursor-pointer truncate text-center"
                 placeholder="기사명"
               />
               <input
                 type="text"
                 value={workerInfo.WRKR_ID || ''}
                 readOnly
-                className="flex-1 min-w-0 px-1 py-2.5 text-xs border border-gray-200 rounded-lg bg-gray-50 cursor-pointer font-mono text-center"
+                className="flex-1 min-w-0 px-2 py-2.5 text-sm border border-gray-200 rounded-lg bg-gray-50 cursor-pointer font-mono text-center"
                 placeholder="ID"
               />
             </div>
