@@ -1278,24 +1278,24 @@ const EquipmentMovement: React.FC<EquipmentMovementProps> = ({ onBack }) => {
         </div>
         <div className="space-y-3">
           {/* 1. 기사명 (보유기사 검색) */}
-          <div className="flex items-center gap-2">
-            <label className="text-xs font-medium text-gray-600 w-14 flex-shrink-0">기사명</label>
+          <div className="flex items-center gap-2 overflow-hidden">
+            <label className="text-xs font-medium text-gray-600 w-12 flex-shrink-0">기사명</label>
             <div
-              className="flex-1 flex items-center gap-2 cursor-pointer"
+              className="flex-1 min-w-0 flex items-center gap-1.5 cursor-pointer"
               onClick={openWorkerSearchModal}
             >
               <input
                 type="text"
                 value={workerInfo.WRKR_NM || ''}
                 readOnly
-                className="flex-1 min-w-0 px-3 py-2.5 text-sm border border-gray-200 rounded-lg bg-gray-50 cursor-pointer"
-                placeholder="클릭하여 기사 검색"
+                className="flex-1 min-w-0 px-2 py-2.5 text-sm border border-gray-200 rounded-lg bg-gray-50 cursor-pointer truncate"
+                placeholder="기사 검색"
               />
               <input
                 type="text"
                 value={workerInfo.WRKR_ID || ''}
                 readOnly
-                className="w-20 min-w-0 flex-shrink px-2 py-2.5 text-sm border border-gray-200 rounded-lg bg-gray-50 cursor-pointer font-mono text-center"
+                className="w-[4.5rem] flex-shrink-0 px-1.5 py-2.5 text-xs border border-gray-200 rounded-lg bg-gray-50 cursor-pointer font-mono text-center"
                 placeholder="ID"
               />
             </div>
