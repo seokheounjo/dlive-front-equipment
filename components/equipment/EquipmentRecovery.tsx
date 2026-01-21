@@ -376,7 +376,7 @@ const CustomerSearchModal: React.FC<{
                   {searchResults.map((customer, idx) => (
                     <button
                       key={customer.CUST_ID || idx}
-                      onClick={() => { onSelect({ CUST_ID: customer.CUST_ID, CUST_NM: customer.CUST_NM }); onClose(); }}
+                      onClick={() => { setCustomerName(customer.CUST_NM); onSelect({ CUST_ID: customer.CUST_ID, CUST_NM: customer.CUST_NM }); onClose(); }}
                       className="w-full p-2.5 bg-gray-50 hover:bg-blue-50 rounded-lg border border-gray-200 hover:border-blue-300 text-left"
                     >
                       <div className="flex items-center gap-2 text-sm truncate">
