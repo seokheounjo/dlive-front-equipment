@@ -9,6 +9,7 @@ import {
   setEquipmentCheckStandby,
   getCommonCodes,
   getEquipmentHistoryInfo,
+  getEquipmentTypeList,  // 소분류 (모델2) 조회용
   // 새 API 함수 (받은문서 20251223 분석 기반)
   getWrkrHaveEqtListAll,      // 보유장비 전체 조회
   getEquipmentReturnRequestListAll,  // 반납요청 장비 조회 (getEquipmentReturnRequestList_All)
@@ -251,7 +252,10 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
   // 검색 조건
   const [selectedSoId, setSelectedSoId] = useState<string>(userInfo?.soId || '');
   
-  const [selectedItemMidCd, setSelectedItemMidCd] = useState<string>('');
+  const [selectedItemMidCd, setSelectedItemMidCd] = useState<string>('');  // 모델1 (중분류)
+  const [selectedEqtClCd, setSelectedEqtClCd] = useState<string>('');      // 모델2 (소분류)
+  const [eqtClOptions, setEqtClOptions] = useState<{ code: string; name: string }[]>([]);  // 모델2 옵션
+  const [isLoadingEqtCl, setIsLoadingEqtCl] = useState(false);  // 모델2 로딩 중
   const [eqtSerno, setEqtSerno] = useState<string>('');
 
   // 검색 카테고리 - 라디오 버튼으로 단일 선택
@@ -265,6 +269,7 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
     let count = 0;
     if (selectedSoId) count++;
     if (selectedItemMidCd) count++;
+    if (selectedEqtClCd) count++;
     if (eqtSerno) count++;
     return count;
   };
@@ -286,6 +291,49 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
     };
     loadSoList();
   }, []);
+
+  // 모델2 (소분류) 옵션 로드 - 모델1 선택 시
+  useEffect(() => {
+    // 모델1 미선택 시 초기화
+    if (!selectedItemMidCd) {
+      setEqtClOptions([]);
+      setSelectedEqtClCd('');
+      return;
+    }
+
+    const loadEqtClOptions = async () => {
+      setIsLoadingEqtCl(true);
+      try {
+        console.log('[장비처리] 소분류 API 호출:', selectedItemMidCd);
+        const result = await getEquipmentTypeList({ ITEM_MID_CD: selectedItemMidCd });
+        console.log('[장비처리] 소분류 API 결과:', result);
+
+        if (result && Array.isArray(result.list)) {
+          // 중복 제거 및 소분류 옵션 구성
+          const optionsMap = new Map<string, string>();
+          result.list.forEach((item: any) => {
+            if (item.ITEM_MID_CD === selectedItemMidCd && item.EQT_CL_CD && item.EQT_CL_NM) {
+              optionsMap.set(item.EQT_CL_CD, item.EQT_CL_NM);
+            }
+          });
+
+          const options = Array.from(optionsMap.entries()).map(([code, name]) => ({ code, name }));
+          console.log('[장비처리] 소분류 옵션:', options.length, '개');
+          setEqtClOptions(options);
+        } else {
+          setEqtClOptions([]);
+        }
+      } catch (error) {
+        console.error('[장비처리] 소분류 로드 실패:', error);
+        setEqtClOptions([]);
+      } finally {
+        setIsLoadingEqtCl(false);
+      }
+    };
+
+    loadEqtClOptions();
+    setSelectedEqtClCd('');  // 모델1 변경 시 모델2 초기화
+  }, [selectedItemMidCd]);
 
   // UI 상태
   const [isLoading, setIsLoading] = useState(false);
@@ -461,7 +509,11 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
               // ITEM_MID_CD 필터 적용 (프론트엔드에서)
               let filtered = ownedResult;
               if (selectedItemMidCd) {
-                filtered = ownedResult.filter((item: any) => item.ITEM_MID_CD === selectedItemMidCd);
+                filtered = filtered.filter((item: any) => item.ITEM_MID_CD === selectedItemMidCd);
+              }
+              // EQT_CL_CD (모델2) 필터 적용
+              if (selectedEqtClCd) {
+                filtered = filtered.filter((item: any) => item.EQT_CL_CD === selectedEqtClCd);
               }
               // 보유장비: EQT_USE_ARR_YN='Y' 또는 NULL(미설정)인 장비 표시
               // 검사대기='A', 사용불가='N'만 제외
@@ -519,7 +571,11 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
               // ITEM_MID_CD 필터 적용 (프론트엔드에서)
               let filtered = returnResult;
               if (selectedItemMidCd) {
-                filtered = returnResult.filter((item: any) => item.ITEM_MID_CD === selectedItemMidCd);
+                filtered = filtered.filter((item: any) => item.ITEM_MID_CD === selectedItemMidCd);
+              }
+              // EQT_CL_CD (모델2) 필터 적용
+              if (selectedEqtClCd) {
+                filtered = filtered.filter((item: any) => item.EQT_CL_CD === selectedEqtClCd);
               }
               // 중복 제거 (EQT_NO 기준) + 같은 EQT_NO의 모든 REQ_DT 저장 (반납취소 시 전체 삭제용)
               const eqtNoMap = new Map<string, any[]>(); // EQT_NO -> 모든 레코드 배열
@@ -645,6 +701,10 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
       let filteredList = transformedList;
       if (selectedItemMidCd) {
         filteredList = filteredList.filter(item => item.ITEM_MID_CD === selectedItemMidCd);
+      }
+      // 모델2 (소분류) 필터링
+      if (selectedEqtClCd) {
+        filteredList = filteredList.filter(item => item.EQT_CL_CD === selectedEqtClCd);
       }
 
       // 카테고리별 정렬: 재고(사용가능) -> 검사대기 -> 반납요청중
@@ -1423,16 +1483,35 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
                   ))}
                 </select>
               </div>
-              {/* 장비종류 */}
+              {/* 모델1 (중분류) */}
               <div className="flex items-center gap-2">
-                <label className="text-xs font-medium text-gray-600 w-16 flex-shrink-0">장비종류</label>
+                <label className="text-xs font-medium text-gray-600 w-14 flex-shrink-0">모델1</label>
                 <select
                   value={selectedItemMidCd}
                   onChange={(e) => setSelectedItemMidCd(e.target.value)}
-                  className="flex-1 px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                  className="flex-1 px-3 py-2.5 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
                 >
                   {itemMidList.map((item) => (
                     <option key={item.COMMON_CD} value={item.COMMON_CD}>{item.COMMON_CD_NM}</option>
+                  ))}
+                </select>
+              </div>
+              {/* 모델2 (소분류) */}
+              <div className="flex items-center gap-2">
+                <label className="text-xs font-medium text-gray-600 w-14 flex-shrink-0">모델2</label>
+                <select
+                  value={selectedEqtClCd}
+                  onChange={(e) => setSelectedEqtClCd(e.target.value)}
+                  disabled={!selectedItemMidCd || isLoadingEqtCl || eqtClOptions.length === 0}
+                  className="flex-1 px-3 py-2.5 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-100 disabled:cursor-not-allowed transition-all"
+                >
+                  <option value="">
+                    {!selectedItemMidCd ? '모델1을 먼저 선택하세요' :
+                     isLoadingEqtCl ? '로딩중...' :
+                     (eqtClOptions.length === 0 ? '소분류 없음' : '전체')}
+                  </option>
+                  {eqtClOptions.map(opt => (
+                    <option key={opt.code} value={opt.code}>{opt.name}</option>
                   ))}
                 </select>
               </div>
@@ -1657,7 +1736,6 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
                         <div><span className="text-gray-500">변경종류  : </span><span className="text-gray-800">{item.CHG_KND_NM || '-'}</span></div>
                         <div><span className="text-gray-500">현재위치  : </span><span className="text-gray-800">{item.EQT_LOC_NM || item.EQT_LOC_TP_NM || getEqtLocTpName(item.EQT_LOC_TP_CD || '') || '-'}</span></div>
                         <div><span className="text-gray-500">이전위치  : </span><span className="text-gray-800">{item.OLD_EQT_LOC_NM || '-'}</span></div>
-                        <div><span className="text-gray-500">MAC주소   : </span><span className="text-gray-800">{item.MAC_ADDRESS || '-'}</span></div>
                       </div>
                     )}
                   </div>

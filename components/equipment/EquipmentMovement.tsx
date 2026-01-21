@@ -1385,19 +1385,40 @@ const EquipmentMovement: React.FC<EquipmentMovementProps> = ({ onBack }) => {
             <div className="p-3 bg-purple-50 border border-purple-200 rounded-lg">
               <div className="flex items-center justify-between mb-2">
                 <span className="text-xs font-medium text-purple-700">스캔된 장비 ({scannedSerials.length}건)</span>
-                <button
-                  onClick={() => setScannedSerials([])}
-                  className="text-xs text-purple-600 hover:text-purple-800"
-                >
-                  전체 삭제
-                </button>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => {
+                      setScannedSerials([]);
+                      setEqtTrnsList([]);  // 조회 결과도 삭제
+                    }}
+                    className="text-xs text-purple-600 hover:text-purple-800"
+                  >
+                    전체 삭제
+                  </button>
+                  <button
+                    onClick={() => {
+                      setScannedSerials([]);
+                      setEqtTrnsList([]);  // 조회 결과도 삭제
+                    }}
+                    className="text-xs text-gray-500 hover:text-gray-700"
+                  >
+                    닫기
+                  </button>
+                </div>
               </div>
               <div className="space-y-1 max-h-20 overflow-y-auto">
                 {scannedSerials.map((sn, idx) => (
                   <div key={idx} className="flex items-center justify-between text-xs bg-white px-2 py-1 rounded">
                     <span className="font-mono text-gray-800">{sn}</span>
                     <button
-                      onClick={() => setScannedSerials(prev => prev.filter(s => s !== sn))}
+                      onClick={() => {
+                        const newSerials = scannedSerials.filter(s => s !== sn);
+                        setScannedSerials(newSerials);
+                        // 마지막 스캔장비 삭제 시 조회 결과도 삭제
+                        if (newSerials.length === 0) {
+                          setEqtTrnsList([]);
+                        }
+                      }}
                       className="text-red-400 hover:text-red-600"
                     >
                       <X className="w-3 h-3" />
@@ -1447,62 +1468,29 @@ const EquipmentMovement: React.FC<EquipmentMovementProps> = ({ onBack }) => {
       {eqtTrnsList.length > 0 && (
         <>
           <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
-            {/* 헤더 */}
-            <div className="px-4 py-3 bg-gradient-to-r from-gray-50 to-white border-b border-gray-100">
-              <div className="flex items-center justify-between gap-2 mb-2">
-                <div className="flex items-center gap-2 min-w-0 flex-1">
-                  <button
-                    onClick={handleReset}
-                    className="p-1.5 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors flex-shrink-0"
-                    title="초기화"
-                  >
-                    <RotateCcw className="w-4 h-4" />
-                  </button>
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-1 text-sm">
-                      <span className="font-semibold text-gray-800 truncate max-w-[120px]">{workerInfo.WRKR_NM}</span>
-                      <span className="text-gray-600 whitespace-nowrap">{eqtTrnsList.length}건</span>
-                      <span className="text-blue-600 font-medium whitespace-nowrap">(선택:{eqtTrnsList.filter(item => item.CHK).length})</span>
-                    </div>
-                  </div>
-                </div>
-                <label className="flex items-center gap-2 text-xs flex-shrink-0 whitespace-nowrap">
+            {/* 헤더: 전체선택 + 카운트 (좌) / 간단히-자세히 (우) - EquipmentInquiry 통일 */}
+            <div className="px-4 py-2.5 bg-gradient-to-r from-gray-50 to-white border-b border-gray-100 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={handleReset}
+                  className="p-1 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors flex-shrink-0"
+                  title="초기화"
+                >
+                  <RotateCcw className="w-4 h-4" />
+                </button>
+                <label className="flex items-center gap-2 cursor-pointer">
                   <input
                     type="checkbox"
                     onChange={(e) => handleCheckAll(e.target.checked)}
                     checked={eqtTrnsList.length > 0 && eqtTrnsList.every(item => item.CHK)}
-                    className="rounded"
+                    className="w-4 h-4 text-blue-500 rounded focus:ring-blue-500"
                   />
-                  전체
+                  <span className="text-sm font-semibold text-gray-800">전체선택</span>
                 </label>
+                <span className="text-xs text-gray-500">
+                  {eqtTrnsList.length}건 (선택: {eqtTrnsList.filter(item => item.CHK).length}건)
+                </span>
               </div>
-              {/* 선택 모드 표시 */}
-              {selectionMode !== 'none' && (
-                <div className={`mb-2 px-3 py-2 rounded-lg text-xs font-medium flex items-center justify-between ${
-                  selectionMode.startsWith('restricted-')
-                    ? 'bg-amber-100 text-amber-800 border border-amber-200'
-                    : 'bg-blue-100 text-blue-800 border border-blue-200'
-                }`}>
-                  <span>
-                    {selectionMode.startsWith('restricted-')
-                      ? `${RESTRICTED_SO_NAMES[selectionMode.replace('restricted-', '')]} 지점 전용 모드`
-                      : '일반 지점 모드 (제한지점 선택 불가)'}
-                  </span>
-                  <button
-                    onClick={() => {
-                      setSelectionMode('none');
-                      setEqtTrnsList(prev => prev.map(item => ({ ...item, CHK: false, isTransferable: true })));
-                    }}
-                    className={`px-2 py-0.5 rounded text-xs ${
-                      selectionMode.startsWith('restricted-')
-                        ? 'bg-amber-200 hover:bg-amber-300'
-                        : 'bg-blue-200 hover:bg-blue-300'
-                    }`}
-                  >
-                    초기화
-                  </button>
-                </div>
-              )}
               {/* 뷰 모드 선택 버튼 */}
               <div className="flex gap-1 bg-gray-100 p-1 rounded-lg">
                 <button
@@ -1527,6 +1515,33 @@ const EquipmentMovement: React.FC<EquipmentMovementProps> = ({ onBack }) => {
                 </button>
               </div>
             </div>
+            {/* 선택 모드 표시 */}
+            {selectionMode !== 'none' && (
+              <div className={`mx-4 my-2 px-3 py-2 rounded-lg text-xs font-medium flex items-center justify-between ${
+                selectionMode.startsWith('restricted-')
+                  ? 'bg-amber-100 text-amber-800 border border-amber-200'
+                  : 'bg-blue-100 text-blue-800 border border-blue-200'
+              }`}>
+                <span>
+                  {selectionMode.startsWith('restricted-')
+                    ? `${RESTRICTED_SO_NAMES[selectionMode.replace('restricted-', '')]} 지점 전용 모드`
+                    : '일반 지점 모드 (제한지점 선택 불가)'}
+                </span>
+                <button
+                  onClick={() => {
+                    setSelectionMode('none');
+                    setEqtTrnsList(prev => prev.map(item => ({ ...item, CHK: false, isTransferable: true })));
+                  }}
+                  className={`px-2 py-0.5 rounded text-xs ${
+                    selectionMode.startsWith('restricted-')
+                      ? 'bg-amber-200 hover:bg-amber-300'
+                      : 'bg-blue-200 hover:bg-blue-300'
+                  }`}
+                >
+                  초기화
+                </button>
+              </div>
+            )}
 
             {/* 지점 > 장비종류 2단계 그룹 */}
             <div className="divide-y divide-gray-100">
@@ -1668,7 +1683,6 @@ const EquipmentMovement: React.FC<EquipmentMovementProps> = ({ onBack }) => {
                                   <div><span className="text-gray-500">변경종류  : </span><span className="text-gray-800">{item.CHG_KND_NM || '-'}</span></div>
                                   <div><span className="text-gray-500">현재위치  : </span><span className="text-gray-800">{item.EQT_LOC_NM || item.EQT_LOC_TP_NM || '-'}</span></div>
                                   <div><span className="text-gray-500">이전위치  : </span><span className="text-gray-800">{item.OLD_EQT_LOC_NM || '-'}</span></div>
-                                  <div><span className="text-gray-500">MAC주소   : </span><span className="text-gray-800">{item.MAC_ADDRESS || '-'}</span></div>
                                 </div>
                               )}
                             </div>
