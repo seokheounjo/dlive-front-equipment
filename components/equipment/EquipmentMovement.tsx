@@ -680,6 +680,12 @@ const EquipmentMovement: React.FC<EquipmentMovementProps> = ({ onBack }) => {
             TA_MAC_ADDRESS: item.TA_MAC_ADDRESS || '',
             WRKR_NM: item.WRKR_NM || wrkrNm,
             CRR_NM: item.CRR_NM || '',
+            EQT_STAT_CD_NM: item.EQT_STAT_CD_NM || '',
+            CHG_KND_NM: item.CHG_KND_NM || '',
+            EQT_LOC_NM: item.EQT_LOC_NM || '',
+            EQT_LOC_TP_NM: item.EQT_LOC_TP_NM || '',
+            OLD_EQT_LOC_NM: item.OLD_EQT_LOC_NM || '',
+            OLD_EQT_LOC_TP_NM: item.OLD_EQT_LOC_TP_NM || '',
             isScanned: scannedSN ? item.EQT_SERNO === scannedSN || scannedSerials.includes(item.EQT_SERNO) : scannedSerials.includes(item.EQT_SERNO),
             isTransferable
           };
@@ -891,6 +897,12 @@ const EquipmentMovement: React.FC<EquipmentMovementProps> = ({ onBack }) => {
             TA_MAC_ADDRESS: item.TA_MAC_ADDRESS || '',
             WRKR_NM: item.WRKR_NM || worker.USR_NM,
             CRR_NM: item.CRR_NM || '',
+            EQT_STAT_CD_NM: item.EQT_STAT_CD_NM || '',
+            CHG_KND_NM: item.CHG_KND_NM || '',
+            EQT_LOC_NM: item.EQT_LOC_NM || '',
+            EQT_LOC_TP_NM: item.EQT_LOC_TP_NM || '',
+            OLD_EQT_LOC_NM: item.OLD_EQT_LOC_NM || '',
+            OLD_EQT_LOC_TP_NM: item.OLD_EQT_LOC_TP_NM || '',
             isScanned: false,
             isTransferable
           };
