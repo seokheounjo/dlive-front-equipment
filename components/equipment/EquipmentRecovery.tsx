@@ -339,7 +339,7 @@ const CustomerSearchModal: React.FC<{
               value={customerName}
               readOnly
               placeholder="이름"
-              className="w-16 min-w-0 px-3 py-2 text-sm border border-gray-200 rounded-lg bg-gray-50 text-gray-600 flex-shrink-0"
+              className="w-24 min-w-0 px-3 py-2 text-sm border border-gray-200 rounded-lg bg-gray-50 text-gray-600 flex-shrink-0"
             />
           </div>
 
