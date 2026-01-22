@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { findUserList, getWrkrHaveEqtListAll as getWrkrHaveEqtList, changeEquipmentWorker, getEquipmentHistoryInfo, saveTransferredEquipment, getEqtMasterInfo, getEquipmentTypeList } from '../../services/apiService';
 import { debugApiCall } from './equipmentDebug';
 import { Search, ChevronDown, ChevronUp, Check, X, User, RotateCcw, AlertTriangle } from 'lucide-react';
@@ -168,6 +168,9 @@ const EquipmentMovement: React.FC<EquipmentMovementProps> = ({ onBack }) => {
   const [soList, setSoList] = useState<SoListItem[]>([]);
   const [corpList, setCorpList] = useState<CorpListItem[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [isTransferring, setIsTransferring] = useState(false);  // 이관 진행 중 (버튼 disabled용)
+  const transferLockRef = useRef(false);  // 동기식 중복 호출 방지 락
+  const lastTransferTimeRef = useRef(0);  // 마지막 이관 시도 시간 (쿨다운용)
   const [searchError, setSearchError] = useState<string | null>(null); // 검색 에러
   const [scannedSerials, setScannedSerials] = useState<string[]>([]); // 스캔된 S/N 목록
 
@@ -1011,23 +1014,52 @@ const EquipmentMovement: React.FC<EquipmentMovementProps> = ({ onBack }) => {
   };
 
   const handleTransfer = async () => {
-    // 더블클릭 방지
-    if (isLoading) {
-      console.log('[장비이동] 이미 처리 중 - 중복 호출 방지');
+    // ========== 다중 중복 호출 방지 (3중 보호) ==========
+
+    // 1. ref 기반 동기식 락 체크 (가장 빠른 체크)
+    if (transferLockRef.current) {
+      console.log('[장비이동] transferLockRef 락 - 중복 호출 차단');
       return;
     }
 
+    // 2. 쿨다운 체크 (3초 이내 재호출 방지)
+    const now = Date.now();
+    if (now - lastTransferTimeRef.current < 3000) {
+      console.log('[장비이동] 쿨다운 중 - 3초 이내 재호출 차단');
+      return;
+    }
+
+    // 3. state 기반 로딩 체크
+    if (isLoading || isTransferring) {
+      console.log('[장비이동] isLoading/isTransferring 상태 - 중복 호출 차단');
+      return;
+    }
+
+    // 락 설정 (동기식)
+    transferLockRef.current = true;
+    lastTransferTimeRef.current = now;
+
     const checkedItems = eqtTrnsList.filter(item => item.CHK);
-    if (checkedItems.length === 0) { alert('이동할 장비를 선택해주세요.'); return; }
-    if (!loggedInUser.userId) { alert('로그인 정보가 없습니다.'); return; }
+    if (checkedItems.length === 0) {
+      transferLockRef.current = false;
+      alert('이동할 장비를 선택해주세요.');
+      return;
+    }
+    if (!loggedInUser.userId) {
+      transferLockRef.current = false;
+      alert('로그인 정보가 없습니다.');
+      return;
+    }
 
     // 본인에게 이동 불가 체크
     if (workerInfo.WRKR_ID === loggedInUser.userId) {
+      transferLockRef.current = false;
       alert('본인에게는 장비를 이동할 수 없습니다.');
       return;
     }
 
     setIsLoading(true);
+    setIsTransferring(true);
     const results: TransferResult = { success: [], failed: [] };
 
     // ========== 디버깅 로그 시작 ==========
@@ -1138,7 +1170,13 @@ const EquipmentMovement: React.FC<EquipmentMovementProps> = ({ onBack }) => {
       console.error('장비 이동 실패:', error);
       alert('장비 이동에 실패했습니다.');
     } finally {
+      // 모든 락 해제
       setIsLoading(false);
+      setIsTransferring(false);
+      // ref 락은 3초 후 해제 (쿨다운 보장)
+      setTimeout(() => {
+        transferLockRef.current = false;
+      }, 1000);
     }
   };
 
@@ -1761,16 +1799,27 @@ const EquipmentMovement: React.FC<EquipmentMovementProps> = ({ onBack }) => {
       {eqtTrnsList.length > 0 && (
         <div className="fixed bottom-16 left-0 right-0 px-4 pb-2 z-[45]">
           <button
-            onClick={() => setShowTransferModal(true)}
-            disabled={eqtTrnsList.filter(item => item.CHK).length === 0}
-            className={`w-full py-4 rounded-xl font-bold text-base shadow-lg flex items-center justify-center gap-2 active:scale-[0.98] transition-all touch-manipulation ${
-              eqtTrnsList.filter(item => item.CHK).length > 0
-                ? 'bg-gradient-to-r from-blue-500 to-blue-600 text-white'
-                : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+            onClick={() => !isTransferring && setShowTransferModal(true)}
+            disabled={eqtTrnsList.filter(item => item.CHK).length === 0 || isTransferring}
+            className={`w-full py-4 rounded-xl font-bold text-base shadow-lg flex items-center justify-center gap-2 transition-all touch-manipulation ${
+              isTransferring
+                ? 'bg-gray-400 text-gray-200 cursor-not-allowed'
+                : eqtTrnsList.filter(item => item.CHK).length > 0
+                  ? 'bg-gradient-to-r from-blue-500 to-blue-600 text-white active:scale-[0.98]'
+                  : 'bg-gray-300 text-gray-500 cursor-not-allowed'
             }`}
           >
-            <Check className="w-5 h-5" />
-            장비 이동 ({eqtTrnsList.filter(item => item.CHK).length}건)
+            {isTransferring ? (
+              <>
+                <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                처리중...
+              </>
+            ) : (
+              <>
+                <Check className="w-5 h-5" />
+                장비 이동 ({eqtTrnsList.filter(item => item.CHK).length}건)
+              </>
+            )}
           </button>
         </div>
       )}
@@ -1791,12 +1840,18 @@ const EquipmentMovement: React.FC<EquipmentMovementProps> = ({ onBack }) => {
             </button>
             <button
               onClick={() => {
+                if (isTransferring) return;  // 중복 클릭 방지
                 setShowTransferModal(false);
                 handleTransfer();
               }}
-              className="py-4 bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-xl font-semibold text-base shadow-lg active:scale-[0.98] transition-all touch-manipulation"
+              disabled={isTransferring}
+              className={`py-4 rounded-xl font-semibold text-base shadow-lg transition-all touch-manipulation ${
+                isTransferring
+                  ? 'bg-gray-400 text-gray-200 cursor-not-allowed'
+                  : 'bg-gradient-to-r from-blue-500 to-blue-600 text-white active:scale-[0.98]'
+              }`}
             >
-              이관하기
+              {isTransferring ? '처리중...' : '이관하기'}
             </button>
           </div>
         }

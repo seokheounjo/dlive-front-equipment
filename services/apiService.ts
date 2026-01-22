@@ -3278,21 +3278,49 @@ export const changeEquipmentWorker = async (params: {
       throw new Error(`JSON 파싱 실패: ${responseText.substring(0, 100)}`);
     }
 
-    // 성공 조건 확인 (200 OK 또는 result에 SUCCESS 포함)
-    if (response.ok || result?.MSGCODE === 'SUCCESS' || result?.code === 'SUCCESS') {
-      console.log(`[${apiCallId}] ✅ 성공! MSGCODE=${result?.MSGCODE}, MESSAGE=${result?.MESSAGE}`);
+    // ========== 성공/실패 판단 로직 개선 ==========
+    const msgCode = result?.MSGCODE;
+    const message = result?.MESSAGE || result?.message || '';
+
+    console.log(`[${apiCallId}] 응답 분석: MSGCODE=${msgCode}, MESSAGE=${message}, status=${response.status}`);
+
+    // 1. Oracle 프로시저 성공: MSGCODE가 없거나 '0' 또는 빈값
+    const isOracleSuccess = msgCode === undefined || msgCode === null || msgCode === '' || msgCode === '0';
+
+    // 2. 에러 메시지 체크 (MESSAGE에 에러 내용이 있으면 실패)
+    const hasErrorMessage = message && (
+      message.includes('정보가 없습니다') ||
+      message.includes('존재하지 않') ||
+      message.includes('실패') ||
+      message.includes('에러') ||
+      message.includes('ERROR') ||
+      message.includes('오류')
+    );
+
+    // 3. 성공 조건: HTTP 200 또는 (Oracle 성공 && 에러 메시지 없음)
+    if (response.ok && isOracleSuccess && !hasErrorMessage) {
+      console.log(`[${apiCallId}] ✅ 성공! (HTTP 200, MSGCODE=${msgCode})`);
       return result;
     }
 
-    // 500 에러지만 실제로는 성공한 경우 체크 (result가 정상 데이터인 경우)
-    if (result && !result.error && !result.code?.includes('ERROR')) {
-      console.log(`[${apiCallId}] ✅ 성공 (응답 코드 무시)`);
+    // 4. HTTP 500이지만 Oracle은 성공한 경우 (백엔드 응답 문제)
+    if (response.status === 500 && isOracleSuccess && !hasErrorMessage) {
+      console.log(`[${apiCallId}] ✅ 성공 (HTTP 500이지만 Oracle 성공)`);
       return result;
     }
 
-    // 에러 응답
-    const errMsg = result?.message || result?.MESSAGE || result?.error || '장비 이동에 실패했습니다.';
+    // 5. 에러 응답 - 구체적인 에러 메시지 추출
+    let errMsg = '장비 이동에 실패했습니다.';
+    if (message) {
+      errMsg = message;
+    } else if (result?.error) {
+      errMsg = result.error;
+    } else if (msgCode && msgCode !== '0') {
+      errMsg = `오류 코드: ${msgCode}`;
+    }
+
     console.error(`[${apiCallId}] ❌ 실패: ${errMsg}`);
+    console.error(`[${apiCallId}] 실패 상세: MSGCODE=${msgCode}, MESSAGE=${message}, HTTP=${response.status}`);
     throw new Error(errMsg);
   } catch (error: any) {
     const errorDuration = Date.now() - apiStartTime;
