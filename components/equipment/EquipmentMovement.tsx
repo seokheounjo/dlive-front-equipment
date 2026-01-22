@@ -1011,6 +1011,12 @@ const EquipmentMovement: React.FC<EquipmentMovementProps> = ({ onBack }) => {
   };
 
   const handleTransfer = async () => {
+    // 더블클릭 방지
+    if (isLoading) {
+      console.log('[장비이동] 이미 처리 중 - 중복 호출 방지');
+      return;
+    }
+
     const checkedItems = eqtTrnsList.filter(item => item.CHK);
     if (checkedItems.length === 0) { alert('이동할 장비를 선택해주세요.'); return; }
     if (!loggedInUser.userId) { alert('로그인 정보가 없습니다.'); return; }
@@ -1024,26 +1030,34 @@ const EquipmentMovement: React.FC<EquipmentMovementProps> = ({ onBack }) => {
     setIsLoading(true);
     const results: TransferResult = { success: [], failed: [] };
 
+    console.log('[장비이동] ========== 이관 시작 ==========');
+    console.log('[장비이동] 선택된 장비 수:', checkedItems.length);
+
     try {
-      for (const item of checkedItems) {
+      for (let i = 0; i < checkedItems.length; i++) {
+        const item = checkedItems[i];
+        console.log(`[장비이동] [${i + 1}/${checkedItems.length}] 처리 시작: ${item.EQT_SERNO}`);
+
         try {
-          // SO_ID는 장비의 원래 SO_ID 사용 (Oracle 프로시저가 SO_ID + EQT_NO로 장비원장 조회)
-          // 중요: MST_SO_ID가 아닌 SO_ID를 사용해야 함!
-          // - 테스트 결과: SO_ID=402로 성공, MST_SO_ID=100으로 실패
-          // - 원장 테이블은 조회 API의 SO_ID 기준으로 저장됨
           const params = {
             EQT_NO: item.EQT_NO,
             EQT_SERNO: item.EQT_SERNO,
-            SO_ID: item.SO_ID,                    // 장비의 원래 SO_ID 사용! (MST_SO_ID 아님!)
+            SO_ID: item.SO_ID,
             FROM_WRKR_ID: workerInfo.WRKR_ID,
             TO_WRKR_ID: loggedInUser.userId,
-            MV_SO_ID: targetSoId || item.SO_ID,   // 이관 지점 (선택한 지점 또는 장비 SO_ID)
-            MV_CRR_ID: loggedInUser.crrId,        // 이관 협력업체 (이관받는 기사의 CRR_ID)
-            CHG_UID: loggedInUser.userId,         // 변경자 ID
-            CRR_ID: loggedInUser.crrId,           // AUTO-FIX용 CRR_ID
-            AUTH_SO_LIST: userAuthSoList.map(so => so.SO_ID)  // AUTO-FIX용 SO_ID 목록
+            MV_SO_ID: targetSoId || item.SO_ID,
+            MV_CRR_ID: loggedInUser.crrId,
+            CHG_UID: loggedInUser.userId,
+            CRR_ID: loggedInUser.crrId,
+            AUTH_SO_LIST: userAuthSoList.map(so => so.SO_ID)
           };
-          await debugApiCall('EquipmentMovement', 'changeEquipmentWorker', () => changeEquipmentWorker(params), params);
+
+          console.log(`[장비이동] [${i + 1}] API 호출 직전:`, params.EQT_SERNO);
+
+          // 동기식으로 API 호출 (debugApiCall 제거)
+          const result = await changeEquipmentWorker(params);
+
+          console.log(`[장비이동] [${i + 1}] API 호출 완료:`, result);
           results.success.push({
             EQT_SERNO: item.EQT_SERNO,
             EQT_NO: item.EQT_NO,
