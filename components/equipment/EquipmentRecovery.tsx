@@ -289,14 +289,16 @@ const CustomerSearchModal: React.FC<{
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-xl shadow-xl w-full max-w-md overflow-hidden max-h-[80vh] flex flex-col">
-        <div className="p-3 border-b border-gray-100 bg-gradient-to-r from-blue-500 to-blue-600">
+        {/* 헤더 */}
+        <div className="p-3 border-b border-gray-100 bg-gradient-to-r from-blue-500 to-blue-600 flex-shrink-0">
           <h3 className="font-semibold text-white flex items-center gap-2">
             <User className="w-4 h-4" />
             고객 검색
           </h3>
         </div>
 
-        <div className="p-4 space-y-3 flex-1 overflow-y-auto">
+        {/* 스크롤 가능한 콘텐츠 영역 */}
+        <div className="p-4 space-y-3 flex-1 overflow-y-auto min-h-0">
           {/* 고객ID */}
           <div className="flex items-center gap-2">
             <label className="text-xs font-medium text-gray-600 w-16 flex-shrink-0">고객ID</label>
@@ -366,24 +368,6 @@ const CustomerSearchModal: React.FC<{
             </button>
           </div>
 
-          {/* 버튼 */}
-          <div className="flex gap-2 pt-1">
-            <button
-              onClick={handleSearch}
-              disabled={isSearching}
-              className="flex-1 py-2.5 text-sm text-white bg-blue-500 hover:bg-blue-600 disabled:bg-gray-300 rounded-lg font-medium flex items-center justify-center gap-2"
-            >
-              {isSearching ? <Loader2 className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />}
-              {isSearching ? '조회 중...' : '조회'}
-            </button>
-            <button
-              onClick={onClose}
-              className="px-4 py-2.5 text-sm text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-lg font-medium"
-            >
-              닫기
-            </button>
-          </div>
-
           {/* 검색 결과 */}
           {hasSearched && (
             <div className="border-t border-gray-100 pt-3">
@@ -411,6 +395,26 @@ const CustomerSearchModal: React.FC<{
               )}
             </div>
           )}
+        </div>
+
+        {/* 하단 버튼 (고정) */}
+        <div className="p-4 border-t border-gray-100 bg-white flex-shrink-0">
+          <div className="flex gap-2">
+            <button
+              onClick={handleSearch}
+              disabled={isSearching}
+              className="flex-1 py-2.5 text-sm text-white bg-blue-500 hover:bg-blue-600 disabled:bg-gray-300 rounded-lg font-medium flex items-center justify-center gap-2"
+            >
+              {isSearching ? <Loader2 className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />}
+              {isSearching ? '조회 중...' : '조회'}
+            </button>
+            <button
+              onClick={onClose}
+              className="px-4 py-2.5 text-sm text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-lg font-medium"
+            >
+              닫기
+            </button>
+          </div>
         </div>
       </div>
 
