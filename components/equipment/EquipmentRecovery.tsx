@@ -376,7 +376,7 @@ const CustomerSearchModal: React.FC<{
                       <div className="flex items-center gap-2 text-sm truncate">
                         <span className="text-blue-600 font-mono flex-shrink-0">{customer.CUST_ID}</span>
                         <span className="font-medium text-gray-800 flex-shrink-0">{customer.CUST_NM}</span>
-                        <span className="text-gray-400 truncate">{customer.INST_ADDR || customer.ADDR || customer.ADDRESS || ''}</span>
+                        <span className="text-gray-600 truncate">{customer.INST_ADDR || customer.ADDR || customer.ADDRESS || ''}</span>
                       </div>
                     </button>
                   ))}
