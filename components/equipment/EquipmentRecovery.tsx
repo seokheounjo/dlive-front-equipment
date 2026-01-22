@@ -289,12 +289,11 @@ const CustomerSearchModal: React.FC<{
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-xl shadow-xl w-full max-w-md overflow-hidden max-h-[80vh] flex flex-col">
-        <div className="p-4 border-b border-gray-100 bg-gradient-to-r from-blue-500 to-blue-600">
+        <div className="p-3 border-b border-gray-100 bg-gradient-to-r from-blue-500 to-blue-600">
           <h3 className="font-semibold text-white flex items-center gap-2">
             <User className="w-4 h-4" />
             고객 검색
           </h3>
-          <p className="text-xs text-white/80 mt-0.5">검색 조건을 입력하세요</p>
         </div>
 
         <div className="p-4 space-y-3 flex-1 overflow-y-auto">
