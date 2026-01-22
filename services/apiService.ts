@@ -3209,6 +3209,8 @@ export const changeEquipmentWorker = async (params: {
   MV_SO_ID?: string;        // 이관지점 SO_ID (이관받는 기사의 SO_ID)
   MV_CRR_ID?: string;       // 이관 협력업체 ID (이관받는 기사의 CRR_ID)
   CHG_UID?: string;         // 변경자 ID
+  CRR_ID?: string;          // AUTO-FIX용 CRR_ID
+  AUTH_SO_LIST?: string[];  // AUTO-FIX용 SO_ID 목록
 }): Promise<any> => {
   console.log('👤 [장비이동] API 호출:', params);
 
