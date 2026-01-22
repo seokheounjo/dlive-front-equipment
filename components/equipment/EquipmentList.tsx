@@ -889,12 +889,37 @@ const EquipmentList: React.FC<EquipmentListProps> = ({ onBack, showToast }) => {
               <InfoRow label="제조사" value={equipmentDetail.MAKER} />
               <InfoRow label="제조일" value={equipmentDetail.MNFCT_DT} />
 
-              {/* 상태 정보 */}
-              <SectionHeader title="상태 정보" />
-              <InfoRow label="장비상태" value={equipmentDetail.EQT_STAT_CD_NM || equipmentDetail.EQT_STAT_CD} />
-              <InfoRow label="사용상태" value={equipmentDetail.EQT_USE_STAT_CD_NM || equipmentDetail.EQT_USE_STAT_CD} />
-              <InfoRow label="사용가능여부" value={equipmentDetail.EQT_USE_ARR_YN_NM || equipmentDetail.EQT_USE_ARR_YN} />
-              <InfoRow label="사용종료일" value={equipmentDetail.EQT_USE_END_DT} />
+              {/* 상태 정보 - 강조 박스 */}
+              <div className="bg-amber-50 border-2 border-amber-400 rounded-lg p-3 -mx-4 my-3">
+                <div className="bg-gradient-to-r from-amber-100 to-amber-50 px-3 py-2 -mx-3 -mt-3 mb-2 border-b border-amber-200">
+                  <h4 className="text-xs font-bold text-amber-700 flex items-center gap-1">
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    상태 정보
+                  </h4>
+                </div>
+                <div className="flex border-b border-amber-200 py-1.5">
+                  <span className="w-28 flex-shrink-0 text-xs text-amber-700 font-medium">장비상태</span>
+                  <span className="flex-1 text-xs text-gray-900 font-medium break-all">{equipmentDetail.EQT_STAT_CD_NM || equipmentDetail.EQT_STAT_CD || '-'}</span>
+                </div>
+                <div className="flex border-b border-amber-200 py-1.5">
+                  <span className="w-28 flex-shrink-0 text-xs text-amber-700 font-medium">사용상태</span>
+                  <span className="flex-1 text-xs text-gray-900 font-medium break-all">{equipmentDetail.EQT_USE_STAT_CD_NM || equipmentDetail.EQT_USE_STAT_CD || '-'}</span>
+                </div>
+                <div className="flex border-b border-amber-200 py-1.5">
+                  <span className="w-28 flex-shrink-0 text-xs text-amber-700 font-medium">사용가능여부</span>
+                  <span className={`flex-1 text-xs font-bold break-all ${
+                    equipmentDetail.EQT_USE_ARR_YN === 'Y' ? 'text-green-600' :
+                    equipmentDetail.EQT_USE_ARR_YN === 'A' ? 'text-purple-600' :
+                    equipmentDetail.EQT_USE_ARR_YN === 'N' ? 'text-red-600' : 'text-gray-900'
+                  }`}>{equipmentDetail.EQT_USE_ARR_YN_NM || equipmentDetail.EQT_USE_ARR_YN || '-'}</span>
+                </div>
+                <div className="flex py-1.5">
+                  <span className="w-28 flex-shrink-0 text-xs text-amber-700 font-medium">사용종료일</span>
+                  <span className="flex-1 text-xs text-gray-900 font-medium break-all">{equipmentDetail.EQT_USE_END_DT || '-'}</span>
+                </div>
+              </div>
 
               {/* 위치 정보 */}
               <SectionHeader title="위치 정보" />

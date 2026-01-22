@@ -532,7 +532,7 @@ const EquipmentAssignment: React.FC<EquipmentAssignmentProps> = ({ onBack, showT
           <div className="space-y-3">
             {/* 출고일자 범위 */}
             <div className="flex items-center gap-2">
-              <label className="text-xs font-medium text-gray-600 w-14 flex-shrink-0">출고일자</label>
+              <label className="text-xs font-medium text-gray-600 w-14 flex-shrink-0">할당일자</label>
               <div className="flex-1 flex items-center gap-2 min-w-0">
                 <div className="relative flex-1 min-w-0">
                   <input
@@ -612,7 +612,7 @@ const EquipmentAssignment: React.FC<EquipmentAssignmentProps> = ({ onBack, showT
             <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
               {/* 컬럼 헤더 */}
               <div className="bg-gray-50 px-3 py-2 border-b border-gray-200 flex items-center text-[11px] font-semibold text-gray-600">
-                <span className="w-16 text-center">출고일</span>
+                <span className="w-16 text-center">할당일</span>
                 <span className="w-20 text-center">협력업체</span>
                 <span className="flex-1 text-center">출고번호</span>
                 <span className="w-20 text-center flex-shrink-0">입고상태</span>
