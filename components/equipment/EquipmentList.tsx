@@ -650,7 +650,7 @@ const EquipmentList: React.FC<EquipmentListProps> = ({ onBack, showToast }) => {
         <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4">
           <div className="space-y-3">
             {/* S/N + 스캔 버튼 */}
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 overflow-hidden">
               <label className="text-xs font-medium text-gray-600 w-14 flex-shrink-0">S/N</label>
               <input
                 ref={inputRef}
@@ -658,7 +658,7 @@ const EquipmentList: React.FC<EquipmentListProps> = ({ onBack, showToast }) => {
                 value={searchValue}
                 onChange={(e) => setSearchValue(e.target.value.toUpperCase())}
                 onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
-                className="flex-1 px-3 py-2.5 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent uppercase transition-all font-mono"
+                className="flex-1 min-w-0 px-3 py-2.5 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent uppercase transition-all font-mono"
                 placeholder="S/N 또는 MAC 주소 입력"
                 autoFocus
               />

@@ -1051,13 +1051,13 @@ const EquipmentRecovery: React.FC<EquipmentRecoveryProps> = ({ onBack }) => {
           </div>
 
           {/* S/N + 스캔 버튼 */}
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 overflow-hidden">
             <label className="text-xs font-medium text-gray-600 w-14 flex-shrink-0">S/N</label>
             <input
               type="text"
               value={searchParams.EQT_SERNO}
               onChange={(e) => setSearchParams({...searchParams, EQT_SERNO: e.target.value.toUpperCase()})}
-              className="flex-1 px-3 py-2.5 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent uppercase transition-all font-mono"
+              className="flex-1 min-w-0 px-3 py-2.5 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent uppercase transition-all font-mono"
               placeholder="S/N 또는 MAC 주소 입력"
             />
             <button
