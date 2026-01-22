@@ -3212,49 +3212,95 @@ export const changeEquipmentWorker = async (params: {
   CRR_ID?: string;          // AUTO-FIX용 CRR_ID
   AUTH_SO_LIST?: string[];  // AUTO-FIX용 SO_ID 목록
 }): Promise<any> => {
-  console.log('👤 [장비이동] API 호출:', params);
+  // ========== 디버깅 로그 ==========
+  const apiCallId = `API_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`;
+  const apiStartTime = Date.now();
+
+  console.log('');
+  console.log('┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓');
+  console.log('┃ 📡 [apiService] changeEquipmentWorker API 호출                    ┃');
+  console.log('┣━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┫');
+  console.log(`┃ API_CALL_ID: ${apiCallId}`);
+  console.log(`┃ 호출시간: ${new Date().toISOString()}`);
+  console.log(`┃ EQT_SERNO: ${params.EQT_SERNO}`);
+  console.log(`┃ EQT_NO: ${params.EQT_NO}`);
+  console.log(`┃ SO_ID: ${params.SO_ID}`);
+  console.log(`┃ FROM_WRKR_ID: ${params.FROM_WRKR_ID}`);
+  console.log(`┃ TO_WRKR_ID: ${params.TO_WRKR_ID}`);
+  console.log(`┃ MV_SO_ID: ${params.MV_SO_ID}`);
+  console.log(`┃ MV_CRR_ID: ${params.MV_CRR_ID}`);
+  console.log(`┃ AUTH_SO_LIST: [${params.AUTH_SO_LIST?.join(', ') || '없음'}]`);
+  console.log('┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛');
 
   try {
     const origin = typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000';
+    const apiUrl = `${API_BASE}/customer/equipment/changeEqtWrkr_3`;
+    const requestBody = JSON.stringify(params);
+
+    console.log(`[${apiCallId}] URL: ${apiUrl}`);
+    console.log(`[${apiCallId}] Method: POST`);
+    console.log(`[${apiCallId}] Request Body:`, requestBody);
 
     // fetchWithRetry 대신 직접 fetch 사용 - 더 세밀한 에러 처리를 위해
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 30000);
 
-    const response = await fetch(`${API_BASE}/customer/equipment/changeEqtWrkr_3`, {
+    console.log(`[${apiCallId}] fetch() 호출 직전: ${new Date().toISOString()}`);
+
+    const response = await fetch(apiUrl, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'Origin': origin
       },
       credentials: 'include',
-      body: JSON.stringify(params),
+      body: requestBody,
       signal: controller.signal
     });
 
     clearTimeout(timeoutId);
 
-    const result = await response.json();
-    console.log('[장비이동] 응답:', response.status, result);
+    const fetchDuration = Date.now() - apiStartTime;
+    console.log(`[${apiCallId}] fetch() 완료: ${new Date().toISOString()} (${fetchDuration}ms)`);
+    console.log(`[${apiCallId}] Response Status: ${response.status} ${response.statusText}`);
+    console.log(`[${apiCallId}] Response Headers:`, Object.fromEntries(response.headers.entries()));
+
+    const responseText = await response.text();
+    console.log(`[${apiCallId}] Response Text (raw):`, responseText.substring(0, 500));
+
+    let result;
+    try {
+      result = JSON.parse(responseText);
+      console.log(`[${apiCallId}] Response JSON:`, JSON.stringify(result, null, 2));
+    } catch (parseError) {
+      console.error(`[${apiCallId}] JSON 파싱 실패:`, parseError);
+      console.error(`[${apiCallId}] Raw Response:`, responseText);
+      throw new Error(`JSON 파싱 실패: ${responseText.substring(0, 100)}`);
+    }
 
     // 성공 조건 확인 (200 OK 또는 result에 SUCCESS 포함)
     if (response.ok || result?.MSGCODE === 'SUCCESS' || result?.code === 'SUCCESS') {
-      console.log('✅ 장비 이동 성공:', result);
+      console.log(`[${apiCallId}] ✅ 성공! MSGCODE=${result?.MSGCODE}, MESSAGE=${result?.MESSAGE}`);
       return result;
     }
 
     // 500 에러지만 실제로는 성공한 경우 체크 (result가 정상 데이터인 경우)
     if (result && !result.error && !result.code?.includes('ERROR')) {
-      console.log('✅ 장비 이동 성공 (응답 코드 무시):', result);
+      console.log(`[${apiCallId}] ✅ 성공 (응답 코드 무시)`);
       return result;
     }
 
     // 에러 응답
-    const errMsg = result?.message || result?.error || '장비 이동에 실패했습니다.';
-    console.error('❌ 장비 이동 실패:', errMsg);
+    const errMsg = result?.message || result?.MESSAGE || result?.error || '장비 이동에 실패했습니다.';
+    console.error(`[${apiCallId}] ❌ 실패: ${errMsg}`);
     throw new Error(errMsg);
   } catch (error: any) {
-    console.error('❌ 장비 이동 실패:', error);
+    const errorDuration = Date.now() - apiStartTime;
+    console.error(`[${apiCallId}] ❌ 예외 발생 (${errorDuration}ms):`, error);
+    console.error(`[${apiCallId}] Error name:`, error.name);
+    console.error(`[${apiCallId}] Error message:`, error.message);
+    console.error(`[${apiCallId}] Error stack:`, error.stack);
+
     if (error.name === 'AbortError') {
       throw new Error('요청 시간이 초과되었습니다.');
     }

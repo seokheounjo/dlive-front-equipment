@@ -1030,13 +1030,44 @@ const EquipmentMovement: React.FC<EquipmentMovementProps> = ({ onBack }) => {
     setIsLoading(true);
     const results: TransferResult = { success: [], failed: [] };
 
-    console.log('[장비이동] ========== 이관 시작 ==========');
-    console.log('[장비이동] 선택된 장비 수:', checkedItems.length);
+    // ========== 디버깅 로그 시작 ==========
+    const debugStartTime = Date.now();
+    const debugId = `TRANSFER_${debugStartTime}_${Math.random().toString(36).substr(2, 9)}`;
+
+    console.log('');
+    console.log('╔══════════════════════════════════════════════════════════════════╗');
+    console.log('║                    🚀 장비 이관 디버그 로그                        ║');
+    console.log('╠══════════════════════════════════════════════════════════════════╣');
+    console.log(`║ DEBUG_ID: ${debugId}`);
+    console.log(`║ 시작시간: ${new Date().toISOString()}`);
+    console.log(`║ 선택장비: ${checkedItems.length}건`);
+    console.log(`║ 보유기사: ${workerInfo.WRKR_ID} (${workerInfo.WRKR_NM})`);
+    console.log(`║ 인수기사: ${loggedInUser.userId} (${loggedInUser.userName})`);
+    console.log(`║ 인수기사 CRR_ID: ${loggedInUser.crrId}`);
+    console.log(`║ 타겟SO_ID: ${targetSoId || '(장비별 SO_ID 사용)'}`);
+    console.log(`║ AUTH_SO_LIST: [${userAuthSoList.map(so => so.SO_ID).join(', ')}]`);
+    console.log('╚══════════════════════════════════════════════════════════════════╝');
+    console.log('');
+
+    // 선택된 장비 목록 출력
+    console.log('[DEBUG] 선택된 장비 상세:');
+    checkedItems.forEach((item, idx) => {
+      console.log(`  [${idx + 1}] EQT_NO=${item.EQT_NO}, EQT_SERNO=${item.EQT_SERNO}, SO_ID=${item.SO_ID}, SO_NM=${item.SO_NM || '-'}`);
+    });
+    console.log('');
 
     try {
       for (let i = 0; i < checkedItems.length; i++) {
         const item = checkedItems[i];
-        console.log(`[장비이동] [${i + 1}/${checkedItems.length}] 처리 시작: ${item.EQT_SERNO}`);
+        const itemStartTime = Date.now();
+
+        console.log('');
+        console.log(`┌──────────────────────────────────────────────────────────────────┐`);
+        console.log(`│ 📦 [${i + 1}/${checkedItems.length}] 장비 이관 처리 시작`);
+        console.log(`│ EQT_SERNO: ${item.EQT_SERNO}`);
+        console.log(`│ EQT_NO: ${item.EQT_NO}`);
+        console.log(`│ 현재 SO_ID: ${item.SO_ID}`);
+        console.log(`└──────────────────────────────────────────────────────────────────┘`);
 
         try {
           const params = {
@@ -1052,12 +1083,15 @@ const EquipmentMovement: React.FC<EquipmentMovementProps> = ({ onBack }) => {
             AUTH_SO_LIST: userAuthSoList.map(so => so.SO_ID)
           };
 
-          console.log(`[장비이동] [${i + 1}] API 호출 직전:`, params.EQT_SERNO);
+          console.log('[DEBUG] API 호출 파라미터:', JSON.stringify(params, null, 2));
+          console.log(`[DEBUG] API 호출 시작: ${new Date().toISOString()}`);
 
           // 동기식으로 API 호출 (debugApiCall 제거)
           const result = await changeEquipmentWorker(params);
 
-          console.log(`[장비이동] [${i + 1}] API 호출 완료:`, result);
+          const itemDuration = Date.now() - itemStartTime;
+          console.log(`[DEBUG] API 호출 완료: ${new Date().toISOString()} (소요시간: ${itemDuration}ms)`);
+          console.log('[DEBUG] API 응답:', JSON.stringify(result, null, 2));
           results.success.push({
             EQT_SERNO: item.EQT_SERNO,
             EQT_NO: item.EQT_NO,

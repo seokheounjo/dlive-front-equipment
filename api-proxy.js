@@ -201,6 +201,26 @@ async function handleProxy(req, res) {
   try {
     let apiPath = req.path;
 
+    // ========== 장비이동 디버깅 로그 ==========
+    const isEquipmentTransfer = apiPath.includes('changeEqtWrkr');
+    const debugId = isEquipmentTransfer ? `EC2_${Date.now()}_${Math.random().toString(36).substr(2, 6)}` : null;
+
+    if (isEquipmentTransfer) {
+      console.log('');
+      console.log('╔══════════════════════════════════════════════════════════════════════════╗');
+      console.log('║           🔧 EC2 프록시 - 장비이동 API 디버그 로그                         ║');
+      console.log('╠══════════════════════════════════════════════════════════════════════════╣');
+      console.log('║ DEBUG_ID:', debugId);
+      console.log('║ 요청시간:', new Date().toISOString());
+      console.log('║ 요청경로:', apiPath);
+      console.log('║ 요청메서드:', req.method);
+      console.log('║ 클라이언트IP:', req.headers['x-forwarded-for'] || req.socket.remoteAddress);
+      console.log('║ Origin:', req.headers.origin || '(없음)');
+      console.log('║ Cookie:', req.headers.cookie ? '있음' : '없음');
+      console.log('╚══════════════════════════════════════════════════════════════════════════╝');
+      console.log('[' + debugId + '] Request Body (Full):', JSON.stringify(req.body, null, 2));
+    }
+
     // Apply path mapping if exists
     if (PATH_MAPPING[apiPath]) {
       const mappedPath = PATH_MAPPING[apiPath];
@@ -301,8 +321,38 @@ async function handleProxy(req, res) {
       proxyRes.on('end', () => {
         const responseBody = Buffer.concat(chunks).toString();
 
-        // Log first 200 chars of response for debugging
-        console.log('[PROXY] Response preview:', responseBody.substring(0, 200));
+        // ========== 장비이동 응답 디버그 로그 ==========
+        if (isEquipmentTransfer) {
+          console.log('');
+          console.log('┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓');
+          console.log('┃ [' + debugId + '] 백엔드 응답 수신');
+          console.log('┣━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┫');
+          console.log('┃ 응답시간:', new Date().toISOString());
+          console.log('┃ 상태코드:', proxyRes.statusCode);
+          console.log('┃ Content-Type:', proxyRes.headers['content-type'] || '(없음)');
+          console.log('┃ 응답길이:', responseBody.length, 'bytes');
+          console.log('┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛');
+          console.log('[' + debugId + '] Response Body (Full):', responseBody);
+
+          // JSON 파싱 시도
+          try {
+            const jsonResponse = JSON.parse(responseBody);
+            console.log('[' + debugId + '] MSGCODE:', jsonResponse.MSGCODE);
+            console.log('[' + debugId + '] MESSAGE:', jsonResponse.MESSAGE);
+            if (jsonResponse.autoFixLogs) {
+              console.log('[' + debugId + '] autoFixLogs:', JSON.stringify(jsonResponse.autoFixLogs, null, 2));
+            }
+            if (jsonResponse.autoFixFoundSoId) {
+              console.log('[' + debugId + '] autoFixFoundSoId:', jsonResponse.autoFixFoundSoId);
+            }
+          } catch (e) {
+            console.log('[' + debugId + '] JSON 파싱 실패 - HTML 또는 에러 응답');
+          }
+          console.log('');
+        } else {
+          // Log first 200 chars of response for debugging
+          console.log('[PROXY] Response preview:', responseBody.substring(0, 200));
+        }
 
         Object.keys(proxyRes.headers).forEach(key => {
           if (key.toLowerCase() !== 'transfer-encoding') {
