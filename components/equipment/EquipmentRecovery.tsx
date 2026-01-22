@@ -219,6 +219,7 @@ const CustomerSearchModal: React.FC<{
   const [searchResults, setSearchResults] = useState<CustomerInfo[]>([]);
   const [hasSearched, setHasSearched] = useState(false);
   const [showScanner, setShowScanner] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   // Barcode scan handler for CustomerSearchModal
   const handleModalBarcodeScan = (serialNo: string) => {
@@ -229,6 +230,8 @@ const CustomerSearchModal: React.FC<{
   if (!isOpen) return null;
 
   const handleSearch = async () => {
+    setErrorMessage(null);  // 에러 초기화
+
     // 검색 조건 확인 (OR 조건: 고객ID, 계약ID, (전화번호 AND 이름), S/N)
     const hasCustomerId = customerId.length >= 4;
     const hasContractId = contractId.length >= 4;
@@ -239,13 +242,13 @@ const CustomerSearchModal: React.FC<{
 
     // 전화번호나 이름 중 하나만 입력한 경우 에러
     if ((hasPhoneNumber && !hasCustomerName) || (!hasPhoneNumber && hasCustomerName)) {
-      alert('전화번호와 이름을 모두 입력해주세요.\n(전화번호 4자리 이상, 이름 2자 이상)');
+      setErrorMessage('전화번호와 이름을 모두 입력해주세요.\n(전화번호 4자리 이상, 이름 2자 이상)');
       return;
     }
 
     // 검색 조건이 하나도 없는 경우
     if (!hasCustomerId && !hasContractId && !hasPhoneName && !hasEquipmentNo) {
-      alert('검색 조건을 하나 이상 입력해주세요.\n- 고객ID (4자리 이상)\n- 계약ID (4자리 이상)\n- 전화번호 + 이름 (둘 다 필수)\n- S/N (4자리 이상)');
+      setErrorMessage('검색 조건을 하나 이상 입력해주세요.\n• 고객ID (4자리 이상)\n• 계약ID (4자리 이상)\n• 전화번호 + 이름 (둘 다 필수)\n• S/N (4자리 이상)');
       return;
     }
 
@@ -292,6 +295,7 @@ const CustomerSearchModal: React.FC<{
     setEquipmentNo('');
     setSearchResults([]);
     setHasSearched(false);
+    setErrorMessage(null);
   };
 
   return (
@@ -313,7 +317,7 @@ const CustomerSearchModal: React.FC<{
             <input
               type="text"
               value={customerId}
-              onChange={(e) => setCustomerId(e.target.value)}
+              onChange={(e) => { setCustomerId(e.target.value); setErrorMessage(null); }}
               onKeyPress={handleKeyPress}
               placeholder="고객ID"
               className="flex-1 px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500"
@@ -326,7 +330,7 @@ const CustomerSearchModal: React.FC<{
             <input
               type="text"
               value={contractId}
-              onChange={(e) => setContractId(e.target.value)}
+              onChange={(e) => { setContractId(e.target.value); setErrorMessage(null); }}
               onKeyPress={handleKeyPress}
               placeholder="계약ID"
               className="flex-1 px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500"
@@ -340,7 +344,7 @@ const CustomerSearchModal: React.FC<{
               <input
                 type="tel"
                 value={phoneNumber}
-                onChange={(e) => setPhoneNumber(e.target.value.replace(/[^0-9]/g, ''))}
+                onChange={(e) => { setPhoneNumber(e.target.value.replace(/[^0-9]/g, '')); setErrorMessage(null); }}
                 onKeyPress={handleKeyPress}
                 placeholder="전화번호"
                 className="flex-1 min-w-0 px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500"
@@ -348,7 +352,7 @@ const CustomerSearchModal: React.FC<{
               <input
                 type="text"
                 value={customerName}
-                onChange={(e) => setCustomerName(e.target.value)}
+                onChange={(e) => { setCustomerName(e.target.value); setErrorMessage(null); }}
                 onKeyPress={handleKeyPress}
                 placeholder="이름"
                 className="flex-1 min-w-0 px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500"
@@ -362,7 +366,7 @@ const CustomerSearchModal: React.FC<{
             <input
               type="text"
               value={equipmentNo}
-              onChange={(e) => setEquipmentNo(e.target.value.toUpperCase())}
+              onChange={(e) => { setEquipmentNo(e.target.value.toUpperCase()); setErrorMessage(null); }}
               onKeyPress={handleKeyPress}
               placeholder="S/N 또는 MAC 주소 입력"
               className="flex-1 min-w-0 px-3 py-2.5 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent uppercase transition-all font-mono"
@@ -378,6 +382,13 @@ const CustomerSearchModal: React.FC<{
               스캔
             </button>
           </div>
+
+          {/* 에러 메시지 */}
+          {errorMessage && (
+            <div className="bg-red-50 border border-red-200 rounded-lg p-3">
+              <p className="text-red-600 text-sm whitespace-pre-line">{errorMessage}</p>
+            </div>
+          )}
 
           {/* 검색 결과 */}
           {hasSearched && (
