@@ -836,7 +836,7 @@ const EquipmentAssignment: React.FC<EquipmentAssignmentProps> = ({ onBack, showT
                             {/* 자세히 보기: 추가 정보 */}
                             {viewMode === 'detail' && (
                               <div className="bg-gray-100 rounded-lg p-2 mt-2 text-xs space-y-1 ml-6">
-                                <div className="flex items-center justify-between"><span className="text-gray-800">{item.ITEM_MODEL || item.MODEL_NM || '-'}</span><span className="font-medium text-gray-800">{selectedEqtOut?.SO_NM || '-'}</span></div>
+                                <div className="flex items-center justify-between"><span className="text-gray-800">{item.ITEM_MID_CD_NM || item.EQT_CL_NM || '(정보없음)'}</span><span className="font-medium text-gray-800">{selectedEqtOut?.SO_NM || '-'}</span></div>
                                 <div className="flex items-center justify-between"><span><span className="text-gray-500">장비상태  : </span><span className="text-gray-800">{item.EQT_STAT_CD_NM || (hasSerial ? '-' : '수령불가')}</span></span><span className="text-gray-400 text-xs">{item.EQT_NO || (hasSerial ? '-' : '-')}</span></div>
                                 <div><span className="text-gray-500">변경종류  : </span><span className="text-gray-800">{item.CHG_KND_NM || '-'}</span></div>
                                 <div><span className="text-gray-500">현재위치  : </span><span className="text-gray-800">{item.EQT_LOC_NM || item.EQT_LOC_TP_NM || (hasSerial ? '-' : '창고(대기)')}</span></div>
