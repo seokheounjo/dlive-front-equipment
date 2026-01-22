@@ -234,7 +234,7 @@ const BarcodeScanner: React.FC<BarcodeScannerProps> = ({ isOpen, onClose, onScan
       )}
 
       {/* Scanner area - 전체 화면 */}
-      <div className="absolute inset-0 flex items-center justify-center" style={{ top: '60px', bottom: '160px' }}>
+      <div className="absolute inset-0 flex items-center justify-center" style={{ top: '60px', bottom: '180px' }}>
         <div id="barcode-reader" className="w-full max-w-md mx-4"></div>
       </div>
 
@@ -257,7 +257,7 @@ const BarcodeScanner: React.FC<BarcodeScannerProps> = ({ isOpen, onClose, onScan
       {/* Footer */}
       <div
         className="absolute bottom-0 left-0 right-0 bg-black/80 px-4 pt-3 z-20"
-        style={{ paddingBottom: '10px' }}
+        style={{ paddingBottom: 'max(20px, env(safe-area-inset-bottom, 20px))' }}
       >
         {error ? (
           <div className="bg-red-500/20 border border-red-500/50 rounded-lg p-4 mb-3">

@@ -1039,7 +1039,9 @@ const EquipmentMovement: React.FC<EquipmentMovementProps> = ({ onBack }) => {
             TO_WRKR_ID: loggedInUser.userId,
             MV_SO_ID: targetSoId || item.SO_ID,   // 이관 지점 (선택한 지점 또는 장비 SO_ID)
             MV_CRR_ID: loggedInUser.crrId,        // 이관 협력업체 (이관받는 기사의 CRR_ID)
-            CHG_UID: loggedInUser.userId          // 변경자 ID
+            CHG_UID: loggedInUser.userId,         // 변경자 ID
+            CRR_ID: loggedInUser.crrId,           // AUTO-FIX용 CRR_ID
+            AUTH_SO_LIST: userAuthSoList.map(so => so.SO_ID)  // AUTO-FIX용 SO_ID 목록
           };
           await debugApiCall('EquipmentMovement', 'changeEquipmentWorker', () => changeEquipmentWorker(params), params);
           results.success.push({
