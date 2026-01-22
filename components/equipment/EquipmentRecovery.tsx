@@ -325,21 +325,21 @@ const CustomerSearchModal: React.FC<{
 
           {/* 전화번호 + 이름 */}
           <div className="flex items-center gap-2 overflow-hidden">
-            <label className="text-xs font-medium text-gray-600 w-14 flex-shrink-0">전화번호</label>
+            <label className="text-xs font-medium text-gray-600 w-16 flex-shrink-0">전화번호</label>
             <input
               type="tel"
               value={phoneNumber}
               onChange={(e) => setPhoneNumber(e.target.value.replace(/[^0-9]/g, ''))}
               onKeyPress={handleKeyPress}
               placeholder="전화번호"
-              className="flex-1 min-w-0 px-2 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500"
+              className="flex-1 min-w-0 px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500"
             />
             <input
               type="text"
               value={customerName}
               readOnly
               placeholder="이름"
-              className="w-16 min-w-0 px-2 py-2 text-sm border border-gray-200 rounded-lg bg-gray-50 text-gray-600 flex-shrink-0"
+              className="w-16 min-w-0 px-3 py-2 text-sm border border-gray-200 rounded-lg bg-gray-50 text-gray-600 flex-shrink-0"
             />
           </div>
 
