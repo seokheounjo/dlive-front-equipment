@@ -296,9 +296,9 @@ const BarcodeScanner: React.FC<BarcodeScannerProps> = ({ isOpen, onClose, onScan
         {/* Manual input button */}
         <button
           onClick={handleClose}
-          className="w-full py-3 bg-white/20 hover:bg-white/30 text-white rounded-lg font-medium transition-colors active:scale-[0.98]"
+          className="w-full py-3 bg-gray-600 hover:bg-gray-500 text-white rounded-lg font-semibold transition-colors active:scale-[0.98] border border-gray-500"
         >
-          수동 입력으로 돌아가기
+          ✏️ 수동 입력
         </button>
       </div>
 
