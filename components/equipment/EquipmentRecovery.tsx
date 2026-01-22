@@ -1034,24 +1034,24 @@ const EquipmentRecovery: React.FC<EquipmentRecoveryProps> = ({ onBack }) => {
       <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4">
         <div className="space-y-3">
           {/* 고객 검색 - 클릭 시 팝업 */}
-          <div className="flex items-center gap-2 overflow-hidden">
+          <div className="flex items-center gap-2">
             <label className="text-xs font-medium text-gray-600 w-14 flex-shrink-0">고객검색</label>
             <div
               onClick={() => setCustomerModalOpen(true)}
-              className="flex-1 flex gap-2 cursor-pointer min-w-0"
+              className="flex-1 flex gap-2 cursor-pointer min-w-0 overflow-hidden"
             >
               <input
                 type="text"
                 value={selectedCustomer?.CUST_NM || ''}
                 readOnly
-                className="flex-1 min-w-0 px-3 py-2.5 text-sm border border-gray-200 rounded-lg bg-gray-50 cursor-pointer"
+                className="flex-1 min-w-0 px-2 py-2.5 text-sm border border-gray-200 rounded-lg bg-gray-50 cursor-pointer truncate"
                 placeholder="고객명"
               />
               <input
                 type="text"
                 value={selectedCustomer?.CUST_ID || ''}
                 readOnly
-                className="flex-1 min-w-0 px-3 py-2.5 text-sm border border-gray-200 rounded-lg bg-gray-50 cursor-pointer"
+                className="w-24 flex-shrink-0 px-2 py-2.5 text-sm border border-gray-200 rounded-lg bg-gray-50 cursor-pointer"
                 placeholder="고객ID"
               />
             </div>
@@ -1064,7 +1064,7 @@ const EquipmentRecovery: React.FC<EquipmentRecoveryProps> = ({ onBack }) => {
                   setSearchParams({...searchParams, CUST_ID: '', CUST_NM: ''});
                   setUnreturnedList([]);
                 }}
-                className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all flex-shrink-0"
+                className="w-9 h-9 flex items-center justify-center text-red-500 bg-red-50 hover:bg-red-100 rounded-lg transition-all flex-shrink-0"
                 title="고객 초기화"
               >
                 <X className="w-5 h-5" />
