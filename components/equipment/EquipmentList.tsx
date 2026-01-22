@@ -877,8 +877,6 @@ const EquipmentList: React.FC<EquipmentListProps> = ({ onBack, showToast }) => {
               <InfoRow label="장비번호" value={equipmentDetail.EQT_NO} />
               <InfoRow label="일련번호(S/N)" value={equipmentDetail.EQT_SERNO} />
               <InfoRow label="MAC 주소" value={equipmentDetail.MAC_ADDRESS} />
-              <InfoRow label="바코드" value={equipmentDetail.BAR_CD} />
-              <InfoRow label="IRD S/N" value={equipmentDetail.IRD_SN} />
 
               {/* 장비 유형 */}
               <SectionHeader title="장비 유형" />
@@ -904,10 +902,6 @@ const EquipmentList: React.FC<EquipmentListProps> = ({ onBack, showToast }) => {
                   <span className="flex-1 text-xs text-gray-900 font-medium break-all">{equipmentDetail.EQT_STAT_CD_NM || equipmentDetail.EQT_STAT_CD || '-'}</span>
                 </div>
                 <div className="flex border-b border-amber-200 py-1.5">
-                  <span className="w-28 flex-shrink-0 text-xs text-amber-700 font-medium">사용상태</span>
-                  <span className="flex-1 text-xs text-gray-900 font-medium break-all">{equipmentDetail.EQT_USE_STAT_CD_NM || equipmentDetail.EQT_USE_STAT_CD || '-'}</span>
-                </div>
-                <div className="flex border-b border-amber-200 py-1.5">
                   <span className="w-28 flex-shrink-0 text-xs text-amber-700 font-medium">사용가능여부</span>
                   <span className={`flex-1 text-xs font-bold break-all ${
                     equipmentDetail.EQT_USE_ARR_YN === 'Y' ? 'text-green-600' :
@@ -929,7 +923,6 @@ const EquipmentList: React.FC<EquipmentListProps> = ({ onBack, showToast }) => {
               {/* 지점/협력사 */}
               <SectionHeader title="지점/협력사" />
               <InfoRow label="지점" value={equipmentDetail.SO_NM || equipmentDetail.SO_ID} />
-              <InfoRow label="본부" value={equipmentDetail.MST_SO_NM || equipmentDetail.MST_SO_ID} />
               <InfoRow label="협력사" value={equipmentDetail.CRR_NM || equipmentDetail.CRR_ID} />
               <InfoRow label="이전지점" value={equipmentDetail.OLD_SO_NM || equipmentDetail.OLD_SO_ID} />
               <InfoRow label="이전협력사" value={equipmentDetail.OLD_CRR_NM || equipmentDetail.OLD_CRR_ID} />
@@ -953,38 +946,20 @@ const EquipmentList: React.FC<EquipmentListProps> = ({ onBack, showToast }) => {
               <InfoRow label="고객명" value={equipmentDetail.CUST_NM} />
               <InfoRow label="계약ID" value={equipmentDetail.CTRT_ID} />
 
-              {/* 소유/구매 */}
-              <SectionHeader title="소유/구매 정보" />
-              <InfoRow label="소유구분" value={equipmentDetail.OWNER_TP_CD_NM || equipmentDetail.OWNER_TP_CD} />
-              <InfoRow label="구매구분" value={equipmentDetail.PRCHS_CL_NM || equipmentDetail.PRCHS_CL} />
-              <InfoRow label="구매단가" value={equipmentDetail.PRCHS_UT_PRC ? `${equipmentDetail.PRCHS_UT_PRC.toLocaleString()}원` : '-'} />
-
-              {/* 입고/출고 */}
-              <SectionHeader title="입고/출고 정보" />
+              {/* 입고 정보 */}
+              <SectionHeader title="입고 정보" />
               <InfoRow label="최초입고일" value={equipmentDetail.FIRST_IN_DT} />
-              <InfoRow label="입고그룹번호" value={equipmentDetail.IN_GRP_NO} />
-              <InfoRow label="출고요청번호" value={equipmentDetail.OUT_REQ_NO} />
-
-              {/* 반납/폐기 */}
-              <SectionHeader title="반납/폐기 정보" />
-              <InfoRow label="반납사유" value={equipmentDetail.RETN_RESN_CD_NM || equipmentDetail.RETN_RESN_CD} />
-              <InfoRow label="폐기구분" value={equipmentDetail.OBS_RCPT_CD_NM || equipmentDetail.OBS_RCPT_CD} />
-              <InfoRow label="폐기상세" value={equipmentDetail.OBS_RCPT_DTL_CD_NM || equipmentDetail.OBS_RCPT_DTL_CD} />
 
               {/* STB 추가 정보 */}
               <SectionHeader title="STB 추가 정보" />
               <InfoRow label="CM MAC" value={equipmentDetail.STB_CM_MAC_ADDR} />
-              <InfoRow label="Internal MAC" value={equipmentDetail.STB_INTERNAL_MAC_ADDR} />
               <InfoRow label="RTCA ID" value={equipmentDetail.STB_RTCA_ID} />
-              <InfoRow label="카톤번호" value={equipmentDetail.STB_CARTON_NO} />
 
               {/* 변경 이력 */}
               <SectionHeader title="변경 이력" />
-              <InfoRow label="변경종류" value={equipmentDetail.CHG_KND_CD} />
+              <InfoRow label="변경종류" value={equipmentDetail.CHG_KND_CD_NM || equipmentDetail.CHG_KND_CD} />
               <InfoRow label="변경일시" value={equipmentDetail.CHG_DATE} />
-              <InfoRow label="변경자" value={equipmentDetail.CHG_UID} />
-              <InfoRow label="등록일시" value={equipmentDetail.REG_DATE} />
-              <InfoRow label="등록자" value={equipmentDetail.REG_UID} />
+              <InfoRow label="변경자" value={equipmentDetail.CHG_UID_NM || equipmentDetail.CHG_UID} />
             </div>
           </div>
         )}

@@ -400,20 +400,19 @@ const CustomerSearchModal: React.FC<{
           )}
         </div>
 
-        {/* 하단 버튼 (고정) */}
+        {/* 하단 버튼 (고정, 50:50) */}
         <div className="p-4 border-t border-gray-100 bg-white flex-shrink-0">
           <div className="flex gap-2">
             <button
               onClick={handleSearch}
               disabled={isSearching}
-              className="flex-1 py-2.5 text-sm text-white bg-blue-500 hover:bg-blue-600 disabled:bg-gray-300 rounded-lg font-medium flex items-center justify-center gap-2"
+              className="flex-1 py-2.5 text-sm text-white bg-blue-500 hover:bg-blue-600 disabled:bg-gray-300 rounded-lg font-medium flex items-center justify-center"
             >
-              {isSearching ? <Loader2 className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />}
               {isSearching ? '조회 중...' : '조회'}
             </button>
             <button
               onClick={onClose}
-              className="px-4 py-2.5 text-sm text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-lg font-medium"
+              className="flex-1 py-2.5 text-sm text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-lg font-medium"
             >
               닫기
             </button>
@@ -1063,7 +1062,7 @@ const EquipmentRecovery: React.FC<EquipmentRecoveryProps> = ({ onBack }) => {
       {/* Search area */}
       <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4">
         <div className="space-y-3">
-          {/* 고객 검색 - 클릭 시 팝업 */}
+          {/* 고객 검색 - 클릭 시 팝업 (50:50) */}
           <div className="flex items-center gap-2">
             <label className="text-xs font-medium text-gray-600 w-14 flex-shrink-0">고객검색</label>
             <div
@@ -1081,7 +1080,7 @@ const EquipmentRecovery: React.FC<EquipmentRecoveryProps> = ({ onBack }) => {
                 type="text"
                 value={selectedCustomer?.CUST_ID || ''}
                 readOnly
-                className="w-24 flex-shrink-0 px-2 py-2.5 text-sm border border-gray-200 rounded-lg bg-gray-50 cursor-pointer"
+                className="flex-1 min-w-0 px-2 py-2.5 text-sm border border-gray-200 rounded-lg bg-gray-50 cursor-pointer"
                 placeholder="고객ID"
               />
             </div>
