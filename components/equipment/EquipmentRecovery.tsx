@@ -394,19 +394,25 @@ const CustomerSearchModal: React.FC<{
           {hasSearched && (
             <div className="border-t border-gray-100 pt-3">
               {searchResults.length > 0 ? (
-                <div className="space-y-2 max-h-40 overflow-y-auto">
+                <div className="space-y-2 max-h-48 overflow-y-auto">
                   <div className="text-xs text-gray-500 mb-2">검색 결과: {searchResults.length}건</div>
                   {searchResults.map((customer, idx) => (
                     <button
                       key={customer.CUST_ID || idx}
                       onClick={() => { setCustomerName(customer.CUST_NM); onSelect({ CUST_ID: customer.CUST_ID, CUST_NM: customer.CUST_NM }); onClose(); }}
-                      className="w-full p-2.5 bg-gray-50 hover:bg-blue-50 rounded-lg border border-gray-200 hover:border-blue-300 text-left"
+                      className="w-full p-3 bg-gray-50 hover:bg-blue-50 rounded-lg border border-gray-200 hover:border-blue-300 text-left transition-colors"
                     >
-                      <div className="flex items-center gap-2 text-sm truncate">
-                        <span className="text-blue-600 font-mono flex-shrink-0">{customer.CUST_ID}</span>
-                        <span className="font-medium text-gray-800 flex-shrink-0">{customer.CUST_NM}</span>
-                        <span className="text-gray-600 truncate">{customer.INST_ADDR || customer.ADDR || customer.ADDRESS || ''}</span>
+                      {/* 1줄: 고객ID + 고객명 */}
+                      <div className="flex items-center gap-3">
+                        <span className="text-blue-600 font-mono text-sm">{customer.CUST_ID}</span>
+                        <span className="font-semibold text-gray-900">{customer.CUST_NM}</span>
                       </div>
+                      {/* 2줄: 주소 */}
+                      {(customer.INST_ADDR || customer.ADDR || customer.ADDRESS) && (
+                        <div className="mt-1 text-xs text-gray-500 truncate">
+                          {customer.INST_ADDR || customer.ADDR || customer.ADDRESS}
+                        </div>
+                      )}
                     </button>
                   ))}
                 </div>
