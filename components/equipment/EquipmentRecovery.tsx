@@ -758,6 +758,14 @@ const EquipmentRecovery: React.FC<EquipmentRecoveryProps> = ({ onBack }) => {
         params
       );
 
+      // S/N만으로 조회했을 때 결과에 고객 정보가 있으면 자동으로 표시
+      if (!selectedCustomer && searchParams.EQT_SERNO && result && result.length > 0) {
+        const firstItem = result[0];
+        if (firstItem.CUST_ID && firstItem.CUST_NM) {
+          setSelectedCustomer({ CUST_ID: firstItem.CUST_ID, CUST_NM: firstItem.CUST_NM });
+        }
+      }
+
       const transformedList: UnreturnedEqt[] = (result || []).map((item: any) => ({
         CHK: scannedSerials.includes(item.EQT_SERNO),
         CUST_ID: item.CUST_ID || '',
@@ -1047,6 +1055,21 @@ const EquipmentRecovery: React.FC<EquipmentRecoveryProps> = ({ onBack }) => {
                 placeholder="고객ID"
               />
             </div>
+            {/* 고객 리셋 버튼 */}
+            {selectedCustomer && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setSelectedCustomer(null);
+                  setSearchParams({...searchParams, CUST_ID: '', CUST_NM: ''});
+                  setUnreturnedList([]);
+                }}
+                className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all flex-shrink-0"
+                title="고객 초기화"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            )}
           </div>
 
           {/* S/N + 스캔 버튼 */}
