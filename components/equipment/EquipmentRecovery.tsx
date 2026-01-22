@@ -229,18 +229,27 @@ const CustomerSearchModal: React.FC<{
   if (!isOpen) return null;
 
   const handleSearch = async () => {
-    // 최소 하나의 검색 조건 필요
+    // 검색 조건 확인 (OR 조건: 고객ID, 계약ID, (전화번호 AND 이름), S/N)
     const hasCustomerId = customerId.length >= 4;
     const hasContractId = contractId.length >= 4;
-    const hasPhoneName = phoneNumber.length >= 4 || customerName.length >= 2;
+    const hasPhoneNumber = phoneNumber.length >= 4;
+    const hasCustomerName = customerName.length >= 2;
+    const hasPhoneName = hasPhoneNumber && hasCustomerName;  // 둘 다 입력해야 함
     const hasEquipmentNo = equipmentNo.length >= 4;
 
-    if (!hasCustomerId && !hasContractId && !hasPhoneName && !hasEquipmentNo) {
-      alert('검색 조건을 하나 이상 입력해주세요.');
+    // 전화번호나 이름 중 하나만 입력한 경우 에러
+    if ((hasPhoneNumber && !hasCustomerName) || (!hasPhoneNumber && hasCustomerName)) {
+      alert('전화번호와 이름을 모두 입력해주세요.\n(전화번호 4자리 이상, 이름 2자 이상)');
       return;
     }
 
-    // 검색 유형 결정 (우선순위: 고객ID > 계약ID > 장비번호 > 전화번호/이름)
+    // 검색 조건이 하나도 없는 경우
+    if (!hasCustomerId && !hasContractId && !hasPhoneName && !hasEquipmentNo) {
+      alert('검색 조건을 하나 이상 입력해주세요.\n- 고객ID (4자리 이상)\n- 계약ID (4자리 이상)\n- 전화번호 + 이름 (둘 다 필수)\n- S/N (4자리 이상)');
+      return;
+    }
+
+    // 검색 유형 결정 (우선순위: 고객ID > 계약ID > S/N > 전화번호+이름)
     let searchType: 'CUSTOMER_ID' | 'CONTRACT_ID' | 'PHONE_NAME' | 'EQUIPMENT_NO' = 'PHONE_NAME';
     if (hasCustomerId) searchType = 'CUSTOMER_ID';
     else if (hasContractId) searchType = 'CONTRACT_ID';
@@ -260,7 +269,6 @@ const CustomerSearchModal: React.FC<{
 
       if (response.success && response.data) {
         setSearchResults(response.data);
-        // 1건이어도 자동 선택하지 않음 - 사용자가 직접 선택하도록
       } else {
         setSearchResults([]);
       }
