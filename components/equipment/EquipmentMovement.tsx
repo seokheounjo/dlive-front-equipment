@@ -1296,13 +1296,6 @@ const EquipmentMovement: React.FC<EquipmentMovementProps> = ({ onBack }) => {
     <div className="h-full overflow-y-auto bg-gray-50 px-4 py-4 space-y-3">
       {/* 통합 검색 영역 */}
       <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4">
-        <div className="mb-3">
-          <h3 className="text-sm font-semibold text-gray-800 flex items-center gap-2">
-            <Search className="w-4 h-4" />
-            장비 이동
-          </h3>
-          <p className="text-xs text-gray-500 mt-0.5">타 기사의 장비를 나에게 이동합니다</p>
-        </div>
         <div className="space-y-3">
           {/* 1. 기사검색 (보유기사 검색) */}
           <div className="flex items-center gap-2 overflow-hidden">
