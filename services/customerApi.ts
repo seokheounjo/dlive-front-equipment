@@ -318,9 +318,51 @@ export const searchCustomer = async (params: CustomerSearchParams): Promise<ApiR
     return { ...result, data: [] };
   }
 
-  // 계약ID 검색 - getCustomerCtrtInfo로 CUST_ID 획득 후 조회
+  // 계약ID 검색
+  // 1차: getCtrtIDforSmartPhone API 시도 (JAR 배포 후 사용 가능)
+  // 2차: getCustomerCtrtInfo -> getConditionalCustList2 fallback
   if (params.searchType === 'CONTRACT_ID' && params.contractId) {
-    // 1단계: 계약ID로 고객ID 조회
+    // SO_ID 획득 (세션에서)
+    let soId = '';
+    try {
+      const userInfoStr = sessionStorage.getItem('userInfo');
+      if (userInfoStr) {
+        const userInfo = JSON.parse(userInfoStr);
+        const authSoList = userInfo.authSoList || userInfo.AUTH_SO_List || [];
+        if (authSoList.length > 0) {
+          soId = authSoList[0].SO_ID || authSoList[0].soId || '';
+        }
+        if (!soId) {
+          soId = userInfo.soId || userInfo.SO_ID || '';
+        }
+      }
+    } catch (e) {
+      console.log('[CustomerAPI] Failed to get SO_ID from session');
+    }
+
+    // 1차 시도: getCtrtIDforSmartPhone (JAR 배포 후 활성화)
+    if (soId) {
+      try {
+        console.log('[CustomerAPI] Trying getCtrtIDforSmartPhone for CONTRACT_ID:', params.contractId);
+        const ctrtResult = await apiCall<any>('/customer/phoneNumber/getCtrtIDforSmartPhone', {
+          SO_ID: soId,
+          CTRT_ID: params.contractId
+        });
+
+        if (ctrtResult.success && ctrtResult.data) {
+          const dataArray = Array.isArray(ctrtResult.data) ? ctrtResult.data : [ctrtResult.data];
+          if (dataArray.length > 0) {
+            console.log('[CustomerAPI] getCtrtIDforSmartPhone success for CONTRACT_ID');
+            return { ...ctrtResult, data: dataArray };
+          }
+        }
+        console.log('[CustomerAPI] getCtrtIDforSmartPhone returned no data for CONTRACT_ID, trying fallback...');
+      } catch (error) {
+        console.log('[CustomerAPI] getCtrtIDforSmartPhone failed for CONTRACT_ID, trying fallback...', error);
+      }
+    }
+
+    // 2차 시도: getCustomerCtrtInfo -> getConditionalCustList2 (fallback)
     const ctrtResult = await apiCall<any>('/customer/negociation/getCustomerCtrtInfo', { CTRT_ID: params.contractId });
 
     if (ctrtResult.success && ctrtResult.data) {
@@ -328,7 +370,6 @@ export const searchCustomer = async (params: CustomerSearchParams): Promise<ApiR
       const custId = ctrtData?.CUST_ID;
 
       if (custId) {
-        // 2단계: 고객ID로 고객정보 조회
         const result = await apiCall<any>('/customer/common/customercommon/getConditionalCustList2', { CUST_ID: custId });
         if (result.success && result.data) {
           const dataArray = Array.isArray(result.data) ? result.data : [result.data];
@@ -339,14 +380,57 @@ export const searchCustomer = async (params: CustomerSearchParams): Promise<ApiR
     return { success: false, message: '계약ID로 고객을 찾을 수 없습니다.', data: [] };
   }
 
-  // 전화번호/고객명 검색 - SERCH_GB=3 사용 (D'Live 서버 성능에 따라 Timeout 가능)
-  // 주의: 전화번호와 고객명을 동시에 보내면 AND 조건이라 결과 없음!
-  // 전화번호가 있으면 전화번호만, 없으면 고객명만 보냄
+  // 전화번호/고객명 검색
+  // 1차: getCtrtIDforSmartPhone API 시도 (JAR 배포 후 사용 가능)
+  // 2차: getConditionalCustList2 SERCH_GB=3 fallback
   if (params.searchType === 'PHONE_NAME') {
     if (!params.phoneNumber && !params.customerName) {
       return { success: false, message: '전화번호 또는 고객명을 입력해주세요.', data: [] };
     }
 
+    // SO_ID 획득 (세션에서)
+    let soId = '';
+    try {
+      const userInfoStr = sessionStorage.getItem('userInfo');
+      if (userInfoStr) {
+        const userInfo = JSON.parse(userInfoStr);
+        // authSoList 첫 번째 항목 또는 soId 사용
+        const authSoList = userInfo.authSoList || userInfo.AUTH_SO_List || [];
+        if (authSoList.length > 0) {
+          soId = authSoList[0].SO_ID || authSoList[0].soId || '';
+        }
+        if (!soId) {
+          soId = userInfo.soId || userInfo.SO_ID || '';
+        }
+      }
+    } catch (e) {
+      console.log('[CustomerAPI] Failed to get SO_ID from session');
+    }
+
+    // 1차 시도: getCtrtIDforSmartPhone (JAR 배포 후 활성화)
+    if (soId) {
+      try {
+        const ctrtParams: Record<string, any> = { SO_ID: soId };
+        if (params.phoneNumber) ctrtParams.TEL_NO = params.phoneNumber;
+        if (params.customerName) ctrtParams.CUST_NM = params.customerName;
+
+        console.log('[CustomerAPI] Trying getCtrtIDforSmartPhone:', ctrtParams);
+        const ctrtResult = await apiCall<any>('/customer/phoneNumber/getCtrtIDforSmartPhone', ctrtParams);
+
+        if (ctrtResult.success && ctrtResult.data) {
+          const dataArray = Array.isArray(ctrtResult.data) ? ctrtResult.data : [ctrtResult.data];
+          if (dataArray.length > 0) {
+            console.log('[CustomerAPI] getCtrtIDforSmartPhone success:', dataArray.length, 'results');
+            return { ...ctrtResult, data: dataArray };
+          }
+        }
+        console.log('[CustomerAPI] getCtrtIDforSmartPhone returned no data, trying fallback...');
+      } catch (error) {
+        console.log('[CustomerAPI] getCtrtIDforSmartPhone failed, trying fallback...', error);
+      }
+    }
+
+    // 2차 시도: getConditionalCustList2 SERCH_GB=3 (fallback)
     const reqParams: Record<string, any> = {
       SERCH_GB: '3',
       LOGIN_ID: 'SYSTEM'
