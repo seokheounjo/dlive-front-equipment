@@ -1026,27 +1026,26 @@ const EquipmentRecovery: React.FC<EquipmentRecoveryProps> = ({ onBack }) => {
       <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4">
         <div className="space-y-3">
           {/* 고객 검색 - 클릭 시 팝업 */}
-          <div>
-            <div className="flex gap-2">
-              <div
-                onClick={() => setCustomerModalOpen(true)}
-                className="flex-1 flex gap-2 cursor-pointer min-w-0"
-              >
-                <input
-                  type="text"
-                  value={selectedCustomer?.CUST_NM || ''}
-                  readOnly
-                  className="flex-1 min-w-0 px-3 py-2.5 text-sm border border-gray-200 rounded-lg bg-gray-50 cursor-pointer"
-                  placeholder="고객명"
-                />
-                <input
-                  type="text"
-                  value={selectedCustomer?.CUST_ID || ''}
-                  readOnly
-                  className="flex-1 min-w-0 px-3 py-2.5 text-sm border border-gray-200 rounded-lg bg-gray-50 cursor-pointer"
-                  placeholder="고객ID"
-                />
-              </div>
+          <div className="flex items-center gap-2 overflow-hidden">
+            <label className="text-xs font-medium text-gray-600 w-14 flex-shrink-0">고객검색</label>
+            <div
+              onClick={() => setCustomerModalOpen(true)}
+              className="flex-1 flex gap-2 cursor-pointer min-w-0"
+            >
+              <input
+                type="text"
+                value={selectedCustomer?.CUST_NM || ''}
+                readOnly
+                className="flex-1 min-w-0 px-3 py-2.5 text-sm border border-gray-200 rounded-lg bg-gray-50 cursor-pointer"
+                placeholder="고객명"
+              />
+              <input
+                type="text"
+                value={selectedCustomer?.CUST_ID || ''}
+                readOnly
+                className="flex-1 min-w-0 px-3 py-2.5 text-sm border border-gray-200 rounded-lg bg-gray-50 cursor-pointer"
+                placeholder="고객ID"
+              />
             </div>
           </div>
 
