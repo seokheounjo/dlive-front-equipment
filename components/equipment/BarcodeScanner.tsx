@@ -208,8 +208,7 @@ const BarcodeScanner: React.FC<BarcodeScannerProps> = ({ isOpen, onClose, onScan
 
   return (
     <div
-      className="fixed inset-0 bg-black barcode-scanner-container"
-      style={{ zIndex: 99999 }}
+      className="fixed inset-0 bg-black barcode-scanner-container z-[999999]"
     >
       {/* 조회하기 버튼 (우상단) */}
       <button
