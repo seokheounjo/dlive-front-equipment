@@ -618,12 +618,13 @@ const EquipmentMovement: React.FC<EquipmentMovementProps> = ({ onBack }) => {
   };
 
   // 기사 보유장비 조회 - CRR_ID=""로 전체 협력업체 조회 가능
+  // SO_ID=""로 전체 SO 조회 가능 (다른 기사의 장비가 다른 SO에 있을 수 있음)
   // EQT_SERNO 파라미터 추가 시 특정 장비만 조회 (효율적)
   const searchEquipmentByWorker = async (wrkrId: string, wrkrNm: string, crrId?: string, scannedSN?: string) => {
     setIsLoading(true);
     try {
-      // CRR_ID=""로 전체 협력업체 조회 (타기사 장비 조회용)
-      const params: any = { WRKR_ID: wrkrId, CRR_ID: '' };
+      // CRR_ID="", SO_ID="" for cross-carrier and cross-SO search (other workers equipment)
+      const params: any = { WRKR_ID: wrkrId, CRR_ID: '', SO_ID: '' };
 
       // 장비번호가 있으면 EQT_SERNO 파라미터 추가 (효율적인 필터링)
       // 백엔드 SQL: A.EQT_SERNO IN ($EQT_SERNO$)
@@ -879,7 +880,8 @@ const EquipmentMovement: React.FC<EquipmentMovementProps> = ({ onBack }) => {
     // 검색 시 선택한 모델 필터가 있으면 적용, 없으면 초기화
     setModalModelFilter(modalSearchModelFilter || '');
     try {
-      const params: any = { WRKR_ID: worker.USR_ID, CRR_ID: '' };
+      // SO_ID: '' for cross-SO search (other workers may have equipment in different SOs)
+      const params: any = { WRKR_ID: worker.USR_ID, CRR_ID: '', SO_ID: '' };
       const result = await debugApiCall('EquipmentMovement', 'getWrkrHaveEqtList (modal)', () => getWrkrHaveEqtList(params), params);
       if (Array.isArray(result) && result.length > 0) {
         // 레거시 방식: 특정 지점(401, 402, 328)만 타지점 이동 제한
