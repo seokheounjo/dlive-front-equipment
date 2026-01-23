@@ -3212,18 +3212,34 @@ export const changeEquipmentWorker = async (params: {
 }): Promise<any> => {
   const apiCallId = `API_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`;
   const apiStartTime = Date.now();
+  const timestamp = new Date().toISOString();
 
-  console.log(`[${apiCallId}] 장비이관 API 호출:`, {
-    SO_ID: params.SO_ID,
-    EQT_SERNO: params.EQT_SERNO,
-    MV_SO_ID: params.MV_SO_ID,
-    MV_WRKR_ID: params.MV_WRKR_ID
-  });
+  // ==================== 상세 로그: 요청 시작 ====================
+  console.log('');
+  console.log('╔════════════════════════════════════════════════════════════════════════╗');
+  console.log('║                    🔄 장비이관 API 상세 로그                              ║');
+  console.log('╠════════════════════════════════════════════════════════════════════════╣');
+  console.log(`║ API_CALL_ID: ${apiCallId}`);
+  console.log(`║ 시작시간: ${timestamp}`);
+  console.log('╠════════════════════════════════════════════════════════════════════════╣');
+  console.log('║ 📤 요청 파라미터 (Oracle 프로시저 PCMEP_EQT_WRKR_CHG_3)');
+  console.log('╠════════════════════════════════════════════════════════════════════════╣');
+  console.log(`║   SO_ID (장비현재위치): ${params.SO_ID}`);
+  console.log(`║   EQT_NO (장비번호): ${params.EQT_NO}`);
+  console.log(`║   EQT_SERNO (시리얼): ${params.EQT_SERNO}`);
+  console.log(`║   CHG_UID (변경자): ${params.CHG_UID}`);
+  console.log(`║   MV_SO_ID (이관목적지): ${params.MV_SO_ID}`);
+  console.log(`║   MV_CRR_ID (이관협력업체): ${params.MV_CRR_ID}`);
+  console.log(`║   MV_WRKR_ID (이관기사): ${params.MV_WRKR_ID}`);
+  console.log('╚════════════════════════════════════════════════════════════════════════╝');
 
   try {
     const apiUrl = `${API_BASE}/customer/equipment/changeEqtWrkr_3`;
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 30000);
+
+    console.log(`[${apiCallId}] 🌐 API URL: ${apiUrl}`);
+    console.log(`[${apiCallId}] 📨 요청 본문:`, JSON.stringify(params, null, 2));
 
     const response = await fetch(apiUrl, {
       method: 'POST',
@@ -3234,36 +3250,151 @@ export const changeEquipmentWorker = async (params: {
     });
 
     clearTimeout(timeoutId);
-    console.log(`[${apiCallId}] 응답: ${response.status} (${Date.now() - apiStartTime}ms)`);
+    const duration = Date.now() - apiStartTime;
+    const responseTimestamp = new Date().toISOString();
+
+    // ==================== 상세 로그: 응답 수신 ====================
+    console.log('');
+    console.log('┌────────────────────────────────────────────────────────────────────────┐');
+    console.log(`│ 📥 응답 수신 [${apiCallId}]`);
+    console.log('├────────────────────────────────────────────────────────────────────────┤');
+    console.log(`│   응답시간: ${responseTimestamp}`);
+    console.log(`│   소요시간: ${duration}ms`);
+    console.log(`│   HTTP 상태: ${response.status} ${response.statusText}`);
+    console.log(`│   response.ok: ${response.ok}`);
+    console.log('└────────────────────────────────────────────────────────────────────────┘');
 
     const responseText = await response.text();
+    console.log(`[${apiCallId}] 📄 Raw Response (처음 500자):`, responseText.substring(0, 500));
 
     let result;
     try {
       result = JSON.parse(responseText);
+      console.log(`[${apiCallId}] 📋 Parsed Response:`, JSON.stringify(result, null, 2));
     } catch (parseError) {
-      console.error(`[${apiCallId}] JSON 파싱 실패`);
+      console.error(`[${apiCallId}] ❌ JSON 파싱 실패! Raw:`, responseText);
       throw new Error('서버 응답 파싱 실패');
     }
 
-    // 성공/실패 판단: MSGCODE가 없거나 '0' 또는 빈값이면 성공
+    // ==================== 상세 로그: 응답 분석 ====================
     const msgCode = result?.MSGCODE;
     const message = result?.MESSAGE || result?.message || '';
-    const isSuccess = msgCode === undefined || msgCode === null || msgCode === '' || msgCode === '0';
-    const hasError = message && (message.includes('없습니다') || message.includes('실패') || message.includes('ERROR'));
+    const debugId = result?.debugId || 'N/A';
+    const procDuration = result?.procedureDurationMs || 'N/A';
 
-    if ((response.ok || response.status === 500) && isSuccess && !hasError) {
-      console.log(`[${apiCallId}] ✅ 성공`);
+    console.log('');
+    console.log('┌────────────────────────────────────────────────────────────────────────┐');
+    console.log(`│ 🔍 응답 분석 [${apiCallId}]`);
+    console.log('├────────────────────────────────────────────────────────────────────────┤');
+    console.log(`│   MSGCODE: "${msgCode}" (type: ${typeof msgCode})`);
+    console.log(`│   MESSAGE: "${message}"`);
+    console.log(`│   debugId (백엔드): ${debugId}`);
+    console.log(`│   프로시저 소요시간: ${procDuration}ms`);
+    console.log('├────────────────────────────────────────────────────────────────────────┤');
+
+    // 성공/실패 판단 로직 상세 출력
+    const isHttpOk = response.ok;
+    const isHttp500 = response.status === 500;
+    const isMsgCodeEmpty = msgCode === undefined || msgCode === null || msgCode === '';
+    const isMsgCodeZero = msgCode === '0';
+    const isMsgCodeSuccess = msgCode === 'SUCCESS';
+    const hasErrorKeyword = message && (
+      message.includes('없습니다') ||
+      message.includes('실패') ||
+      message.includes('ERROR') ||
+      message.includes('error')
+    );
+
+    console.log(`│ 📊 판단 조건:`);
+    console.log(`│   - HTTP OK (200-299): ${isHttpOk}`);
+    console.log(`│   - HTTP 500: ${isHttp500}`);
+    console.log(`│   - MSGCODE 비어있음: ${isMsgCodeEmpty}`);
+    console.log(`│   - MSGCODE === "0": ${isMsgCodeZero}`);
+    console.log(`│   - MSGCODE === "SUCCESS": ${isMsgCodeSuccess}`);
+    console.log(`│   - MESSAGE에 에러키워드 포함: ${hasErrorKeyword}`);
+    console.log('└────────────────────────────────────────────────────────────────────────┘');
+
+    // ==================== 성공/실패 판단 ====================
+    // HTTP 500은 에러로 처리 (MSGCODE가 SUCCESS여도)
+    if (isHttp500) {
+      console.log('');
+      console.log('╔════════════════════════════════════════════════════════════════════════╗');
+      console.log('║ ⚠️  HTTP 500 에러 감지!                                                 ║');
+      console.log('╠════════════════════════════════════════════════════════════════════════╣');
+      console.log(`║   API_CALL_ID: ${apiCallId}`);
+      console.log(`║   HTTP Status: 500 ${response.statusText}`);
+      console.log(`║   MSGCODE: "${msgCode}"`);
+      console.log(`║   MESSAGE: "${message}"`);
+      console.log(`║   백엔드 debugId: ${debugId}`);
+      console.log('╠════════════════════════════════════════════════════════════════════════╣');
+      console.log('║   📌 결정: HTTP 500이므로 에러로 처리');
+      if (isMsgCodeSuccess) {
+        console.log('║   ⚠️  주의: MSGCODE가 SUCCESS이지만 HTTP 500이므로 에러 처리!');
+      }
+      console.log('╚════════════════════════════════════════════════════════════════════════╝');
+
+      const errMsg = message || result?.error || result?.code || '서버 에러 (HTTP 500)';
+      throw new Error(errMsg);
+    }
+
+    // HTTP OK이고 에러 키워드가 없으면 성공
+    if (isHttpOk && !hasErrorKeyword) {
+      console.log('');
+      console.log('╔════════════════════════════════════════════════════════════════════════╗');
+      console.log('║ ✅ 장비이관 성공!                                                       ║');
+      console.log('╠════════════════════════════════════════════════════════════════════════╣');
+      console.log(`║   API_CALL_ID: ${apiCallId}`);
+      console.log(`║   HTTP Status: ${response.status}`);
+      console.log(`║   MSGCODE: "${msgCode}"`);
+      console.log(`║   MESSAGE: "${message}"`);
+      console.log(`║   총 소요시간: ${duration}ms`);
+      console.log('╚════════════════════════════════════════════════════════════════════════╝');
       return result;
     }
 
-    // 에러
-    const errMsg = message || result?.error || '장비 이동에 실패했습니다.';
-    console.error(`[${apiCallId}] ❌ 실패: ${errMsg}`);
-    throw new Error(errMsg);
+    // HTTP OK이지만 에러 키워드가 있으면 에러
+    if (hasErrorKeyword) {
+      console.log('');
+      console.log('╔════════════════════════════════════════════════════════════════════════╗');
+      console.log('║ ❌ 장비이관 실패 (에러 메시지 감지)                                      ║');
+      console.log('╠════════════════════════════════════════════════════════════════════════╣');
+      console.log(`║   API_CALL_ID: ${apiCallId}`);
+      console.log(`║   HTTP Status: ${response.status}`);
+      console.log(`║   MSGCODE: "${msgCode}"`);
+      console.log(`║   MESSAGE: "${message}"`);
+      console.log('╚════════════════════════════════════════════════════════════════════════╝');
+
+      throw new Error(message);
+    }
+
+    // 기타 경우 성공 처리
+    console.log(`[${apiCallId}] ✅ 기본 성공 처리`);
+    return result;
+
   } catch (error: any) {
+    const errorTimestamp = new Date().toISOString();
+    const duration = Date.now() - apiStartTime;
+
+    console.log('');
+    console.log('╔════════════════════════════════════════════════════════════════════════╗');
+    console.log('║ 🚨 장비이관 API 예외 발생!                                               ║');
+    console.log('╠════════════════════════════════════════════════════════════════════════╣');
+    console.log(`║   API_CALL_ID: ${apiCallId}`);
+    console.log(`║   발생시간: ${errorTimestamp}`);
+    console.log(`║   소요시간: ${duration}ms`);
+    console.log(`║   에러타입: ${error.name}`);
+    console.log(`║   에러메시지: ${error.message}`);
+    console.log('╠════════════════════════════════════════════════════════════════════════╣');
+    console.log('║   📋 파라미터 (디버깅용):');
+    console.log(`║     SO_ID: ${params.SO_ID}`);
+    console.log(`║     EQT_NO: ${params.EQT_NO}`);
+    console.log(`║     EQT_SERNO: ${params.EQT_SERNO}`);
+    console.log(`║     MV_SO_ID: ${params.MV_SO_ID}`);
+    console.log(`║     MV_WRKR_ID: ${params.MV_WRKR_ID}`);
+    console.log('╚════════════════════════════════════════════════════════════════════════╝');
+
     if (error.name === 'AbortError') {
-      throw new Error('요청 시간이 초과되었습니다.');
+      throw new Error('요청 시간이 초과되었습니다 (30초).');
     }
     throw error instanceof Error ? error : new Error('장비 이동에 실패했습니다.');
   }
