@@ -3221,33 +3221,22 @@ export const changeEquipmentWorker = async (params: {
     WRKR_ID: params.MV_WRKR_ID,     // 레거시 호환
   };
 
-  // ==================== 상세 로그: 요청 시작 ====================
+  // ==================== 요청 시작 ====================
   console.log('');
-  console.log('╔════════════════════════════════════════════════════════════════════════╗');
-  console.log('║                    🔄 장비이관 API 상세 로그                              ║');
-  console.log('╠════════════════════════════════════════════════════════════════════════╣');
-  console.log(`║ API_CALL_ID: ${apiCallId}`);
-  console.log(`║ 시작시간: ${timestamp}`);
-  console.log('╠════════════════════════════════════════════════════════════════════════╣');
-  console.log('║ 📤 요청 파라미터 (Oracle 프로시저 PCMEP_EQT_WRKR_CHG_3)');
-  console.log('╠════════════════════════════════════════════════════════════════════════╣');
-  console.log(`║   SO_ID (장비현재위치): ${params.SO_ID}`);
-  console.log(`║   EQT_NO (장비번호): ${params.EQT_NO}`);
-  console.log(`║   EQT_SERNO (시리얼): ${params.EQT_SERNO}`);
-  console.log(`║   CHG_UID (변경자): ${params.CHG_UID}`);
-  console.log(`║   MV_SO_ID (이관목적지): ${params.MV_SO_ID}`);
-  console.log(`║   MV_CRR_ID (이관협력업체): ${params.MV_CRR_ID}`);
-  console.log(`║   MV_WRKR_ID (이관기사): ${params.MV_WRKR_ID}`);
-  console.log(`║   TO_WRKR_ID (백엔드호환): ${requestBody.TO_WRKR_ID}`);
-  console.log('╚════════════════════════════════════════════════════════════════════════╝');
+  console.log('========== 장비이관 API 요청 시작 ==========');
+  console.log('API_CALL_ID:', apiCallId);
+  console.log('시작시간:', timestamp);
+  console.log('');
+  console.log('요청 파라미터 (전체):');
+  console.log(JSON.stringify(requestBody, null, 2));
+  console.log('=============================================');
 
   try {
     const apiUrl = `${API_BASE}/customer/equipment/changeEqtWrkr_3`;
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 30000);
 
-    console.log(`[${apiCallId}] 🌐 API URL: ${apiUrl}`);
-    console.log(`[${apiCallId}] 📨 요청 본문:`, JSON.stringify(requestBody, null, 2));
+    console.log('API URL:', apiUrl);
 
     const response = await fetch(apiUrl, {
       method: 'POST',
@@ -3261,32 +3250,41 @@ export const changeEquipmentWorker = async (params: {
     const duration = Date.now() - apiStartTime;
     const responseTimestamp = new Date().toISOString();
 
-    // ==================== 상세 로그: 응답 수신 ====================
+    // ==================== 응답 수신 ====================
     console.log('');
-    console.log('┌────────────────────────────────────────────────────────────────────────┐');
-    console.log(`│ 📥 응답 수신 [${apiCallId}]`);
-    console.log('├────────────────────────────────────────────────────────────────────────┤');
-    console.log(`│   응답시간: ${responseTimestamp}`);
-    console.log(`│   소요시간: ${duration}ms`);
-    console.log(`│   HTTP 상태: ${response.status} ${response.statusText}`);
-    console.log(`│   response.ok: ${response.ok}`);
-    console.log('└────────────────────────────────────────────────────────────────────────┘');
+    console.log('========== 응답 수신 ==========');
+    console.log('응답시간:', responseTimestamp);
+    console.log('소요시간:', duration, 'ms');
+    console.log('HTTP 상태:', response.status, response.statusText);
+    console.log('response.ok:', response.ok);
+    console.log('===============================');
 
     const responseText = await response.text();
 
-    // ==================== RAW 응답 출력 (가공 없이) ====================
+    // ==================== RAW 응답 (가공 없이 그대로) ====================
     console.log('');
-    console.log('┌────────────────────────────────────────────────────────────────────────┐');
-    console.log(`│ 📄 RAW RESPONSE (가공 없는 원본) [${apiCallId}]`);
-    console.log('├────────────────────────────────────────────────────────────────────────┤');
+    console.log('========== RAW RESPONSE TEXT (원본 그대로) ==========');
     console.log(responseText);
-    console.log('└────────────────────────────────────────────────────────────────────────┘');
+    console.log('====================================================');
+    console.log('');
 
     let result;
     try {
       result = JSON.parse(responseText);
+      // JSON 파싱 성공 시 예쁘게 포맷팅해서도 출력
+      console.log('========== PARSED JSON (포맷팅) ==========');
+      console.log(JSON.stringify(result, null, 2));
+      console.log('==========================================');
+      console.log('');
+      // 모든 키-값 쌍 출력
+      console.log('========== 응답 필드 전체 목록 ==========');
+      Object.keys(result).forEach(key => {
+        console.log(`  ${key}: ${JSON.stringify(result[key])}`);
+      });
+      console.log('==========================================');
     } catch (parseError) {
-      console.error(`[${apiCallId}] ❌ JSON 파싱 실패! Raw:`, responseText);
+      console.error(`[${apiCallId}] JSON 파싱 실패!`);
+      console.error('Raw Text:', responseText);
       throw new Error('서버 응답 파싱 실패');
     }
 
@@ -3311,71 +3309,44 @@ export const changeEquipmentWorker = async (params: {
       message.includes('FAIL')
     );
 
-    console.log('');
-    console.log('┌────────────────────────────────────────────────────────────────────────┐');
-    console.log(`│ 🔍 응답 분석 [${apiCallId}]`);
-    console.log('├────────────────────────────────────────────────────────────────────────┤');
-    console.log(`│   HTTP Status: ${response.status} ${response.statusText}`);
-    console.log(`│   response.ok: ${isHttpOk}`);
-    console.log('├────────────────────────────────────────────────────────────────────────┤');
-    console.log(`│   🔑 MSGCODE 검증:`);
-    console.log(`│      MSGCODE 값: "${msgCode}" (type: ${typeof msgCode})`);
-    console.log(`│      MSGCODE === "SUCCESS" ? ${isMsgCodeSuccess ? '✅ YES' : '❌ NO'}`);
-    console.log(`│      MSGCODE === "FAIL" ? ${isMsgCodeFail ? '✅ YES' : '❌ NO'}`);
-    console.log(`│      MSGCODE === "0" ? ${isMsgCodeZero ? '✅ YES' : '❌ NO'}`);
-    console.log(`│      MSGCODE 비어있음? ${isMsgCodeEmpty ? '✅ YES' : '❌ NO'}`);
-    console.log('├────────────────────────────────────────────────────────────────────────┤');
-    console.log(`│   MESSAGE: "${message}"`);
-    console.log(`│   에러키워드 포함: ${hasErrorKeyword ? '✅ YES' : '❌ NO'}`);
-    console.log(`│   백엔드 debugId: ${debugId}`);
-    console.log(`│   프로시저 소요시간: ${procDuration}ms`);
-    console.log('└────────────────────────────────────────────────────────────────────────┘');
+    // 판단 로직 요약
+    console.log('========== 성공/실패 판단 ==========');
+    console.log(`HTTP Status: ${response.status} ${response.statusText}`);
+    console.log(`response.ok: ${isHttpOk}`);
+    console.log(`MSGCODE: "${msgCode}" (type: ${typeof msgCode})`);
+    console.log(`MESSAGE: "${message}"`);
+    console.log(`MSGCODE === "SUCCESS": ${isMsgCodeSuccess}`);
+    console.log(`MSGCODE === "FAIL": ${isMsgCodeFail}`);
+    console.log(`에러키워드 포함: ${hasErrorKeyword}`);
+    console.log('====================================');
 
     // ==================== 성공/실패 판단 (핵심 로직) ====================
     // 🎯 MSGCODE === "SUCCESS" 이면 HTTP 상태와 관계없이 성공!
     if (isMsgCodeSuccess) {
       console.log('');
-      console.log('╔════════════════════════════════════════════════════════════════════════╗');
-      console.log('║ ✅ 장비이관 성공! (MSGCODE === "SUCCESS")                               ║');
-      console.log('╠════════════════════════════════════════════════════════════════════════╣');
-      console.log(`║   API_CALL_ID: ${apiCallId}`);
-      console.log(`║   HTTP Status: ${response.status} (${isHttpOk ? 'OK' : 'ERROR'})`);
-      console.log(`║   MSGCODE: "${msgCode}"`);
-      console.log(`║   MESSAGE: "${message}"`);
-      console.log(`║   총 소요시간: ${duration}ms`);
+      console.log('');
+      console.log('========== 결과: 성공 (MSGCODE=SUCCESS) ==========');
+      console.log('소요시간:', duration, 'ms');
       if (!isHttpOk) {
-        console.log('║   ⚠️  HTTP는 에러지만 MSGCODE=SUCCESS이므로 성공 처리!');
+        console.log('주의: HTTP는 에러지만 MSGCODE=SUCCESS이므로 성공 처리!');
       }
-      console.log('╚════════════════════════════════════════════════════════════════════════╝');
+      console.log('=================================================');
       return result;
     }
 
-    // 🎯 MSGCODE === "FAIL" 이면 무조건 에러
+    // MSGCODE === "FAIL" 이면 무조건 에러
     if (isMsgCodeFail) {
       console.log('');
-      console.log('╔════════════════════════════════════════════════════════════════════════╗');
-      console.log('║ ❌ 장비이관 실패! (MSGCODE === "FAIL")                                  ║');
-      console.log('╠════════════════════════════════════════════════════════════════════════╣');
-      console.log(`║   API_CALL_ID: ${apiCallId}`);
-      console.log(`║   HTTP Status: ${response.status}`);
-      console.log(`║   MSGCODE: "${msgCode}"`);
-      console.log(`║   MESSAGE: "${message}"`);
-      console.log('╚════════════════════════════════════════════════════════════════════════╝');
+      console.log('========== 결과: 실패 (MSGCODE=FAIL) ==========');
+      console.log('==============================================');
       throw new Error(message || 'Oracle 프로시저 실패 (MSGCODE=FAIL)');
     }
 
     // HTTP 에러 (4xx, 5xx) + MSGCODE가 SUCCESS가 아닌 경우
     if (!isHttpOk) {
       console.log('');
-      console.log('╔════════════════════════════════════════════════════════════════════════╗');
-      console.log(`║ ❌ HTTP 에러! (${response.status}) + MSGCODE !== SUCCESS                ║`);
-      console.log('╠════════════════════════════════════════════════════════════════════════╣');
-      console.log(`║   API_CALL_ID: ${apiCallId}`);
-      console.log(`║   HTTP Status: ${response.status} ${response.statusText}`);
-      console.log(`║   MSGCODE: "${msgCode}"`);
-      console.log(`║   MESSAGE: "${message}"`);
-      console.log(`║   code: "${result?.code || 'N/A'}"`);
-      console.log('╚════════════════════════════════════════════════════════════════════════╝');
+      console.log('========== 결과: HTTP 에러 ==========');
+      console.log('=====================================');
       const errMsg = message || result?.error || result?.code || `서버 에러 (HTTP ${response.status})`;
       throw new Error(errMsg);
     }
@@ -3384,35 +3355,16 @@ export const changeEquipmentWorker = async (params: {
     // 에러 키워드가 있으면 에러
     if (hasErrorKeyword) {
       console.log('');
-      console.log('╔════════════════════════════════════════════════════════════════════════╗');
-      console.log('║ ❌ 장비이관 실패 (에러 메시지 감지)                                      ║');
-      console.log('╠════════════════════════════════════════════════════════════════════════╣');
-      console.log(`║   API_CALL_ID: ${apiCallId}`);
-      console.log(`║   HTTP Status: ${response.status}`);
-      console.log(`║   MSGCODE: "${msgCode}"`);
-      console.log(`║   MESSAGE: "${message}"`);
-      console.log('╚════════════════════════════════════════════════════════════════════════╝');
-
+      console.log('========== 결과: 에러 메시지 감지 ==========');
+      console.log('===========================================');
       throw new Error(message);
     }
 
     // HTTP OK이고 에러 키워드가 없으면 성공
     console.log('');
-    console.log('╔════════════════════════════════════════════════════════════════════════╗');
-    console.log('║ ✅ 장비이관 성공!                                                       ║');
-    console.log('╠════════════════════════════════════════════════════════════════════════╣');
-    console.log(`║   API_CALL_ID: ${apiCallId}`);
-    console.log(`║   HTTP Status: ${response.status}`);
-    console.log('╠════════════════════════════════════════════════════════════════════════╣');
-    console.log(`║   🔑 MSGCODE 검증:`);
-    console.log(`║      값: "${msgCode}" (type: ${typeof msgCode})`);
-    console.log(`║      MSGCODE === "SUCCESS" ? ${isMsgCodeSuccess ? '✅ YES' : '❌ NO'}`);
-    console.log(`║      MSGCODE === "0" ? ${isMsgCodeZero ? '✅ YES' : '❌ NO'}`);
-    console.log(`║      MSGCODE 비어있음? ${isMsgCodeEmpty ? '✅ YES' : '❌ NO'}`);
-    console.log('╠════════════════════════════════════════════════════════════════════════╣');
-    console.log(`║   MESSAGE: "${message}"`);
-    console.log(`║   총 소요시간: ${duration}ms`);
-    console.log('╚════════════════════════════════════════════════════════════════════════╝');
+    console.log('========== 결과: 성공 ==========');
+    console.log('소요시간:', duration, 'ms');
+    console.log('================================');
     return result;
 
   } catch (error: any) {
@@ -3420,22 +3372,13 @@ export const changeEquipmentWorker = async (params: {
     const duration = Date.now() - apiStartTime;
 
     console.log('');
-    console.log('╔════════════════════════════════════════════════════════════════════════╗');
-    console.log('║ 🚨 장비이관 API 예외 발생!                                               ║');
-    console.log('╠════════════════════════════════════════════════════════════════════════╣');
-    console.log(`║   API_CALL_ID: ${apiCallId}`);
-    console.log(`║   발생시간: ${errorTimestamp}`);
-    console.log(`║   소요시간: ${duration}ms`);
-    console.log(`║   에러타입: ${error.name}`);
-    console.log(`║   에러메시지: ${error.message}`);
-    console.log('╠════════════════════════════════════════════════════════════════════════╣');
-    console.log('║   📋 파라미터 (디버깅용):');
-    console.log(`║     SO_ID: ${params.SO_ID}`);
-    console.log(`║     EQT_NO: ${params.EQT_NO}`);
-    console.log(`║     EQT_SERNO: ${params.EQT_SERNO}`);
-    console.log(`║     MV_SO_ID: ${params.MV_SO_ID}`);
-    console.log(`║     MV_WRKR_ID: ${params.MV_WRKR_ID}`);
-    console.log('╚════════════════════════════════════════════════════════════════════════╝');
+    console.log('========== 예외 발생 ==========');
+    console.log('발생시간:', errorTimestamp);
+    console.log('소요시간:', duration, 'ms');
+    console.log('에러타입:', error.name);
+    console.log('에러메시지:', error.message);
+    console.log('파라미터:', JSON.stringify(params, null, 2));
+    console.log('================================');
 
     if (error.name === 'AbortError') {
       throw new Error('요청 시간이 초과되었습니다 (30초).');
