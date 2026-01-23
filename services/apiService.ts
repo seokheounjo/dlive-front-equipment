@@ -3197,145 +3197,75 @@ export const getEquipmentHistoryInfo = async (params: {
 
 /**
  * 장비 작업자 변경 (나에게 인수)
- * @param params 변경 정보
+ * Oracle 프로시저 PCMEP_EQT_WRKR_CHG_3 직접 호출
+ * @param params 변경 정보 (프로시저 필수 파라미터만)
  * @returns 처리 결과
  */
 export const changeEquipmentWorker = async (params: {
-  EQT_NO: string;
-  EQT_SERNO?: string;
-  SO_ID?: string;           // 장비의 현재 SO_ID
-  FROM_WRKR_ID: string;
-  TO_WRKR_ID: string;
-  MV_SO_ID?: string;        // 이관지점 SO_ID (이관받는 기사의 SO_ID)
-  MV_CRR_ID?: string;       // 이관 협력업체 ID (이관받는 기사의 CRR_ID)
-  CHG_UID?: string;         // 변경자 ID
-  CRR_ID?: string;          // AUTO-FIX용 CRR_ID
-  AUTH_SO_LIST?: string[];  // AUTO-FIX용 SO_ID 목록
+  SO_ID: string;            // 장비 현재 위치 (필수)
+  EQT_NO: string;           // 장비번호 (필수)
+  EQT_SERNO: string;        // 장비 시리얼 (필수)
+  CHG_UID: string;          // 변경자 ID (필수)
+  MV_SO_ID: string;         // 이관 목적지 (필수)
+  MV_CRR_ID: string;        // 이관 협력업체 (필수)
+  MV_WRKR_ID: string;       // 이관 기사 (필수)
 }): Promise<any> => {
-  // ========== 디버깅 로그 ==========
   const apiCallId = `API_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`;
   const apiStartTime = Date.now();
 
-  console.log('');
-  console.log('┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓');
-  console.log('┃ 📡 [apiService] changeEquipmentWorker API 호출                    ┃');
-  console.log('┣━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┫');
-  console.log(`┃ API_CALL_ID: ${apiCallId}`);
-  console.log(`┃ 호출시간: ${new Date().toISOString()}`);
-  console.log(`┃ EQT_SERNO: ${params.EQT_SERNO}`);
-  console.log(`┃ EQT_NO: ${params.EQT_NO}`);
-  console.log(`┃ SO_ID: ${params.SO_ID}`);
-  console.log(`┃ FROM_WRKR_ID: ${params.FROM_WRKR_ID}`);
-  console.log(`┃ TO_WRKR_ID: ${params.TO_WRKR_ID}`);
-  console.log(`┃ MV_SO_ID: ${params.MV_SO_ID}`);
-  console.log(`┃ MV_CRR_ID: ${params.MV_CRR_ID}`);
-  console.log(`┃ AUTH_SO_LIST: [${params.AUTH_SO_LIST?.join(', ') || '없음'}]`);
-  console.log('┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛');
+  console.log(`[${apiCallId}] 장비이관 API 호출:`, {
+    SO_ID: params.SO_ID,
+    EQT_SERNO: params.EQT_SERNO,
+    MV_SO_ID: params.MV_SO_ID,
+    MV_WRKR_ID: params.MV_WRKR_ID
+  });
 
   try {
-    const origin = typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000';
     const apiUrl = `${API_BASE}/customer/equipment/changeEqtWrkr_3`;
-    const requestBody = JSON.stringify(params);
-
-    console.log(`[${apiCallId}] URL: ${apiUrl}`);
-    console.log(`[${apiCallId}] Method: POST`);
-    console.log(`[${apiCallId}] Request Body:`, requestBody);
-
-    // fetchWithRetry 대신 직접 fetch 사용 - 더 세밀한 에러 처리를 위해
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 30000);
 
-    console.log(`[${apiCallId}] fetch() 호출 직전: ${new Date().toISOString()}`);
-
     const response = await fetch(apiUrl, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Origin': origin
-      },
+      headers: { 'Content-Type': 'application/json' },
       credentials: 'include',
-      body: requestBody,
+      body: JSON.stringify(params),
       signal: controller.signal
     });
 
     clearTimeout(timeoutId);
-
-    const fetchDuration = Date.now() - apiStartTime;
-    console.log(`[${apiCallId}] fetch() 완료: ${new Date().toISOString()} (${fetchDuration}ms)`);
-    console.log(`[${apiCallId}] Response Status: ${response.status} ${response.statusText}`);
-    console.log(`[${apiCallId}] Response Headers:`, Object.fromEntries(response.headers.entries()));
+    console.log(`[${apiCallId}] 응답: ${response.status} (${Date.now() - apiStartTime}ms)`);
 
     const responseText = await response.text();
-    console.log(`[${apiCallId}] Response Text (raw):`, responseText.substring(0, 500));
 
     let result;
     try {
       result = JSON.parse(responseText);
-      console.log(`[${apiCallId}] Response JSON:`, JSON.stringify(result, null, 2));
     } catch (parseError) {
-      console.error(`[${apiCallId}] JSON 파싱 실패:`, parseError);
-      console.error(`[${apiCallId}] Raw Response:`, responseText);
-      throw new Error(`JSON 파싱 실패: ${responseText.substring(0, 100)}`);
+      console.error(`[${apiCallId}] JSON 파싱 실패`);
+      throw new Error('서버 응답 파싱 실패');
     }
 
-    // ========== 성공/실패 판단 로직 개선 ==========
+    // 성공/실패 판단: MSGCODE가 없거나 '0' 또는 빈값이면 성공
     const msgCode = result?.MSGCODE;
     const message = result?.MESSAGE || result?.message || '';
+    const isSuccess = msgCode === undefined || msgCode === null || msgCode === '' || msgCode === '0';
+    const hasError = message && (message.includes('없습니다') || message.includes('실패') || message.includes('ERROR'));
 
-    console.log(`[${apiCallId}] 응답 분석: MSGCODE=${msgCode}, MESSAGE=${message}, status=${response.status}`);
-
-    // 1. Oracle 프로시저 성공: MSGCODE가 없거나 '0' 또는 빈값
-    const isOracleSuccess = msgCode === undefined || msgCode === null || msgCode === '' || msgCode === '0';
-
-    // 2. 에러 메시지 체크 (MESSAGE에 에러 내용이 있으면 실패)
-    const hasErrorMessage = message && (
-      message.includes('정보가 없습니다') ||
-      message.includes('존재하지 않') ||
-      message.includes('실패') ||
-      message.includes('에러') ||
-      message.includes('ERROR') ||
-      message.includes('오류')
-    );
-
-    // 3. 성공 조건: HTTP 200 또는 (Oracle 성공 && 에러 메시지 없음)
-    if (response.ok && isOracleSuccess && !hasErrorMessage) {
-      console.log(`[${apiCallId}] ✅ 성공! (HTTP 200, MSGCODE=${msgCode})`);
+    if ((response.ok || response.status === 500) && isSuccess && !hasError) {
+      console.log(`[${apiCallId}] ✅ 성공`);
       return result;
     }
 
-    // 4. HTTP 500이지만 Oracle은 성공한 경우 (백엔드 응답 문제)
-    if (response.status === 500 && isOracleSuccess && !hasErrorMessage) {
-      console.log(`[${apiCallId}] ✅ 성공 (HTTP 500이지만 Oracle 성공)`);
-      return result;
-    }
-
-    // 5. 에러 응답 - 구체적인 에러 메시지 추출
-    let errMsg = '장비 이동에 실패했습니다.';
-    if (message) {
-      errMsg = message;
-    } else if (result?.error) {
-      errMsg = result.error;
-    } else if (msgCode && msgCode !== '0') {
-      errMsg = `오류 코드: ${msgCode}`;
-    }
-
+    // 에러
+    const errMsg = message || result?.error || '장비 이동에 실패했습니다.';
     console.error(`[${apiCallId}] ❌ 실패: ${errMsg}`);
-    console.error(`[${apiCallId}] 실패 상세: MSGCODE=${msgCode}, MESSAGE=${message}, HTTP=${response.status}`);
     throw new Error(errMsg);
   } catch (error: any) {
-    const errorDuration = Date.now() - apiStartTime;
-    console.error(`[${apiCallId}] ❌ 예외 발생 (${errorDuration}ms):`, error);
-    console.error(`[${apiCallId}] Error name:`, error.name);
-    console.error(`[${apiCallId}] Error message:`, error.message);
-    console.error(`[${apiCallId}] Error stack:`, error.stack);
-
     if (error.name === 'AbortError') {
       throw new Error('요청 시간이 초과되었습니다.');
     }
-    if (error instanceof Error) {
-      throw error;
-    }
-    throw new Error('장비 이동에 실패했습니다.');
+    throw error instanceof Error ? error : new Error('장비 이동에 실패했습니다.');
   }
 };
 

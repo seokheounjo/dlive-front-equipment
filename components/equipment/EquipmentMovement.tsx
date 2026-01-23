@@ -1102,17 +1102,15 @@ const EquipmentMovement: React.FC<EquipmentMovementProps> = ({ onBack }) => {
         console.log(`└──────────────────────────────────────────────────────────────────┘`);
 
         try {
+          // Oracle 프로시저 PCMEP_EQT_WRKR_CHG_3 필수 파라미터만 전송
           const params = {
-            EQT_NO: item.EQT_NO,
-            EQT_SERNO: item.EQT_SERNO,
-            SO_ID: item.SO_ID,
-            FROM_WRKR_ID: workerInfo.WRKR_ID,
-            TO_WRKR_ID: loggedInUser.userId,
-            MV_SO_ID: targetSoId || item.SO_ID,
-            MV_CRR_ID: loggedInUser.crrId,
-            CHG_UID: loggedInUser.userId,
-            CRR_ID: loggedInUser.crrId,
-            AUTH_SO_LIST: userAuthSoList.map(so => so.SO_ID)
+            SO_ID: item.SO_ID,                          // 장비 현재 위치
+            EQT_NO: item.EQT_NO,                        // 장비번호
+            EQT_SERNO: item.EQT_SERNO,                  // 장비 시리얼
+            CHG_UID: loggedInUser.userId,               // 변경자 ID
+            MV_SO_ID: targetSoId || item.SO_ID,         // 이관 목적지
+            MV_CRR_ID: loggedInUser.crrId,              // 이관 협력업체
+            MV_WRKR_ID: loggedInUser.userId             // 이관 기사 (TO_WRKR_ID 대신)
           };
 
           console.log('[DEBUG] API 호출 파라미터:', JSON.stringify(params, null, 2));
