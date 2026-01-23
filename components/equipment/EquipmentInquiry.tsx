@@ -251,6 +251,14 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
 
   // 검색 조건
   const [selectedSoId, setSelectedSoId] = useState<string>(userInfo?.soId || '');
+
+  // userInfo가 늦게 로드되는 경우 selectedSoId 업데이트
+  useEffect(() => {
+    if (!selectedSoId && userInfo?.soId) {
+      console.log('[장비조회] selectedSoId 업데이트:', userInfo.soId);
+      setSelectedSoId(userInfo.soId);
+    }
+  }, [userInfo?.soId, selectedSoId]);
   
   const [selectedItemMidCd, setSelectedItemMidCd] = useState<string>('');  // 모델1 (중분류)
   const [selectedEqtClCd, setSelectedEqtClCd] = useState<string>('');      // 모델2 (소분류)
@@ -434,6 +442,13 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
 
   // 장비 조회
   const handleSearch = async () => {
+    // DEBUG: 조회 시작 시점의 상태 출력
+    console.log('===== 장비조회 시작 =====');
+    console.log('[DEBUG] userInfo:', userInfo);
+    console.log('[DEBUG] userInfo.soId:', userInfo?.soId);
+    console.log('[DEBUG] selectedSoId (state):', selectedSoId);
+    console.log('[DEBUG] localStorage userInfo:', localStorage.getItem('userInfo'));
+
     if (!userInfo?.userId) {
       showToast?.('로그인 정보가 없습니다. 다시 로그인해주세요.', 'error');
       return;
@@ -446,8 +461,9 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
       console.log('🔍 [장비처리] 시작:', {
         selectedCategory,
         SO_ID: selectedSoId,
+        userInfo_soId: userInfo.soId,
         WRKR_ID: userInfo.userId,
-            CRR_ID: userInfo.crrId, // CRR_ID = WRKR_ID (기사 본인)
+        CRR_ID: userInfo.crrId,
         ITEM_MID_CD: selectedItemMidCd,
         EQT_SERNO: eqtSerno
       });
@@ -472,16 +488,25 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
         if (selectedCategory === 'OWNED') {
           try {
             // 보유장비 조회
+            const apiParams = {
+              WRKR_ID: userInfo.userId,
+              CRR_ID: userInfo.crrId || '',  // 협력업체 ID (필수!)
+              SO_ID: selectedSoId || '',  // 빈 문자열 = 전체 SO 조회 (이관된 장비 포함)
+            };
+            console.log('[DEBUG] 보유장비 API 호출 파라미터:', apiParams);
+
             const ownedResult = await debugApiCall(
               'EquipmentInquiry',
               'getWrkrHaveEqtListAll (보유장비)',
-              () => getWrkrHaveEqtListAll({
-                WRKR_ID: userInfo.userId,
-                CRR_ID: userInfo.crrId || '',  // 협력업체 ID (필수!)
-                SO_ID: selectedSoId || '',  // 빈 문자열 = 전체 SO 조회 (이관된 장비 포함)
-              }),
-              { WRKR_ID: userInfo.userId, CRR_ID: userInfo.crrId }
+              () => getWrkrHaveEqtListAll(apiParams),
+              apiParams
             );
+
+            console.log('[DEBUG] 보유장비 API 결과:', {
+              isArray: Array.isArray(ownedResult),
+              length: Array.isArray(ownedResult) ? ownedResult.length : 'N/A',
+              raw: ownedResult
+            });
             // 반납요청 목록도 조회하여 중복 체크
             let returnRequestEqtNos = new Set<string>();
             try {
