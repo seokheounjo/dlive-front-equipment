@@ -3232,7 +3232,8 @@ export const changeEquipmentWorker = async (params: {
   console.log('=============================================');
 
   try {
-    const apiUrl = `${API_BASE}/customer/equipment/changeEqtWrkr_3`;
+    // 신규 API: changeEqtWrkr_3_ForM - Exception 대신 Map 반환 (2026-01-23)
+    const apiUrl = `${API_BASE}/customer/equipment/changeEqtWrkr_3_ForM`;
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 30000);
 

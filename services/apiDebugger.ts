@@ -213,11 +213,11 @@ export const EQUIPMENT_TEST_CASES: ApiTestCase[] = [
   },
   {
     name: '장비기사이관',
-    api: '/customer/equipment/changeEqtWrkr_3',
+    api: '/customer/equipment/changeEqtWrkr_3_ForM',
     method: 'POST',
     params: { EQT_NO: 'EQT001', TO_WRKR_ID: '20230020' },
-    expectedFields: ['RESULT', 'TO_WRKR_NM'],
-    description: '장비 다른 기사에게 이관'
+    expectedFields: ['MSGCODE', 'MESSAGE', 'MV_WRKR_ID'],
+    description: '장비 다른 기사에게 이관 (Map 반환 버전)'
   },
 
   // 그룹 3: 기사간 장비이동 (2개)

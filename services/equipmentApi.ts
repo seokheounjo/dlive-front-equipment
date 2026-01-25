@@ -208,7 +208,8 @@ export const transferEquipment = async (params: {
   try {
     const origin = typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000';
 
-    const response = await fetchWithRetry(`${API_BASE}/customer/equipment/changeEqtWrkr_3`, {
+    // 신규 API: changeEqtWrkr_3_ForM - Exception 대신 Map 반환 (2026-01-23)
+    const response = await fetchWithRetry(`${API_BASE}/customer/equipment/changeEqtWrkr_3_ForM`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
