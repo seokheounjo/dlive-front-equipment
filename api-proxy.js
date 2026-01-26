@@ -74,6 +74,75 @@ function parseMiPlatformXMLtoJSON(xmlString) {
   }
 }
 
+// Parse MiPlatform XML <params> response to JSON
+// This handles responses like: <params><RESULT>0</RESULT><MSG>Success</MSG></params>
+// Or: <param name="RESULT">0</param> format
+function parseMiPlatformParamsXMLtoJSON(xmlString) {
+  try {
+    const result = {};
+
+    // Try format 1: <param name="KEY">value</param>
+    const paramNameRegex = /<param\s+name="(\w+)"[^>]*>([^<]*)<\/param>/gi;
+    let match;
+    while ((match = paramNameRegex.exec(xmlString)) !== null) {
+      let fieldValue = match[2];
+      fieldValue = fieldValue
+        .replace(/&amp;/g, '&')
+        .replace(/&lt;/g, '<')
+        .replace(/&gt;/g, '>')
+        .replace(/&quot;/g, '"')
+        .replace(/&apos;/g, "'");
+      result[match[1]] = fieldValue;
+    }
+
+    // Try format 2: <KEY>value</KEY> inside <params>
+    if (Object.keys(result).length === 0) {
+      const paramsMatch = xmlString.match(/<params>([\s\S]*?)<\/params>/i);
+      if (paramsMatch) {
+        const paramsContent = paramsMatch[1];
+        const fieldRegex = /<(\w+)>([^<]*)<\/\1>/g;
+        let fieldMatch;
+        while ((fieldMatch = fieldRegex.exec(paramsContent)) !== null) {
+          let fieldValue = fieldMatch[2];
+          fieldValue = fieldValue
+            .replace(/&amp;/g, '&')
+            .replace(/&lt;/g, '<')
+            .replace(/&gt;/g, '>')
+            .replace(/&quot;/g, '"')
+            .replace(/&apos;/g, "'");
+          result[fieldMatch[1]] = fieldValue;
+        }
+      }
+    }
+
+    // Try format 3: Direct field tags in root (for simple responses)
+    if (Object.keys(result).length === 0) {
+      const fieldRegex = /<(\w+)>([^<]*)<\/\1>/g;
+      let fieldMatch;
+      while ((fieldMatch = fieldRegex.exec(xmlString)) !== null) {
+        const fieldName = fieldMatch[1];
+        // Skip XML declaration and root tags
+        if (fieldName === 'xml' || fieldName === 'Root' || fieldName === 'Dataset' ||
+            fieldName === 'ColumnInfo' || fieldName === 'Rows' || fieldName === 'Row' ||
+            fieldName === 'Column' || fieldName === 'Col') continue;
+        let fieldValue = fieldMatch[2];
+        fieldValue = fieldValue
+          .replace(/&amp;/g, '&')
+          .replace(/&lt;/g, '<')
+          .replace(/&gt;/g, '>')
+          .replace(/&quot;/g, '"')
+          .replace(/&apos;/g, "'");
+        result[fieldName] = fieldValue;
+      }
+    }
+
+    return Object.keys(result).length > 0 ? result : null;
+  } catch (e) {
+    console.error('[PROXY] Params XML parsing error:', e.message);
+    return null;
+  }
+}
+
 // Convert JSON to MiPlatform XML Dataset format
 function jsonToMiPlatformXML(datasetName, jsonData) {
   // Build column info from JSON keys
@@ -365,8 +434,20 @@ async function handleProxy(req, res) {
 
         // For legacy .req routes, parse XML response to JSON
         if (isLegacyReq && responseBody.includes('<record>')) {
-          console.log('[PROXY] Parsing XML response to JSON for legacy route');
+          console.log('[PROXY] Parsing XML <record> response to JSON for legacy route');
           const jsonData = parseMiPlatformXMLtoJSON(responseBody);
+          if (jsonData) {
+            res.setHeader('Content-Type', 'application/json; charset=utf-8');
+            res.status(proxyRes.statusCode);
+            res.json(jsonData);
+            return;
+          }
+        }
+
+        // For legacy .req routes with <params> response (like setEquipmentChkStndByY_ForM)
+        if (isLegacyReq && (responseBody.includes('<params>') || responseBody.includes('<param '))) {
+          console.log('[PROXY] Parsing XML <params> response to JSON for legacy route');
+          const jsonData = parseMiPlatformParamsXMLtoJSON(responseBody);
           if (jsonData) {
             res.setHeader('Content-Type', 'application/json; charset=utf-8');
             res.status(proxyRes.statusCode);
