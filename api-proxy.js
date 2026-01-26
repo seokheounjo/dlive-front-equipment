@@ -325,6 +325,7 @@ router.get('/debug/workmanAssignManagement/methods', handleProxy);
 router.get('/customer/debug/listBeans', handleProxy);
 router.get('/customer/debug/negociationDao/methods', handleProxy);
 router.get('/customer/debug/customerManagerService/methods', handleProxy);
+router.get('/customer/debug/customerManager/methods', handleProxy);
 router.get('/customer/debug/billingManagement/methods', handleProxy);
 router.get('/customer/debug/customerEtcManagement/methods', handleProxy);
 
