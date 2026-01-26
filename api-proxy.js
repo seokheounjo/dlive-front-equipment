@@ -77,25 +77,40 @@ function parseMiPlatformXMLtoJSON(xmlString) {
 // Parse MiPlatform XML <params> response to JSON
 // This handles responses like: <params><RESULT>0</RESULT><MSG>Success</MSG></params>
 // Or: <param name="RESULT">0</param> format
+// Or: <param id="RESULT" type="STRING">0</param> format (CONA style)
 function parseMiPlatformParamsXMLtoJSON(xmlString) {
   try {
     const result = {};
 
-    // Try format 1: <param name="KEY">value</param>
-    const paramNameRegex = /<param\s+name="(\w+)"[^>]*>([^<]*)<\/param>/gi;
-    let match;
-    while ((match = paramNameRegex.exec(xmlString)) !== null) {
-      let fieldValue = match[2];
-      fieldValue = fieldValue
+    // Decode HTML entities for better parsing
+    const decodeEntities = (str) => {
+      return str
+        .replace(/&#32;/g, ' ')
+        .replace(/&#10;/g, '\n')
+        .replace(/&#9;/g, '\t')
         .replace(/&amp;/g, '&')
         .replace(/&lt;/g, '<')
         .replace(/&gt;/g, '>')
         .replace(/&quot;/g, '"')
         .replace(/&apos;/g, "'");
-      result[match[1]] = fieldValue;
+    };
+
+    // Try format 1: <param id="KEY" type="...">value</param> (CONA MiPlatform style)
+    const paramIdRegex = /<param\s+id="(\w+)"[^>]*>([^<]*)<\/param>/gi;
+    let match;
+    while ((match = paramIdRegex.exec(xmlString)) !== null) {
+      result[match[1]] = decodeEntities(match[2]);
     }
 
-    // Try format 2: <KEY>value</KEY> inside <params>
+    // Try format 2: <param name="KEY">value</param>
+    if (Object.keys(result).length === 0) {
+      const paramNameRegex = /<param\s+name="(\w+)"[^>]*>([^<]*)<\/param>/gi;
+      while ((match = paramNameRegex.exec(xmlString)) !== null) {
+        result[match[1]] = decodeEntities(match[2]);
+      }
+    }
+
+    // Try format 3: <KEY>value</KEY> inside <params>
     if (Object.keys(result).length === 0) {
       const paramsMatch = xmlString.match(/<params>([\s\S]*?)<\/params>/i);
       if (paramsMatch) {
@@ -103,19 +118,12 @@ function parseMiPlatformParamsXMLtoJSON(xmlString) {
         const fieldRegex = /<(\w+)>([^<]*)<\/\1>/g;
         let fieldMatch;
         while ((fieldMatch = fieldRegex.exec(paramsContent)) !== null) {
-          let fieldValue = fieldMatch[2];
-          fieldValue = fieldValue
-            .replace(/&amp;/g, '&')
-            .replace(/&lt;/g, '<')
-            .replace(/&gt;/g, '>')
-            .replace(/&quot;/g, '"')
-            .replace(/&apos;/g, "'");
-          result[fieldMatch[1]] = fieldValue;
+          result[fieldMatch[1]] = decodeEntities(fieldMatch[2]);
         }
       }
     }
 
-    // Try format 3: Direct field tags in root (for simple responses)
+    // Try format 4: Direct field tags in root (for simple responses)
     if (Object.keys(result).length === 0) {
       const fieldRegex = /<(\w+)>([^<]*)<\/\1>/g;
       let fieldMatch;
@@ -124,15 +132,9 @@ function parseMiPlatformParamsXMLtoJSON(xmlString) {
         // Skip XML declaration and root tags
         if (fieldName === 'xml' || fieldName === 'Root' || fieldName === 'Dataset' ||
             fieldName === 'ColumnInfo' || fieldName === 'Rows' || fieldName === 'Row' ||
-            fieldName === 'Column' || fieldName === 'Col') continue;
-        let fieldValue = fieldMatch[2];
-        fieldValue = fieldValue
-          .replace(/&amp;/g, '&')
-          .replace(/&lt;/g, '<')
-          .replace(/&gt;/g, '>')
-          .replace(/&quot;/g, '"')
-          .replace(/&apos;/g, "'");
-        result[fieldName] = fieldValue;
+            fieldName === 'Column' || fieldName === 'Col' || fieldName === 'root' ||
+            fieldName === 'params') continue;
+        result[fieldName] = decodeEntities(fieldMatch[2]);
       }
     }
 
@@ -300,6 +302,7 @@ router.post('/customer/equipment/getWrkrHaveEqtList_All', handleProxy);        /
 router.post('/customer/equipment/searchWorkersByName', handleProxy);        // 기사 이름 검색
 router.post("/customer/equipment/getEquipmentChkStndByA_All", handleProxy);  // 검사대기
 router.post("/customer/phoneNumber/getOwnEqtLstForMobile_3", handleProxy);  // 장비반납
+router.post("/customer/phoneNumber/getCtrtIDforSmartPhone", handleProxy);  // 고객검색 (전화번호)
 router.post("/customer/equipment/getOwnEqtLstForMobile_3", handleProxy);  // 반납요청 (equipment 경로)
 router.post("/customer/equipment/getEquipmentReturnRequestList_All", handleProxy);  // 반납요청 _All (추가)
 router.post("/customer/equipment/getWrkrListDetail", handleProxy);  // 분실처리 상세조회 (추가)
