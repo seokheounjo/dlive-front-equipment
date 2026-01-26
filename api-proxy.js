@@ -23,6 +23,8 @@ const LEGACY_REQ_ROUTES = [
 
   "/customer/phoneNumber/getOwnEqtLstForMobile_3",  // 장비반납
   "/customer/equipment/setEquipmentChkStndByY_ForM",  // 검사대기 -> 사용가능 변경 (ForM 버전)
+  "/customer/equipment/getAuthSoList",  // SO 권한 목록
+  "/customer/equipment/getEqtTrnsList",  // 장비이동내역
   // "/customer/equipment/changeEqtWrkr_3_ForM",  // 장비이관 - 우리 백엔드 컨트롤러로 라우팅 (세션 필요)
   // "/customer/equipment/getEquipmentTypeList",  // Now handled by our adapter (needs CONA session)
   // "/customer/equipment/setEquipmentChkStndByY",  // 검사완료 - 레거시 세션 필요 (백엔드 수정 필요)
@@ -307,6 +309,7 @@ router.post("/customer/equipment/getOwnEqtLstForMobile_3", handleProxy);  // 반
 router.post("/customer/equipment/getEquipmentReturnRequestList_All", handleProxy);  // 반납요청 _All (추가)
 router.post("/customer/equipment/getWrkrListDetail", handleProxy);  // 분실처리 상세조회 (추가)
 router.post("/customer/equipment/getEquipmentTypeList", handleProxy);  // 장비 소분류 목록 조회
+router.post("/customer/equipment/getEqtTrnsList", handleProxy);  // 장비이동내역
 
 // Statistics/Equipment API
 router.post('/statistics/equipment/getEquipmentHistoryInfo', handleProxy);
