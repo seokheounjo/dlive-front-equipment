@@ -157,82 +157,59 @@ const CustomerBasicInfo: React.FC<CustomerBasicInfoProps> = ({
             <div className="bg-white rounded-lg shadow-sm border border-gray-200">
               <button
                 onClick={() => toggleSection('customerInfo')}
-                className="w-full p-4 flex items-center justify-between text-left"
+                className="w-full px-3 py-2.5 flex items-center justify-between text-left"
               >
-                <div className="flex items-center gap-2">
-                  <User className="w-5 h-5 text-blue-500" />
-                  <span className="font-medium text-gray-800">고객 정보</span>
-                </div>
+                <span className="font-medium text-gray-800 text-sm">고객 정보</span>
                 {expandedSections.customerInfo ? (
-                  <ChevronUp className="w-5 h-5 text-gray-400" />
+                  <ChevronUp className="w-4 h-4 text-gray-400" />
                 ) : (
-                  <ChevronDown className="w-5 h-5 text-gray-400" />
+                  <ChevronDown className="w-4 h-4 text-gray-400" />
                 )}
               </button>
 
               {expandedSections.customerInfo && (
-                <div className="px-4 pb-4 space-y-3">
-                  {/* 기본 정보 그리드 */}
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <label className="text-xs text-gray-500">고객명</label>
-                      <div className="font-medium text-gray-800">{selectedCustomer.CUST_NM}</div>
+                <div className="px-3 pb-3 space-y-2">
+                  {/* 기본 정보 */}
+                  <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-sm">
+                    <div className="flex justify-between">
+                      <span className="text-gray-500">고객명</span>
+                      <span className="font-medium text-gray-800">{selectedCustomer.CUST_NM}</span>
                     </div>
-                    <div>
-                      <label className="text-xs text-gray-500">고객ID</label>
-                      <div className="font-medium text-gray-800">{selectedCustomer.CUST_ID}</div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-500">고객ID</span>
+                      <span className="font-medium text-gray-800">{selectedCustomer.CUST_ID}</span>
                     </div>
-                    <div>
-                      <label className="text-xs text-gray-500">전화번호</label>
-                      <div className="font-medium text-gray-800">
-                        {formatPhoneNumber(selectedCustomer.TEL_NO)}
-                      </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-500">전화</span>
+                      <span className="text-gray-800">{formatPhoneNumber(selectedCustomer.TEL_NO) || '-'}</span>
                     </div>
-                    <div>
-                      <label className="text-xs text-gray-500">휴대폰</label>
-                      <div className="font-medium text-gray-800">
-                        {formatPhoneNumber(selectedCustomer.HP_NO)}
-                      </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-500">휴대폰</span>
+                      <span className="text-gray-800">{formatPhoneNumber(selectedCustomer.HP_NO) || '-'}</span>
                     </div>
                   </div>
 
                   {/* 주소 정보 */}
-                  <div className="space-y-2 pt-2 border-t border-gray-100">
-                    <div className="flex items-start gap-2">
-                      <MapPin className="w-4 h-4 text-gray-400 mt-0.5" />
-                      <div className="flex-1">
-                        <label className="text-xs text-gray-500">설치주소</label>
-                        <div className="text-sm text-gray-700">{selectedCustomer.INST_ADDR || '-'}</div>
-                      </div>
+                  <div className="pt-2 border-t border-gray-100 space-y-1 text-sm">
+                    <div className="flex">
+                      <span className="text-gray-500 w-16 flex-shrink-0">설치</span>
+                      <span className="text-gray-700">{selectedCustomer.INST_ADDR || '-'}</span>
                     </div>
-                    <div className="flex items-start gap-2">
-                      <MapPin className="w-4 h-4 text-gray-400 mt-0.5" />
-                      <div className="flex-1">
-                        <label className="text-xs text-gray-500">고객주소</label>
-                        <div className="text-sm text-gray-700">{selectedCustomer.CUST_ADDR || '-'}</div>
-                      </div>
+                    <div className="flex">
+                      <span className="text-gray-500 w-16 flex-shrink-0">고객</span>
+                      <span className="text-gray-700">{selectedCustomer.CUST_ADDR || '-'}</span>
                     </div>
-                    <div className="flex items-start gap-2">
-                      <MapPin className="w-4 h-4 text-gray-400 mt-0.5" />
-                      <div className="flex-1">
-                        <label className="text-xs text-gray-500">청구지주소</label>
-                        <div className="text-sm text-gray-700">{selectedCustomer.BILL_ADDR || '-'}</div>
-                      </div>
+                    <div className="flex">
+                      <span className="text-gray-500 w-16 flex-shrink-0">청구지</span>
+                      <span className="text-gray-700">{selectedCustomer.BILL_ADDR || '-'}</span>
                     </div>
                   </div>
 
                   {/* 미납금액 */}
                   {selectedCustomer.UNPAY_AMT > 0 && (
-                    <div className="p-3 bg-red-50 rounded-lg border border-red-200">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          <AlertCircle className="w-5 h-5 text-red-500" />
-                          <span className="text-red-700 font-medium">미납금액</span>
-                        </div>
-                        <span className="text-red-600 font-bold text-lg">
-                          {formatCurrency(selectedCustomer.UNPAY_AMT)}원
-                        </span>
-                      </div>
+                    <div className="flex items-center justify-between p-2 bg-red-50 rounded border border-red-200">
+                      <span className="text-red-700 text-sm">미납금액</span>
+                      <span className="text-red-600 font-bold">{formatCurrency(selectedCustomer.UNPAY_AMT)}원</span>
                     </div>
                   )}
                 </div>
@@ -262,55 +239,47 @@ const CustomerBasicInfo: React.FC<CustomerBasicInfoProps> = ({
             <div className="bg-white rounded-lg shadow-sm border border-gray-200">
               <button
                 onClick={() => toggleSection('consultation')}
-                className="w-full p-4 flex items-center justify-between text-left"
+                className="w-full px-3 py-2.5 flex items-center justify-between text-left"
               >
                 <div className="flex items-center gap-2">
-                  <MessageSquare className="w-5 h-5 text-green-500" />
-                  <span className="font-medium text-gray-800">상담 이력</span>
+                  <span className="font-medium text-gray-800 text-sm">상담 이력</span>
                   {consultationHistory.length > 0 && (
-                    <span className="text-sm text-gray-500">({consultationHistory.length}건)</span>
+                    <span className="text-xs text-gray-500">({consultationHistory.length})</span>
                   )}
                 </div>
                 {expandedSections.consultation ? (
-                  <ChevronUp className="w-5 h-5 text-gray-400" />
+                  <ChevronUp className="w-4 h-4 text-gray-400" />
                 ) : (
-                  <ChevronDown className="w-5 h-5 text-gray-400" />
+                  <ChevronDown className="w-4 h-4 text-gray-400" />
                 )}
               </button>
 
               {expandedSections.consultation && (
-                <div className="px-4 pb-4">
+                <div className="px-3 pb-3">
                   {isLoadingHistory ? (
-                    <div className="flex items-center justify-center py-4">
-                      <Loader2 className="w-5 h-5 animate-spin text-gray-400" />
+                    <div className="flex items-center justify-center py-3">
+                      <Loader2 className="w-4 h-4 animate-spin text-gray-400" />
                     </div>
                   ) : consultationHistory.length > 0 ? (
-                    <div className="space-y-2">
+                    <div className="space-y-1.5">
                       {consultationHistory.map((item, index) => (
-                        <div key={item.CNSL_ID || index} className="p-3 bg-gray-50 rounded-lg">
-                          <div className="flex items-center justify-between mb-1">
-                            <span className="text-sm font-medium text-gray-700">{item.CNSL_CL_NM}</span>
+                        <div key={item.CNSL_ID || index} className="p-2 bg-gray-50 rounded text-sm">
+                          <div className="flex items-center justify-between">
+                            <span className="font-medium text-gray-700">{item.CNSL_CL_NM}</span>
                             <span className="text-xs text-gray-500">{item.RCPT_DT}</span>
                           </div>
-                          <div className="text-sm text-gray-600">{item.REQ_CNTN}</div>
-                          {item.RSP_CNTN && (
-                            <div className="text-sm text-gray-500 mt-1">→ {item.RSP_CNTN}</div>
-                          )}
-                          <div className="flex items-center gap-2 mt-2">
-                            <span className={`text-xs px-2 py-0.5 rounded ${
+                          <div className="text-gray-600 mt-0.5">{item.REQ_CNTN}</div>
+                          <div className="flex items-center gap-2 mt-1">
+                            <span className={`text-xs px-1.5 py-0.5 rounded ${
                               item.PROC_STAT_NM === '완료' ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'
-                            }`}>
-                              {item.PROC_STAT_NM}
-                            </span>
-                            <span className="text-xs text-gray-400">접수: {item.RCPT_USR_NM}</span>
+                            }`}>{item.PROC_STAT_NM}</span>
+                            <span className="text-xs text-gray-400">{item.RCPT_USR_NM}</span>
                           </div>
                         </div>
                       ))}
                     </div>
                   ) : (
-                    <div className="text-center py-4 text-gray-500 text-sm">
-                      상담 이력이 없습니다.
-                    </div>
+                    <div className="text-center py-3 text-gray-500 text-sm">이력 없음</div>
                   )}
                 </div>
               )}
@@ -320,60 +289,49 @@ const CustomerBasicInfo: React.FC<CustomerBasicInfoProps> = ({
             <div className="bg-white rounded-lg shadow-sm border border-gray-200">
               <button
                 onClick={() => toggleSection('work')}
-                className="w-full p-4 flex items-center justify-between text-left"
+                className="w-full px-3 py-2.5 flex items-center justify-between text-left"
               >
                 <div className="flex items-center gap-2">
-                  <Wrench className="w-5 h-5 text-orange-500" />
-                  <span className="font-medium text-gray-800">작업 이력</span>
+                  <span className="font-medium text-gray-800 text-sm">작업 이력</span>
                   {workHistory.length > 0 && (
-                    <span className="text-sm text-gray-500">({workHistory.length}건)</span>
+                    <span className="text-xs text-gray-500">({workHistory.length})</span>
                   )}
                 </div>
                 {expandedSections.work ? (
-                  <ChevronUp className="w-5 h-5 text-gray-400" />
+                  <ChevronUp className="w-4 h-4 text-gray-400" />
                 ) : (
-                  <ChevronDown className="w-5 h-5 text-gray-400" />
+                  <ChevronDown className="w-4 h-4 text-gray-400" />
                 )}
               </button>
 
               {expandedSections.work && (
-                <div className="px-4 pb-4">
+                <div className="px-3 pb-3">
                   {isLoadingHistory ? (
-                    <div className="flex items-center justify-center py-4">
-                      <Loader2 className="w-5 h-5 animate-spin text-gray-400" />
+                    <div className="flex items-center justify-center py-3">
+                      <Loader2 className="w-4 h-4 animate-spin text-gray-400" />
                     </div>
                   ) : workHistory.length > 0 ? (
-                    <div className="space-y-2">
+                    <div className="space-y-1.5">
                       {workHistory.map((item, index) => (
-                        <div key={item.WORK_ID || index} className="p-3 bg-gray-50 rounded-lg">
-                          <div className="flex items-center justify-between mb-1">
-                            <span className="text-sm font-medium text-gray-700">{item.WORK_TP_NM}</span>
+                        <div key={item.WORK_ID || index} className="p-2 bg-gray-50 rounded text-sm">
+                          <div className="flex items-center justify-between">
+                            <span className="font-medium text-gray-700">{item.WORK_TP_NM}</span>
                             <span className="text-xs text-gray-500">{item.SCHD_DT}</span>
                           </div>
-                          <div className="text-sm text-gray-600">{item.PROD_NM}</div>
-                          {item.WORK_DRCTN && (
-                            <div className="text-sm text-gray-500 mt-1">{item.WORK_DRCTN}</div>
-                          )}
-                          <div className="flex items-center gap-2 mt-2">
-                            <span className={`text-xs px-2 py-0.5 rounded ${
+                          <div className="text-gray-600 mt-0.5">{item.PROD_NM}</div>
+                          <div className="flex items-center gap-2 mt-1">
+                            <span className={`text-xs px-1.5 py-0.5 rounded ${
                               item.WORK_STAT_NM === '완료' ? 'bg-green-100 text-green-700' :
                               item.WORK_STAT_NM === '진행중' ? 'bg-blue-100 text-blue-700' :
                               'bg-gray-100 text-gray-700'
-                            }`}>
-                              {item.WORK_STAT_NM}
-                            </span>
+                            }`}>{item.WORK_STAT_NM}</span>
                             <span className="text-xs text-gray-400">{item.WRKR_NM}</span>
-                            {item.CMPL_DT && (
-                              <span className="text-xs text-gray-400">완료: {item.CMPL_DT}</span>
-                            )}
                           </div>
                         </div>
                       ))}
                     </div>
                   ) : (
-                    <div className="text-center py-4 text-gray-500 text-sm">
-                      작업 이력이 없습니다.
-                    </div>
+                    <div className="text-center py-3 text-gray-500 text-sm">이력 없음</div>
                   )}
                 </div>
               )}

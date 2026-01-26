@@ -131,29 +131,27 @@ const CustomerManagementMenu: React.FC<CustomerManagementMenuProps> = ({ onNavig
 
       {/* 선택된 고객 정보 표시 바 (고객 선택 시에만) */}
       {selectedCustomer && activeTab !== 'customer-create' && (
-        <div className="flex-shrink-0 bg-blue-50 border-b border-blue-200 px-4 py-2">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4 text-sm">
-              <span className="font-medium text-blue-800">선택된 고객:</span>
-              <span className="text-blue-700">{selectedCustomer.custNm}</span>
-              <span className="text-blue-600">({selectedCustomer.custId})</span>
-              <span className="text-blue-600">{selectedCustomer.telNo}</span>
+        <div className="flex-shrink-0 bg-blue-50 border-b border-blue-200 px-3 py-1.5">
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center gap-1 text-sm min-w-0">
+              <span className="font-medium text-blue-800 whitespace-nowrap">{selectedCustomer.custNm}</span>
+              <span className="text-blue-600 whitespace-nowrap">({selectedCustomer.custId})</span>
+              <span className="text-blue-500 whitespace-nowrap">{selectedCustomer.telNo}</span>
             </div>
             <button
               onClick={() => {
                 setSelectedCustomer(null);
                 setSelectedContract(null);
               }}
-              className="text-blue-600 hover:text-blue-800 text-sm"
+              className="text-blue-600 hover:text-blue-800 text-xs whitespace-nowrap"
             >
-              선택 해제
+              해제
             </button>
           </div>
           {selectedContract && (
-            <div className="flex items-center gap-4 text-sm mt-1">
-              <span className="font-medium text-blue-800">선택된 계약:</span>
-              <span className="text-blue-700">{selectedContract.prodNm}</span>
-              <span className="text-blue-600">({selectedContract.ctrtId})</span>
+            <div className="flex items-center gap-1 text-xs mt-0.5">
+              <span className="text-blue-700 truncate">{selectedContract.prodNm}</span>
+              <span className="text-blue-500 whitespace-nowrap">({selectedContract.ctrtId})</span>
             </div>
           )}
         </div>

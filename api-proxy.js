@@ -22,6 +22,7 @@ const LEGACY_REQ_ROUTES = [
   // Equipment Processing 3 APIs - Route directly to legacy .req servlet
 
   "/customer/phoneNumber/getOwnEqtLstForMobile_3",  // 장비반납
+  "/customer/equipment/setEquipmentChkStndByY_ForM",  // 검사대기 -> 사용가능 변경 (ForM 버전)
   // "/customer/equipment/changeEqtWrkr_3_ForM",  // 장비이관 - 우리 백엔드 컨트롤러로 라우팅 (세션 필요)
   // "/customer/equipment/getEquipmentTypeList",  // Now handled by our adapter (needs CONA session)
   // "/customer/equipment/setEquipmentChkStndByY",  // 검사완료 - 레거시 세션 필요 (백엔드 수정 필요)
@@ -218,6 +219,7 @@ router.post('/customer/equipment/delEquipmentReturnRequest', handleProxy);  // �
 router.post('/customer/equipment/getWrkrHaveEqtList', handleProxy);
 router.post('/customer/equipment/cmplEqtCustLossIndem', handleProxy);
 router.post('/customer/equipment/setEquipmentChkStndByY', handleProxy);
+router.post('/customer/equipment/setEquipmentChkStndByY_ForM', handleProxy);  // 검사대기 -> 사용가능 (ForM)
 router.post('/customer/equipment/changeEqtWrkr_3', handleProxy);
 router.post('/customer/equipment/changeEqtWrkr_3_ForM', handleProxy);  // 신규 장비이관 (Map 반환)
 router.post('/customer/equipment/updateInstlLocFrWrk', handleProxy);

@@ -291,6 +291,57 @@ const apiCall = async <T>(
   }
 };
 
+// ============ 필드 매핑 함수 ============
+
+/**
+ * 고객 검색 응답 필드 매핑
+ * D'Live API 응답 -> 프론트엔드 인터페이스
+ */
+const mapCustomerFields = (data: any): CustomerInfo => {
+  return {
+    CUST_ID: data.CUST_ID || '',
+    CUST_NM: data.CUST_NM || '',
+    TEL_NO: data.TEL_NO || data.TEL_NO1 || '',           // TEL_NO1 -> TEL_NO
+    HP_NO: data.HP_NO || data.TEL_NO2 || '',             // TEL_NO2 -> HP_NO
+    CUST_ADDR: data.CUST_ADDR || data.ADDRESS || '',     // ADDRESS -> CUST_ADDR
+    INST_ADDR: data.INST_ADDR || data.ADDR_FULL || data.ADDRESS || '',  // ADDR_FULL -> INST_ADDR
+    BILL_ADDR: data.BILL_ADDR || '',                     // D'Live API does not return this
+    UNPAY_AMT: data.UNPAY_AMT || 0,                      // D'Live API does not return this
+    CUST_TP_CD: data.CUST_TP_CD || data.CUST_TP || '',   // CUST_TP -> CUST_TP_CD
+    CUST_TP_NM: data.CUST_TP_NM || data.CUST_CL_NM || '', // CUST_CL_NM -> CUST_TP_NM
+    REG_DT: data.REG_DT || ''                            // D'Live API does not return this
+  };
+};
+
+/**
+ * 계약 정보 응답 필드 매핑
+ * D'Live API 응답 -> 프론트엔드 인터페이스
+ */
+const mapContractFields = (data: any): ContractInfo => {
+  return {
+    CTRT_ID: data.CTRT_ID || '',
+    CTRT_STAT_CD: data.CTRT_STAT_CD || data.CTRT_STAT || '',    // CTRT_STAT -> CTRT_STAT_CD
+    CTRT_STAT_NM: data.CTRT_STAT_NM || '',
+    PROD_NM: data.PROD_NM || data.BASIC_PROD_CD_NM || '',       // BASIC_PROD_CD_NM -> PROD_NM
+    PROD_GRP_NM: data.PROD_GRP_NM || '',
+    INST_ADDR: data.INST_ADDR || data.ADDR_FULL || data.ADDR || '', // ADDR_FULL -> INST_ADDR
+    OPNG_DT: data.OPNG_DT || data.OPEN_DD || '',                // OPEN_DD -> OPNG_DT
+    TERM_DT: data.TERM_DT || '',
+    AGMT_MON: data.AGMT_MON || data.PROM_CNT?.toString() || '', // PROM_CNT -> AGMT_MON
+    AGMT_ST_DT: data.AGMT_ST_DT || data.RATE_STRT_DT || '',     // RATE_STRT_DT -> AGMT_ST_DT
+    AGMT_END_DT: data.AGMT_END_DT || data.RATE_END_DT || '',    // RATE_END_DT -> AGMT_END_DT
+    GRP_NO: data.GRP_NO || data.GRP_ID || '',                   // GRP_ID -> GRP_NO
+    PYM_ACNT_ID: data.PYM_ACNT_ID || '',
+    DPST_AMT: data.DPST_AMT || data.ASSR_BAL || 0,              // ASSR_BAL -> DPST_AMT
+    PREPAY_AMT: data.PREPAY_AMT || data.PREPD_BAL || 0,         // PREPD_BAL -> PREPAY_AMT
+    EQT_NM: data.EQT_NM || '',
+    EQT_MDL_NM: data.EQT_MDL_NM || data.VIEW_MOD_NM || '',      // VIEW_MOD_NM -> EQT_MDL_NM
+    EQT_SERNO: data.EQT_SERNO || data.SERNO_DTOA || '',         // SERNO_DTOA -> EQT_SERNO
+    PREV_MON_AMT: data.PREV_MON_AMT || data.BILL_AMT_BEFORE || 0,
+    CUR_MON_AMT: data.CUR_MON_AMT || data.BILL_AMT_NOW || 0
+  };
+};
+
 // ============ 기본조회 API ============
 
 /**
@@ -313,7 +364,9 @@ export const searchCustomer = async (params: CustomerSearchParams): Promise<ApiR
 
     if (result.success && result.data) {
       const dataArray = Array.isArray(result.data) ? result.data : [result.data];
-      return { ...result, data: dataArray };
+      // Apply field mapping
+      const mappedData = dataArray.map(mapCustomerFields);
+      return { ...result, data: mappedData };
     }
     return { ...result, data: [] };
   }
@@ -353,7 +406,8 @@ export const searchCustomer = async (params: CustomerSearchParams): Promise<ApiR
           const dataArray = Array.isArray(ctrtResult.data) ? ctrtResult.data : [ctrtResult.data];
           if (dataArray.length > 0) {
             console.log('[CustomerAPI] getCtrtIDforSmartPhone success for CONTRACT_ID');
-            return { ...ctrtResult, data: dataArray };
+            const mappedData = dataArray.map(mapCustomerFields);
+            return { ...ctrtResult, data: mappedData };
           }
         }
         console.log('[CustomerAPI] getCtrtIDforSmartPhone returned no data for CONTRACT_ID, trying fallback...');
@@ -373,7 +427,8 @@ export const searchCustomer = async (params: CustomerSearchParams): Promise<ApiR
         const result = await apiCall<any>('/customer/common/customercommon/getConditionalCustList2', { CUST_ID: custId });
         if (result.success && result.data) {
           const dataArray = Array.isArray(result.data) ? result.data : [result.data];
-          return { ...result, data: dataArray };
+          const mappedData = dataArray.map(mapCustomerFields);
+          return { ...result, data: mappedData };
         }
       }
     }
@@ -421,7 +476,8 @@ export const searchCustomer = async (params: CustomerSearchParams): Promise<ApiR
           const dataArray = Array.isArray(ctrtResult.data) ? ctrtResult.data : [ctrtResult.data];
           if (dataArray.length > 0) {
             console.log('[CustomerAPI] getCtrtIDforSmartPhone success:', dataArray.length, 'results');
-            return { ...ctrtResult, data: dataArray };
+            const mappedData = dataArray.map(mapCustomerFields);
+            return { ...ctrtResult, data: mappedData };
           }
         }
         console.log('[CustomerAPI] getCtrtIDforSmartPhone returned no data, trying fallback...');
@@ -446,7 +502,8 @@ export const searchCustomer = async (params: CustomerSearchParams): Promise<ApiR
       const result = await apiCall<any>('/customer/common/customercommon/getConditionalCustList2', reqParams);
       if (result.success && result.data) {
         const dataArray = Array.isArray(result.data) ? result.data : [result.data];
-        return { ...result, data: dataArray };
+        const mappedData = dataArray.map(mapCustomerFields);
+        return { ...result, data: mappedData };
       }
       return { ...result, data: [] };
     } catch (error) {
@@ -466,7 +523,8 @@ export const searchCustomer = async (params: CustomerSearchParams): Promise<ApiR
       const result = await apiCall<any>('/customer/common/customercommon/getConditionalCustList2', reqParams);
       if (result.success && result.data) {
         const dataArray = Array.isArray(result.data) ? result.data : [result.data];
-        return { ...result, data: dataArray };
+        const mappedData = dataArray.map(mapCustomerFields);
+        return { ...result, data: mappedData };
       }
       return { ...result, data: [] };
     } catch (error) {
@@ -497,7 +555,13 @@ export const getContractStatusCount = async (custId: string): Promise<ApiRespons
  * API: customer/negociation/getCustCtrtAll.req
  */
 export const getContractList = async (custId: string): Promise<ApiResponse<ContractInfo[]>> => {
-  return apiCall<ContractInfo[]>('/customer/negociation/getCustCtrtAll', { CUST_ID: custId });
+  const result = await apiCall<any>('/customer/negociation/getCustCtrtAll', { CUST_ID: custId });
+  if (result.success && result.data) {
+    const dataArray = Array.isArray(result.data) ? result.data : [result.data];
+    const mappedData = dataArray.map(mapContractFields);
+    return { ...result, data: mappedData };
+  }
+  return result as ApiResponse<ContractInfo[]>;
 };
 
 /**
@@ -505,10 +569,16 @@ export const getContractList = async (custId: string): Promise<ApiResponse<Contr
  * API: customer/negociation/getCustSearchCtrt.req
  */
 export const searchContract = async (custId: string, searchParams?: Record<string, any>): Promise<ApiResponse<ContractInfo[]>> => {
-  return apiCall<ContractInfo[]>('/customer/negociation/getCustSearchCtrt', {
+  const result = await apiCall<any>('/customer/negociation/getCustSearchCtrt', {
     CUST_ID: custId,
     ...searchParams
   });
+  if (result.success && result.data) {
+    const dataArray = Array.isArray(result.data) ? result.data : [result.data];
+    const mappedData = dataArray.map(mapContractFields);
+    return { ...result, data: mappedData };
+  }
+  return result as ApiResponse<ContractInfo[]>;
 };
 
 /**
