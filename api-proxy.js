@@ -22,9 +22,56 @@ const LEGACY_REQ_ROUTES = [
   // Equipment Processing 3 APIs - Route directly to legacy .req servlet
 
   "/customer/phoneNumber/getOwnEqtLstForMobile_3",  // 장비반납
+  // "/customer/equipment/changeEqtWrkr_3_ForM",  // 장비이관 - 우리 백엔드 컨트롤러로 라우팅 (세션 필요)
+  // "/customer/equipment/getEquipmentTypeList",  // Now handled by our adapter (needs CONA session)
   // "/customer/equipment/setEquipmentChkStndByY",  // 검사완료 - 레거시 세션 필요 (백엔드 수정 필요)
   // "/statistics/equipment/getEquipmentHistoryInfo"  // Now handled by our adapter
 ];
+
+// Parse MiPlatform XML response to JSON
+function parseMiPlatformXMLtoJSON(xmlString) {
+  try {
+    // Extract record data from XML
+    const records = [];
+    const recordRegex = /<record>([\s\S]*?)<\/record>/gi;
+    let match;
+
+    while ((match = recordRegex.exec(xmlString)) !== null) {
+      const recordContent = match[1];
+      const record = {};
+
+      // Extract each field: <FIELD_NAME>value</FIELD_NAME>
+      const fieldRegex = /<(\w+)>([^<]*)<\/\1>/g;
+      let fieldMatch;
+
+      while ((fieldMatch = fieldRegex.exec(recordContent)) !== null) {
+        const fieldName = fieldMatch[1];
+        let fieldValue = fieldMatch[2];
+        // Decode XML entities
+        fieldValue = fieldValue
+          .replace(/&amp;/g, '&')
+          .replace(/&lt;/g, '<')
+          .replace(/&gt;/g, '>')
+          .replace(/&quot;/g, '"')
+          .replace(/&apos;/g, "'");
+        record[fieldName] = fieldValue;
+      }
+
+      if (Object.keys(record).length > 0) {
+        records.push(record);
+      }
+    }
+
+    // If single record, return as object; otherwise return array
+    if (records.length === 1) {
+      return records[0];
+    }
+    return records.length > 0 ? records : null;
+  } catch (e) {
+    console.error('[PROXY] XML parsing error:', e.message);
+    return null;
+  }
+}
 
 // Convert JSON to MiPlatform XML Dataset format
 function jsonToMiPlatformXML(datasetName, jsonData) {
@@ -169,10 +216,10 @@ router.post('/customer/equipment/getEquipmentReturnRequestCheck', handleProxy);
 router.post('/customer/equipment/addEquipmentReturnRequest', handleProxy);
 router.post('/customer/equipment/delEquipmentReturnRequest', handleProxy);  // 반납취소
 router.post('/customer/equipment/getWrkrHaveEqtList', handleProxy);
-router.post('/customer/equipment/getEquipmentTypeList', handleProxy);  // Model 2 (소분류) list
 router.post('/customer/equipment/cmplEqtCustLossIndem', handleProxy);
 router.post('/customer/equipment/setEquipmentChkStndByY', handleProxy);
 router.post('/customer/equipment/changeEqtWrkr_3', handleProxy);
+router.post('/customer/equipment/changeEqtWrkr_3_ForM', handleProxy);  // 신규 장비이관 (Map 반환)
 router.post('/customer/equipment/updateInstlLocFrWrk', handleProxy);
 router.post('/customer/equipment/getAuthSoList', handleProxy);
 router.post('/customer/equipment/getUserExtendedInfo', handleProxy);
@@ -185,6 +232,7 @@ router.post("/customer/phoneNumber/getOwnEqtLstForMobile_3", handleProxy);  // �
 router.post("/customer/equipment/getOwnEqtLstForMobile_3", handleProxy);  // 반납요청 (equipment 경로)
 router.post("/customer/equipment/getEquipmentReturnRequestList_All", handleProxy);  // 반납요청 _All (추가)
 router.post("/customer/equipment/getWrkrListDetail", handleProxy);  // 분실처리 상세조회 (추가)
+router.post("/customer/equipment/getEquipmentTypeList", handleProxy);  // 장비 소분류 목록 조회
 
 // Statistics/Equipment API
 router.post('/statistics/equipment/getEquipmentHistoryInfo', handleProxy);
@@ -200,26 +248,6 @@ router.get('/debug/workmanAssignManagement/methods', handleProxy);
 async function handleProxy(req, res) {
   try {
     let apiPath = req.path;
-
-    // ========== 장비이동 디버깅 로그 ==========
-    const isEquipmentTransfer = apiPath.includes('changeEqtWrkr');
-    const debugId = isEquipmentTransfer ? `EC2_${Date.now()}_${Math.random().toString(36).substr(2, 6)}` : null;
-
-    if (isEquipmentTransfer) {
-      console.log('');
-      console.log('╔══════════════════════════════════════════════════════════════════════════╗');
-      console.log('║           🔧 EC2 프록시 - 장비이동 API 디버그 로그                         ║');
-      console.log('╠══════════════════════════════════════════════════════════════════════════╣');
-      console.log('║ DEBUG_ID:', debugId);
-      console.log('║ 요청시간:', new Date().toISOString());
-      console.log('║ 요청경로:', apiPath);
-      console.log('║ 요청메서드:', req.method);
-      console.log('║ 클라이언트IP:', req.headers['x-forwarded-for'] || req.socket.remoteAddress);
-      console.log('║ Origin:', req.headers.origin || '(없음)');
-      console.log('║ Cookie:', req.headers.cookie ? '있음' : '없음');
-      console.log('╚══════════════════════════════════════════════════════════════════════════╝');
-      console.log('[' + debugId + '] Request Body (Full):', JSON.stringify(req.body, null, 2));
-    }
 
     // Apply path mapping if exists
     if (PATH_MAPPING[apiPath]) {
@@ -321,47 +349,29 @@ async function handleProxy(req, res) {
       proxyRes.on('end', () => {
         const responseBody = Buffer.concat(chunks).toString();
 
-        // ========== 장비이동 응답 디버그 로그 ==========
-        if (isEquipmentTransfer) {
-          console.log('');
-          console.log('┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓');
-          console.log('┃ [' + debugId + '] 백엔드 응답 수신');
-          console.log('┣━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┫');
-          console.log('┃ 응답시간:', new Date().toISOString());
-          console.log('┃ 상태코드:', proxyRes.statusCode);
-          console.log('┃ Content-Type:', proxyRes.headers['content-type'] || '(없음)');
-          console.log('┃ 응답길이:', responseBody.length, 'bytes');
-          console.log('┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛');
-          console.log('[' + debugId + '] Response Body (Full):', responseBody);
-
-          // JSON 파싱 시도
-          try {
-            const jsonResponse = JSON.parse(responseBody);
-            console.log('[' + debugId + '] MSGCODE:', jsonResponse.MSGCODE);
-            console.log('[' + debugId + '] MESSAGE:', jsonResponse.MESSAGE);
-            if (jsonResponse.autoFixLogs) {
-              console.log('[' + debugId + '] autoFixLogs:', JSON.stringify(jsonResponse.autoFixLogs, null, 2));
-            }
-            if (jsonResponse.autoFixFoundSoId) {
-              console.log('[' + debugId + '] autoFixFoundSoId:', jsonResponse.autoFixFoundSoId);
-            }
-          } catch (e) {
-            console.log('[' + debugId + '] JSON 파싱 실패 - HTML 또는 에러 응답');
-          }
-          console.log('');
-        } else {
-          // Log first 200 chars of response for debugging
-          console.log('[PROXY] Response preview:', responseBody.substring(0, 200));
-        }
+        // Log first 200 chars of response for debugging
+        console.log('[PROXY] Response preview:', responseBody.substring(0, 200));
 
         Object.keys(proxyRes.headers).forEach(key => {
-          if (key.toLowerCase() !== 'transfer-encoding') {
+          if (key.toLowerCase() !== 'transfer-encoding' && key.toLowerCase() !== 'content-type') {
             res.setHeader(key, proxyRes.headers[key]);
           }
         });
 
         res.setHeader('Access-Control-Allow-Origin', req.headers.origin || '*');
         res.setHeader('Access-Control-Allow-Credentials', 'true');
+
+        // For legacy .req routes, parse XML response to JSON
+        if (isLegacyReq && responseBody.includes('<record>')) {
+          console.log('[PROXY] Parsing XML response to JSON for legacy route');
+          const jsonData = parseMiPlatformXMLtoJSON(responseBody);
+          if (jsonData) {
+            res.setHeader('Content-Type', 'application/json; charset=utf-8');
+            res.status(proxyRes.statusCode);
+            res.json(jsonData);
+            return;
+          }
+        }
 
         res.status(proxyRes.statusCode);
         res.send(responseBody);
