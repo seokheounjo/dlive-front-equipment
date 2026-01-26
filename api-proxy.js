@@ -22,7 +22,7 @@ const LEGACY_REQ_ROUTES = [
   // Equipment Processing 3 APIs - Route directly to legacy .req servlet
 
   "/customer/phoneNumber/getOwnEqtLstForMobile_3",  // 장비반납
-  "/customer/equipment/setEquipmentChkStndByY_ForM",  // 검사대기 -> 사용가능 (레거시)
+  // "/customer/equipment/setEquipmentChkStndByY_ForM",  // adapter로 라우팅 (백엔드 핸들러 사용)
   "/customer/equipment/getAuthSoList",  // SO 권한 목록
   "/customer/equipment/getEqtTrnsList",  // 장비이동내역
   // "/customer/equipment/changeEqtWrkr_3_ForM",  // 장비이관 - 우리 백엔드 컨트롤러로 라우팅 (세션 필요)
@@ -321,6 +321,12 @@ router.post('/system/cm/getFindUsrList3', handleProxy);
 router.get('/debug/equipmentManager/methods', handleProxy);
 router.get('/debug/sigtransManagement/methods', handleProxy);
 router.get('/debug/workmanAssignManagement/methods', handleProxy);
+// Customer Management debug endpoints
+router.get('/customer/debug/listBeans', handleProxy);
+router.get('/customer/debug/negociationDao/methods', handleProxy);
+router.get('/customer/debug/customerManagerService/methods', handleProxy);
+router.get('/customer/debug/billingManagement/methods', handleProxy);
+router.get('/customer/debug/customerEtcManagement/methods', handleProxy);
 
 async function handleProxy(req, res) {
   try {
