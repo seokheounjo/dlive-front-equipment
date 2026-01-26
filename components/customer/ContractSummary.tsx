@@ -17,18 +17,26 @@ interface ContractSummaryProps {
 }
 
 // 계약 상태별 스타일
+// D'Live CTRT_STAT 코드:
+// 10: 설치대기, 20: 사용중, 30: 일시정지A, 38: 일시정지B대기
+// 80: 해지대기A, 82: 변경대기, 89: 해지대기B, 90: 해지
 const getContractStatusStyle = (statCd: string): string => {
   switch (statCd) {
-    case '10': // 사용중
-    case 'Y':
+    case '20': // 사용중
       return 'bg-green-100 text-green-700';
-    case '20': // 일시정지
+    case '10': // 설치대기
+    case '82': // 변경대기
+      return 'bg-blue-100 text-blue-700';
+    case '30': // 일시정지A
+    case '38': // 일시정지B대기
       return 'bg-yellow-100 text-yellow-700';
-    case '30': // 해지
-    case 'N':
+    case '80': // 해지대기A
+    case '89': // 해지대기B
+      return 'bg-orange-100 text-orange-700';
+    case '90': // 해지
       return 'bg-gray-100 text-gray-600';
     default:
-      return 'bg-blue-100 text-blue-700';
+      return 'bg-gray-100 text-gray-600';
   }
 };
 
@@ -59,11 +67,14 @@ const ContractSummary: React.FC<ContractSummaryProps> = ({
   // 상세 펼침 상태
   const [expandedContractId, setExpandedContractId] = useState<string | null>(null);
 
+  // 해지 상태 코드 (90: 해지, 80: 해지대기A, 89: 해지대기B)
+  const isTerminated = (statCd: string) => ['90', '80', '89'].includes(statCd);
+
   // 필터링된 계약 목록
   const filteredContracts = contracts.filter(contract => {
     // 상태 필터
-    if (filterStatus === 'active' && contract.CTRT_STAT_CD === '30') return false;
-    if (filterStatus === 'terminated' && contract.CTRT_STAT_CD !== '30') return false;
+    if (filterStatus === 'active' && isTerminated(contract.CTRT_STAT_CD)) return false;
+    if (filterStatus === 'terminated' && !isTerminated(contract.CTRT_STAT_CD)) return false;
 
     // 키워드 검색 (계약ID, 상품명, 장비시리얼)
     if (searchKeyword) {
@@ -80,8 +91,8 @@ const ContractSummary: React.FC<ContractSummaryProps> = ({
   // 계약 상태별 카운트
   const statusCount = {
     all: contracts.length,
-    active: contracts.filter(c => c.CTRT_STAT_CD !== '30').length,
-    terminated: contracts.filter(c => c.CTRT_STAT_CD === '30').length
+    active: contracts.filter(c => !isTerminated(c.CTRT_STAT_CD)).length,
+    terminated: contracts.filter(c => isTerminated(c.CTRT_STAT_CD)).length
   };
 
   // 계약 선택 핸들러
@@ -194,7 +205,7 @@ const ContractSummary: React.FC<ContractSummaryProps> = ({
                       <div className="flex items-center justify-between mb-2">
                         <div className="flex items-center gap-2">
                           <span className={`text-xs px-2 py-0.5 rounded ${getContractStatusStyle(contract.CTRT_STAT_CD)}`}>
-                            {contract.CTRT_STAT_NM || (contract.CTRT_STAT_CD === '30' ? '해지' : '사용중')}
+                            {contract.CTRT_STAT_NM || (contract.CTRT_STAT_CD === '90' ? '해지' : contract.CTRT_STAT_CD === '20' ? '사용중' : '기타')}
                           </span>
                           <span className="text-sm font-medium text-gray-800">{contract.PROD_NM}</span>
                         </div>
@@ -239,29 +250,36 @@ const ContractSummary: React.FC<ContractSummaryProps> = ({
                           </div>
                         )}
 
-                        {/* 장비 정보 */}
-                        {contract.EQT_SERNO && (
+                        {/* 장비 정보 - 장비명 또는 시리얼이 있을 때만 표시 */}
+                        {(contract.EQT_SERNO || contract.EQT_NM || contract.EQT_MDL_NM) && (
                           <div className="flex items-center gap-2 text-sm">
                             <Cpu className="w-4 h-4 text-gray-400" />
                             <span className="text-gray-600">
-                              {contract.EQT_NM} ({contract.EQT_MDL_NM})
-                              <br />
-                              <span className="text-xs text-gray-500">S/N: {contract.EQT_SERNO}</span>
+                              {contract.EQT_NM || contract.EQT_MDL_NM || '장비정보'}
+                              {contract.EQT_MDL_NM && contract.EQT_NM && ` (${contract.EQT_MDL_NM})`}
+                              {contract.EQT_SERNO && (
+                                <>
+                                  <br />
+                                  <span className="text-xs text-gray-500">S/N: {contract.EQT_SERNO}</span>
+                                </>
+                              )}
                             </span>
                           </div>
                         )}
 
-                        {/* 요금 정보 */}
-                        <div className="flex items-center gap-4 text-sm">
-                          <div>
-                            <span className="text-gray-500">전월: </span>
-                            <span className="font-medium">{formatCurrency(contract.PREV_MON_AMT || 0)}원</span>
+                        {/* 요금 정보 - 데이터가 있을 때만 표시 */}
+                        {(contract.PREV_MON_AMT > 0 || contract.CUR_MON_AMT > 0) && (
+                          <div className="flex items-center gap-4 text-sm">
+                            <div>
+                              <span className="text-gray-500">전월: </span>
+                              <span className="font-medium">{formatCurrency(contract.PREV_MON_AMT || 0)}원</span>
+                            </div>
+                            <div>
+                              <span className="text-gray-500">당월: </span>
+                              <span className="font-medium">{formatCurrency(contract.CUR_MON_AMT || 0)}원</span>
+                            </div>
                           </div>
-                          <div>
-                            <span className="text-gray-500">당월: </span>
-                            <span className="font-medium">{formatCurrency(contract.CUR_MON_AMT || 0)}원</span>
-                          </div>
-                        </div>
+                        )}
 
                         {/* 단체 정보 */}
                         {contract.GRP_NO && (
@@ -286,7 +304,7 @@ const ContractSummary: React.FC<ContractSummaryProps> = ({
                             <Check className="w-4 h-4" />
                             선택
                           </button>
-                          {contract.CTRT_STAT_CD !== '30' && (
+                          {!isTerminated(contract.CTRT_STAT_CD) && (
                             <button
                               onClick={(e) => {
                                 e.stopPropagation();

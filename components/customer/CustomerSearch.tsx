@@ -299,8 +299,8 @@ const CustomerSearch: React.FC<CustomerSearchProps> = ({ onCustomerSelect, showT
                         <span className="text-gray-500">{customer.CUST_ID}</span>
                         <span className="text-gray-600">{formatPhoneNumber(customer.TEL_NO || customer.HP_NO)}</span>
                       </div>
-                      {customer.INST_ADDR && (
-                        <div className="text-xs text-gray-500 mt-0.5 truncate">{customer.INST_ADDR}</div>
+                      {customer.CUST_ADDR && (
+                        <div className="text-xs text-gray-500 mt-0.5 truncate">{customer.CUST_ADDR}</div>
                       )}
                     </div>
                     {customer.UNPAY_AMT > 0 && (

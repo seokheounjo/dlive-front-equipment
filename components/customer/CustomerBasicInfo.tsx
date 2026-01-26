@@ -189,19 +189,11 @@ const CustomerBasicInfo: React.FC<CustomerBasicInfoProps> = ({
                     </div>
                   </div>
 
-                  {/* 주소 정보 */}
-                  <div className="pt-2 border-t border-gray-100 space-y-1 text-sm">
+                  {/* 주소 정보 - 고객주소만 표시 */}
+                  <div className="pt-2 border-t border-gray-100 text-sm">
                     <div className="flex">
-                      <span className="text-gray-500 w-16 flex-shrink-0">설치</span>
-                      <span className="text-gray-700">{selectedCustomer.INST_ADDR || '-'}</span>
-                    </div>
-                    <div className="flex">
-                      <span className="text-gray-500 w-16 flex-shrink-0">고객</span>
+                      <span className="text-gray-500 w-12 flex-shrink-0">주소</span>
                       <span className="text-gray-700">{selectedCustomer.CUST_ADDR || '-'}</span>
-                    </div>
-                    <div className="flex">
-                      <span className="text-gray-500 w-16 flex-shrink-0">청구지</span>
-                      <span className="text-gray-700">{selectedCustomer.BILL_ADDR || '-'}</span>
                     </div>
                   </div>
 

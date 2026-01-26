@@ -895,16 +895,36 @@ export const getBankCodes = async (): Promise<ApiResponse<any[]>> => {
 
 /**
  * 전화번호 포맷팅
+ * - 서울 지역번호(02): 02-XXXX-XXXX (10자리) 또는 02-XXX-XXXX (9자리)
+ * - 기타 지역번호: 0XX-XXX-XXXX (10자리) 또는 0XX-XXXX-XXXX (11자리)
+ * - 휴대폰: 010-XXXX-XXXX (11자리)
  */
 export const formatPhoneNumber = (phone: string): string => {
   if (!phone) return '';
   const cleaned = phone.replace(/\D/g, '');
+
+  // 서울 지역번호 (02)
+  if (cleaned.startsWith('02')) {
+    if (cleaned.length === 10) {
+      // 02-XXXX-XXXX
+      return `${cleaned.slice(0, 2)}-${cleaned.slice(2, 6)}-${cleaned.slice(6)}`;
+    }
+    if (cleaned.length === 9) {
+      // 02-XXX-XXXX
+      return `${cleaned.slice(0, 2)}-${cleaned.slice(2, 5)}-${cleaned.slice(5)}`;
+    }
+  }
+
+  // 휴대폰 또는 기타 지역번호 (11자리: 010-XXXX-XXXX, 0XX-XXXX-XXXX)
   if (cleaned.length === 11) {
     return `${cleaned.slice(0, 3)}-${cleaned.slice(3, 7)}-${cleaned.slice(7)}`;
   }
+
+  // 기타 지역번호 (10자리: 0XX-XXX-XXXX)
   if (cleaned.length === 10) {
     return `${cleaned.slice(0, 3)}-${cleaned.slice(3, 6)}-${cleaned.slice(6)}`;
   }
+
   return phone;
 };
 
