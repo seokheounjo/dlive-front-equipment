@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { ChevronDown, ChevronUp } from 'lucide-react';
 import {
   getWorkerEquipmentList,
@@ -1099,12 +1099,22 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
 
   // 사용가능변경 처리 중 상태 (중복 클릭 방지)
   const [isStatusChanging, setIsStatusChanging] = useState(false);
+  // useRef로 동기적 중복 방지 (useState는 비동기라 더블클릭 시 둘 다 실행될 수 있음)
+  const statusChangeInProgressRef = useRef(false);
 
   // 사용가능변경 실행 (확인 후)
   const executeStatusChange = async () => {
-    // 중복 클릭 방지
+    // 동기적 중복 클릭 방지 (useRef 사용 - 즉시 체크/설정)
+    if (statusChangeInProgressRef.current) {
+      console.log('[사용가능변경] 이미 처리 중입니다. (ref check)');
+      return;
+    }
+    statusChangeInProgressRef.current = true;
+
+    // 비동기 상태도 업데이트 (UI용)
     if (isStatusChanging) {
-      console.log('[사용가능변경] 이미 처리 중입니다.');
+      console.log('[사용가능변경] 이미 처리 중입니다. (state check)');
+      statusChangeInProgressRef.current = false;
       return;
     }
 
@@ -1280,6 +1290,8 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
     } finally {
       setShowProgressModal(false);
       setIsStatusChanging(false);
+      // ref도 리셋 (중복 방지 해제)
+      statusChangeInProgressRef.current = false;
     }
   };
 

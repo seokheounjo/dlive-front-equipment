@@ -3108,7 +3108,7 @@ export const setEquipmentCheckStandby = async (params: {
   try {
     const origin = typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000';
 
-    const response = await fetch(`${API_BASE}/customer/equipment/setEquipmentChkStndByY_ForM`, {
+    const response = await fetch(`${API_BASE}/customer/equipment/setEquipmentChkStndByY`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
