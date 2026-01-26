@@ -11,6 +11,9 @@ import {
   getPaymentInfo,
   getBillingHistory,
   getUnpaymentList,
+  updatePaymentMethod,
+  verifyBankAccount,
+  verifyCard,
   formatCurrency,
   formatDate,
   maskString
@@ -101,11 +104,20 @@ const PaymentInfo: React.FC<PaymentInfoProps> = ({
     }
     setIsVerifying(true);
     try {
-      // TODO: 실제 계좌 인증 API 연동
-      await new Promise(resolve => setTimeout(resolve, 1500));
-      setIsVerified(true);
-      showToast?.('계좌 인증이 완료되었습니다.', 'success');
+      const response = await verifyBankAccount({
+        BANK_CD: paymentChangeForm.bankCd,
+        ACNT_NO: paymentChangeForm.acntNo,
+        ACNT_OWNER_NM: paymentChangeForm.acntHolderNm
+      });
+
+      if (response.success) {
+        setIsVerified(true);
+        showToast?.('계좌 인증이 완료되었습니다.', 'success');
+      } else {
+        showToast?.(response.message || '계좌 인증에 실패했습니다.', 'error');
+      }
     } catch (error) {
+      console.error('Verify account error:', error);
       showToast?.('계좌 인증에 실패했습니다.', 'error');
     } finally {
       setIsVerifying(false);
@@ -120,11 +132,23 @@ const PaymentInfo: React.FC<PaymentInfoProps> = ({
     }
     setIsVerifying(true);
     try {
-      // TODO: 실제 카드 인증 API 연동
-      await new Promise(resolve => setTimeout(resolve, 1500));
-      setIsVerified(true);
-      showToast?.('카드 인증이 완료되었습니다.', 'success');
+      // 유효기간 포맷: YYMM (년도 2자리 + 월 2자리)
+      const cardValidYm = paymentChangeForm.cardExpYy + paymentChangeForm.cardExpMm;
+
+      const response = await verifyCard({
+        CARD_NO: paymentChangeForm.cardNo,
+        CARD_VALID_YM: cardValidYm,
+        CARD_OWNER_NM: paymentChangeForm.cardHolderNm
+      });
+
+      if (response.success) {
+        setIsVerified(true);
+        showToast?.('카드 인증이 완료되었습니다.', 'success');
+      } else {
+        showToast?.(response.message || '카드 인증에 실패했습니다.', 'error');
+      }
     } catch (error) {
+      console.error('Verify card error:', error);
       showToast?.('카드 인증에 실패했습니다.', 'error');
     } finally {
       setIsVerifying(false);
@@ -137,17 +161,48 @@ const PaymentInfo: React.FC<PaymentInfoProps> = ({
       showToast?.('먼저 계좌/카드 인증을 완료해주세요.', 'warning');
       return;
     }
+
+    // 선택된 납부계정 확인
+    if (!selectedPymAcntId) {
+      showToast?.('납부계정을 선택해주세요.', 'warning');
+      return;
+    }
+
     try {
-      // TODO: 납부방법 변경 API 연동
-      showToast?.('납부방법이 변경되었습니다.', 'success');
-      setShowPaymentChangeModal(false);
-      setIsVerified(false);
-      setPaymentChangeForm({
-        pymMthCd: '01', bankCd: '', acntNo: '', acntHolderNm: '',
-        cardNo: '', cardExpMm: '', cardExpYy: '', cardHolderNm: ''
+      // 유효기간 포맷: YYMM
+      const cardValidYm = paymentChangeForm.cardExpYy + paymentChangeForm.cardExpMm;
+
+      const response = await updatePaymentMethod({
+        CUST_ID: custId,
+        PYM_ACNT_ID: selectedPymAcntId,
+        PYM_MTH_CD: paymentChangeForm.pymMthCd,
+        // 자동이체 정보
+        BANK_CD: paymentChangeForm.pymMthCd === '01' ? paymentChangeForm.bankCd : undefined,
+        ACNT_NO: paymentChangeForm.pymMthCd === '01' ? paymentChangeForm.acntNo : undefined,
+        // 카드 정보
+        CARD_NO: paymentChangeForm.pymMthCd === '02' ? paymentChangeForm.cardNo : undefined,
+        CARD_VALID_YM: paymentChangeForm.pymMthCd === '02' ? cardValidYm : undefined,
+        // 소유자명
+        ACNT_OWNER_NM: paymentChangeForm.pymMthCd === '01'
+          ? paymentChangeForm.acntHolderNm
+          : paymentChangeForm.cardHolderNm
       });
-      loadData();
+
+      if (response.success) {
+        showToast?.('납부방법이 변경되었습니다.', 'success');
+        setShowPaymentChangeModal(false);
+        setIsVerified(false);
+        setPaymentChangeForm({
+          pymMthCd: '01', bankCd: '', acntNo: '', acntHolderNm: '',
+          cardNo: '', cardExpMm: '', cardExpYy: '', cardHolderNm: ''
+        });
+        // 데이터 새로고침
+        loadData();
+      } else {
+        showToast?.(response.message || '납부방법 변경에 실패했습니다.', 'error');
+      }
     } catch (error) {
+      console.error('Save payment method error:', error);
       showToast?.('납부방법 변경에 실패했습니다.', 'error');
     }
   };

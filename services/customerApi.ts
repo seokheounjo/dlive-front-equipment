@@ -144,67 +144,97 @@ export interface HPPayInfo {
   CTRT_STAT_NM: string;      // 계약상태
 }
 
-// 상담 등록 요청 (와이어프레임 기준: 대/중/소분류)
+// 상담 등록 요청 (Backend: saveCnslRcptInfo)
+// 상담은 계약ID 단위로 등록됨 (CTRT_ID 필수)
 export interface ConsultationRequest {
-  CUST_ID: string;           // 고객ID
-  CTRT_ID?: string;          // 계약ID (선택)
-  CNSL_L_CL_CD: string;      // 상담대분류코드
-  CNSL_M_CL_CD: string;      // 상담중분류코드
-  CNSL_CL_CD: string;        // 상담소분류코드 (최종코드)
-  REQ_CNTN: string;          // 요청사항
-  TRANS_YN: string;          // 전달처리여부 (Y/N)
-  TRANS_DEPT_CD?: string;    // 전달지점코드
+  CUST_ID: string;           // 고객ID (필수)
+  CTRT_ID: string;           // 계약ID (필수) - 상담은 계약 단위로 등록
+  CNSL_MST_CL: string;       // 상담대분류 (CMCS010)
+  CNSL_MID_CL: string;       // 상담중분류 (CMCS020)
+  CNSL_SLV_CL: string;       // 상담소분류 (CMCS030) (필수)
+  REQ_CTX: string;           // 요청사항 (필수)
+  // 고정값
+  RCPT_TP: string;           // 접수매체구분 - 'G1' 고정 (CMCU217)
+  CUST_REL: string;          // 고객과의관계 - 'A' 고정 (CMCU005)
+  PRESS_RCPT_YN: string;     // 독촉불만여부 - 'N' 고정
+  SUBS_TP: string;           // 가입자구분 - '1' 고정
+  CTI_CID: string;           // CTI연계코드 - '0' 고정
+  // 필수 정보
+  SO_ID: string;             // 지점ID
+  MST_SO_ID: string;         // 계열사ID
+  POST_ID: string;           // 주소ID
+  // 저장 타입 (완료 저장 시)
+  SAVE_TP?: string;          // '2' = 완료 저장
+  // 전달처리
+  PROC_PLNR_ID?: string;     // 전달자ID (전달처리 시)
+  DEPT_CD?: string;          // 지점 선택 시
+  CRR_ID?: string;           // 업체 선택 시
 }
 
-// AS 접수 요청 (프론트엔드 UI 기준)
+// AS 접수 요청 (Backend: modAsPdaReceipt)
+// 모든 필수 파라미터 포함
 export interface ASRequestParams {
-  CUST_ID: string;           // 고객ID
-  CTRT_ID?: string;          // 계약ID (선택)
-  INST_ADDR?: string;        // 설치주소
-  AS_CL_CD: string;          // AS구분코드 (UI) -> WRK_DTL_TCD로 매핑
-  AS_CL_DTL_CD?: string;     // 콤보상세코드
-  TRIP_FEE_CD?: string;      // 출장비코드
-  AS_RESN_L_CD: string;      // AS접수사유(대) (UI) -> WRK_RCPT_CL로 매핑
-  AS_RESN_M_CD: string;      // AS접수사유(중) (UI) -> WRK_RCPT_CL_DTL로 매핑
-  AS_CNTN: string;           // AS내용 (UI) -> MEMO로 매핑
-  SCHD_DT: string;           // 작업예정일 (YYYYMMDD)
-  SCHD_TM: string;           // 작업예정시간 (HHMM) -> WRK_HOPE_DTTM (SCHD_DT + SCHD_TM)
-  WRKR_ID: string;           // 작업자ID (로그인 사용자)
-}
-
-// AS 접수 백엔드 요청 (TaskWorkController.java modAsPdaReceipt 기준)
-interface ASBackendParams {
-  CUST_ID: string;           // 고객ID
-  WRK_DTL_TCD: string;       // 작업상세유형코드 (0380 = AS)
-  WRK_RCPT_CL: string;       // 작업접수분류 (JH = 장애)
-  WRK_RCPT_CL_DTL: string;   // 작업접수분류상세 (JHA = 장애 A/S)
-  WRK_HOPE_DTTM: string;     // 희망일시 (YYYYMMDDHHMM)
-  MEMO: string;              // 메모
+  // 필수 정보
+  POST_ID: string;           // 주소ID (필수)
+  CUST_ID: string;           // 고객ID (필수)
+  CTRT_ID: string;           // 계약ID (필수)
+  WRK_HOPE_DTTM: string;     // 작업희망일시 (ex. 202601201500) (필수)
+  HOPE_DTTM: string;         // 고객희망일시 (ex. 202601201500) (필수)
+  WRK_DTL_TCD: string;       // AS구분 (CMWT001) (필수)
+  WRK_RCPT_CL: string;       // AS접수사유(대) (CMAS000) (필수)
+  WRK_RCPT_CL_DTL: string;   // AS접수사유(중) (CMAS001) (필수)
+  MEMO: string;              // 요청사항 (필수)
+  // 고정값
+  EMRG_YN: string;           // 긴급작업여부 - 'N' 고정
+  HOLY_YN: string;           // 휴일여부 - 'N' 고정
+  TRANS_PROC_YN: string;     // 전달여부 - 'Y' 고정
+  // 사용자 정보
+  CRR_ID: string;            // 업체ID (작업자의 업체ID)
   WRKR_ID: string;           // 작업자ID
   REG_UID: string;           // 등록자ID
-  EMRG_YN?: string;          // 긴급여부
-  HOLY_YN?: string;          // 휴일여부
+  // 선택 정보
+  AS_BIZ_CL?: string;        // 콤보상세
+  BIZ_EXPNS_GUIDE?: string;  // 출장비안내 (CMAS004)
 }
 
-// 전화번호 변경 요청
+// AS 접수 프론트엔드 UI 기준 (간소화된 입력)
+export interface ASRequestUIParams {
+  CUST_ID: string;           // 고객ID
+  CTRT_ID: string;           // 계약ID
+  POST_ID: string;           // 주소ID
+  AS_CL_CD: string;          // AS구분코드 (UI 선택값) -> WRK_DTL_TCD로 매핑
+  AS_CL_DTL_CD?: string;     // 콤보상세코드 -> AS_BIZ_CL
+  TRIP_FEE_CD?: string;      // 출장비코드 -> BIZ_EXPNS_GUIDE
+  AS_RESN_L_CD: string;      // AS접수사유(대) (UI) -> WRK_RCPT_CL로 매핑
+  AS_RESN_M_CD: string;      // AS접수사유(중) (UI) -> WRK_RCPT_CL_DTL로 매핑
+  AS_CNTN: string;           // AS내용 -> MEMO
+  SCHD_DT: string;           // 작업예정일 (YYYYMMDD)
+  SCHD_TM: string;           // 작업예정시간 (HHMM)
+}
+
+// 전화번호 변경 요청 (Backend: updateCustTelDetailInfo)
+// 전화번호는 3개로 분리해서 전송 (TEL_DDD, TEL_FIX, TEL_DTL)
 export interface PhoneChangeRequest {
   CUST_ID: string;           // 고객ID
-  TEL_NO: string;            // 새 전화번호
-  TEL_TP_CD: string;         // 통신사코드
-  DISCONN_YN: string;        // 결번여부 (Y/N)
+  TEL_DDD: string;           // 전화번호 앞 3자리
+  TEL_FIX: string;           // 전화번호 중간 4자리
+  TEL_DTL: string;           // 전화번호 끝 4자리
+  MB_CORP_TP: string;        // 통신사코드 (CMCU052)
+  NO_SVC_YN: string;         // 결번여부 (Y/N)
+  TEL_NO_TP: string;         // 전화번호구분 (CMCU109) - '2' 고정
+  USE_YN: string;            // 사용여부 - 'Y' 고정
+  CHG_UID: string;           // 수정자 (로그인 사용자)
 }
 
-// 주소 변경 요청
+// 주소 변경 요청 (Backend: saveMargeAddrOrdInfo)
+// 정보변경 화면에서는 '고객주소'만 변경
 export interface AddressChangeRequest {
   CUST_ID: string;           // 고객ID
-  CTRT_ID?: string;          // 계약ID (선택)
-  ADDR_TP: 'INST' | 'CUST' | 'BILL';  // 주소유형
-  ZIP_CD: string;            // 우편번호
-  ADDR1: string;             // 기본주소
-  ADDR2: string;             // 상세주소
-  // 복수 주소 동시 변경 옵션
-  CHANGE_CUST_ADDR?: boolean;  // 고객주소도 변경
-  CHANGE_BILL_ADDR?: boolean;  // 청구지주소도 변경
+  ADDR_ORD: string;          // 주소순번 (필수)
+  DONGMYON_NM?: string;      // 읍/면/동
+  STREET_ID?: string;        // 도로명 ID (5자리 숫자)
+  ZIP_CD?: string;           // 우편번호
+  ADDR_DTL?: string;         // 상세주소
 }
 
 // 잠재고객 생성 요청
@@ -217,14 +247,57 @@ export interface CustomerCreateRequest {
   ADDR?: string;             // 주소
 }
 
-// 납부방법 변경 요청
+// 납부방법 변경 요청 (Backend: CustomerManagementController.handleLegacyChangePaymentMethod)
+// 실제 D'Live API 스펙 기반
 export interface PaymentMethodChangeRequest {
+  // 공통 필수
   PYM_ACNT_ID: string;       // 납부계정ID
-  PYM_MTH_CD: string;        // 납부방법코드
-  BANK_CD?: string;          // 은행코드
-  ACNT_NO?: string;          // 계좌번호
-  CARD_NO?: string;          // 카드번호
-  CARD_VALID?: string;       // 카드유효기간
+  CUST_ID: string;           // 고객ID
+  ACNT_NM?: string;          // 납부자명
+  PYM_MTHD: string;          // 납부방법 (BLIV005) - 02: 자동이체, 04: 신용카드
+  PMC_RESN?: string;         // 납부방법변경사유 (CMCU079)
+  BANK_CARD?: string;        // 은행/카드코드 (자동이체: BLPY015, 카드: BLPY016)
+  ACNT_CARD_NO?: string;     // 계좌/카드번호
+  PYM_CARD_DATE?: string;    // 희망결제일
+  // 청구지 정보
+  BILL_POST_ID?: string;     // 청구주소ID
+  BILL_ZIP_CD?: string;      // 우편번호
+  BILL_ADDR?: string;        // 청구지주소
+  // 자동이체 (PYM_MTHD=02)
+  CORP_CD?: string;          // 승인코드
+  PYM_CUST_NM?: string;      // 예금주
+  PYM_CUST_CRRNO?: string;   // 예금주 주민등록번호
+  // 신용카드 (PYM_MTHD=04)
+  REQR_NM?: string;          // 카드소유주명
+  PYR_REL?: string;          // 납부자관계
+  CARD_CL?: string;          // 카드구분 (CMCU112)
+  CARD_RSDT_CRRNO?: string;  // 카드소유주 주민등록번호
+  CDTCD_EXP_DT?: string;     // 카드유효기간
+  JOIN_CARD_YN?: string;     // 제휴카드 여부
+  // 기타
+  MST_SO_ID?: string;        // 계열사ID
+  SO_ID?: string;            // 지점ID
+  // Legacy 호환용 (자동 매핑됨)
+  PYM_MTH_CD?: string;       // -> PYM_MTHD로 매핑 (01->02, 02->04)
+  BANK_CD?: string;          // -> BANK_CARD로 매핑
+  ACNT_NO?: string;          // -> ACNT_CARD_NO로 매핑
+  CARD_NO?: string;          // -> ACNT_CARD_NO로 매핑
+  CARD_VALID_YM?: string;    // -> CDTCD_EXP_DT로 매핑
+  ACNT_OWNER_NM?: string;    // -> PYM_CUST_NM/REQR_NM으로 매핑
+}
+
+// 계좌 인증 요청
+export interface AccountVerifyRequest {
+  BANK_CD: string;           // 은행코드
+  ACNT_NO: string;           // 계좌번호
+  ACNT_OWNER_NM: string;     // 예금주명
+}
+
+// 카드 인증 요청
+export interface CardVerifyRequest {
+  CARD_NO: string;           // 카드번호
+  CARD_VALID_YM: string;     // 유효기간 YYMM
+  CARD_OWNER_NM?: string;    // 카드소유자명
 }
 
 // API 응답 공통 형태
@@ -680,35 +753,57 @@ export const getWorkHistory = async (
 /**
  * 전화번호 변경
  * API: customer/negociation/updateCustTelDetailInfo.req
+ *
+ * 백엔드에서 TEL_NO를 TEL_DDD, TEL_FIX, TEL_DTL로 자동 분리하므로
+ * 프론트에서는 TEL_NO만 보내도 됨
  */
 export const updatePhoneNumber = async (params: PhoneChangeRequest): Promise<ApiResponse<any>> => {
-  return apiCall<any>('/customer/negociation/updateCustTelDetailInfo', params);
+  // 세션에서 사용자 ID 가져오기
+  let chgUid = params.CHG_UID || 'SYSTEM';
+  try {
+    const userInfoStr = sessionStorage.getItem('userInfo');
+    if (userInfoStr) {
+      const userInfo = JSON.parse(userInfoStr);
+      chgUid = userInfo.userId || userInfo.USR_ID || chgUid;
+    }
+  } catch (e) {
+    console.log('[CustomerAPI] Failed to get CHG_UID from session');
+  }
+
+  return apiCall<any>('/customer/negociation/updateCustTelDetailInfo', {
+    ...params,
+    CHG_UID: chgUid,
+    TEL_NO_TP: '2',  // 고정값
+    USE_YN: 'Y'      // 고정값
+  });
 };
 
 /**
- * 주소 변경 (설치/고객/청구지)
+ * 주소 변경 (고객주소)
  * API: customer/etc/saveMargeAddrOrdInfo.req
+ *
+ * 정보변경 화면에서는 '고객주소'만 변경
+ * 필수 파라미터: CUST_ID, ADDR_ORD
+ * 옵션: DONGMYON_NM, STREET_ID, ZIP_CD, ADDR_DTL
  */
 export const updateAddress = async (params: AddressChangeRequest): Promise<ApiResponse<any>> => {
   const reqParams: Record<string, any> = {
     CUST_ID: params.CUST_ID,
-    ZIP_CD: params.ZIP_CD,
-    ADDR1: params.ADDR1,
-    ADDR2: params.ADDR2,
+    ADDR_ORD: params.ADDR_ORD || '1',  // 주소순번 (필수)
   };
 
-  // 주소 유형별 플래그 설정
-  if (params.ADDR_TP === 'INST') {
-    reqParams.INST_ADDR_CHG_YN = 'Y';
+  // 주소 정보
+  if (params.DONGMYON_NM) {
+    reqParams.DONGMYON_NM = params.DONGMYON_NM;
   }
-  if (params.ADDR_TP === 'CUST' || params.CHANGE_CUST_ADDR) {
-    reqParams.CUST_ADDR_CHG_YN = 'Y';
+  if (params.STREET_ID) {
+    reqParams.STREET_ID = params.STREET_ID;
   }
-  if (params.ADDR_TP === 'BILL' || params.CHANGE_BILL_ADDR) {
-    reqParams.BILL_ADDR_CHG_YN = 'Y';
+  if (params.ZIP_CD) {
+    reqParams.ZIP_CD = params.ZIP_CD;
   }
-  if (params.CTRT_ID) {
-    reqParams.CTRT_ID = params.CTRT_ID;
+  if (params.ADDR_DTL) {
+    reqParams.ADDR_DTL = params.ADDR_DTL;
   }
 
   return apiCall<any>('/customer/etc/saveMargeAddrOrdInfo', reqParams);
@@ -717,9 +812,93 @@ export const updateAddress = async (params: AddressChangeRequest): Promise<ApiRe
 /**
  * 납부방법 변경
  * API: customer/customer/general/customerPymChgAddManager.req
+ *
+ * Backend params:
+ * - CUST_ID: 고객ID
+ * - PYM_ACNT_ID: 납부계정ID
+ * - PYM_MTH_CD: 납부방법코드 (01: 자동이체, 02: 신용카드)
+ * - BANK_CD: 은행코드 (자동이체 시)
+ * - ACNT_NO: 계좌번호 (자동이체 시)
+ * - CARD_NO: 카드번호 (신용카드 시)
+ * - CARD_VALID_YM: 카드유효기간 YYMM (신용카드 시)
+ * - ACNT_OWNER_NM: 예금주/카드소유자명
+ * - USR_ID: 처리자ID
  */
 export const updatePaymentMethod = async (params: PaymentMethodChangeRequest): Promise<ApiResponse<any>> => {
-  return apiCall<any>('/customer/customer/general/customerPymChgAddManager', params);
+  // 세션에서 사용자 ID 가져오기
+  let usrId = params.USR_ID || 'MOBILE_USER';
+  try {
+    const userInfoStr = sessionStorage.getItem('userInfo');
+    if (userInfoStr) {
+      const userInfo = JSON.parse(userInfoStr);
+      usrId = userInfo.userId || userInfo.USR_ID || usrId;
+    }
+  } catch (e) {
+    console.log('[CustomerAPI] Failed to get USR_ID from session');
+  }
+
+  return apiCall<any>('/customer/customer/general/customerPymChgAddManager', {
+    ...params,
+    USR_ID: usrId
+  });
+};
+
+/**
+ * 계좌 인증 (예금주 실명 확인)
+ * 실제 계좌 인증 API가 있으면 연동, 없으면 시뮬레이션
+ */
+export const verifyBankAccount = async (params: AccountVerifyRequest): Promise<ApiResponse<any>> => {
+  // TODO: 실제 계좌 인증 API 연동
+  // D'Live 계좌 인증 API가 있는 경우 아래 주석 해제
+  // return apiCall<any>('/customer/payment/verifyBankAccount', params);
+
+  // 현재는 시뮬레이션 (API 연동 전까지)
+  return new Promise((resolve) => {
+    setTimeout(() => {
+      // 시뮬레이션: 계좌번호가 10자리 이상이면 성공
+      if (params.ACNT_NO && params.ACNT_NO.length >= 10) {
+        resolve({
+          success: true,
+          data: { verified: true, ownerName: params.ACNT_OWNER_NM },
+          message: '계좌 인증이 완료되었습니다.'
+        });
+      } else {
+        resolve({
+          success: false,
+          message: '계좌번호를 정확히 입력해주세요.'
+        });
+      }
+    }, 1000);
+  });
+};
+
+/**
+ * 카드 인증 (카드번호 유효성 확인)
+ * 실제 카드 인증 API가 있으면 연동, 없으면 시뮬레이션
+ */
+export const verifyCard = async (params: CardVerifyRequest): Promise<ApiResponse<any>> => {
+  // TODO: 실제 카드 인증 API 연동
+  // D'Live 카드 인증 API가 있는 경우 아래 주석 해제
+  // return apiCall<any>('/customer/payment/verifyCard', params);
+
+  // 현재는 시뮬레이션 (API 연동 전까지)
+  return new Promise((resolve) => {
+    setTimeout(() => {
+      // 시뮬레이션: 카드번호가 16자리면 성공
+      if (params.CARD_NO && params.CARD_NO.length === 16) {
+        resolve({
+          success: true,
+          data: { verified: true },
+          message: '카드 인증이 완료되었습니다.'
+        });
+      } else {
+        resolve({
+          success: false,
+          message: '카드번호 16자리를 정확히 입력해주세요.'
+        });
+      }
+    }, 1000);
+  });
 };
 
 // ============ 상담/AS API ============
@@ -727,9 +906,50 @@ export const updatePaymentMethod = async (params: PaymentMethodChangeRequest): P
 /**
  * 상담 이력 등록
  * API: customer/negociation/saveCnslRcptInfo.req
+ *
+ * 백엔드 필수 파라미터:
+ * - CUST_ID, CTRT_ID (계약 단위 등록)
+ * - CNSL_MST_CL (대분류), CNSL_MID_CL (중분류), CNSL_SLV_CL (소분류)
+ * - REQ_CTX (요청사항)
+ * - SO_ID, MST_SO_ID, POST_ID
+ * 고정값: RCPT_TP='G1', CUST_REL='A', PRESS_RCPT_YN='N', SUBS_TP='1', CTI_CID='0'
  */
 export const registerConsultation = async (params: ConsultationRequest): Promise<ApiResponse<any>> => {
-  return apiCall<any>('/customer/negociation/saveCnslRcptInfo', params);
+  // 세션에서 SO_ID, MST_SO_ID 가져오기
+  let soId = params.SO_ID || '';
+  let mstSoId = params.MST_SO_ID || '';
+  try {
+    const userInfoStr = sessionStorage.getItem('userInfo');
+    if (userInfoStr) {
+      const userInfo = JSON.parse(userInfoStr);
+      if (!soId) {
+        const authSoList = userInfo.authSoList || userInfo.AUTH_SO_List || [];
+        if (authSoList.length > 0) {
+          soId = authSoList[0].SO_ID || authSoList[0].soId || '';
+        }
+        if (!soId) {
+          soId = userInfo.soId || userInfo.SO_ID || '';
+        }
+      }
+      if (!mstSoId) {
+        mstSoId = userInfo.mstSoId || userInfo.MST_SO_ID || soId;
+      }
+    }
+  } catch (e) {
+    console.log('[CustomerAPI] Failed to get SO_ID from session');
+  }
+
+  return apiCall<any>('/customer/negociation/saveCnslRcptInfo', {
+    ...params,
+    SO_ID: soId,
+    MST_SO_ID: mstSoId,
+    // 고정값
+    RCPT_TP: 'G1',
+    CUST_REL: 'A',
+    PRESS_RCPT_YN: 'N',
+    SUBS_TP: '1',
+    CTI_CID: '0'
+  });
 };
 
 /**
@@ -806,17 +1026,63 @@ export const registerASRequest = async (params: ASRequestParams): Promise<ApiRes
     '1103': 'CE5', // 재연결
   };
 
-  // 백엔드 파라미터로 변환
-  const backendParams: ASBackendParams = {
+  // 세션에서 사용자 정보 가져오기
+  let wrkrId = 'MOBILE_USER';
+  let crrId = '';
+  try {
+    const userInfoStr = sessionStorage.getItem('userInfo');
+    if (userInfoStr) {
+      const userInfo = JSON.parse(userInfoStr);
+      wrkrId = userInfo.userId || userInfo.USR_ID || wrkrId;
+      crrId = userInfo.crrId || userInfo.CRR_ID || '';
+    }
+  } catch (e) {
+    console.log('[CustomerAPI] Failed to get user info from session');
+  }
+
+  // UI params인 경우 변환
+  const uiParams = params as unknown as ASRequestUIParams;
+  const isUIParams = 'AS_CL_CD' in params;
+
+  // 백엔드 파라미터 구성
+  const backendParams: Record<string, any> = {
+    // 필수
+    POST_ID: (params as ASRequestParams).POST_ID || '',
     CUST_ID: params.CUST_ID,
-    WRK_DTL_TCD: wrkDtlTcdMap[params.AS_CL_CD] || '0310',
-    WRK_RCPT_CL: wrkRcptClMap[params.AS_RESN_L_CD] || 'EQ',
-    WRK_RCPT_CL_DTL: wrkRcptClDtlMap[params.AS_RESN_M_CD] || 'EQ1',
-    WRK_HOPE_DTTM: params.SCHD_DT + params.SCHD_TM,
-    MEMO: params.AS_CNTN,
-    WRKR_ID: params.WRKR_ID || 'MOBILE_USER',
-    REG_UID: params.WRKR_ID || 'MOBILE_USER'
+    CTRT_ID: (params as ASRequestParams).CTRT_ID || '',
+    WRK_HOPE_DTTM: isUIParams
+      ? uiParams.SCHD_DT + uiParams.SCHD_TM
+      : (params as ASRequestParams).WRK_HOPE_DTTM,
+    HOPE_DTTM: isUIParams
+      ? uiParams.SCHD_DT + uiParams.SCHD_TM
+      : (params as ASRequestParams).HOPE_DTTM || (params as ASRequestParams).WRK_HOPE_DTTM,
+    WRK_DTL_TCD: isUIParams
+      ? (wrkDtlTcdMap[uiParams.AS_CL_CD] || '0310')
+      : (params as ASRequestParams).WRK_DTL_TCD,
+    WRK_RCPT_CL: isUIParams
+      ? (wrkRcptClMap[uiParams.AS_RESN_L_CD] || 'EQ')
+      : (params as ASRequestParams).WRK_RCPT_CL,
+    WRK_RCPT_CL_DTL: isUIParams
+      ? (wrkRcptClDtlMap[uiParams.AS_RESN_M_CD] || 'EQ1')
+      : (params as ASRequestParams).WRK_RCPT_CL_DTL,
+    MEMO: isUIParams ? uiParams.AS_CNTN : (params as ASRequestParams).MEMO,
+    // 고정값
+    EMRG_YN: 'N',
+    HOLY_YN: 'N',
+    TRANS_PROC_YN: 'Y',
+    // 사용자 정보
+    CRR_ID: crrId,
+    WRKR_ID: wrkrId,
+    REG_UID: wrkrId,
   };
+
+  // 선택 정보
+  if (isUIParams && uiParams.AS_CL_DTL_CD) {
+    backendParams.AS_BIZ_CL = uiParams.AS_CL_DTL_CD;
+  }
+  if (isUIParams && uiParams.TRIP_FEE_CD) {
+    backendParams.BIZ_EXPNS_GUIDE = uiParams.TRIP_FEE_CD;
+  }
 
   return apiCall<any>('/customer/work/modAsPdaReceipt', backendParams);
 };
@@ -974,6 +1240,8 @@ export default {
   updatePhoneNumber,
   updateAddress,
   updatePaymentMethod,
+  verifyBankAccount,
+  verifyCard,
   // 상담/AS
   registerConsultation,
   registerASRequest,
