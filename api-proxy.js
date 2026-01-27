@@ -244,6 +244,7 @@ router.post('/customer/negociation/getCustWorkList', handleProxy);
 // 5. Info Change
 router.post('/customer/negociation/updateCustTelDetailInfo', handleProxy);
 router.post('/customer/etc/saveMargeAddrOrdInfo', handleProxy);
+router.post('/customer/etc/savePymAddrInfo', handleProxy);
 router.post('/customer/customer/general/customerPymChgAddManager', handleProxy);
 router.post('/customer/customer/general/addCustomerPymInfoChange', handleProxy);
 // 6. Consultation/AS

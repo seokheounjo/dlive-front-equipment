@@ -27,16 +27,18 @@ export interface CustomerSearchParams {
 
 // 고객 기본 정보
 export interface CustomerInfo {
-  CUST_ID: string;           // 고객ID
+  CUST_ID: string;           // 고객ID (고객번호)
   CUST_NM: string;           // 고객명
   TEL_NO: string;            // 전화번호
   HP_NO: string;             // 휴대폰번호
-  CUST_ADDR: string;         // 고객주소
+  CUST_ADDR: string;         // 고객주소 (지번)
+  ROAD_ADDR?: string;        // 도로명주소
   INST_ADDR: string;         // 설치주소
   BILL_ADDR: string;         // 청구지주소
   UNPAY_AMT: number;         // 미납금액 합계
   CUST_TP_CD: string;        // 고객유형코드
-  CUST_TP_NM: string;        // 고객유형명
+  CUST_TP_NM: string;        // 고객유형명 (고객구분)
+  GRP_NO?: string;           // 단체번호
   REG_DT: string;            // 등록일
 }
 

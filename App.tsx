@@ -129,6 +129,8 @@ const App: React.FC = () => {
       setUserInfo(userInfoData);
       // localStorage에도 저장 (EquipmentManagement에서 사용)
       localStorage.setItem('userInfo', JSON.stringify(userInfoData));
+      // sessionStorage에도 저장 (customerApi에서 SO_ID, MST_SO_ID 읽음)
+      sessionStorage.setItem('userInfo', JSON.stringify(userInfoData));
       // 'user' 키에도 저장 (EquipmentList에서 AUTH_SO_List 읽음)
       localStorage.setItem('user', JSON.stringify({
         USR_ID: userId,

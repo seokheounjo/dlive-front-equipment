@@ -91,6 +91,9 @@ const CustomerBasicInfo: React.FC<CustomerBasicInfoProps> = ({
     work: false
   });
 
+  // 도로명주소 표시 여부
+  const [showRoadAddr, setShowRoadAddr] = useState(false);
+
   // 컴포넌트 마운트 시 savedCustomer가 있으면 데이터 로드
   useEffect(() => {
     if (savedCustomer && contracts.length === 0) {
@@ -205,28 +208,52 @@ const CustomerBasicInfo: React.FC<CustomerBasicInfoProps> = ({
                   {/* 기본 정보 */}
                   <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-sm">
                     <div className="flex justify-between">
+                      <span className="text-gray-500">고객번호</span>
+                      <span className="font-medium text-gray-800">{selectedCustomer.CUST_ID}</span>
+                    </div>
+                    <div className="flex justify-between">
                       <span className="text-gray-500">고객명</span>
                       <span className="font-medium text-gray-800">{selectedCustomer.CUST_NM}</span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-gray-500">고객ID</span>
-                      <span className="font-medium text-gray-800">{selectedCustomer.CUST_ID}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-500">전화</span>
+                      <span className="text-gray-500">전화번호</span>
                       <span className="text-gray-800">{formatPhoneNumber(selectedCustomer.TEL_NO) || '-'}</span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-gray-500">휴대폰</span>
                       <span className="text-gray-800">{formatPhoneNumber(selectedCustomer.HP_NO) || '-'}</span>
                     </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-500">고객구분</span>
+                      <span className="text-gray-800">{selectedCustomer.CUST_TP_NM || '-'}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-500">단체번호</span>
+                      <span className="text-gray-800">{selectedCustomer.GRP_NO || '-'}</span>
+                    </div>
                   </div>
 
-                  {/* 주소 정보 - 고객주소만 표시 */}
+                  {/* 주소 정보 */}
                   <div className="pt-2 border-t border-gray-100 text-sm">
-                    <div className="flex">
-                      <span className="text-gray-500 w-12 flex-shrink-0">주소</span>
-                      <span className="text-gray-700">{selectedCustomer.CUST_ADDR || '-'}</span>
+                    <div className="flex items-start">
+                      <div className="flex items-center gap-2 w-20 flex-shrink-0">
+                        <span className="text-gray-500">고객주소</span>
+                        <label className="flex items-center cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={showRoadAddr}
+                            onChange={(e) => setShowRoadAddr(e.target.checked)}
+                            className="w-3 h-3 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                          />
+                          <span className="ml-1 text-xs text-gray-400">도로명</span>
+                        </label>
+                      </div>
+                      <span className="text-gray-700">
+                        {showRoadAddr
+                          ? (selectedCustomer.ROAD_ADDR || selectedCustomer.CUST_ADDR || '-')
+                          : (selectedCustomer.CUST_ADDR || '-')
+                        }
+                      </span>
                     </div>
                   </div>
 
