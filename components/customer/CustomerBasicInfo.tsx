@@ -25,7 +25,7 @@ interface CustomerBasicInfoProps {
   onBack: () => void;
   showToast?: (message: string, type: 'success' | 'error' | 'warning' | 'info') => void;
   onCustomerSelect: (customer: { custId: string; custNm: string; telNo: string }) => void;
-  onContractSelect: (contract: { ctrtId: string; prodNm: string; instAddr: string }) => void;
+  onContractSelect: (contract: { ctrtId: string; prodNm: string; instAddr: string; postId?: string }) => void;
   onNavigateToAS: () => void;
 }
 
@@ -136,7 +136,8 @@ const CustomerBasicInfo: React.FC<CustomerBasicInfoProps> = ({
     onContractSelect({
       ctrtId: contract.CTRT_ID,
       prodNm: contract.PROD_NM,
-      instAddr: contract.INST_ADDR
+      instAddr: contract.INST_ADDR,
+      postId: contract.POST_ID
     });
   };
 

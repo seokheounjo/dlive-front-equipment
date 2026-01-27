@@ -57,10 +57,23 @@ const ContractSummary: React.FC<ContractSummaryProps> = ({
   onASRequest,
   showToast
 }) => {
-  // 필터 상태: all, 20(사용중), 10(설치대기), 82(변경대기), pause(일시정지), cancel(해지대기), 90(해지)
-  const [filterStatus, setFilterStatus] = useState<string>('all');
+  // 필터 상태: 다중 선택 가능 (체크박스)
+  const [selectedFilters, setSelectedFilters] = useState<Set<string>>(new Set());
   const [searchKeyword, setSearchKeyword] = useState('');
   const [filterExpanded, setFilterExpanded] = useState(false);
+
+  // 필터 토글 (체크박스 방식)
+  const toggleFilter = (filter: string) => {
+    setSelectedFilters(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(filter)) {
+        newSet.delete(filter);
+      } else {
+        newSet.add(filter);
+      }
+      return newSet;
+    });
+  };
 
   // 선택된 계약
   const [selectedContractId, setSelectedContractId] = useState<string | null>(null);
@@ -72,25 +85,20 @@ const ContractSummary: React.FC<ContractSummaryProps> = ({
   const isPause = (statCd: string) => ['30', '38'].includes(statCd);       // 일시정지
   const isCancelWait = (statCd: string) => ['80', '89'].includes(statCd);  // 해지대기
 
-  // 필터링된 계약 목록
+  // 필터링된 계약 목록 (다중 선택)
   const filteredContracts = contracts.filter(contract => {
     const statCd = contract.CTRT_STAT_CD;
 
-    // 상태 필터
-    if (filterStatus === 'all') {
-      // 전체
-    } else if (filterStatus === '20') {
-      if (statCd !== '20') return false;
-    } else if (filterStatus === '10') {
-      if (statCd !== '10') return false;
-    } else if (filterStatus === '82') {
-      if (statCd !== '82') return false;
-    } else if (filterStatus === 'pause') {
-      if (!isPause(statCd)) return false;
-    } else if (filterStatus === 'cancel') {
-      if (!isCancelWait(statCd)) return false;
-    } else if (filterStatus === '90') {
-      if (statCd !== '90') return false;
+    // 상태 필터 (선택된 필터가 없으면 전체 표시)
+    if (selectedFilters.size > 0) {
+      let match = false;
+      if (selectedFilters.has('20') && statCd === '20') match = true;
+      if (selectedFilters.has('10') && statCd === '10') match = true;
+      if (selectedFilters.has('82') && statCd === '82') match = true;
+      if (selectedFilters.has('pause') && isPause(statCd)) match = true;
+      if (selectedFilters.has('cancel') && isCancelWait(statCd)) match = true;
+      if (selectedFilters.has('90') && statCd === '90') match = true;
+      if (!match) return false;
     }
 
     // 키워드 검색 (계약ID, 상품명, 장비시리얼)
@@ -167,9 +175,9 @@ const ContractSummary: React.FC<ContractSummaryProps> = ({
                   <div className="flex items-center gap-2">
                     <Filter className="w-4 h-4 text-gray-500" />
                     <span className="text-sm font-semibold text-gray-700">상세 필터</span>
-                    {filterStatus !== 'all' && (
+                    {selectedFilters.size > 0 && (
                       <span className="text-xs px-2 py-0.5 bg-blue-100 text-blue-700 rounded-full">
-                        필터 적용중
+                        필터 적용중 ({selectedFilters.size})
                       </span>
                     )}
                   </div>
@@ -179,86 +187,92 @@ const ContractSummary: React.FC<ContractSummaryProps> = ({
                 {/* 필터 내용 (펼침 시) */}
                 {filterExpanded && (
                   <div className="mt-2 p-3 bg-gray-50 rounded-lg space-y-3">
-                    {/* 상태 필터 버튼 */}
+                    {/* 상태 필터 버튼 (체크박스 방식 - 다중 선택) */}
                     <div>
-                      <div className="text-xs font-medium text-gray-500 mb-2">계약 상태</div>
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-xs font-medium text-gray-500">계약 상태</span>
+                        {selectedFilters.size > 0 && (
+                          <button
+                            onClick={() => setSelectedFilters(new Set())}
+                            className="text-xs text-blue-500 hover:text-blue-700"
+                          >
+                            초기화
+                          </button>
+                        )}
+                      </div>
                       <div className="flex flex-wrap gap-2">
                         <button
-                          onClick={() => setFilterStatus('all')}
-                          className={`px-3 py-1.5 text-xs rounded-full transition-colors ${
-                            filterStatus === 'all'
-                              ? 'bg-blue-500 text-white'
-                              : 'bg-white text-gray-600 border border-gray-300 hover:bg-gray-100'
-                          }`}
-                        >
-                          전체 ({statusCount.all})
-                        </button>
-                        <button
-                          onClick={() => setFilterStatus('20')}
-                          className={`px-3 py-1.5 text-xs rounded-full transition-colors ${
-                            filterStatus === '20'
+                          onClick={() => toggleFilter('20')}
+                          className={`flex items-center gap-1 px-3 py-1.5 text-xs rounded-full transition-colors ${
+                            selectedFilters.has('20')
                               ? 'bg-green-500 text-white'
                               : 'bg-white text-gray-600 border border-gray-300 hover:bg-gray-100'
                           }`}
                         >
+                          {selectedFilters.has('20') && <Check className="w-3 h-3" />}
                           사용중 ({statusCount.active})
                         </button>
                         {statusCount.install > 0 && (
                           <button
-                            onClick={() => setFilterStatus('10')}
-                            className={`px-3 py-1.5 text-xs rounded-full transition-colors ${
-                              filterStatus === '10'
+                            onClick={() => toggleFilter('10')}
+                            className={`flex items-center gap-1 px-3 py-1.5 text-xs rounded-full transition-colors ${
+                              selectedFilters.has('10')
                                 ? 'bg-blue-500 text-white'
                                 : 'bg-white text-gray-600 border border-gray-300 hover:bg-gray-100'
                             }`}
                           >
+                            {selectedFilters.has('10') && <Check className="w-3 h-3" />}
                             설치대기 ({statusCount.install})
                           </button>
                         )}
                         {statusCount.change > 0 && (
                           <button
-                            onClick={() => setFilterStatus('82')}
-                            className={`px-3 py-1.5 text-xs rounded-full transition-colors ${
-                              filterStatus === '82'
+                            onClick={() => toggleFilter('82')}
+                            className={`flex items-center gap-1 px-3 py-1.5 text-xs rounded-full transition-colors ${
+                              selectedFilters.has('82')
                                 ? 'bg-blue-500 text-white'
                                 : 'bg-white text-gray-600 border border-gray-300 hover:bg-gray-100'
                             }`}
                           >
+                            {selectedFilters.has('82') && <Check className="w-3 h-3" />}
                             변경대기 ({statusCount.change})
                           </button>
                         )}
                         {statusCount.pause > 0 && (
                           <button
-                            onClick={() => setFilterStatus('pause')}
-                            className={`px-3 py-1.5 text-xs rounded-full transition-colors ${
-                              filterStatus === 'pause'
+                            onClick={() => toggleFilter('pause')}
+                            className={`flex items-center gap-1 px-3 py-1.5 text-xs rounded-full transition-colors ${
+                              selectedFilters.has('pause')
                                 ? 'bg-yellow-500 text-white'
                                 : 'bg-white text-gray-600 border border-gray-300 hover:bg-gray-100'
                             }`}
                           >
+                            {selectedFilters.has('pause') && <Check className="w-3 h-3" />}
                             일시정지 ({statusCount.pause})
                           </button>
                         )}
                         {statusCount.cancelWait > 0 && (
                           <button
-                            onClick={() => setFilterStatus('cancel')}
-                            className={`px-3 py-1.5 text-xs rounded-full transition-colors ${
-                              filterStatus === 'cancel'
+                            onClick={() => toggleFilter('cancel')}
+                            className={`flex items-center gap-1 px-3 py-1.5 text-xs rounded-full transition-colors ${
+                              selectedFilters.has('cancel')
                                 ? 'bg-orange-500 text-white'
                                 : 'bg-white text-gray-600 border border-gray-300 hover:bg-gray-100'
                             }`}
                           >
+                            {selectedFilters.has('cancel') && <Check className="w-3 h-3" />}
                             해지대기 ({statusCount.cancelWait})
                           </button>
                         )}
                         <button
-                          onClick={() => setFilterStatus('90')}
-                          className={`px-3 py-1.5 text-xs rounded-full transition-colors ${
-                            filterStatus === '90'
+                          onClick={() => toggleFilter('90')}
+                          className={`flex items-center gap-1 px-3 py-1.5 text-xs rounded-full transition-colors ${
+                            selectedFilters.has('90')
                               ? 'bg-gray-500 text-white'
                               : 'bg-white text-gray-600 border border-gray-300 hover:bg-gray-100'
                           }`}
                         >
+                          {selectedFilters.has('90') && <Check className="w-3 h-3" />}
                           해지 ({statusCount.terminated})
                         </button>
                       </div>

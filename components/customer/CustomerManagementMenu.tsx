@@ -35,6 +35,7 @@ const CustomerManagementMenu: React.FC<CustomerManagementMenuProps> = ({ onNavig
     ctrtId: string;
     prodNm: string;
     instAddr: string;
+    postId?: string;
   } | null>(null);
 
   const tabs: TabItem[] = [
@@ -57,7 +58,7 @@ const CustomerManagementMenu: React.FC<CustomerManagementMenuProps> = ({ onNavig
   };
 
   // 계약 선택 핸들러 (계약현황에서 계약 선택 시 호출)
-  const handleContractSelect = (contract: { ctrtId: string; prodNm: string; instAddr: string }) => {
+  const handleContractSelect = (contract: { ctrtId: string; prodNm: string; instAddr: string; postId?: string }) => {
     setSelectedContract(contract);
   };
 

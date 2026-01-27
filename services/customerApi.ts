@@ -48,6 +48,7 @@ export interface ContractInfo {
   PROD_NM: string;           // 상품명
   PROD_GRP_NM: string;       // 상품군명
   INST_ADDR: string;         // 설치위치
+  POST_ID?: string;          // 주소ID (AS접수에 필요)
   OPNG_DT: string;           // 개통일
   TERM_DT: string;           // 해지일
   AGMT_MON: string;          // 약정개월

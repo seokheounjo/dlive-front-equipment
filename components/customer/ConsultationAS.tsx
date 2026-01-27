@@ -30,6 +30,7 @@ interface ConsultationASProps {
     ctrtId: string;
     prodNm: string;
     instAddr: string;
+    postId?: string;
   } | null;
   onNavigateToBasicInfo: () => void;
 }
@@ -391,9 +392,10 @@ const ConsultationAS: React.FC<ConsultationASProps> = ({
       // 로그인 사용자 정보 (localStorage에서)
       const userInfo = JSON.parse(localStorage.getItem('userInfo') || '{}');
 
-      const params: ASRequestParams = {
+      const params = {
         CUST_ID: selectedCustomer.custId,
         CTRT_ID: selectedContract.ctrtId,
+        POST_ID: selectedContract.postId || '',
         INST_ADDR: selectedContract.instAddr,
         AS_CL_CD: asForm.asClCd,
         AS_CL_DTL_CD: asForm.asClDtlCd,
