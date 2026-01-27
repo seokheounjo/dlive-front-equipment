@@ -10,6 +10,9 @@ import {
   registerConsultation,
   registerASRequest,
   getConsultationCodes,
+  getConsultationLargeCodes,
+  getConsultationMiddleCodes,
+  getConsultationSmallCodes,
   getASReasonCodes,
   ConsultationHistory,
   WorkHistory,
@@ -33,11 +36,19 @@ interface ConsultationASProps {
     postId?: string;
   } | null;
   onNavigateToBasicInfo: () => void;
+  initialTab?: 'consultation' | 'as';  // 초기 탭 지정 (AS 버튼에서 이동 시 'as')
 }
 
 interface CodeItem {
   CODE: string;
   CODE_NM: string;
+}
+
+// D'Live 코드 형식 (CMCS010/020/030)
+interface DLiveCode {
+  code: string;
+  name: string;
+  ref_code?: string;  // 상위 분류 코드 참조
 }
 
 /**
@@ -53,10 +64,16 @@ const ConsultationAS: React.FC<ConsultationASProps> = ({
   showToast,
   selectedCustomer,
   selectedContract,
-  onNavigateToBasicInfo
+  onNavigateToBasicInfo,
+  initialTab = 'consultation'
 }) => {
-  // 탭 상태
-  const [activeTab, setActiveTab] = useState<'consultation' | 'as'>('consultation');
+  // 탭 상태 (initialTab prop으로 초기값 설정)
+  const [activeTab, setActiveTab] = useState<'consultation' | 'as'>(initialTab);
+
+  // initialTab이 변경되면 activeTab 업데이트 (AS 버튼 클릭 시)
+  useEffect(() => {
+    setActiveTab(initialTab);
+  }, [initialTab]);
 
   // 이력 데이터
   const [consultationHistory, setConsultationHistory] = useState<ConsultationHistory[]>([]);
@@ -76,89 +93,28 @@ const ConsultationAS: React.FC<ConsultationASProps> = ({
     transDeptCd: ''
   });
 
-  // 상담 분류 코드 데이터
-  const [cnslLCodes] = useState([
-    { CODE: '01', CODE_NM: '요금문의' },
-    { CODE: '02', CODE_NM: '서비스문의' },
-    { CODE: '03', CODE_NM: '장애문의' },
-    { CODE: '04', CODE_NM: '가입/해지' },
-    { CODE: '05', CODE_NM: '기타' }
-  ]);
+  // 상담 분류 코드 데이터 (D'Live API에서 로드)
+  const [cnslLCodes, setCnslLCodes] = useState<DLiveCode[]>([]);
+  const [allCnslMCodes, setAllCnslMCodes] = useState<DLiveCode[]>([]);  // 전체 중분류 (필터용)
+  const [allCnslSCodes, setAllCnslSCodes] = useState<DLiveCode[]>([]);  // 전체 소분류 (필터용)
+  const [cnslMCodes, setCnslMCodes] = useState<DLiveCode[]>([]);        // 필터된 중분류
+  const [cnslSCodes, setCnslSCodes] = useState<DLiveCode[]>([]);        // 필터된 소분류
 
-  const [cnslMCodes, setCnslMCodes] = useState<CodeItem[]>([]);
-  const [cnslSCodes, setCnslSCodes] = useState<CodeItem[]>([]);
-
-  // 상담대분류 변경 시 중분류 설정
+  // 상담대분류 변경 시 중분류 필터링
   const handleCnslLChange = (code: string) => {
     setConsultationForm(prev => ({ ...prev, cnslLClCd: code, cnslMClCd: '', cnslSClCd: '' }));
     setCnslSCodes([]);
-    const mCodes: Record<string, CodeItem[]> = {
-      '01': [
-        { CODE: '0101', CODE_NM: '청구금액' },
-        { CODE: '0102', CODE_NM: '납부방법' },
-        { CODE: '0103', CODE_NM: '미납/연체' }
-      ],
-      '02': [
-        { CODE: '0201', CODE_NM: '채널안내' },
-        { CODE: '0202', CODE_NM: 'VOD안내' },
-        { CODE: '0203', CODE_NM: '부가서비스' }
-      ],
-      '03': [
-        { CODE: '0301', CODE_NM: '화면장애' },
-        { CODE: '0302', CODE_NM: '음성장애' },
-        { CODE: '0303', CODE_NM: '인터넷장애' }
-      ],
-      '04': [
-        { CODE: '0401', CODE_NM: '신규가입' },
-        { CODE: '0402', CODE_NM: '해지신청' },
-        { CODE: '0403', CODE_NM: '상품변경' }
-      ],
-      '05': [
-        { CODE: '0501', CODE_NM: '기타문의' }
-      ]
-    };
-    setCnslMCodes(mCodes[code] || []);
+    // allCnslMCodes에서 ref_code가 선택된 대분류와 일치하는 것만 필터링
+    const filtered = allCnslMCodes.filter(m => m.ref_code === code);
+    setCnslMCodes(filtered);
   };
 
-  // 상담중분류 변경 시 소분류 설정
+  // 상담중분류 변경 시 소분류 필터링
   const handleCnslMChange = (code: string) => {
     setConsultationForm(prev => ({ ...prev, cnslMClCd: code, cnslSClCd: '' }));
-    const sCodes: Record<string, CodeItem[]> = {
-      '0101': [
-        { CODE: '010101', CODE_NM: '월청구금액 문의' },
-        { CODE: '010102', CODE_NM: '부가세 문의' }
-      ],
-      '0102': [
-        { CODE: '010201', CODE_NM: '자동이체 변경' },
-        { CODE: '010202', CODE_NM: '카드결제 변경' }
-      ],
-      '0103': [
-        { CODE: '010301', CODE_NM: '미납금 조회' },
-        { CODE: '010302', CODE_NM: '납부유예 요청' }
-      ],
-      '0301': [
-        { CODE: '030101', CODE_NM: '화면안나옴' },
-        { CODE: '030102', CODE_NM: '화면끊김' },
-        { CODE: '030103', CODE_NM: '화면깨짐' }
-      ],
-      '0302': [
-        { CODE: '030201', CODE_NM: '음성안나옴' },
-        { CODE: '030202', CODE_NM: '음성끊김' }
-      ],
-      '0303': [
-        { CODE: '030301', CODE_NM: '인터넷안됨' },
-        { CODE: '030302', CODE_NM: '속도느림' }
-      ],
-      '0401': [
-        { CODE: '040101', CODE_NM: '신규설치문의' },
-        { CODE: '040102', CODE_NM: '가입조건문의' }
-      ],
-      '0402': [
-        { CODE: '040201', CODE_NM: '해지절차문의' },
-        { CODE: '040202', CODE_NM: '위약금문의' }
-      ]
-    };
-    setCnslSCodes(sCodes[code] || [{ CODE: code + '01', CODE_NM: '일반' }]);
+    // allCnslSCodes에서 ref_code가 선택된 중분류와 일치하는 것만 필터링
+    const filtered = allCnslSCodes.filter(s => s.ref_code === code);
+    setCnslSCodes(filtered);
   };
 
   // AS 접수 폼 (와이어프레임 기준 확장)
@@ -261,14 +217,50 @@ const ConsultationAS: React.FC<ConsultationASProps> = ({
   const loadCodes = async () => {
     setIsLoadingCodes(true);
     try {
-      const [consultRes, asRes] = await Promise.all([
-        getConsultationCodes(),
+      // D'Live 상담분류 코드 (CMCS010/020/030) 로드
+      const [lCodesRes, mCodesRes, sCodesRes, asRes] = await Promise.all([
+        getConsultationLargeCodes(),
+        getConsultationMiddleCodes(),
+        getConsultationSmallCodes(),
         getASReasonCodes()
       ]);
 
-      if (consultRes.success && consultRes.data) {
-        setConsultationCodes(consultRes.data);
+      // 대분류 (CMCS010) - 빈 코드와 선택 제외
+      if (lCodesRes.success && lCodesRes.data) {
+        const filtered = lCodesRes.data
+          .filter((item: any) => item.code && item.code !== '[]' && item.name !== '선택')
+          .map((item: any) => ({
+            code: item.code,
+            name: item.name,
+            ref_code: item.ref_code
+          }));
+        setCnslLCodes(filtered);
       }
+
+      // 중분류 (CMCS020) - ref_code로 대분류와 연결
+      if (mCodesRes.success && mCodesRes.data) {
+        const filtered = mCodesRes.data
+          .filter((item: any) => item.code && item.code !== '[]' && item.name !== '선택')
+          .map((item: any) => ({
+            code: item.code,
+            name: item.name,
+            ref_code: item.ref_code  // 대분류 코드 참조
+          }));
+        setAllCnslMCodes(filtered);
+      }
+
+      // 소분류 (CMCS030) - ref_code로 중분류와 연결
+      if (sCodesRes.success && sCodesRes.data) {
+        const filtered = sCodesRes.data
+          .filter((item: any) => item.code && item.code !== '[]' && item.name !== '선택')
+          .map((item: any) => ({
+            code: item.code,
+            name: item.name,
+            ref_code: item.ref_code  // 중분류 코드 참조
+          }));
+        setAllCnslSCodes(filtered);
+      }
+
       if (asRes.success && asRes.data) {
         setASReasonCodes(asRes.data);
       }
@@ -321,13 +313,17 @@ const ConsultationAS: React.FC<ConsultationASProps> = ({
 
     setIsSaving(true);
     try {
-      const params: ConsultationRequest = {
+      // D'Live API에 맞는 파라미터명 사용
+      // CNSL_LCL_CD (대분류), CNSL_MCL_CD (중분류), CNSL_SCL_CD (소분류)
+      const params: any = {
         CUST_ID: selectedCustomer.custId,
-        CTRT_ID: selectedContract?.ctrtId,
-        CNSL_L_CL_CD: consultationForm.cnslLClCd,
-        CNSL_M_CL_CD: consultationForm.cnslMClCd,
-        CNSL_CL_CD: consultationForm.cnslSClCd,  // 소분류 = 최종 상담분류코드
-        REQ_CNTN: consultationForm.reqCntn,
+        CTRT_ID: selectedContract?.ctrtId || '',
+        CNSL_LCL_CD: consultationForm.cnslLClCd,   // 대분류 (CMCS010: AS, IN, RT, etc)
+        CNSL_MCL_CD: consultationForm.cnslMClCd,   // 중분류 (CMCS020: ASC, INE, etc)
+        CNSL_SCL_CD: consultationForm.cnslSClCd,   // 소분류 (CMCS030: ASE1, etc)
+        CNSL_CNTN: consultationForm.reqCntn,       // 상담내용
+        POST_ID: selectedContract?.postId || '',
+        SAVE_TP: '2',  // 완료 저장
         TRANS_YN: consultationForm.transYn,
         TRANS_DEPT_CD: consultationForm.transDeptCd || undefined
       };
@@ -511,7 +507,7 @@ const ConsultationAS: React.FC<ConsultationASProps> = ({
               )}
             </div>
 
-            {/* 상담 분류 (대/중/소) */}
+            {/* 상담 분류 (대/중/소) - D'Live CMCS010/020/030 코드 사용 */}
             <div className="space-y-3">
               <div>
                 <label className="block text-sm text-gray-600 mb-1">상담대분류 *</label>
@@ -521,8 +517,8 @@ const ConsultationAS: React.FC<ConsultationASProps> = ({
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 >
                   <option value="">선택</option>
-                  {cnslLCodes.map(code => (
-                    <option key={code.CODE} value={code.CODE}>{code.CODE_NM}</option>
+                  {cnslLCodes.map(item => (
+                    <option key={item.code} value={item.code}>{item.name}</option>
                   ))}
                 </select>
               </div>
@@ -532,12 +528,12 @@ const ConsultationAS: React.FC<ConsultationASProps> = ({
                   <select
                     value={consultationForm.cnslMClCd}
                     onChange={(e) => handleCnslMChange(e.target.value)}
-                    disabled={!consultationForm.cnslLClCd}
+                    disabled={!consultationForm.cnslLClCd || cnslMCodes.length === 0}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100"
                   >
                     <option value="">선택</option>
-                    {cnslMCodes.map(code => (
-                      <option key={code.CODE} value={code.CODE}>{code.CODE_NM}</option>
+                    {cnslMCodes.map(item => (
+                      <option key={item.code} value={item.code}>{item.name}</option>
                     ))}
                   </select>
                 </div>
@@ -546,12 +542,12 @@ const ConsultationAS: React.FC<ConsultationASProps> = ({
                   <select
                     value={consultationForm.cnslSClCd}
                     onChange={(e) => setConsultationForm(prev => ({ ...prev, cnslSClCd: e.target.value }))}
-                    disabled={!consultationForm.cnslMClCd}
+                    disabled={!consultationForm.cnslMClCd || cnslSCodes.length === 0}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100"
                   >
                     <option value="">선택</option>
-                    {cnslSCodes.map(code => (
-                      <option key={code.CODE} value={code.CODE}>{code.CODE_NM}</option>
+                    {cnslSCodes.map(item => (
+                      <option key={item.code} value={item.code}>{item.name}</option>
                     ))}
                   </select>
                 </div>

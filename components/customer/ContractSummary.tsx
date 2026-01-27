@@ -2,9 +2,20 @@ import React, { useState } from 'react';
 import {
   FileText, ChevronDown, ChevronUp, Loader2,
   Cpu, Calendar, MapPin, Package, Wrench,
-  Filter, Check
+  Filter, Check, Search
 } from 'lucide-react';
 import { ContractInfo, formatCurrency, formatDate } from '../../services/customerApi';
+import BarcodeScanner from '../equipment/BarcodeScanner';
+
+// 계약ID 포맷 (3-3-4)
+const formatCtrtId = (ctrtId: string): string => {
+  if (!ctrtId) return '-';
+  const cleaned = ctrtId.replace(/[^0-9]/g, '');
+  if (cleaned.length === 10) {
+    return `${cleaned.slice(0, 3)}-${cleaned.slice(3, 6)}-${cleaned.slice(6, 10)}`;
+  }
+  return ctrtId;
+};
 
 interface ContractSummaryProps {
   contracts: ContractInfo[];
@@ -57,10 +68,11 @@ const ContractSummary: React.FC<ContractSummaryProps> = ({
   onASRequest,
   showToast
 }) => {
-  // 필터 상태: 다중 선택 가능 (체크박스)
-  const [selectedFilters, setSelectedFilters] = useState<Set<string>>(new Set());
+  // 필터 상태: 다중 선택 가능 (체크박스) - 기본값: 사용중
+  const [selectedFilters, setSelectedFilters] = useState<Set<string>>(new Set(['20']));
   const [searchKeyword, setSearchKeyword] = useState('');
   const [filterExpanded, setFilterExpanded] = useState(false);
+  const [showBarcodeScanner, setShowBarcodeScanner] = useState(false);
 
   // 필터 토글 (체크박스 방식)
   const toggleFilter = (filter: string) => {
@@ -278,19 +290,41 @@ const ContractSummary: React.FC<ContractSummaryProps> = ({
                       </div>
                     </div>
 
-                    {/* 검색 필드 */}
+                    {/* 검색 필드 + 바코드 스캔 */}
                     <div>
                       <div className="text-xs font-medium text-gray-500 mb-2">검색</div>
-                      <input
-                        type="text"
-                        value={searchKeyword}
-                        onChange={(e) => setSearchKeyword(e.target.value)}
-                        placeholder="계약ID, 상품명, 장비번호"
-                        className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                      />
+                      <div className="flex gap-2">
+                        <input
+                          type="text"
+                          value={searchKeyword}
+                          onChange={(e) => setSearchKeyword(e.target.value)}
+                          placeholder="계약ID, 상품명, 장비번호"
+                          className="flex-1 px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        />
+                        <button
+                          onClick={() => setShowBarcodeScanner(true)}
+                          className="px-3 py-2 bg-green-500 hover:bg-green-600 text-white rounded-lg text-sm font-medium flex items-center gap-1"
+                        >
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z" />
+                          </svg>
+                          스캔
+                        </button>
+                      </div>
                     </div>
                   </div>
                 )}
+
+                {/* 바코드 스캐너 */}
+                <BarcodeScanner
+                  isOpen={showBarcodeScanner}
+                  onClose={() => setShowBarcodeScanner(false)}
+                  onScan={(barcode) => {
+                    setSearchKeyword(barcode);
+                    setShowBarcodeScanner(false);
+                    showToast?.(`장비번호 "${barcode}" 검색`, 'info');
+                  }}
+                />
               </div>
 
               {/* 계약 목록 */}
@@ -304,10 +338,13 @@ const ContractSummary: React.FC<ContractSummaryProps> = ({
                         : 'bg-gray-50 border-gray-200 hover:border-gray-300'
                     }`}
                   >
-                    {/* 계약 기본 정보 */}
+                    {/* 계약 기본 정보 - 클릭하면 선택 및 상세보기 */}
                     <div
                       className="cursor-pointer"
-                      onClick={() => toggleDetail(contract.CTRT_ID)}
+                      onClick={() => {
+                        handleSelect(contract);
+                        toggleDetail(contract.CTRT_ID);
+                      }}
                     >
                       <div className="flex items-center justify-between mb-2">
                         <div className="flex items-center gap-2">
@@ -324,7 +361,7 @@ const ContractSummary: React.FC<ContractSummaryProps> = ({
                       </div>
 
                       <div className="text-xs text-gray-500">
-                        계약ID: {contract.CTRT_ID}
+                        계약ID: {formatCtrtId(contract.CTRT_ID)}
                       </div>
 
                       {contract.INST_ADDR && (
@@ -395,36 +432,22 @@ const ContractSummary: React.FC<ContractSummaryProps> = ({
                           </div>
                         )}
 
-                        {/* 액션 버튼 */}
-                        <div className="flex gap-2 pt-2">
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleSelect(contract);
-                            }}
-                            className={`flex items-center gap-1 px-3 py-1.5 text-sm rounded-lg transition-colors ${
-                              selectedContractId === contract.CTRT_ID
-                                ? 'bg-blue-500 text-white'
-                                : 'bg-blue-100 text-blue-700 hover:bg-blue-200'
-                            }`}
-                          >
-                            <Check className="w-4 h-4" />
-                            선택
-                          </button>
-                          {contract.CTRT_STAT_CD === '20' && (
+                        {/* 액션 버튼 - AS접수만 표시 (선택은 카드 클릭으로) */}
+                        {contract.CTRT_STAT_CD === '20' && (
+                          <div className="flex gap-2 pt-2">
                             <button
                               onClick={(e) => {
                                 e.stopPropagation();
                                 handleSelect(contract);
                                 onASRequest();
                               }}
-                              className="flex items-center gap-1 px-3 py-1.5 text-sm bg-orange-100 text-orange-700 rounded-lg hover:bg-orange-200 transition-colors"
+                              className="flex items-center gap-1 px-3 py-1.5 text-sm bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition-colors"
                             >
                               <Wrench className="w-4 h-4" />
                               AS 접수
                             </button>
-                          )}
-                        </div>
+                          </div>
+                        )}
                       </div>
                     )}
                   </div>

@@ -82,8 +82,11 @@ export interface PaymentInfo {
   PYM_MTH_NM: string;        // 납부방법명 (자동이체/신용카드/지로 등)
   BANK_CD: string;           // 은행코드
   BANK_NM: string;           // 은행명
+  CARD_CD?: string;          // 카드사코드
+  CARD_NM?: string;          // 카드사명
   ACNT_NO: string;           // 계좌번호 (마스킹)
   CARD_NO: string;           // 카드번호 (마스킹)
+  ACNT_HOLDER_NM?: string;   // 예금주/카드소유주명
   BILL_MEDIA_CD: string;     // 청구매체코드
   BILL_MEDIA_NM: string;     // 청구매체명
   UNPAY_AMT: number;         // 미납금액
@@ -319,6 +322,78 @@ export interface CardVerifyRequest {
   CARD_OWNER_NM?: string;    // 카드소유자명
 }
 
+// 지번주소 검색 요청 (statistics/customer/getPostList)
+export interface PostAddressSearchRequest {
+  SO_ID?: string;            // 지점ID
+  DONGMYONG?: string;        // 읍/면/동
+  USE_FLAG?: string;         // 사용여부
+  SALES_AREA_YN?: string;    // 영업권역여부
+}
+
+// 지번주소 검색 결과
+export interface PostAddressInfo {
+  POST_ID: string;           // 주소ID
+  ADDR_FULL: string;         // 전체주소 (우편번호) 시도 구군 동면 건물명 번지
+  ADDR: string;              // 기본주소
+  ZIP_CD: string;            // 우편번호
+  BUN_CL: string;            // 번지구분
+  SIDO_NAME: string;         // 시도명
+  GUGUN_NM: string;          // 구군명
+  DONGMYON_NM: string;       // 읍면동명
+  NM_RI_BD: string;          // 리/건물
+  BLD_NM: string;            // 건물명
+  STRT_BUNGIHO: string;      // 시작번지
+  END_BUNGIHO: string;       // 끝번지
+  STRT_DONGBUN_NO: string;   // 시작동번호
+  END_DONGBUN_NO: string;    // 끝동번호
+  USE_FLAG: string;          // 사용여부
+}
+
+// 도로명주소 검색 요청 (customer/common/customercommon/getStreetAddrList)
+export interface StreetAddressSearchRequest {
+  STREET_NM?: string;        // 도로명
+  STREET_BUN_M?: string;     // 건물본번
+  STREET_BUN_S?: string;     // 건물부번
+  ZIP_SEQ?: string;          // 우편번호순번
+  ZIP_SEQ_NEW?: string;      // 신규우편번호순번
+  NM_WIDE?: string;          // 시도
+  NM_MID?: string;           // 시군구
+  NM_SMALL?: string;         // 읍면동
+  HEAD_BUNJI?: string;       // 본번지
+  GAJI_BUNJI?: string;       // 부번지
+  BUILD_NM?: string;         // 건물명
+  SO_ID?: string;            // 지점ID
+}
+
+// 도로명주소 검색 결과
+export interface StreetAddressInfo {
+  STREET_ID: string;         // 도로명ID
+  STREET_ADDR: string;       // 도로명주소
+  STREET_ADDR_REF: string;   // 참조주소
+  ZIP_CD: string;            // 우편번호
+  POST_ID: string;           // 지번주소ID
+  MST_SO_ID: string;         // 계열사ID
+  SO_ID: string;             // 지점ID
+  SO_NM: string;             // 지점명
+  BUN_CL: string;            // 번지구분
+  SIDO_NAME: string;         // 시도명
+  GUGUN_NM: string;          // 구군명
+  NM_SMALL: string;          // 읍면동(신)
+  DONGMYON_NM: string;       // 읍면동(기존)
+  NM_RI_BD: string;          // 리/건물
+  BUN_NO: string;            // 본번
+  HO_NM: string;             // 부번
+  BLD_NM: string;            // 건물명
+  BLD_DTL_NM: string;        // 건물상세명
+  ADDR: string;              // 기본주소
+  ADDR1: string;             // 기본주소1
+  ADDR_FULL: string;         // 전체주소
+  STREET_NM: string;         // 도로명
+  STREET_BUN_M: string;      // 건물본번
+  STREET_BUN_S: string;      // 건물부번
+  POST_ZIP_CD: string;       // 지번우편번호
+}
+
 // API 응답 공통 형태
 export interface ApiResponse<T> {
   success: boolean;
@@ -470,7 +545,7 @@ export const searchCustomer = async (params: CustomerSearchParams): Promise<ApiR
     // SO_ID 획득 (세션에서)
     let soId = '';
     try {
-      const userInfoStr = sessionStorage.getItem('userInfo');
+      const userInfoStr = sessionStorage.getItem('userInfo') || localStorage.getItem('userInfo');
       if (userInfoStr) {
         const userInfo = JSON.parse(userInfoStr);
         const authSoList = userInfo.authSoList || userInfo.AUTH_SO_List || [];
@@ -538,7 +613,7 @@ export const searchCustomer = async (params: CustomerSearchParams): Promise<ApiR
     // SO_ID 획득 (세션에서)
     let soId = '';
     try {
-      const userInfoStr = sessionStorage.getItem('userInfo');
+      const userInfoStr = sessionStorage.getItem('userInfo') || localStorage.getItem('userInfo');
       if (userInfoStr) {
         const userInfo = JSON.parse(userInfoStr);
         // authSoList 첫 번째 항목 또는 soId 사용
@@ -780,7 +855,7 @@ export const updatePhoneNumber = async (params: PhoneChangeRequest): Promise<Api
   // 세션에서 사용자 ID 가져오기
   let chgUid = params.CHG_UID || 'SYSTEM';
   try {
-    const userInfoStr = sessionStorage.getItem('userInfo');
+    const userInfoStr = sessionStorage.getItem('userInfo') || localStorage.getItem('userInfo');
     if (userInfoStr) {
       const userInfo = JSON.parse(userInfoStr);
       chgUid = userInfo.userId || userInfo.USR_ID || chgUid;
@@ -847,7 +922,7 @@ export const updatePaymentMethod = async (params: PaymentMethodChangeRequest): P
   // 세션에서 사용자 ID 가져오기
   let usrId = params.USR_ID || 'MOBILE_USER';
   try {
-    const userInfoStr = sessionStorage.getItem('userInfo');
+    const userInfoStr = sessionStorage.getItem('userInfo') || localStorage.getItem('userInfo');
     if (userInfoStr) {
       const userInfo = JSON.parse(userInfoStr);
       usrId = userInfo.userId || userInfo.USR_ID || usrId;
@@ -934,11 +1009,12 @@ export const verifyCard = async (params: CardVerifyRequest): Promise<ApiResponse
  * 고정값: RCPT_TP='G1', CUST_REL='A', PRESS_RCPT_YN='N', SUBS_TP='1', CTI_CID='0'
  */
 export const registerConsultation = async (params: ConsultationRequest): Promise<ApiResponse<any>> => {
-  // 세션에서 SO_ID, MST_SO_ID 가져오기
+  // 세션/로컬 스토리지에서 SO_ID, MST_SO_ID 가져오기
   let soId = params.SO_ID || '';
   let mstSoId = params.MST_SO_ID || '';
   try {
-    const userInfoStr = sessionStorage.getItem('userInfo');
+    // sessionStorage 먼저 시도, 없으면 localStorage fallback
+    const userInfoStr = sessionStorage.getItem('userInfo') || localStorage.getItem('userInfo') || localStorage.getItem('userInfo');
     if (userInfoStr) {
       const userInfo = JSON.parse(userInfoStr);
       if (!soId) {
@@ -955,7 +1031,7 @@ export const registerConsultation = async (params: ConsultationRequest): Promise
       }
     }
   } catch (e) {
-    console.log('[CustomerAPI] Failed to get SO_ID from session');
+    console.log('[CustomerAPI] Failed to get SO_ID from session/localStorage');
   }
 
   return apiCall<any>('/customer/negociation/saveCnslRcptInfo', {
@@ -1049,7 +1125,7 @@ export const registerASRequest = async (params: ASRequestParams): Promise<ApiRes
   let wrkrId = 'MOBILE_USER';
   let crrId = '';
   try {
-    const userInfoStr = sessionStorage.getItem('userInfo');
+    const userInfoStr = sessionStorage.getItem('userInfo') || localStorage.getItem('userInfo');
     if (userInfoStr) {
       const userInfo = JSON.parse(userInfoStr);
       wrkrId = userInfo.userId || userInfo.USR_ID || wrkrId;
@@ -1142,10 +1218,34 @@ export const getElectronicSignStatus = async (ctrtId: string): Promise<ApiRespon
 // Backend: TaskSystemController.java - /common/getCommonCodes (CODE_GROUP param)
 
 /**
- * 상담소분류 코드 조회
+ * 상담소분류 코드 조회 (기존)
  */
 export const getConsultationCodes = async (): Promise<ApiResponse<any[]>> => {
   return apiCall<any[]>('/common/getCommonCodes', { CODE_GROUP: 'CNSL_CL' });
+};
+
+/**
+ * 상담대분류 코드 조회 (CMCS010)
+ * Returns: code (AS, IN, RT, DI, etc), name
+ */
+export const getConsultationLargeCodes = async (): Promise<ApiResponse<any[]>> => {
+  return apiCall<any[]>('/common/getCommonCodes', { CODE_GROUP: 'CMCS010' });
+};
+
+/**
+ * 상담중분류 코드 조회 (CMCS020)
+ * Returns: code (ASC, INE, RTA, etc), name, ref_code (links to CMCS010 code)
+ */
+export const getConsultationMiddleCodes = async (): Promise<ApiResponse<any[]>> => {
+  return apiCall<any[]>('/common/getCommonCodes', { CODE_GROUP: 'CMCS020' });
+};
+
+/**
+ * 상담소분류 코드 조회 (CMCS030)
+ * Returns: code (ASE1, PDD1, etc), name, ref_code (links to CMCS020 code)
+ */
+export const getConsultationSmallCodes = async (): Promise<ApiResponse<any[]>> => {
+  return apiCall<any[]>('/common/getCommonCodes', { CODE_GROUP: 'CMCS030' });
 };
 
 /**
@@ -1174,6 +1274,24 @@ export const getTelecomCodes = async (): Promise<ApiResponse<any[]>> => {
  */
 export const getBankCodes = async (): Promise<ApiResponse<any[]>> => {
   return apiCall<any[]>('/common/getCommonCodes', { CODE_GROUP: 'BANK' });
+};
+
+// ============ 주소 검색 API ============
+
+/**
+ * 지번주소 검색 (statistics/customer/getPostList)
+ * @param params 검색 조건 (동/면 이름)
+ */
+export const searchPostAddress = async (params: PostAddressSearchRequest): Promise<ApiResponse<PostAddressInfo[]>> => {
+  return apiCall<PostAddressInfo[]>('/statistics/customer/getPostList', params);
+};
+
+/**
+ * 도로명주소 검색 (customer/common/customercommon/getStreetAddrList)
+ * @param params 검색 조건 (도로명, 건물번호 등)
+ */
+export const searchStreetAddress = async (params: StreetAddressSearchRequest): Promise<ApiResponse<StreetAddressInfo[]>> => {
+  return apiCall<StreetAddressInfo[]>('/customer/common/customercommon/getStreetAddrList', params);
 };
 
 // ============ 유틸리티 함수 ============
@@ -1271,10 +1389,16 @@ export default {
   getElectronicSignStatus,
   // 공통코드
   getConsultationCodes,
+  getConsultationLargeCodes,
+  getConsultationMiddleCodes,
+  getConsultationSmallCodes,
   getASReasonCodes,
   getCustomerTypeCodes,
   getTelecomCodes,
   getBankCodes,
+  // 주소검색
+  searchPostAddress,
+  searchStreetAddress,
   // 유틸
   formatPhoneNumber,
   formatCurrency,

@@ -38,6 +38,9 @@ const CustomerManagementMenu: React.FC<CustomerManagementMenuProps> = ({ onNavig
     postId?: string;
   } | null>(null);
 
+  // 상담/AS 탭의 초기 서브탭 ('consultation' 또는 'as')
+  const [consultationInitialTab, setConsultationInitialTab] = useState<'consultation' | 'as'>('consultation');
+
   const tabs: TabItem[] = [
     { id: 'basic-info', title: '기본조회', description: '고객 검색 및 정보 조회' },
     { id: 'info-change', title: '정보변경', description: '전화번호/주소 변경' },
@@ -63,8 +66,12 @@ const CustomerManagementMenu: React.FC<CustomerManagementMenuProps> = ({ onNavig
   };
 
   // 탭 이동 핸들러 (예: AS 접수 버튼 클릭 시 상담/AS 탭으로 이동)
-  const handleNavigateToTab = (tabId: string) => {
+  const handleNavigateToTab = (tabId: string, subTab?: 'consultation' | 'as') => {
     setActiveTab(tabId);
+    // 상담/AS 탭으로 이동 시 서브탭 설정
+    if (tabId === 'consultation-as' && subTab) {
+      setConsultationInitialTab(subTab);
+    }
   };
 
   const renderContent = () => {
@@ -76,7 +83,10 @@ const CustomerManagementMenu: React.FC<CustomerManagementMenuProps> = ({ onNavig
             showToast={showToast}
             onCustomerSelect={handleCustomerSelect}
             onContractSelect={handleContractSelect}
-            onNavigateToAS={() => handleNavigateToTab('consultation-as')}
+            onNavigateToAS={() => handleNavigateToTab('consultation-as', 'as')}
+            onNavigateToConsultation={() => handleNavigateToTab('consultation-as', 'consultation')}
+            savedCustomer={selectedCustomer}
+            savedContract={selectedContract}
           />
         );
       case 'info-change':
@@ -95,6 +105,7 @@ const CustomerManagementMenu: React.FC<CustomerManagementMenuProps> = ({ onNavig
             selectedCustomer={selectedCustomer}
             selectedContract={selectedContract}
             onNavigateToBasicInfo={() => handleNavigateToTab('basic-info')}
+            initialTab={consultationInitialTab}
           />
         );
       case 'electronic-contract':

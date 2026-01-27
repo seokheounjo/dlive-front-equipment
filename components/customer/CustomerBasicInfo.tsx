@@ -27,6 +27,10 @@ interface CustomerBasicInfoProps {
   onCustomerSelect: (customer: { custId: string; custNm: string; telNo: string }) => void;
   onContractSelect: (contract: { ctrtId: string; prodNm: string; instAddr: string; postId?: string }) => void;
   onNavigateToAS: () => void;
+  onNavigateToConsultation?: () => void;
+  // 탭 이동 시 데이터 보존을 위한 초기값
+  savedCustomer?: { custId: string; custNm: string; telNo: string } | null;
+  savedContract?: { ctrtId: string; prodNm: string; instAddr: string; postId?: string } | null;
 }
 
 /**
@@ -44,10 +48,30 @@ const CustomerBasicInfo: React.FC<CustomerBasicInfoProps> = ({
   showToast,
   onCustomerSelect,
   onContractSelect,
-  onNavigateToAS
+  onNavigateToAS,
+  savedCustomer,
+  savedContract
 }) => {
-  // 선택된 고객
-  const [selectedCustomer, setSelectedCustomer] = useState<CustomerInfo | null>(null);
+  // 선택된 고객 (savedCustomer로 초기화하여 탭 이동 시 복원)
+  const [selectedCustomer, setSelectedCustomer] = useState<CustomerInfo | null>(() => {
+    // 초기값으로 savedCustomer가 있으면 복원
+    if (savedCustomer) {
+      return {
+        CUST_ID: savedCustomer.custId,
+        CUST_NM: savedCustomer.custNm,
+        TEL_NO: savedCustomer.telNo,
+        HP_NO: savedCustomer.telNo,
+        CUST_ADDR: '',
+        INST_ADDR: '',
+        BILL_ADDR: '',
+        UNPAY_AMT: 0,
+        CUST_TP_CD: '',
+        CUST_TP_NM: '',
+        REG_DT: ''
+      };
+    }
+    return null;
+  });
 
   // 데이터 상태
   const [contracts, setContracts] = useState<ContractInfo[]>([]);
@@ -66,6 +90,14 @@ const CustomerBasicInfo: React.FC<CustomerBasicInfoProps> = ({
     consultation: false,
     work: false
   });
+
+  // 컴포넌트 마운트 시 savedCustomer가 있으면 데이터 로드
+  useEffect(() => {
+    if (savedCustomer && contracts.length === 0) {
+      loadContracts(savedCustomer.custId);
+      loadHistory(savedCustomer.custId);
+    }
+  }, []); // 마운트 시 한 번만 실행
 
   // 고객 선택 핸들러
   const handleCustomerSelect = async (customer: CustomerInfo) => {
@@ -148,6 +180,7 @@ const CustomerBasicInfo: React.FC<CustomerBasicInfoProps> = ({
         <CustomerSearch
           onCustomerSelect={handleCustomerSelect}
           showToast={showToast}
+          selectedCustomer={selectedCustomer}
         />
 
         {/* 고객 선택 후 상세 정보 표시 */}
