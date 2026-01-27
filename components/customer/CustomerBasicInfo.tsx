@@ -138,7 +138,6 @@ const CustomerBasicInfo: React.FC<CustomerBasicInfoProps> = ({
       prodNm: contract.PROD_NM,
       instAddr: contract.INST_ADDR
     });
-    showToast?.(`${contract.PROD_NM} 계약이 선택되었습니다.`, 'success');
   };
 
   return (
