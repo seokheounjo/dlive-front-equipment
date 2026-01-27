@@ -29,7 +29,6 @@ const CustomerSearch: React.FC<CustomerSearchProps> = ({ onCustomerSelect, showT
   const [customerId, setCustomerId] = useState('');
   const [contractId, setContractId] = useState('');
   const [equipmentNo, setEquipmentNo] = useState('');
-  const [mainEquipmentNo, setMainEquipmentNo] = useState('');  // 메인 화면 S/N 입력
 
   // 상태
   const [isSearching, setIsSearching] = useState(false);
@@ -50,11 +49,6 @@ const CustomerSearch: React.FC<CustomerSearchProps> = ({ onCustomerSelect, showT
     setShowModal(true);
     setSearchResults([]);
     setHasSearched(false);
-    // 메인 화면 S/N 값을 팝업으로 전달
-    if (mainEquipmentNo) {
-      setActiveTab('EQUIPMENT_NO');
-      setEquipmentNo(mainEquipmentNo);
-    }
   };
 
   // 팝업 닫기
@@ -152,19 +146,13 @@ const CustomerSearch: React.FC<CustomerSearchProps> = ({ onCustomerSelect, showT
 
   // 바코드 스캔 결과 처리
   const handleBarcodeScan = (barcode: string) => {
-    const value = barcode.toUpperCase();
-    if (showModal) {
-      setEquipmentNo(value);
-    } else {
-      setMainEquipmentNo(value);
-    }
+    setEquipmentNo(barcode.toUpperCase());
     setShowScanner(false);
   };
 
   // 고객 선택
   const handleSelectCustomer = (customer: CustomerInfo) => {
     onCustomerSelect(customer);
-    setMainEquipmentNo('');  // S/N 초기화
     closeModal();
   };
 
