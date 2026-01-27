@@ -12,6 +12,40 @@ import {
   AddressChangeRequest
 } from '../../services/customerApi';
 
+// Daum Postcode API type declaration
+declare global {
+  interface Window {
+    daum: {
+      Postcode: new (options: {
+        oncomplete: (data: DaumPostcodeData) => void;
+        onclose?: () => void;
+        width?: string | number;
+        height?: string | number;
+      }) => { open: () => void };
+    };
+  }
+}
+
+interface DaumPostcodeData {
+  zonecode: string;      // 우편번호
+  address: string;       // 기본주소
+  addressEnglish: string;
+  addressType: string;
+  userSelectedType: string;
+  roadAddress: string;   // 도로명주소
+  jibunAddress: string;  // 지번주소
+  buildingName: string;  // 건물명
+  apartment: string;
+  bcode: string;
+  bname: string;
+  bname1: string;
+  bname2: string;
+  sido: string;
+  sigungu: string;
+  sigunguCode: string;
+  query: string;
+}
+
 interface CustomerInfoChangeProps {
   onBack: () => void;
   showToast?: (message: string, type: 'success' | 'error' | 'warning' | 'info') => void;
@@ -193,10 +227,33 @@ const CustomerInfoChange: React.FC<CustomerInfoChangeProps> = ({
     }
   };
 
-  // 우편번호 검색 (TODO: 실제 우편번호 API 연동)
+  // 우편번호 검색 (다음 우편번호 API)
   const handleSearchZipCode = () => {
-    showToast?.('우편번호 검색 기능은 준비 중입니다.', 'info');
-    // TODO: 다음 우편번호 API 또는 기타 우편번호 검색 연동
+    if (!window.daum || !window.daum.Postcode) {
+      showToast?.('우편번호 검색 서비스를 불러오는 중입니다. 잠시 후 다시 시도해주세요.', 'warning');
+      return;
+    }
+
+    new window.daum.Postcode({
+      oncomplete: (data: DaumPostcodeData) => {
+        // 도로명주소 우선, 없으면 지번주소 사용
+        let fullAddress = data.roadAddress || data.jibunAddress;
+
+        // 건물명이 있으면 추가
+        if (data.buildingName) {
+          fullAddress += ` (${data.buildingName})`;
+        }
+
+        setAddressForm(prev => ({
+          ...prev,
+          zipCd: data.zonecode,
+          addr1: fullAddress,
+          addr2: ''  // 상세주소는 사용자가 직접 입력
+        }));
+
+        showToast?.('주소가 입력되었습니다. 상세주소를 입력해주세요.', 'info');
+      }
+    }).open();
   };
 
   // 고객 미선택 시 안내
