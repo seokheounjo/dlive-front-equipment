@@ -92,10 +92,8 @@ const CustomerSearch: React.FC<CustomerSearchProps> = ({ onCustomerSelect, showT
         setSearchResults(response.data);
         if (response.data.length === 0) {
           showToast?.('검색 결과가 없습니다.', 'info');
-        } else if (response.data.length === 1) {
-          // 결과가 1건이면 자동 선택
-          onCustomerSelect(response.data[0]);
         }
+        // 결과가 1건이어도 자동 선택하지 않음 - 사용자가 직접 선택
       } else {
         showToast?.(response.message || '검색에 실패했습니다.', 'error');
         setSearchResults([]);

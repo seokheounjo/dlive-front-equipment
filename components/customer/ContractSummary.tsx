@@ -60,6 +60,7 @@ const ContractSummary: React.FC<ContractSummaryProps> = ({
   // 필터 상태: all, 20(사용중), 10(설치대기), 82(변경대기), pause(일시정지), cancel(해지대기), 90(해지)
   const [filterStatus, setFilterStatus] = useState<string>('all');
   const [searchKeyword, setSearchKeyword] = useState('');
+  const [filterExpanded, setFilterExpanded] = useState(false);
 
   // 선택된 계약
   const [selectedContractId, setSelectedContractId] = useState<string | null>(null);
@@ -157,101 +158,125 @@ const ContractSummary: React.FC<ContractSummaryProps> = ({
             </div>
           ) : (
             <>
-              {/* 필터 영역 */}
-              <div className="mb-4 space-y-3">
-                {/* 상태 필터 버튼 - 가로 스크롤 */}
-                <div className="flex gap-2 overflow-x-auto pb-1">
-                  <button
-                    onClick={() => setFilterStatus('all')}
-                    className={`px-3 py-1.5 text-sm rounded-full transition-colors whitespace-nowrap ${
-                      filterStatus === 'all'
-                        ? 'bg-blue-500 text-white'
-                        : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                    }`}
-                  >
-                    전체 ({statusCount.all})
-                  </button>
-                  <button
-                    onClick={() => setFilterStatus('20')}
-                    className={`px-3 py-1.5 text-sm rounded-full transition-colors whitespace-nowrap ${
-                      filterStatus === '20'
-                        ? 'bg-green-500 text-white'
-                        : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                    }`}
-                  >
-                    사용중 ({statusCount.active})
-                  </button>
-                  {statusCount.install > 0 && (
-                    <button
-                      onClick={() => setFilterStatus('10')}
-                      className={`px-3 py-1.5 text-sm rounded-full transition-colors whitespace-nowrap ${
-                        filterStatus === '10'
-                          ? 'bg-blue-500 text-white'
-                          : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                      }`}
-                    >
-                      설치대기 ({statusCount.install})
-                    </button>
-                  )}
-                  {statusCount.change > 0 && (
-                    <button
-                      onClick={() => setFilterStatus('82')}
-                      className={`px-3 py-1.5 text-sm rounded-full transition-colors whitespace-nowrap ${
-                        filterStatus === '82'
-                          ? 'bg-blue-500 text-white'
-                          : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                      }`}
-                    >
-                      변경대기 ({statusCount.change})
-                    </button>
-                  )}
-                  {statusCount.pause > 0 && (
-                    <button
-                      onClick={() => setFilterStatus('pause')}
-                      className={`px-3 py-1.5 text-sm rounded-full transition-colors whitespace-nowrap ${
-                        filterStatus === 'pause'
-                          ? 'bg-yellow-500 text-white'
-                          : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                      }`}
-                    >
-                      일시정지 ({statusCount.pause})
-                    </button>
-                  )}
-                  {statusCount.cancelWait > 0 && (
-                    <button
-                      onClick={() => setFilterStatus('cancel')}
-                      className={`px-3 py-1.5 text-sm rounded-full transition-colors whitespace-nowrap ${
-                        filterStatus === 'cancel'
-                          ? 'bg-orange-500 text-white'
-                          : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                      }`}
-                    >
-                      해지대기 ({statusCount.cancelWait})
-                    </button>
-                  )}
-                  <button
-                    onClick={() => setFilterStatus('90')}
-                    className={`px-3 py-1.5 text-sm rounded-full transition-colors whitespace-nowrap ${
-                      filterStatus === '90'
-                        ? 'bg-gray-500 text-white'
-                        : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                    }`}
-                  >
-                    해지 ({statusCount.terminated})
-                  </button>
-                </div>
+              {/* 상세 필터 토글 버튼 */}
+              <div className="mb-3">
+                <button
+                  onClick={() => setFilterExpanded(!filterExpanded)}
+                  className="w-full px-4 py-3 flex items-center justify-between bg-gray-50 hover:bg-gray-100 transition-colors rounded-lg"
+                >
+                  <div className="flex items-center gap-2">
+                    <Filter className="w-4 h-4 text-gray-500" />
+                    <span className="text-sm font-semibold text-gray-700">상세 필터</span>
+                    {filterStatus !== 'all' && (
+                      <span className="text-xs px-2 py-0.5 bg-blue-100 text-blue-700 rounded-full">
+                        필터 적용중
+                      </span>
+                    )}
+                  </div>
+                  <ChevronDown className={`w-5 h-5 text-gray-400 transition-transform duration-200 ${filterExpanded ? 'rotate-180' : ''}`} />
+                </button>
 
-                {/* 검색 필드 */}
-                <div className="relative">
-                  <Filter className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
-                  <input
-                    type="text"
-                    value={searchKeyword}
-                    onChange={(e) => setSearchKeyword(e.target.value)}
-                    placeholder="계약ID, 상품명, 장비번호 검색"
-                    className="w-full pl-10 pr-4 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  />
-                </div>
+                {/* 필터 내용 (펼침 시) */}
+                {filterExpanded && (
+                  <div className="mt-2 p-3 bg-gray-50 rounded-lg space-y-3">
+                    {/* 상태 필터 버튼 */}
+                    <div>
+                      <div className="text-xs font-medium text-gray-500 mb-2">계약 상태</div>
+                      <div className="flex flex-wrap gap-2">
+                        <button
+                          onClick={() => setFilterStatus('all')}
+                          className={`px-3 py-1.5 text-xs rounded-full transition-colors ${
+                            filterStatus === 'all'
+                              ? 'bg-blue-500 text-white'
+                              : 'bg-white text-gray-600 border border-gray-300 hover:bg-gray-100'
+                          }`}
+                        >
+                          전체 ({statusCount.all})
+                        </button>
+                        <button
+                          onClick={() => setFilterStatus('20')}
+                          className={`px-3 py-1.5 text-xs rounded-full transition-colors ${
+                            filterStatus === '20'
+                              ? 'bg-green-500 text-white'
+                              : 'bg-white text-gray-600 border border-gray-300 hover:bg-gray-100'
+                          }`}
+                        >
+                          사용중 ({statusCount.active})
+                        </button>
+                        {statusCount.install > 0 && (
+                          <button
+                            onClick={() => setFilterStatus('10')}
+                            className={`px-3 py-1.5 text-xs rounded-full transition-colors ${
+                              filterStatus === '10'
+                                ? 'bg-blue-500 text-white'
+                                : 'bg-white text-gray-600 border border-gray-300 hover:bg-gray-100'
+                            }`}
+                          >
+                            설치대기 ({statusCount.install})
+                          </button>
+                        )}
+                        {statusCount.change > 0 && (
+                          <button
+                            onClick={() => setFilterStatus('82')}
+                            className={`px-3 py-1.5 text-xs rounded-full transition-colors ${
+                              filterStatus === '82'
+                                ? 'bg-blue-500 text-white'
+                                : 'bg-white text-gray-600 border border-gray-300 hover:bg-gray-100'
+                            }`}
+                          >
+                            변경대기 ({statusCount.change})
+                          </button>
+                        )}
+                        {statusCount.pause > 0 && (
+                          <button
+                            onClick={() => setFilterStatus('pause')}
+                            className={`px-3 py-1.5 text-xs rounded-full transition-colors ${
+                              filterStatus === 'pause'
+                                ? 'bg-yellow-500 text-white'
+                                : 'bg-white text-gray-600 border border-gray-300 hover:bg-gray-100'
+                            }`}
+                          >
+                            일시정지 ({statusCount.pause})
+                          </button>
+                        )}
+                        {statusCount.cancelWait > 0 && (
+                          <button
+                            onClick={() => setFilterStatus('cancel')}
+                            className={`px-3 py-1.5 text-xs rounded-full transition-colors ${
+                              filterStatus === 'cancel'
+                                ? 'bg-orange-500 text-white'
+                                : 'bg-white text-gray-600 border border-gray-300 hover:bg-gray-100'
+                            }`}
+                          >
+                            해지대기 ({statusCount.cancelWait})
+                          </button>
+                        )}
+                        <button
+                          onClick={() => setFilterStatus('90')}
+                          className={`px-3 py-1.5 text-xs rounded-full transition-colors ${
+                            filterStatus === '90'
+                              ? 'bg-gray-500 text-white'
+                              : 'bg-white text-gray-600 border border-gray-300 hover:bg-gray-100'
+                          }`}
+                        >
+                          해지 ({statusCount.terminated})
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* 검색 필드 */}
+                    <div>
+                      <div className="text-xs font-medium text-gray-500 mb-2">검색</div>
+                      <input
+                        type="text"
+                        value={searchKeyword}
+                        onChange={(e) => setSearchKeyword(e.target.value)}
+                        placeholder="계약ID, 상품명, 장비번호"
+                        className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      />
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* 계약 목록 */}
