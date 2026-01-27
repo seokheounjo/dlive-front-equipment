@@ -1,15 +1,18 @@
 import React, { useState, useEffect } from 'react';
 import {
   Phone, MapPin, Edit2, Save, X, Loader2,
-  ChevronDown, ChevronUp, AlertCircle, Check, Search
+  ChevronDown, ChevronUp, AlertCircle, Check, Search,
+  Smartphone, RefreshCw
 } from 'lucide-react';
 import {
   updatePhoneNumber,
   updateAddress,
   getTelecomCodes,
+  getHPPayList,
   formatPhoneNumber,
   PhoneChangeRequest,
-  AddressChangeRequest
+  AddressChangeRequest,
+  HPPayInfo
 } from '../../services/customerApi';
 
 // Daum Postcode API type declaration
@@ -79,7 +82,8 @@ const CustomerInfoChange: React.FC<CustomerInfoChangeProps> = ({
   // 섹션 펼침 상태
   const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({
     phone: true,
-    address: false
+    address: false,
+    hpPay: false
   });
 
   // 전화번호 변경 폼
@@ -105,6 +109,11 @@ const CustomerInfoChange: React.FC<CustomerInfoChangeProps> = ({
   const [isSavingPhone, setIsSavingPhone] = useState(false);
   const [isSavingAddress, setIsSavingAddress] = useState(false);
 
+  // 휴대폰결제(선결제) 현황
+  const [hpPayList, setHpPayList] = useState<HPPayInfo[]>([]);
+  const [isLoadingHpPay, setIsLoadingHpPay] = useState(false);
+  const [hpPayLoaded, setHpPayLoaded] = useState(false);
+
   // 통신사 코드 로드
   useEffect(() => {
     loadTelecomCodes();
@@ -124,12 +133,39 @@ const CustomerInfoChange: React.FC<CustomerInfoChangeProps> = ({
     }
   };
 
+  // 휴대폰결제(선결제) 목록 로드
+  const loadHpPayList = async () => {
+    if (!selectedCustomer) return;
+
+    setIsLoadingHpPay(true);
+    try {
+      const response = await getHPPayList(selectedCustomer.custId);
+      if (response.success && response.data) {
+        setHpPayList(response.data);
+      } else {
+        setHpPayList([]);
+      }
+      setHpPayLoaded(true);
+    } catch (error) {
+      console.error('Load HP pay list error:', error);
+      setHpPayList([]);
+    } finally {
+      setIsLoadingHpPay(false);
+    }
+  };
+
   // 섹션 토글
   const toggleSection = (section: string) => {
+    const newState = !expandedSections[section];
     setExpandedSections(prev => ({
       ...prev,
-      [section]: !prev[section]
+      [section]: newState
     }));
+
+    // 휴대폰결제 섹션 펼칠 때 데이터 로드 (최초 1회)
+    if (section === 'hpPay' && newState && !hpPayLoaded) {
+      loadHpPayList();
+    }
   };
 
   // 전화번호 변경 저장
@@ -531,6 +567,111 @@ const CustomerInfoChange: React.FC<CustomerInfoChangeProps> = ({
                   </>
                 )}
               </button>
+            </div>
+          )}
+        </div>
+
+        {/* 휴대폰결제(선결제) 현황 */}
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200">
+          <button
+            onClick={() => toggleSection('hpPay')}
+            className="w-full p-4 flex items-center justify-between text-left"
+          >
+            <div className="flex items-center gap-2">
+              <Smartphone className="w-5 h-5 text-purple-500" />
+              <span className="font-medium text-gray-800">휴대폰결제(선결제) 현황</span>
+            </div>
+            {expandedSections.hpPay ? (
+              <ChevronUp className="w-5 h-5 text-gray-400" />
+            ) : (
+              <ChevronDown className="w-5 h-5 text-gray-400" />
+            )}
+          </button>
+
+          {expandedSections.hpPay && (
+            <div className="px-4 pb-4 space-y-3">
+              {/* 새로고침 버튼 */}
+              <div className="flex justify-end">
+                <button
+                  onClick={loadHpPayList}
+                  disabled={isLoadingHpPay}
+                  className="flex items-center gap-1 px-3 py-1 text-sm text-purple-600 hover:bg-purple-50 rounded-lg transition-colors"
+                >
+                  <RefreshCw className={`w-4 h-4 ${isLoadingHpPay ? 'animate-spin' : ''}`} />
+                  새로고침
+                </button>
+              </div>
+
+              {/* 로딩 상태 */}
+              {isLoadingHpPay && (
+                <div className="flex items-center justify-center py-8">
+                  <Loader2 className="w-6 h-6 text-purple-500 animate-spin" />
+                  <span className="ml-2 text-gray-500">조회 중...</span>
+                </div>
+              )}
+
+              {/* 데이터 없음 */}
+              {!isLoadingHpPay && hpPayLoaded && hpPayList.length === 0 && (
+                <div className="text-center py-8 text-gray-500">
+                  <Smartphone className="w-12 h-12 text-gray-300 mx-auto mb-2" />
+                  <p>휴대폰결제 신청 내역이 없습니다.</p>
+                </div>
+              )}
+
+              {/* 계약별 목록 */}
+              {!isLoadingHpPay && hpPayList.length > 0 && (
+                <div className="space-y-2">
+                  {hpPayList.map((item, index) => (
+                    <div
+                      key={item.CTRT_ID || index}
+                      className="p-3 bg-gray-50 rounded-lg border border-gray-100"
+                    >
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="font-medium text-gray-800 text-sm">
+                          {item.PROD_NM || '상품명 없음'}
+                        </span>
+                        <span
+                          className={`px-2 py-0.5 text-xs rounded-full ${
+                            item.HP_PAY_YN === 'Y'
+                              ? 'bg-green-100 text-green-700'
+                              : 'bg-gray-100 text-gray-600'
+                          }`}
+                        >
+                          {item.HP_PAY_YN === 'Y' ? '신청' : '미신청'}
+                        </span>
+                      </div>
+                      <div className="text-xs text-gray-500 space-y-1">
+                        <div className="flex justify-between">
+                          <span>계약ID:</span>
+                          <span className="text-gray-700">{item.CTRT_ID}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span>계약상태:</span>
+                          <span className="text-gray-700">{item.CTRT_STAT_NM || '-'}</span>
+                        </div>
+                        {item.INST_ADDR && (
+                          <div className="flex justify-between">
+                            <span>설치주소:</span>
+                            <span className="text-gray-700 text-right max-w-[200px] truncate">
+                              {item.INST_ADDR}
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* 안내 메시지 */}
+              <div className="p-3 bg-purple-50 border border-purple-200 rounded-lg">
+                <div className="flex items-start gap-2">
+                  <AlertCircle className="w-4 h-4 text-purple-600 mt-0.5" />
+                  <div className="text-sm text-purple-700">
+                    <p>휴대폰결제 신청/해지는 고객센터를 통해 처리됩니다.</p>
+                  </div>
+                </div>
+              </div>
             </div>
           )}
         </div>
