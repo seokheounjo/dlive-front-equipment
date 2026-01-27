@@ -255,7 +255,7 @@ export interface PaymentMethodChangeRequest {
   PYM_ACNT_ID: string;       // 납부계정ID
   CUST_ID: string;           // 고객ID
   ACNT_NM?: string;          // 납부자명
-  PYM_MTHD: string;          // 납부방법 (BLIV005) - 02: 자동이체, 04: 신용카드
+  PYM_MTHD?: string;         // 납부방법 (BLIV005) - 02: 자동이체, 04: 신용카드
   PMC_RESN?: string;         // 납부방법변경사유 (CMCU079)
   BANK_CARD?: string;        // 은행/카드코드 (자동이체: BLPY015, 카드: BLPY016)
   ACNT_CARD_NO?: string;     // 계좌/카드번호
@@ -278,13 +278,31 @@ export interface PaymentMethodChangeRequest {
   // 기타
   MST_SO_ID?: string;        // 계열사ID
   SO_ID?: string;            // 지점ID
-  // Legacy 호환용 (자동 매핑됨)
+  USR_ID?: string;           // 사용자ID
+  // Legacy 호환용 (백엔드에서 자동 매핑됨)
   PYM_MTH_CD?: string;       // -> PYM_MTHD로 매핑 (01->02, 02->04)
   BANK_CD?: string;          // -> BANK_CARD로 매핑
   ACNT_NO?: string;          // -> ACNT_CARD_NO로 매핑
   CARD_NO?: string;          // -> ACNT_CARD_NO로 매핑
+  CARD_CO_CD?: string;       // -> BANK_CARD로 매핑 (카드사)
   CARD_VALID_YM?: string;    // -> CDTCD_EXP_DT로 매핑
-  ACNT_OWNER_NM?: string;    // -> PYM_CUST_NM/REQR_NM으로 매핑
+  ACNT_OWNER_NM?: string;    // -> PYM_CUST_NM/REQR_NM/ACNT_NM으로 매핑
+  // 모바일 프론트엔드 추가 필드 (백엔드에서 매핑)
+  CHG_RESN_L_CD?: string;    // -> PMC_RESN으로 매핑 (변경사유 대분류)
+  CHG_RESN_M_CD?: string;    // -> PMC_RESN으로 매핑 (변경사유 중분류)
+  PAYER_REL_CD?: string;     // -> PYR_REL으로 매핑
+  PAY_DAY_CD?: string;       // -> PYM_CARD_DATE로 매핑
+  ID_TYPE_CD?: string;       // 신분유형
+  BIRTH_DT?: string;         // -> PYM_CUST_CRRNO/CARD_RSDT_CRRNO로 매핑
+  // 청구주소 상세필드
+  DONG_NM?: string;          // 읍/면/동
+  ROAD_ADDR?: string;        // 도로명주소
+  JIBUN_ADDR?: string;       // 지번주소
+  BLDG_CD?: string;          // 건물구분
+  BLDG_NM?: string;          // 건물명
+  BLDG_NO?: string;          // 건물번호
+  DONG_NO?: string;          // 동
+  HO_NO?: string;            // 호
 }
 
 // 계좌 인증 요청

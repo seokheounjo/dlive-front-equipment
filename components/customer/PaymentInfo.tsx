@@ -4,6 +4,41 @@ import {
   Wallet, AlertCircle, Calendar, Receipt,
   RefreshCw, Building2, X, Check, Shield, Search, MapPin
 } from 'lucide-react';
+
+// Daum Postcode API type declaration
+declare global {
+  interface Window {
+    daum: {
+      Postcode: new (options: {
+        oncomplete: (data: DaumPostcodeData) => void;
+        onclose?: () => void;
+        width?: string | number;
+        height?: string | number;
+      }) => { open: () => void };
+    };
+  }
+}
+
+interface DaumPostcodeData {
+  zonecode: string;      // 우편번호
+  address: string;       // 기본주소
+  addressEnglish: string;
+  addressType: string;
+  userSelectedType: string;
+  roadAddress: string;   // 도로명주소
+  jibunAddress: string;  // 지번주소
+  buildingName: string;  // 건물명
+  apartment: string;
+  bcode: string;
+  bname: string;         // 법정동명
+  bname1: string;
+  bname2: string;
+  sido: string;          // 시/도
+  sigungu: string;       // 시/군/구
+  sigunguCode: string;
+  query: string;
+}
+
 import {
   PaymentInfo as PaymentInfoType,
   BillingInfo,
@@ -449,9 +484,29 @@ const PaymentInfo: React.FC<PaymentInfoProps> = ({
     }
   };
 
-  // 주소 검색 (TODO: 실제 주소검색 API 연동)
+  // 주소 검색 (다음 우편번호 API)
   const handleAddressSearch = () => {
-    showToast?.('주소 검색 기능은 준비 중입니다.', 'info');
+    if (!window.daum || !window.daum.Postcode) {
+      showToast?.('우편번호 검색 서비스를 불러오는 중입니다. 잠시 후 다시 시도해주세요.', 'warning');
+      return;
+    }
+
+    new window.daum.Postcode({
+      oncomplete: (data: DaumPostcodeData) => {
+        // 도로명주소와 지번주소 설정
+        setPaymentChangeForm(prev => ({
+          ...prev,
+          dongNm: data.bname || data.sigungu,  // 읍/면/동
+          roadAddr: data.roadAddress,          // 도로명주소
+          jibunAddr: data.jibunAddress,        // 지번주소
+          bldgNm: data.buildingName || '',     // 건물명
+          // 아파트인 경우 건물 구분을 자동 설정
+          bldgCd: data.apartment === 'Y' ? '01' : ''
+        }));
+
+        showToast?.('주소가 입력되었습니다. 상세주소(동/호)를 입력해주세요.', 'info');
+      }
+    }).open();
   };
 
   return (
