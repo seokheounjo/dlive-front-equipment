@@ -182,11 +182,40 @@ const CustomerInfoChange: React.FC<CustomerInfoChangeProps> = ({
 
     setIsSavingPhone(true);
     try {
+      // 전화번호 분리 (010-1234-5678 형식으로 분리)
+      const telNo = phoneForm.telNo.replace(/[^0-9]/g, '');
+      let telDdd = '';
+      let telFix = '';
+      let telDtl = '';
+
+      if (telNo.length === 11) {
+        // 010-1234-5678
+        telDdd = telNo.substring(0, 3);
+        telFix = telNo.substring(3, 7);
+        telDtl = telNo.substring(7, 11);
+      } else if (telNo.length === 10) {
+        // 02-1234-5678 or 031-123-4567
+        if (telNo.startsWith('02')) {
+          telDdd = telNo.substring(0, 2);
+          telFix = telNo.substring(2, 6);
+          telDtl = telNo.substring(6, 10);
+        } else {
+          telDdd = telNo.substring(0, 3);
+          telFix = telNo.substring(3, 6);
+          telDtl = telNo.substring(6, 10);
+        }
+      }
+
       const params: PhoneChangeRequest = {
         CUST_ID: selectedCustomer.custId,
-        TEL_NO: phoneForm.telNo,
-        TEL_TP_CD: phoneForm.telTpCd,
-        DISCONN_YN: phoneForm.disconnYn
+        TEL_DDD: telDdd,
+        TEL_FIX: telFix,
+        TEL_DTL: telDtl,
+        MB_CORP_TP: phoneForm.telTpCd,
+        NO_SVC_YN: phoneForm.disconnYn,
+        TEL_NO_TP: '2',
+        USE_YN: 'Y',
+        CHG_UID: ''
       };
 
       const response = await updatePhoneNumber(params);
@@ -225,18 +254,16 @@ const CustomerInfoChange: React.FC<CustomerInfoChangeProps> = ({
 
     setIsSavingAddress(true);
     try {
-      // 선택된 주소 유형에 따라 변경
-      const addrType = addressForm.changeInstAddr ? 'INST' :
-                       addressForm.changeCustAddr ? 'CUST' : 'BILL';
+      // 상세주소 = 기본주소 + 상세주소
+      const fullAddr = addressForm.addr2
+        ? `${addressForm.addr1} ${addressForm.addr2}`
+        : addressForm.addr1;
 
       const params: AddressChangeRequest = {
         CUST_ID: selectedCustomer.custId,
-        ADDR_TP: addrType,
+        ADDR_ORD: '1',  // 기본 주소순번
         ZIP_CD: addressForm.zipCd,
-        ADDR1: addressForm.addr1,
-        ADDR2: addressForm.addr2,
-        CHANGE_CUST_ADDR: addressForm.changeCustAddr,
-        CHANGE_BILL_ADDR: addressForm.changeBillAddr
+        ADDR_DTL: fullAddr
       };
 
       const response = await updateAddress(params);
