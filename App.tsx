@@ -7,6 +7,7 @@ import Dashboard from './components/work/Dashboard';
 import Login from './components/layout/Login';
 import MainMenu from './components/layout/MainMenu';
 import ComingSoon from './components/layout/ComingSoon';
+import BottomNavigation from './components/common/BottomNavigation';
 import WorkOrderDetail from './components/work/WorkOrderDetail';
 import WorkCompleteRouter from './components/work/process/complete';
 import WorkCompletionResult from './components/work/WorkCompletionResult';
@@ -411,9 +412,10 @@ const App: React.FC = () => {
             userInfo={userInfo}
             selectedWorkItem={selectedWorkItem}
           />
-          <main className="flex-1 w-full max-w-7xl mx-auto pt-12 pb-4 flex flex-col overflow-hidden">
+          <main className="flex-1 w-full max-w-7xl mx-auto pt-12 pb-[calc(52px+env(safe-area-inset-bottom,0px))] flex flex-col overflow-hidden">
             {renderContent()}
           </main>
+          <BottomNavigation currentView={currentView} onSelectMenu={navigateToView} />
           {toast && (
             <Toast
               message={toast.message}
