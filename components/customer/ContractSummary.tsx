@@ -57,8 +57,8 @@ const ContractSummary: React.FC<ContractSummaryProps> = ({
   onASRequest,
   showToast
 }) => {
-  // 필터 상태
-  const [filterStatus, setFilterStatus] = useState<'all' | 'active' | 'terminated'>('all');
+  // 필터 상태: all, 20(사용중), 10(설치대기), 82(변경대기), pause(일시정지), cancel(해지대기), 90(해지)
+  const [filterStatus, setFilterStatus] = useState<string>('all');
   const [searchKeyword, setSearchKeyword] = useState('');
 
   // 선택된 계약
@@ -67,14 +67,30 @@ const ContractSummary: React.FC<ContractSummaryProps> = ({
   // 상세 펼침 상태
   const [expandedContractId, setExpandedContractId] = useState<string | null>(null);
 
-  // 해지 상태 코드 (90: 해지, 80: 해지대기A, 89: 해지대기B)
-  const isTerminated = (statCd: string) => ['90', '80', '89'].includes(statCd);
+  // 상태별 그룹
+  const isPause = (statCd: string) => ['30', '38'].includes(statCd);       // 일시정지
+  const isCancelWait = (statCd: string) => ['80', '89'].includes(statCd);  // 해지대기
 
   // 필터링된 계약 목록
   const filteredContracts = contracts.filter(contract => {
+    const statCd = contract.CTRT_STAT_CD;
+
     // 상태 필터
-    if (filterStatus === 'active' && isTerminated(contract.CTRT_STAT_CD)) return false;
-    if (filterStatus === 'terminated' && !isTerminated(contract.CTRT_STAT_CD)) return false;
+    if (filterStatus === 'all') {
+      // 전체
+    } else if (filterStatus === '20') {
+      if (statCd !== '20') return false;
+    } else if (filterStatus === '10') {
+      if (statCd !== '10') return false;
+    } else if (filterStatus === '82') {
+      if (statCd !== '82') return false;
+    } else if (filterStatus === 'pause') {
+      if (!isPause(statCd)) return false;
+    } else if (filterStatus === 'cancel') {
+      if (!isCancelWait(statCd)) return false;
+    } else if (filterStatus === '90') {
+      if (statCd !== '90') return false;
+    }
 
     // 키워드 검색 (계약ID, 상품명, 장비시리얼)
     if (searchKeyword) {
@@ -91,8 +107,12 @@ const ContractSummary: React.FC<ContractSummaryProps> = ({
   // 계약 상태별 카운트
   const statusCount = {
     all: contracts.length,
-    active: contracts.filter(c => !isTerminated(c.CTRT_STAT_CD)).length,
-    terminated: contracts.filter(c => isTerminated(c.CTRT_STAT_CD)).length
+    active: contracts.filter(c => c.CTRT_STAT_CD === '20').length,
+    install: contracts.filter(c => c.CTRT_STAT_CD === '10').length,
+    change: contracts.filter(c => c.CTRT_STAT_CD === '82').length,
+    pause: contracts.filter(c => isPause(c.CTRT_STAT_CD)).length,
+    cancelWait: contracts.filter(c => isCancelWait(c.CTRT_STAT_CD)).length,
+    terminated: contracts.filter(c => c.CTRT_STAT_CD === '90').length
   };
 
   // 계약 선택 핸들러
@@ -139,11 +159,11 @@ const ContractSummary: React.FC<ContractSummaryProps> = ({
             <>
               {/* 필터 영역 */}
               <div className="mb-4 space-y-3">
-                {/* 상태 필터 버튼 */}
-                <div className="flex gap-2">
+                {/* 상태 필터 버튼 - 가로 스크롤 */}
+                <div className="flex gap-2 overflow-x-auto pb-1">
                   <button
                     onClick={() => setFilterStatus('all')}
-                    className={`px-3 py-1.5 text-sm rounded-full transition-colors ${
+                    className={`px-3 py-1.5 text-sm rounded-full transition-colors whitespace-nowrap ${
                       filterStatus === 'all'
                         ? 'bg-blue-500 text-white'
                         : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
@@ -152,19 +172,67 @@ const ContractSummary: React.FC<ContractSummaryProps> = ({
                     전체 ({statusCount.all})
                   </button>
                   <button
-                    onClick={() => setFilterStatus('active')}
-                    className={`px-3 py-1.5 text-sm rounded-full transition-colors ${
-                      filterStatus === 'active'
+                    onClick={() => setFilterStatus('20')}
+                    className={`px-3 py-1.5 text-sm rounded-full transition-colors whitespace-nowrap ${
+                      filterStatus === '20'
                         ? 'bg-green-500 text-white'
                         : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
                     }`}
                   >
                     사용중 ({statusCount.active})
                   </button>
+                  {statusCount.install > 0 && (
+                    <button
+                      onClick={() => setFilterStatus('10')}
+                      className={`px-3 py-1.5 text-sm rounded-full transition-colors whitespace-nowrap ${
+                        filterStatus === '10'
+                          ? 'bg-blue-500 text-white'
+                          : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                      }`}
+                    >
+                      설치대기 ({statusCount.install})
+                    </button>
+                  )}
+                  {statusCount.change > 0 && (
+                    <button
+                      onClick={() => setFilterStatus('82')}
+                      className={`px-3 py-1.5 text-sm rounded-full transition-colors whitespace-nowrap ${
+                        filterStatus === '82'
+                          ? 'bg-blue-500 text-white'
+                          : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                      }`}
+                    >
+                      변경대기 ({statusCount.change})
+                    </button>
+                  )}
+                  {statusCount.pause > 0 && (
+                    <button
+                      onClick={() => setFilterStatus('pause')}
+                      className={`px-3 py-1.5 text-sm rounded-full transition-colors whitespace-nowrap ${
+                        filterStatus === 'pause'
+                          ? 'bg-yellow-500 text-white'
+                          : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                      }`}
+                    >
+                      일시정지 ({statusCount.pause})
+                    </button>
+                  )}
+                  {statusCount.cancelWait > 0 && (
+                    <button
+                      onClick={() => setFilterStatus('cancel')}
+                      className={`px-3 py-1.5 text-sm rounded-full transition-colors whitespace-nowrap ${
+                        filterStatus === 'cancel'
+                          ? 'bg-orange-500 text-white'
+                          : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                      }`}
+                    >
+                      해지대기 ({statusCount.cancelWait})
+                    </button>
+                  )}
                   <button
-                    onClick={() => setFilterStatus('terminated')}
-                    className={`px-3 py-1.5 text-sm rounded-full transition-colors ${
-                      filterStatus === 'terminated'
+                    onClick={() => setFilterStatus('90')}
+                    className={`px-3 py-1.5 text-sm rounded-full transition-colors whitespace-nowrap ${
+                      filterStatus === '90'
                         ? 'bg-gray-500 text-white'
                         : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
                     }`}
@@ -304,7 +372,7 @@ const ContractSummary: React.FC<ContractSummaryProps> = ({
                             <Check className="w-4 h-4" />
                             선택
                           </button>
-                          {!isTerminated(contract.CTRT_STAT_CD) && (
+                          {contract.CTRT_STAT_CD === '20' && (
                             <button
                               onClick={(e) => {
                                 e.stopPropagation();
