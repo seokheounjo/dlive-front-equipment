@@ -75,9 +75,13 @@ const CustomerInfoChange: React.FC<CustomerInfoChangeProps> = ({
     zipCd: '',
     addr1: '',
     addr2: '',
-    changeInstAddr: true,
-    changeCustAddr: false,
-    changeBillAddr: false
+    changeInstAddr: false,  // 설치주소 (CTRT_ID 필요)
+    changeCustAddr: true,   // 고객주소 (기본 선택)
+    changeBillAddr: false,  // 청구지주소
+    // 주소 검색 결과에서 가져오는 추가 정보
+    postId: '',             // 주소ID (POST_ID)
+    streetId: '',           // 도로명ID (STREET_ID)
+    dongmyonNm: ''          // 읍면동명 (DONGMYON_NM)
   });
 
   // 로딩/저장 상태
@@ -439,6 +443,12 @@ const CustomerInfoChange: React.FC<CustomerInfoChangeProps> = ({
       return;
     }
 
+    // 설치주소 변경 시 계약ID 필요 - 현재는 미지원
+    if (addressForm.changeInstAddr) {
+      showToast?.('설치주소 변경은 기본조회 탭에서 계약을 선택한 후 진행해주세요.', 'warning');
+      return;
+    }
+
     setIsSavingAddress(true);
     try {
       // 상세주소 = 기본주소 + 상세주소
@@ -446,11 +456,22 @@ const CustomerInfoChange: React.FC<CustomerInfoChangeProps> = ({
         ? `${addressForm.addr1} ${addressForm.addr2}`
         : addressForm.addr1;
 
+      // D'Live API 스펙에 맞는 파라미터
+      // saveMargeAddrOrdInfo: 고객주소 변경
+      // - CUST_ID: 고객ID
+      // - ADDR_ORD: 주소순번
+      // - DONGMYON_NM: 읍면동명 (선택)
+      // - STREET_ID: 도로명ID (선택)
+      // - ZIP_CD: 우편번호 (선택)
+      // - ADDR_DTL: 상세주소 (선택)
       const params: AddressChangeRequest = {
         CUST_ID: selectedCustomer.custId,
         ADDR_ORD: '1',  // 기본 주소순번
         ZIP_CD: addressForm.zipCd,
-        ADDR_DTL: fullAddr
+        ADDR_DTL: fullAddr,
+        // 추가 정보 (검색 결과에서)
+        DONGMYON_NM: addressForm.dongmyonNm || undefined,
+        STREET_ID: addressForm.streetId || undefined
       };
 
       const response = await updateAddress(params);
@@ -462,9 +483,12 @@ const CustomerInfoChange: React.FC<CustomerInfoChangeProps> = ({
           zipCd: '',
           addr1: '',
           addr2: '',
-          changeInstAddr: true,
-          changeCustAddr: false,
-          changeBillAddr: false
+          changeInstAddr: false,
+          changeCustAddr: true,
+          changeBillAddr: false,
+          postId: '',
+          streetId: '',
+          dongmyonNm: ''
         });
         setSelectedPostId('');
       } else {
@@ -565,7 +589,10 @@ const CustomerInfoChange: React.FC<CustomerInfoChangeProps> = ({
       ...prev,
       zipCd: addr.ZIP_CD,
       addr1: addr.ADDR_FULL || addr.ADDR,
-      addr2: ''
+      addr2: '',
+      postId: addr.POST_ID,
+      streetId: '',  // 지번주소는 도로명ID 없음
+      dongmyonNm: addr.DONGMYON_NM || ''
     }));
     setSelectedPostId(addr.POST_ID);
     handleCloseAddressModal();
@@ -578,7 +605,10 @@ const CustomerInfoChange: React.FC<CustomerInfoChangeProps> = ({
       ...prev,
       zipCd: addr.ZIP_CD,
       addr1: addr.STREET_ADDR || addr.ADDR_FULL,
-      addr2: ''
+      addr2: '',
+      postId: addr.POST_ID,
+      streetId: addr.STREET_ID,
+      dongmyonNm: addr.DONGMYON_NM || addr.NM_SMALL || ''
     }));
     setSelectedPostId(addr.POST_ID);
     handleCloseAddressModal();
@@ -738,17 +768,21 @@ const CustomerInfoChange: React.FC<CustomerInfoChangeProps> = ({
               <div className="space-y-2">
                 <label className="block text-sm text-gray-600 mb-2">변경할 주소 선택</label>
                 <div className="space-y-2">
-                  <label className="flex items-center gap-2 p-3 bg-gray-50 rounded-lg cursor-pointer hover:bg-gray-100">
+                  <label className="flex items-center gap-2 p-3 bg-gray-100 rounded-lg cursor-not-allowed opacity-60">
                     <input
                       type="checkbox"
                       checked={addressForm.changeInstAddr}
+                      disabled
                       onChange={(e) => setAddressForm(prev => ({
                         ...prev,
                         changeInstAddr: e.target.checked
                       }))}
-                      className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                      className="w-4 h-4 text-gray-400 border-gray-300 rounded"
                     />
-                    <span className="text-sm text-gray-700">설치주소</span>
+                    <div>
+                      <span className="text-sm text-gray-500">설치주소</span>
+                      <span className="text-xs text-gray-400 ml-2">(계약 선택 필요)</span>
+                    </div>
                   </label>
                   <label className="flex items-center gap-2 p-3 bg-gray-50 rounded-lg cursor-pointer hover:bg-gray-100">
                     <input
@@ -762,17 +796,21 @@ const CustomerInfoChange: React.FC<CustomerInfoChangeProps> = ({
                     />
                     <span className="text-sm text-gray-700">고객주소</span>
                   </label>
-                  <label className="flex items-center gap-2 p-3 bg-gray-50 rounded-lg cursor-pointer hover:bg-gray-100">
+                  <label className="flex items-center gap-2 p-3 bg-gray-100 rounded-lg cursor-not-allowed opacity-60">
                     <input
                       type="checkbox"
                       checked={addressForm.changeBillAddr}
+                      disabled
                       onChange={(e) => setAddressForm(prev => ({
                         ...prev,
                         changeBillAddr: e.target.checked
                       }))}
-                      className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                      className="w-4 h-4 text-gray-400 border-gray-300 rounded"
                     />
-                    <span className="text-sm text-gray-700">청구지주소</span>
+                    <div>
+                      <span className="text-sm text-gray-500">청구지주소</span>
+                      <span className="text-xs text-gray-400 ml-2">(계약 선택 필요)</span>
+                    </div>
                   </label>
                 </div>
               </div>
