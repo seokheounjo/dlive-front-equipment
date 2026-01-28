@@ -229,34 +229,41 @@ const CustomerSearch: React.FC<CustomerSearchProps> = ({ onCustomerSelect, showT
 
   return (
     <>
-      {/* 메인 화면 - 컴팩트한 검색 바 */}
-      <div
-        className="flex items-center gap-2 cursor-pointer"
-        onClick={openModal}
-      >
-        <input
-          readOnly
-          className="flex-1 min-w-0 px-2 py-1.5 text-sm border border-gray-200 rounded bg-gray-50 cursor-pointer truncate"
-          placeholder="고객명"
-          type="text"
-          value={selectedCustomer?.CUST_NM || ''}
-        />
-        <input
-          readOnly
-          className="w-28 px-2 py-1.5 text-sm border border-gray-200 rounded bg-gray-50 cursor-pointer"
-          placeholder="고객ID"
-          type="text"
-          value={selectedCustomer?.CUST_ID || ''}
-        />
-        <button
-          className="px-3 py-1.5 bg-blue-500 hover:bg-blue-600 text-white rounded text-sm font-medium whitespace-nowrap"
-          onClick={(e) => {
-            e.stopPropagation();
-            openModal();
-          }}
-        >
-          조회
-        </button>
+      {/* 메인 화면 - readonly 입력창 (원래 디자인) */}
+      <div className="bg-white rounded-lg border border-gray-100 shadow-sm p-3">
+        <div className="space-y-2">
+          {/* 고객검색 - 클릭하면 팝업 */}
+          <div className="flex items-center gap-2">
+            <label className="text-xs font-medium text-gray-600 w-14 flex-shrink-0">고객검색</label>
+            <div
+              className="flex-1 flex gap-2 cursor-pointer min-w-0 overflow-hidden"
+              onClick={openModal}
+            >
+              <input
+                readOnly
+                className="flex-1 min-w-0 px-2 py-2 text-sm border border-gray-200 rounded-lg bg-gray-50 cursor-pointer truncate"
+                placeholder="고객명"
+                type="text"
+                value={selectedCustomer?.CUST_NM || ''}
+              />
+              <input
+                readOnly
+                className="flex-1 min-w-0 px-2 py-2 text-sm border border-gray-200 rounded-lg bg-gray-50 cursor-pointer"
+                placeholder="고객ID"
+                type="text"
+                value={selectedCustomer?.CUST_ID || ''}
+              />
+            </div>
+          </div>
+
+          {/* 조회 버튼 */}
+          <button
+            className="w-full bg-blue-500 hover:bg-blue-600 text-white py-2.5 rounded-lg font-semibold text-sm shadow-sm transition-all active:scale-[0.98]"
+            onClick={openModal}
+          >
+            조회
+          </button>
+        </div>
       </div>
 
       {/* 검색 팝업 모달 */}

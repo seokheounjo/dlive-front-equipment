@@ -1202,39 +1202,31 @@ const CustomerInfoChange: React.FC<CustomerInfoChangeProps> = ({
                 <>
                   {paymentInfoList.length > 0 ? (
                     <div className="space-y-4">
-                      {/* 기존 납부정보 테이블 */}
-                      <div className="overflow-x-auto">
-                        <table className="w-full text-sm border-collapse">
-                          <thead>
-                            <tr className="bg-gray-100">
-                              <th className="border border-gray-300 px-2 py-1.5 text-left font-medium text-gray-700">납부계정ID</th>
-                              <th className="border border-gray-300 px-2 py-1.5 text-left font-medium text-gray-700">기존 납부방법</th>
-                              <th className="border border-gray-300 px-2 py-1.5 text-left font-medium text-gray-700">기존 은행/카드</th>
-                              <th className="border border-gray-300 px-2 py-1.5 text-left font-medium text-gray-700">기존 청구주소</th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {paymentInfoList.map((item) => (
-                              <tr
-                                key={item.PYM_ACNT_ID}
-                                onClick={() => {
-                                  setSelectedPymAcntId(item.PYM_ACNT_ID);
-                                  onPaymentChangeStart?.();
-                                }}
-                                className={`cursor-pointer transition-colors ${
-                                  selectedPymAcntId === item.PYM_ACNT_ID
-                                    ? 'bg-orange-50'
-                                    : 'hover:bg-gray-50'
-                                }`}
-                              >
-                                <td className="border border-gray-300 px-2 py-1.5">{formatPymAcntId(item.PYM_ACNT_ID)}</td>
-                                <td className="border border-gray-300 px-2 py-1.5">{item.PYM_MTH_NM || '-'}</td>
-                                <td className="border border-gray-300 px-2 py-1.5">{item.BANK_NM || item.CARD_NM || '-'}</td>
-                                <td className="border border-gray-300 px-2 py-1.5 truncate max-w-[200px]">{item.BILL_ADDR || '-'}</td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
+                      {/* 기존 납부정보 - 카드형 레이아웃 (모바일 친화적) */}
+                      <div className="space-y-2">
+                        {paymentInfoList.map((item) => (
+                          <div
+                            key={item.PYM_ACNT_ID}
+                            onClick={() => {
+                              setSelectedPymAcntId(item.PYM_ACNT_ID);
+                              onPaymentChangeStart?.();
+                            }}
+                            className={`p-3 rounded-lg border cursor-pointer transition-colors ${
+                              selectedPymAcntId === item.PYM_ACNT_ID
+                                ? 'bg-orange-50 border-orange-300'
+                                : 'bg-gray-50 border-gray-200 hover:border-gray-300'
+                            }`}
+                          >
+                            <div className="flex items-center justify-between mb-1">
+                              <span className="font-mono text-sm text-blue-600">{formatPymAcntId(item.PYM_ACNT_ID)}</span>
+                              <span className="text-xs text-gray-500">{item.PYM_MTH_NM || '-'}</span>
+                            </div>
+                            <div className="text-sm text-gray-700">{item.BANK_NM || item.CARD_NM || '-'}</div>
+                            {item.BILL_ADDR && (
+                              <div className="text-xs text-gray-500 truncate mt-1">{item.BILL_ADDR}</div>
+                            )}
+                          </div>
+                        ))}
                       </div>
 
                       {/* 납부정보 섹션 */}
@@ -1244,132 +1236,141 @@ const CustomerInfoChange: React.FC<CustomerInfoChangeProps> = ({
                           납부정보
                         </h4>
 
-                        <div className="grid grid-cols-2 gap-3">
-                          {/* 납부방법 */}
-                          <div>
-                            <label className="block text-xs text-gray-500 mb-1">납부방법</label>
-                            <select
-                              value={paymentForm.pymMthCd}
-                              onChange={(e) => {
-                                setPaymentForm(prev => ({ ...prev, pymMthCd: e.target.value, bankCd: '', acntNo: '' }));
-                                setIsVerified(false);
-                                onPaymentChangeStart?.();
-                              }}
-                              className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-orange-500"
-                            >
-                              <option value="01">자동이체(신)</option>
-                              <option value="02">신용카드</option>
-                            </select>
+                        <div className="space-y-3">
+                          {/* 첫번째 행: 납부방법 + 변경사유 */}
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                            {/* 납부방법 */}
+                            <div>
+                              <label className="block text-xs text-gray-500 mb-1">납부방법</label>
+                              <select
+                                value={paymentForm.pymMthCd}
+                                onChange={(e) => {
+                                  setPaymentForm(prev => ({ ...prev, pymMthCd: e.target.value, bankCd: '', acntNo: '' }));
+                                  setIsVerified(false);
+                                  onPaymentChangeStart?.();
+                                }}
+                                className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-orange-500"
+                              >
+                                <option value="01">자동이체(신)</option>
+                                <option value="02">신용카드</option>
+                              </select>
+                            </div>
+
+                            {/* 변경사유 - 세로 레이아웃으로 변경 */}
+                            <div>
+                              <label className="block text-xs text-gray-500 mb-1">변경사유</label>
+                              <div className="space-y-1">
+                                <select
+                                  value={paymentForm.changeReasonL}
+                                  onChange={(e) => {
+                                    setPaymentForm(prev => ({ ...prev, changeReasonL: e.target.value, changeReasonM: '' }));
+                                    onPaymentChangeStart?.();
+                                  }}
+                                  className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-orange-500"
+                                >
+                                  <option value="">대분류</option>
+                                  {changeReasonLargeCodes.map(code => (
+                                    <option key={code.CODE} value={code.CODE}>{code.CODE_NM}</option>
+                                  ))}
+                                </select>
+                                <select
+                                  value={paymentForm.changeReasonM}
+                                  onChange={(e) => {
+                                    setPaymentForm(prev => ({ ...prev, changeReasonM: e.target.value }));
+                                    onPaymentChangeStart?.();
+                                  }}
+                                  disabled={!paymentForm.changeReasonL}
+                                  className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-orange-500 disabled:bg-gray-100"
+                                >
+                                  <option value="">중분류</option>
+                                  {(changeReasonMiddleCodes[paymentForm.changeReasonL] || []).map(code => (
+                                    <option key={code.CODE} value={code.CODE}>{code.CODE_NM}</option>
+                                  ))}
+                                </select>
+                              </div>
+                            </div>
                           </div>
 
-                          {/* 변경사유 대분류 */}
-                          <div>
-                            <label className="block text-xs text-gray-500 mb-1">변경사유</label>
-                            <div className="flex gap-1">
-                              <select
-                                value={paymentForm.changeReasonL}
+                          {/* 두번째 행: 예금주명 + 신분유형 */}
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                            {/* 예금주명/카드소유주명 */}
+                            <div>
+                              <label className="block text-xs text-gray-500 mb-1">
+                                {paymentForm.pymMthCd === '01' ? '예금주명' : '카드소유주명'}
+                              </label>
+                              <input
+                                type="text"
+                                value={paymentForm.acntHolderNm}
                                 onChange={(e) => {
-                                  setPaymentForm(prev => ({ ...prev, changeReasonL: e.target.value, changeReasonM: '' }));
+                                  setPaymentForm(prev => ({ ...prev, acntHolderNm: e.target.value }));
+                                  setIsVerified(false);
                                   onPaymentChangeStart?.();
                                 }}
-                                className="flex-1 px-2 py-1.5 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-orange-500"
-                              >
-                                <option value="">선택</option>
-                                {changeReasonLargeCodes.map(code => (
-                                  <option key={code.CODE} value={code.CODE}>{code.CODE_NM}</option>
-                                ))}
-                              </select>
+                                placeholder="이름 입력"
+                                className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-orange-500"
+                              />
+                            </div>
+
+                            {/* 신분유형 */}
+                            <div>
+                              <label className="block text-xs text-gray-500 mb-1">신분유형</label>
                               <select
-                                value={paymentForm.changeReasonM}
+                                value={paymentForm.idType}
                                 onChange={(e) => {
-                                  setPaymentForm(prev => ({ ...prev, changeReasonM: e.target.value }));
+                                  setPaymentForm(prev => ({ ...prev, idType: e.target.value }));
                                   onPaymentChangeStart?.();
                                 }}
-                                disabled={!paymentForm.changeReasonL}
-                                className="flex-1 px-2 py-1.5 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-orange-500 disabled:bg-gray-100"
+                                className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-orange-500"
                               >
-                                <option value="">선택</option>
-                                {(changeReasonMiddleCodes[paymentForm.changeReasonL] || []).map(code => (
+                                {idTypeCodes.map(code => (
                                   <option key={code.CODE} value={code.CODE}>{code.CODE_NM}</option>
                                 ))}
                               </select>
                             </div>
                           </div>
 
-                          {/* 예금주명/카드소유주명 */}
-                          <div>
-                            <label className="block text-xs text-gray-500 mb-1">
-                              {paymentForm.pymMthCd === '01' ? '예금주명' : '카드소유주명'}
-                            </label>
-                            <input
-                              type="text"
-                              value={paymentForm.acntHolderNm}
-                              onChange={(e) => {
-                                setPaymentForm(prev => ({ ...prev, acntHolderNm: e.target.value }));
-                                setIsVerified(false);
-                                onPaymentChangeStart?.();
-                              }}
-                              placeholder="이름 입력"
-                              className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-orange-500"
-                            />
+                          {/* 세번째 행: 생년월일 + 은행/카드사 */}
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                            {/* 생년월일 */}
+                            <div>
+                              <label className="block text-xs text-gray-500 mb-1">생년월일</label>
+                              <input
+                                type="text"
+                                value={paymentForm.birthDt}
+                                onChange={(e) => {
+                                  setPaymentForm(prev => ({ ...prev, birthDt: e.target.value.replace(/[^0-9]/g, '').slice(0, 8) }));
+                                  onPaymentChangeStart?.();
+                                }}
+                                placeholder="YYYYMMDD"
+                                maxLength={8}
+                                className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-orange-500"
+                              />
+                            </div>
+
+                            {/* 은행명/카드사명 */}
+                            <div>
+                              <label className="block text-xs text-gray-500 mb-1">
+                                {paymentForm.pymMthCd === '01' ? '은행명' : '카드사명'}
+                              </label>
+                              <select
+                                value={paymentForm.bankCd}
+                                onChange={(e) => {
+                                  setPaymentForm(prev => ({ ...prev, bankCd: e.target.value }));
+                                  setIsVerified(false);
+                                  onPaymentChangeStart?.();
+                                }}
+                                className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-orange-500"
+                              >
+                                <option value="">선택</option>
+                                {(paymentForm.pymMthCd === '01' ? bankCodes : cardCompanyCodes).map(code => (
+                                  <option key={code.CODE} value={code.CODE}>{code.CODE_NM}</option>
+                                ))}
+                              </select>
+                            </div>
                           </div>
 
-                          {/* 신분유형 */}
+                          {/* 계좌번호/카드번호 + 인증 버튼 - 전체 너비 */}
                           <div>
-                            <label className="block text-xs text-gray-500 mb-1">신분유형</label>
-                            <select
-                              value={paymentForm.idType}
-                              onChange={(e) => {
-                                setPaymentForm(prev => ({ ...prev, idType: e.target.value }));
-                                onPaymentChangeStart?.();
-                              }}
-                              className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-orange-500"
-                            >
-                              {idTypeCodes.map(code => (
-                                <option key={code.CODE} value={code.CODE}>{code.CODE_NM}</option>
-                              ))}
-                            </select>
-                          </div>
-
-                          {/* 생년월일 */}
-                          <div>
-                            <label className="block text-xs text-gray-500 mb-1">생년월일</label>
-                            <input
-                              type="text"
-                              value={paymentForm.birthDt}
-                              onChange={(e) => {
-                                setPaymentForm(prev => ({ ...prev, birthDt: e.target.value.replace(/[^0-9]/g, '').slice(0, 8) }));
-                                onPaymentChangeStart?.();
-                              }}
-                              placeholder="YYYYMMDD"
-                              maxLength={8}
-                              className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-orange-500"
-                            />
-                          </div>
-
-                          {/* 은행명/카드사명 */}
-                          <div>
-                            <label className="block text-xs text-gray-500 mb-1">
-                              {paymentForm.pymMthCd === '01' ? '은행명' : '카드사명'}
-                            </label>
-                            <select
-                              value={paymentForm.bankCd}
-                              onChange={(e) => {
-                                setPaymentForm(prev => ({ ...prev, bankCd: e.target.value }));
-                                setIsVerified(false);
-                                onPaymentChangeStart?.();
-                              }}
-                              className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-orange-500"
-                            >
-                              <option value="">선택</option>
-                              {(paymentForm.pymMthCd === '01' ? bankCodes : cardCompanyCodes).map(code => (
-                                <option key={code.CODE} value={code.CODE}>{code.CODE_NM}</option>
-                              ))}
-                            </select>
-                          </div>
-
-                          {/* 계좌번호/카드번호 + 인증 버튼 */}
-                          <div className="col-span-2">
                             <label className="block text-xs text-gray-500 mb-1">
                               {paymentForm.pymMthCd === '01' ? '계좌번호' : '카드번호'}
                             </label>
@@ -1383,107 +1384,109 @@ const CustomerInfoChange: React.FC<CustomerInfoChangeProps> = ({
                                   onPaymentChangeStart?.();
                                 }}
                                 placeholder={paymentForm.pymMthCd === '01' ? '계좌번호 (- 제외)' : '카드번호 (- 제외)'}
-                                className="flex-1 px-2 py-1.5 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-orange-500"
+                                className="flex-1 min-w-0 px-2 py-1.5 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-orange-500"
                               />
                               <button
                                 onClick={handleVerify}
                                 disabled={isVerifying || isVerified}
-                                className={`px-3 py-1.5 text-sm rounded font-medium transition-colors ${
+                                className={`flex-shrink-0 px-3 py-1.5 text-sm rounded font-medium transition-colors whitespace-nowrap ${
                                   isVerified
                                     ? 'bg-green-100 text-green-700 border border-green-300'
                                     : 'bg-blue-500 text-white hover:bg-blue-600'
                                 }`}
                               >
-                                {isVerifying ? '인증중...' : isVerified ? '인증완료' : paymentForm.pymMthCd === '01' ? '계좌인증' : '카드인증'}
+                                {isVerifying ? '인증중' : isVerified ? '완료' : '인증'}
                               </button>
                             </div>
                           </div>
 
-                          {/* 카드 유효기간 (카드인 경우만) */}
+                          {/* 카드 전용 필드: 유효기간 + 제휴카드 */}
                           {paymentForm.pymMthCd === '02' && (
-                            <div>
-                              <label className="block text-xs text-gray-500 mb-1">카드유효기간</label>
-                              <div className="flex items-center gap-1">
-                                <input
-                                  type="text"
-                                  value={paymentForm.cardExpMm}
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                              <div>
+                                <label className="block text-xs text-gray-500 mb-1">카드유효기간</label>
+                                <div className="flex items-center gap-1">
+                                  <input
+                                    type="text"
+                                    value={paymentForm.cardExpMm}
+                                    onChange={(e) => {
+                                      setPaymentForm(prev => ({ ...prev, cardExpMm: e.target.value.replace(/[^0-9]/g, '').slice(0, 2) }));
+                                      setIsVerified(false);
+                                      onPaymentChangeStart?.();
+                                    }}
+                                    placeholder="MM"
+                                    maxLength={2}
+                                    className="w-14 px-2 py-1.5 text-sm border border-gray-300 rounded text-center focus:ring-1 focus:ring-orange-500"
+                                  />
+                                  <span className="text-gray-400">/</span>
+                                  <input
+                                    type="text"
+                                    value={paymentForm.cardExpYy}
+                                    onChange={(e) => {
+                                      setPaymentForm(prev => ({ ...prev, cardExpYy: e.target.value.replace(/[^0-9]/g, '').slice(0, 2) }));
+                                      setIsVerified(false);
+                                      onPaymentChangeStart?.();
+                                    }}
+                                    placeholder="YY"
+                                    maxLength={2}
+                                    className="w-14 px-2 py-1.5 text-sm border border-gray-300 rounded text-center focus:ring-1 focus:ring-orange-500"
+                                  />
+                                </div>
+                              </div>
+
+                              <div>
+                                <label className="block text-xs text-gray-500 mb-1">제휴카드</label>
+                                <select
+                                  value={paymentForm.joinCardYn}
                                   onChange={(e) => {
-                                    setPaymentForm(prev => ({ ...prev, cardExpMm: e.target.value.replace(/[^0-9]/g, '').slice(0, 2) }));
-                                    setIsVerified(false);
+                                    setPaymentForm(prev => ({ ...prev, joinCardYn: e.target.value }));
                                     onPaymentChangeStart?.();
                                   }}
-                                  placeholder="MM"
-                                  maxLength={2}
-                                  className="w-14 px-2 py-1.5 text-sm border border-gray-300 rounded text-center focus:ring-1 focus:ring-orange-500"
-                                />
-                                <span className="text-gray-400">-</span>
-                                <input
-                                  type="text"
-                                  value={paymentForm.cardExpYy}
-                                  onChange={(e) => {
-                                    setPaymentForm(prev => ({ ...prev, cardExpYy: e.target.value.replace(/[^0-9]/g, '').slice(0, 2) }));
-                                    setIsVerified(false);
-                                    onPaymentChangeStart?.();
-                                  }}
-                                  placeholder="YY"
-                                  maxLength={2}
-                                  className="w-14 px-2 py-1.5 text-sm border border-gray-300 rounded text-center focus:ring-1 focus:ring-orange-500"
-                                />
+                                  className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-orange-500"
+                                >
+                                  <option value="N">아니오</option>
+                                  <option value="Y">예</option>
+                                </select>
                               </div>
                             </div>
                           )}
 
-                          {/* 제휴사 카드 */}
-                          {paymentForm.pymMthCd === '02' && (
+                          {/* 마지막 행: 납부자관계 + 결제일 */}
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                            {/* 납부자관계 */}
                             <div>
-                              <label className="block text-xs text-gray-500 mb-1">제휴사 카드</label>
+                              <label className="block text-xs text-gray-500 mb-1">납부자관계</label>
                               <select
-                                value={paymentForm.joinCardYn}
+                                value={paymentForm.pyrRel}
                                 onChange={(e) => {
-                                  setPaymentForm(prev => ({ ...prev, joinCardYn: e.target.value }));
+                                  setPaymentForm(prev => ({ ...prev, pyrRel: e.target.value }));
                                   onPaymentChangeStart?.();
                                 }}
                                 className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-orange-500"
                               >
-                                <option value="N">아니오</option>
-                                <option value="Y">예</option>
+                                {pyrRelCodes.map(code => (
+                                  <option key={code.CODE} value={code.CODE}>{code.CODE_NM}</option>
+                                ))}
                               </select>
                             </div>
-                          )}
 
-                          {/* 납부자관계 */}
-                          <div>
-                            <label className="block text-xs text-gray-500 mb-1">납부자관계</label>
-                            <select
-                              value={paymentForm.pyrRel}
-                              onChange={(e) => {
-                                setPaymentForm(prev => ({ ...prev, pyrRel: e.target.value }));
-                                onPaymentChangeStart?.();
-                              }}
-                              className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-orange-500"
-                            >
-                              {pyrRelCodes.map(code => (
-                                <option key={code.CODE} value={code.CODE}>{code.CODE_NM}</option>
-                              ))}
-                            </select>
-                          </div>
-
-                          {/* 결제일 */}
-                          <div>
-                            <label className="block text-xs text-gray-500 mb-1">결제일</label>
-                            <select
-                              value={paymentForm.pymDay}
-                              onChange={(e) => {
-                                setPaymentForm(prev => ({ ...prev, pymDay: e.target.value }));
-                                onPaymentChangeStart?.();
-                              }}
-                              className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-orange-500"
-                            >
-                              <option value="">선택</option>
-                              {paymentDays.map(day => (
-                                <option key={day.CODE} value={day.CODE}>{day.CODE_NM}</option>
-                              ))}
-                            </select>
+                            {/* 결제일 */}
+                            <div>
+                              <label className="block text-xs text-gray-500 mb-1">결제일</label>
+                              <select
+                                value={paymentForm.pymDay}
+                                onChange={(e) => {
+                                  setPaymentForm(prev => ({ ...prev, pymDay: e.target.value }));
+                                  onPaymentChangeStart?.();
+                                }}
+                                className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-orange-500"
+                              >
+                                <option value="">선택</option>
+                                {paymentDays.map(day => (
+                                  <option key={day.CODE} value={day.CODE}>{day.CODE_NM}</option>
+                                ))}
+                              </select>
+                            </div>
                           </div>
                         </div>
                       </div>
@@ -1543,7 +1546,7 @@ const CustomerInfoChange: React.FC<CustomerInfoChangeProps> = ({
                           </div>
 
                           {/* 상세주소 */}
-                          <div className="grid grid-cols-2 gap-2">
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                             <div>
                               <label className="block text-xs text-gray-500 mb-1">상세 (동)</label>
                               <input
