@@ -43,6 +43,7 @@ const CustomerBasicInfo: React.FC<CustomerBasicInfoProps> = ({
   showToast,
   onContractSelect,
   onNavigateToAS,
+  onNavigateToConsultation,
   onNavigateToPaymentChange,
   selectedCustomer,
   savedContract
@@ -220,12 +221,14 @@ const CustomerBasicInfo: React.FC<CustomerBasicInfoProps> = ({
               onToggle={() => toggleSection('contracts')}
               onContractSelect={handleContractSelect}
               onASRequest={onNavigateToAS}
+              onConsultationRequest={onNavigateToConsultation}
               showToast={showToast}
             />
 
             {/* 납부정보 / 요금내역 */}
             <PaymentInfo
               custId={selectedCustomer.CUST_ID}
+              custNm={selectedCustomer.CUST_NM}
               expanded={expandedSections.payment}
               onToggle={() => toggleSection('payment')}
               showToast={showToast}

@@ -1607,7 +1607,7 @@ export const getTechnicianEquipments = async (params: {
       upCtrlCl: promotionInfo.UP_CTRL_CL,
     };
   } catch (error) {
-    console.error('[장비조회 API] 장비 정보 조회 실패:', error);
+    console.error('[fn:getTechnicianEquipments → req:getCustProdInfo] 실패:', error);
     if (error instanceof NetworkError) {
       throw error;
     }
@@ -1622,7 +1622,7 @@ export const getContractEquipments = async (params: {
   CUST_ID: string;          // 계약 ID
   PROD_CD?: string;         // 상품 코드
 }): Promise<EquipmentInfo[]> => {
-  console.log('📋 장비 구성 정보 조회 API 호출:', params);
+  console.log('📋 [fn:getContractEquipments → req:getCustProdInfo] API 호출:', params);
 
   // 더미 모드 체크
   if (checkDemoMode()) {
@@ -1646,10 +1646,10 @@ export const getContractEquipments = async (params: {
     });
 
     const result = await response.json();
-    console.log('[장비구성 API] 장비 구성 정보 조회 성공:', result);
+    console.log('[fn:getContractEquipments → req:getCustProdInfo] 성공:', result);
     return result;
   } catch (error) {
-    console.error('[장비구성 API] 장비 구성 정보 조회 실패:', error);
+    console.error('[fn:getContractEquipments → req:getCustProdInfo] 실패:', error);
     if (error instanceof NetworkError) {
       throw error;
     }
@@ -1800,7 +1800,7 @@ export const updateEquipmentComposition = async (data: {
     const result = await response.json();
     return result;
   } catch (error) {
-    console.error('[장비구성변경 API] 장비 구성 정보 변경 실패:', error);
+    console.error('[eqtCmpsInfoChg] 장비 구성 정보 변경 실패:', error);
     if (error instanceof NetworkError) {
       throw error;
     }
@@ -1872,7 +1872,7 @@ export const getEquipmentModelsForProduct = async (
 
     throw new Error('장비 모델 리스트 조회 실패: 잘못된 응답 형식');
   } catch (error) {
-    console.error('[장비모델 API] 장비 모델 리스트 조회 API 에러:', error);
+    console.error('[getEquipmentNmListOfProd] API 에러:', error);
     throw error;
   }
 };
@@ -1943,7 +1943,7 @@ export const getContractEquipmentList = async (
   prodCd: string,
   ctrtId?: string
 ): Promise<ContractEquipmentListResponse> => {
-  console.log('[계약장비 API] 계약 장비 리스트 조회 API 호출:');
+  console.log('[fn:getContractEquipmentList → req:getContractEqtList] API 호출:');
   console.log('  - PROD_CD:', prodCd);
   console.log('  - CTRT_ID:', ctrtId);
 
@@ -2015,7 +2015,7 @@ export const getContractEquipmentList = async (
       requestBody.CTRT_ID = ctrtId;
     }
 
-    console.log('[계약장비 API] 요청 데이터:', requestBody);
+    console.log('[fn:getContractEquipmentList → req:getContractEqtList] 요청:', requestBody);
 
     const response = await fetch(`${API_BASE}/customer/receipt/contract/getContractEqtList`, {
       method: 'POST',
@@ -2030,11 +2030,11 @@ export const getContractEquipmentList = async (
     }
 
     const data = await response.json();
-    console.log('[계약장비 API] getContractEqtList 응답 데이터:', data);
+    console.log('[fn:getContractEquipmentList → req:getContractEqtList] 응답:', data);
 
     return data;
   } catch (error) {
-    console.error('[계약장비 API] 계약 장비 리스트 조회 API 에러:', error);
+    console.error('[fn:getContractEquipmentList → req:getContractEqtList] 에러:', error);
     throw error;
   }
 };
@@ -2134,7 +2134,7 @@ export const getCommonCodeList = async (
     const requestBody = {
       CODE_IDS: codeIds.join(',')  // "CMCU027,CMEP314,CMCU064" (JSON body)
     };
-    console.log('[계약장비 API] 요청 데이터:', requestBody);
+    console.log('[fn:getContractEquipmentList → req:getContractEqtList] 요청:', requestBody);
 
     const response = await fetch(`${API_BASE}/common/getCommonCodeList`, {
       method: 'POST',
@@ -2276,7 +2276,7 @@ export const changeEquipmentModel = async (
   workId: string,
   custId?: string
 ): Promise<{ MSGCODE: string; MESSAGE: string }> => {
-  console.log('[장비모델변경 API] 장비 모델 정보 변경 API 호출:');
+  console.log('[fn:changeEquipmentModel → req:eqtCmpsInfoChg] API 호출:');
   console.log('  - 장비 개수:', equipments.length);
   console.log('  - WRK_ID:', workId);
   console.log('  - CUST_ID:', custId);
@@ -2296,9 +2296,9 @@ export const changeEquipmentModel = async (
       equipments: equipments
     };
 
-    console.log('\n[장비조회 API] ==========================================');
-    console.log('[장비모델변경 API] 장비 모델 변경 API 호출 시작');
-    console.log('[장비조회 API] ==========================================');
+    console.log('\n[fn:changeEquipmentModel → req:eqtCmpsInfoChg] ==================');
+    console.log('[fn:changeEquipmentModel → req:eqtCmpsInfoChg] 호출 시작');
+    console.log('================================================================');
     console.log('\n📤 전송할 데이터:');
     console.log(JSON.stringify(requestBody, null, 2));
     console.log('==========================================\n');
@@ -2315,9 +2315,9 @@ export const changeEquipmentModel = async (
 
     const result = await response.json();
 
-    console.log('\n[장비조회 API] ==========================================');
-    console.log('📥 장비 모델 변경 API 응답');
-    console.log('[장비조회 API] ==========================================');
+    console.log('\n[fn:changeEquipmentModel → req:eqtCmpsInfoChg] ==================');
+    console.log('📥 응답');
+    console.log('================================================================');
     console.log('  ├─ MSGCODE:', result.MSGCODE);
     console.log('  └─ MESSAGE:', result.MESSAGE);
     console.log('==========================================\n');
@@ -2728,7 +2728,7 @@ export const getEquipmentOutList = async (params: {
   OUT_REQ_NO?: string;
   PROC_STAT?: string;
 }): Promise<any[]> => {
-  console.log('📦 [장비할당조회] API 호출:', params);
+  console.log('📦 [getEquipmentOutList] API 호출:', params);
 
   try {
     const origin = typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000';
@@ -2764,7 +2764,7 @@ export const getEquipmentOutList = async (params: {
 export const checkEquipmentProc = async (params: {
   OUT_REQ_NO: string;
 }): Promise<any> => {
-  console.log('✔️ [장비할당확인] API 호출:', params);
+  console.log('✔️ [fn:checkEquipmentProc → req:getEquipmentProcYnCheck] API 호출:', params);
 
   try {
     const origin = typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000';
@@ -2801,7 +2801,7 @@ export const addEquipmentQuota = async (params: {
   OUT_REQ_NO: string;
   equipmentList: any[];
 }): Promise<any> => {
-  console.log('💼 [장비할당처리] API 호출:', params);
+  console.log('💼 [fn:addEquipmentQuota → req:addCorporationEquipmentQuota] API 호출:', params);
 
   try {
     const origin = typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000';
@@ -2838,7 +2838,7 @@ export const getEquipmentReturnRequestList = async (params: {
   WRKR_ID: string;
   SO_ID?: string;
 }): Promise<any[]> => {
-  console.log('📋 [기사장비조회] API 호출:', params);
+  console.log('📋 [getEquipmentReturnRequestList] API 호출:', params);
 
   try {
     const origin = typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000';
@@ -2875,7 +2875,7 @@ export const checkEquipmentReturn = async (params: {
   EQT_NO: string;
   WRKR_ID: string;
 }): Promise<any> => {
-  console.log('✔️ [반납확인] API 호출:', params);
+  console.log('✔️ [fn:checkEquipmentReturn → req:getEquipmentReturnRequestCheck] API 호출:', params);
 
   try {
     const origin = typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000';
@@ -3029,7 +3029,7 @@ export const getWorkerEquipmentList = async (params: {
   ITEM_MID_CD?: string;
   EQT_SERNO?: string;
 }): Promise<any[]> => {
-  console.log('🔧 [작업자장비조회] API 호출:', params);
+  console.log('🔧 [fn:getWorkerEquipmentList → req:getWrkrHaveEqtList] API 호출:', params);
 
   try {
     const origin = typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000';
@@ -3067,7 +3067,7 @@ export const processEquipmentLoss = async (params: {
   WRKR_ID: string;
   LOSS_REASON?: string;
 }): Promise<any> => {
-  console.log('⚠️ [분실처리] API 호출:', params);
+  console.log('⚠️ [fn:processEquipmentLoss → req:cmplEqtCustLossIndem] API 호출:', params);
 
   try {
     const origin = typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000';
@@ -3103,7 +3103,7 @@ export const processEquipmentLoss = async (params: {
 export const setEquipmentCheckStandby = async (params: {
   EQT_NO: string;
 }): Promise<any> => {
-  console.log('🔄 [장비상태변경] API 호출:', params);
+  console.log('🔄 [fn:setEquipmentCheckStandby → req:setEquipmentChkStndByY_ForM] API 호출:', params);
 
   try {
     const origin = typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000';
@@ -3162,7 +3162,7 @@ export const getEquipmentHistoryInfo = async (params: {
   EQT_SERNO?: string;
   MAC_ADDRESS?: string;
 }): Promise<any> => {
-  console.log('🔍 [장비조회] API 호출:', params);
+  console.log('🔍 [getEquipmentHistoryInfo] API 호출:', params);
 
   try {
     const origin = typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000';
@@ -3223,7 +3223,7 @@ export const changeEquipmentWorker = async (params: {
 
   // ==================== 요청 시작 ====================
   console.log('');
-  console.log('========== 장비이관 API 요청 시작 ==========');
+  console.log('========== [fn:changeEquipmentWorker → req:changeEqtWrkr_3_ForM] 요청 시작 ==========');
   console.log('API_CALL_ID:', apiCallId);
   console.log('시작시간:', timestamp);
   console.log('');
@@ -3467,7 +3467,7 @@ export const getEqtMasterInfo = async (params: {
   EQT_NO?: string;
   EQT_SERNO?: string;
 }): Promise<any> => {
-  console.log('🔍 [장비마스터] API 호출:', params);
+  console.log('🔍 [getEqtMasterInfo] API 호출:', params);
 
   try {
     const origin = typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000';
@@ -3634,7 +3634,7 @@ export const getUnreturnedEquipmentList = async (params: {
   CUST_NM?: string;
   EQT_SERNO?: string;
 }): Promise<any[]> => {
-  console.log('📦 [미회수장비조회] API 호출:', params);
+  console.log('📦 [fn:getUnreturnedEquipmentList → req:getEquipLossInfo] API 호출:', params);
 
   try {
     const origin = typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000';
@@ -3681,7 +3681,7 @@ export const processEquipmentRecovery = async (params: {
   EQT_SERNO?: string;
   CHG_UID?: string;
 }): Promise<any> => {
-  console.log('✅ [회수처리] API 호출:', params);
+  console.log('✅ [fn:processEquipmentRecovery → req:modEquipLoss] API 호출:', params);
 
   try {
     const origin = typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000';
@@ -5147,7 +5147,7 @@ export const getMVRemoveEqtInfo = async (params: {
   CUST_ID: string;
   RCPT_ID: string;
 }): Promise<RemovalEquipmentInfo[]> => {
-  console.log('[장비이전 API] getMVRemoveEqtInfo:', params);
+  console.log('[getMVRemoveEqtInfo]:', params);
 
   if (checkDemoMode()) {
     await new Promise(resolve => setTimeout(resolve, 500));
@@ -5194,12 +5194,12 @@ export const getMVRemoveEqtInfo = async (params: {
     });
 
     if (!response.ok) {
-      console.error('[장비이전 API] HTTP error:', response.status);
+      console.error('[장비이전] HTTP error:', response.status);
       return [];
     }
 
     const result = await response.json();
-    console.log('[장비이전 API] getMVRemoveEqtInfo response:', result);
+    console.log('[getMVRemoveEqtInfo] response:', result);
 
     if (result.data) {
       return Array.isArray(result.data) ? result.data : [result.data];
@@ -5209,7 +5209,7 @@ export const getMVRemoveEqtInfo = async (params: {
     }
     return [];
   } catch (error) {
-    console.error('[장비이전 API] getMVRemoveEqtInfo error:', error);
+    console.error('[getMVRemoveEqtInfo] error:', error);
     return [];
   }
 };
@@ -5256,7 +5256,7 @@ export interface EqtSoMoveInfo {
 export const getEqtSoMoveInfo = async (params: {
   WRK_ID: string;
 }): Promise<EqtSoMoveInfo[]> => {
-  console.log('[장비이전 API] getEqtSoMoveInfo:', params);
+  console.log('[getEqtSoMoveInfo]:', params);
 
   if (checkDemoMode()) {
     await new Promise(resolve => setTimeout(resolve, 500));
@@ -5272,12 +5272,12 @@ export const getEqtSoMoveInfo = async (params: {
     });
 
     if (!response.ok) {
-      console.error('[장비이전 API] HTTP error:', response.status);
+      console.error('[장비이전] HTTP error:', response.status);
       return [];
     }
 
     const result = await response.json();
-    console.log('[장비이전 API] getEqtSoMoveInfo response:', result);
+    console.log('[getEqtSoMoveInfo] response:', result);
 
     if (result.data) {
       return Array.isArray(result.data) ? result.data : [result.data];
@@ -5287,7 +5287,7 @@ export const getEqtSoMoveInfo = async (params: {
     }
     return [];
   } catch (error) {
-    console.error('[장비이전 API] getEqtSoMoveInfo error:', error);
+    console.error('[getEqtSoMoveInfo] error:', error);
     return [];
   }
 };
@@ -5316,7 +5316,7 @@ export const excuteSoMoveEqtChg = async (params: {
   EQT_SERNO: string;
   CHG_UID: string;
 }): Promise<ExcuteSoMoveEqtChgResult | null> => {
-  console.log('[장비이전 API] excuteSoMoveEqtChg:', params);
+  console.log('[excuteSoMoveEqtChg]:', params);
 
   if (checkDemoMode()) {
     await new Promise(resolve => setTimeout(resolve, 1000));
@@ -5335,19 +5335,19 @@ export const excuteSoMoveEqtChg = async (params: {
     });
 
     if (!response.ok) {
-      console.error('[장비이전 API] HTTP error:', response.status);
+      console.error('[장비이전] HTTP error:', response.status);
       return null;
     }
 
     const result = await response.json();
-    console.log('[장비이전 API] excuteSoMoveEqtChg response:', result);
+    console.log('[excuteSoMoveEqtChg] response:', result);
 
     if (result.data) {
       return result.data;
     }
     return result;
   } catch (error) {
-    console.error('[장비이전 API] excuteSoMoveEqtChg error:', error);
+    console.error('[excuteSoMoveEqtChg] error:', error);
     return null;
   }
 };
@@ -5392,7 +5392,7 @@ export interface CustEqtInfoDelResult {
 }
 
 export const custEqtInfoDel = async (params: CustEqtInfoDelParams): Promise<CustEqtInfoDelResult | null> => {
-  console.log('[장비분실처리 API] custEqtInfoDel:', params);
+  console.log('[custEqtInfoDel]:', params);
 
   if (checkDemoMode()) {
     await new Promise(resolve => setTimeout(resolve, 500));
@@ -5411,19 +5411,19 @@ export const custEqtInfoDel = async (params: CustEqtInfoDelParams): Promise<Cust
     });
 
     if (!response.ok) {
-      console.error('[장비분실처리 API] HTTP error:', response.status);
+      console.error('[custEqtInfoDel] HTTP error:', response.status);
       return null;
     }
 
     const result = await response.json();
-    console.log('[장비분실처리 API] custEqtInfoDel response:', result);
+    console.log('[custEqtInfoDel] response:', result);
 
     if (result.data) {
       return result.data;
     }
     return result;
   } catch (error) {
-    console.error('[장비분실처리 API] custEqtInfoDel error:', error);
+    console.error('[custEqtInfoDel] error:', error);
     return null;
   }
 };
@@ -5735,7 +5735,7 @@ export const getCodeDetail = async (params: {
 export const getOutEquipmentTargetList = async (params: {
   OUT_REQ_NO: string;
 }): Promise<any> => {
-  console.log('📦 [출고대상장비] API 호출:', params);
+  console.log('📦 [getOutEquipmentTargetList] API 호출:', params);
 
   try {
     const origin = typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000';
@@ -5787,7 +5787,7 @@ export const getEquipmentReturnRequestListAll = async (params: {
     RETURN_TP: params.RETURN_TP || '2',      // 기본: 작업기사
     RETURN_STAT: params.RETURN_STAT || '2',  // 기본: 반납요청건만 (PROC_STAT='1')
   };
-  console.log('📋 [반납요청조회] API 호출:', requestParams);
+  console.log('📋 [fn:getEquipmentReturnRequestListAll → req:getEquipmentReturnRequestList] API 호출:', requestParams);
 
   try {
     const origin = typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000';
@@ -5945,7 +5945,7 @@ export const getWrkrHaveEqtListAll = async (params: {
   EQT_STAT_CD?: string;
   EQT_LOC_TP_CD?: string;
 }): Promise<any[]> => {
-  console.log('🔧 [보유장비전체조회] API 호출:', params);
+  console.log('🔧 [fn:getWrkrHaveEqtListAll → req:getWrkrHaveEqtList_All] API 호출:', params);
 
   try {
     const origin = typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000';
@@ -5991,7 +5991,7 @@ export const getOwnEqtLstForMobile3 = async (params: {
   ITEM_MID_CD?: string;
   EQT_CL_CD?: string;
 }): Promise<any[]> => {
-  console.log('🔧 [반납요청장비조회] API 호출:', params);
+  console.log('🔧 [fn:getOwnEqtLstForMobile3 → req:getOwnEqtLstForMobile_3] API 호출:', params);
 
   try {
     const origin = typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000';
@@ -6035,7 +6035,7 @@ export const getEquipmentChkStndByAAll = async (params: {
   SO_ID?: string;
   EQT_SERNO?: string;
 }): Promise<any[]> => {
-  console.log('🔧 [검사대기장비조회] API 호출:', params);
+  console.log('🔧 [fn:getEquipmentChkStndByAAll → req:getEquipmentChkStndByA_All] API 호출:', params);
 
   try {
     const origin = typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000';

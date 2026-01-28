@@ -14,6 +14,7 @@ import {
   formatCurrency,
   maskString
 } from '../../services/customerApi';
+import UnpaymentCollectionModal from './UnpaymentCollectionModal';
 
 // 납부계정ID 포맷 (3-3-4)
 const formatPymAcntId = (pymAcntId: string): string => {
@@ -27,6 +28,7 @@ const formatPymAcntId = (pymAcntId: string): string => {
 
 interface PaymentInfoProps {
   custId: string;
+  custNm?: string;  // 고객명 (수납 모달에서 사용)
   expanded: boolean;
   onToggle: () => void;
   showToast?: (message: string, type: 'success' | 'error' | 'warning' | 'info') => void;
@@ -44,6 +46,7 @@ interface PaymentInfoProps {
  */
 const PaymentInfo: React.FC<PaymentInfoProps> = ({
   custId,
+  custNm,
   expanded,
   onToggle,
   showToast,
@@ -63,6 +66,9 @@ const PaymentInfo: React.FC<PaymentInfoProps> = ({
   // 서브섹션 펼침 상태
   const [showBillingDetail, setShowBillingDetail] = useState(false);
   const [showUnpaymentDetail, setShowUnpaymentDetail] = useState(false);
+
+  // 미납금 수납 모달 상태
+  const [showUnpaymentModal, setShowUnpaymentModal] = useState(false);
 
   // 필터 상태
   const [paymentFilter, setPaymentFilter] = useState<'all' | 'auto' | 'card' | 'unpaid'>('all');
@@ -320,10 +326,10 @@ const PaymentInfo: React.FC<PaymentInfoProps> = ({
                 {totalUnpayment > 0 && (
                   <div className="flex gap-2">
                     <button
-                      onClick={() => showToast?.('미납금 수납 기능은 준비 중입니다.', 'info')}
-                      className="flex-1 py-2 text-sm bg-red-100 text-red-700 rounded-lg hover:bg-red-200 transition-colors"
+                      onClick={() => setShowUnpaymentModal(true)}
+                      className="flex-1 py-2 text-sm bg-red-100 text-red-700 rounded-lg hover:bg-red-200 transition-colors font-medium"
                     >
-                      미납금 수납
+                      미납금 수납 ({formatCurrency(totalUnpayment)}원)
                     </button>
                   </div>
                 )}
@@ -473,6 +479,20 @@ const PaymentInfo: React.FC<PaymentInfoProps> = ({
           )}
         </div>
       )}
+
+      {/* 미납금 수납 모달 */}
+      <UnpaymentCollectionModal
+        isOpen={showUnpaymentModal}
+        onClose={() => setShowUnpaymentModal(false)}
+        custId={custId}
+        custNm={custNm}
+        unpaymentList={unpaymentList}
+        showToast={showToast}
+        onSuccess={() => {
+          // 수납 완료 후 데이터 새로고침
+          loadData();
+        }}
+      />
     </div>
   );
 };
