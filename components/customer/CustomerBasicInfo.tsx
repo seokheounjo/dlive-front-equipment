@@ -248,8 +248,8 @@ const CustomerBasicInfo: React.FC<CustomerBasicInfoProps> = ({
                       </div>
                       <span className="text-gray-700">
                         {showRoadAddr
-                          ? (selectedCustomer.ROAD_ADDR || selectedCustomer.CUST_ADDR || '-')
-                          : (selectedCustomer.CUST_ADDR || '-')
+                          ? (selectedCustomer.ROAD_ADDR || selectedCustomer.INST_ADDR || selectedCustomer.CUST_ADDR || '-')
+                          : (selectedCustomer.INST_ADDR || selectedCustomer.CUST_ADDR || '-')
                         }
                       </span>
                     </div>
