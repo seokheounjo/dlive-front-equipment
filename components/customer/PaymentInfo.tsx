@@ -1,8 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import {
   CreditCard, ChevronDown, ChevronUp, Loader2,
-  Wallet, AlertCircle, Calendar, Receipt,
-  RefreshCw, Building2
+  Wallet, AlertCircle, Calendar, Receipt, Building2
 } from 'lucide-react';
 
 import {
@@ -186,24 +185,12 @@ const PaymentInfo: React.FC<PaymentInfoProps> = ({
               <div className="space-y-3">
                 <div className="flex items-center justify-between">
                   <h4 className="text-sm font-medium text-gray-700">납부 정보</h4>
-                  <div className="flex items-center gap-2">
-                    <button
-                      onClick={loadData}
-                      className="text-sm text-blue-500 hover:text-blue-600 flex items-center gap-1"
-                    >
-                      <RefreshCw className="w-3 h-3" />
-                      새로고침
-                    </button>
-                    {onNavigateToPaymentChange && (
-                      <button
-                        onClick={() => onNavigateToPaymentChange(selectedPymAcntId || '')}
-                        className="text-sm text-indigo-500 hover:text-indigo-600 flex items-center gap-1"
-                      >
-                        <CreditCard className="w-3 h-3" />
-                        납부정보 변경
-                      </button>
-                    )}
-                  </div>
+                  <button
+                    onClick={loadData}
+                    className="text-sm text-blue-500 hover:text-blue-600"
+                  >
+                    새로고침
+                  </button>
                 </div>
 
                 {/* 필터 버튼 */}
@@ -310,6 +297,19 @@ const PaymentInfo: React.FC<PaymentInfoProps> = ({
                               {formatCurrency(payment.UNPAY_AMT)}원
                             </span>
                           </div>
+                        )}
+
+                        {/* 납부정보 변경 버튼 */}
+                        {onNavigateToPaymentChange && (
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onNavigateToPaymentChange(payment.PYM_ACNT_ID);
+                            }}
+                            className="w-full mt-2 py-2 text-sm text-indigo-600 bg-indigo-50 hover:bg-indigo-100 rounded-lg transition-colors"
+                          >
+                            납부정보 변경
+                          </button>
                         )}
                       </div>
                     ))}
