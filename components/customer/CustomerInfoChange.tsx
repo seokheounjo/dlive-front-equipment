@@ -1279,145 +1279,136 @@ const CustomerInfoChange: React.FC<CustomerInfoChangeProps> = ({
                           납부정보
                         </h4>
 
-                        <div className="space-y-3">
-                          {/* 첫번째 행: 납부방법 + 변경사유 */}
-                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                            {/* 납부방법 */}
-                            <div>
-                              <label className="block text-xs text-gray-500 mb-1">납부방법</label>
-                              <select
-                                value={paymentForm.pymMthCd}
-                                onChange={(e) => {
-                                  setPaymentForm(prev => ({ ...prev, pymMthCd: e.target.value, bankCd: '', acntNo: '' }));
-                                  setIsVerified(false);
-                                  onPaymentChangeStart?.();
-                                }}
-                                className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-orange-500"
-                              >
-                                <option value="01">자동이체(신)</option>
-                                <option value="02">신용카드</option>
-                              </select>
-                            </div>
-
-                            {/* 변경사유 - 세로 레이아웃으로 변경 */}
-                            <div>
-                              <label className="block text-xs text-gray-500 mb-1">변경사유</label>
-                              <div className="space-y-1">
-                                <select
-                                  value={paymentForm.changeReasonL}
-                                  onChange={(e) => {
-                                    setPaymentForm(prev => ({ ...prev, changeReasonL: e.target.value, changeReasonM: '' }));
-                                    onPaymentChangeStart?.();
-                                  }}
-                                  className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-orange-500"
-                                >
-                                  <option value="">대분류</option>
-                                  {changeReasonLargeCodes.map(code => (
-                                    <option key={code.CODE} value={code.CODE}>{code.CODE_NM}</option>
-                                  ))}
-                                </select>
-                                <select
-                                  value={paymentForm.changeReasonM}
-                                  onChange={(e) => {
-                                    setPaymentForm(prev => ({ ...prev, changeReasonM: e.target.value }));
-                                    onPaymentChangeStart?.();
-                                  }}
-                                  disabled={!paymentForm.changeReasonL}
-                                  className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-orange-500 disabled:bg-gray-100"
-                                >
-                                  <option value="">중분류</option>
-                                  {(changeReasonMiddleCodes[paymentForm.changeReasonL] || []).map(code => (
-                                    <option key={code.CODE} value={code.CODE}>{code.CODE_NM}</option>
-                                  ))}
-                                </select>
-                              </div>
-                            </div>
+                        <div className="space-y-2">
+                          {/* 납부방법 */}
+                          <div className="flex items-center">
+                            <label className="w-20 flex-shrink-0 text-xs text-gray-500">납부방법</label>
+                            <select
+                              value={paymentForm.pymMthCd}
+                              onChange={(e) => {
+                                setPaymentForm(prev => ({ ...prev, pymMthCd: e.target.value, bankCd: '', acntNo: '' }));
+                                setIsVerified(false);
+                                onPaymentChangeStart?.();
+                              }}
+                              className="flex-1 px-2 py-1.5 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-orange-500"
+                            >
+                              <option value="01">자동이체(신)</option>
+                              <option value="02">신용카드</option>
+                            </select>
                           </div>
 
-                          {/* 두번째 행: 예금주명 + 신분유형 */}
-                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                            {/* 예금주명/카드소유주명 */}
-                            <div>
-                              <label className="block text-xs text-gray-500 mb-1">
-                                {paymentForm.pymMthCd === '01' ? '예금주명' : '카드소유주명'}
-                              </label>
-                              <input
-                                type="text"
-                                value={paymentForm.acntHolderNm}
-                                onChange={(e) => {
-                                  setPaymentForm(prev => ({ ...prev, acntHolderNm: e.target.value }));
-                                  setIsVerified(false);
-                                  onPaymentChangeStart?.();
-                                }}
-                                placeholder="이름 입력"
-                                className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-orange-500"
-                              />
-                            </div>
-
-                            {/* 신분유형 */}
-                            <div>
-                              <label className="block text-xs text-gray-500 mb-1">신분유형</label>
+                          {/* 변경사유 */}
+                          <div className="flex items-center">
+                            <label className="w-20 flex-shrink-0 text-xs text-gray-500">변경사유</label>
+                            <div className="flex-1 flex gap-1">
                               <select
-                                value={paymentForm.idType}
+                                value={paymentForm.changeReasonL}
                                 onChange={(e) => {
-                                  setPaymentForm(prev => ({ ...prev, idType: e.target.value }));
+                                  setPaymentForm(prev => ({ ...prev, changeReasonL: e.target.value, changeReasonM: '' }));
                                   onPaymentChangeStart?.();
                                 }}
-                                className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-orange-500"
+                                className="flex-1 px-2 py-1.5 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-orange-500"
                               >
-                                {idTypeCodes.map(code => (
+                                <option value="">대분류</option>
+                                {changeReasonLargeCodes.map(code => (
+                                  <option key={code.CODE} value={code.CODE}>{code.CODE_NM}</option>
+                                ))}
+                              </select>
+                              <select
+                                value={paymentForm.changeReasonM}
+                                onChange={(e) => {
+                                  setPaymentForm(prev => ({ ...prev, changeReasonM: e.target.value }));
+                                  onPaymentChangeStart?.();
+                                }}
+                                disabled={!paymentForm.changeReasonL}
+                                className="flex-1 px-2 py-1.5 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-orange-500 disabled:bg-gray-100"
+                              >
+                                <option value="">중분류</option>
+                                {(changeReasonMiddleCodes[paymentForm.changeReasonL] || []).map(code => (
                                   <option key={code.CODE} value={code.CODE}>{code.CODE_NM}</option>
                                 ))}
                               </select>
                             </div>
                           </div>
 
-                          {/* 세번째 행: 생년월일 + 은행/카드사 */}
-                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                            {/* 생년월일 */}
-                            <div>
-                              <label className="block text-xs text-gray-500 mb-1">생년월일</label>
-                              <input
-                                type="text"
-                                value={paymentForm.birthDt}
-                                onChange={(e) => {
-                                  setPaymentForm(prev => ({ ...prev, birthDt: e.target.value.replace(/[^0-9]/g, '').slice(0, 8) }));
-                                  onPaymentChangeStart?.();
-                                }}
-                                placeholder="YYYYMMDD"
-                                maxLength={8}
-                                className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-orange-500"
-                              />
-                            </div>
-
-                            {/* 은행명/카드사명 */}
-                            <div>
-                              <label className="block text-xs text-gray-500 mb-1">
-                                {paymentForm.pymMthCd === '01' ? '은행명' : '카드사명'}
-                              </label>
-                              <select
-                                value={paymentForm.bankCd}
-                                onChange={(e) => {
-                                  setPaymentForm(prev => ({ ...prev, bankCd: e.target.value }));
-                                  setIsVerified(false);
-                                  onPaymentChangeStart?.();
-                                }}
-                                className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-orange-500"
-                              >
-                                <option value="">선택</option>
-                                {(paymentForm.pymMthCd === '01' ? bankCodes : cardCompanyCodes).map(code => (
-                                  <option key={code.CODE} value={code.CODE}>{code.CODE_NM}</option>
-                                ))}
-                              </select>
-                            </div>
+                          {/* 예금주명/카드소유주명 */}
+                          <div className="flex items-center">
+                            <label className="w-20 flex-shrink-0 text-xs text-gray-500">
+                              {paymentForm.pymMthCd === '01' ? '예금주명' : '카드소유주'}
+                            </label>
+                            <input
+                              type="text"
+                              value={paymentForm.acntHolderNm}
+                              onChange={(e) => {
+                                setPaymentForm(prev => ({ ...prev, acntHolderNm: e.target.value }));
+                                setIsVerified(false);
+                                onPaymentChangeStart?.();
+                              }}
+                              placeholder="이름 입력"
+                              className="flex-1 px-2 py-1.5 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-orange-500"
+                            />
                           </div>
 
-                          {/* 계좌번호/카드번호 + 인증 버튼 - 전체 너비 */}
-                          <div>
-                            <label className="block text-xs text-gray-500 mb-1">
+                          {/* 신분유형 */}
+                          <div className="flex items-center">
+                            <label className="w-20 flex-shrink-0 text-xs text-gray-500">신분유형</label>
+                            <select
+                              value={paymentForm.idType}
+                              onChange={(e) => {
+                                setPaymentForm(prev => ({ ...prev, idType: e.target.value }));
+                                onPaymentChangeStart?.();
+                              }}
+                              className="flex-1 px-2 py-1.5 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-orange-500"
+                            >
+                              {idTypeCodes.map(code => (
+                                <option key={code.CODE} value={code.CODE}>{code.CODE_NM}</option>
+                              ))}
+                            </select>
+                          </div>
+
+                          {/* 생년월일 */}
+                          <div className="flex items-center">
+                            <label className="w-20 flex-shrink-0 text-xs text-gray-500">생년월일</label>
+                            <input
+                              type="text"
+                              value={paymentForm.birthDt}
+                              onChange={(e) => {
+                                setPaymentForm(prev => ({ ...prev, birthDt: e.target.value.replace(/[^0-9]/g, '').slice(0, 8) }));
+                                onPaymentChangeStart?.();
+                              }}
+                              placeholder="YYYYMMDD"
+                              maxLength={8}
+                              className="flex-1 px-2 py-1.5 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-orange-500"
+                            />
+                          </div>
+
+                          {/* 은행명/카드사명 */}
+                          <div className="flex items-center">
+                            <label className="w-20 flex-shrink-0 text-xs text-gray-500">
+                              {paymentForm.pymMthCd === '01' ? '은행명' : '카드사명'}
+                            </label>
+                            <select
+                              value={paymentForm.bankCd}
+                              onChange={(e) => {
+                                setPaymentForm(prev => ({ ...prev, bankCd: e.target.value }));
+                                setIsVerified(false);
+                                onPaymentChangeStart?.();
+                              }}
+                              className="flex-1 px-2 py-1.5 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-orange-500"
+                            >
+                              <option value="">선택</option>
+                              {(paymentForm.pymMthCd === '01' ? bankCodes : cardCompanyCodes).map(code => (
+                                <option key={code.CODE} value={code.CODE}>{code.CODE_NM}</option>
+                              ))}
+                            </select>
+                          </div>
+
+                          {/* 계좌번호/카드번호 + 인증 버튼 */}
+                          <div className="flex items-center">
+                            <label className="w-20 flex-shrink-0 text-xs text-gray-500">
                               {paymentForm.pymMthCd === '01' ? '계좌번호' : '카드번호'}
                             </label>
-                            <div className="flex gap-2">
+                            <div className="flex-1 flex gap-2">
                               <input
                                 type="text"
                                 value={paymentForm.acntNo}
@@ -1445,9 +1436,9 @@ const CustomerInfoChange: React.FC<CustomerInfoChangeProps> = ({
 
                           {/* 카드 전용 필드: 유효기간 + 제휴카드 */}
                           {paymentForm.pymMthCd === '02' && (
-                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                              <div>
-                                <label className="block text-xs text-gray-500 mb-1">카드유효기간</label>
+                            <>
+                              <div className="flex items-center">
+                                <label className="w-20 flex-shrink-0 text-xs text-gray-500">유효기간</label>
                                 <div className="flex items-center gap-1">
                                   <input
                                     type="text"
@@ -1477,59 +1468,56 @@ const CustomerInfoChange: React.FC<CustomerInfoChangeProps> = ({
                                 </div>
                               </div>
 
-                              <div>
-                                <label className="block text-xs text-gray-500 mb-1">제휴카드</label>
+                              <div className="flex items-center">
+                                <label className="w-20 flex-shrink-0 text-xs text-gray-500">제휴카드</label>
                                 <select
                                   value={paymentForm.joinCardYn}
                                   onChange={(e) => {
                                     setPaymentForm(prev => ({ ...prev, joinCardYn: e.target.value }));
                                     onPaymentChangeStart?.();
                                   }}
-                                  className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-orange-500"
+                                  className="flex-1 px-2 py-1.5 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-orange-500"
                                 >
                                   <option value="N">아니오</option>
                                   <option value="Y">예</option>
                                 </select>
                               </div>
-                            </div>
+                            </>
                           )}
 
-                          {/* 마지막 행: 납부자관계 + 결제일 */}
-                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                            {/* 납부자관계 */}
-                            <div>
-                              <label className="block text-xs text-gray-500 mb-1">납부자관계</label>
-                              <select
-                                value={paymentForm.pyrRel}
-                                onChange={(e) => {
-                                  setPaymentForm(prev => ({ ...prev, pyrRel: e.target.value }));
-                                  onPaymentChangeStart?.();
-                                }}
-                                className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-orange-500"
-                              >
-                                {pyrRelCodes.map(code => (
-                                  <option key={code.CODE} value={code.CODE}>{code.CODE_NM}</option>
-                                ))}
-                              </select>
-                            </div>
+                          {/* 납부자관계 */}
+                          <div className="flex items-center">
+                            <label className="w-20 flex-shrink-0 text-xs text-gray-500">납부자관계</label>
+                            <select
+                              value={paymentForm.pyrRel}
+                              onChange={(e) => {
+                                setPaymentForm(prev => ({ ...prev, pyrRel: e.target.value }));
+                                onPaymentChangeStart?.();
+                              }}
+                              className="flex-1 px-2 py-1.5 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-orange-500"
+                            >
+                              {pyrRelCodes.map(code => (
+                                <option key={code.CODE} value={code.CODE}>{code.CODE_NM}</option>
+                              ))}
+                            </select>
+                          </div>
 
-                            {/* 결제일 */}
-                            <div>
-                              <label className="block text-xs text-gray-500 mb-1">결제일</label>
-                              <select
-                                value={paymentForm.pymDay}
-                                onChange={(e) => {
-                                  setPaymentForm(prev => ({ ...prev, pymDay: e.target.value }));
-                                  onPaymentChangeStart?.();
-                                }}
-                                className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-orange-500"
-                              >
-                                <option value="">선택</option>
-                                {paymentDays.map(day => (
-                                  <option key={day.CODE} value={day.CODE}>{day.CODE_NM}</option>
-                                ))}
-                              </select>
-                            </div>
+                          {/* 결제일 */}
+                          <div className="flex items-center">
+                            <label className="w-20 flex-shrink-0 text-xs text-gray-500">결제일</label>
+                            <select
+                              value={paymentForm.pymDay}
+                              onChange={(e) => {
+                                setPaymentForm(prev => ({ ...prev, pymDay: e.target.value }));
+                                onPaymentChangeStart?.();
+                              }}
+                              className="flex-1 px-2 py-1.5 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-orange-500"
+                            >
+                              <option value="">선택</option>
+                              {paymentDays.map(day => (
+                                <option key={day.CODE} value={day.CODE}>{day.CODE_NM}</option>
+                              ))}
+                            </select>
                           </div>
                         </div>
                       </div>
@@ -1541,22 +1529,22 @@ const CustomerInfoChange: React.FC<CustomerInfoChangeProps> = ({
                           청구주소정보
                         </h4>
 
-                        <div className="space-y-3">
+                        <div className="space-y-2">
                           {/* 읍/면/동 검색 */}
-                          <div>
-                            <label className="block text-xs text-gray-500 mb-1">읍/면/동</label>
-                            <div className="flex gap-2">
+                          <div className="flex items-center">
+                            <label className="w-20 flex-shrink-0 text-xs text-gray-500">읍/면/동</label>
+                            <div className="flex-1 flex gap-2">
                               <input
                                 type="text"
-                                value={paymentForm.billAddr ? `${paymentForm.billZipCd} - ${paymentForm.billAddr.substring(0, 30)}...` : ''}
+                                value={paymentForm.billAddr ? `${paymentForm.billZipCd} - ${paymentForm.billAddr.substring(0, 20)}...` : ''}
                                 readOnly
-                                placeholder="주소 검색 버튼 클릭"
+                                placeholder="주소 검색"
                                 onClick={handleOpenBillAddressModal}
-                                className="flex-1 px-2 py-1.5 text-sm border border-gray-300 rounded bg-gray-50 cursor-pointer truncate"
+                                className="flex-1 min-w-0 px-2 py-1.5 text-sm border border-gray-300 rounded bg-gray-50 cursor-pointer truncate"
                               />
                               <button
                                 onClick={handleOpenBillAddressModal}
-                                className="px-3 py-1.5 text-sm bg-orange-100 text-orange-700 rounded hover:bg-orange-200 flex items-center gap-1"
+                                className="flex-shrink-0 px-3 py-1.5 text-sm bg-orange-100 text-orange-700 rounded hover:bg-orange-200 flex items-center gap-1"
                               >
                                 <Search className="w-4 h-4" />
                                 검색
@@ -1565,57 +1553,57 @@ const CustomerInfoChange: React.FC<CustomerInfoChangeProps> = ({
                           </div>
 
                           {/* 도로명주소 */}
-                          <div>
-                            <label className="block text-xs text-gray-500 mb-1">도로명주소</label>
+                          <div className="flex items-center">
+                            <label className="w-20 flex-shrink-0 text-xs text-gray-500">도로명</label>
                             <input
                               type="text"
                               value={paymentForm.billAddr}
                               readOnly
                               placeholder="주소 검색 후 자동 입력"
-                              className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded bg-gray-50"
+                              className="flex-1 px-2 py-1.5 text-sm border border-gray-300 rounded bg-gray-50"
                             />
                           </div>
 
                           {/* 지번주소 */}
-                          <div>
-                            <label className="block text-xs text-gray-500 mb-1">지번주소</label>
+                          <div className="flex items-center">
+                            <label className="w-20 flex-shrink-0 text-xs text-gray-500">지번</label>
                             <input
                               type="text"
                               value={paymentForm.billAddrJibun}
                               readOnly
                               placeholder="주소 검색 후 자동 입력"
-                              className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded bg-gray-50"
+                              className="flex-1 px-2 py-1.5 text-sm border border-gray-300 rounded bg-gray-50"
                             />
                           </div>
 
-                          {/* 상세주소 */}
-                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                            <div>
-                              <label className="block text-xs text-gray-500 mb-1">상세 (동)</label>
-                              <input
-                                type="text"
-                                value={paymentForm.billAddrDtl}
-                                onChange={(e) => {
-                                  setPaymentForm(prev => ({ ...prev, billAddrDtl: e.target.value }));
-                                  onPaymentChangeStart?.();
-                                }}
-                                placeholder="동"
-                                className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-orange-500"
-                              />
-                            </div>
-                            <div>
-                              <label className="block text-xs text-gray-500 mb-1">호</label>
-                              <input
-                                type="text"
-                                value={paymentForm.billAddrDtl2}
-                                onChange={(e) => {
-                                  setPaymentForm(prev => ({ ...prev, billAddrDtl2: e.target.value }));
-                                  onPaymentChangeStart?.();
-                                }}
-                                placeholder="호"
-                                className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-orange-500"
-                              />
-                            </div>
+                          {/* 상세주소 동 */}
+                          <div className="flex items-center">
+                            <label className="w-20 flex-shrink-0 text-xs text-gray-500">상세(동)</label>
+                            <input
+                              type="text"
+                              value={paymentForm.billAddrDtl}
+                              onChange={(e) => {
+                                setPaymentForm(prev => ({ ...prev, billAddrDtl: e.target.value }));
+                                onPaymentChangeStart?.();
+                              }}
+                              placeholder="동"
+                              className="flex-1 px-2 py-1.5 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-orange-500"
+                            />
+                          </div>
+
+                          {/* 상세주소 호 */}
+                          <div className="flex items-center">
+                            <label className="w-20 flex-shrink-0 text-xs text-gray-500">상세(호)</label>
+                            <input
+                              type="text"
+                              value={paymentForm.billAddrDtl2}
+                              onChange={(e) => {
+                                setPaymentForm(prev => ({ ...prev, billAddrDtl2: e.target.value }));
+                                onPaymentChangeStart?.();
+                              }}
+                              placeholder="호"
+                              className="flex-1 px-2 py-1.5 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-orange-500"
+                            />
                           </div>
                         </div>
                       </div>
