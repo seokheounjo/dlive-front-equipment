@@ -511,12 +511,14 @@ const mapCustomerFields = (data: any): CustomerInfo => {
     CUST_NM: data.CUST_NM || '',
     TEL_NO: data.TEL_NO || data.TEL_NO1 || '',           // TEL_NO1 -> TEL_NO
     HP_NO: data.HP_NO || data.TEL_NO2 || '',             // TEL_NO2 -> HP_NO
-    CUST_ADDR: data.CUST_ADDR || data.ADDRESS || '',     // ADDRESS -> CUST_ADDR
+    CUST_ADDR: data.CUST_ADDR || data.ADDR || data.ADDRESS || '',     // ADDR/ADDRESS -> CUST_ADDR
+    ROAD_ADDR: data.ROAD_ADDR || data.ADDR_FULL || '',   // ADDR_FULL -> ROAD_ADDR (전체주소)
     INST_ADDR: data.INST_ADDR || data.ADDR_FULL || data.ADDRESS || '',  // ADDR_FULL -> INST_ADDR
     BILL_ADDR: data.BILL_ADDR || '',                     // D'Live API does not return this
     UNPAY_AMT: data.UNPAY_AMT || 0,                      // D'Live API does not return this
     CUST_TP_CD: data.CUST_TP_CD || data.CUST_TP || '',   // CUST_TP -> CUST_TP_CD
     CUST_TP_NM: data.CUST_TP_NM || data.CUST_CL_NM || '', // CUST_CL_NM -> CUST_TP_NM
+    GRP_NO: data.GRP_NO || data.GRP_ID || '',            // GRP_ID -> GRP_NO
     REG_DT: data.REG_DT || ''                            // D'Live API does not return this
   };
 };

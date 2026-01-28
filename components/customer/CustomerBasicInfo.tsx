@@ -65,9 +65,6 @@ const CustomerBasicInfo: React.FC<CustomerBasicInfoProps> = ({
     work: false
   });
 
-  // 도로명주소 표시 여부
-  const [showRoadAddr, setShowRoadAddr] = useState(false);
-
   // 이전 고객 ID 추적
   const [prevCustomerId, setPrevCustomerId] = useState<string | null>(null);
 
@@ -194,25 +191,13 @@ const CustomerBasicInfo: React.FC<CustomerBasicInfoProps> = ({
                     </div>
                   </div>
 
-                  {/* 주소 정보 */}
+                  {/* 주소 정보 - ADDR_FULL(ROAD_ADDR) 우선 표시 */}
                   <div className="pt-2 border-t border-gray-100 text-sm space-y-1">
                     <div className="flex items-center justify-between">
                       <span className="text-gray-500">고객주소</span>
-                      <label className="flex items-center gap-1 cursor-pointer">
-                        <input
-                          type="checkbox"
-                          checked={showRoadAddr}
-                          onChange={(e) => setShowRoadAddr(e.target.checked)}
-                          className="w-3 h-3 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
-                        />
-                        <span className="text-xs text-gray-400">도로명</span>
-                      </label>
                     </div>
                     <div className="text-gray-700 break-words">
-                      {showRoadAddr
-                        ? (selectedCustomer.ROAD_ADDR || selectedCustomer.INST_ADDR || selectedCustomer.CUST_ADDR || '-')
-                        : (selectedCustomer.INST_ADDR || selectedCustomer.CUST_ADDR || '-')
-                      }
+                      {selectedCustomer.ROAD_ADDR || selectedCustomer.INST_ADDR || selectedCustomer.CUST_ADDR || '-'}
                     </div>
                   </div>
 
