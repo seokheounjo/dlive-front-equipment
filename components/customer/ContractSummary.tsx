@@ -128,7 +128,7 @@ const ContractSummary: React.FC<ContractSummaryProps> = ({
               {/* 필터 영역 */}
               <div className="mb-4 space-y-3">
                 {/* 상태 필터 버튼 */}
-                <div className="flex gap-2">
+                <div className="flex flex-wrap gap-2">
                   <button
                     onClick={() => setFilterStatus('all')}
                     className={`px-3 py-1.5 text-sm rounded-full transition-colors ${

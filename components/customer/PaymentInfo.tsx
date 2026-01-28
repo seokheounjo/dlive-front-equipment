@@ -433,36 +433,38 @@ const PaymentInfo: React.FC<PaymentInfoProps> = ({
                         조건에 맞는 요금 내역이 없습니다.
                       </div>
                     ) : (
-                      <>
-                        <div className="grid grid-cols-4 gap-2 px-2 text-xs text-gray-500 font-medium">
-                          <span>청구월</span>
-                          <span className="text-right">청구금액</span>
-                          <span className="text-right">수납금액</span>
-                          <span className="text-right">미납금액</span>
-                        </div>
-
-                        {filteredBillingHistory.map((item, index) => (
-                          <div
-                            key={index}
-                            className={`grid grid-cols-4 gap-2 p-2 rounded ${
-                              item.UNPAY_AMT > 0 ? 'bg-red-50' : 'bg-gray-50'
-                            }`}
-                          >
-                            <span className="text-sm text-gray-700">{item.BILL_YM}</span>
-                            <span className="text-sm text-right text-gray-700">
-                              {formatCurrency(item.BILL_AMT)}
-                            </span>
-                            <span className="text-sm text-right text-green-600">
-                              {formatCurrency(item.RCPT_AMT)}
-                            </span>
-                            <span className={`text-sm text-right font-medium ${
-                              item.UNPAY_AMT > 0 ? 'text-red-600' : 'text-gray-600'
-                            }`}>
-                              {formatCurrency(item.UNPAY_AMT)}
-                            </span>
+                      <div className="overflow-x-auto">
+                        <div className="min-w-[320px]">
+                          <div className="grid grid-cols-4 gap-2 px-2 text-xs text-gray-500 font-medium">
+                            <span>청구월</span>
+                            <span className="text-right">청구금액</span>
+                            <span className="text-right">수납금액</span>
+                            <span className="text-right">미납금액</span>
                           </div>
-                        ))}
-                      </>
+
+                          {filteredBillingHistory.map((item, index) => (
+                            <div
+                              key={index}
+                              className={`grid grid-cols-4 gap-2 p-2 rounded ${
+                                item.UNPAY_AMT > 0 ? 'bg-red-50' : 'bg-gray-50'
+                              }`}
+                            >
+                              <span className="text-sm text-gray-700">{item.BILL_YM}</span>
+                              <span className="text-sm text-right text-gray-700">
+                                {formatCurrency(item.BILL_AMT)}
+                              </span>
+                              <span className="text-sm text-right text-green-600">
+                                {formatCurrency(item.RCPT_AMT)}
+                              </span>
+                              <span className={`text-sm text-right font-medium ${
+                                item.UNPAY_AMT > 0 ? 'text-red-600' : 'text-gray-600'
+                              }`}>
+                                {formatCurrency(item.UNPAY_AMT)}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
                     )}
                   </div>
                 )}
