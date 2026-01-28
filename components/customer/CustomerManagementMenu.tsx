@@ -5,6 +5,8 @@ import CustomerInfoChange from './CustomerInfoChange';
 import ConsultationAS from './ConsultationAS';
 import ElectronicContract from './ElectronicContract';
 import CustomerCreate from './CustomerCreate';
+import CustomerSearch from './CustomerSearch';
+import { CustomerInfo } from '../../services/customerApi';
 
 interface CustomerManagementMenuProps {
   onNavigateToMenu: () => void;
@@ -23,12 +25,8 @@ interface CustomerManagementMenuProps {
 const CustomerManagementMenu: React.FC<CustomerManagementMenuProps> = ({ onNavigateToMenu, showToast }) => {
   const [activeTab, setActiveTab] = useState<string>('basic-info');
 
-  // 선택된 고객 정보 (탭 간 공유)
-  const [selectedCustomer, setSelectedCustomer] = useState<{
-    custId: string;
-    custNm: string;
-    telNo: string;
-  } | null>(null);
+  // 선택된 고객 정보 (탭 간 공유) - 전체 CustomerInfo 저장
+  const [selectedCustomer, setSelectedCustomer] = useState<CustomerInfo | null>(null);
 
   // 선택된 계약 정보 (AS 접수 등에서 사용)
   const [selectedContract, setSelectedContract] = useState<{
@@ -57,10 +55,16 @@ const CustomerManagementMenu: React.FC<CustomerManagementMenuProps> = ({ onNavig
     setActiveTab(tabId);
   };
 
-  // 고객 선택 핸들러 (기본조회에서 고객 선택 시 호출)
-  const handleCustomerSelect = (customer: { custId: string; custNm: string; telNo: string }) => {
+  // 고객 선택 핸들러 (CustomerSearch에서 고객 선택 시 호출)
+  const handleCustomerSelect = (customer: CustomerInfo) => {
     setSelectedCustomer(customer);
     // 계약 정보 초기화
+    setSelectedContract(null);
+  };
+
+  // 고객 선택 해제
+  const handleCustomerClear = () => {
+    setSelectedCustomer(null);
     setSelectedContract(null);
   };
 
@@ -92,12 +96,11 @@ const CustomerManagementMenu: React.FC<CustomerManagementMenuProps> = ({ onNavig
           <CustomerBasicInfo
             onBack={onNavigateToMenu}
             showToast={showToast}
-            onCustomerSelect={handleCustomerSelect}
             onContractSelect={handleContractSelect}
             onNavigateToAS={() => handleNavigateToTab('consultation-as', 'as')}
             onNavigateToConsultation={() => handleNavigateToTab('consultation-as', 'consultation')}
             onNavigateToPaymentChange={handleNavigateToPaymentChange}
-            savedCustomer={selectedCustomer}
+            selectedCustomer={selectedCustomer}
             savedContract={selectedContract}
           />
         );
@@ -106,7 +109,11 @@ const CustomerManagementMenu: React.FC<CustomerManagementMenuProps> = ({ onNavig
           <CustomerInfoChange
             onBack={onNavigateToMenu}
             showToast={showToast}
-            selectedCustomer={selectedCustomer}
+            selectedCustomer={selectedCustomer ? {
+              custId: selectedCustomer.CUST_ID,
+              custNm: selectedCustomer.CUST_NM,
+              telNo: selectedCustomer.TEL_NO || selectedCustomer.HP_NO
+            } : null}
             initialSection={infoChangeInitialSection}
             initialPymAcntId={infoChangeInitialPymAcntId}
           />
@@ -116,7 +123,11 @@ const CustomerManagementMenu: React.FC<CustomerManagementMenuProps> = ({ onNavig
           <ConsultationAS
             onBack={onNavigateToMenu}
             showToast={showToast}
-            selectedCustomer={selectedCustomer}
+            selectedCustomer={selectedCustomer ? {
+              custId: selectedCustomer.CUST_ID,
+              custNm: selectedCustomer.CUST_NM,
+              telNo: selectedCustomer.TEL_NO || selectedCustomer.HP_NO
+            } : null}
             selectedContract={selectedContract}
             onNavigateToBasicInfo={() => handleNavigateToTab('basic-info')}
             initialTab={consultationInitialTab}
@@ -127,7 +138,11 @@ const CustomerManagementMenu: React.FC<CustomerManagementMenuProps> = ({ onNavig
           <ElectronicContract
             onBack={onNavigateToMenu}
             showToast={showToast}
-            selectedCustomer={selectedCustomer}
+            selectedCustomer={selectedCustomer ? {
+              custId: selectedCustomer.CUST_ID,
+              custNm: selectedCustomer.CUST_NM,
+              telNo: selectedCustomer.TEL_NO || selectedCustomer.HP_NO
+            } : null}
             selectedContract={selectedContract}
             onNavigateToBasicInfo={() => handleNavigateToTab('basic-info')}
           />
@@ -155,31 +170,14 @@ const CustomerManagementMenu: React.FC<CustomerManagementMenuProps> = ({ onNavig
         />
       </div>
 
-      {/* 선택된 고객 정보 표시 바 (고객 선택 시에만) */}
-      {selectedCustomer && activeTab !== 'customer-create' && (
-        <div className="flex-shrink-0 bg-blue-50 border-b border-blue-200 px-3 py-1.5">
-          <div className="flex items-center justify-between gap-2">
-            <div className="flex items-center gap-1 text-sm min-w-0">
-              <span className="font-medium text-blue-800 whitespace-nowrap">{selectedCustomer.custNm}</span>
-              <span className="text-blue-600 whitespace-nowrap">({selectedCustomer.custId})</span>
-              <span className="text-blue-500 whitespace-nowrap">{selectedCustomer.telNo}</span>
-            </div>
-            <button
-              onClick={() => {
-                setSelectedCustomer(null);
-                setSelectedContract(null);
-              }}
-              className="text-blue-600 hover:text-blue-800 text-xs whitespace-nowrap"
-            >
-              해제
-            </button>
-          </div>
-          {selectedContract && (
-            <div className="flex items-center gap-1 text-xs mt-0.5">
-              <span className="text-blue-700 truncate">{selectedContract.prodNm}</span>
-              <span className="text-blue-500 whitespace-nowrap">({selectedContract.ctrtId})</span>
-            </div>
-          )}
+      {/* 고객 검색 - 고객생성 탭 제외하고 모든 탭에서 표시 */}
+      {activeTab !== 'customer-create' && (
+        <div className="flex-shrink-0 bg-white border-b border-gray-200 p-3">
+          <CustomerSearch
+            onCustomerSelect={handleCustomerSelect}
+            showToast={showToast}
+            selectedCustomer={selectedCustomer}
+          />
         </div>
       )}
 

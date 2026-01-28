@@ -1,18 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import {
-  User, Phone, MapPin, CreditCard, FileText,
-  ChevronDown, ChevronUp, Loader2, AlertCircle,
-  Wrench, MessageSquare, Cpu
+  ChevronDown, ChevronUp, Loader2
 } from 'lucide-react';
-import CustomerSearch from './CustomerSearch';
 import ContractSummary from './ContractSummary';
 import PaymentInfo from './PaymentInfo';
 import {
   CustomerInfo,
   ContractInfo,
-  getCustomerDetail,
   getContractList,
-  getPaymentInfo,
   getConsultationHistory,
   getWorkHistory,
   formatPhoneNumber,
@@ -24,13 +19,12 @@ import {
 interface CustomerBasicInfoProps {
   onBack: () => void;
   showToast?: (message: string, type: 'success' | 'error' | 'warning' | 'info') => void;
-  onCustomerSelect: (customer: { custId: string; custNm: string; telNo: string }) => void;
   onContractSelect: (contract: { ctrtId: string; prodNm: string; instAddr: string; postId?: string }) => void;
   onNavigateToAS: () => void;
   onNavigateToConsultation?: () => void;
   onNavigateToPaymentChange?: (pymAcntId: string) => void;  // 납부정보 변경 탭으로 이동
-  // 탭 이동 시 데이터 보존을 위한 초기값
-  savedCustomer?: { custId: string; custNm: string; telNo: string } | null;
+  // 상위 컴포넌트에서 전달받은 선택된 고객 정보
+  selectedCustomer?: CustomerInfo | null;
   savedContract?: { ctrtId: string; prodNm: string; instAddr: string; postId?: string } | null;
 }
 
@@ -47,34 +41,12 @@ interface CustomerBasicInfoProps {
 const CustomerBasicInfo: React.FC<CustomerBasicInfoProps> = ({
   onBack,
   showToast,
-  onCustomerSelect,
   onContractSelect,
   onNavigateToAS,
   onNavigateToPaymentChange,
-  savedCustomer,
+  selectedCustomer,
   savedContract
 }) => {
-  // 선택된 고객 (savedCustomer로 초기화하여 탭 이동 시 복원)
-  const [selectedCustomer, setSelectedCustomer] = useState<CustomerInfo | null>(() => {
-    // 초기값으로 savedCustomer가 있으면 복원
-    if (savedCustomer) {
-      return {
-        CUST_ID: savedCustomer.custId,
-        CUST_NM: savedCustomer.custNm,
-        TEL_NO: savedCustomer.telNo,
-        HP_NO: savedCustomer.telNo,
-        CUST_ADDR: '',
-        INST_ADDR: '',
-        BILL_ADDR: '',
-        UNPAY_AMT: 0,
-        CUST_TP_CD: '',
-        CUST_TP_NM: '',
-        REG_DT: ''
-      };
-    }
-    return null;
-  });
-
   // 데이터 상태
   const [contracts, setContracts] = useState<ContractInfo[]>([]);
   const [consultationHistory, setConsultationHistory] = useState<ConsultationHistory[]>([]);
@@ -96,29 +68,23 @@ const CustomerBasicInfo: React.FC<CustomerBasicInfoProps> = ({
   // 도로명주소 표시 여부
   const [showRoadAddr, setShowRoadAddr] = useState(false);
 
-  // 컴포넌트 마운트 시 savedCustomer가 있으면 데이터 로드
+  // 이전 고객 ID 추적
+  const [prevCustomerId, setPrevCustomerId] = useState<string | null>(null);
+
+  // 선택된 고객이 변경되면 데이터 로드
   useEffect(() => {
-    if (savedCustomer && contracts.length === 0) {
-      loadContracts(savedCustomer.custId);
-      loadHistory(savedCustomer.custId);
+    if (selectedCustomer && selectedCustomer.CUST_ID !== prevCustomerId) {
+      setPrevCustomerId(selectedCustomer.CUST_ID);
+      loadContracts(selectedCustomer.CUST_ID);
+      loadHistory(selectedCustomer.CUST_ID);
+    } else if (!selectedCustomer && prevCustomerId) {
+      // 고객 선택 해제 시 데이터 초기화
+      setPrevCustomerId(null);
+      setContracts([]);
+      setConsultationHistory([]);
+      setWorkHistory([]);
     }
-  }, []); // 마운트 시 한 번만 실행
-
-  // 고객 선택 핸들러
-  const handleCustomerSelect = async (customer: CustomerInfo) => {
-    setSelectedCustomer(customer);
-    onCustomerSelect({
-      custId: customer.CUST_ID,
-      custNm: customer.CUST_NM,
-      telNo: customer.TEL_NO || customer.HP_NO
-    });
-
-    // 계약 목록 조회
-    await loadContracts(customer.CUST_ID);
-
-    // 이력 조회
-    await loadHistory(customer.CUST_ID);
-  };
+  }, [selectedCustomer]);
 
   // 계약 목록 로드
   const loadContracts = async (custId: string) => {
@@ -181,15 +147,8 @@ const CustomerBasicInfo: React.FC<CustomerBasicInfoProps> = ({
   return (
     <div className="h-full overflow-y-auto bg-gray-50">
       <div className="p-4 space-y-4">
-        {/* 고객 검색 */}
-        <CustomerSearch
-          onCustomerSelect={handleCustomerSelect}
-          showToast={showToast}
-          selectedCustomer={selectedCustomer}
-        />
-
         {/* 고객 선택 후 상세 정보 표시 */}
-        {selectedCustomer && (
+        {selectedCustomer ? (
           <>
             {/* 고객 기본 정보 */}
             <div className="bg-white rounded-lg shadow-sm border border-gray-200">
@@ -390,6 +349,10 @@ const CustomerBasicInfo: React.FC<CustomerBasicInfoProps> = ({
               )}
             </div>
           </>
+        ) : (
+          <div className="flex items-center justify-center h-48 text-gray-400 text-sm">
+            상단에서 고객을 검색하고 선택해주세요.
+          </div>
         )}
       </div>
     </div>
