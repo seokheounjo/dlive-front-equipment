@@ -24,6 +24,29 @@ import {
   StreetAddressInfo
 } from '../../services/customerApi';
 
+// 납부폼 타입 정의
+interface PaymentFormData {
+  pymMthCd: string;
+  changeReasonL: string;
+  changeReasonM: string;
+  acntHolderNm: string;
+  idType: string;
+  birthDt: string;
+  bankCd: string;
+  acntNo: string;
+  cardExpMm: string;
+  cardExpYy: string;
+  joinCardYn: string;
+  pyrRel: string;
+  pymDay: string;
+  billZipCd: string;
+  billAddr: string;
+  billAddrJibun: string;
+  billAddrDtl: string;
+  billAddrDtl2: string;
+  billPostId: string;
+}
+
 interface CustomerInfoChangeProps {
   onBack: () => void;
   showToast?: (message: string, type: 'success' | 'error' | 'warning' | 'info') => void;
@@ -36,6 +59,11 @@ interface CustomerInfoChangeProps {
   initialPymAcntId?: string;  // 초기 선택할 납부계정 ID
   onPaymentChangeStart?: () => void;  // 납부방법 변경 시작 알림
   onPaymentChangeEnd?: () => void;    // 납부방법 변경 종료 알림
+  // 폼 상태 유지를 위한 props
+  savedPaymentForm?: PaymentFormData | null;
+  savedPymAcntId?: string;
+  savedIsVerified?: boolean;
+  onPaymentFormChange?: (form: PaymentFormData, pymAcntId: string, isVerified: boolean) => void;
 }
 
 interface TelecomCode {
@@ -60,7 +88,11 @@ const CustomerInfoChange: React.FC<CustomerInfoChangeProps> = ({
   initialSection = 'phone',
   initialPymAcntId = '',
   onPaymentChangeStart,
-  onPaymentChangeEnd
+  onPaymentChangeEnd,
+  savedPaymentForm,
+  savedPymAcntId = '',
+  savedIsVerified = false,
+  onPaymentFormChange
 }) => {
   // 섹션 펼침 상태 (initialSection prop에 따라 초기값 설정)
   const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({
@@ -104,10 +136,11 @@ const CustomerInfoChange: React.FC<CustomerInfoChangeProps> = ({
 
   // 납부방법 변경
   const [paymentInfoList, setPaymentInfoList] = useState<PaymentInfo[]>([]);
-  const [selectedPymAcntId, setSelectedPymAcntId] = useState<string>('');
+  const [selectedPymAcntId, setSelectedPymAcntId] = useState<string>(savedPymAcntId);
   const [isLoadingPayment, setIsLoadingPayment] = useState(false);
   const [paymentLoaded, setPaymentLoaded] = useState(false);
-  const [paymentForm, setPaymentForm] = useState({
+  // 기본 납부폼 초기값
+  const defaultPaymentForm: PaymentFormData = {
     pymMthCd: '01',           // 01: 자동이체, 02: 카드
     changeReasonL: '',        // 변경사유 대분류
     changeReasonM: '',        // 변경사유 중분류
@@ -128,9 +161,12 @@ const CustomerInfoChange: React.FC<CustomerInfoChangeProps> = ({
     billAddrDtl: '',          // 청구지 상세주소 (동)
     billAddrDtl2: '',         // 청구지 상세주소 (호)
     billPostId: ''            // 청구지 주소ID
-  });
+  };
+
+  // 저장된 값이 있으면 사용, 없으면 기본값
+  const [paymentForm, setPaymentForm] = useState<PaymentFormData>(savedPaymentForm || defaultPaymentForm);
   const [isVerifying, setIsVerifying] = useState(false);
-  const [isVerified, setIsVerified] = useState(false);
+  const [isVerified, setIsVerified] = useState(savedIsVerified);
   const [isSavingPayment, setIsSavingPayment] = useState(false);
 
   // 청구주소 검색 모달
@@ -254,6 +290,13 @@ const CustomerInfoChange: React.FC<CustomerInfoChangeProps> = ({
   useEffect(() => {
     loadTelecomCodes();
   }, []);
+
+  // 납부폼 상태 변경 시 부모 컴포넌트에 동기화 (탭 전환 시 상태 유지)
+  useEffect(() => {
+    if (onPaymentFormChange) {
+      onPaymentFormChange(paymentForm, selectedPymAcntId, isVerified);
+    }
+  }, [paymentForm, selectedPymAcntId, isVerified]);
 
   const loadTelecomCodes = async () => {
     setIsLoadingCodes(true);

@@ -47,6 +47,31 @@ const CustomerManagementMenu: React.FC<CustomerManagementMenuProps> = ({ onNavig
   // 납부방법 변경 작업 중 상태 (탭 이동 후 돌아가기 위함)
   const [paymentChangeInProgress, setPaymentChangeInProgress] = useState(false);
 
+  // 납부방법 변경 폼 상태 (탭 전환 시 유지)
+  const [paymentFormData, setPaymentFormData] = useState<{
+    pymMthCd: string;
+    changeReasonL: string;
+    changeReasonM: string;
+    acntHolderNm: string;
+    idType: string;
+    birthDt: string;
+    bankCd: string;
+    acntNo: string;
+    cardExpMm: string;
+    cardExpYy: string;
+    joinCardYn: string;
+    pyrRel: string;
+    pymDay: string;
+    billZipCd: string;
+    billAddr: string;
+    billAddrJibun: string;
+    billAddrDtl: string;
+    billAddrDtl2: string;
+    billPostId: string;
+  } | null>(null);
+  const [paymentSelectedPymAcntId, setPaymentSelectedPymAcntId] = useState<string>('');
+  const [paymentIsVerified, setPaymentIsVerified] = useState(false);
+
   const tabs: TabItem[] = [
     { id: 'basic-info', title: '기본조회', description: '고객 검색 및 정보 조회' },
     { id: 'info-change', title: '정보변경', description: '전화번호/주소 변경' },
@@ -121,7 +146,20 @@ const CustomerManagementMenu: React.FC<CustomerManagementMenuProps> = ({ onNavig
             initialSection={infoChangeInitialSection}
             initialPymAcntId={infoChangeInitialPymAcntId}
             onPaymentChangeStart={() => setPaymentChangeInProgress(true)}
-            onPaymentChangeEnd={() => setPaymentChangeInProgress(false)}
+            onPaymentChangeEnd={() => {
+              setPaymentChangeInProgress(false);
+              setPaymentFormData(null);
+              setPaymentSelectedPymAcntId('');
+              setPaymentIsVerified(false);
+            }}
+            savedPaymentForm={paymentFormData}
+            savedPymAcntId={paymentSelectedPymAcntId}
+            savedIsVerified={paymentIsVerified}
+            onPaymentFormChange={(form, pymAcntId, isVerified) => {
+              setPaymentFormData(form);
+              setPaymentSelectedPymAcntId(pymAcntId);
+              setPaymentIsVerified(isVerified);
+            }}
           />
         );
       case 'consultation-as':
