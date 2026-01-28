@@ -329,7 +329,7 @@ const ContractSummary: React.FC<ContractSummaryProps> = ({
 
               {/* 계약 목록 */}
               <div className="space-y-3 max-h-96 overflow-y-auto">
-                {filteredContracts.map((contract) => (
+                {filteredContracts.map((contract, index) => (
                   <div
                     key={contract.CTRT_ID}
                     className={`p-3 rounded-lg border transition-colors ${
@@ -348,25 +348,30 @@ const ContractSummary: React.FC<ContractSummaryProps> = ({
                     >
                       <div className="flex items-center justify-between mb-2">
                         <div className="flex items-center gap-2">
+                          <div className="flex-shrink-0 w-7 h-7 flex items-center justify-center rounded-full bg-blue-500 text-white text-sm font-bold">
+                            {index + 1}
+                          </div>
+                          <span className="text-sm text-gray-600">{contract.PROD_NM}</span>
+                        </div>
+                        <div className="flex items-center gap-2">
                           <span className={`text-xs px-2 py-0.5 rounded ${getContractStatusStyle(contract.CTRT_STAT_CD)}`}>
                             {contract.CTRT_STAT_NM || (contract.CTRT_STAT_CD === '90' ? '해지' : contract.CTRT_STAT_CD === '20' ? '사용중' : '기타')}
                           </span>
-                          <span className="text-sm font-medium text-gray-800">{contract.PROD_NM}</span>
+                          <ChevronDown
+                            className={`w-4 h-4 text-gray-400 transition-transform ${
+                              expandedContractId === contract.CTRT_ID ? 'rotate-180' : ''
+                            }`}
+                          />
                         </div>
-                        <ChevronDown
-                          className={`w-4 h-4 text-gray-400 transition-transform ${
-                            expandedContractId === contract.CTRT_ID ? 'rotate-180' : ''
-                          }`}
-                        />
                       </div>
 
-                      <div className="text-xs text-gray-500">
+                      <div className="text-sm text-gray-600">
                         계약ID: {formatCtrtId(contract.CTRT_ID)}
                       </div>
 
                       {contract.INST_ADDR && (
-                        <div className="flex items-center gap-1 text-xs text-gray-500 mt-1">
-                          <MapPin className="w-3 h-3" />
+                        <div className="flex items-center gap-1 text-sm text-gray-600 mt-1">
+                          <MapPin className="w-4 h-4" />
                           <span className="truncate">{contract.INST_ADDR}</span>
                         </div>
                       )}
