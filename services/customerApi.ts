@@ -232,8 +232,46 @@ export interface PhoneChangeRequest {
   CHG_UID: string;           // 수정자 (로그인 사용자)
 }
 
-// 주소 변경 요청 (Backend: saveMargeAddrOrdInfo)
-// 정보변경 화면에서는 '고객주소'만 변경
+// 설치주소 변경 요청 (Backend: saveMargeAddrOrdInfo)
+// API: /customer/etc/saveMargeAddrOrdInfo.req
+export interface InstallAddressChangeRequest {
+  CTRT_ID: string;           // 계약ID (필수)
+  POST_ID: string;           // 주소ID (필수)
+  BLD_ID?: string;           // 건물ID
+  BUN_NO?: string;           // 본번
+  HO_NM?: string;            // 호명 (부번)
+  BLD_CL?: string;           // 건물분류
+  BLD_NM?: string;           // 건물명
+  APT_DONG_NO?: string;      // 아파트동번호
+  APT_HO_CNT?: string;       // 아파트호수
+  ADDR_DTL?: string;         // 상세주소
+  STREET_ID?: string;        // 도로명ID
+  CUST_FLAG?: string;        // '1'이면 고객주소도 변경
+  PYM_FLAG?: string;         // '1'이면 청구지주소도 변경
+  CHG_UID?: string;          // 변경자ID
+}
+
+// 청구지주소 변경 요청 (Backend: savePymAddrInfo)
+// API: /customer/etc/savePymAddrInfo.req
+export interface BillingAddressChangeRequest {
+  CTRT_ID: string;           // 계약ID (필수)
+  ADDR_ORD?: string;         // 주소순번
+  CHG_UID?: string;          // 변경자ID
+  CUST_FLAG?: string;        // '1'이면 고객주소도 변경
+  PYM_FLAG?: string;         // '1' 고정
+}
+
+// 고객주소 변경 요청 (Backend: 신규 API 필요)
+// TODO: 백엔드에서 고객주소만 변경하는 API 개발 필요
+export interface CustomerAddressChangeRequest {
+  CUST_ID: string;           // 고객ID
+  POST_ID: string;           // 주소ID
+  ADDR_DTL?: string;         // 상세주소
+  STREET_ID?: string;        // 도로명ID
+  CHG_UID?: string;          // 변경자ID
+}
+
+// Legacy 주소 변경 요청 (호환성 유지)
 export interface AddressChangeRequest {
   CUST_ID: string;           // 고객ID
   ADDR_ORD: string;          // 주소순번 (필수)
@@ -800,10 +838,54 @@ export const getUnpaymentDetail = async (custId: string, billYm: string): Promis
 };
 
 /**
- * 납부 정보 조회
+ * 납부 정보 조회 (Legacy)
  */
 export const getPaymentInfo = async (custId: string): Promise<ApiResponse<PaymentInfo[]>> => {
   return apiCall<PaymentInfo[]>('/customer/negociation/getCustPymInfo', { CUST_ID: custId });
+};
+
+/**
+ * 납부계정 정보 조회 (모바일용)
+ * API: customer/negociation/getCustAccountInfo_m.req
+ *
+ * 응답: PYM_ACNT_ID, PYM_MTHD_NM, BANK_CARD_NM, BANK_CARD_NO, BILL_MTHD, UPYM_AMT_ACNT
+ */
+export interface PaymentAccountInfo {
+  PYM_ACNT_ID: string;       // 납부계정ID
+  PYM_MTHD_NM: string;       // 납부방법명 (자동이체, 신용카드 등)
+  BANK_CARD_NM: string;      // 은행/카드사명
+  BANK_CARD_NO: string;      // 계좌/카드번호
+  BILL_MTHD: string;         // 청구방법 (실물+이메일+SMS 등)
+  UPYM_AMT_ACNT: number;     // 미납금액
+}
+
+export const getPaymentAccounts = async (custId: string): Promise<ApiResponse<PaymentAccountInfo[]>> => {
+  return apiCall<PaymentAccountInfo[]>('/customer/negociation/getCustAccountInfo_m', {
+    CUST_ID: custId
+  });
+};
+
+/**
+ * 요금내역 조회 (모바일용)
+ * API: customer/negociation/getCustBillInfo_m.req
+ *
+ * 납부정보에서 선택한 납부계정(PYM_ACNT_ID)로 조회
+ * 응답: BILL_YYMM, BILL_CYCL, BILL_AMT, RCPT_AMT, UPYM_AMT
+ */
+export interface BillingDetailInfo {
+  BILL_YYMM: string;         // 청구년월
+  BILL_CYCL: string;         // 청구주기 (정기, 일회성)
+  BILL_AMT: number;          // 청구금액
+  RCPT_AMT: number;          // 수납금액
+  UPYM_AMT: number;          // 미납금액
+}
+
+export const getBillingDetails = async (custId: string, pymAcntId?: string): Promise<ApiResponse<BillingDetailInfo[]>> => {
+  const params: Record<string, any> = { CUST_ID: custId };
+  if (pymAcntId) {
+    params.PYM_ACNT_ID = pymAcntId;
+  }
+  return apiCall<BillingDetailInfo[]>('/customer/negociation/getCustBillInfo_m', params);
 };
 
 /**
@@ -875,32 +957,88 @@ export const updatePhoneNumber = async (params: PhoneChangeRequest): Promise<Api
 };
 
 /**
- * 주소 변경 (고객주소)
- * API: customer/etc/saveMargeAddrOrdInfo.req
+ * 설치주소 변경
+ * API: /customer/etc/saveMargeAddrOrdInfo.req
  *
- * 정보변경 화면에서는 '고객주소'만 변경
- * 필수 파라미터: CUST_ID, ADDR_ORD
- * 옵션: DONGMYON_NM, STREET_ID, ZIP_CD, ADDR_DTL
+ * CUST_FLAG='1' 이면 고객주소도 함께 변경
+ * PYM_FLAG='1' 이면 청구지주소도 함께 변경
+ */
+export const updateInstallAddress = async (params: InstallAddressChangeRequest): Promise<ApiResponse<any>> => {
+  // 세션에서 사용자 ID 가져오기
+  let chgUid = params.CHG_UID || 'SYSTEM';
+  try {
+    const userInfoStr = sessionStorage.getItem('userInfo') || localStorage.getItem('userInfo');
+    if (userInfoStr) {
+      const userInfo = JSON.parse(userInfoStr);
+      chgUid = userInfo.userId || userInfo.USR_ID || chgUid;
+    }
+  } catch (e) {
+    console.log('[CustomerAPI] Failed to get CHG_UID from session');
+  }
+
+  return apiCall<any>('/customer/etc/saveMargeAddrOrdInfo', {
+    CTRT_ID: params.CTRT_ID,
+    POST_ID: params.POST_ID,
+    BLD_ID: params.BLD_ID || '',
+    BUN_NO: params.BUN_NO || '',
+    HO_NM: params.HO_NM || '',
+    BLD_CL: params.BLD_CL || '',
+    BLD_NM: params.BLD_NM || '',
+    APT_DONG_NO: params.APT_DONG_NO || '',
+    APT_HO_CNT: params.APT_HO_CNT || '',
+    ADDR_DTL: params.ADDR_DTL || '',
+    STREET_ID: params.STREET_ID || '',
+    CUST_FLAG: params.CUST_FLAG || '0',
+    PYM_FLAG: params.PYM_FLAG || '0',
+    CHG_UID: chgUid
+  });
+};
+
+/**
+ * 청구지주소 변경
+ * API: /customer/etc/savePymAddrInfo.req
+ *
+ * CUST_FLAG='1' 이면 고객주소도 함께 변경
+ * PYM_FLAG='1' 고정
+ */
+export const updateBillingAddress = async (params: BillingAddressChangeRequest): Promise<ApiResponse<any>> => {
+  // 세션에서 사용자 ID 가져오기
+  let chgUid = params.CHG_UID || 'SYSTEM';
+  try {
+    const userInfoStr = sessionStorage.getItem('userInfo') || localStorage.getItem('userInfo');
+    if (userInfoStr) {
+      const userInfo = JSON.parse(userInfoStr);
+      chgUid = userInfo.userId || userInfo.USR_ID || chgUid;
+    }
+  } catch (e) {
+    console.log('[CustomerAPI] Failed to get CHG_UID from session');
+  }
+
+  return apiCall<any>('/customer/etc/savePymAddrInfo', {
+    CTRT_ID: params.CTRT_ID,
+    ADDR_ORD: params.ADDR_ORD || '1',
+    CHG_UID: chgUid,
+    CUST_FLAG: params.CUST_FLAG || '0',
+    PYM_FLAG: '1'  // 고정값
+  });
+};
+
+/**
+ * 고객주소 변경 (Legacy - 호환성 유지)
+ * TODO: 백엔드에서 고객주소만 변경하는 API 개발 필요
+ * 현재는 설치주소 변경 API로 대체 (CUST_FLAG='1' 사용)
  */
 export const updateAddress = async (params: AddressChangeRequest): Promise<ApiResponse<any>> => {
+  console.warn('[CustomerAPI] updateAddress is deprecated. Use updateInstallAddress with CUST_FLAG instead.');
   const reqParams: Record<string, any> = {
     CUST_ID: params.CUST_ID,
-    ADDR_ORD: params.ADDR_ORD || '1',  // 주소순번 (필수)
+    ADDR_ORD: params.ADDR_ORD || '1',
   };
 
-  // 주소 정보
-  if (params.DONGMYON_NM) {
-    reqParams.DONGMYON_NM = params.DONGMYON_NM;
-  }
-  if (params.STREET_ID) {
-    reqParams.STREET_ID = params.STREET_ID;
-  }
-  if (params.ZIP_CD) {
-    reqParams.ZIP_CD = params.ZIP_CD;
-  }
-  if (params.ADDR_DTL) {
-    reqParams.ADDR_DTL = params.ADDR_DTL;
-  }
+  if (params.DONGMYON_NM) reqParams.DONGMYON_NM = params.DONGMYON_NM;
+  if (params.STREET_ID) reqParams.STREET_ID = params.STREET_ID;
+  if (params.ZIP_CD) reqParams.ZIP_CD = params.ZIP_CD;
+  if (params.ADDR_DTL) reqParams.ADDR_DTL = params.ADDR_DTL;
 
   return apiCall<any>('/customer/etc/saveMargeAddrOrdInfo', reqParams);
 };
