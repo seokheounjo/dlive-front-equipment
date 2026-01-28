@@ -2,20 +2,9 @@ import React, { useState } from 'react';
 import {
   FileText, ChevronDown, ChevronUp, Loader2,
   Cpu, Calendar, MapPin, Package, Wrench,
-  Filter, Check, Search
+  Filter, Check
 } from 'lucide-react';
 import { ContractInfo, formatCurrency, formatDate } from '../../services/customerApi';
-import BarcodeScanner from '../equipment/BarcodeScanner';
-
-// 계약ID 포맷 (3-3-4)
-const formatCtrtId = (ctrtId: string): string => {
-  if (!ctrtId) return '-';
-  const cleaned = ctrtId.replace(/[^0-9]/g, '');
-  if (cleaned.length === 10) {
-    return `${cleaned.slice(0, 3)}-${cleaned.slice(3, 6)}-${cleaned.slice(6, 10)}`;
-  }
-  return ctrtId;
-};
 
 interface ContractSummaryProps {
   contracts: ContractInfo[];
@@ -28,26 +17,18 @@ interface ContractSummaryProps {
 }
 
 // 계약 상태별 스타일
-// D'Live CTRT_STAT 코드:
-// 10: 설치대기, 20: 사용중, 30: 일시정지A, 38: 일시정지B대기
-// 80: 해지대기A, 82: 변경대기, 89: 해지대기B, 90: 해지
 const getContractStatusStyle = (statCd: string): string => {
   switch (statCd) {
-    case '20': // 사용중
+    case '10': // 사용중
+    case 'Y':
       return 'bg-green-100 text-green-700';
-    case '10': // 설치대기
-    case '82': // 변경대기
-      return 'bg-blue-100 text-blue-700';
-    case '30': // 일시정지A
-    case '38': // 일시정지B대기
+    case '20': // 일시정지
       return 'bg-yellow-100 text-yellow-700';
-    case '80': // 해지대기A
-    case '89': // 해지대기B
-      return 'bg-orange-100 text-orange-700';
-    case '90': // 해지
+    case '30': // 해지
+    case 'N':
       return 'bg-gray-100 text-gray-600';
     default:
-      return 'bg-gray-100 text-gray-600';
+      return 'bg-blue-100 text-blue-700';
   }
 };
 
@@ -68,24 +49,9 @@ const ContractSummary: React.FC<ContractSummaryProps> = ({
   onASRequest,
   showToast
 }) => {
-  // 필터 상태: 다중 선택 가능 (체크박스) - 기본값: 사용중
-  const [selectedFilters, setSelectedFilters] = useState<Set<string>>(new Set(['20']));
+  // 필터 상태
+  const [filterStatus, setFilterStatus] = useState<'all' | 'active' | 'terminated'>('all');
   const [searchKeyword, setSearchKeyword] = useState('');
-  const [filterExpanded, setFilterExpanded] = useState(false);
-  const [showBarcodeScanner, setShowBarcodeScanner] = useState(false);
-
-  // 필터 토글 (체크박스 방식)
-  const toggleFilter = (filter: string) => {
-    setSelectedFilters(prev => {
-      const newSet = new Set(prev);
-      if (newSet.has(filter)) {
-        newSet.delete(filter);
-      } else {
-        newSet.add(filter);
-      }
-      return newSet;
-    });
-  };
 
   // 선택된 계약
   const [selectedContractId, setSelectedContractId] = useState<string | null>(null);
@@ -93,25 +59,11 @@ const ContractSummary: React.FC<ContractSummaryProps> = ({
   // 상세 펼침 상태
   const [expandedContractId, setExpandedContractId] = useState<string | null>(null);
 
-  // 상태별 그룹
-  const isPause = (statCd: string) => ['30', '38'].includes(statCd);       // 일시정지
-  const isCancelWait = (statCd: string) => ['80', '89'].includes(statCd);  // 해지대기
-
-  // 필터링된 계약 목록 (다중 선택)
+  // 필터링된 계약 목록
   const filteredContracts = contracts.filter(contract => {
-    const statCd = contract.CTRT_STAT_CD;
-
-    // 상태 필터 (선택된 필터가 없으면 전체 표시)
-    if (selectedFilters.size > 0) {
-      let match = false;
-      if (selectedFilters.has('20') && statCd === '20') match = true;
-      if (selectedFilters.has('10') && statCd === '10') match = true;
-      if (selectedFilters.has('82') && statCd === '82') match = true;
-      if (selectedFilters.has('pause') && isPause(statCd)) match = true;
-      if (selectedFilters.has('cancel') && isCancelWait(statCd)) match = true;
-      if (selectedFilters.has('90') && statCd === '90') match = true;
-      if (!match) return false;
-    }
+    // 상태 필터
+    if (filterStatus === 'active' && contract.CTRT_STAT_CD === '30') return false;
+    if (filterStatus === 'terminated' && contract.CTRT_STAT_CD !== '30') return false;
 
     // 키워드 검색 (계약ID, 상품명, 장비시리얼)
     if (searchKeyword) {
@@ -128,12 +80,8 @@ const ContractSummary: React.FC<ContractSummaryProps> = ({
   // 계약 상태별 카운트
   const statusCount = {
     all: contracts.length,
-    active: contracts.filter(c => c.CTRT_STAT_CD === '20').length,
-    install: contracts.filter(c => c.CTRT_STAT_CD === '10').length,
-    change: contracts.filter(c => c.CTRT_STAT_CD === '82').length,
-    pause: contracts.filter(c => isPause(c.CTRT_STAT_CD)).length,
-    cancelWait: contracts.filter(c => isCancelWait(c.CTRT_STAT_CD)).length,
-    terminated: contracts.filter(c => c.CTRT_STAT_CD === '90').length
+    active: contracts.filter(c => c.CTRT_STAT_CD !== '30').length,
+    terminated: contracts.filter(c => c.CTRT_STAT_CD === '30').length
   };
 
   // 계약 선택 핸들러
@@ -178,153 +126,53 @@ const ContractSummary: React.FC<ContractSummaryProps> = ({
             </div>
           ) : (
             <>
-              {/* 상세 필터 토글 버튼 */}
-              <div className="mb-3">
-                <button
-                  onClick={() => setFilterExpanded(!filterExpanded)}
-                  className="w-full px-4 py-3 flex items-center justify-between bg-gray-50 hover:bg-gray-100 transition-colors rounded-lg"
-                >
-                  <div className="flex items-center gap-2">
-                    <Filter className="w-4 h-4 text-gray-500" />
-                    <span className="text-sm font-semibold text-gray-700">상세 필터</span>
-                    {selectedFilters.size > 0 && (
-                      <span className="text-xs px-2 py-0.5 bg-blue-100 text-blue-700 rounded-full">
-                        필터 적용중 ({selectedFilters.size})
-                      </span>
-                    )}
-                  </div>
-                  <ChevronDown className={`w-5 h-5 text-gray-400 transition-transform duration-200 ${filterExpanded ? 'rotate-180' : ''}`} />
-                </button>
+              {/* 필터 영역 */}
+              <div className="mb-4 space-y-3">
+                {/* 상태 필터 버튼 */}
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => setFilterStatus('all')}
+                    className={`px-3 py-1.5 text-sm rounded-full transition-colors ${
+                      filterStatus === 'all'
+                        ? 'bg-blue-500 text-white'
+                        : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                    }`}
+                  >
+                    전체 ({statusCount.all})
+                  </button>
+                  <button
+                    onClick={() => setFilterStatus('active')}
+                    className={`px-3 py-1.5 text-sm rounded-full transition-colors ${
+                      filterStatus === 'active'
+                        ? 'bg-green-500 text-white'
+                        : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                    }`}
+                  >
+                    사용중 ({statusCount.active})
+                  </button>
+                  <button
+                    onClick={() => setFilterStatus('terminated')}
+                    className={`px-3 py-1.5 text-sm rounded-full transition-colors ${
+                      filterStatus === 'terminated'
+                        ? 'bg-gray-500 text-white'
+                        : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                    }`}
+                  >
+                    해지 ({statusCount.terminated})
+                  </button>
+                </div>
 
-                {/* 필터 내용 (펼침 시) */}
-                {filterExpanded && (
-                  <div className="mt-2 p-3 bg-gray-50 rounded-lg space-y-3">
-                    {/* 상태 필터 버튼 (체크박스 방식 - 다중 선택) */}
-                    <div>
-                      <div className="flex items-center justify-between mb-2">
-                        <span className="text-xs font-medium text-gray-500">계약 상태</span>
-                        {selectedFilters.size > 0 && (
-                          <button
-                            onClick={() => setSelectedFilters(new Set())}
-                            className="text-xs text-blue-500 hover:text-blue-700"
-                          >
-                            초기화
-                          </button>
-                        )}
-                      </div>
-                      <div className="flex flex-wrap gap-2">
-                        <button
-                          onClick={() => toggleFilter('20')}
-                          className={`flex items-center gap-1 px-3 py-1.5 text-xs rounded-full transition-colors ${
-                            selectedFilters.has('20')
-                              ? 'bg-green-500 text-white'
-                              : 'bg-white text-gray-600 border border-gray-300 hover:bg-gray-100'
-                          }`}
-                        >
-                          {selectedFilters.has('20') && <Check className="w-3 h-3" />}
-                          사용중 ({statusCount.active})
-                        </button>
-                        {statusCount.install > 0 && (
-                          <button
-                            onClick={() => toggleFilter('10')}
-                            className={`flex items-center gap-1 px-3 py-1.5 text-xs rounded-full transition-colors ${
-                              selectedFilters.has('10')
-                                ? 'bg-blue-500 text-white'
-                                : 'bg-white text-gray-600 border border-gray-300 hover:bg-gray-100'
-                            }`}
-                          >
-                            {selectedFilters.has('10') && <Check className="w-3 h-3" />}
-                            설치대기 ({statusCount.install})
-                          </button>
-                        )}
-                        {statusCount.change > 0 && (
-                          <button
-                            onClick={() => toggleFilter('82')}
-                            className={`flex items-center gap-1 px-3 py-1.5 text-xs rounded-full transition-colors ${
-                              selectedFilters.has('82')
-                                ? 'bg-blue-500 text-white'
-                                : 'bg-white text-gray-600 border border-gray-300 hover:bg-gray-100'
-                            }`}
-                          >
-                            {selectedFilters.has('82') && <Check className="w-3 h-3" />}
-                            변경대기 ({statusCount.change})
-                          </button>
-                        )}
-                        {statusCount.pause > 0 && (
-                          <button
-                            onClick={() => toggleFilter('pause')}
-                            className={`flex items-center gap-1 px-3 py-1.5 text-xs rounded-full transition-colors ${
-                              selectedFilters.has('pause')
-                                ? 'bg-yellow-500 text-white'
-                                : 'bg-white text-gray-600 border border-gray-300 hover:bg-gray-100'
-                            }`}
-                          >
-                            {selectedFilters.has('pause') && <Check className="w-3 h-3" />}
-                            일시정지 ({statusCount.pause})
-                          </button>
-                        )}
-                        {statusCount.cancelWait > 0 && (
-                          <button
-                            onClick={() => toggleFilter('cancel')}
-                            className={`flex items-center gap-1 px-3 py-1.5 text-xs rounded-full transition-colors ${
-                              selectedFilters.has('cancel')
-                                ? 'bg-orange-500 text-white'
-                                : 'bg-white text-gray-600 border border-gray-300 hover:bg-gray-100'
-                            }`}
-                          >
-                            {selectedFilters.has('cancel') && <Check className="w-3 h-3" />}
-                            해지대기 ({statusCount.cancelWait})
-                          </button>
-                        )}
-                        <button
-                          onClick={() => toggleFilter('90')}
-                          className={`flex items-center gap-1 px-3 py-1.5 text-xs rounded-full transition-colors ${
-                            selectedFilters.has('90')
-                              ? 'bg-gray-500 text-white'
-                              : 'bg-white text-gray-600 border border-gray-300 hover:bg-gray-100'
-                          }`}
-                        >
-                          {selectedFilters.has('90') && <Check className="w-3 h-3" />}
-                          해지 ({statusCount.terminated})
-                        </button>
-                      </div>
-                    </div>
-
-                    {/* 검색 필드 + 바코드 스캔 */}
-                    <div>
-                      <div className="text-xs font-medium text-gray-500 mb-2">검색</div>
-                      <div className="flex gap-2">
-                        <input
-                          type="text"
-                          value={searchKeyword}
-                          onChange={(e) => setSearchKeyword(e.target.value)}
-                          placeholder="계약ID, 상품명, 장비번호"
-                          className="flex-1 px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                        />
-                        <button
-                          onClick={() => setShowBarcodeScanner(true)}
-                          className="px-3 py-2 bg-green-500 hover:bg-green-600 text-white rounded-lg text-sm font-medium flex items-center gap-1"
-                        >
-                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z" />
-                          </svg>
-                          스캔
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {/* 바코드 스캐너 */}
-                <BarcodeScanner
-                  isOpen={showBarcodeScanner}
-                  onClose={() => setShowBarcodeScanner(false)}
-                  onScan={(barcode) => {
-                    setSearchKeyword(barcode);
-                    setShowBarcodeScanner(false);
-                    showToast?.(`장비번호 "${barcode}" 검색`, 'info');
-                  }}
-                />
+                {/* 검색 필드 */}
+                <div className="relative">
+                  <Filter className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+                  <input
+                    type="text"
+                    value={searchKeyword}
+                    onChange={(e) => setSearchKeyword(e.target.value)}
+                    placeholder="계약ID, 상품명, 장비번호 검색"
+                    className="w-full pl-10 pr-4 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  />
+                </div>
               </div>
 
               {/* 계약 목록 */}
@@ -338,13 +186,10 @@ const ContractSummary: React.FC<ContractSummaryProps> = ({
                         : 'bg-gray-50 border-gray-200 hover:border-gray-300'
                     }`}
                   >
-                    {/* 계약 기본 정보 - 클릭하면 선택 및 상세보기 */}
+                    {/* 계약 기본 정보 */}
                     <div
                       className="cursor-pointer"
-                      onClick={() => {
-                        handleSelect(contract);
-                        toggleDetail(contract.CTRT_ID);
-                      }}
+                      onClick={() => toggleDetail(contract.CTRT_ID)}
                     >
                       <div className="flex items-center justify-between mb-2">
                         <div className="flex items-center gap-2">
@@ -366,7 +211,7 @@ const ContractSummary: React.FC<ContractSummaryProps> = ({
                       </div>
 
                       <div className="text-sm text-gray-600">
-                        계약ID: {formatCtrtId(contract.CTRT_ID)}
+                        계약ID: {contract.CTRT_ID}
                       </div>
 
                       {contract.INST_ADDR && (
@@ -399,36 +244,29 @@ const ContractSummary: React.FC<ContractSummaryProps> = ({
                           </div>
                         )}
 
-                        {/* 장비 정보 - 장비명 또는 시리얼이 있을 때만 표시 */}
-                        {(contract.EQT_SERNO || contract.EQT_NM || contract.EQT_MDL_NM) && (
+                        {/* 장비 정보 */}
+                        {contract.EQT_SERNO && (
                           <div className="flex items-center gap-2 text-sm">
                             <Cpu className="w-4 h-4 text-gray-400" />
                             <span className="text-gray-600">
-                              {contract.EQT_NM || contract.EQT_MDL_NM || '장비정보'}
-                              {contract.EQT_MDL_NM && contract.EQT_NM && ` (${contract.EQT_MDL_NM})`}
-                              {contract.EQT_SERNO && (
-                                <>
-                                  <br />
-                                  <span className="text-xs text-gray-500">S/N: {contract.EQT_SERNO}</span>
-                                </>
-                              )}
+                              {contract.EQT_NM} ({contract.EQT_MDL_NM})
+                              <br />
+                              <span className="text-xs text-gray-500">S/N: {contract.EQT_SERNO}</span>
                             </span>
                           </div>
                         )}
 
-                        {/* 요금 정보 - 데이터가 있을 때만 표시 */}
-                        {(contract.PREV_MON_AMT > 0 || contract.CUR_MON_AMT > 0) && (
-                          <div className="flex items-center gap-4 text-sm">
-                            <div>
-                              <span className="text-gray-500">전월: </span>
-                              <span className="font-medium">{formatCurrency(contract.PREV_MON_AMT || 0)}원</span>
-                            </div>
-                            <div>
-                              <span className="text-gray-500">당월: </span>
-                              <span className="font-medium">{formatCurrency(contract.CUR_MON_AMT || 0)}원</span>
-                            </div>
+                        {/* 요금 정보 */}
+                        <div className="flex items-center gap-4 text-sm">
+                          <div>
+                            <span className="text-gray-500">전월: </span>
+                            <span className="font-medium">{formatCurrency(contract.PREV_MON_AMT || 0)}원</span>
                           </div>
-                        )}
+                          <div>
+                            <span className="text-gray-500">당월: </span>
+                            <span className="font-medium">{formatCurrency(contract.CUR_MON_AMT || 0)}원</span>
+                          </div>
+                        </div>
 
                         {/* 단체 정보 */}
                         {contract.GRP_NO && (
@@ -437,22 +275,36 @@ const ContractSummary: React.FC<ContractSummaryProps> = ({
                           </div>
                         )}
 
-                        {/* 액션 버튼 - AS접수만 표시 (선택은 카드 클릭으로) */}
-                        {contract.CTRT_STAT_CD === '20' && (
-                          <div className="flex gap-2 pt-2">
+                        {/* 액션 버튼 */}
+                        <div className="flex gap-2 pt-2">
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleSelect(contract);
+                            }}
+                            className={`flex items-center gap-1 px-3 py-1.5 text-sm rounded-lg transition-colors ${
+                              selectedContractId === contract.CTRT_ID
+                                ? 'bg-blue-500 text-white'
+                                : 'bg-blue-100 text-blue-700 hover:bg-blue-200'
+                            }`}
+                          >
+                            <Check className="w-4 h-4" />
+                            선택
+                          </button>
+                          {contract.CTRT_STAT_CD !== '30' && (
                             <button
                               onClick={(e) => {
                                 e.stopPropagation();
                                 handleSelect(contract);
                                 onASRequest();
                               }}
-                              className="flex items-center gap-1 px-3 py-1.5 text-sm bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition-colors"
+                              className="flex items-center gap-1 px-3 py-1.5 text-sm bg-orange-100 text-orange-700 rounded-lg hover:bg-orange-200 transition-colors"
                             >
                               <Wrench className="w-4 h-4" />
                               AS 접수
                             </button>
-                          </div>
-                        )}
+                          )}
+                        </div>
                       </div>
                     )}
                   </div>
