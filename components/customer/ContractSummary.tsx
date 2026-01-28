@@ -1,8 +1,7 @@
 import React, { useState } from 'react';
 import {
   FileText, ChevronDown, ChevronUp, Loader2,
-  Cpu, Calendar, MapPin, Package, Wrench,
-  Filter, Check
+  Cpu, Calendar, MapPin, Wrench, Filter
 } from 'lucide-react';
 import { ContractInfo, formatCurrency, formatDate } from '../../services/customerApi';
 
@@ -281,22 +280,8 @@ const ContractSummary: React.FC<ContractSummaryProps> = ({
                         )}
 
                         {/* 액션 버튼 */}
-                        <div className="flex gap-2 pt-2">
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleSelect(contract);
-                            }}
-                            className={`flex items-center gap-1 px-3 py-1.5 text-sm rounded-lg transition-colors ${
-                              selectedContractId === contract.CTRT_ID
-                                ? 'bg-blue-500 text-white'
-                                : 'bg-blue-100 text-blue-700 hover:bg-blue-200'
-                            }`}
-                          >
-                            <Check className="w-4 h-4" />
-                            선택
-                          </button>
-                          {contract.CTRT_STAT_CD !== '30' && (
+                        {contract.CTRT_STAT_CD !== '30' && (
+                          <div className="flex gap-2 pt-2">
                             <button
                               onClick={(e) => {
                                 e.stopPropagation();
@@ -308,8 +293,8 @@ const ContractSummary: React.FC<ContractSummaryProps> = ({
                               <Wrench className="w-4 h-4" />
                               AS 접수
                             </button>
-                          )}
-                        </div>
+                          </div>
+                        )}
                       </div>
                     )}
                   </div>

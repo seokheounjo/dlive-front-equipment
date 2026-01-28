@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { ArrowLeft } from 'lucide-react';
 import ScrollableTabMenu, { TabItem } from '../layout/ScrollableTabMenu';
 import CustomerBasicInfo from './CustomerBasicInfo';
 import CustomerInfoChange from './CustomerInfoChange';
@@ -42,6 +43,9 @@ const CustomerManagementMenu: React.FC<CustomerManagementMenuProps> = ({ onNavig
   // 정보변경 탭의 초기 섹션 및 납부계정 ID
   const [infoChangeInitialSection, setInfoChangeInitialSection] = useState<'phone' | 'address' | 'payment' | 'hpPay'>('phone');
   const [infoChangeInitialPymAcntId, setInfoChangeInitialPymAcntId] = useState<string>('');
+
+  // 납부방법 변경 작업 중 상태 (탭 이동 후 돌아가기 위함)
+  const [paymentChangeInProgress, setPaymentChangeInProgress] = useState(false);
 
   const tabs: TabItem[] = [
     { id: 'basic-info', title: '기본조회', description: '고객 검색 및 정보 조회' },
@@ -116,6 +120,8 @@ const CustomerManagementMenu: React.FC<CustomerManagementMenuProps> = ({ onNavig
             } : null}
             initialSection={infoChangeInitialSection}
             initialPymAcntId={infoChangeInitialPymAcntId}
+            onPaymentChangeStart={() => setPaymentChangeInProgress(true)}
+            onPaymentChangeEnd={() => setPaymentChangeInProgress(false)}
           />
         );
       case 'consultation-as':
@@ -163,11 +169,28 @@ const CustomerManagementMenu: React.FC<CustomerManagementMenuProps> = ({ onNavig
     <div className="h-[calc(100vh-64px)] flex flex-col bg-gray-50 overflow-hidden">
       {/* 탭 메뉴 - 장비관리와 동일한 패턴 */}
       <div className="flex-shrink-0 bg-white border-b border-gray-200 z-40">
-        <ScrollableTabMenu
-          tabs={tabs}
-          activeTab={activeTab}
-          onTabChange={handleTabChange}
-        />
+        <div className="flex items-center">
+          <div className="flex-1">
+            <ScrollableTabMenu
+              tabs={tabs}
+              activeTab={activeTab}
+              onTabChange={handleTabChange}
+            />
+          </div>
+          {/* 납부방법 변경 작업 중일 때 돌아가기 버튼 */}
+          {paymentChangeInProgress && activeTab !== 'info-change' && (
+            <button
+              onClick={() => {
+                setInfoChangeInitialSection('payment');
+                setActiveTab('info-change');
+              }}
+              className="flex-shrink-0 mr-2 px-3 py-1.5 text-sm bg-orange-500 text-white rounded-lg hover:bg-orange-600 flex items-center gap-1"
+            >
+              <ArrowLeft className="w-4 h-4" />
+              납부변경
+            </button>
+          )}
+        </div>
       </div>
 
       {/* 고객 검색 - 고객생성 탭 제외하고 모든 탭에서 표시 */}
