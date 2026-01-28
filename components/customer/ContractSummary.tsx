@@ -210,8 +210,13 @@ const ContractSummary: React.FC<ContractSummaryProps> = ({
                         </div>
                       </div>
 
-                      <div className="text-sm text-gray-600">
-                        계약ID: {contract.CTRT_ID}
+                      <div className="flex items-center justify-between text-sm text-gray-600">
+                        <span>계약ID: {contract.CTRT_ID}</span>
+                        {contract.INSTL_LOC && (
+                          <span className="text-xs px-2 py-0.5 bg-indigo-50 text-indigo-600 rounded">
+                            {contract.INSTL_LOC}
+                          </span>
+                        )}
                       </div>
 
                       {contract.INST_ADDR && (

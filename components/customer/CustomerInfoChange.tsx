@@ -310,14 +310,28 @@ const CustomerInfoChange: React.FC<CustomerInfoChangeProps> = ({
 
     setIsSavingPayment(true);
     try {
-      const response = await updatePaymentMethod({
+      // 카드인 경우 유효기간도 포함
+      const params: any = {
         PYM_ACNT_ID: selectedPymAcntId,
         CUST_ID: selectedCustomer.custId,
         ACNT_NM: paymentForm.acntHolderNm,
         PYM_MTHD: paymentForm.pymMthCd === '01' ? '02' : '04',  // 02: 자동이체, 04: 신용카드
         BANK_CARD: paymentForm.bankCd,
         ACNT_CARD_NO: paymentForm.acntNo
-      });
+      };
+
+      // 카드인 경우 유효기간 추가
+      if (paymentForm.pymMthCd === '02' && paymentForm.cardExpYy && paymentForm.cardExpMm) {
+        params.CDTCD_EXP_DT = paymentForm.cardExpYy + paymentForm.cardExpMm;  // YYMM 형식
+        params.REQR_NM = paymentForm.acntHolderNm;  // 카드소유주명
+      }
+
+      // 자동이체인 경우 예금주 정보 추가
+      if (paymentForm.pymMthCd === '01') {
+        params.PYM_CUST_NM = paymentForm.acntHolderNm;  // 예금주명
+      }
+
+      const response = await updatePaymentMethod(params);
 
       if (response.success) {
         showToast?.('납부방법이 변경되었습니다.', 'success');

@@ -49,7 +49,8 @@ export interface ContractInfo {
   CTRT_STAT_NM: string;      // 계약상태명
   PROD_NM: string;           // 상품명
   PROD_GRP_NM: string;       // 상품군명
-  INST_ADDR: string;         // 설치위치
+  INST_ADDR: string;         // 설치주소
+  INSTL_LOC?: string;        // 설치위치 (거실, 안방, 침실 등)
   POST_ID?: string;          // 주소ID (AS접수에 필요)
   OPNG_DT: string;           // 개통일
   TERM_DT: string;           // 해지일
@@ -532,6 +533,8 @@ const mapContractFields = (data: any): ContractInfo => {
     PROD_NM: data.PROD_NM || data.BASIC_PROD_CD_NM || '',       // BASIC_PROD_CD_NM -> PROD_NM
     PROD_GRP_NM: data.PROD_GRP_NM || '',
     INST_ADDR: data.INST_ADDR || data.ADDR_FULL || data.ADDR || '', // ADDR_FULL -> INST_ADDR
+    INSTL_LOC: data.INSTL_LOC || '',                            // 설치위치 (거실, 안방, 침실 등)
+    POST_ID: data.POST_ID || '',                                // 주소ID
     OPNG_DT: data.OPNG_DT || data.OPEN_DD || '',                // OPEN_DD -> OPNG_DT
     TERM_DT: data.TERM_DT || '',
     AGMT_MON: data.AGMT_MON || data.PROM_CNT?.toString() || '', // PROM_CNT -> AGMT_MON
