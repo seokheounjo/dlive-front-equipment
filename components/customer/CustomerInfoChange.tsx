@@ -7,11 +7,13 @@ import {
 import {
   updatePhoneNumber,
   updateAddress,
+  updateInstallAddress,
   getTelecomCodes,
   getHPPayList,
   formatPhoneNumber,
   PhoneChangeRequest,
   AddressChangeRequest,
+  InstallAddressChangeRequest,
   HPPayInfo,
   getPaymentInfo,
   updatePaymentMethod,
@@ -21,7 +23,9 @@ import {
   searchPostAddress,
   searchStreetAddress,
   PostAddressInfo,
-  StreetAddressInfo
+  StreetAddressInfo,
+  registerConsultation,
+  ConsultationRequest
 } from '../../services/customerApi';
 
 // 납부폼 타입 정의
@@ -55,6 +59,13 @@ interface CustomerInfoChangeProps {
     custNm: string;
     telNo: string;
   } | null;
+  // 선택된 계약 정보 (설치주소 변경에 필요)
+  selectedContract?: {
+    ctrtId: string;
+    prodNm: string;
+    instAddr: string;
+    postId?: string;
+  } | null;
   initialSection?: 'phone' | 'address' | 'payment' | 'hpPay';  // 초기 펼칠 섹션
   initialPymAcntId?: string;  // 초기 선택할 납부계정 ID
   onPaymentChangeStart?: () => void;  // 납부방법 변경 시작 알림
@@ -85,6 +96,7 @@ const CustomerInfoChange: React.FC<CustomerInfoChangeProps> = ({
   onBack,
   showToast,
   selectedCustomer,
+  selectedContract,
   initialSection = 'phone',
   initialPymAcntId = '',
   onPaymentChangeStart,
@@ -553,6 +565,49 @@ const CustomerInfoChange: React.FC<CustomerInfoChangeProps> = ({
     }
   };
 
+  // 휴대폰결제 신청/해지 처리
+  const handleHpPayChange = async (item: HPPayInfo) => {
+    if (!selectedCustomer) {
+      showToast?.('고객 정보가 없습니다.', 'warning');
+      return;
+    }
+
+    const isApply = item.HP_PAY_YN !== 'Y';
+    const actionText = isApply ? '신청' : '해지';
+
+    // 확인 대화상자
+    const confirmed = window.confirm(
+      `${item.PROD_NM || '해당 상품'}의 휴대폰결제를 ${actionText}하시겠습니까?\n\n상담 접수 후 처리됩니다.`
+    );
+
+    if (!confirmed) return;
+
+    try {
+      // 상담 등록 요청 (ConsultationRequest 인터페이스에 맞게)
+      const consultParams: Partial<ConsultationRequest> = {
+        CUST_ID: selectedCustomer.custId,
+        CTRT_ID: item.CTRT_ID,
+        CNSL_MST_CL: '04',  // 대분류: 기타
+        CNSL_MID_CL: '0401',  // 중분류: 기타 일반
+        CNSL_SLV_CL: '040101',  // 소분류: 기타
+        REQ_CTX: `[휴대폰결제 ${actionText} 요청]\n상품: ${item.PROD_NM}\n계약ID: ${item.CTRT_ID}\n현재상태: ${item.HP_PAY_YN === 'Y' ? '신청' : '미신청'}\n요청: ${actionText}`
+      };
+
+      const response = await registerConsultation(consultParams as ConsultationRequest);
+
+      if (response.success) {
+        showToast?.(`휴대폰결제 ${actionText} 요청이 접수되었습니다.`, 'success');
+        // 목록 새로고침
+        loadHpPayList();
+      } else {
+        showToast?.(response.message || `${actionText} 요청 접수에 실패했습니다.`, 'error');
+      }
+    } catch (error) {
+      console.error('HP Pay change error:', error);
+      showToast?.(`${actionText} 요청 중 오류가 발생했습니다.`, 'error');
+    }
+  };
+
   // 납부계정ID 포맷 (000-000-0000)
   const formatPymAcntId = (id: string) => {
     if (!id) return '-';
@@ -647,9 +702,15 @@ const CustomerInfoChange: React.FC<CustomerInfoChangeProps> = ({
       return;
     }
 
-    // 설치주소 변경 시 계약ID 필요 - 현재는 미지원
-    if (addressForm.changeInstAddr) {
+    // 설치주소 변경 시 계약ID 필요
+    if (addressForm.changeInstAddr && !selectedContract?.ctrtId) {
       showToast?.('설치주소 변경은 기본조회 탭에서 계약을 선택한 후 진행해주세요.', 'warning');
+      return;
+    }
+
+    // 주소ID 필요 (설치주소 변경 시)
+    if (addressForm.changeInstAddr && !addressForm.postId) {
+      showToast?.('주소 검색 후 주소를 선택해주세요.', 'warning');
       return;
     }
 
@@ -660,25 +721,33 @@ const CustomerInfoChange: React.FC<CustomerInfoChangeProps> = ({
         ? `${addressForm.addr1} ${addressForm.addr2}`
         : addressForm.addr1;
 
-      // D'Live API 스펙에 맞는 파라미터
-      // saveMargeAddrOrdInfo: 고객주소 변경
-      // - CUST_ID: 고객ID
-      // - ADDR_ORD: 주소순번
-      // - DONGMYON_NM: 읍면동명 (선택)
-      // - STREET_ID: 도로명ID (선택)
-      // - ZIP_CD: 우편번호 (선택)
-      // - ADDR_DTL: 상세주소 (선택)
-      const params: AddressChangeRequest = {
-        CUST_ID: selectedCustomer.custId,
-        ADDR_ORD: '1',  // 기본 주소순번
-        ZIP_CD: addressForm.zipCd,
-        ADDR_DTL: fullAddr,
-        // 추가 정보 (검색 결과에서)
-        DONGMYON_NM: addressForm.dongmyonNm || undefined,
-        STREET_ID: addressForm.streetId || undefined
-      };
+      let response;
 
-      const response = await updateAddress(params);
+      // 설치주소 변경 시 updateInstallAddress 사용
+      if (addressForm.changeInstAddr && selectedContract?.ctrtId) {
+        const installParams: InstallAddressChangeRequest = {
+          CTRT_ID: selectedContract.ctrtId,
+          POST_ID: addressForm.postId,
+          ADDR_DTL: fullAddr,
+          STREET_ID: addressForm.streetId || undefined,
+          // 고객주소도 함께 변경
+          CUST_FLAG: addressForm.changeCustAddr ? '1' : '0',
+          // 청구지주소도 함께 변경
+          PYM_FLAG: addressForm.changeBillAddr ? '1' : '0'
+        };
+        response = await updateInstallAddress(installParams);
+      } else {
+        // 고객주소만 변경하는 경우 (기존 로직)
+        const params: AddressChangeRequest = {
+          CUST_ID: selectedCustomer.custId,
+          ADDR_ORD: '1',
+          ZIP_CD: addressForm.zipCd,
+          ADDR_DTL: fullAddr,
+          DONGMYON_NM: addressForm.dongmyonNm || undefined,
+          STREET_ID: addressForm.streetId || undefined
+        };
+        response = await updateAddress(params);
+      }
 
       if (response.success) {
         showToast?.('주소가 변경되었습니다.', 'success');
@@ -1077,24 +1146,54 @@ const CustomerInfoChange: React.FC<CustomerInfoChangeProps> = ({
 
           {expandedSections.address && (
             <div className="px-4 pb-4 space-y-4">
+              {/* 선택된 계약 정보 표시 */}
+              {selectedContract?.ctrtId && (
+                <div className="p-3 bg-green-50 border border-green-200 rounded-lg">
+                  <div className="flex items-center gap-2 mb-1">
+                    <Building2 className="w-4 h-4 text-green-600" />
+                    <span className="text-sm font-medium text-green-700">선택된 계약</span>
+                  </div>
+                  <div className="text-xs text-green-600 space-y-0.5">
+                    <p>상품: {selectedContract.prodNm}</p>
+                    <p>현재 설치주소: {selectedContract.instAddr || '-'}</p>
+                  </div>
+                </div>
+              )}
+
               {/* 변경할 주소 유형 선택 */}
               <div className="space-y-2">
                 <label className="block text-sm text-gray-600 mb-2">변경할 주소 선택</label>
                 <div className="space-y-2">
-                  <label className="flex items-center gap-2 p-3 bg-gray-100 rounded-lg cursor-not-allowed opacity-60">
+                  <label className={`flex items-center gap-2 p-3 rounded-lg ${
+                    selectedContract?.ctrtId
+                      ? 'bg-gray-50 cursor-pointer hover:bg-gray-100'
+                      : 'bg-gray-100 cursor-not-allowed opacity-60'
+                  }`}>
                     <input
                       type="checkbox"
                       checked={addressForm.changeInstAddr}
-                      disabled
+                      disabled={!selectedContract?.ctrtId}
                       onChange={(e) => setAddressForm(prev => ({
                         ...prev,
                         changeInstAddr: e.target.checked
                       }))}
-                      className="w-4 h-4 text-gray-400 border-gray-300 rounded"
+                      className={`w-4 h-4 border-gray-300 rounded ${
+                        selectedContract?.ctrtId
+                          ? 'text-green-600 focus:ring-green-500'
+                          : 'text-gray-400'
+                      }`}
                     />
-                    <div>
-                      <span className="text-sm text-gray-500">설치주소</span>
-                      <span className="text-xs text-gray-400 ml-2">(계약 선택 필요)</span>
+                    <div className="flex-1">
+                      <span className={`text-sm ${selectedContract?.ctrtId ? 'text-gray-700' : 'text-gray-500'}`}>
+                        설치주소
+                      </span>
+                      {selectedContract?.ctrtId ? (
+                        <span className="text-xs text-green-600 ml-2">
+                          ({selectedContract.prodNm})
+                        </span>
+                      ) : (
+                        <span className="text-xs text-gray-400 ml-2">(계약 선택 필요)</span>
+                      )}
                     </div>
                   </label>
                   <label className="flex items-center gap-2 p-3 bg-gray-50 rounded-lg cursor-pointer hover:bg-gray-100">
@@ -1109,20 +1208,32 @@ const CustomerInfoChange: React.FC<CustomerInfoChangeProps> = ({
                     />
                     <span className="text-sm text-gray-700">고객주소</span>
                   </label>
-                  <label className="flex items-center gap-2 p-3 bg-gray-100 rounded-lg cursor-not-allowed opacity-60">
+                  <label className={`flex items-center gap-2 p-3 rounded-lg ${
+                    selectedContract?.ctrtId
+                      ? 'bg-gray-50 cursor-pointer hover:bg-gray-100'
+                      : 'bg-gray-100 cursor-not-allowed opacity-60'
+                  }`}>
                     <input
                       type="checkbox"
                       checked={addressForm.changeBillAddr}
-                      disabled
+                      disabled={!selectedContract?.ctrtId}
                       onChange={(e) => setAddressForm(prev => ({
                         ...prev,
                         changeBillAddr: e.target.checked
                       }))}
-                      className="w-4 h-4 text-gray-400 border-gray-300 rounded"
+                      className={`w-4 h-4 border-gray-300 rounded ${
+                        selectedContract?.ctrtId
+                          ? 'text-orange-600 focus:ring-orange-500'
+                          : 'text-gray-400'
+                      }`}
                     />
                     <div>
-                      <span className="text-sm text-gray-500">청구지주소</span>
-                      <span className="text-xs text-gray-400 ml-2">(계약 선택 필요)</span>
+                      <span className={`text-sm ${selectedContract?.ctrtId ? 'text-gray-700' : 'text-gray-500'}`}>
+                        청구지주소
+                      </span>
+                      {!selectedContract?.ctrtId && (
+                        <span className="text-xs text-gray-400 ml-2">(계약 선택 필요)</span>
+                      )}
                     </div>
                   </label>
                 </div>
@@ -1759,6 +1870,19 @@ const CustomerInfoChange: React.FC<CustomerInfoChangeProps> = ({
                           </div>
                         )}
                       </div>
+                      {/* 신청/해지 버튼 */}
+                      <div className="mt-3 pt-2 border-t border-gray-200">
+                        <button
+                          onClick={() => handleHpPayChange(item)}
+                          className={`w-full py-2 text-sm font-medium rounded-lg transition-colors ${
+                            item.HP_PAY_YN === 'Y'
+                              ? 'bg-red-100 text-red-700 hover:bg-red-200'
+                              : 'bg-purple-100 text-purple-700 hover:bg-purple-200'
+                          }`}
+                        >
+                          {item.HP_PAY_YN === 'Y' ? '해지 신청' : '신청하기'}
+                        </button>
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -1769,7 +1893,7 @@ const CustomerInfoChange: React.FC<CustomerInfoChangeProps> = ({
                 <div className="flex items-start gap-2">
                   <AlertCircle className="w-4 h-4 text-purple-600 mt-0.5" />
                   <div className="text-sm text-purple-700">
-                    <p>휴대폰결제 신청/해지는 고객센터를 통해 처리됩니다.</p>
+                    <p>신청/해지 버튼 클릭 시 상담이 접수되며, 담당자 확인 후 처리됩니다.</p>
                   </div>
                 </div>
               </div>
