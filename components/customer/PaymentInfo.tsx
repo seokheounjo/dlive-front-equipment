@@ -31,6 +31,7 @@ interface PaymentInfoProps {
   expanded: boolean;
   onToggle: () => void;
   showToast?: (message: string, type: 'success' | 'error' | 'warning' | 'info') => void;
+  onNavigateToPaymentChange?: (pymAcntId: string) => void;  // 납부정보 변경 탭으로 이동
 }
 
 /**
@@ -46,7 +47,8 @@ const PaymentInfo: React.FC<PaymentInfoProps> = ({
   custId,
   expanded,
   onToggle,
-  showToast
+  showToast,
+  onNavigateToPaymentChange
 }) => {
   // 데이터 상태
   const [paymentInfo, setPaymentInfo] = useState<PaymentInfoType[]>([]);
@@ -184,13 +186,24 @@ const PaymentInfo: React.FC<PaymentInfoProps> = ({
               <div className="space-y-3">
                 <div className="flex items-center justify-between">
                   <h4 className="text-sm font-medium text-gray-700">납부 정보</h4>
-                  <button
-                    onClick={loadData}
-                    className="text-sm text-blue-500 hover:text-blue-600 flex items-center gap-1"
-                  >
-                    <RefreshCw className="w-3 h-3" />
-                    새로고침
-                  </button>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={loadData}
+                      className="text-sm text-blue-500 hover:text-blue-600 flex items-center gap-1"
+                    >
+                      <RefreshCw className="w-3 h-3" />
+                      새로고침
+                    </button>
+                    {onNavigateToPaymentChange && (
+                      <button
+                        onClick={() => onNavigateToPaymentChange(selectedPymAcntId || '')}
+                        className="text-sm text-indigo-500 hover:text-indigo-600 flex items-center gap-1"
+                      >
+                        <CreditCard className="w-3 h-3" />
+                        납부정보 변경
+                      </button>
+                    )}
+                  </div>
                 </div>
 
                 {/* 필터 버튼 */}

@@ -32,6 +32,8 @@ interface CustomerInfoChangeProps {
     custNm: string;
     telNo: string;
   } | null;
+  initialSection?: 'phone' | 'address' | 'payment' | 'hpPay';  // 초기 펼칠 섹션
+  initialPymAcntId?: string;  // 초기 선택할 납부계정 ID
 }
 
 interface TelecomCode {
@@ -52,14 +54,16 @@ interface TelecomCode {
 const CustomerInfoChange: React.FC<CustomerInfoChangeProps> = ({
   onBack,
   showToast,
-  selectedCustomer
+  selectedCustomer,
+  initialSection = 'phone',
+  initialPymAcntId = ''
 }) => {
-  // 섹션 펼침 상태
+  // 섹션 펼침 상태 (initialSection prop에 따라 초기값 설정)
   const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({
-    phone: true,
-    address: false,
-    payment: false,
-    hpPay: false
+    phone: initialSection === 'phone',
+    address: initialSection === 'address',
+    payment: initialSection === 'payment',
+    hpPay: initialSection === 'hpPay'
   });
 
   // 전화번호 변경 폼
@@ -208,9 +212,12 @@ const CustomerInfoChange: React.FC<CustomerInfoChangeProps> = ({
       const response = await getPaymentInfo(selectedCustomer.custId);
       if (response.success && response.data) {
         setPaymentInfoList(response.data);
-        // 첫 번째 납부계정 자동 선택
+        // initialPymAcntId가 있으면 해당 계정 선택, 없으면 첫 번째 계정 선택
         if (response.data.length > 0) {
-          setSelectedPymAcntId(response.data[0].PYM_ACNT_ID);
+          const targetId = initialPymAcntId && response.data.find(p => p.PYM_ACNT_ID === initialPymAcntId)
+            ? initialPymAcntId
+            : response.data[0].PYM_ACNT_ID;
+          setSelectedPymAcntId(targetId);
         }
       } else {
         setPaymentInfoList([]);
@@ -223,6 +230,13 @@ const CustomerInfoChange: React.FC<CustomerInfoChangeProps> = ({
       setIsLoadingPayment(false);
     }
   };
+
+  // 초기 섹션이 payment일 때 자동으로 납부정보 로드
+  useEffect(() => {
+    if (initialSection === 'payment' && selectedCustomer && !paymentLoaded) {
+      loadPaymentInfo();
+    }
+  }, [initialSection, selectedCustomer]);
 
   // 계좌/카드 인증
   const handleVerify = async () => {

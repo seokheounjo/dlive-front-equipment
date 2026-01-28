@@ -41,6 +41,10 @@ const CustomerManagementMenu: React.FC<CustomerManagementMenuProps> = ({ onNavig
   // 상담/AS 탭의 초기 서브탭 ('consultation' 또는 'as')
   const [consultationInitialTab, setConsultationInitialTab] = useState<'consultation' | 'as'>('consultation');
 
+  // 정보변경 탭의 초기 섹션 및 납부계정 ID
+  const [infoChangeInitialSection, setInfoChangeInitialSection] = useState<'phone' | 'address' | 'payment' | 'hpPay'>('phone');
+  const [infoChangeInitialPymAcntId, setInfoChangeInitialPymAcntId] = useState<string>('');
+
   const tabs: TabItem[] = [
     { id: 'basic-info', title: '기본조회', description: '고객 검색 및 정보 조회' },
     { id: 'info-change', title: '정보변경', description: '전화번호/주소 변경' },
@@ -74,6 +78,13 @@ const CustomerManagementMenu: React.FC<CustomerManagementMenuProps> = ({ onNavig
     }
   };
 
+  // 납부정보 변경으로 이동 핸들러
+  const handleNavigateToPaymentChange = (pymAcntId: string) => {
+    setInfoChangeInitialSection('payment');
+    setInfoChangeInitialPymAcntId(pymAcntId);
+    setActiveTab('info-change');
+  };
+
   const renderContent = () => {
     switch (activeTab) {
       case 'basic-info':
@@ -85,6 +96,7 @@ const CustomerManagementMenu: React.FC<CustomerManagementMenuProps> = ({ onNavig
             onContractSelect={handleContractSelect}
             onNavigateToAS={() => handleNavigateToTab('consultation-as', 'as')}
             onNavigateToConsultation={() => handleNavigateToTab('consultation-as', 'consultation')}
+            onNavigateToPaymentChange={handleNavigateToPaymentChange}
             savedCustomer={selectedCustomer}
             savedContract={selectedContract}
           />
@@ -95,6 +107,8 @@ const CustomerManagementMenu: React.FC<CustomerManagementMenuProps> = ({ onNavig
             onBack={onNavigateToMenu}
             showToast={showToast}
             selectedCustomer={selectedCustomer}
+            initialSection={infoChangeInitialSection}
+            initialPymAcntId={infoChangeInitialPymAcntId}
           />
         );
       case 'consultation-as':

@@ -28,6 +28,7 @@ interface CustomerBasicInfoProps {
   onContractSelect: (contract: { ctrtId: string; prodNm: string; instAddr: string; postId?: string }) => void;
   onNavigateToAS: () => void;
   onNavigateToConsultation?: () => void;
+  onNavigateToPaymentChange?: (pymAcntId: string) => void;  // 납부정보 변경 탭으로 이동
   // 탭 이동 시 데이터 보존을 위한 초기값
   savedCustomer?: { custId: string; custNm: string; telNo: string } | null;
   savedContract?: { ctrtId: string; prodNm: string; instAddr: string; postId?: string } | null;
@@ -49,6 +50,7 @@ const CustomerBasicInfo: React.FC<CustomerBasicInfoProps> = ({
   onCustomerSelect,
   onContractSelect,
   onNavigateToAS,
+  onNavigateToPaymentChange,
   savedCustomer,
   savedContract
 }) => {
@@ -283,6 +285,7 @@ const CustomerBasicInfo: React.FC<CustomerBasicInfoProps> = ({
               expanded={expandedSections.payment}
               onToggle={() => toggleSection('payment')}
               showToast={showToast}
+              onNavigateToPaymentChange={onNavigateToPaymentChange}
             />
 
             {/* 상담 이력 */}
