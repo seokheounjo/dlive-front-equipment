@@ -236,17 +236,15 @@ const CustomerBasicInfo: React.FC<CustomerBasicInfoProps> = ({
                   {/* 주소 정보 */}
                   <div className="pt-2 border-t border-gray-100 text-sm">
                     <div className="flex items-start">
-                      <div className="flex items-center gap-2 w-20 flex-shrink-0">
+                      <div className="flex items-center gap-1 w-16 flex-shrink-0">
                         <span className="text-gray-500">고객주소</span>
-                        <label className="flex items-center cursor-pointer">
-                          <input
-                            type="checkbox"
-                            checked={showRoadAddr}
-                            onChange={(e) => setShowRoadAddr(e.target.checked)}
-                            className="w-3 h-3 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
-                          />
-                          <span className="ml-1 text-xs text-gray-400">도로명</span>
-                        </label>
+                        <input
+                          type="checkbox"
+                          checked={showRoadAddr}
+                          onChange={(e) => setShowRoadAddr(e.target.checked)}
+                          className="w-3 h-3 text-blue-600 border-gray-300 rounded focus:ring-blue-500 cursor-pointer"
+                          title="도로명주소 보기"
+                        />
                       </div>
                       <span className="text-gray-700">
                         {showRoadAddr
