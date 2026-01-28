@@ -236,24 +236,24 @@ const CustomerBasicInfo: React.FC<CustomerBasicInfoProps> = ({
                   </div>
 
                   {/* 주소 정보 */}
-                  <div className="pt-2 border-t border-gray-100 text-sm">
-                    <div className="flex items-start">
-                      <div className="flex items-center gap-1 w-16 flex-shrink-0">
-                        <span className="text-gray-500">고객주소</span>
+                  <div className="pt-2 border-t border-gray-100 text-sm space-y-1">
+                    <div className="flex items-center justify-between">
+                      <span className="text-gray-500">고객주소</span>
+                      <label className="flex items-center gap-1 cursor-pointer">
                         <input
                           type="checkbox"
                           checked={showRoadAddr}
                           onChange={(e) => setShowRoadAddr(e.target.checked)}
-                          className="w-3 h-3 text-blue-600 border-gray-300 rounded focus:ring-blue-500 cursor-pointer"
-                          title="도로명주소 보기"
+                          className="w-3 h-3 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
                         />
-                      </div>
-                      <span className="text-gray-700">
-                        {showRoadAddr
-                          ? (selectedCustomer.ROAD_ADDR || selectedCustomer.INST_ADDR || selectedCustomer.CUST_ADDR || '-')
-                          : (selectedCustomer.INST_ADDR || selectedCustomer.CUST_ADDR || '-')
-                        }
-                      </span>
+                        <span className="text-xs text-gray-400">도로명</span>
+                      </label>
+                    </div>
+                    <div className="text-gray-700 break-words">
+                      {showRoadAddr
+                        ? (selectedCustomer.ROAD_ADDR || selectedCustomer.INST_ADDR || selectedCustomer.CUST_ADDR || '-')
+                        : (selectedCustomer.INST_ADDR || selectedCustomer.CUST_ADDR || '-')
+                      }
                     </div>
                   </div>
 
