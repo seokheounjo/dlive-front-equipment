@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Search, Loader2, X, User } from 'lucide-react';
 import { searchCustomer, CustomerInfo, formatPhoneNumber } from '../../services/customerApi';
 import BarcodeScanner from '../equipment/BarcodeScanner';
@@ -10,55 +10,6 @@ interface CustomerSearchProps {
 }
 
 type SearchTab = 'PHONE_NAME' | 'CUSTOMER_ID' | 'CONTRACT_ID' | 'EQUIPMENT_NO';
-
-// 하드코딩된 테스트 데이터
-const MOCK_CUSTOMERS: CustomerInfo[] = [
-  {
-    CUST_ID: '1001857577',
-    CUST_NM: '푸꾸옥',
-    TEL_NO: '0215878523',
-    HP_NO: '01012345678',
-    CUST_ADDR: '서울시 송파구 송파2동 186번지 성학빌딩',
-    ROAD_ADDR: '서울시 송파구 송파대로 123',
-    INST_ADDR: '서울시 송파구 송파2동 186번지 성학빌딩',
-    BILL_ADDR: '서울시 송파구 송파2동 186번지',
-    UNPAY_AMT: 15000,
-    CUST_TP_CD: '01',
-    CUST_TP_NM: '개인',
-    GRP_NO: 'G001234',
-    REG_DT: '2024-01-15'
-  },
-  {
-    CUST_ID: '1001857578',
-    CUST_NM: '하노이',
-    TEL_NO: '0312345678',
-    HP_NO: '01087654321',
-    CUST_ADDR: '경기도 성남시 분당구 정자동 45-1',
-    ROAD_ADDR: '경기도 성남시 분당구 정자일로 45',
-    INST_ADDR: '경기도 성남시 분당구 정자동 45-1',
-    BILL_ADDR: '경기도 성남시 분당구 정자동 45-1',
-    UNPAY_AMT: 0,
-    CUST_TP_CD: '02',
-    CUST_TP_NM: '법인',
-    GRP_NO: '',
-    REG_DT: '2024-02-20'
-  },
-  {
-    CUST_ID: '1001846265',
-    CUST_NM: '가나다',
-    TEL_NO: '0221234567',
-    HP_NO: '01011112222',
-    CUST_ADDR: '서울시 강남구 역삼동 123-45',
-    ROAD_ADDR: '서울시 강남구 테헤란로 123',
-    INST_ADDR: '서울시 강남구 역삼동 123-45 역삼빌딩 3층',
-    BILL_ADDR: '서울시 강남구 역삼동 123-45',
-    UNPAY_AMT: 45000,
-    CUST_TP_CD: '01',
-    CUST_TP_NM: '개인',
-    GRP_NO: 'G005678',
-    REG_DT: '2023-11-10'
-  }
-];
 
 /**
  * 고객 검색 컴포넌트
@@ -72,12 +23,12 @@ const CustomerSearch: React.FC<CustomerSearchProps> = ({ onCustomerSelect, showT
   // 검색 탭
   const [activeTab, setActiveTab] = useState<SearchTab>('PHONE_NAME');
 
-  // 검색 입력값
-  const [phoneNumber, setPhoneNumber] = useState('');
-  const [customerName, setCustomerName] = useState('');
-  const [customerId, setCustomerId] = useState('');
-  const [contractId, setContractId] = useState('');
-  const [equipmentNo, setEquipmentNo] = useState('');
+  // 검색 입력값 - 테스트용 기본값
+  const [phoneNumber, setPhoneNumber] = useState('01051346878');
+  const [customerName, setCustomerName] = useState('푸꾸옥');
+  const [customerId, setCustomerId] = useState('1001857577');
+  const [contractId, setContractId] = useState('1003687719');
+  const [equipmentNo, setEquipmentNo] = useState('S123456789');
 
   // 상태
   const [isSearching, setIsSearching] = useState(false);
@@ -93,12 +44,11 @@ const CustomerSearch: React.FC<CustomerSearchProps> = ({ onCustomerSelect, showT
     { id: 'EQUIPMENT_NO', label: '장비' }
   ];
 
-  // 팝업 열 때 하드코딩된 데이터 표시
+  // 팝업 열기
   const openModal = () => {
     setShowModal(true);
-    // 하드코딩된 테스트 데이터 표시
-    setSearchResults(MOCK_CUSTOMERS);
-    setHasSearched(true);
+    setSearchResults([]);
+    setHasSearched(false);
   };
 
   // 팝업 닫기
@@ -117,8 +67,8 @@ const CustomerSearch: React.FC<CustomerSearchProps> = ({ onCustomerSelect, showT
   // 탭 변경
   const handleTabChange = (tab: SearchTab) => {
     setActiveTab(tab);
-    setSearchResults(MOCK_CUSTOMERS); // 탭 변경 시에도 테스트 데이터 유지
-    setHasSearched(true);
+    setSearchResults([]);
+    setHasSearched(false);
   };
 
   // 검색 실행
