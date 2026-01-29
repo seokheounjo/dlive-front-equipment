@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { ArrowLeft } from 'lucide-react';
 import ScrollableTabMenu, { TabItem } from '../layout/ScrollableTabMenu';
 import CustomerBasicInfo from './CustomerBasicInfo';
 import CustomerInfoChange from './CustomerInfoChange';
