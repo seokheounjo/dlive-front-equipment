@@ -1,95 +1,88 @@
-# EC2 + PM2 BFF 프록시 배포 가이드
+# EC2 배포 가이드
 
-## 🚀 배포 과정
+## 서버 정보
 
-### 1. 최신 코드 받기
+| 항목 | 값 |
+|------|-----|
+| EC2 IP | `52.63.232.141` |
+| 포트 | `8080` |
+| 접속 URL | http://52.63.232.141:8080 |
+| SSH 사용자 | `ubuntu` |
+| PEM 키 파일 | `C:\bottle\dlive\ec2-key.pem` |
+| 배포 경로 | `/var/www/html/mobile/` |
+| GitHub 저장소 | `seokheounjo/dlive-front-equipment` |
+
+## 자동 배포 (권장)
+
+**GitHub에 푸시하면 GitHub Actions가 자동으로 EC2에 배포합니다.**
+
 ```bash
-git pull origin main
+# 1. 코드 수정 후
+git add -A
+git commit -m "커밋 메시지"
+git push origin main
+
+# 2. 자동 배포 완료 대기 (GitHub Actions)
+# 3. http://52.63.232.141:8080 에서 확인
 ```
 
-### 2. 패키지 설치
+## 수동 배포 (긴급 시)
+
+### 로컬에서 직접 배포
+
 ```bash
-npm install
+# 1. 빌드
+cd C:/bottle/dlive/frontend
+npm run build
+
+# 2. 업로드
+scp -i C:/bottle/dlive/ec2-key.pem -r dist/* ubuntu@52.63.232.141:~/mobile_dist/
+
+# 3. 서버에서 파일 이동
+ssh -i C:/bottle/dlive/ec2-key.pem ubuntu@52.63.232.141 "sudo cp -r ~/mobile_dist/* /var/www/html/mobile/ && sudo chown -R www-data:www-data /var/www/html/mobile/ && rm -rf ~/mobile_dist && echo 'Deploy complete!'"
 ```
 
-### 3. PM2로 프로덕션 배포 (빌드 + 시작)
+### 한 줄 배포 명령어
 ```bash
-# 기존 PM2 프로세스 중지 (있다면)
-pm2 stop all
-pm2 delete all
-
-# 자동 빌드 + PM2 시작
-sudo npm run pm2:start
-
-# PM2 상태 확인
-pm2 status
-
-# PM2 로그 확인 (실시간)
-npm run pm2:logs
-
-# 포트 80 사용 확인
-sudo netstat -tlnp | grep :80
-
-# PM2 재시작
-npm run pm2:restart
-
-# PM2 중지
-npm run pm2:stop
+cd C:/bottle/dlive/frontend && npm run build && scp -i C:/bottle/dlive/ec2-key.pem -r dist/* ubuntu@52.63.232.141:~/mobile_dist/ && ssh -i C:/bottle/dlive/ec2-key.pem ubuntu@52.63.232.141 "sudo cp -r ~/mobile_dist/* /var/www/html/mobile/ && sudo chown -R www-data:www-data /var/www/html/mobile/ && rm -rf ~/mobile_dist && echo 'Deploy complete!'"
 ```
 
-### 4. 문제 해결
+## SSH 접속
+
 ```bash
-# 404 오류 시 확인사항
-pm2 logs dlive-cona-front --lines 50
-
-# Express 서버 직접 실행 (디버깅)
-sudo node server.js
-
-# 프로세스 확인
-ps aux | grep node
+ssh -i C:/bottle/dlive/ec2-key.pem ubuntu@52.63.232.141
 ```
 
-### 4. 수동 테스트 (선택사항)
+## PM2 명령어
+
 ```bash
-# 빌드만
-npm run build:ec2
-
-# 서버 직접 실행 (테스트용)
-npm run start:ec2
+pm2 status              # 상태 확인
+pm2 logs                # 로그 확인
+pm2 restart all         # 재시작
+pm2 stop all            # 중지
 ```
 
-## 🛡️ IP 제한 기능
+## 문제 해결
 
-### 허용된 IP 목록
-- `211.32.50.55` - 기존 허용 IP
-- `58.143.140.34` - 추가 허용 IP 1
-- `58.143.140.167` - 추가 허용 IP 2
-- `58.143.140.222` - 딜라이브 내부서버 IP
-- `193.186.4.167` - 딜라이브 사무실 IP
-- `127.0.0.1` - 로컬호스트
-
-### IP 추가 방법
-`server.js` 파일의 `ALLOWED_IPS` 배열에 IP 추가 후 재시작
-
-## 🔗 API 호출 흐름
-```
-딜라이브 사무실 (193.186.4.167)
-    ↓ 브라우저 접속
-EC2 서버 (52.63.131.157) ← Express.js IP 제한
-    ↓ JavaScript API 호출
-딜라이브 내부서버 (58.143.140.222:8080)
-```
-
-## 📝 로그 확인
+### SSH 연결 테스트
 ```bash
-# PM2 로그 실시간 확인
-pm2 logs dlive-cona-front --lines 100
-
-# 접근 로그 확인
-pm2 logs dlive-cona-front | grep "접근"
+ssh -i C:/bottle/dlive/ec2-key.pem -o ConnectTimeout=10 ubuntu@52.63.232.141 "echo connected"
 ```
 
-## 🔧 문제 해결
-- **403 접근 거부**: IP가 허용 목록에 없음 → IP 추가 필요
-- **API 호출 실패**: 딜라이브 내부서버 방화벽 확인 필요
-- **CORS 오류**: 딜라이브 서버 CORS 설정 확인 필요
+### 권한 오류 시
+```bash
+sudo chown -R www-data:www-data /var/www/html/mobile/
+sudo chmod -R 755 /var/www/html/mobile/
+```
+
+## IP 제한 (server.js)
+
+허용된 IP:
+- `211.32.50.55`
+- `58.143.140.34`
+- `58.143.140.167`
+- `58.143.140.222` (딜라이브 내부서버)
+- `193.186.4.167` (딜라이브 사무실)
+- `127.0.0.1` (로컬호스트)
+
+IP 추가: `server.js`의 `ALLOWED_IPS` 배열 수정 후 PM2 재시작
