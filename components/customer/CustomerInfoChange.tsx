@@ -1219,38 +1219,6 @@ const CustomerInfoChange: React.FC<CustomerInfoChangeProps> = ({
               <div className="space-y-2">
                 <label className="block text-sm text-gray-600 mb-2">변경할 주소 선택</label>
                 <div className="space-y-2">
-                  <label className={`flex items-center gap-2 p-3 rounded-lg ${
-                    selectedContract?.ctrtId
-                      ? 'bg-gray-50 cursor-pointer hover:bg-gray-100'
-                      : 'bg-gray-100 cursor-not-allowed opacity-60'
-                  }`}>
-                    <input
-                      type="checkbox"
-                      checked={addressForm.changeInstAddr}
-                      disabled={!selectedContract?.ctrtId}
-                      onChange={(e) => setAddressForm(prev => ({
-                        ...prev,
-                        changeInstAddr: e.target.checked
-                      }))}
-                      className={`w-4 h-4 border-gray-300 rounded ${
-                        selectedContract?.ctrtId
-                          ? 'text-green-600 focus:ring-green-500'
-                          : 'text-gray-400'
-                      }`}
-                    />
-                    <div className="flex-1">
-                      <span className={`text-sm ${selectedContract?.ctrtId ? 'text-gray-700' : 'text-gray-500'}`}>
-                        설치주소
-                      </span>
-                      {selectedContract?.ctrtId ? (
-                        <span className="text-xs text-green-600 ml-2">
-                          ({selectedContract.prodNm})
-                        </span>
-                      ) : (
-                        <span className="text-xs text-gray-400 ml-2">(계약 선택 필요)</span>
-                      )}
-                    </div>
-                  </label>
                   <label className="flex items-center gap-2 p-3 bg-gray-50 rounded-lg cursor-pointer hover:bg-gray-100">
                     <input
                       type="checkbox"
@@ -1262,34 +1230,6 @@ const CustomerInfoChange: React.FC<CustomerInfoChangeProps> = ({
                       className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
                     />
                     <span className="text-sm text-gray-700">고객주소</span>
-                  </label>
-                  <label className={`flex items-center gap-2 p-3 rounded-lg ${
-                    selectedContract?.ctrtId
-                      ? 'bg-gray-50 cursor-pointer hover:bg-gray-100'
-                      : 'bg-gray-100 cursor-not-allowed opacity-60'
-                  }`}>
-                    <input
-                      type="checkbox"
-                      checked={addressForm.changeBillAddr}
-                      disabled={!selectedContract?.ctrtId}
-                      onChange={(e) => setAddressForm(prev => ({
-                        ...prev,
-                        changeBillAddr: e.target.checked
-                      }))}
-                      className={`w-4 h-4 border-gray-300 rounded ${
-                        selectedContract?.ctrtId
-                          ? 'text-orange-600 focus:ring-orange-500'
-                          : 'text-gray-400'
-                      }`}
-                    />
-                    <div>
-                      <span className={`text-sm ${selectedContract?.ctrtId ? 'text-gray-700' : 'text-gray-500'}`}>
-                        청구지주소
-                      </span>
-                      {!selectedContract?.ctrtId && (
-                        <span className="text-xs text-gray-400 ml-2">(계약 선택 필요)</span>
-                      )}
-                    </div>
                   </label>
                 </div>
               </div>
