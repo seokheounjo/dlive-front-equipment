@@ -302,15 +302,16 @@ const PaymentInfo: React.FC<PaymentInfoProps> = ({
                   </div>
                 ) : (
                   <div className="space-y-2">
-                    {filteredPaymentInfo.map((payment) => (
+                    {filteredPaymentInfo.map((payment) => {
+                      const isWorking = currentWorkingPymAcntId === payment.PYM_ACNT_ID;
+                      return (
                       <div
                         key={payment.PYM_ACNT_ID}
-                        className={`p-3 rounded-lg border transition-colors cursor-pointer ${
-                          selectedPymAcntId === payment.PYM_ACNT_ID
-                            ? 'bg-indigo-50 border-indigo-300'
-                            : 'bg-gray-50 border-gray-200 hover:border-gray-300'
+                        className={`p-3 rounded-lg border transition-colors ${
+                          isWorking
+                            ? 'bg-orange-50 border-orange-300'
+                            : 'bg-gray-50 border-gray-200'
                         }`}
-                        onClick={() => handleSelectPayment(payment)}
                       >
                         <div className="flex items-center justify-between mb-2">
                           <div className="flex items-center gap-2">
@@ -318,6 +319,11 @@ const PaymentInfo: React.FC<PaymentInfoProps> = ({
                             <span className="text-sm font-medium text-gray-800">
                               {payment.PYM_MTH_NM || '납부방법 미등록'}
                             </span>
+                            {isWorking && (
+                              <span className="px-2 py-0.5 text-xs bg-orange-500 text-white rounded-full animate-pulse">
+                                작업중
+                              </span>
+                            )}
                           </div>
                           <span className="text-xs text-gray-500">
                             계정ID: {formatPymAcntId(payment.PYM_ACNT_ID)}
@@ -363,7 +369,8 @@ const PaymentInfo: React.FC<PaymentInfoProps> = ({
                           </button>
                         )}
                       </div>
-                    ))}
+                    );
+                    })}
                   </div>
                 )}
 
