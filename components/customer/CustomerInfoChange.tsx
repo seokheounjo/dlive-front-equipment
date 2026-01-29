@@ -198,29 +198,42 @@ const CustomerInfoChange: React.FC<CustomerInfoChangeProps> = ({
 
   // 납부계정 전환 핸들러
   const handlePaymentAccountClick = (newPymAcntId: string) => {
+    console.log('[납부계정 전환] 클릭:', newPymAcntId);
+    console.log('[납부계정 전환] 현재 선택:', selectedPymAcntId);
+    console.log('[납부계정 전환] 폼 더티:', isPaymentFormDirty());
+
     // 같은 계정 클릭 시 무시
-    if (newPymAcntId === selectedPymAcntId) return;
+    if (newPymAcntId === selectedPymAcntId) {
+      console.log('[납부계정 전환] 같은 계정 - 무시');
+      return;
+    }
 
     // 현재 작성 중인 내용이 있으면 확인 모달 표시
     if (selectedPymAcntId && isPaymentFormDirty()) {
+      console.log('[납부계정 전환] 작성 중 - 모달 표시');
       setPendingSwitchPymAcntId(newPymAcntId);
       setShowSwitchConfirm(true);
       return;
     }
 
     // 작성 중인 내용이 없으면 바로 전환
+    console.log('[납부계정 전환] 바로 전환');
     switchPaymentAccount(newPymAcntId);
   };
 
   // 실제 계정 전환 실행
   const switchPaymentAccount = (newPymAcntId: string) => {
-    // 폼 초기화
-    setPaymentForm(defaultPaymentForm);
+    console.log('[납부계정 전환] 실행:', newPymAcntId);
+    console.log('[납부계정 전환] 폼 초기화 전:', paymentForm.acntHolderNm);
+    // 폼 초기화 - 새 객체로 확실히 리셋
+    const resetForm = { ...defaultPaymentForm };
+    setPaymentForm(resetForm);
     setIsVerified(false);
     setSelectedPymAcntId(newPymAcntId);
     onPaymentChangeStart?.();
     setShowSwitchConfirm(false);
     setPendingSwitchPymAcntId('');
+    console.log('[납부계정 전환] 폼 초기화 완료');
   };
 
   // 청구주소 검색 모달
