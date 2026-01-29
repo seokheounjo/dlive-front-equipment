@@ -161,6 +161,7 @@ const CustomerManagementMenu: React.FC<CustomerManagementMenuProps> = ({ onNavig
               setPaymentSelectedPymAcntId('');
               setPaymentIsVerified(false);
             }}
+            currentWorkingPymAcntId={paymentSelectedPymAcntId}
           />
         );
       case 'info-change':

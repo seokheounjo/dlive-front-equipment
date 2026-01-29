@@ -35,6 +35,7 @@ interface PaymentInfoProps {
   onNavigateToPaymentChange?: (pymAcntId: string) => void;  // 납부정보 변경 탭으로 이동
   paymentChangeInProgress?: boolean;  // 납부방법 변경 작업 중 상태
   onCancelPaymentChange?: () => void;  // 납부방법 변경 작업 취소 핸들러
+  currentWorkingPymAcntId?: string;  // 현재 작업 중인 납부계정 ID
 }
 
 /**
@@ -54,7 +55,8 @@ const PaymentInfo: React.FC<PaymentInfoProps> = ({
   showToast,
   onNavigateToPaymentChange,
   paymentChangeInProgress,
-  onCancelPaymentChange
+  onCancelPaymentChange,
+  currentWorkingPymAcntId
 }) => {
   // 데이터 상태
   const [paymentInfo, setPaymentInfo] = useState<PaymentInfoType[]>([]);
@@ -129,7 +131,14 @@ const PaymentInfo: React.FC<PaymentInfoProps> = ({
 
   // 납부정보 변경 버튼 클릭 핸들러
   const handlePaymentChangeClick = (pymAcntId: string) => {
-    // 이미 다른 납부계정에서 변경 작업 중이면 확인 모달 표시
+    // 같은 납부계정이면 바로 이동 (팝업 없음)
+    if (currentWorkingPymAcntId === pymAcntId) {
+      if (onNavigateToPaymentChange) {
+        onNavigateToPaymentChange(pymAcntId);
+      }
+      return;
+    }
+    // 다른 납부계정에서 변경 작업 중이면 확인 모달 표시
     if (paymentChangeInProgress) {
       setPendingSwitchPymAcntId(pymAcntId);
       setShowSwitchConfirm(true);

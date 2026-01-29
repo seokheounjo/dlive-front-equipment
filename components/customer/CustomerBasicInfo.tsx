@@ -33,6 +33,7 @@ interface CustomerBasicInfoProps {
   // 납부방법 변경 작업 중 상태
   paymentChangeInProgress?: boolean;
   onCancelPaymentChange?: () => void;
+  currentWorkingPymAcntId?: string;  // 현재 작업 중인 납부계정 ID
 }
 
 /**
@@ -58,7 +59,8 @@ const CustomerBasicInfo: React.FC<CustomerBasicInfoProps> = ({
   cachedDataCustId = '',
   onDataLoaded,
   paymentChangeInProgress,
-  onCancelPaymentChange
+  onCancelPaymentChange,
+  currentWorkingPymAcntId
 }) => {
   // 데이터 상태
   const [contracts, setContracts] = useState<ContractInfo[]>([]);
@@ -271,6 +273,7 @@ const CustomerBasicInfo: React.FC<CustomerBasicInfoProps> = ({
               onNavigateToPaymentChange={onNavigateToPaymentChange}
               paymentChangeInProgress={paymentChangeInProgress}
               onCancelPaymentChange={onCancelPaymentChange}
+              currentWorkingPymAcntId={currentWorkingPymAcntId}
             />
 
             {/* 상담 이력 */}
