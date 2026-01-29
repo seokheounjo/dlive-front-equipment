@@ -181,6 +181,48 @@ const CustomerInfoChange: React.FC<CustomerInfoChangeProps> = ({
   const [isVerified, setIsVerified] = useState(savedIsVerified);
   const [isSavingPayment, setIsSavingPayment] = useState(false);
 
+  // 납부계정 전환 확인 모달
+  const [showSwitchConfirm, setShowSwitchConfirm] = useState(false);
+  const [pendingSwitchPymAcntId, setPendingSwitchPymAcntId] = useState<string>('');
+
+  // 폼이 수정되었는지 확인하는 함수
+  const isPaymentFormDirty = (): boolean => {
+    // 기본 폼값과 비교하여 변경 여부 확인
+    return paymentForm.acntHolderNm !== '' ||
+           paymentForm.birthDt !== '' ||
+           paymentForm.bankCd !== '' ||
+           paymentForm.acntNo !== '' ||
+           paymentForm.changeReasonL !== '' ||
+           isVerified;
+  };
+
+  // 납부계정 전환 핸들러
+  const handlePaymentAccountClick = (newPymAcntId: string) => {
+    // 같은 계정 클릭 시 무시
+    if (newPymAcntId === selectedPymAcntId) return;
+
+    // 현재 작성 중인 내용이 있으면 확인 모달 표시
+    if (selectedPymAcntId && isPaymentFormDirty()) {
+      setPendingSwitchPymAcntId(newPymAcntId);
+      setShowSwitchConfirm(true);
+      return;
+    }
+
+    // 작성 중인 내용이 없으면 바로 전환
+    switchPaymentAccount(newPymAcntId);
+  };
+
+  // 실제 계정 전환 실행
+  const switchPaymentAccount = (newPymAcntId: string) => {
+    // 폼 초기화
+    setPaymentForm(defaultPaymentForm);
+    setIsVerified(false);
+    setSelectedPymAcntId(newPymAcntId);
+    onPaymentChangeStart?.();
+    setShowSwitchConfirm(false);
+    setPendingSwitchPymAcntId('');
+  };
+
   // 청구주소 검색 모달
   const [showBillAddressModal, setShowBillAddressModal] = useState(false);
   const [billAddressSearchQuery, setBillAddressSearchQuery] = useState('');
@@ -1361,10 +1403,7 @@ const CustomerInfoChange: React.FC<CustomerInfoChangeProps> = ({
                         {paymentInfoList.map((item) => (
                           <div
                             key={item.PYM_ACNT_ID}
-                            onClick={() => {
-                              setSelectedPymAcntId(item.PYM_ACNT_ID);
-                              onPaymentChangeStart?.();
-                            }}
+                            onClick={() => handlePaymentAccountClick(item.PYM_ACNT_ID)}
                             className={`p-3 rounded-lg border cursor-pointer transition-colors ${
                               selectedPymAcntId === item.PYM_ACNT_ID
                                 ? 'bg-orange-50 border-orange-300'
@@ -2264,6 +2303,46 @@ const CustomerInfoChange: React.FC<CustomerInfoChangeProps> = ({
                 className="w-full py-2.5 bg-gray-100 text-gray-600 rounded-lg hover:bg-gray-200 transition-colors"
               >
                 닫기
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 납부계정 전환 확인 모달 */}
+      {showSwitchConfirm && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-sm overflow-hidden">
+            <div className="p-4 border-b border-gray-100 bg-gradient-to-r from-yellow-500 to-orange-500">
+              <h3 className="font-semibold text-white flex items-center gap-2">
+                <AlertCircle className="w-5 h-5" />
+                작성 내용 확인
+              </h3>
+            </div>
+            <div className="p-4">
+              <p className="text-gray-700 text-sm">
+                현재 작성 중인 납부정보 변경 내용이 있습니다.<br />
+                다른 납부계정으로 전환하시면 작성 내용이 초기화됩니다.
+              </p>
+              <p className="text-gray-500 text-xs mt-2">
+                계속하시겠습니까?
+              </p>
+            </div>
+            <div className="p-4 bg-gray-50 flex gap-2">
+              <button
+                onClick={() => {
+                  setShowSwitchConfirm(false);
+                  setPendingSwitchPymAcntId('');
+                }}
+                className="flex-1 py-2.5 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors text-sm font-medium"
+              >
+                취소
+              </button>
+              <button
+                onClick={() => switchPaymentAccount(pendingSwitchPymAcntId)}
+                className="flex-1 py-2.5 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition-colors text-sm font-medium"
+              >
+                계속하기
               </button>
             </div>
           </div>

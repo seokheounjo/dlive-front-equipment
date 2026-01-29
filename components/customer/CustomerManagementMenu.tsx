@@ -7,7 +7,7 @@ import ConsultationAS from './ConsultationAS';
 import ElectronicContract from './ElectronicContract';
 import CustomerCreate from './CustomerCreate';
 import CustomerSearch from './CustomerSearch';
-import { CustomerInfo } from '../../services/customerApi';
+import { CustomerInfo, ContractInfo, ConsultationHistory, WorkHistory } from '../../services/customerApi';
 
 interface CustomerManagementMenuProps {
   onNavigateToMenu: () => void;
@@ -72,6 +72,12 @@ const CustomerManagementMenu: React.FC<CustomerManagementMenuProps> = ({ onNavig
   const [paymentSelectedPymAcntId, setPaymentSelectedPymAcntId] = useState<string>('');
   const [paymentIsVerified, setPaymentIsVerified] = useState(false);
 
+  // 기본조회 데이터 캐싱 (탭 전환 시 재로드 방지)
+  const [cachedContracts, setCachedContracts] = useState<ContractInfo[]>([]);
+  const [cachedConsultationHistory, setCachedConsultationHistory] = useState<ConsultationHistory[]>([]);
+  const [cachedWorkHistory, setCachedWorkHistory] = useState<WorkHistory[]>([]);
+  const [cachedDataCustId, setCachedDataCustId] = useState<string>('');  // 어떤 고객의 데이터인지 추적
+
   const tabs: TabItem[] = [
     { id: 'basic-info', title: '기본조회', description: '고객 검색 및 정보 조회' },
     { id: 'info-change', title: '정보변경', description: '전화번호/주소 변경' },
@@ -86,6 +92,13 @@ const CustomerManagementMenu: React.FC<CustomerManagementMenuProps> = ({ onNavig
 
   // 고객 선택 핸들러 (CustomerSearch에서 고객 선택 시 호출)
   const handleCustomerSelect = (customer: CustomerInfo) => {
+    // 새로운 고객 선택 시 캐시된 데이터 초기화
+    if (customer.CUST_ID !== cachedDataCustId) {
+      setCachedContracts([]);
+      setCachedConsultationHistory([]);
+      setCachedWorkHistory([]);
+      setCachedDataCustId('');
+    }
     setSelectedCustomer(customer);
     // 계약 정보 초기화
     setSelectedContract(null);
@@ -95,6 +108,24 @@ const CustomerManagementMenu: React.FC<CustomerManagementMenuProps> = ({ onNavig
   const handleCustomerClear = () => {
     setSelectedCustomer(null);
     setSelectedContract(null);
+    // 캐시 데이터도 초기화
+    setCachedContracts([]);
+    setCachedConsultationHistory([]);
+    setCachedWorkHistory([]);
+    setCachedDataCustId('');
+  };
+
+  // 기본조회 데이터 로드 완료 핸들러 (캐싱용)
+  const handleDataLoaded = (
+    custId: string,
+    contracts: ContractInfo[],
+    consultationHistory: ConsultationHistory[],
+    workHistory: WorkHistory[]
+  ) => {
+    setCachedDataCustId(custId);
+    setCachedContracts(contracts);
+    setCachedConsultationHistory(consultationHistory);
+    setCachedWorkHistory(workHistory);
   };
 
   // 계약 선택 핸들러 (계약현황에서 계약 선택 시 호출)
@@ -131,6 +162,11 @@ const CustomerManagementMenu: React.FC<CustomerManagementMenuProps> = ({ onNavig
             onNavigateToPaymentChange={handleNavigateToPaymentChange}
             selectedCustomer={selectedCustomer}
             savedContract={selectedContract}
+            cachedContracts={cachedContracts}
+            cachedConsultationHistory={cachedConsultationHistory}
+            cachedWorkHistory={cachedWorkHistory}
+            cachedDataCustId={cachedDataCustId}
+            onDataLoaded={handleDataLoaded}
           />
         );
       case 'info-change':

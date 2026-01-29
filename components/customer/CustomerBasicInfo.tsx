@@ -26,6 +26,12 @@ interface CustomerBasicInfoProps {
   // 상위 컴포넌트에서 전달받은 선택된 고객 정보
   selectedCustomer?: CustomerInfo | null;
   savedContract?: { ctrtId: string; prodNm: string; instAddr: string; postId?: string } | null;
+  // 캐싱된 데이터 (탭 전환 시 재로드 방지)
+  cachedContracts?: ContractInfo[];
+  cachedConsultationHistory?: ConsultationHistory[];
+  cachedWorkHistory?: WorkHistory[];
+  cachedDataCustId?: string;
+  onDataLoaded?: (custId: string, contracts: ContractInfo[], consultationHistory: ConsultationHistory[], workHistory: WorkHistory[]) => void;
 }
 
 /**
@@ -46,7 +52,12 @@ const CustomerBasicInfo: React.FC<CustomerBasicInfoProps> = ({
   onNavigateToConsultation,
   onNavigateToPaymentChange,
   selectedCustomer,
-  savedContract
+  savedContract,
+  cachedContracts = [],
+  cachedConsultationHistory = [],
+  cachedWorkHistory = [],
+  cachedDataCustId = '',
+  onDataLoaded
 }) => {
   // 데이터 상태
   const [contracts, setContracts] = useState<ContractInfo[]>([]);
@@ -69,12 +80,20 @@ const CustomerBasicInfo: React.FC<CustomerBasicInfoProps> = ({
   // 이전 고객 ID 추적
   const [prevCustomerId, setPrevCustomerId] = useState<string | null>(null);
 
-  // 선택된 고객이 변경되면 데이터 로드
+  // 선택된 고객이 변경되면 데이터 로드 (캐시 확인 후)
   useEffect(() => {
     if (selectedCustomer && selectedCustomer.CUST_ID !== prevCustomerId) {
       setPrevCustomerId(selectedCustomer.CUST_ID);
-      loadContracts(selectedCustomer.CUST_ID);
-      loadHistory(selectedCustomer.CUST_ID);
+
+      // 캐시된 데이터가 있고 같은 고객이면 캐시 사용
+      if (cachedDataCustId === selectedCustomer.CUST_ID && (cachedContracts.length > 0 || cachedConsultationHistory.length > 0 || cachedWorkHistory.length > 0)) {
+        setContracts(cachedContracts);
+        setConsultationHistory(cachedConsultationHistory);
+        setWorkHistory(cachedWorkHistory);
+      } else {
+        // 캐시가 없으면 새로 로드
+        loadAllData(selectedCustomer.CUST_ID);
+      }
     } else if (!selectedCustomer && prevCustomerId) {
       // 고객 선택 해제 시 데이터 초기화
       setPrevCustomerId(null);
@@ -82,28 +101,31 @@ const CustomerBasicInfo: React.FC<CustomerBasicInfoProps> = ({
       setConsultationHistory([]);
       setWorkHistory([]);
     }
-  }, [selectedCustomer]);
+  }, [selectedCustomer, cachedDataCustId]);
 
   // 계약 목록 로드
-  const loadContracts = async (custId: string) => {
+  const loadContracts = async (custId: string): Promise<ContractInfo[]> => {
     setIsLoadingContracts(true);
     try {
       const response = await getContractList(custId);
       if (response.success && response.data) {
         setContracts(response.data);
+        return response.data;
       } else {
         setContracts([]);
+        return [];
       }
     } catch (error) {
       console.error('Load contracts error:', error);
       setContracts([]);
+      return [];
     } finally {
       setIsLoadingContracts(false);
     }
   };
 
   // 이력 로드
-  const loadHistory = async (custId: string) => {
+  const loadHistory = async (custId: string): Promise<{ consultation: ConsultationHistory[], work: WorkHistory[] }> => {
     setIsLoadingHistory(true);
     try {
       const [consultRes, workRes] = await Promise.all([
@@ -111,16 +133,31 @@ const CustomerBasicInfo: React.FC<CustomerBasicInfoProps> = ({
         getWorkHistory(custId, 10)
       ]);
 
-      if (consultRes.success && consultRes.data) {
-        setConsultationHistory(consultRes.data);
-      }
-      if (workRes.success && workRes.data) {
-        setWorkHistory(workRes.data);
-      }
+      const consultData = consultRes.success && consultRes.data ? consultRes.data : [];
+      const workData = workRes.success && workRes.data ? workRes.data : [];
+
+      setConsultationHistory(consultData);
+      setWorkHistory(workData);
+
+      return { consultation: consultData, work: workData };
     } catch (error) {
       console.error('Load history error:', error);
+      return { consultation: [], work: [] };
     } finally {
       setIsLoadingHistory(false);
+    }
+  };
+
+  // 전체 데이터 로드 및 캐싱
+  const loadAllData = async (custId: string) => {
+    const [contractsResult, historyResult] = await Promise.all([
+      loadContracts(custId),
+      loadHistory(custId)
+    ]);
+
+    // 부모 컴포넌트에 로드된 데이터 전달 (캐싱용)
+    if (onDataLoaded) {
+      onDataLoaded(custId, contractsResult, historyResult.consultation, historyResult.work);
     }
   };
 
