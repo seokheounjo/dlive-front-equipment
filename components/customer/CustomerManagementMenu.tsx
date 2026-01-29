@@ -1,11 +1,9 @@
 import React, { useState } from 'react';
-import { ArrowLeft, AlertCircle } from 'lucide-react';
+import { AlertCircle } from 'lucide-react';
 import ScrollableTabMenu, { TabItem } from '../layout/ScrollableTabMenu';
 import CustomerBasicInfo from './CustomerBasicInfo';
 import CustomerInfoChange from './CustomerInfoChange';
-import ConsultationAS from './ConsultationAS';
 import ElectronicContract from './ElectronicContract';
-import CustomerCreate from './CustomerCreate';
 import CustomerSearch from './CustomerSearch';
 import { CustomerInfo, ContractInfo, ConsultationHistory, WorkHistory } from '../../services/customerApi';
 
@@ -36,9 +34,6 @@ const CustomerManagementMenu: React.FC<CustomerManagementMenuProps> = ({ onNavig
     instAddr: string;
     postId?: string;
   } | null>(null);
-
-  // 상담/AS 탭의 초기 서브탭 ('consultation' 또는 'as')
-  const [consultationInitialTab, setConsultationInitialTab] = useState<'consultation' | 'as'>('consultation');
 
   // 정보변경 탭의 초기 섹션 및 납부계정 ID
   const [infoChangeInitialSection, setInfoChangeInitialSection] = useState<'phone' | 'address' | 'payment' | 'hpPay'>('phone');
@@ -96,9 +91,7 @@ const CustomerManagementMenu: React.FC<CustomerManagementMenuProps> = ({ onNavig
   const tabs: TabItem[] = [
     { id: 'basic-info', title: '기본조회', description: '고객 검색 및 정보 조회' },
     { id: 'info-change', title: '정보변경', description: '전화번호/주소 변경' },
-    { id: 'consultation-as', title: '상담/AS', description: '상담이력 및 AS 접수' },
-    { id: 'electronic-contract', title: '전자계약', description: '전자계약서 서명/발송' },
-    { id: 'customer-create', title: '고객생성', description: '잠재고객 신규 등록' }
+    { id: 'electronic-contract', title: '전자계약', description: '전자계약서 서명/발송' }
   ];
 
   const handleTabChange = (tabId: string) => {
@@ -167,13 +160,9 @@ const CustomerManagementMenu: React.FC<CustomerManagementMenuProps> = ({ onNavig
     setSelectedContract(contract);
   };
 
-  // 탭 이동 핸들러 (예: AS 접수 버튼 클릭 시 상담/AS 탭으로 이동)
-  const handleNavigateToTab = (tabId: string, subTab?: 'consultation' | 'as') => {
+  // 탭 이동 핸들러
+  const handleNavigateToTab = (tabId: string) => {
     setActiveTab(tabId);
-    // 상담/AS 탭으로 이동 시 서브탭 설정
-    if (tabId === 'consultation-as' && subTab) {
-      setConsultationInitialTab(subTab);
-    }
   };
 
   // 납부정보 변경으로 이동 핸들러
@@ -191,8 +180,6 @@ const CustomerManagementMenu: React.FC<CustomerManagementMenuProps> = ({ onNavig
             onBack={onNavigateToMenu}
             showToast={showToast}
             onContractSelect={handleContractSelect}
-            onNavigateToAS={() => handleNavigateToTab('consultation-as', 'as')}
-            onNavigateToConsultation={() => handleNavigateToTab('consultation-as', 'consultation')}
             onNavigateToPaymentChange={handleNavigateToPaymentChange}
             selectedCustomer={selectedCustomer}
             savedContract={selectedContract}
@@ -232,21 +219,6 @@ const CustomerManagementMenu: React.FC<CustomerManagementMenuProps> = ({ onNavig
             }}
           />
         );
-      case 'consultation-as':
-        return (
-          <ConsultationAS
-            onBack={onNavigateToMenu}
-            showToast={showToast}
-            selectedCustomer={selectedCustomer ? {
-              custId: selectedCustomer.CUST_ID,
-              custNm: selectedCustomer.CUST_NM,
-              telNo: selectedCustomer.TEL_NO || selectedCustomer.HP_NO
-            } : null}
-            selectedContract={selectedContract}
-            onNavigateToBasicInfo={() => handleNavigateToTab('basic-info')}
-            initialTab={consultationInitialTab}
-          />
-        );
       case 'electronic-contract':
         return (
           <ElectronicContract
@@ -259,13 +231,6 @@ const CustomerManagementMenu: React.FC<CustomerManagementMenuProps> = ({ onNavig
             } : null}
             selectedContract={selectedContract}
             onNavigateToBasicInfo={() => handleNavigateToTab('basic-info')}
-          />
-        );
-      case 'customer-create':
-        return (
-          <CustomerCreate
-            onBack={onNavigateToMenu}
-            showToast={showToast}
           />
         );
       default:
@@ -302,15 +267,14 @@ const CustomerManagementMenu: React.FC<CustomerManagementMenuProps> = ({ onNavig
       </div>
 
       {/* 고객 검색 - 고객생성 탭 제외하고 모든 탭에서 표시 */}
-      {activeTab !== 'customer-create' && (
-        <div className="flex-shrink-0 bg-white border-b border-gray-200 p-3">
-          <CustomerSearch
+      {/* 고객 검색 - 모든 탭에서 표시 */}
+      <div className="flex-shrink-0 bg-white border-b border-gray-200 p-3">
+        <CustomerSearch
             onCustomerSelect={handleCustomerSelect}
             showToast={showToast}
             selectedCustomer={selectedCustomer}
           />
-        </div>
-      )}
+      </div>
 
       {/* 콘텐츠 영역 - flex-1로 남은 공간 채움, 내부 스크롤 */}
       <div className="flex-1 overflow-hidden">

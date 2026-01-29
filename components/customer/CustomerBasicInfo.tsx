@@ -20,8 +20,6 @@ interface CustomerBasicInfoProps {
   onBack: () => void;
   showToast?: (message: string, type: 'success' | 'error' | 'warning' | 'info') => void;
   onContractSelect: (contract: { ctrtId: string; prodNm: string; instAddr: string; postId?: string }) => void;
-  onNavigateToAS: () => void;
-  onNavigateToConsultation?: () => void;
   onNavigateToPaymentChange?: (pymAcntId: string) => void;  // 납부정보 변경 탭으로 이동
   // 상위 컴포넌트에서 전달받은 선택된 고객 정보
   selectedCustomer?: CustomerInfo | null;
@@ -48,8 +46,6 @@ const CustomerBasicInfo: React.FC<CustomerBasicInfoProps> = ({
   onBack,
   showToast,
   onContractSelect,
-  onNavigateToAS,
-  onNavigateToConsultation,
   onNavigateToPaymentChange,
   selectedCustomer,
   savedContract,
@@ -257,8 +253,6 @@ const CustomerBasicInfo: React.FC<CustomerBasicInfoProps> = ({
               expanded={expandedSections.contracts}
               onToggle={() => toggleSection('contracts')}
               onContractSelect={handleContractSelect}
-              onASRequest={onNavigateToAS}
-              onConsultationRequest={onNavigateToConsultation}
               showToast={showToast}
             />
 

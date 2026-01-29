@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import {
   FileText, ChevronDown, ChevronUp, Loader2,
-  Cpu, Calendar, MapPin, Wrench, Filter, MessageSquare
+  Cpu, Calendar, MapPin, Filter
 } from 'lucide-react';
 import { ContractInfo, formatCurrency, formatDate } from '../../services/customerApi';
 
@@ -11,8 +11,6 @@ interface ContractSummaryProps {
   expanded: boolean;
   onToggle: () => void;
   onContractSelect: (contract: ContractInfo) => void;
-  onASRequest: () => void;
-  onConsultationRequest?: () => void;  // 상담 버튼 클릭
   showToast?: (message: string, type: 'success' | 'error' | 'warning' | 'info') => void;
 }
 
@@ -46,8 +44,6 @@ const ContractSummary: React.FC<ContractSummaryProps> = ({
   expanded,
   onToggle,
   onContractSelect,
-  onASRequest,
-  onConsultationRequest,
   showToast
 }) => {
   // 필터 상태
@@ -281,35 +277,6 @@ const ContractSummary: React.FC<ContractSummaryProps> = ({
                           </div>
                         )}
 
-                        {/* 액션 버튼 */}
-                        {contract.CTRT_STAT_CD !== '30' && (
-                          <div className="flex gap-2 pt-2">
-                            {onConsultationRequest && (
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  handleSelect(contract);
-                                  onConsultationRequest();
-                                }}
-                                className="flex items-center gap-1 px-3 py-1.5 text-sm bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 transition-colors"
-                              >
-                                <MessageSquare className="w-4 h-4" />
-                                상담
-                              </button>
-                            )}
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleSelect(contract);
-                                onASRequest();
-                              }}
-                              className="flex items-center gap-1 px-3 py-1.5 text-sm bg-orange-100 text-orange-700 rounded-lg hover:bg-orange-200 transition-colors"
-                            >
-                              <Wrench className="w-4 h-4" />
-                              AS 접수
-                            </button>
-                          </div>
-                        )}
                       </div>
                     )}
                   </div>
