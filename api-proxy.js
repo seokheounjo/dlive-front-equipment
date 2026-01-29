@@ -315,6 +315,12 @@ router.post("/customer/equipment/getEqtTrnsList", handleProxy);  // 장비이동
 // Statistics/Equipment API
 router.post('/statistics/equipment/getEquipmentHistoryInfo', handleProxy);
 
+// Statistics/Customer API (Address Search)
+router.post('/statistics/customer/getPostList', handleProxy);  // 지번주소 검색
+
+// Customer Common API (Address Search)
+router.post('/customer/common/customercommon/getStreetAddrList', handleProxy);  // 도로명주소 검색
+
 // System/CM API
 router.post('/system/cm/getFindUsrList3', handleProxy);
 
