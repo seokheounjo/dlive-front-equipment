@@ -1182,7 +1182,7 @@ const CustomerInfoChange: React.FC<CustomerInfoChangeProps> = ({
           )}
         </div>
 
-        {/* 주소 변경 */}
+        {/* 고객주소 변경 */}
         <div className="bg-white rounded-lg shadow-sm border border-gray-200">
           <button
             onClick={() => toggleSection('address')}
@@ -1190,7 +1190,7 @@ const CustomerInfoChange: React.FC<CustomerInfoChangeProps> = ({
           >
             <div className="flex items-center gap-2">
               <MapPin className="w-5 h-5 text-green-500" />
-              <span className="font-medium text-gray-800">주소 변경</span>
+              <span className="font-medium text-gray-800">고객주소 변경</span>
             </div>
             {expandedSections.address ? (
               <ChevronUp className="w-5 h-5 text-gray-400" />
@@ -1215,24 +1215,6 @@ const CustomerInfoChange: React.FC<CustomerInfoChangeProps> = ({
                 </div>
               )}
 
-              {/* 변경할 주소 유형 선택 */}
-              <div className="space-y-2">
-                <label className="block text-sm text-gray-600 mb-2">변경할 주소 선택</label>
-                <div className="space-y-2">
-                  <label className="flex items-center gap-2 p-3 bg-gray-50 rounded-lg cursor-pointer hover:bg-gray-100">
-                    <input
-                      type="checkbox"
-                      checked={addressForm.changeCustAddr}
-                      onChange={(e) => setAddressForm(prev => ({
-                        ...prev,
-                        changeCustAddr: e.target.checked
-                      }))}
-                      className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
-                    />
-                    <span className="text-sm text-gray-700">고객주소</span>
-                  </label>
-                </div>
-              </div>
 
               {/* 우편번호 */}
               <div>
@@ -1311,7 +1293,7 @@ const CustomerInfoChange: React.FC<CustomerInfoChangeProps> = ({
                 ) : (
                   <>
                     <Save className="w-5 h-5" />
-                    주소 변경
+                    고객주소 변경
                   </>
                 )}
               </button>
