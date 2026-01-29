@@ -1,5 +1,4 @@
 import React, { useState } from 'react';
-import { ArrowLeft } from 'lucide-react';
 import ScrollableTabMenu, { TabItem } from '../layout/ScrollableTabMenu';
 import CustomerBasicInfo from './CustomerBasicInfo';
 import CustomerInfoChange from './CustomerInfoChange';
@@ -233,7 +232,6 @@ const CustomerManagementMenu: React.FC<CustomerManagementMenuProps> = ({ onNavig
               }}
               className="flex-shrink-0 mr-2 px-3 py-1.5 text-sm bg-orange-500 text-white rounded-lg hover:bg-orange-600 flex items-center gap-1"
             >
-              <ArrowLeft className="w-4 h-4" />
               납부변경
             </button>
           )}
