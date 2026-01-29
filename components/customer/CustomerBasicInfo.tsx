@@ -194,7 +194,7 @@ const CustomerBasicInfo: React.FC<CustomerBasicInfoProps> = ({
                 onClick={() => toggleSection('customerInfo')}
                 className="w-full px-3 py-2.5 flex items-center justify-between text-left"
               >
-                <span className="font-medium text-gray-800 text-sm">고객 정보</span>
+                <span className="font-medium text-gray-800">고객 정보</span>
                 {expandedSections.customerInfo ? (
                   <ChevronUp className="w-4 h-4 text-gray-400" />
                 ) : (
@@ -283,7 +283,7 @@ const CustomerBasicInfo: React.FC<CustomerBasicInfoProps> = ({
                 className="w-full px-3 py-2.5 flex items-center justify-between text-left"
               >
                 <div className="flex items-center gap-2">
-                  <span className="font-medium text-gray-800 text-sm">상담 이력</span>
+                  <span className="font-medium text-gray-800">상담 이력</span>
                   {consultationHistory.length > 0 && (
                     <span className="text-xs text-gray-500">({consultationHistory.length})</span>
                   )}
@@ -333,7 +333,7 @@ const CustomerBasicInfo: React.FC<CustomerBasicInfoProps> = ({
                 className="w-full px-3 py-2.5 flex items-center justify-between text-left"
               >
                 <div className="flex items-center gap-2">
-                  <span className="font-medium text-gray-800 text-sm">작업 이력</span>
+                  <span className="font-medium text-gray-800">작업 이력</span>
                   {workHistory.length > 0 && (
                     <span className="text-xs text-gray-500">({workHistory.length})</span>
                   )}
