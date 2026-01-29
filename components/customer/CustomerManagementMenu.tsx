@@ -1,5 +1,4 @@
 import React, { useState } from 'react';
-import { AlertCircle } from 'lucide-react';
 import ScrollableTabMenu, { TabItem } from '../layout/ScrollableTabMenu';
 import CustomerBasicInfo from './CustomerBasicInfo';
 import CustomerInfoChange from './CustomerInfoChange';
@@ -73,21 +72,6 @@ const CustomerManagementMenu: React.FC<CustomerManagementMenuProps> = ({ onNavig
   const [cachedWorkHistory, setCachedWorkHistory] = useState<WorkHistory[]>([]);
   const [cachedDataCustId, setCachedDataCustId] = useState<string>('');  // 어떤 고객의 데이터인지 추적
 
-  // 탭 전환 확인 모달 (정보변경 작성 중일 때)
-  const [showTabSwitchConfirm, setShowTabSwitchConfirm] = useState(false);
-  const [pendingTabId, setPendingTabId] = useState<string>('');
-
-  // 납부폼이 수정되었는지 확인
-  const isPaymentFormDirty = (): boolean => {
-    if (!paymentFormData) return false;
-    return paymentFormData.acntHolderNm !== '' ||
-           paymentFormData.birthDt !== '' ||
-           paymentFormData.bankCd !== '' ||
-           paymentFormData.acntNo !== '' ||
-           paymentFormData.changeReasonL !== '' ||
-           paymentIsVerified;
-  };
-
   const tabs: TabItem[] = [
     { id: 'basic-info', title: '기본조회', description: '고객 검색 및 정보 조회' },
     { id: 'info-change', title: '정보변경', description: '전화번호/주소 변경' },
@@ -95,26 +79,7 @@ const CustomerManagementMenu: React.FC<CustomerManagementMenuProps> = ({ onNavig
   ];
 
   const handleTabChange = (tabId: string) => {
-    // 정보변경 탭에서 다른 탭으로 이동 시 작성 중인 내용 확인
-    if (activeTab === 'info-change' && tabId !== 'info-change' && isPaymentFormDirty()) {
-      setPendingTabId(tabId);
-      setShowTabSwitchConfirm(true);
-      return;
-    }
     setActiveTab(tabId);
-  };
-
-  // 탭 전환 확인 후 실행
-  const confirmTabSwitch = () => {
-    // 폼 데이터 초기화
-    setPaymentFormData(null);
-    setPaymentSelectedPymAcntId('');
-    setPaymentIsVerified(false);
-    setPaymentChangeInProgress(false);
-    // 탭 전환
-    setActiveTab(pendingTabId);
-    setShowTabSwitchConfirm(false);
-    setPendingTabId('');
   };
 
   // 고객 선택 핸들러 (CustomerSearch에서 고객 선택 시 호출)
@@ -281,45 +246,6 @@ const CustomerManagementMenu: React.FC<CustomerManagementMenuProps> = ({ onNavig
         {renderContent()}
       </div>
 
-      {/* 탭 전환 확인 모달 */}
-      {showTabSwitchConfirm && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-sm overflow-hidden">
-            <div className="p-4 border-b border-gray-100 bg-gradient-to-r from-yellow-500 to-orange-500">
-              <h3 className="font-semibold text-white flex items-center gap-2">
-                <AlertCircle className="w-5 h-5" />
-                작성 내용 확인
-              </h3>
-            </div>
-            <div className="p-4">
-              <p className="text-gray-700 text-sm">
-                현재 작성 중인 납부정보 변경 내용이 있습니다.<br />
-                다른 탭으로 이동하시면 작성 내용이 초기화됩니다.
-              </p>
-              <p className="text-gray-500 text-xs mt-2">
-                계속하시겠습니까?
-              </p>
-            </div>
-            <div className="p-4 bg-gray-50 flex gap-2">
-              <button
-                onClick={() => {
-                  setShowTabSwitchConfirm(false);
-                  setPendingTabId('');
-                }}
-                className="flex-1 py-2.5 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors text-sm font-medium"
-              >
-                취소
-              </button>
-              <button
-                onClick={confirmTabSwitch}
-                className="flex-1 py-2.5 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition-colors text-sm font-medium"
-              >
-                계속하기
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 };
