@@ -506,14 +506,30 @@ const apiCall = async <T>(
  * D'Live API 응답 -> 프론트엔드 인터페이스
  */
 const mapCustomerFields = (data: any): CustomerInfo => {
+  // 전체 주소 조합: ADDRESS + BUN_NO번지 + HO_NM호 + BLD_NM
+  const buildFullAddress = (): string => {
+    if (data.ADDR_FULL) return data.ADDR_FULL;
+
+    const parts: string[] = [];
+    const baseAddr = data.ADDRESS || data.ADDR || '';
+    if (baseAddr) parts.push(baseAddr);
+    if (data.BUN_NO) parts.push(`${data.BUN_NO}번지`);
+    if (data.HO_NM) parts.push(`${data.HO_NM}호`);
+    if (data.BLD_NM) parts.push(data.BLD_NM);
+
+    return parts.join(' ') || '';
+  };
+
+  const fullAddress = buildFullAddress();
+
   return {
     CUST_ID: data.CUST_ID || '',
     CUST_NM: data.CUST_NM || '',
     TEL_NO: data.TEL_NO || data.TEL_NO1 || '',           // TEL_NO1 -> TEL_NO
     HP_NO: data.HP_NO || data.TEL_NO2 || '',             // TEL_NO2 -> HP_NO
-    CUST_ADDR: data.CUST_ADDR || data.ADDR || data.ADDRESS || '',     // ADDR/ADDRESS -> CUST_ADDR
-    ROAD_ADDR: data.ROAD_ADDR || data.ADDR_FULL || '',   // ADDR_FULL -> ROAD_ADDR (전체주소)
-    INST_ADDR: data.INST_ADDR || data.ADDR_FULL || data.ADDRESS || '',  // ADDR_FULL -> INST_ADDR
+    CUST_ADDR: fullAddress || data.CUST_ADDR || data.ADDR || data.ADDRESS || '',  // 전체주소 우선
+    ROAD_ADDR: data.ROAD_ADDR || fullAddress || '',      // 전체주소 -> ROAD_ADDR
+    INST_ADDR: data.INST_ADDR || fullAddress || '',      // 전체주소 -> INST_ADDR
     BILL_ADDR: data.BILL_ADDR || '',                     // D'Live API does not return this
     UNPAY_AMT: data.UNPAY_AMT || 0,                      // D'Live API does not return this
     CUST_TP_CD: data.CUST_TP_CD || data.CUST_TP || '',   // CUST_TP -> CUST_TP_CD
