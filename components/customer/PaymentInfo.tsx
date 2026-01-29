@@ -33,6 +33,8 @@ interface PaymentInfoProps {
   onToggle: () => void;
   showToast?: (message: string, type: 'success' | 'error' | 'warning' | 'info') => void;
   onNavigateToPaymentChange?: (pymAcntId: string) => void;  // 납부정보 변경 탭으로 이동
+  paymentChangeInProgress?: boolean;  // 납부방법 변경 작업 중 상태
+  onCancelPaymentChange?: () => void;  // 납부방법 변경 작업 취소 핸들러
 }
 
 /**
@@ -50,7 +52,9 @@ const PaymentInfo: React.FC<PaymentInfoProps> = ({
   expanded,
   onToggle,
   showToast,
-  onNavigateToPaymentChange
+  onNavigateToPaymentChange,
+  paymentChangeInProgress,
+  onCancelPaymentChange
 }) => {
   // 데이터 상태
   const [paymentInfo, setPaymentInfo] = useState<PaymentInfoType[]>([]);
@@ -69,6 +73,10 @@ const PaymentInfo: React.FC<PaymentInfoProps> = ({
 
   // 미납금 수납 모달 상태
   const [showUnpaymentModal, setShowUnpaymentModal] = useState(false);
+
+  // 납부계정 전환 확인 모달 상태
+  const [showSwitchConfirm, setShowSwitchConfirm] = useState(false);
+  const [pendingSwitchPymAcntId, setPendingSwitchPymAcntId] = useState<string>('');
 
   // 필터 상태
   const [paymentFilter, setPaymentFilter] = useState<'all' | 'auto' | 'card' | 'unpaid'>('all');
@@ -117,6 +125,34 @@ const PaymentInfo: React.FC<PaymentInfoProps> = ({
   // 납부계정 선택
   const handleSelectPayment = (payment: PaymentInfoType) => {
     setSelectedPymAcntId(payment.PYM_ACNT_ID);
+  };
+
+  // 납부정보 변경 버튼 클릭 핸들러
+  const handlePaymentChangeClick = (pymAcntId: string) => {
+    // 이미 다른 납부계정에서 변경 작업 중이면 확인 모달 표시
+    if (paymentChangeInProgress) {
+      setPendingSwitchPymAcntId(pymAcntId);
+      setShowSwitchConfirm(true);
+      return;
+    }
+    // 작업 중이 아니면 바로 이동
+    if (onNavigateToPaymentChange) {
+      onNavigateToPaymentChange(pymAcntId);
+    }
+  };
+
+  // 납부계정 전환 확정
+  const confirmSwitchPaymentAccount = () => {
+    // 기존 작업 취소
+    if (onCancelPaymentChange) {
+      onCancelPaymentChange();
+    }
+    // 새 납부계정으로 이동
+    if (onNavigateToPaymentChange && pendingSwitchPymAcntId) {
+      onNavigateToPaymentChange(pendingSwitchPymAcntId);
+    }
+    setShowSwitchConfirm(false);
+    setPendingSwitchPymAcntId('');
   };
 
   // 총 미납금액
@@ -310,7 +346,7 @@ const PaymentInfo: React.FC<PaymentInfoProps> = ({
                           <button
                             onClick={(e) => {
                               e.stopPropagation();
-                              onNavigateToPaymentChange(payment.PYM_ACNT_ID);
+                              handlePaymentChangeClick(payment.PYM_ACNT_ID);
                             }}
                             className="w-full mt-2 py-2 text-sm text-indigo-600 bg-indigo-50 hover:bg-indigo-100 rounded-lg transition-colors"
                           >
@@ -493,6 +529,41 @@ const PaymentInfo: React.FC<PaymentInfoProps> = ({
           loadData();
         }}
       />
+
+      {/* 납부계정 전환 확인 모달 */}
+      {showSwitchConfirm && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 max-w-sm mx-4 shadow-xl">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-10 h-10 rounded-full bg-orange-100 flex items-center justify-center">
+                <AlertCircle className="w-5 h-5 text-orange-500" />
+              </div>
+              <h3 className="text-lg font-medium text-gray-900">납부정보 변경 중</h3>
+            </div>
+            <p className="text-gray-600 mb-6">
+              다른 납부계정의 변경 작업이 진행 중입니다.<br />
+              기존 작업을 취소하고 새 계정으로 이동하시겠습니까?
+            </p>
+            <div className="flex gap-3">
+              <button
+                onClick={() => {
+                  setShowSwitchConfirm(false);
+                  setPendingSwitchPymAcntId('');
+                }}
+                className="flex-1 px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
+              >
+                취소
+              </button>
+              <button
+                onClick={confirmSwitchPaymentAccount}
+                className="flex-1 px-4 py-2 text-white bg-orange-500 rounded-lg hover:bg-orange-600 transition-colors"
+              >
+                계정 전환
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

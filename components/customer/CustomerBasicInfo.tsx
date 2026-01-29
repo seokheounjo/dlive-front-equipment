@@ -30,6 +30,9 @@ interface CustomerBasicInfoProps {
   cachedWorkHistory?: WorkHistory[];
   cachedDataCustId?: string;
   onDataLoaded?: (custId: string, contracts: ContractInfo[], consultationHistory: ConsultationHistory[], workHistory: WorkHistory[]) => void;
+  // 납부방법 변경 작업 중 상태
+  paymentChangeInProgress?: boolean;
+  onCancelPaymentChange?: () => void;
 }
 
 /**
@@ -53,7 +56,9 @@ const CustomerBasicInfo: React.FC<CustomerBasicInfoProps> = ({
   cachedConsultationHistory = [],
   cachedWorkHistory = [],
   cachedDataCustId = '',
-  onDataLoaded
+  onDataLoaded,
+  paymentChangeInProgress,
+  onCancelPaymentChange
 }) => {
   // 데이터 상태
   const [contracts, setContracts] = useState<ContractInfo[]>([]);
@@ -264,6 +269,8 @@ const CustomerBasicInfo: React.FC<CustomerBasicInfoProps> = ({
               onToggle={() => toggleSection('payment')}
               showToast={showToast}
               onNavigateToPaymentChange={onNavigateToPaymentChange}
+              paymentChangeInProgress={paymentChangeInProgress}
+              onCancelPaymentChange={onCancelPaymentChange}
             />
 
             {/* 상담 이력 */}

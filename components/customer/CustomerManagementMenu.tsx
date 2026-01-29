@@ -154,6 +154,13 @@ const CustomerManagementMenu: React.FC<CustomerManagementMenuProps> = ({ onNavig
             cachedWorkHistory={cachedWorkHistory}
             cachedDataCustId={cachedDataCustId}
             onDataLoaded={handleDataLoaded}
+            paymentChangeInProgress={paymentChangeInProgress}
+            onCancelPaymentChange={() => {
+              setPaymentChangeInProgress(false);
+              setPaymentFormData(null);
+              setPaymentSelectedPymAcntId('');
+              setPaymentIsVerified(false);
+            }}
           />
         );
       case 'info-change':
