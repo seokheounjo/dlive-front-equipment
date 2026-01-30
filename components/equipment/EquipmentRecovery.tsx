@@ -13,6 +13,7 @@ interface SoInfo {
 
 interface EquipmentRecoveryProps {
   onBack: () => void;
+  showToast?: (message: string, type: 'success' | 'error' | 'warning' | 'info') => void;
 }
 
 interface UnreturnedEqtSearch {
@@ -131,7 +132,8 @@ const RecoveryModal: React.FC<{
   isProcessing: boolean;
   soList: SoInfo[];
   userSoId?: string;
-}> = ({ isOpen, onClose, selectedItems, onProcess, isProcessing, soList, userSoId }) => {
+  showToast?: (message: string, type: 'success' | 'error' | 'warning' | 'info') => void;
+}> = ({ isOpen, onClose, selectedItems, onProcess, isProcessing, soList, userSoId, showToast }) => {
   const [selectedSoId, setSelectedSoId] = useState<string>('');
 
   // 모달이 열릴 때마다 지점 선택 초기화 (항상 "지점 선택"으로 시작)
@@ -145,7 +147,7 @@ const RecoveryModal: React.FC<{
 
   const handleProcess = () => {
     if (!selectedSoId) {
-      alert('지점을 선택해야 회수 처리를 할 수 있습니다.\n회수 지점을 선택해주세요.');
+      showToast?.('지점을 선택해야 회수 처리를 할 수 있습니다.', 'warning');
       return;
     }
     onProcess('1', selectedSoId);
@@ -455,7 +457,7 @@ const CustomerSearchModal: React.FC<{
   );
 };
 
-const EquipmentRecovery: React.FC<EquipmentRecoveryProps> = ({ onBack }) => {
+const EquipmentRecovery: React.FC<EquipmentRecoveryProps> = ({ onBack, showToast }) => {
   const [searchParams, setSearchParams] = useState<UnreturnedEqtSearch>({
     CUST_ID: '',
     CUST_NM: '',
@@ -769,15 +771,15 @@ const EquipmentRecovery: React.FC<EquipmentRecoveryProps> = ({ onBack }) => {
 
         if (eqtResult && eqtResult.length > 0) {
           const eqt = eqtResult[0];
-          alert(`장비 (${serialNo})는 미회수 대상이 아닙니다.\n\n보유자: ${eqt.WRKR_NM || '없음'}\n지점: ${eqt.SO_NM || '없음'}\n상태: ${eqt.EQT_STAT_NM || eqt.EQT_STAT_CD_NM || eqt.EQT_STAT_CD || '알 수 없음'}`);
+          showToast?.(`장비 (${serialNo})는 미회수 대상이 아닙니다. 상태: ${eqt.EQT_STAT_NM || eqt.EQT_STAT_CD_NM || '알 수 없음'}`, 'warning');
         } else {
-          alert(`장비 (${serialNo})를 찾을 수 없습니다.`);
+          showToast?.(`장비 (${serialNo})를 찾을 수 없습니다.`, 'error');
         }
         setUnreturnedList([]);
       }
     } catch (error) {
       console.error('Barcode scan failed:', error);
-      alert('장비 조회에 실패했습니다.');
+      showToast?.('장비 조회에 실패했습니다.', 'error');
     } finally {
       setIsLoading(false);
     }
@@ -794,7 +796,7 @@ const EquipmentRecovery: React.FC<EquipmentRecoveryProps> = ({ onBack }) => {
 
   const handleSearch = async () => {
     if (!searchParams.EQT_SERNO && !selectedCustomer) {
-      alert('고객을 선택하거나 S/N을 입력해주세요.');
+      showToast?.('고객을 선택하거나 S/N을 입력해주세요.', 'warning');
       return;
     }
 
@@ -867,7 +869,7 @@ const EquipmentRecovery: React.FC<EquipmentRecoveryProps> = ({ onBack }) => {
       setUnreturnedList(transformedList);
     } catch (error) {
       console.error('Unreturned equipment lookup failed:', error);
-      alert('미회수장비 조회에 실패했습니다.');
+      showToast?.('미회수장비 조회에 실패했습니다.', 'error');
       setUnreturnedList([]);
     } finally {
       setIsLoading(false);
@@ -935,9 +937,9 @@ const EquipmentRecovery: React.FC<EquipmentRecoveryProps> = ({ onBack }) => {
       if (successCount > 0) {
         let msg = successCount + '건 회수처리 완료';
         if (skipCount > 0) {
-          msg += `\n(${skipCount}건 EQT_NO 형식 오류로 건너뜀)`;
+          msg += ` (${skipCount}건 건너뜀)`;
         }
-        alert(msg);
+        showToast?.(msg, 'success');
         setRecoveryModalOpen(false);
         setScannedSerials([]);
         handleSearch();
@@ -946,7 +948,7 @@ const EquipmentRecovery: React.FC<EquipmentRecoveryProps> = ({ onBack }) => {
       }
     } catch (error) {
       console.error('Recovery process failed:', error);
-      alert('회수처리에 실패했습니다.');
+      showToast?.('회수처리에 실패했습니다.', 'error');
     } finally {
       setIsProcessing(false);
     }
@@ -1364,6 +1366,7 @@ const EquipmentRecovery: React.FC<EquipmentRecoveryProps> = ({ onBack }) => {
         isProcessing={isProcessing}
         soList={soList}
         userSoId={userSoId}
+        showToast={showToast}
       />
 
       <CustomerSearchModal
