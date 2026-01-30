@@ -576,7 +576,7 @@ const mapContractFields = (data: any): ContractInfo => {
  * 고객 검색 (조건별)
  *
  * 성능 최적화 버전:
- * - CUST_ID 검색: getConditionalCustList2 (SERCH_GB 없이, CUST_ID만으로 검색)
+ * - CUST_ID 검색: getConditionalCustList2 (SERCH_GB=3 포함)
  * - 전화번호/계약ID/장비번호: getCustInfo를 통해 고객 상세 조회
  *
  * 테스트용 고객 ID:
@@ -585,9 +585,9 @@ const mapContractFields = (data: any): ContractInfo => {
  * - 가나다: 1001846265
  */
 export const searchCustomer = async (params: CustomerSearchParams): Promise<ApiResponse<CustomerInfo[]>> => {
-  // 고객ID 검색 - getConditionalCustList2 사용 (빠름, SERCH_GB 없이)
+  // 고객ID 검색 - getConditionalCustList2 사용 (SERCH_GB=3)
   if (params.searchType === 'CUSTOMER_ID' && params.customerId) {
-    const reqParams = { CUST_ID: params.customerId };
+    const reqParams = { CUST_ID: params.customerId, SERCH_GB: '3' };
     const result = await apiCall<any>('/customer/common/customercommon/getConditionalCustList2', reqParams);
 
     if (result.success && result.data) {
@@ -652,7 +652,7 @@ export const searchCustomer = async (params: CustomerSearchParams): Promise<ApiR
       const custId = ctrtData?.CUST_ID;
 
       if (custId) {
-        const result = await apiCall<any>('/customer/common/customercommon/getConditionalCustList2', { CUST_ID: custId });
+        const result = await apiCall<any>('/customer/common/customercommon/getConditionalCustList2', { CUST_ID: custId, SERCH_GB: '3' });
         if (result.success && result.data) {
           const dataArray = Array.isArray(result.data) ? result.data : [result.data];
           const mappedData = dataArray.map(mapCustomerFields);
