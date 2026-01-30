@@ -500,6 +500,25 @@ const apiCall = async <T>(
   }
 };
 
+// ============ 세션 헬퍼 함수 ============
+
+/**
+ * 세션에서 LOGIN_ID 획득 (접속자 ID, ex. A20117965)
+ * D'Live API 호출 시 권한 체크에 필요
+ */
+const getLoginIdFromSession = (): string => {
+  try {
+    const userInfoStr = sessionStorage.getItem('userInfo') || localStorage.getItem('userInfo');
+    if (userInfoStr) {
+      const userInfo = JSON.parse(userInfoStr);
+      return userInfo.userId || userInfo.USR_ID || userInfo.LOGIN_ID || 'SYSTEM';
+    }
+  } catch (e) {
+    console.log('[CustomerAPI] Failed to get LOGIN_ID from session');
+  }
+  return 'SYSTEM';
+};
+
 // ============ 필드 매핑 함수 ============
 
 /**
@@ -847,9 +866,11 @@ export const getProductPromotionInfo = async (ctrtId: string): Promise<ApiRespon
  * API: customer/negociation/getCustAccountInfo.req
  */
 export const getBillingHistory = async (custId: string, pymAcntId?: string): Promise<ApiResponse<BillingInfo[]>> => {
+  const loginId = getLoginIdFromSession();
   return apiCall<BillingInfo[]>('/customer/negociation/getCustAccountInfo', {
     CUST_ID: custId,
-    PYM_ACNT_ID: pymAcntId
+    PYM_ACNT_ID: pymAcntId,
+    LOGIN_ID: loginId
   });
 };
 
@@ -858,7 +879,8 @@ export const getBillingHistory = async (custId: string, pymAcntId?: string): Pro
  * API: customer/negociation/getCustDpstInfo.req
  */
 export const getPaymentHistory = async (custId: string): Promise<ApiResponse<any[]>> => {
-  return apiCall<any[]>('/customer/negociation/getCustDpstInfo', { CUST_ID: custId });
+  const loginId = getLoginIdFromSession();
+  return apiCall<any[]>('/customer/negociation/getCustDpstInfo', { CUST_ID: custId, LOGIN_ID: loginId });
 };
 
 /**
@@ -866,9 +888,11 @@ export const getPaymentHistory = async (custId: string): Promise<ApiResponse<any
  * API: billing/unpayment/upreport/getUnpaymentNowList.req
  */
 export const getUnpaymentList = async (custId: string, pymAcntId?: string): Promise<ApiResponse<UnpaymentInfo[]>> => {
+  const loginId = getLoginIdFromSession();
   return apiCall<UnpaymentInfo[]>('/billing/unpayment/upreport/getUnpaymentNowList', {
     CUST_ID: custId,
-    PYM_ACNT_ID: pymAcntId
+    PYM_ACNT_ID: pymAcntId,
+    LOGIN_ID: loginId
   });
 };
 
@@ -877,7 +901,9 @@ export const getUnpaymentList = async (custId: string, pymAcntId?: string): Prom
  * API: billing/unpayment/upreport/getUnpaymentNowDtlList.req
  */
 export const getUnpaymentDetail = async (custId: string, billYm: string): Promise<ApiResponse<any[]>> => {
+  const loginId = getLoginIdFromSession();
   return apiCall<any[]>('/billing/unpayment/upreport/getUnpaymentNowDtlList', {
+    LOGIN_ID: loginId,
     CUST_ID: custId,
     BILL_YM: billYm
   });
@@ -906,8 +932,10 @@ export interface PaymentAccountInfo {
 }
 
 export const getPaymentAccounts = async (custId: string): Promise<ApiResponse<PaymentAccountInfo[]>> => {
+  const loginId = getLoginIdFromSession();
   return apiCall<PaymentAccountInfo[]>('/customer/negociation/getCustAccountInfo_m', {
-    CUST_ID: custId
+    CUST_ID: custId,
+    LOGIN_ID: loginId
   });
 };
 
@@ -927,7 +955,8 @@ export interface BillingDetailInfo {
 }
 
 export const getBillingDetails = async (custId: string, pymAcntId?: string): Promise<ApiResponse<BillingDetailInfo[]>> => {
-  const params: Record<string, any> = { CUST_ID: custId };
+  const loginId = getLoginIdFromSession();
+  const params: Record<string, any> = { CUST_ID: custId, LOGIN_ID: loginId };
   if (pymAcntId) {
     params.PYM_ACNT_ID = pymAcntId;
   }
@@ -956,10 +985,12 @@ export const getConsultationHistory = async (
   ctrtId: string,
   limit: number = 10
 ): Promise<ApiResponse<ConsultationHistory[]>> => {
+  const loginId = getLoginIdFromSession();
   return apiCall<ConsultationHistory[]>('/customer/negociation/getTgtCtrtRcptHist_m', {
     CUST_ID: custId,
     CTRT_ID: ctrtId,
-    PAGE_SIZE: limit
+    PAGE_SIZE: limit,
+    LOGIN_ID: loginId
   });
 };
 
@@ -975,10 +1006,12 @@ export const getWorkHistory = async (
   ctrtId: string,
   limit: number = 10
 ): Promise<ApiResponse<WorkHistory[]>> => {
+  const loginId = getLoginIdFromSession();
   return apiCall<WorkHistory[]>('/customer/negociation/getTgtCtrtWorkList_m', {
     CUST_ID: custId,
     CTRT_ID: ctrtId,
-    PAGE_SIZE: limit
+    PAGE_SIZE: limit,
+    LOGIN_ID: loginId
   });
 };
 
