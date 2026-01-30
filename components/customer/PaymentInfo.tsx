@@ -271,28 +271,28 @@ const PaymentInfo: React.FC<PaymentInfoProps> = ({
                           {/* 정보 그리드 */}
                           <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
                             {/* 1행: 납부계정번호 / 납부방법 */}
-                            <div className="flex justify-between">
-                              <span className="text-gray-500">납부계정번호</span>
+                            <div className="flex justify-between items-center">
+                              <span className="text-gray-500 whitespace-nowrap">납부계정번호</span>
                               <span className="text-gray-800 font-medium">{formatPymAcntId(payment.PYM_ACNT_ID)}</span>
                             </div>
-                            <div className="flex justify-between">
-                              <span className="text-gray-500">납부방법</span>
+                            <div className="flex justify-between items-center">
+                              <span className="text-gray-500 whitespace-nowrap">납부방법</span>
                               <span className="text-gray-800">{payment.PYM_MTH_NM || '-'}</span>
                             </div>
 
                             {/* 2행: 은행/카드명 / 계좌/카드번호 */}
-                            <div className="flex justify-between">
-                              <span className="text-gray-500">{isAutoTransfer ? '은행명' : '카드사'}</span>
+                            <div className="flex justify-between items-center">
+                              <span className="text-gray-500 whitespace-nowrap">{isAutoTransfer ? '은행명' : '카드사'}</span>
                               <span className="text-gray-800">{bankOrCard || '-'}</span>
                             </div>
-                            <div className="flex justify-between">
-                              <span className="text-gray-500">{isAutoTransfer ? '계좌번호' : '카드번호'}</span>
+                            <div className="flex justify-between items-center">
+                              <span className="text-gray-500 whitespace-nowrap">{isAutoTransfer ? '계좌번호' : '카드번호'}</span>
                               <span className="text-gray-800">{accountOrCard || '-'}</span>
                             </div>
 
                             {/* 3행: 청구매체 */}
-                            <div className="flex justify-between col-span-2">
-                              <span className="text-gray-500">청구매체</span>
+                            <div className="flex justify-between items-center col-span-2">
+                              <span className="text-gray-500 whitespace-nowrap">청구매체</span>
                               <span className="text-gray-800">{payment.BILL_MEDIA_NM || '-'}</span>
                             </div>
                           </div>
@@ -369,12 +369,12 @@ const PaymentInfo: React.FC<PaymentInfoProps> = ({
                           >
                             {/* 1행: 청구년월 / 청구주기 */}
                             <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
-                              <div className="flex justify-between">
-                                <span className="text-gray-500">청구년월</span>
+                              <div className="flex justify-between items-center">
+                                <span className="text-gray-500 whitespace-nowrap">청구년월</span>
                                 <span className="text-gray-800 font-medium">{item.BILL_YM}</span>
                               </div>
-                              <div className="flex justify-between">
-                                <span className="text-gray-500">청구주기</span>
+                              <div className="flex justify-between items-center">
+                                <span className="text-gray-500 whitespace-nowrap">청구주기</span>
                                 <span className="text-gray-800">{item.BILL_CYCLE || '정기'}</span>
                               </div>
                             </div>

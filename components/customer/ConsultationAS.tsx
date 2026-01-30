@@ -841,25 +841,46 @@ const ConsultationAS: React.FC<ConsultationASProps> = ({
                 </div>
               ) : activeTab === 'consultation' ? (
                 consultationHistory.length > 0 ? (
-                  <div className="space-y-2 max-h-64 overflow-y-auto">
+                  <div className="space-y-3 max-h-[400px] overflow-y-auto">
                     {consultationHistory.map((item, index) => (
-                      <div key={index} className="p-3 bg-gray-50 rounded-lg">
-                        <div className="flex items-center justify-between mb-1">
-                          <span className="text-sm font-medium text-gray-700">{item.CNSL_SLV_CL_NM}</span>
-                          <span className="text-xs text-gray-500">{item.START_DATE}</span>
+                      <div key={index} className="p-3 bg-gray-50 rounded-lg border border-gray-100">
+                        {/* 상단 정보: 접수일 | 상담소분류 | 처리상태 | 접수자 */}
+                        <div className="grid grid-cols-4 gap-2 text-xs">
+                          <div className="flex flex-col">
+                            <span className="text-gray-500 whitespace-nowrap">접수일</span>
+                            <span className="text-gray-800 font-medium">{item.START_DATE || '-'}</span>
+                          </div>
+                          <div className="flex flex-col">
+                            <span className="text-gray-500 whitespace-nowrap">상담소분류</span>
+                            <span className="text-gray-800 font-medium truncate">{item.CNSL_SLV_CL_NM || '-'}</span>
+                          </div>
+                          <div className="flex flex-col">
+                            <span className="text-gray-500 whitespace-nowrap">처리상태</span>
+                            <span className={`font-medium ${
+                              item.CNSL_RSLT?.includes('완료') ? 'text-green-600' : 'text-yellow-600'
+                            }`}>{item.CNSL_RSLT || '처리중'}</span>
+                          </div>
+                          <div className="flex flex-col">
+                            <span className="text-gray-500 whitespace-nowrap">접수자</span>
+                            <span className="text-gray-800 font-medium">{item.RCPT_NM || '-'}</span>
+                          </div>
                         </div>
-                        <div className="text-sm text-gray-600">{item.REQ_CTX}</div>
-                        <div className="flex items-center gap-2 mt-2">
-                          <span className={`text-xs px-2 py-0.5 rounded ${
-                            item.CNSL_RSLT?.includes('완료') ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'
-                          }`}>
-                            {item.CNSL_RSLT || '처리중'}
-                          </span>
-                          <span className="text-xs text-gray-400">{item.RCPT_NM}</span>
+
+                        {/* 요청사항 */}
+                        <div className="mt-3">
+                          <div className="text-xs text-gray-500 mb-1">요청사항</div>
+                          <div className="p-2 bg-white border border-gray-200 rounded min-h-[48px] text-gray-700 text-xs">
+                            {item.REQ_CTX || '-'}
+                          </div>
                         </div>
-                        {item.PROC_CT && (
-                          <div className="text-xs text-gray-500 mt-2 border-t pt-2">{item.PROC_CT}</div>
-                        )}
+
+                        {/* 응대내용 */}
+                        <div className="mt-2">
+                          <div className="text-xs text-gray-500 mb-1">응대내용</div>
+                          <div className="p-2 bg-white border border-gray-200 rounded min-h-[48px] text-gray-700 text-xs">
+                            {item.PROC_CT || '-'}
+                          </div>
+                        </div>
                       </div>
                     ))}
                   </div>
@@ -870,28 +891,64 @@ const ConsultationAS: React.FC<ConsultationASProps> = ({
                 )
               ) : (
                 workHistory.length > 0 ? (
-                  <div className="space-y-2 max-h-64 overflow-y-auto">
+                  <div className="space-y-3 max-h-[400px] overflow-y-auto">
                     {workHistory.map((item, index) => (
-                      <div key={index} className="p-3 bg-gray-50 rounded-lg">
-                        <div className="flex items-center justify-between mb-1">
-                          <span className="text-sm font-medium text-gray-700">{item.WRK_CD_NM}</span>
-                          <span className="text-xs text-gray-500">{item.HOPE_DT}</span>
+                      <div key={index} className="p-3 bg-gray-50 rounded-lg border border-gray-100">
+                        {/* 상단: 작업예정일 | 작업구분 | 작업상태 */}
+                        <div className="grid grid-cols-3 gap-2 text-xs">
+                          <div className="flex flex-col">
+                            <span className="text-gray-500 whitespace-nowrap">작업예정일</span>
+                            <span className="text-gray-800 font-medium">{item.HOPE_DT || '-'}</span>
+                          </div>
+                          <div className="flex flex-col">
+                            <span className="text-gray-500 whitespace-nowrap">작업구분</span>
+                            <span className="text-gray-800 font-medium">{item.WRK_CD_NM || '-'}</span>
+                          </div>
+                          <div className="flex flex-col">
+                            <span className="text-gray-500 whitespace-nowrap">작업상태</span>
+                            <span className={`font-medium ${
+                              item.WRK_STAT_CD_NM?.includes('완료') ? 'text-green-600' :
+                              item.WRK_STAT_CD_NM?.includes('진행') ? 'text-blue-600' :
+                              'text-gray-800'
+                            }`}>{item.WRK_STAT_CD_NM || '-'}</span>
+                          </div>
                         </div>
-                        <div className="text-sm text-gray-600">{item.PROD_NM}</div>
-                        <div className="flex items-center gap-2 mt-2">
-                          <span className={`text-xs px-2 py-0.5 rounded ${
-                            item.WRK_STAT_CD_NM?.includes('완료') ? 'bg-green-100 text-green-700' :
-                            item.WRK_STAT_CD_NM?.includes('진행') ? 'bg-blue-100 text-blue-700' :
-                            'bg-gray-100 text-gray-700'
-                          }`}>
-                            {item.WRK_STAT_CD_NM}
-                          </span>
-                          <span className="text-xs text-gray-400">{item.WRK_NM}</span>
-                          {item.WRK_CRR_NM && <span className="text-xs text-gray-400">({item.WRK_CRR_NM})</span>}
+
+                        {/* 상품명 */}
+                        <div className="mt-2 grid grid-cols-[auto_1fr] gap-2 text-xs items-center">
+                          <span className="text-gray-500 whitespace-nowrap">상품명</span>
+                          <span className="text-gray-800 font-medium truncate">{item.PROD_NM || '-'}</span>
                         </div>
-                        {item.CMPL_DATE && (
-                          <div className="text-xs text-gray-500 mt-1">완료: {item.CMPL_DATE}</div>
-                        )}
+
+                        {/* 완료일자 | 작업자 | 작업자소속 */}
+                        <div className="mt-2 grid grid-cols-3 gap-2 text-xs">
+                          <div className="flex flex-col">
+                            <span className="text-gray-500 whitespace-nowrap">완료일자</span>
+                            <span className="text-gray-800 font-medium">{item.CMPL_DATE || '-'}</span>
+                          </div>
+                          <div className="flex flex-col">
+                            <span className="text-gray-500 whitespace-nowrap">작업자</span>
+                            <span className="text-gray-800 font-medium">{item.WRK_NM || '-'}</span>
+                          </div>
+                          <div className="flex flex-col">
+                            <span className="text-gray-500 whitespace-nowrap">작업자소속</span>
+                            <span className="text-gray-800 font-medium">{item.WRK_CRR_NM || '-'}</span>
+                          </div>
+                        </div>
+
+                        {/* 설치주소 */}
+                        <div className="mt-2 grid grid-cols-[auto_1fr] gap-2 text-xs items-start">
+                          <span className="text-gray-500 whitespace-nowrap">설치주소</span>
+                          <span className="text-gray-800">{item.CTRT_ADDR || '-'}</span>
+                        </div>
+
+                        {/* 작업지시내용 */}
+                        <div className="mt-3">
+                          <div className="text-xs text-gray-500 mb-1">작업지시내용</div>
+                          <div className="p-2 bg-white border border-gray-200 rounded min-h-[48px] text-gray-700 text-xs">
+                            {item.MEMO || '-'}
+                          </div>
+                        </div>
                       </div>
                     ))}
                   </div>
