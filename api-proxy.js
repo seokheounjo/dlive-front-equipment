@@ -20,15 +20,13 @@ const PATH_MAPPING = {
 const LEGACY_REQ_ROUTES = [
 
   // Equipment Processing 3 APIs - Route directly to legacy .req servlet
-
   "/customer/phoneNumber/getOwnEqtLstForMobile_3",  // 장비반납
-  // "/customer/equipment/setEquipmentChkStndByY_ForM",  // adapter로 라우팅 (백엔드 핸들러 사용)
   "/customer/equipment/getAuthSoList",  // SO 권한 목록
   "/customer/equipment/getEqtTrnsList",  // 장비이동내역
-  // "/customer/equipment/changeEqtWrkr_3_ForM",  // 장비이관 - 우리 백엔드 컨트롤러로 라우팅 (세션 필요)
-  // "/customer/equipment/getEquipmentTypeList",  // Now handled by our adapter (needs CONA session)
-  // "/customer/equipment/setEquipmentChkStndByY",  // 검사완료 - 레거시 세션 필요 (백엔드 수정 필요)
-  // "/statistics/equipment/getEquipmentHistoryInfo"  // Now handled by our adapter
+
+  // Customer History APIs - Route directly to D'Live legacy servlet (CUST_ID + CTRT_ID 필수)
+  "/customer/negociation/getTgtCtrtRcptHist_m",  // 상담이력 조회
+  "/customer/negociation/getTgtCtrtWorkList_m",  // 작업이력 조회
 ];
 
 // Parse MiPlatform XML response to JSON
@@ -238,7 +236,10 @@ router.post('/customer/negociation/getCustPymInfo', handleProxy);
 router.post('/customer/negociation/getHPPayList', handleProxy);
 router.post('/billing/unpayment/upreport/getUnpaymentNowList', handleProxy);
 router.post('/billing/unpayment/upreport/getUnpaymentNowDtlList', handleProxy);
-// 4. History
+// 4. History (D'Live: getTgtCtrtRcptHist_m, getTgtCtrtWorkList_m - CUST_ID + CTRT_ID 필수)
+router.post('/customer/negociation/getTgtCtrtRcptHist_m', handleProxy);  // 상담이력
+router.post('/customer/negociation/getTgtCtrtWorkList_m', handleProxy);  // 작업이력
+// Legacy (deprecated)
 router.post('/customer/negociation/getCallHistory', handleProxy);
 router.post('/customer/negociation/getCustWorkList', handleProxy);
 // 5. Info Change

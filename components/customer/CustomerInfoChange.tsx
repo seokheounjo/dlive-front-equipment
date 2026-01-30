@@ -43,12 +43,6 @@ interface PaymentFormData {
   joinCardYn: string;
   pyrRel: string;
   pymDay: string;
-  billZipCd: string;
-  billAddr: string;
-  billAddrJibun: string;
-  billAddrDtl: string;
-  billAddrDtl2: string;
-  billPostId: string;
 }
 
 interface CustomerInfoChangeProps {
@@ -165,14 +159,7 @@ const CustomerInfoChange: React.FC<CustomerInfoChangeProps> = ({
     cardExpYy: '',            // 카드 유효기간 년
     joinCardYn: 'N',          // 제휴카드 여부
     pyrRel: '01',             // 납부자관계 (01: 본인, 02: 가족, 03: 기타)
-    pymDay: '',               // 결제일
-    // 청구주소정보
-    billZipCd: '',            // 청구지 우편번호
-    billAddr: '',             // 청구지 도로명주소
-    billAddrJibun: '',        // 청구지 지번주소
-    billAddrDtl: '',          // 청구지 상세주소 (동)
-    billAddrDtl2: '',         // 청구지 상세주소 (호)
-    billPostId: ''            // 청구지 주소ID
+    pymDay: ''                // 결제일
   };
 
   // 저장된 값이 있으면 사용, 없으면 기본값
@@ -235,20 +222,6 @@ const CustomerInfoChange: React.FC<CustomerInfoChangeProps> = ({
     setPendingSwitchPymAcntId('');
     console.log('[납부계정 전환] 폼 초기화 완료');
   };
-
-  // 청구주소 검색 모달
-  const [showBillAddressModal, setShowBillAddressModal] = useState(false);
-  const [billAddressSearchQuery, setBillAddressSearchQuery] = useState('');
-  const [billAddressResults, setBillAddressResults] = useState<PostAddressInfo[]>([]);
-  const [billStreetResults, setBillStreetResults] = useState<StreetAddressInfo[]>([]);
-  const [isSearchingBillAddress, setIsSearchingBillAddress] = useState(false);
-  const [billAddressSearchType, setBillAddressSearchType] = useState<'post' | 'street'>('post');
-  const [billStreetSearchForm, setBillStreetSearchForm] = useState({
-    streetNm: '',
-    streetBunM: '',
-    streetBunS: '',
-    buildNm: ''
-  });
 
   // 주소 검색 모달
   const [showAddressModal, setShowAddressModal] = useState(false);
@@ -551,15 +524,6 @@ const CustomerInfoChange: React.FC<CustomerInfoChangeProps> = ({
         params.PYM_CUST_NM = paymentForm.acntHolderNm;  // 예금주명
       }
 
-      // 청구주소 정보 (입력된 경우만)
-      if (paymentForm.billPostId) {
-        params.BILL_POST_ID = paymentForm.billPostId;
-        params.BILL_ZIP_CD = paymentForm.billZipCd;
-        params.BILL_ADDR = paymentForm.billAddr;
-        params.BILL_ADDR_JIBUN = paymentForm.billAddrJibun;
-        params.BILL_ADDR_DTL = `${paymentForm.billAddrDtl || ''} ${paymentForm.billAddrDtl2 || ''}`.trim();
-      }
-
       const response = await updatePaymentMethod(params);
 
       if (response.success) {
@@ -578,13 +542,7 @@ const CustomerInfoChange: React.FC<CustomerInfoChangeProps> = ({
           cardExpYy: '',
           joinCardYn: 'N',
           pyrRel: '01',
-          pymDay: '',
-          billZipCd: '',
-          billAddr: '',
-          billAddrJibun: '',
-          billAddrDtl: '',
-          billAddrDtl2: '',
-          billPostId: ''
+          pymDay: ''
         });
         setIsVerified(false);
         onPaymentChangeEnd?.();
@@ -941,115 +899,6 @@ const CustomerInfoChange: React.FC<CustomerInfoChangeProps> = ({
     setSelectedPostId(addr.POST_ID);
     handleCloseAddressModal();
     showToast?.('주소가 입력되었습니다. 상세주소를 입력해주세요.', 'info');
-  };
-
-  // 청구주소 검색 모달 열기
-  const handleOpenBillAddressModal = () => {
-    setShowBillAddressModal(true);
-    setBillAddressSearchQuery('');
-    setBillStreetSearchForm({ streetNm: '', streetBunM: '', streetBunS: '', buildNm: '' });
-    setBillAddressResults([]);
-    setBillStreetResults([]);
-  };
-
-  // 청구주소 검색 모달 닫기
-  const handleCloseBillAddressModal = () => {
-    setShowBillAddressModal(false);
-    setBillAddressResults([]);
-    setBillStreetResults([]);
-  };
-
-  // 청구주소 지번검색
-  const handleSearchBillPostAddress = async () => {
-    if (!billAddressSearchQuery || billAddressSearchQuery.length < 2) {
-      showToast?.('동/면 이름을 2자 이상 입력해주세요.', 'warning');
-      return;
-    }
-
-    setIsSearchingBillAddress(true);
-    try {
-      const response = await searchPostAddress({
-        DONGMYONG: billAddressSearchQuery
-      });
-
-      if (response.success && response.data) {
-        setBillAddressResults(response.data);
-        if (response.data.length === 0) {
-          showToast?.('검색 결과가 없습니다.', 'info');
-        }
-      } else {
-        showToast?.(response.message || '주소 검색에 실패했습니다.', 'error');
-        setBillAddressResults([]);
-      }
-    } catch (error) {
-      console.error('Search bill address error:', error);
-      showToast?.('주소 검색 중 오류가 발생했습니다.', 'error');
-      setBillAddressResults([]);
-    } finally {
-      setIsSearchingBillAddress(false);
-    }
-  };
-
-  // 청구주소 도로명검색
-  const handleSearchBillStreetAddress = async () => {
-    if (!billStreetSearchForm.streetNm || billStreetSearchForm.streetNm.length < 2) {
-      showToast?.('도로명을 2자 이상 입력해주세요.', 'warning');
-      return;
-    }
-
-    setIsSearchingBillAddress(true);
-    try {
-      const response = await searchStreetAddress({
-        STREET_NM: billStreetSearchForm.streetNm,
-        STREET_BUN_M: billStreetSearchForm.streetBunM || undefined,
-        STREET_BUN_S: billStreetSearchForm.streetBunS || undefined,
-        BUILD_NM: billStreetSearchForm.buildNm || undefined
-      });
-
-      if (response.success && response.data) {
-        setBillStreetResults(response.data);
-        if (response.data.length === 0) {
-          showToast?.('검색 결과가 없습니다.', 'info');
-        }
-      } else {
-        showToast?.(response.message || '주소 검색에 실패했습니다.', 'error');
-        setBillStreetResults([]);
-      }
-    } catch (error) {
-      console.error('Search bill street address error:', error);
-      showToast?.('주소 검색 중 오류가 발생했습니다.', 'error');
-      setBillStreetResults([]);
-    } finally {
-      setIsSearchingBillAddress(false);
-    }
-  };
-
-  // 청구주소 지번주소 선택
-  const handleSelectBillPostAddress = (addr: PostAddressInfo) => {
-    setPaymentForm(prev => ({
-      ...prev,
-      billZipCd: addr.ZIP_CD,
-      billAddr: addr.ADDR_FULL || addr.ADDR,
-      billAddrJibun: addr.ADDR || addr.ADDR_FULL,
-      billPostId: addr.POST_ID
-    }));
-    handleCloseBillAddressModal();
-    showToast?.('청구주소가 입력되었습니다. 상세주소를 입력해주세요.', 'info');
-    onPaymentChangeStart?.();
-  };
-
-  // 청구주소 도로명주소 선택
-  const handleSelectBillStreetAddress = (addr: StreetAddressInfo) => {
-    setPaymentForm(prev => ({
-      ...prev,
-      billZipCd: addr.ZIP_CD,
-      billAddr: addr.STREET_ADDR || addr.ADDR_FULL,
-      billAddrJibun: addr.ADDR_FULL,
-      billPostId: addr.POST_ID
-    }));
-    handleCloseBillAddressModal();
-    showToast?.('청구주소가 입력되었습니다. 상세주소를 입력해주세요.', 'info');
-    onPaymentChangeStart?.();
   };
 
   // 고객 미선택 시 안내
@@ -1607,92 +1456,6 @@ const CustomerInfoChange: React.FC<CustomerInfoChangeProps> = ({
                         </div>
                       </div>
 
-                      {/* 청구주소정보 섹션 */}
-                      <div className="border border-gray-200 rounded-lg p-3">
-                        <h4 className="text-sm font-medium text-gray-700 mb-3 flex items-center gap-1">
-                          <ChevronDown className="w-4 h-4" />
-                          청구주소정보
-                        </h4>
-
-                        <div className="space-y-2">
-                          {/* 읍/면/동 검색 */}
-                          <div className="flex items-center">
-                            <label className="w-20 flex-shrink-0 text-xs text-gray-500">읍/면/동</label>
-                            <div className="flex-1 flex gap-2">
-                              <input
-                                type="text"
-                                value={paymentForm.billAddr ? `${paymentForm.billZipCd} - ${paymentForm.billAddr.substring(0, 20)}...` : ''}
-                                readOnly
-                                placeholder="주소 검색"
-                                onClick={handleOpenBillAddressModal}
-                                className="flex-1 min-w-0 px-2 py-1.5 text-sm border border-gray-300 rounded bg-gray-50 cursor-pointer truncate"
-                              />
-                              <button
-                                onClick={handleOpenBillAddressModal}
-                                className="flex-shrink-0 px-3 py-1.5 text-sm bg-orange-100 text-orange-700 rounded hover:bg-orange-200 flex items-center gap-1"
-                              >
-                                <Search className="w-4 h-4" />
-                                검색
-                              </button>
-                            </div>
-                          </div>
-
-                          {/* 도로명주소 */}
-                          <div className="flex items-center">
-                            <label className="w-20 flex-shrink-0 text-xs text-gray-500">도로명</label>
-                            <input
-                              type="text"
-                              value={paymentForm.billAddr}
-                              readOnly
-                              placeholder="주소 검색 후 자동 입력"
-                              className="flex-1 px-2 py-1.5 text-sm border border-gray-300 rounded bg-gray-50"
-                            />
-                          </div>
-
-                          {/* 지번주소 */}
-                          <div className="flex items-center">
-                            <label className="w-20 flex-shrink-0 text-xs text-gray-500">지번</label>
-                            <input
-                              type="text"
-                              value={paymentForm.billAddrJibun}
-                              readOnly
-                              placeholder="주소 검색 후 자동 입력"
-                              className="flex-1 px-2 py-1.5 text-sm border border-gray-300 rounded bg-gray-50"
-                            />
-                          </div>
-
-                          {/* 상세주소 동 */}
-                          <div className="flex items-center">
-                            <label className="w-20 flex-shrink-0 text-xs text-gray-500">상세(동)</label>
-                            <input
-                              type="text"
-                              value={paymentForm.billAddrDtl}
-                              onChange={(e) => {
-                                setPaymentForm(prev => ({ ...prev, billAddrDtl: e.target.value }));
-                                onPaymentChangeStart?.();
-                              }}
-                              placeholder="동"
-                              className="flex-1 px-2 py-1.5 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-orange-500"
-                            />
-                          </div>
-
-                          {/* 상세주소 호 */}
-                          <div className="flex items-center">
-                            <label className="w-20 flex-shrink-0 text-xs text-gray-500">상세(호)</label>
-                            <input
-                              type="text"
-                              value={paymentForm.billAddrDtl2}
-                              onChange={(e) => {
-                                setPaymentForm(prev => ({ ...prev, billAddrDtl2: e.target.value }));
-                                onPaymentChangeStart?.();
-                              }}
-                              placeholder="호"
-                              className="flex-1 px-2 py-1.5 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-orange-500"
-                            />
-                          </div>
-                        </div>
-                      </div>
-
                       {/* 저장/닫기 버튼 */}
                       <div className="flex gap-2">
                         <button
@@ -1717,13 +1480,7 @@ const CustomerInfoChange: React.FC<CustomerInfoChangeProps> = ({
                               cardExpYy: '',
                               joinCardYn: 'N',
                               pyrRel: '01',
-                              pymDay: '',
-                              billZipCd: '',
-                              billAddr: '',
-                              billAddrJibun: '',
-                              billAddrDtl: '',
-                              billAddrDtl2: '',
-                              billPostId: ''
+                              pymDay: ''
                             });
                             setIsVerified(false);
                             onPaymentChangeEnd?.();
@@ -2051,190 +1808,6 @@ const CustomerInfoChange: React.FC<CustomerInfoChangeProps> = ({
             <div className="p-3 border-t border-gray-200 flex-shrink-0">
               <button
                 onClick={handleCloseAddressModal}
-                className="w-full py-2.5 bg-gray-100 text-gray-600 rounded-lg hover:bg-gray-200 transition-colors"
-              >
-                닫기
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* 청구주소 검색 모달 */}
-      {showBillAddressModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-lg overflow-hidden max-h-[85vh] flex flex-col">
-            {/* 헤더 */}
-            <div className="p-3 border-b border-gray-100 bg-gradient-to-r from-orange-500 to-orange-600 flex-shrink-0">
-              <div className="flex items-center justify-between">
-                <h3 className="font-semibold text-white flex items-center gap-2">
-                  <MapPin className="w-4 h-4" />
-                  청구주소 검색
-                </h3>
-                <button onClick={handleCloseBillAddressModal} className="text-white/80 hover:text-white">
-                  <X className="w-5 h-5" />
-                </button>
-              </div>
-            </div>
-
-            {/* 탭 선택 */}
-            <div className="p-3 border-b border-gray-200 flex-shrink-0">
-              <div className="flex gap-2">
-                <button
-                  onClick={() => {
-                    setBillAddressSearchType('post');
-                    setBillAddressResults([]);
-                    setBillStreetResults([]);
-                  }}
-                  className={`flex-1 py-2 rounded-lg text-sm font-medium transition-colors ${
-                    billAddressSearchType === 'post'
-                      ? 'bg-orange-500 text-white'
-                      : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                  }`}
-                >
-                  지번주소
-                </button>
-                <button
-                  onClick={() => {
-                    setBillAddressSearchType('street');
-                    setBillAddressResults([]);
-                    setBillStreetResults([]);
-                  }}
-                  className={`flex-1 py-2 rounded-lg text-sm font-medium transition-colors ${
-                    billAddressSearchType === 'street'
-                      ? 'bg-orange-500 text-white'
-                      : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                  }`}
-                >
-                  도로명주소
-                </button>
-              </div>
-            </div>
-
-            {/* 검색 입력 */}
-            <div className="p-3 border-b border-gray-200 flex-shrink-0">
-              {billAddressSearchType === 'post' ? (
-                <div className="space-y-2">
-                  <input
-                    type="text"
-                    value={billAddressSearchQuery}
-                    onChange={(e) => setBillAddressSearchQuery(e.target.value)}
-                    onKeyPress={(e) => e.key === 'Enter' && handleSearchBillPostAddress()}
-                    placeholder="읍/면/동 이름 입력 (예: 역삼동)"
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
-                  />
-                </div>
-              ) : (
-                <div className="space-y-2">
-                  <input
-                    type="text"
-                    value={billStreetSearchForm.streetNm}
-                    onChange={(e) => setBillStreetSearchForm(prev => ({ ...prev, streetNm: e.target.value }))}
-                    onKeyPress={(e) => e.key === 'Enter' && handleSearchBillStreetAddress()}
-                    placeholder="도로명 입력 (예: 테헤란로)"
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
-                  />
-                  <div className="flex gap-2">
-                    <input
-                      type="text"
-                      value={billStreetSearchForm.streetBunM}
-                      onChange={(e) => setBillStreetSearchForm(prev => ({ ...prev, streetBunM: e.target.value.replace(/[^0-9]/g, '') }))}
-                      placeholder="건물본번"
-                      className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
-                    />
-                    <input
-                      type="text"
-                      value={billStreetSearchForm.streetBunS}
-                      onChange={(e) => setBillStreetSearchForm(prev => ({ ...prev, streetBunS: e.target.value.replace(/[^0-9]/g, '') }))}
-                      placeholder="건물부번"
-                      className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
-                    />
-                  </div>
-                  <input
-                    type="text"
-                    value={billStreetSearchForm.buildNm}
-                    onChange={(e) => setBillStreetSearchForm(prev => ({ ...prev, buildNm: e.target.value }))}
-                    placeholder="건물명 (선택)"
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
-                  />
-                </div>
-              )}
-
-              <button
-                onClick={billAddressSearchType === 'post' ? handleSearchBillPostAddress : handleSearchBillStreetAddress}
-                disabled={isSearchingBillAddress}
-                className="w-full mt-3 flex items-center justify-center gap-2 py-2.5 bg-orange-500 text-white rounded-lg hover:bg-orange-600 disabled:bg-gray-400 transition-colors"
-              >
-                {isSearchingBillAddress ? (
-                  <>
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                    검색 중...
-                  </>
-                ) : (
-                  <>
-                    <Search className="w-4 h-4" />
-                    검색
-                  </>
-                )}
-              </button>
-            </div>
-
-            {/* 검색 결과 */}
-            <div className="flex-1 overflow-y-auto p-3 min-h-0">
-              {billAddressSearchType === 'post' ? (
-                billAddressResults.length > 0 ? (
-                  <div className="space-y-2">
-                    <div className="text-xs text-gray-500 mb-2">검색 결과: {billAddressResults.length}건</div>
-                    {billAddressResults.map((addr, idx) => (
-                      <button
-                        key={addr.POST_ID || idx}
-                        onClick={() => handleSelectBillPostAddress(addr)}
-                        className="w-full p-3 bg-gray-50 hover:bg-orange-50 rounded-lg border border-gray-200 hover:border-orange-300 text-left transition-colors"
-                      >
-                        <div className="text-sm font-medium text-gray-900">{addr.ADDR_FULL || addr.ADDR}</div>
-                        <div className="mt-1 text-xs text-gray-500">
-                          우편번호: {addr.ZIP_CD} | {addr.SIDO_NAME} {addr.GUGUN_NM} {addr.DONGMYON_NM}
-                        </div>
-                      </button>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="text-center py-8 text-gray-400 text-sm">
-                    읍/면/동 이름을 입력하고 검색하세요.
-                  </div>
-                )
-              ) : (
-                billStreetResults.length > 0 ? (
-                  <div className="space-y-2">
-                    <div className="text-xs text-gray-500 mb-2">검색 결과: {billStreetResults.length}건</div>
-                    {billStreetResults.map((addr, idx) => (
-                      <button
-                        key={addr.STREET_ID || idx}
-                        onClick={() => handleSelectBillStreetAddress(addr)}
-                        className="w-full p-3 bg-gray-50 hover:bg-orange-50 rounded-lg border border-gray-200 hover:border-orange-300 text-left transition-colors"
-                      >
-                        <div className="text-sm font-medium text-gray-900">{addr.STREET_ADDR}</div>
-                        <div className="mt-1 text-xs text-gray-500">
-                          우편번호: {addr.ZIP_CD} | {addr.ADDR_FULL}
-                        </div>
-                        {addr.BLD_NM && (
-                          <div className="mt-0.5 text-xs text-orange-600">건물명: {addr.BLD_NM}</div>
-                        )}
-                      </button>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="text-center py-8 text-gray-400 text-sm">
-                    도로명과 건물번호를 입력하고 검색하세요.
-                  </div>
-                )
-              )}
-            </div>
-
-            {/* 하단 버튼 */}
-            <div className="p-3 border-t border-gray-200 flex-shrink-0">
-              <button
-                onClick={handleCloseBillAddressModal}
                 className="w-full py-2.5 bg-gray-100 text-gray-600 rounded-lg hover:bg-gray-200 transition-colors"
               >
                 닫기
