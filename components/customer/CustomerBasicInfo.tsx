@@ -10,8 +10,9 @@ import {
   getContractList,
   getConsultationHistory,
   getWorkHistory,
-  formatPhoneNumber,
+  maskPhoneNumber,
   formatCurrency,
+  maskString,
   ConsultationHistory,
   WorkHistory
 } from '../../services/customerApi';
@@ -236,11 +237,11 @@ const CustomerBasicInfo: React.FC<CustomerBasicInfoProps> = ({
                     </div>
                     <div className="flex justify-between">
                       <span className="text-gray-500">전화번호</span>
-                      <span className="text-gray-800">{formatPhoneNumber(selectedCustomer.TEL_NO) || '-'}</span>
+                      <span className="text-gray-800">{maskPhoneNumber(selectedCustomer.TEL_NO) || '-'}</span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-gray-500">휴대폰</span>
-                      <span className="text-gray-800">{formatPhoneNumber(selectedCustomer.HP_NO) || '-'}</span>
+                      <span className="text-gray-800">{maskPhoneNumber(selectedCustomer.HP_NO) || '-'}</span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-gray-500">고객구분</span>

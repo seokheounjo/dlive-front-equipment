@@ -576,7 +576,7 @@ const mapContractFields = (data: any): ContractInfo => {
  * 고객 검색 (조건별)
  *
  * 성능 최적화 버전:
- * - CUST_ID 검색: getConditionalCustList2 (SERCH_GB 없이, 빠름)
+ * - CUST_ID 검색: getConditionalCustList2 (SERCH_GB=3 포함)
  * - 전화번호/계약ID/장비번호: getCustInfo를 통해 고객 상세 조회
  *
  * 테스트용 고객 ID:
@@ -587,7 +587,7 @@ const mapContractFields = (data: any): ContractInfo => {
 export const searchCustomer = async (params: CustomerSearchParams): Promise<ApiResponse<CustomerInfo[]>> => {
   // 고객ID 검색 - getConditionalCustList2 사용 (빠름)
   if (params.searchType === 'CUSTOMER_ID' && params.customerId) {
-    const reqParams = { CUST_ID: params.customerId };
+    const reqParams = { CUST_ID: params.customerId, SERCH_GB: '3' };
     const result = await apiCall<any>('/customer/common/customercommon/getConditionalCustList2', reqParams);
 
     if (result.success && result.data) {
@@ -652,7 +652,7 @@ export const searchCustomer = async (params: CustomerSearchParams): Promise<ApiR
       const custId = ctrtData?.CUST_ID;
 
       if (custId) {
-        const result = await apiCall<any>('/customer/common/customercommon/getConditionalCustList2', { CUST_ID: custId });
+        const result = await apiCall<any>('/customer/common/customercommon/getConditionalCustList2', { CUST_ID: custId, SERCH_GB: '3' });
         if (result.success && result.data) {
           const dataArray = Array.isArray(result.data) ? result.data : [result.data];
           const mappedData = dataArray.map(mapCustomerFields);
@@ -1503,6 +1503,41 @@ export const formatPhoneNumber = (phone: string): string => {
 };
 
 /**
+ * 전화번호 마스킹 (010-****-5678 형식)
+ */
+export const maskPhoneNumber = (phone: string): string => {
+  if (!phone) return '';
+  const cleaned = phone.replace(/\D/g, '');
+
+  // 서울 지역번호 (02): 02-****-5678
+  if (cleaned.startsWith('02')) {
+    if (cleaned.length === 10) {
+      return `${cleaned.slice(0, 2)}-****-${cleaned.slice(6)}`;
+    }
+    if (cleaned.length === 9) {
+      return `${cleaned.slice(0, 2)}-***-${cleaned.slice(5)}`;
+    }
+  }
+
+  // 휴대폰 또는 기타 지역번호 (11자리): 010-****-5678
+  if (cleaned.length === 11) {
+    return `${cleaned.slice(0, 3)}-****-${cleaned.slice(7)}`;
+  }
+
+  // 기타 지역번호 (10자리): 0XX-***-XXXX
+  if (cleaned.length === 10) {
+    return `${cleaned.slice(0, 3)}-***-${cleaned.slice(6)}`;
+  }
+
+  // 그 외: 앞 3자리와 뒤 4자리만 표시
+  if (cleaned.length > 7) {
+    return `${cleaned.slice(0, 3)}-${'*'.repeat(cleaned.length - 7)}-${cleaned.slice(-4)}`;
+  }
+
+  return phone;
+};
+
+/**
  * 금액 포맷팅
  */
 export const formatCurrency = (amount: number): string => {
@@ -1572,6 +1607,7 @@ export default {
   searchStreetAddress,
   // 유틸
   formatPhoneNumber,
+  maskPhoneNumber,
   formatCurrency,
   formatDate,
   maskString

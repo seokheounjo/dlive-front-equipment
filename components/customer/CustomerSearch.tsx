@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Search, Loader2, X, User } from 'lucide-react';
-import { searchCustomer, CustomerInfo, formatPhoneNumber } from '../../services/customerApi';
+import { searchCustomer, CustomerInfo, maskPhoneNumber } from '../../services/customerApi';
 import BarcodeScanner from '../equipment/BarcodeScanner';
 
 interface CustomerSearchProps {
@@ -354,7 +354,7 @@ const CustomerSearch: React.FC<CustomerSearchProps> = ({ onCustomerSelect, showT
                           </div>
                           {/* 2줄: 전화번호 + 주소 */}
                           <div className="mt-1 text-xs text-gray-500">
-                            {formatPhoneNumber(customer.TEL_NO || customer.HP_NO)}
+                            {maskPhoneNumber(customer.TEL_NO || customer.HP_NO)}
                             {customer.CUST_ADDR && ` | ${customer.CUST_ADDR}`}
                           </div>
                           {/* 미납금액 */}
