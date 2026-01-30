@@ -13,6 +13,7 @@ interface CustomerSearchProps {
  * 고객 검색 컴포넌트
  * - 메인: readonly 입력창 (클릭하면 팝업)
  * - 팝업: 모든 검색 필드를 한 화면에 표시
+ * - API: CUST_ID + SERCH_GB + LOGIN_ID 파라미터 사용
  */
 const CustomerSearch: React.FC<CustomerSearchProps> = ({ onCustomerSelect, showToast, selectedCustomer }) => {
   // 팝업 표시 상태
@@ -30,7 +31,13 @@ const CustomerSearch: React.FC<CustomerSearchProps> = ({ onCustomerSelect, showT
   const [searchResults, setSearchResults] = useState<CustomerInfo[]>([]);
   const [hasSearched, setHasSearched] = useState(false);
   const [showScanner, setShowScanner] = useState(false);
-  const [showRegionWarning, setShowRegionWarning] = useState(false);
+
+  // 경고 팝업 상태
+  const [warningPopup, setWarningPopup] = useState<{
+    show: boolean;
+    title: string;
+    message: string;
+  }>({ show: false, title: '', message: '' });
 
   // 팝업 열기
   const openModal = () => {
@@ -58,7 +65,11 @@ const CustomerSearch: React.FC<CustomerSearchProps> = ({ onCustomerSelect, showT
 
     // 최소 하나의 조건이 필요
     if (!hasCustomerId && !hasContractId && !hasPhoneName && !hasEquipmentNo) {
-      showToast?.('검색 조건을 입력해주세요. (고객ID/계약ID/장비S/N 4자리, 전화번호+이름)', 'warning');
+      setWarningPopup({
+        show: true,
+        title: '입력 오류',
+        message: '검색 조건을 입력해주세요.\n(고객ID/계약ID/장비S/N 4자리, 전화번호+이름)'
+      });
       return;
     }
 
@@ -96,7 +107,6 @@ const CustomerSearch: React.FC<CustomerSearchProps> = ({ onCustomerSelect, showT
           if (hasCustomerId) {
             results = results.filter(c => c.CUST_ID === customerId);
           }
-          // 계약ID가 입력되었으면 해당 고객의 계약 확인 필요 (별도 API 호출 없이 필터만)
           // 전화번호 확인
           if (phoneNumber.length >= 4) {
             results = results.filter(c =>
@@ -112,15 +122,27 @@ const CustomerSearch: React.FC<CustomerSearchProps> = ({ onCustomerSelect, showT
 
         setSearchResults(results);
         if (results.length === 0) {
-          setShowRegionWarning(true);
+          setWarningPopup({
+            show: true,
+            title: '조회 실패',
+            message: '조회대상이 없습니다.\n값을 정확히 입력해주세요.'
+          });
         }
       } else {
-        showToast?.(response.message || '검색에 실패했습니다.', 'error');
+        setWarningPopup({
+          show: true,
+          title: '검색 실패',
+          message: response.message || '검색에 실패했습니다.'
+        });
         setSearchResults([]);
       }
     } catch (error) {
       console.error('Customer search error:', error);
-      showToast?.('검색 중 오류가 발생했습니다.', 'error');
+      setWarningPopup({
+        show: true,
+        title: '오류',
+        message: '검색 중 오류가 발생했습니다.'
+      });
       setSearchResults([]);
     } finally {
       setIsSearching(false);
@@ -348,23 +370,22 @@ const CustomerSearch: React.FC<CustomerSearchProps> = ({ onCustomerSelect, showT
         onScan={handleBarcodeScan}
       />
 
-      {/* 조회 실패 경고 팝업 */}
-      {showRegionWarning && (
+      {/* 경고/알림 팝업 (PaymentInfo 스타일 통일) */}
+      {warningPopup.show && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg p-5 max-w-sm mx-4 shadow-xl">
             <div className="flex items-center gap-3 mb-4">
               <div className="w-10 h-10 rounded-full bg-orange-100 flex items-center justify-center">
                 <AlertCircle className="w-5 h-5 text-orange-500" />
               </div>
-              <h3 className="text-base font-medium text-gray-900">조회 실패</h3>
+              <h3 className="text-base font-medium text-gray-900">{warningPopup.title}</h3>
             </div>
-            <p className="text-sm text-gray-600 mb-5">
-              조회대상이 없습니다.<br />
-              값을 정확히 입력해주세요.
+            <p className="text-sm text-gray-600 mb-5 whitespace-pre-line">
+              {warningPopup.message}
             </p>
             <div className="flex gap-3">
               <button
-                onClick={() => setShowRegionWarning(false)}
+                onClick={() => setWarningPopup({ show: false, title: '', message: '' })}
                 className="flex-1 px-4 py-2 text-sm text-white bg-orange-500 rounded-lg hover:bg-orange-600 transition-colors"
               >
                 확인

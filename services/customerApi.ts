@@ -3,6 +3,7 @@
  * 고객관리 API 서비스
  *
  * 기능분해도 문서 기반 API 정의 (20251229)
+ * @version 2026.01.30 - LOGIN_ID 파라미터 추가
  * - 기본조회: 고객정보, 계약현황, 납부정보, 요금내역
  * - 정보변경: 전화번호, 주소(설치/고객/청구지)
  * - 상담/AS: 상담이력, AS접수
@@ -576,7 +577,7 @@ const mapContractFields = (data: any): ContractInfo => {
  * 고객 검색 (조건별)
  *
  * 성능 최적화 버전:
- * - CUST_ID 검색: getConditionalCustList2 (SERCH_GB=3 포함)
+ * - CUST_ID 검색: getConditionalCustList2 (SERCH_GB 없이 직접 조회)
  * - 전화번호/계약ID/장비번호: getCustInfo를 통해 고객 상세 조회
  *
  * 테스트용 고객 ID:
@@ -585,9 +586,26 @@ const mapContractFields = (data: any): ContractInfo => {
  * - 가나다: 1001846265
  */
 export const searchCustomer = async (params: CustomerSearchParams): Promise<ApiResponse<CustomerInfo[]>> => {
-  // 고객ID 검색 - getConditionalCustList2 사용 (SERCH_GB=3)
+  // 세션에서 LOGIN_ID 획득 (접속자 ID, ex. A20117965)
+  let loginId = 'SYSTEM';
+  try {
+    const userInfoStr = sessionStorage.getItem('userInfo') || localStorage.getItem('userInfo');
+    if (userInfoStr) {
+      const userInfo = JSON.parse(userInfoStr);
+      loginId = userInfo.userId || userInfo.USR_ID || userInfo.LOGIN_ID || 'SYSTEM';
+    }
+  } catch (e) {
+    console.log('[CustomerAPI] Failed to get LOGIN_ID from session');
+  }
+
+  // 고객ID 검색 - getConditionalCustList2 사용 (CUST_ID + SERCH_GB + LOGIN_ID)
   if (params.searchType === 'CUSTOMER_ID' && params.customerId) {
-    const reqParams = { CUST_ID: params.customerId, SERCH_GB: '3' };
+    const reqParams = {
+      CUST_ID: params.customerId,
+      SERCH_GB: '3',
+      LOGIN_ID: loginId
+    };
+    console.log('[CustomerAPI] CUSTOMER_ID search params:', reqParams);
     const result = await apiCall<any>('/customer/common/customercommon/getConditionalCustList2', reqParams);
 
     if (result.success && result.data) {
@@ -652,7 +670,11 @@ export const searchCustomer = async (params: CustomerSearchParams): Promise<ApiR
       const custId = ctrtData?.CUST_ID;
 
       if (custId) {
-        const result = await apiCall<any>('/customer/common/customercommon/getConditionalCustList2', { CUST_ID: custId, SERCH_GB: '3' });
+        const result = await apiCall<any>('/customer/common/customercommon/getConditionalCustList2', {
+          CUST_ID: custId,
+          SERCH_GB: '3',
+          LOGIN_ID: loginId
+        });
         if (result.success && result.data) {
           const dataArray = Array.isArray(result.data) ? result.data : [result.data];
           const mappedData = dataArray.map(mapCustomerFields);
@@ -717,7 +739,7 @@ export const searchCustomer = async (params: CustomerSearchParams): Promise<ApiR
     // 2차 시도: getConditionalCustList2 SERCH_GB=3 (fallback)
     const reqParams: Record<string, any> = {
       SERCH_GB: '3',
-      LOGIN_ID: 'SYSTEM'
+      LOGIN_ID: loginId
     };
     // 전화번호 우선 (둘 다 있으면 전화번호만 사용)
     if (params.phoneNumber) {
@@ -725,6 +747,7 @@ export const searchCustomer = async (params: CustomerSearchParams): Promise<ApiR
     } else if (params.customerName) {
       reqParams.CUST_NM = params.customerName;
     }
+    console.log('[CustomerAPI] PHONE_NAME search params:', reqParams);
 
     try {
       const result = await apiCall<any>('/customer/common/customercommon/getConditionalCustList2', reqParams);
@@ -743,9 +766,11 @@ export const searchCustomer = async (params: CustomerSearchParams): Promise<ApiR
   if (params.searchType === 'EQUIPMENT_NO' && params.equipmentNo) {
     const reqParams = {
       SERCH_GB: '3',
+      LOGIN_ID: loginId,
       EQT_SERNO: params.equipmentNo,
       MAC_ADDR: ''
     };
+    console.log('[CustomerAPI] EQUIPMENT_NO search params:', reqParams);
 
     try {
       const result = await apiCall<any>('/customer/common/customercommon/getConditionalCustList2', reqParams);
