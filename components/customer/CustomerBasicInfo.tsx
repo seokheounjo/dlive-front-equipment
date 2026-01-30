@@ -127,13 +127,22 @@ const CustomerBasicInfo: React.FC<CustomerBasicInfoProps> = ({
     }
   };
 
-  // 이력 로드
-  const loadHistory = async (custId: string): Promise<{ consultation: ConsultationHistory[], work: WorkHistory[] }> => {
+  // 선택된 계약 ID (이력 조회용)
+  const [selectedCtrtIdForHistory, setSelectedCtrtIdForHistory] = useState<string>('');
+
+  // 이력 로드 (CUST_ID + CTRT_ID 필수)
+  const loadHistory = async (custId: string, ctrtId: string): Promise<{ consultation: ConsultationHistory[], work: WorkHistory[] }> => {
+    if (!ctrtId) {
+      setConsultationHistory([]);
+      setWorkHistory([]);
+      return { consultation: [], work: [] };
+    }
+
     setIsLoadingHistory(true);
     try {
       const [consultRes, workRes] = await Promise.all([
-        getConsultationHistory(custId, 10),
-        getWorkHistory(custId, 10)
+        getConsultationHistory(custId, ctrtId, 10),
+        getWorkHistory(custId, ctrtId, 10)
       ]);
 
       const consultData = consultRes.success && consultRes.data ? consultRes.data : [];
@@ -151,16 +160,13 @@ const CustomerBasicInfo: React.FC<CustomerBasicInfoProps> = ({
     }
   };
 
-  // 전체 데이터 로드 및 캐싱
+  // 계약 목록 로드 (고객 선택 시)
   const loadAllData = async (custId: string) => {
-    const [contractsResult, historyResult] = await Promise.all([
-      loadContracts(custId),
-      loadHistory(custId)
-    ]);
+    const contractsResult = await loadContracts(custId);
 
-    // 부모 컴포넌트에 로드된 데이터 전달 (캐싱용)
+    // 이력은 계약 선택 후에 로드되므로 빈 배열 전달
     if (onDataLoaded) {
-      onDataLoaded(custId, contractsResult, historyResult.consultation, historyResult.work);
+      onDataLoaded(custId, contractsResult, [], []);
     }
   };
 
@@ -180,6 +186,12 @@ const CustomerBasicInfo: React.FC<CustomerBasicInfoProps> = ({
       instAddr: contract.INST_ADDR,
       postId: contract.POST_ID
     });
+
+    // 선택된 계약으로 이력 로드
+    if (selectedCustomer && contract.CTRT_ID !== selectedCtrtIdForHistory) {
+      setSelectedCtrtIdForHistory(contract.CTRT_ID);
+      loadHistory(selectedCustomer.CUST_ID, contract.CTRT_ID);
+    }
   };
 
   return (
@@ -297,25 +309,32 @@ const CustomerBasicInfo: React.FC<CustomerBasicInfoProps> = ({
 
               {expandedSections.consultation && (
                 <div className="px-3 pb-3">
-                  {isLoadingHistory ? (
+                  {!selectedCtrtIdForHistory ? (
+                    <div className="text-center py-3 text-gray-500 text-sm">
+                      계약 현황에서 계약을 선택하세요
+                    </div>
+                  ) : isLoadingHistory ? (
                     <div className="flex items-center justify-center py-3">
                       <Loader2 className="w-4 h-4 animate-spin text-gray-400" />
                     </div>
                   ) : consultationHistory.length > 0 ? (
                     <div className="space-y-1.5">
                       {consultationHistory.map((item, index) => (
-                        <div key={item.CNSL_ID || index} className="p-2 bg-gray-50 rounded text-sm">
+                        <div key={index} className="p-2 bg-gray-50 rounded text-sm">
                           <div className="flex items-center justify-between">
-                            <span className="font-medium text-gray-700">{item.CNSL_CL_NM}</span>
-                            <span className="text-xs text-gray-500">{item.RCPT_DT}</span>
+                            <span className="font-medium text-gray-700">{item.CNSL_SLV_CL_NM}</span>
+                            <span className="text-xs text-gray-500">{item.START_DATE}</span>
                           </div>
-                          <div className="text-gray-600 mt-0.5">{item.REQ_CNTN}</div>
+                          <div className="text-gray-600 mt-0.5">{item.REQ_CTX}</div>
                           <div className="flex items-center gap-2 mt-1">
                             <span className={`text-xs px-1.5 py-0.5 rounded ${
-                              item.PROC_STAT_NM === '완료' ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'
-                            }`}>{item.PROC_STAT_NM}</span>
-                            <span className="text-xs text-gray-400">{item.RCPT_USR_NM}</span>
+                              item.CNSL_RSLT?.includes('완료') ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'
+                            }`}>{item.CNSL_RSLT || '처리중'}</span>
+                            <span className="text-xs text-gray-400">{item.RCPT_NM}</span>
                           </div>
+                          {item.PROC_CT && (
+                            <div className="text-xs text-gray-500 mt-1 border-t pt-1">{item.PROC_CT}</div>
+                          )}
                         </div>
                       ))}
                     </div>
@@ -347,27 +366,38 @@ const CustomerBasicInfo: React.FC<CustomerBasicInfoProps> = ({
 
               {expandedSections.work && (
                 <div className="px-3 pb-3">
-                  {isLoadingHistory ? (
+                  {!selectedCtrtIdForHistory ? (
+                    <div className="text-center py-3 text-gray-500 text-sm">
+                      계약 현황에서 계약을 선택하세요
+                    </div>
+                  ) : isLoadingHistory ? (
                     <div className="flex items-center justify-center py-3">
                       <Loader2 className="w-4 h-4 animate-spin text-gray-400" />
                     </div>
                   ) : workHistory.length > 0 ? (
                     <div className="space-y-1.5">
                       {workHistory.map((item, index) => (
-                        <div key={item.WORK_ID || index} className="p-2 bg-gray-50 rounded text-sm">
+                        <div key={index} className="p-2 bg-gray-50 rounded text-sm">
                           <div className="flex items-center justify-between">
-                            <span className="font-medium text-gray-700">{item.WORK_TP_NM}</span>
-                            <span className="text-xs text-gray-500">{item.SCHD_DT}</span>
+                            <span className="font-medium text-gray-700">{item.WRK_CD_NM}</span>
+                            <span className="text-xs text-gray-500">{item.HOPE_DT}</span>
                           </div>
                           <div className="text-gray-600 mt-0.5">{item.PROD_NM}</div>
                           <div className="flex items-center gap-2 mt-1">
                             <span className={`text-xs px-1.5 py-0.5 rounded ${
-                              item.WORK_STAT_NM === '완료' ? 'bg-green-100 text-green-700' :
-                              item.WORK_STAT_NM === '진행중' ? 'bg-blue-100 text-blue-700' :
+                              item.WRK_STAT_CD_NM?.includes('완료') ? 'bg-green-100 text-green-700' :
+                              item.WRK_STAT_CD_NM?.includes('진행') ? 'bg-blue-100 text-blue-700' :
                               'bg-gray-100 text-gray-700'
-                            }`}>{item.WORK_STAT_NM}</span>
-                            <span className="text-xs text-gray-400">{item.WRKR_NM}</span>
+                            }`}>{item.WRK_STAT_CD_NM}</span>
+                            <span className="text-xs text-gray-400">{item.WRK_NM}</span>
+                            {item.WRK_CRR_NM && <span className="text-xs text-gray-400">({item.WRK_CRR_NM})</span>}
                           </div>
+                          {item.CMPL_DATE && (
+                            <div className="text-xs text-gray-500 mt-1">완료: {item.CMPL_DATE}</div>
+                          )}
+                          {item.MEMO && (
+                            <div className="text-xs text-gray-500 mt-1 border-t pt-1">{item.MEMO}</div>
+                          )}
                         </div>
                       ))}
                     </div>

@@ -209,10 +209,10 @@ const ConsultationAS: React.FC<ConsultationASProps> = ({
   // 초기 데이터 로드
   useEffect(() => {
     loadCodes();
-    if (selectedCustomer) {
+    if (selectedCustomer && selectedContract) {
       loadHistory();
     }
-  }, [selectedCustomer]);
+  }, [selectedCustomer, selectedContract]);
 
   const loadCodes = async () => {
     setIsLoadingCodes(true);
@@ -272,13 +272,17 @@ const ConsultationAS: React.FC<ConsultationASProps> = ({
   };
 
   const loadHistory = async () => {
-    if (!selectedCustomer) return;
+    if (!selectedCustomer || !selectedContract) {
+      setConsultationHistory([]);
+      setWorkHistory([]);
+      return;
+    }
 
     setIsLoadingHistory(true);
     try {
       const [consultRes, workRes] = await Promise.all([
-        getConsultationHistory(selectedCustomer.custId, 20),
-        getWorkHistory(selectedCustomer.custId, 20)
+        getConsultationHistory(selectedCustomer.custId, selectedContract.ctrtId, 20),
+        getWorkHistory(selectedCustomer.custId, selectedContract.ctrtId, 20)
       ]);
 
       if (consultRes.success && consultRes.data) {
@@ -831,23 +835,31 @@ const ConsultationAS: React.FC<ConsultationASProps> = ({
                 <div className="flex items-center justify-center py-8">
                   <Loader2 className="w-6 h-6 animate-spin text-gray-400" />
                 </div>
+              ) : !selectedContract ? (
+                <div className="text-center py-4 text-gray-500 text-sm">
+                  기본조회에서 계약을 선택해주세요.
+                </div>
               ) : activeTab === 'consultation' ? (
                 consultationHistory.length > 0 ? (
                   <div className="space-y-2 max-h-64 overflow-y-auto">
                     {consultationHistory.map((item, index) => (
-                      <div key={item.CNSL_ID || index} className="p-3 bg-gray-50 rounded-lg">
+                      <div key={index} className="p-3 bg-gray-50 rounded-lg">
                         <div className="flex items-center justify-between mb-1">
-                          <span className="text-sm font-medium text-gray-700">{item.CNSL_CL_NM}</span>
-                          <span className="text-xs text-gray-500">{item.RCPT_DT}</span>
+                          <span className="text-sm font-medium text-gray-700">{item.CNSL_SLV_CL_NM}</span>
+                          <span className="text-xs text-gray-500">{item.START_DATE}</span>
                         </div>
-                        <div className="text-sm text-gray-600">{item.REQ_CNTN}</div>
+                        <div className="text-sm text-gray-600">{item.REQ_CTX}</div>
                         <div className="flex items-center gap-2 mt-2">
                           <span className={`text-xs px-2 py-0.5 rounded ${
-                            item.PROC_STAT_NM === '완료' ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'
+                            item.CNSL_RSLT?.includes('완료') ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'
                           }`}>
-                            {item.PROC_STAT_NM}
+                            {item.CNSL_RSLT || '처리중'}
                           </span>
+                          <span className="text-xs text-gray-400">{item.RCPT_NM}</span>
                         </div>
+                        {item.PROC_CT && (
+                          <div className="text-xs text-gray-500 mt-2 border-t pt-2">{item.PROC_CT}</div>
+                        )}
                       </div>
                     ))}
                   </div>
@@ -860,22 +872,26 @@ const ConsultationAS: React.FC<ConsultationASProps> = ({
                 workHistory.length > 0 ? (
                   <div className="space-y-2 max-h-64 overflow-y-auto">
                     {workHistory.map((item, index) => (
-                      <div key={item.WORK_ID || index} className="p-3 bg-gray-50 rounded-lg">
+                      <div key={index} className="p-3 bg-gray-50 rounded-lg">
                         <div className="flex items-center justify-between mb-1">
-                          <span className="text-sm font-medium text-gray-700">{item.WORK_TP_NM}</span>
-                          <span className="text-xs text-gray-500">{item.SCHD_DT}</span>
+                          <span className="text-sm font-medium text-gray-700">{item.WRK_CD_NM}</span>
+                          <span className="text-xs text-gray-500">{item.HOPE_DT}</span>
                         </div>
                         <div className="text-sm text-gray-600">{item.PROD_NM}</div>
                         <div className="flex items-center gap-2 mt-2">
                           <span className={`text-xs px-2 py-0.5 rounded ${
-                            item.WORK_STAT_NM === '완료' ? 'bg-green-100 text-green-700' :
-                            item.WORK_STAT_NM === '진행중' ? 'bg-blue-100 text-blue-700' :
+                            item.WRK_STAT_CD_NM?.includes('완료') ? 'bg-green-100 text-green-700' :
+                            item.WRK_STAT_CD_NM?.includes('진행') ? 'bg-blue-100 text-blue-700' :
                             'bg-gray-100 text-gray-700'
                           }`}>
-                            {item.WORK_STAT_NM}
+                            {item.WRK_STAT_CD_NM}
                           </span>
-                          <span className="text-xs text-gray-400">{item.WRKR_NM}</span>
+                          <span className="text-xs text-gray-400">{item.WRK_NM}</span>
+                          {item.WRK_CRR_NM && <span className="text-xs text-gray-400">({item.WRK_CRR_NM})</span>}
                         </div>
+                        {item.CMPL_DATE && (
+                          <div className="text-xs text-gray-500 mt-1">완료: {item.CMPL_DATE}</div>
+                        )}
                       </div>
                     ))}
                   </div>

@@ -116,30 +116,29 @@ export interface UnpaymentInfo {
   UNPAY_STAT_NM: string;     // 미납상태
 }
 
-// 상담 이력
+// 상담 이력 (D'Live: getTgtCtrtRcptHist_m)
 export interface ConsultationHistory {
-  CNSL_ID: string;           // 상담ID
-  RCPT_DT: string;           // 접수일
-  CNSL_CL_NM: string;        // 상담소분류
-  PROC_STAT_NM: string;      // 처리상태
-  RCPT_USR_NM: string;       // 접수자
-  REQ_CNTN: string;          // 요청사항
-  RSP_CNTN: string;          // 응대내용
+  START_DATE: string;        // 접수일 (yyyy-mm-dd)
+  CNSL_SLV_CL_NM: string;    // 상담소분류
+  CNSL_RSLT: string;         // 처리결과
+  RCPT_NM: string;           // 접수자
+  REQ_CTX: string;           // 요청사항
+  PROC_CT: string;           // 처리내용
 }
 
-// 작업 이력
+// 작업 이력 (D'Live: getTgtCtrtWorkList_m)
 export interface WorkHistory {
-  WORK_ID: string;           // 작업ID
-  SCHD_DT: string;           // 작업예정일
+  HOPE_DT: string;           // 작업희망일 (yyyy-mm-dd)
+  CUST_ID: string;           // 고객ID
+  CTRT_ID: string;           // 계약ID
   PROD_NM: string;           // 상품명
-  WORK_TP_NM: string;        // 작업구분
-  WORK_STAT_NM: string;      // 작업상태
-  CMPL_DT: string;           // 완료일자
-  WRKR_NM: string;           // 작업자
-  WRKR_DEPT_NM: string;      // 작업자소속
-  INST_ADDR: string;         // 설치(작업)주소
-  WORK_DRCTN: string;        // 작업지시내용
-  WORK_RSLT: string;         // 작업처리내용
+  WRK_CD_NM: string;         // 작업구분
+  WRK_STAT_CD_NM: string;    // 작업상태
+  CMPL_DATE: string;         // 완료일 (yyyy-mm-dd)
+  WRK_NM: string;            // 작업자
+  WRK_CRR_NM: string;        // 작업자소속
+  CTRT_ADDR: string;         // 작업주소
+  MEMO: string;              // 메모
 }
 
 // 휴대폰결제(선불) 정보
@@ -921,28 +920,38 @@ export const getHPPayList = async (custId: string): Promise<ApiResponse<HPPayInf
 
 /**
  * 상담 이력 조회
- * API: customer/negociation/getCallHistory.req
+ * API: customer/negociation/getTgtCtrtRcptHist_m.req
+ *
+ * D'Live SQL: CUST_ID + CTRT_ID 필수
+ * 응답: START_DATE, CNSL_SLV_CL_NM, CNSL_RSLT, RCPT_NM, REQ_CTX, PROC_CT
  */
 export const getConsultationHistory = async (
   custId: string,
+  ctrtId: string,
   limit: number = 10
 ): Promise<ApiResponse<ConsultationHistory[]>> => {
-  return apiCall<ConsultationHistory[]>('/customer/negociation/getCallHistory', {
+  return apiCall<ConsultationHistory[]>('/customer/negociation/getTgtCtrtRcptHist_m', {
     CUST_ID: custId,
+    CTRT_ID: ctrtId,
     PAGE_SIZE: limit
   });
 };
 
 /**
  * 작업 이력 조회
- * API: customer/negociation/getCustWorkList.req
+ * API: customer/negociation/getTgtCtrtWorkList_m.req
+ *
+ * D'Live SQL: CUST_ID + CTRT_ID 필수
+ * 응답: HOPE_DT, PROD_NM, WRK_CD_NM, WRK_STAT_CD_NM, CMPL_DATE, WRK_NM, WRK_CRR_NM, CTRT_ADDR, MEMO
  */
 export const getWorkHistory = async (
   custId: string,
+  ctrtId: string,
   limit: number = 10
 ): Promise<ApiResponse<WorkHistory[]>> => {
-  return apiCall<WorkHistory[]>('/customer/negociation/getCustWorkList', {
+  return apiCall<WorkHistory[]>('/customer/negociation/getTgtCtrtWorkList_m', {
     CUST_ID: custId,
+    CTRT_ID: ctrtId,
     PAGE_SIZE: limit
   });
 };
