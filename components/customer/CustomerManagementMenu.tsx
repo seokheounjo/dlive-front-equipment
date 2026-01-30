@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import ScrollableTabMenu, { TabItem } from '../layout/ScrollableTabMenu';
 import CustomerBasicInfo from './CustomerBasicInfo';
 import CustomerInfoChange from './CustomerInfoChange';
+import ConsultationAS from './ConsultationAS';
 import ElectronicContract from './ElectronicContract';
 import CustomerSearch from './CustomerSearch';
 import { CustomerInfo, ContractInfo, ConsultationHistory, WorkHistory } from '../../services/customerApi';
@@ -72,9 +73,13 @@ const CustomerManagementMenu: React.FC<CustomerManagementMenuProps> = ({ onNavig
   const [cachedWorkHistory, setCachedWorkHistory] = useState<WorkHistory[]>([]);
   const [cachedDataCustId, setCachedDataCustId] = useState<string>('');  // 어떤 고객의 데이터인지 추적
 
+  // 상담/AS 탭의 초기 탭 상태
+  const [consultationASInitialTab, setConsultationASInitialTab] = useState<'consultation' | 'as'>('consultation');
+
   const tabs: TabItem[] = [
     { id: 'basic-info', title: '기본조회', description: '고객 검색 및 정보 조회' },
     { id: 'info-change', title: '정보변경', description: '전화번호/주소 변경' },
+    { id: 'consultation-as', title: '상담/AS', description: '상담이력 및 AS접수' },
     { id: 'electronic-contract', title: '전자계약', description: '전자계약서 서명/발송' }
   ];
 
@@ -190,6 +195,21 @@ const CustomerManagementMenu: React.FC<CustomerManagementMenuProps> = ({ onNavig
               setPaymentSelectedPymAcntId(pymAcntId);
               setPaymentIsVerified(isVerified);
             }}
+          />
+        );
+      case 'consultation-as':
+        return (
+          <ConsultationAS
+            onBack={onNavigateToMenu}
+            showToast={showToast}
+            selectedCustomer={selectedCustomer ? {
+              custId: selectedCustomer.CUST_ID,
+              custNm: selectedCustomer.CUST_NM,
+              telNo: selectedCustomer.TEL_NO || selectedCustomer.HP_NO
+            } : null}
+            selectedContract={selectedContract}
+            onNavigateToBasicInfo={() => handleNavigateToTab('basic-info')}
+            initialTab={consultationASInitialTab}
           />
         );
       case 'electronic-contract':
