@@ -151,6 +151,10 @@ const CustomerManagementMenu: React.FC<CustomerManagementMenuProps> = ({ onNavig
             showToast={showToast}
             onContractSelect={handleContractSelect}
             onNavigateToPaymentChange={handleNavigateToPaymentChange}
+            onNavigateToConsultationAS={(initialTab) => {
+              setConsultationASInitialTab(initialTab);
+              setActiveTab('consultation-as');
+            }}
             selectedCustomer={selectedCustomer}
             savedContract={selectedContract}
             cachedContracts={cachedContracts}

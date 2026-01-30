@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import {
   FileText, ChevronDown, ChevronUp, Loader2,
-  Cpu, Calendar, MapPin, Filter
+  Cpu, Calendar, MapPin, Filter, MessageSquare, Wrench
 } from 'lucide-react';
 import { ContractInfo, formatCurrency, formatDate } from '../../services/customerApi';
 
@@ -12,6 +12,8 @@ interface ContractSummaryProps {
   onToggle: () => void;
   onContractSelect: (contract: ContractInfo) => void;
   showToast?: (message: string, type: 'success' | 'error' | 'warning' | 'info') => void;
+  onNavigateToConsultation?: (contract: ContractInfo) => void;  // 상담등록으로 이동
+  onNavigateToAS?: (contract: ContractInfo) => void;            // AS접수로 이동
 }
 
 // 계약 상태별 스타일
@@ -44,7 +46,9 @@ const ContractSummary: React.FC<ContractSummaryProps> = ({
   expanded,
   onToggle,
   onContractSelect,
-  showToast
+  showToast,
+  onNavigateToConsultation,
+  onNavigateToAS
 }) => {
   // 필터 상태
   const [filterStatus, setFilterStatus] = useState<'all' | 'active' | 'terminated'>('all');
@@ -274,6 +278,34 @@ const ContractSummary: React.FC<ContractSummaryProps> = ({
                         {contract.GRP_NO && (
                           <div className="text-sm text-gray-600">
                             단체번호: {contract.GRP_NO}
+                          </div>
+                        )}
+
+                        {/* AS/상담 버튼 - 사용중인 계약만 */}
+                        {contract.CTRT_STAT_CD !== '30' && contract.CTRT_STAT_CD !== '90' && (
+                          <div className="flex gap-2 mt-3 pt-3 border-t border-gray-200">
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleSelect(contract);
+                                onNavigateToConsultation?.(contract);
+                              }}
+                              className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 bg-blue-500 hover:bg-blue-600 text-white text-sm font-medium rounded-lg transition-colors"
+                            >
+                              <MessageSquare className="w-4 h-4" />
+                              상담등록
+                            </button>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleSelect(contract);
+                                onNavigateToAS?.(contract);
+                              }}
+                              className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 bg-orange-500 hover:bg-orange-600 text-white text-sm font-medium rounded-lg transition-colors"
+                            >
+                              <Wrench className="w-4 h-4" />
+                              AS접수
+                            </button>
                           </div>
                         )}
 
