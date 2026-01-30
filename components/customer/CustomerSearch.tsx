@@ -46,23 +46,19 @@ const CustomerSearch: React.FC<CustomerSearchProps> = ({ onCustomerSelect, showT
     setHasSearched(false);
   };
 
-  // 검색 실행 - 입력된 필드 중 하나로 검색
+  // 검색 실행
+  // 조건: 고객ID OR 계약ID OR (전화번호 AND 이름) OR 장비S/N
+  // 여러 필드 입력 시 모두 AND로 일치해야 함
   const handleSearch = async () => {
-    // 검색 조건 우선순위: 고객ID > 계약ID > 전화번호/이름 > 장비번호
-    let searchType: 'CUSTOMER_ID' | 'CONTRACT_ID' | 'PHONE_NAME' | 'EQUIPMENT_NO' | null = null;
+    // 입력된 필드 확인
+    const hasCustomerId = customerId.length >= 4;
+    const hasContractId = contractId.length >= 4;
+    const hasPhoneName = phoneNumber.length >= 4 && customerName.length >= 2;
+    const hasEquipmentNo = equipmentNo.length >= 4;
 
-    if (customerId.length >= 4) {
-      searchType = 'CUSTOMER_ID';
-    } else if (contractId.length >= 4) {
-      searchType = 'CONTRACT_ID';
-    } else if (phoneNumber.length >= 4 || customerName.length >= 2) {
-      searchType = 'PHONE_NAME';
-    } else if (equipmentNo.length >= 4) {
-      searchType = 'EQUIPMENT_NO';
-    }
-
-    if (!searchType) {
-      showToast?.('검색 조건을 입력해주세요. (고객ID/계약ID 4자리, 이름 2자 이상)', 'warning');
+    // 최소 하나의 조건이 필요
+    if (!hasCustomerId && !hasContractId && !hasPhoneName && !hasEquipmentNo) {
+      showToast?.('검색 조건을 입력해주세요. (고객ID/계약ID/장비S/N 4자리, 전화번호+이름)', 'warning');
       return;
     }
 
@@ -70,18 +66,52 @@ const CustomerSearch: React.FC<CustomerSearchProps> = ({ onCustomerSelect, showT
     setHasSearched(true);
 
     try {
+      // 검색 타입 결정 (우선순위: 고객ID > 계약ID > 전화번호/이름 > 장비번호)
+      let searchType: 'CUSTOMER_ID' | 'CONTRACT_ID' | 'PHONE_NAME' | 'EQUIPMENT_NO';
+      if (hasCustomerId) {
+        searchType = 'CUSTOMER_ID';
+      } else if (hasContractId) {
+        searchType = 'CONTRACT_ID';
+      } else if (hasPhoneName) {
+        searchType = 'PHONE_NAME';
+      } else {
+        searchType = 'EQUIPMENT_NO';
+      }
+
       const response = await searchCustomer({
         searchType,
-        customerId: searchType === 'CUSTOMER_ID' ? customerId : undefined,
-        contractId: searchType === 'CONTRACT_ID' ? contractId : undefined,
-        phoneNumber: searchType === 'PHONE_NAME' ? phoneNumber : undefined,
-        customerName: searchType === 'PHONE_NAME' ? customerName : undefined,
-        equipmentNo: searchType === 'EQUIPMENT_NO' ? equipmentNo : undefined,
+        customerId: hasCustomerId ? customerId : undefined,
+        contractId: hasContractId ? contractId : undefined,
+        phoneNumber: hasPhoneName ? phoneNumber : undefined,
+        customerName: hasPhoneName ? customerName : undefined,
+        equipmentNo: hasEquipmentNo ? equipmentNo : undefined,
       });
 
       if (response.success && response.data) {
-        setSearchResults(response.data);
-        if (response.data.length === 0) {
+        let results = response.data;
+
+        // 여러 조건이 입력된 경우 AND 필터링
+        if (results.length > 0) {
+          // 고객ID가 입력되었으면 일치 확인
+          if (hasCustomerId) {
+            results = results.filter(c => c.CUST_ID === customerId);
+          }
+          // 계약ID가 입력되었으면 해당 고객의 계약 확인 필요 (별도 API 호출 없이 필터만)
+          // 전화번호 확인
+          if (phoneNumber.length >= 4) {
+            results = results.filter(c =>
+              (c.TEL_NO && c.TEL_NO.includes(phoneNumber)) ||
+              (c.HP_NO && c.HP_NO.includes(phoneNumber))
+            );
+          }
+          // 이름 확인
+          if (customerName.length >= 2) {
+            results = results.filter(c => c.CUST_NM && c.CUST_NM.includes(customerName));
+          }
+        }
+
+        setSearchResults(results);
+        if (results.length === 0) {
           setShowRegionWarning(true);
         }
       } else {
@@ -318,7 +348,7 @@ const CustomerSearch: React.FC<CustomerSearchProps> = ({ onCustomerSelect, showT
         onScan={handleBarcodeScan}
       />
 
-      {/* 할당 지역 경고 팝업 */}
+      {/* 조회 실패 경고 팝업 */}
       {showRegionWarning && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg p-5 max-w-sm mx-4 shadow-xl">
@@ -326,10 +356,11 @@ const CustomerSearch: React.FC<CustomerSearchProps> = ({ onCustomerSelect, showT
               <div className="w-10 h-10 rounded-full bg-orange-100 flex items-center justify-center">
                 <AlertCircle className="w-5 h-5 text-orange-500" />
               </div>
-              <h3 className="text-base font-medium text-gray-900">조회 불가</h3>
+              <h3 className="text-base font-medium text-gray-900">조회 실패</h3>
             </div>
             <p className="text-sm text-gray-600 mb-5">
-              할당 지역이 아닌 고객은 조회할 수 없습니다.
+              조회대상이 없습니다.<br />
+              값을 정확히 입력해주세요.
             </p>
             <div className="flex gap-3">
               <button
