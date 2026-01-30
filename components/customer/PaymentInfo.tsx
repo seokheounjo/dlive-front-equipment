@@ -60,6 +60,9 @@ const PaymentInfo: React.FC<PaymentInfoProps> = ({
   // 필터 상태
   const [paymentFilter, setPaymentFilter] = useState<'all' | 'auto' | 'card'>('all');
 
+  // 선택된 납부계정
+  const [selectedPymAcntId, setSelectedPymAcntId] = useState<string | null>(null);
+
   // 요금내역 펼침 상태
   const [showBillingDetail, setShowBillingDetail] = useState(true);
 
@@ -88,6 +91,10 @@ const PaymentInfo: React.FC<PaymentInfoProps> = ({
 
       if (paymentRes.success && paymentRes.data) {
         setPaymentInfo(paymentRes.data);
+        // 첫 번째 납부계정 자동 선택
+        if (paymentRes.data.length > 0 && !selectedPymAcntId) {
+          setSelectedPymAcntId(paymentRes.data[0].PYM_ACNT_ID);
+        }
       }
 
       if (billingRes.success && billingRes.data) {
@@ -151,6 +158,14 @@ const PaymentInfo: React.FC<PaymentInfoProps> = ({
     auto: paymentInfo.filter(p => p.PYM_MTH_CD === '01').length,
     card: paymentInfo.filter(p => p.PYM_MTH_CD === '02').length
   };
+
+  // 선택된 납부계정의 요금내역 필터링
+  const filteredBillingHistory = selectedPymAcntId
+    ? billingHistory.filter(bill => bill.PYM_ACNT_ID === selectedPymAcntId)
+    : billingHistory;
+
+  // 선택된 납부계정 정보
+  const selectedPayment = paymentInfo.find(p => p.PYM_ACNT_ID === selectedPymAcntId);
 
   return (
     <div className="bg-white rounded-lg shadow-sm border border-gray-200">
@@ -244,6 +259,7 @@ const PaymentInfo: React.FC<PaymentInfoProps> = ({
                   <div className="space-y-3">
                     {filteredPaymentInfo.map((payment) => {
                       const isWorking = currentWorkingPymAcntId === payment.PYM_ACNT_ID;
+                      const isSelected = selectedPymAcntId === payment.PYM_ACNT_ID;
                       const isAutoTransfer = payment.PYM_MTH_CD === '01';
                       const bankOrCard = isAutoTransfer ? payment.BANK_NM : (payment.CARD_NM || payment.BANK_NM);
                       const accountOrCard = isAutoTransfer
@@ -253,18 +269,28 @@ const PaymentInfo: React.FC<PaymentInfoProps> = ({
                       return (
                         <div
                           key={payment.PYM_ACNT_ID}
-                          className={`p-3 rounded-lg border ${
+                          onClick={() => setSelectedPymAcntId(payment.PYM_ACNT_ID)}
+                          className={`p-3 rounded-lg border cursor-pointer transition-all ${
                             isWorking
                               ? 'bg-orange-50 border-orange-300'
-                              : 'bg-gray-50 border-gray-200'
+                              : isSelected
+                                ? 'bg-blue-50 border-blue-400 ring-2 ring-blue-200'
+                                : 'bg-gray-50 border-gray-200 hover:border-gray-300'
                           }`}
                         >
-                          {/* 작업중 배지 */}
-                          {isWorking && (
-                            <div className="flex justify-end mb-2">
-                              <span className="px-2 py-0.5 text-xs bg-orange-500 text-white rounded-full animate-pulse">
-                                작업중
-                              </span>
+                          {/* 배지 (선택됨 / 작업중) */}
+                          {(isSelected || isWorking) && (
+                            <div className="flex justify-end mb-2 gap-1">
+                              {isSelected && (
+                                <span className="px-2 py-0.5 text-xs bg-blue-500 text-white rounded-full">
+                                  선택됨
+                                </span>
+                              )}
+                              {isWorking && (
+                                <span className="px-2 py-0.5 text-xs bg-orange-500 text-white rounded-full animate-pulse">
+                                  작업중
+                                </span>
+                              )}
                             </div>
                           )}
 
@@ -344,7 +370,14 @@ const PaymentInfo: React.FC<PaymentInfoProps> = ({
                   onClick={() => setShowBillingDetail(!showBillingDetail)}
                   className="w-full flex items-center justify-between mb-3"
                 >
-                  <span className="text-sm font-medium text-gray-700">요금 내역</span>
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm font-medium text-gray-700">요금내역</span>
+                    {selectedPayment && (
+                      <span className="text-xs text-blue-600 bg-blue-50 px-2 py-0.5 rounded">
+                        {formatPymAcntId(selectedPayment.PYM_ACNT_ID)}
+                      </span>
+                    )}
+                  </div>
                   <ChevronDown
                     className={`w-4 h-4 text-gray-400 transition-transform ${
                       showBillingDetail ? 'rotate-180' : ''
@@ -354,13 +387,17 @@ const PaymentInfo: React.FC<PaymentInfoProps> = ({
 
                 {showBillingDetail && (
                   <>
-                    {billingHistory.length === 0 ? (
+                    {!selectedPymAcntId ? (
+                      <div className="text-center py-4 text-gray-500 text-sm">
+                        납부계정을 선택해주세요.
+                      </div>
+                    ) : filteredBillingHistory.length === 0 ? (
                       <div className="text-center py-4 text-gray-500 text-sm">
                         요금 내역이 없습니다.
                       </div>
                     ) : (
                       <div className="space-y-2">
-                        {billingHistory.map((item, index) => (
+                        {filteredBillingHistory.map((item, index) => (
                           <div
                             key={index}
                             className={`p-3 rounded-lg border ${

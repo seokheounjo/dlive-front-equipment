@@ -97,6 +97,7 @@ export interface PaymentInfo {
 
 // 요금 내역
 export interface BillingInfo {
+  PYM_ACNT_ID: string;       // 납부계정ID
   BILL_YM: string;           // 청구년월
   BILL_CYCLE: string;        // 청구주기
   BILL_AMT: number;          // 청구금액
