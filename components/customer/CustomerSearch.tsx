@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Loader2, X, User } from 'lucide-react';
+import { Loader2, X, User, AlertCircle } from 'lucide-react';
 import { searchCustomer, CustomerInfo, maskPhoneNumber } from '../../services/customerApi';
 import BarcodeScanner from '../equipment/BarcodeScanner';
 
@@ -30,6 +30,7 @@ const CustomerSearch: React.FC<CustomerSearchProps> = ({ onCustomerSelect, showT
   const [searchResults, setSearchResults] = useState<CustomerInfo[]>([]);
   const [hasSearched, setHasSearched] = useState(false);
   const [showScanner, setShowScanner] = useState(false);
+  const [showRegionWarning, setShowRegionWarning] = useState(false);
 
   // 팝업 열기
   const openModal = () => {
@@ -81,7 +82,7 @@ const CustomerSearch: React.FC<CustomerSearchProps> = ({ onCustomerSelect, showT
       if (response.success && response.data) {
         setSearchResults(response.data);
         if (response.data.length === 0) {
-          showToast?.('할당 지역이 아닌 고객은 조회할 수 없습니다.', 'warning');
+          setShowRegionWarning(true);
         }
       } else {
         showToast?.(response.message || '검색에 실패했습니다.', 'error');
@@ -269,8 +270,8 @@ const CustomerSearch: React.FC<CustomerSearchProps> = ({ onCustomerSelect, showT
                       ))}
                     </div>
                   ) : (
-                    <div className="text-center py-4 text-orange-500 text-sm font-medium">
-                      할당 지역이 아닌 고객은 조회할 수 없습니다.
+                    <div className="text-center py-4 text-gray-500 text-sm">
+                      검색 결과가 없습니다.
                     </div>
                   )
                 ) : (
@@ -316,6 +317,31 @@ const CustomerSearch: React.FC<CustomerSearchProps> = ({ onCustomerSelect, showT
         onClose={() => setShowScanner(false)}
         onScan={handleBarcodeScan}
       />
+
+      {/* 할당 지역 경고 팝업 */}
+      {showRegionWarning && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-5 max-w-sm mx-4 shadow-xl">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-10 h-10 rounded-full bg-orange-100 flex items-center justify-center">
+                <AlertCircle className="w-5 h-5 text-orange-500" />
+              </div>
+              <h3 className="text-base font-medium text-gray-900">조회 불가</h3>
+            </div>
+            <p className="text-sm text-gray-600 mb-5">
+              할당 지역이 아닌 고객은 조회할 수 없습니다.
+            </p>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setShowRegionWarning(false)}
+                className="flex-1 px-4 py-2 text-sm text-white bg-orange-500 rounded-lg hover:bg-orange-600 transition-colors"
+              >
+                확인
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 };
