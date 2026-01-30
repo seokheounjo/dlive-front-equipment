@@ -18,12 +18,12 @@ const CustomerSearch: React.FC<CustomerSearchProps> = ({ onCustomerSelect, showT
   // 팝업 표시 상태
   const [showModal, setShowModal] = useState(false);
 
-  // 검색 입력값
-  const [customerId, setCustomerId] = useState('');
-  const [contractId, setContractId] = useState('');
-  const [phoneNumber, setPhoneNumber] = useState('');
-  const [customerName, setCustomerName] = useState('');
-  const [equipmentNo, setEquipmentNo] = useState('');
+  // 검색 입력값 - 테스트용 기본값
+  const [customerId, setCustomerId] = useState('1001857577');
+  const [contractId, setContractId] = useState('1003687719');
+  const [phoneNumber, setPhoneNumber] = useState('01051346878');
+  const [customerName, setCustomerName] = useState('푸꾸옥');
+  const [equipmentNo, setEquipmentNo] = useState('S123456789');
 
   // 상태
   const [isSearching, setIsSearching] = useState(false);
