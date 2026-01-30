@@ -2,8 +2,9 @@ import React, { useState, useEffect } from 'react';
 import {
   Phone, MapPin, Edit2, Save, X, Loader2,
   ChevronDown, ChevronUp, AlertCircle, Check, Search,
-  Smartphone, RefreshCw, CreditCard, Building2, Shield
+  Smartphone, RefreshCw, CreditCard, Building2, Shield, PenTool
 } from 'lucide-react';
+import SignaturePad from '../common/SignaturePad';
 import {
   updatePhoneNumber,
   updateAddress,
@@ -167,6 +168,10 @@ const CustomerInfoChange: React.FC<CustomerInfoChangeProps> = ({
   const [isVerifying, setIsVerifying] = useState(false);
   const [isVerified, setIsVerified] = useState(savedIsVerified);
   const [isSavingPayment, setIsSavingPayment] = useState(false);
+
+  // 서명 관련 상태
+  const [showSignatureModal, setShowSignatureModal] = useState(false);
+  const [signatureData, setSignatureData] = useState<string | null>(null);
 
   // 납부계정 전환 확인 모달
   const [showSwitchConfirm, setShowSwitchConfirm] = useState(false);
@@ -468,27 +473,10 @@ const CustomerInfoChange: React.FC<CustomerInfoChangeProps> = ({
   };
 
   // 납부방법 변경 저장
-  const handleSavePayment = async () => {
-    if (!selectedPymAcntId) {
-      showToast?.('납부계정을 선택해주세요.', 'warning');
-      return;
-    }
-    if (!isVerified) {
-      showToast?.('먼저 계좌/카드 인증을 완료해주세요.', 'warning');
-      return;
-    }
-    if (!paymentForm.changeReasonL || !paymentForm.changeReasonM) {
-      showToast?.('변경사유를 선택해주세요.', 'warning');
-      return;
-    }
-    if (!paymentForm.birthDt || paymentForm.birthDt.length !== 8) {
-      showToast?.('생년월일을 정확히 입력해주세요.', 'warning');
-      return;
-    }
-    if (!paymentForm.pyrRel) {
-      showToast?.('납부자관계를 선택해주세요.', 'warning');
-      return;
-    }
+  // 서명 완료 후 실제 저장
+  const handleSignatureComplete = async (signature: string) => {
+    setShowSignatureModal(false);
+    setSignatureData(signature);
 
     setIsSavingPayment(true);
     try {
@@ -509,7 +497,9 @@ const CustomerInfoChange: React.FC<CustomerInfoChangeProps> = ({
         // 납부자관계
         PYR_REL: paymentForm.pyrRel,
         // 결제일
-        PYM_DAY: paymentForm.pymDay
+        PYM_DAY: paymentForm.pymDay,
+        // 서명 데이터
+        SIGNATURE: signature
       };
 
       // 카드인 경우 유효기간 추가
@@ -545,6 +535,7 @@ const CustomerInfoChange: React.FC<CustomerInfoChangeProps> = ({
           pymDay: ''
         });
         setIsVerified(false);
+        setSignatureData(null);
         onPaymentChangeEnd?.();
         // 납부정보 다시 로드
         loadPaymentInfo();
@@ -557,6 +548,33 @@ const CustomerInfoChange: React.FC<CustomerInfoChangeProps> = ({
     } finally {
       setIsSavingPayment(false);
     }
+  };
+
+  // 납부방법 변경 저장 (서명 모달 표시)
+  const handleSavePayment = () => {
+    if (!selectedPymAcntId) {
+      showToast?.('납부계정을 선택해주세요.', 'warning');
+      return;
+    }
+    if (!isVerified) {
+      showToast?.('먼저 계좌/카드 인증을 완료해주세요.', 'warning');
+      return;
+    }
+    if (!paymentForm.changeReasonL || !paymentForm.changeReasonM) {
+      showToast?.('변경사유를 선택해주세요.', 'warning');
+      return;
+    }
+    if (!paymentForm.birthDt || paymentForm.birthDt.length !== 8) {
+      showToast?.('생년월일을 정확히 입력해주세요.', 'warning');
+      return;
+    }
+    if (!paymentForm.pyrRel) {
+      showToast?.('납부자관계를 선택해주세요.', 'warning');
+      return;
+    }
+
+    // 서명 모달 표시
+    setShowSignatureModal(true);
   };
 
   // 섹션 토글
@@ -1813,6 +1831,19 @@ const CustomerInfoChange: React.FC<CustomerInfoChangeProps> = ({
                 닫기
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* 서명 모달 */}
+      {showSignatureModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="w-full max-w-md">
+            <SignaturePad
+              title="납부방법 변경 서명"
+              onSave={handleSignatureComplete}
+              onCancel={() => setShowSignatureModal(false)}
+            />
           </div>
         </div>
       )}
