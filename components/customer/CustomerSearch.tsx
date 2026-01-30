@@ -81,7 +81,7 @@ const CustomerSearch: React.FC<CustomerSearchProps> = ({ onCustomerSelect, showT
       if (response.success && response.data) {
         setSearchResults(response.data);
         if (response.data.length === 0) {
-          showToast?.('검색 결과가 없습니다.', 'info');
+          showToast?.('할당 지역이 아닌 고객은 조회할 수 없습니다.', 'warning');
         }
       } else {
         showToast?.(response.message || '검색에 실패했습니다.', 'error');
@@ -269,8 +269,8 @@ const CustomerSearch: React.FC<CustomerSearchProps> = ({ onCustomerSelect, showT
                       ))}
                     </div>
                   ) : (
-                    <div className="text-center py-4 text-gray-500 text-sm">
-                      검색 결과가 없습니다.
+                    <div className="text-center py-4 text-orange-500 text-sm font-medium">
+                      할당 지역이 아닌 고객은 조회할 수 없습니다.
                     </div>
                   )
                 ) : (
