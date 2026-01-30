@@ -236,7 +236,7 @@ const ContractSummary: React.FC<ContractSummaryProps> = ({
                         {/* 약정 정보 */}
                         <div className="text-sm text-gray-600">
                           약정: {contract.AGMT_MON
-                            ? `${contract.AGMT_MON}개월 (${formatDate(contract.AGMT_ST_DT) || '-'} ~ ${formatDate(contract.AGMT_END_DT) || '-'})`
+                            ? `${contract.AGMT_MON}개월 (${formatDate(contract.AGMT_ST_DT) || '-'} ~ ${formatDate(contract.CTRT_APLY_END_DT) || '-'})`
                             : '-'
                           }
                         </div>
