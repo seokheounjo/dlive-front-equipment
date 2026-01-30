@@ -62,6 +62,7 @@ const RESTRICTED_SO_NAMES: { [key: string]: string } = {
 
 interface EquipmentMovementProps {
   onBack: () => void;
+  showToast?: (message: string, type: 'success' | 'error' | 'warning' | 'info') => void;
 }
 
 interface EqtTrns {
@@ -153,7 +154,7 @@ const WorkerSearchModal: React.FC<{
   );
 };
 
-const EquipmentMovement: React.FC<EquipmentMovementProps> = ({ onBack }) => {
+const EquipmentMovement: React.FC<EquipmentMovementProps> = ({ onBack, showToast }) => {
   // 로그인한 사용자 = 이관기사 (장비를 인수받는 사람)
   const [loggedInUser, setLoggedInUser] = useState<{ userId: string; userName: string; soId: string; crrId: string }>({
     userId: '', userName: '', soId: '', crrId: ''
@@ -447,7 +448,7 @@ const EquipmentMovement: React.FC<EquipmentMovementProps> = ({ onBack }) => {
 
     // 이미 스캔된 장비인지 확인 (중복 제거)
     if (scannedSerials.includes(normalizedSN)) {
-      alert('이미 스캔된 장비입니다.');
+      showToast?.('이미 스캔된 장비입니다.', 'warning');
       return;
     }
 
@@ -459,7 +460,7 @@ const EquipmentMovement: React.FC<EquipmentMovementProps> = ({ onBack }) => {
   // 스캔된 장비로 보유기사 조회
   const handleScannedSearch = async () => {
     if (scannedSerials.length === 0) {
-      alert('스캔된 장비가 없습니다.');
+      showToast?.('스캔된 장비가 없습니다.', 'warning');
       return;
     }
 
@@ -506,7 +507,7 @@ const EquipmentMovement: React.FC<EquipmentMovementProps> = ({ onBack }) => {
   const handleSerialSearch = async () => {
     const normalizedSN = serialInput.trim().toUpperCase().replace(/[:-]/g, '');
     if (!normalizedSN) {
-      alert('장비번호(S/N)를 입력해주세요.');
+      showToast?.('장비번호(S/N)를 입력해주세요.', 'warning');
       return;
     }
 
@@ -751,7 +752,7 @@ const EquipmentMovement: React.FC<EquipmentMovementProps> = ({ onBack }) => {
 
   const handleSearch = async () => {
     setSearchError(null); // 검색 시작 시 에러 초기화
-    if (!workerInfo.WRKR_ID) { alert('보유기사를 선택해주세요.'); return; }
+    if (!workerInfo.WRKR_ID) { showToast?.('보유기사를 선택해주세요.', 'warning'); return; }
     await searchEquipmentByWorker(workerInfo.WRKR_ID, workerInfo.WRKR_NM, workerInfo.CRR_ID);
     setHasSearched(true);
   };
@@ -767,7 +768,7 @@ const EquipmentMovement: React.FC<EquipmentMovementProps> = ({ onBack }) => {
   const handleWorkerModalSearch = async () => {
     const keyword = workerSearchKeyword.trim();
     if (!keyword) {
-      alert('기사명 또는 ID를 입력해주세요.');
+      showToast?.('기사명 또는 ID를 입력해주세요.', 'warning');
       return;
     }
 
@@ -776,7 +777,7 @@ const EquipmentMovement: React.FC<EquipmentMovementProps> = ({ onBack }) => {
     const isNameSearch = koreanRegex.test(keyword);
 
     if (isNameSearch && keyword.length < 2) {
-      alert('이름은 2글자 이상 입력해주세요.');
+      showToast?.('이름은 2글자 이상 입력해주세요.', 'warning');
       return;
     }
     setIsSearchingWorker(true);
@@ -866,7 +867,7 @@ const EquipmentMovement: React.FC<EquipmentMovementProps> = ({ onBack }) => {
       }
     } catch (error) {
       console.error('기사 검색 실패:', error);
-      alert('기사 검색에 실패했습니다.');
+      showToast?.('기사 검색에 실패했습니다.', 'error');
       setSearchedWorkers([]);
     } finally {
       setIsSearchingWorker(false);
@@ -965,7 +966,7 @@ const EquipmentMovement: React.FC<EquipmentMovementProps> = ({ onBack }) => {
   const handleModalEquipmentConfirm = () => {
     const checkedItems = modalEquipmentList.filter(item => item.CHK);
     if (checkedItems.length === 0) {
-      alert('선택된 장비가 없습니다.');
+      showToast?.('선택된 장비가 없습니다.', 'warning');
       return;
     }
     // 워커 정보 설정
@@ -1044,19 +1045,19 @@ const EquipmentMovement: React.FC<EquipmentMovementProps> = ({ onBack }) => {
     const checkedItems = eqtTrnsList.filter(item => item.CHK);
     if (checkedItems.length === 0) {
       transferLockRef.current = false;
-      alert('이동할 장비를 선택해주세요.');
+      showToast?.('이동할 장비를 선택해주세요.', 'warning');
       return;
     }
     if (!loggedInUser.userId) {
       transferLockRef.current = false;
-      alert('로그인 정보가 없습니다.');
+      showToast?.('로그인 정보가 없습니다.', 'error');
       return;
     }
 
     // 본인에게 이동 불가 체크
     if (workerInfo.WRKR_ID === loggedInUser.userId) {
       transferLockRef.current = false;
-      alert('본인에게는 장비를 이동할 수 없습니다.');
+      showToast?.('본인에게는 장비를 이동할 수 없습니다.', 'warning');
       return;
     }
 
@@ -1168,7 +1169,7 @@ const EquipmentMovement: React.FC<EquipmentMovementProps> = ({ onBack }) => {
       }
     } catch (error) {
       console.error('장비 이동 실패:', error);
-      alert('장비 이동에 실패했습니다.');
+      showToast?.('장비 이동에 실패했습니다.', 'error');
     } finally {
       // 모든 락 해제
       setIsLoading(false);
@@ -1223,7 +1224,7 @@ const EquipmentMovement: React.FC<EquipmentMovementProps> = ({ onBack }) => {
           const modeDesc = selectionMode.startsWith('restricted-')
             ? `${RESTRICTED_SO_NAMES[selectionMode.replace('restricted-', '')]}(${selectionMode.replace('restricted-', '')}) 지점 장비만`
             : '일반 지점 장비만';
-          alert(`현재 ${modeDesc} 선택 가능합니다.\n제한지점(경기동부/강남방송/서초지점)과 일반지점 장비는 함께 선택할 수 없습니다.`);
+          showToast?.(`현재 ${modeDesc} 선택 가능합니다. 제한지점과 일반지점 장비는 함께 선택할 수 없습니다.`, 'warning');
           return;
         }
       }
@@ -1255,7 +1256,7 @@ const EquipmentMovement: React.FC<EquipmentMovementProps> = ({ onBack }) => {
         const currentChecked = eqtTrnsList.filter(i => i.CHK);
         if (currentChecked.length > 0) {
           if (!canSelectItem(firstSoItem, selectionMode)) {
-            alert('제한지점과 일반지점 장비는 함께 선택할 수 없습니다.');
+            showToast?.('제한지점과 일반지점 장비는 함께 선택할 수 없습니다.', 'warning');
             return;
           }
         } else {
@@ -1294,7 +1295,7 @@ const EquipmentMovement: React.FC<EquipmentMovementProps> = ({ onBack }) => {
       if (firstTypeItem) {
         const currentChecked = eqtTrnsList.filter(i => i.CHK);
         if (currentChecked.length > 0 && !canSelectItem(firstTypeItem, selectionMode)) {
-          alert('제한지점과 일반지점 장비는 함께 선택할 수 없습니다.');
+          showToast?.('제한지점과 일반지점 장비는 함께 선택할 수 없습니다.', 'warning');
           return;
         }
         if (currentChecked.length === 0) {
@@ -1524,7 +1525,7 @@ const EquipmentMovement: React.FC<EquipmentMovementProps> = ({ onBack }) => {
               } else if (workerInfo.WRKR_ID) {
                 handleSearch();
               } else {
-                alert('기사를 선택하거나 장비번호를 입력해주세요.');
+                showToast?.('기사를 선택하거나 장비번호를 입력해주세요.', 'warning');
               }
             }}
             disabled={isLoading || (!workerInfo.WRKR_ID && !serialInput.trim() && scannedSerials.length === 0)}

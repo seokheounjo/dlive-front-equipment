@@ -44,7 +44,7 @@ const EquipmentManagementMenu: React.FC<EquipmentManagementMenuProps> = ({ onNav
       case 'equipment-list':
         return <EquipmentList onBack={onNavigateToMenu} showToast={showToast} />;
       case 'equipment-movement':
-        return <EquipmentMovement onBack={onNavigateToMenu} />;
+        return <EquipmentMovement onBack={onNavigateToMenu} showToast={showToast} />;
       case 'equipment-recovery':
         return <EquipmentRecovery onBack={onNavigateToMenu} showToast={showToast} />;
       default:
