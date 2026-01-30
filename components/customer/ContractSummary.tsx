@@ -146,16 +146,6 @@ const ContractSummary: React.FC<ContractSummaryProps> = ({
                 {/* 상태 필터 버튼 */}
                 <div className="flex flex-wrap gap-2">
                   <button
-                    onClick={() => setFilterStatus('all')}
-                    className={`px-3 py-1.5 text-sm rounded-full transition-colors ${
-                      filterStatus === 'all'
-                        ? 'bg-blue-500 text-white'
-                        : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                    }`}
-                  >
-                    전체 ({statusCount.all})
-                  </button>
-                  <button
                     onClick={() => setFilterStatus('active')}
                     className={`px-3 py-1.5 text-sm rounded-full transition-colors ${
                       filterStatus === 'active'
