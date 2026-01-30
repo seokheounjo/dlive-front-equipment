@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import {
   FileText, ChevronDown, ChevronUp, Loader2,
-  Cpu, Calendar, MapPin, Filter, MessageSquare, Wrench
+  Cpu, MapPin, Filter, MessageSquare, Wrench
 } from 'lucide-react';
 import { ContractInfo, formatCurrency, formatDate } from '../../services/customerApi';
 
@@ -60,11 +60,25 @@ const ContractSummary: React.FC<ContractSummaryProps> = ({
   // 상세 펼침 상태
   const [expandedContractId, setExpandedContractId] = useState<string | null>(null);
 
+  // 해지 여부 판별 (상태명 또는 상태코드로 확인)
+  const isTerminated = (contract: ContractInfo) => {
+    const statNm = contract.CTRT_STAT_NM || '';
+    const statCd = contract.CTRT_STAT_CD || '';
+
+    // 상태명에 "해지" 포함되면 해지
+    if (statNm.includes('해지')) return true;
+
+    // 상태코드가 해지 코드면 해지 (90, 30 등)
+    if (['90', '30'].includes(statCd)) return true;
+
+    return false;
+  };
+
   // 필터링된 계약 목록
   const filteredContracts = contracts.filter(contract => {
     // 상태 필터
-    if (filterStatus === 'active' && contract.CTRT_STAT_CD === '30') return false;
-    if (filterStatus === 'terminated' && contract.CTRT_STAT_CD !== '30') return false;
+    if (filterStatus === 'active' && isTerminated(contract)) return false;
+    if (filterStatus === 'terminated' && !isTerminated(contract)) return false;
 
     // 키워드 검색 (계약ID, 상품명, 장비시리얼)
     if (searchKeyword) {
@@ -81,8 +95,8 @@ const ContractSummary: React.FC<ContractSummaryProps> = ({
   // 계약 상태별 카운트
   const statusCount = {
     all: contracts.length,
-    active: contracts.filter(c => c.CTRT_STAT_CD !== '30').length,
-    terminated: contracts.filter(c => c.CTRT_STAT_CD === '30').length
+    active: contracts.filter(c => !isTerminated(c)).length,
+    terminated: contracts.filter(c => isTerminated(c)).length
   };
 
   // 계약 선택 핸들러
@@ -213,11 +227,9 @@ const ContractSummary: React.FC<ContractSummaryProps> = ({
 
                       <div className="flex items-center justify-between text-sm text-gray-600">
                         <span>계약ID: {contract.CTRT_ID}</span>
-                        {contract.INSTL_LOC && (
-                          <span className="text-xs px-2 py-0.5 bg-indigo-50 text-indigo-600 rounded mr-6">
-                            {contract.INSTL_LOC}
-                          </span>
-                        )}
+                        <span className="text-xs px-2 py-0.5 bg-indigo-50 text-indigo-600 rounded mr-6">
+                          {contract.INSTL_LOC || 'N/A'}
+                        </span>
                       </div>
 
                       {contract.INST_ADDR && (
@@ -232,23 +244,17 @@ const ContractSummary: React.FC<ContractSummaryProps> = ({
                     {expandedContractId === contract.CTRT_ID && (
                       <div className="mt-3 pt-3 border-t border-gray-200 space-y-2">
                         {/* 약정 정보 */}
-                        {contract.AGMT_MON && (
-                          <div className="flex items-center gap-2 text-sm">
-                            <Calendar className="w-4 h-4 text-gray-400" />
-                            <span className="text-gray-600">
-                              약정 {contract.AGMT_MON}개월
-                              ({formatDate(contract.AGMT_ST_DT)} ~ {formatDate(contract.AGMT_END_DT)})
-                            </span>
-                          </div>
-                        )}
+                        <div className="text-sm text-gray-600">
+                          약정: {contract.AGMT_MON
+                            ? `${contract.AGMT_MON}개월 (${formatDate(contract.AGMT_ST_DT) || '-'} ~ ${formatDate(contract.AGMT_END_DT) || '-'})`
+                            : '-'
+                          }
+                        </div>
 
                         {/* 개통일 */}
-                        {contract.OPNG_DT && (
-                          <div className="flex items-center gap-2 text-sm">
-                            <Calendar className="w-4 h-4 text-gray-400" />
-                            <span className="text-gray-600">개통일: {formatDate(contract.OPNG_DT)}</span>
-                          </div>
-                        )}
+                        <div className="text-sm text-gray-600">
+                          개통일: {contract.OPNG_DT ? formatDate(contract.OPNG_DT) : '-'}
+                        </div>
 
                         {/* 장비 정보 */}
                         {contract.EQT_SERNO && (
@@ -261,18 +267,6 @@ const ContractSummary: React.FC<ContractSummaryProps> = ({
                             </span>
                           </div>
                         )}
-
-                        {/* 요금 정보 */}
-                        <div className="flex items-center gap-4 text-sm">
-                          <div>
-                            <span className="text-gray-500">전월: </span>
-                            <span className="font-medium">{formatCurrency(contract.PREV_MON_AMT || 0)}원</span>
-                          </div>
-                          <div>
-                            <span className="text-gray-500">당월: </span>
-                            <span className="font-medium">{formatCurrency(contract.CUR_MON_AMT || 0)}원</span>
-                          </div>
-                        </div>
 
                         {/* 단체 정보 */}
                         {contract.GRP_NO && (
