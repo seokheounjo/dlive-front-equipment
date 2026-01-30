@@ -106,6 +106,14 @@ const CustomerBasicInfo: React.FC<CustomerBasicInfoProps> = ({
     }
   }, [selectedCustomer, cachedDataCustId]);
 
+  // savedContract가 있으면 자동으로 이력 로드
+  useEffect(() => {
+    if (selectedCustomer && savedContract && savedContract.ctrtId && savedContract.ctrtId !== selectedCtrtIdForHistory) {
+      setSelectedCtrtIdForHistory(savedContract.ctrtId);
+      loadHistory(selectedCustomer.CUST_ID, savedContract.ctrtId);
+    }
+  }, [selectedCustomer, savedContract]);
+
   // 계약 목록 로드
   const loadContracts = async (custId: string): Promise<ContractInfo[]> => {
     setIsLoadingContracts(true);
