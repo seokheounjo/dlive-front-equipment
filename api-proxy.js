@@ -27,6 +27,10 @@ const LEGACY_REQ_ROUTES = [
   // Customer History APIs - Route directly to D'Live legacy servlet (CUST_ID + CTRT_ID 필수)
   "/customer/negociation/getTgtCtrtRcptHist_m",  // 상담이력 조회
   "/customer/negociation/getTgtCtrtWorkList_m",  // 작업이력 조회
+
+  // Payment & Billing APIs (Mobile) - D'Live SQL 스펙
+  "/customer/negociation/getCustAccountInfo_m",  // 납부정보 조회
+  "/customer/negociation/getCustBillInfo_m",     // 요금내역 조회 (PYM_ACNT_ID별)
 ];
 
 // Parse MiPlatform XML response to JSON
@@ -239,6 +243,9 @@ router.post('/billing/unpayment/upreport/getUnpaymentNowDtlList', handleProxy);
 // 4. History (D'Live: getTgtCtrtRcptHist_m, getTgtCtrtWorkList_m - CUST_ID + CTRT_ID 필수)
 router.post('/customer/negociation/getTgtCtrtRcptHist_m', handleProxy);  // 상담이력
 router.post('/customer/negociation/getTgtCtrtWorkList_m', handleProxy);  // 작업이력
+// 4-1. Payment & Billing (Mobile) - D'Live SQL 스펙
+router.post('/customer/negociation/getCustAccountInfo_m', handleProxy);  // 납부정보 조회
+router.post('/customer/negociation/getCustBillInfo_m', handleProxy);     // 요금내역 조회
 // Legacy (deprecated)
 router.post('/customer/negociation/getCallHistory', handleProxy);
 router.post('/customer/negociation/getCustWorkList', handleProxy);

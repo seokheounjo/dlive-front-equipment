@@ -1,16 +1,16 @@
 import React, { useState, useEffect } from 'react';
 import {
-  CreditCard, ChevronDown, ChevronUp, Loader2,
+  ChevronDown, ChevronUp, Loader2,
   AlertCircle, RefreshCw
 } from 'lucide-react';
 
 import {
-  PaymentInfo as PaymentInfoType,
-  BillingInfo,
   UnpaymentInfo,
-  getPaymentInfo,
-  getBillingHistory,
+  getPaymentAccounts,
+  getBillingDetails,
   getUnpaymentList,
+  PaymentAccountInfo,
+  BillingDetailInfo,
   formatCurrency,
   maskString
 } from '../../services/customerApi';
@@ -38,6 +38,13 @@ interface PaymentInfoProps {
   currentWorkingPymAcntId?: string;
 }
 
+/**
+ * 납부정보 / 요금내역 컴포넌트
+ *
+ * D'Live API:
+ * - getCustAccountInfo_m: 납부정보 (PYM_ACNT_ID, PYM_MTHD_NM, BANK_CARD_NM, BANK_CARD_NO, BILL_MTHD, UPYM_AMT_ACNT)
+ * - getCustBillInfo_m: 요금내역 (BILL_YYMM, BILL_CYCL, BILL_AMT, RCPT_AMT, UPYM_AMT) - PYM_ACNT_ID 선택 시
+ */
 const PaymentInfo: React.FC<PaymentInfoProps> = ({
   custId,
   custNm,
@@ -49,16 +56,14 @@ const PaymentInfo: React.FC<PaymentInfoProps> = ({
   onCancelPaymentChange,
   currentWorkingPymAcntId
 }) => {
-  // 데이터 상태
-  const [paymentInfo, setPaymentInfo] = useState<PaymentInfoType[]>([]);
-  const [billingHistory, setBillingHistory] = useState<BillingInfo[]>([]);
+  // 데이터 상태 (D'Live API 응답 기준)
+  const [paymentAccounts, setPaymentAccounts] = useState<PaymentAccountInfo[]>([]);
+  const [billingDetails, setBillingDetails] = useState<BillingDetailInfo[]>([]);
   const [unpaymentList, setUnpaymentList] = useState<UnpaymentInfo[]>([]);
 
   // 로딩 상태
   const [isLoading, setIsLoading] = useState(false);
-
-  // 필터 상태
-  const [paymentFilter, setPaymentFilter] = useState<'all' | 'auto' | 'card'>('all');
+  const [isLoadingBilling, setIsLoadingBilling] = useState(false);
 
   // 선택된 납부계정
   const [selectedPymAcntId, setSelectedPymAcntId] = useState<string | null>(null);
@@ -76,39 +81,65 @@ const PaymentInfo: React.FC<PaymentInfoProps> = ({
   // 데이터 로드
   useEffect(() => {
     if (expanded && custId) {
-      loadData();
+      loadPaymentAccounts();
     }
   }, [expanded, custId]);
 
-  const loadData = async () => {
+  // 선택된 납부계정 변경 시 요금내역 로드
+  useEffect(() => {
+    if (selectedPymAcntId && custId) {
+      loadBillingDetails(selectedPymAcntId);
+    }
+  }, [selectedPymAcntId, custId]);
+
+  // 납부계정 정보 로드 (getCustAccountInfo_m)
+  const loadPaymentAccounts = async () => {
     setIsLoading(true);
     try {
-      const [paymentRes, billingRes, unpaymentRes] = await Promise.all([
-        getPaymentInfo(custId),
-        getBillingHistory(custId),
+      const [paymentRes, unpaymentRes] = await Promise.all([
+        getPaymentAccounts(custId),
         getUnpaymentList(custId)
       ]);
 
       if (paymentRes.success && paymentRes.data) {
-        setPaymentInfo(paymentRes.data);
+        setPaymentAccounts(paymentRes.data);
         // 첫 번째 납부계정 자동 선택
         if (paymentRes.data.length > 0 && !selectedPymAcntId) {
           setSelectedPymAcntId(paymentRes.data[0].PYM_ACNT_ID);
         }
       }
 
-      if (billingRes.success && billingRes.data) {
-        setBillingHistory(billingRes.data);
-      }
-
       if (unpaymentRes.success && unpaymentRes.data) {
         setUnpaymentList(unpaymentRes.data);
       }
     } catch (error) {
-      console.error('Load payment info error:', error);
+      console.error('Load payment accounts error:', error);
     } finally {
       setIsLoading(false);
     }
+  };
+
+  // 요금내역 로드 (getCustBillInfo_m) - 선택된 납부계정별
+  const loadBillingDetails = async (pymAcntId: string) => {
+    setIsLoadingBilling(true);
+    try {
+      const response = await getBillingDetails(custId, pymAcntId);
+      if (response.success && response.data) {
+        setBillingDetails(response.data);
+      } else {
+        setBillingDetails([]);
+      }
+    } catch (error) {
+      console.error('Load billing details error:', error);
+      setBillingDetails([]);
+    } finally {
+      setIsLoadingBilling(false);
+    }
+  };
+
+  // 납부계정 선택 핸들러
+  const handleSelectPaymentAccount = (pymAcntId: string) => {
+    setSelectedPymAcntId(pymAcntId);
   };
 
   // 납부정보 변경 버튼 클릭
@@ -141,31 +172,11 @@ const PaymentInfo: React.FC<PaymentInfoProps> = ({
     setPendingSwitchPymAcntId('');
   };
 
-  // 총 미납금액
-  const totalUnpayment = unpaymentList.reduce((sum, item) => sum + (item.UNPAY_AMT || 0), 0);
-
-  // 필터링된 납부 정보
-  const filteredPaymentInfo = paymentInfo.filter(payment => {
-    if (paymentFilter === 'all') return true;
-    if (paymentFilter === 'auto') return payment.PYM_MTH_CD === '01';
-    if (paymentFilter === 'card') return payment.PYM_MTH_CD === '02';
-    return true;
-  });
-
-  // 납부방법별 카운트
-  const paymentCounts = {
-    all: paymentInfo.length,
-    auto: paymentInfo.filter(p => p.PYM_MTH_CD === '01').length,
-    card: paymentInfo.filter(p => p.PYM_MTH_CD === '02').length
-  };
-
-  // 선택된 납부계정의 요금내역 필터링
-  const filteredBillingHistory = selectedPymAcntId
-    ? billingHistory.filter(bill => bill.PYM_ACNT_ID === selectedPymAcntId)
-    : billingHistory;
+  // 총 미납금액 (납부계정별 합계)
+  const totalUnpayment = paymentAccounts.reduce((sum, item) => sum + (item.UPYM_AMT_ACNT || 0), 0);
 
   // 선택된 납부계정 정보
-  const selectedPayment = paymentInfo.find(p => p.PYM_ACNT_ID === selectedPymAcntId);
+  const selectedPayment = paymentAccounts.find(p => p.PYM_ACNT_ID === selectedPymAcntId);
 
   return (
     <div className="bg-white rounded-lg shadow-sm border border-gray-200">
@@ -199,77 +210,35 @@ const PaymentInfo: React.FC<PaymentInfoProps> = ({
             <div className="space-y-4">
               {/* 납부 정보 섹션 */}
               <div>
-                {/* 헤더 + 필터 탭 */}
+                {/* 헤더 */}
                 <div className="flex items-center justify-between mb-3">
                   <div className="flex items-center gap-1">
                     <span className="text-sm font-medium text-gray-700">납부 정보</span>
                     <button
-                      onClick={loadData}
+                      onClick={loadPaymentAccounts}
                       className="p-1 text-gray-400 hover:text-gray-600"
                     >
                       <RefreshCw className="w-3.5 h-3.5" />
                     </button>
                   </div>
-
-                  {/* 필터 탭 */}
-                  <div className="flex rounded-lg overflow-hidden border border-gray-200">
-                    <button
-                      onClick={() => setPaymentFilter('all')}
-                      className={`px-3 py-1 text-xs font-medium transition-colors ${
-                        paymentFilter === 'all'
-                          ? 'bg-blue-500 text-white'
-                          : 'bg-white text-gray-600 hover:bg-gray-50'
-                      }`}
-                    >
-                      전체
-                    </button>
-                    <button
-                      onClick={() => setPaymentFilter('auto')}
-                      className={`px-3 py-1 text-xs font-medium border-l border-gray-200 transition-colors ${
-                        paymentFilter === 'auto'
-                          ? 'bg-blue-500 text-white'
-                          : 'bg-white text-gray-600 hover:bg-gray-50'
-                      }`}
-                    >
-                      자동이체
-                    </button>
-                    <button
-                      onClick={() => setPaymentFilter('card')}
-                      className={`px-3 py-1 text-xs font-medium border-l border-gray-200 transition-colors ${
-                        paymentFilter === 'card'
-                          ? 'bg-blue-500 text-white'
-                          : 'bg-white text-gray-600 hover:bg-gray-50'
-                      }`}
-                    >
-                      카드
-                    </button>
-                  </div>
+                  <span className="text-xs text-gray-500">{paymentAccounts.length}건</span>
                 </div>
 
                 {/* 납부 정보 목록 */}
-                {paymentInfo.length === 0 ? (
+                {paymentAccounts.length === 0 ? (
                   <div className="text-center py-4 text-gray-500 text-sm">
                     납부 정보가 없습니다.
                   </div>
-                ) : filteredPaymentInfo.length === 0 ? (
-                  <div className="text-center py-4 text-gray-500 text-sm">
-                    조건에 맞는 납부 정보가 없습니다.
-                  </div>
                 ) : (
                   <div className="space-y-3">
-                    {filteredPaymentInfo.map((payment) => {
+                    {paymentAccounts.map((payment) => {
                       const isWorking = currentWorkingPymAcntId === payment.PYM_ACNT_ID;
                       const isSelected = selectedPymAcntId === payment.PYM_ACNT_ID;
-                      const isAutoTransfer = payment.PYM_MTH_CD === '01';
-                      const bankOrCard = isAutoTransfer ? payment.BANK_NM : (payment.CARD_NM || payment.BANK_NM);
-                      const accountOrCard = isAutoTransfer
-                        ? maskString(payment.ACNT_NO || '', 4, 4)
-                        : maskString(payment.CARD_NO || '', 4, 4);
 
                       return (
                         <div
                           key={payment.PYM_ACNT_ID}
-                          onClick={() => setSelectedPymAcntId(payment.PYM_ACNT_ID)}
+                          onClick={() => handleSelectPaymentAccount(payment.PYM_ACNT_ID)}
                           className={`p-3 rounded-lg border cursor-pointer transition-all ${
                             isWorking
                               ? 'bg-orange-50 border-orange-300'
@@ -294,7 +263,7 @@ const PaymentInfo: React.FC<PaymentInfoProps> = ({
                             </div>
                           )}
 
-                          {/* 정보 그리드 */}
+                          {/* 정보 그리드 - D'Live SQL 필드 기준 */}
                           <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
                             {/* 1행: 납부계정번호 / 납부방법 */}
                             <div className="flex justify-between items-center">
@@ -303,23 +272,23 @@ const PaymentInfo: React.FC<PaymentInfoProps> = ({
                             </div>
                             <div className="flex justify-between items-center">
                               <span className="text-gray-500 whitespace-nowrap">납부방법</span>
-                              <span className="text-gray-800">{payment.PYM_MTH_NM || '-'}</span>
+                              <span className="text-gray-800">{payment.PYM_MTHD_NM || '-'}</span>
                             </div>
 
                             {/* 2행: 은행/카드명 / 계좌/카드번호 */}
                             <div className="flex justify-between items-center">
-                              <span className="text-gray-500 whitespace-nowrap">{isAutoTransfer ? '은행명' : '카드사'}</span>
-                              <span className="text-gray-800">{bankOrCard || '-'}</span>
+                              <span className="text-gray-500 whitespace-nowrap">은행/카드</span>
+                              <span className="text-gray-800">{payment.BANK_CARD_NM || '-'}</span>
                             </div>
                             <div className="flex justify-between items-center">
-                              <span className="text-gray-500 whitespace-nowrap">{isAutoTransfer ? '계좌번호' : '카드번호'}</span>
-                              <span className="text-gray-800">{accountOrCard || '-'}</span>
+                              <span className="text-gray-500 whitespace-nowrap">계좌/카드번호</span>
+                              <span className="text-gray-800">{maskString(payment.BANK_CARD_NO || '', 4, 4)}</span>
                             </div>
 
                             {/* 3행: 청구매체 */}
                             <div className="flex justify-between items-center col-span-2">
                               <span className="text-gray-500 whitespace-nowrap">청구매체</span>
-                              <span className="text-gray-800">{payment.BILL_MEDIA_NM || '-'}</span>
+                              <span className="text-gray-800">{payment.BILL_MTHD || '-'}</span>
                             </div>
                           </div>
 
@@ -328,9 +297,9 @@ const PaymentInfo: React.FC<PaymentInfoProps> = ({
                             <div className="flex justify-between items-center">
                               <span className="text-sm text-gray-600">납부계정 미납금액</span>
                               <span className={`text-base font-bold ${
-                                payment.UNPAY_AMT > 0 ? 'text-red-600' : 'text-gray-800'
+                                payment.UPYM_AMT_ACNT > 0 ? 'text-red-600' : 'text-gray-800'
                               }`}>
-                                {formatCurrency(payment.UNPAY_AMT || 0)}원
+                                {formatCurrency(payment.UPYM_AMT_ACNT || 0)}원
                               </span>
                             </div>
                           </div>
@@ -364,7 +333,7 @@ const PaymentInfo: React.FC<PaymentInfoProps> = ({
                 )}
               </div>
 
-              {/* 요금 내역 섹션 */}
+              {/* 요금 내역 섹션 - 선택된 납부계정별 (getCustBillInfo_m) */}
               <div className="border-t border-gray-200 pt-4">
                 <button
                   onClick={() => setShowBillingDetail(!showBillingDetail)}
@@ -391,28 +360,32 @@ const PaymentInfo: React.FC<PaymentInfoProps> = ({
                       <div className="text-center py-4 text-gray-500 text-sm">
                         납부계정을 선택해주세요.
                       </div>
-                    ) : filteredBillingHistory.length === 0 ? (
+                    ) : isLoadingBilling ? (
+                      <div className="flex items-center justify-center py-4">
+                        <Loader2 className="w-4 h-4 animate-spin text-gray-400" />
+                      </div>
+                    ) : billingDetails.length === 0 ? (
                       <div className="text-center py-4 text-gray-500 text-sm">
                         요금 내역이 없습니다.
                       </div>
                     ) : (
                       <div className="space-y-2">
-                        {filteredBillingHistory.map((item, index) => (
+                        {billingDetails.map((item, index) => (
                           <div
                             key={index}
                             className={`p-3 rounded-lg border ${
-                              item.UNPAY_AMT > 0 ? 'bg-red-50 border-red-200' : 'bg-gray-50 border-gray-200'
+                              item.UPYM_AMT > 0 ? 'bg-red-50 border-red-200' : 'bg-gray-50 border-gray-200'
                             }`}
                           >
                             {/* 1행: 청구년월 / 청구주기 */}
                             <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
                               <div className="flex justify-between items-center">
                                 <span className="text-gray-500 whitespace-nowrap">청구년월</span>
-                                <span className="text-gray-800 font-medium">{item.BILL_YM}</span>
+                                <span className="text-gray-800 font-medium">{item.BILL_YYMM}</span>
                               </div>
                               <div className="flex justify-between items-center">
                                 <span className="text-gray-500 whitespace-nowrap">청구주기</span>
-                                <span className="text-gray-800">{item.BILL_CYCLE || '정기'}</span>
+                                <span className="text-gray-800">{item.BILL_CYCL || '정기'}</span>
                               </div>
                             </div>
 
@@ -428,8 +401,8 @@ const PaymentInfo: React.FC<PaymentInfoProps> = ({
                               </div>
                               <div className="text-center">
                                 <div className="text-gray-500 text-xs mb-1">미납금액</div>
-                                <div className={`font-bold ${item.UNPAY_AMT > 0 ? 'text-red-600' : 'text-gray-600'}`}>
-                                  {formatCurrency(item.UNPAY_AMT)}원
+                                <div className={`font-bold ${item.UPYM_AMT > 0 ? 'text-red-600' : 'text-gray-600'}`}>
+                                  {formatCurrency(item.UPYM_AMT)}원
                                 </div>
                               </div>
                             </div>
@@ -454,7 +427,7 @@ const PaymentInfo: React.FC<PaymentInfoProps> = ({
         unpaymentList={unpaymentList}
         showToast={showToast}
         onSuccess={() => {
-          loadData();
+          loadPaymentAccounts();
         }}
       />
 
