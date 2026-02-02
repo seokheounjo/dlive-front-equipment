@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import {
   FileText, ChevronDown, ChevronUp, Loader2,
-  Cpu, MapPin, Filter, MessageSquare, Wrench
+  MapPin, Filter, MessageSquare, Wrench
 } from 'lucide-react';
 import { ContractInfo, formatCurrency, formatDate } from '../../services/customerApi';
 
@@ -254,22 +254,10 @@ const ContractSummary: React.FC<ContractSummaryProps> = ({
                           개통일: {contract.OPNG_DT ? formatDate(contract.OPNG_DT) : '-'}
                         </div>
 
-                        {/* 장비 정보 (NOTRECEV) */}
+                        {/* 장비 (NOTRECEV) */}
                         <div className="text-sm text-gray-600">
                           장비: {contract.NOTRECEV || '-'}
                         </div>
-
-                        {/* 장비 정보 */}
-                        {contract.EQT_SERNO && (
-                          <div className="flex items-center gap-2 text-sm">
-                            <Cpu className="w-4 h-4 text-gray-400" />
-                            <span className="text-gray-600">
-                              {contract.EQT_NM} ({contract.EQT_MDL_NM})
-                              <br />
-                              <span className="text-xs text-gray-500">S/N: {contract.EQT_SERNO}</span>
-                            </span>
-                          </div>
-                        )}
 
                         {/* 단체 정보 */}
                         {contract.GRP_NO && (
