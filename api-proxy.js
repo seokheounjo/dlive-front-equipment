@@ -17,20 +17,13 @@ const PATH_MAPPING = {
 
 // Routes that should go directly to legacy .req servlet (bypass our adapter)
 // NOTE: getEquipmentHistoryInfo removed - our adapter handles it with getEquipmentHistoryInfo_2
+// NOTE: _m APIs go through EC2 /api/* (D'Live requires separate session we don't have)
 const LEGACY_REQ_ROUTES = [
 
   // Equipment Processing 3 APIs - Route directly to legacy .req servlet
   "/customer/phoneNumber/getOwnEqtLstForMobile_3",  // 장비반납
   "/customer/equipment/getAuthSoList",  // SO 권한 목록
   "/customer/equipment/getEqtTrnsList",  // 장비이동내역
-
-  // Customer History APIs - Route directly to D'Live legacy servlet (CUST_ID + CTRT_ID 필수)
-  "/customer/negociation/getTgtCtrtRcptHist_m",  // 상담이력 조회
-  "/customer/negociation/getTgtCtrtWorkList_m",  // 작업이력 조회
-
-  // Payment & Billing APIs (Mobile) - D'Live SQL 스펙
-  "/customer/negociation/getCustAccountInfo_m",  // 납부정보 조회
-  "/customer/negociation/getCustBillInfo_m",     // 요금내역 조회 (PYM_ACNT_ID별)
 ];
 
 // Parse MiPlatform XML response to JSON
