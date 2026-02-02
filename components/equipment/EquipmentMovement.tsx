@@ -513,6 +513,12 @@ const EquipmentMovement: React.FC<EquipmentMovementProps> = ({ onBack, showToast
 
     setSearchError(null); // 에러 초기화
     setIsLoading(true);
+
+    console.log('========================================');
+    console.log('[장비이동 디버그] S/N 검색 시작:', normalizedSN);
+    console.log('[장비이동 디버그] 로그인 사용자:', loggedInUser.userId);
+    console.log('[장비이동 디버그] 모델 필터 - 모델1:', selectedItemMidCd || '없음', ', 모델2:', selectedEqtClCd || '없음');
+
     try {
       // 장비 정보로 보유기사 조회
       const eqtResult = await debugApiCall('EquipmentMovement', 'getEquipmentHistoryInfo',
@@ -520,13 +526,22 @@ const EquipmentMovement: React.FC<EquipmentMovementProps> = ({ onBack, showToast
         { EQT_SERNO: normalizedSN }
       );
 
+      console.log('[장비이동 디버그] getEquipmentHistoryInfo 응답:', JSON.stringify(eqtResult).substring(0, 500));
+
       // API가 단일 객체 또는 배열 반환 가능
       const eqt = Array.isArray(eqtResult) ? eqtResult[0] : eqtResult;
+      console.log('[장비이동 디버그] 추출된 장비 정보:', eqt ? 'OK' : 'NULL');
 
       if (eqt && eqt.EQT_SERNO) {
         // 고객사용중(EQT_LOC_TP_CD='4') 또는 협력업체(EQT_LOC_TP_CD_NM='협력업체') 체크
         const eqtLocTpCd = eqt.EQT_LOC_TP_CD || '';
         const eqtLocTpNm = eqt.EQT_LOC_TP_CD_NM || eqt.EQT_LOC_TP_NM || '';
+
+        console.log('[장비이동 디버그] EQT_LOC_TP_CD:', eqtLocTpCd || '없음');
+        console.log('[장비이동 디버그] EQT_LOC_TP_CD_NM:', eqtLocTpNm || '없음');
+        console.log('[장비이동 디버그] EQT_LOC_NM:', eqt.EQT_LOC_NM || '없음');
+        console.log('[장비이동 디버그] WRKR_ID 직접 필드:', eqt.WRKR_ID || '없음');
+        console.log('[장비이동 디버그] OWNER_WRKR_ID 직접 필드:', eqt.OWNER_WRKR_ID || '없음');
 
         if (eqtLocTpCd === '4') {
           // 고객사용중 장비 - 팝업으로 정보 표시
@@ -553,17 +568,23 @@ const EquipmentMovement: React.FC<EquipmentMovementProps> = ({ onBack, showToast
           // EQT_LOC_NM: "오현민(할당불가)(A20117965)" -> A20117965 추출
           const match = eqt.EQT_LOC_NM.match(/\(([A-Z]\d+)\)$/);
           if (match) ownerWrkrId = match[1];
+          console.log('[장비이동 디버그] 정규식 매칭 결과:', match ? match[1] : '매칭 실패');
         }
         const ownerWrkrNm = eqt.WRKR_NM || eqt.OWNER_WRKR_NM || '알수없음';
         const ownerCrrId = eqt.CRR_ID || '';
 
+        console.log('[장비이동 디버그] 최종 ownerWrkrId:', ownerWrkrId || '없음');
+        console.log('[장비이동 디버그] ownerWrkrNm:', ownerWrkrNm);
+
         if (ownerWrkrId) {
+          console.log('[장비이동 디버그] ✅ WRKR_ID 추출 성공 → searchEquipmentByWorker 호출');
           setScannedSerials([normalizedSN]);
           setWorkerInfo(prev => ({ ...prev, WRKR_ID: ownerWrkrId, WRKR_NM: ownerWrkrNm, CRR_ID: ownerCrrId }));
           await searchEquipmentByWorker(ownerWrkrId, ownerWrkrNm, ownerCrrId, normalizedSN);
           setHasSearched(true);
         } else {
           // 보유기사 없는 장비 - getEqtMasterInfo로 추가 정보 조회 후 표시
+          console.log('[장비이동 디버그] ❌ WRKR_ID 추출 실패 → 팝업 표시');
           console.log('[장비이동] 보유기사 없는 장비:', normalizedSN, '위치:', eqtLocTpNm);
 
           // 장비 마스터 정보 조회 시도
@@ -647,6 +668,8 @@ const EquipmentMovement: React.FC<EquipmentMovementProps> = ({ onBack, showToast
 
       const result = await debugApiCall('EquipmentMovement', 'getWrkrHaveEqtList', () => getWrkrHaveEqtList(params), params);
 
+      console.log('[장비이동 디버그] getWrkrHaveEqtList 응답 건수:', Array.isArray(result) ? result.length : 'NOT_ARRAY');
+
       if (Array.isArray(result) && result.length > 0) {
         // 모델 필터 클라이언트 필터링 (백엔드에서 지원 안 할 경우 대비)
         let filteredResult = result;
@@ -654,12 +677,14 @@ const EquipmentMovement: React.FC<EquipmentMovementProps> = ({ onBack, showToast
           filteredResult = result.filter((item: any) => {
             return item.ITEM_MID_CD === selectedItemMidCd;
           });
+          console.log('[장비이동 디버그] 모델1 필터 적용 후:', filteredResult.length, '건 (필터:', selectedItemMidCd, ')');
         }
         // 소분류 필터 추가
         if (selectedEqtClCd) {
           filteredResult = filteredResult.filter((item: any) => {
             return item.EQT_CL_CD === selectedEqtClCd;
           });
+          console.log('[장비이동 디버그] 모델2 필터 적용 후:', filteredResult.length, '건 (필터:', selectedEqtClCd, ')');
         }
 
         // 레거시 방식: 특정 지점(401, 402, 328)만 타지점 이동 제한
@@ -720,9 +745,11 @@ const EquipmentMovement: React.FC<EquipmentMovementProps> = ({ onBack, showToast
         }));
 
         if (transformedList.length > 0) {
+          console.log('[장비이동 디버그] ✅ 최종 결과:', transformedList.length, '건 표시');
           setEqtTrnsList(transformedList);
         } else {
           // 모델 필터로 인해 결과 없음
+          console.log('[장비이동 디버그] ⚠️ 필터 적용 후 0건 - 모델 필터 확인 필요');
           setEqtTrnsList([]);
           const model1Name = selectedItemMidCd ? ITEM_MID_OPTIONS.find(o => o.code === selectedItemMidCd)?.name : '';
           const model2Name = selectedEqtClCd ? eqtClOptions.find(o => o.code === selectedEqtClCd)?.name : '';
@@ -732,6 +759,7 @@ const EquipmentMovement: React.FC<EquipmentMovementProps> = ({ onBack, showToast
           setSearchConditionMessage(`기사: ${wrkrNm}${modelText}`);
         }
       } else {
+        console.log('[장비이동 디버그] ⚠️ API 응답이 빈 배열 또는 배열 아님');
         setEqtTrnsList([]);
         // 검색 조건 메시지 설정
         const model1Name = selectedItemMidCd ? ITEM_MID_OPTIONS.find(o => o.code === selectedItemMidCd)?.name : '';
