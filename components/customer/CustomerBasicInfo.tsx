@@ -285,12 +285,26 @@ const CustomerBasicInfo: React.FC<CustomerBasicInfoProps> = ({
               onContractSelect={handleContractSelect}
               showToast={showToast}
               onNavigateToConsultation={(contract) => {
+                console.log('[CustomerBasicInfo] onNavigateToConsultation called, contract:', contract.CTRT_ID);
+                console.log('[CustomerBasicInfo] onNavigateToConsultationAS:', typeof onNavigateToConsultationAS);
                 handleContractSelect(contract);
-                onNavigateToConsultationAS?.('consultation');
+                if (onNavigateToConsultationAS) {
+                  console.log('[CustomerBasicInfo] Calling onNavigateToConsultationAS("consultation")');
+                  onNavigateToConsultationAS('consultation');
+                } else {
+                  console.warn('[CustomerBasicInfo] onNavigateToConsultationAS is undefined!');
+                }
               }}
               onNavigateToAS={(contract) => {
+                console.log('[CustomerBasicInfo] onNavigateToAS called, contract:', contract.CTRT_ID);
+                console.log('[CustomerBasicInfo] onNavigateToConsultationAS:', typeof onNavigateToConsultationAS);
                 handleContractSelect(contract);
-                onNavigateToConsultationAS?.('as');
+                if (onNavigateToConsultationAS) {
+                  console.log('[CustomerBasicInfo] Calling onNavigateToConsultationAS("as")');
+                  onNavigateToConsultationAS('as');
+                } else {
+                  console.warn('[CustomerBasicInfo] onNavigateToConsultationAS is undefined!');
+                }
               }}
             />
 
