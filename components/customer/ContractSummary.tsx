@@ -274,8 +274,14 @@ const ContractSummary: React.FC<ContractSummaryProps> = ({
                             <button
                               onClick={(e) => {
                                 e.stopPropagation();
+                                console.log('[ContractSummary] 상담등록 클릭, contract:', contract.CTRT_ID);
+                                console.log('[ContractSummary] onNavigateToConsultation:', typeof onNavigateToConsultation);
                                 handleSelect(contract);
-                                onNavigateToConsultation?.(contract);
+                                if (onNavigateToConsultation) {
+                                  onNavigateToConsultation(contract);
+                                } else {
+                                  console.warn('[ContractSummary] onNavigateToConsultation is undefined!');
+                                }
                               }}
                               className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 bg-blue-500 hover:bg-blue-600 text-white text-sm font-medium rounded-lg transition-colors"
                             >
@@ -285,8 +291,14 @@ const ContractSummary: React.FC<ContractSummaryProps> = ({
                             <button
                               onClick={(e) => {
                                 e.stopPropagation();
+                                console.log('[ContractSummary] AS접수 클릭, contract:', contract.CTRT_ID);
+                                console.log('[ContractSummary] onNavigateToAS:', typeof onNavigateToAS);
                                 handleSelect(contract);
-                                onNavigateToAS?.(contract);
+                                if (onNavigateToAS) {
+                                  onNavigateToAS(contract);
+                                } else {
+                                  console.warn('[ContractSummary] onNavigateToAS is undefined!');
+                                }
                               }}
                               className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 bg-orange-500 hover:bg-orange-600 text-white text-sm font-medium rounded-lg transition-colors"
                             >
