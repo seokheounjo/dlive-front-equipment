@@ -105,9 +105,12 @@ const ContractSummary: React.FC<ContractSummaryProps> = ({
     onContractSelect(contract);
   };
 
-  // 상세 토글
-  const toggleDetail = (ctrtId: string) => {
+  // 상세 토글 + 계약 선택
+  const toggleDetail = (contract: ContractInfo) => {
+    const ctrtId = contract.CTRT_ID;
     setExpandedContractId(expandedContractId === ctrtId ? null : ctrtId);
+    // 계약 선택 시 이력 로드도 함께 수행
+    handleSelect(contract);
   };
 
   return (
@@ -194,7 +197,7 @@ const ContractSummary: React.FC<ContractSummaryProps> = ({
                     {/* 계약 기본 정보 */}
                     <div
                       className="cursor-pointer"
-                      onClick={() => toggleDetail(contract.CTRT_ID)}
+                      onClick={() => toggleDetail(contract)}
                     >
                       <div className="flex items-center justify-between mb-2">
                         <div className="flex items-center gap-2">
