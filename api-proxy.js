@@ -336,6 +336,7 @@ router.get('/customer/debug/customerManagerService/methods', handleProxy);
 router.get('/customer/debug/customerManager/methods', handleProxy);
 router.get('/customer/debug/billingManagement/methods', handleProxy);
 router.get('/customer/debug/customerEtcManagement/methods', handleProxy);
+router.get('/customer/debug/sampleHistoryData', handleProxy);
 
 async function handleProxy(req, res) {
   try {
