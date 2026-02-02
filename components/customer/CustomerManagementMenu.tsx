@@ -4,6 +4,7 @@ import CustomerBasicInfo from './CustomerBasicInfo';
 import CustomerInfoChange from './CustomerInfoChange';
 import ElectronicContract from './ElectronicContract';
 import CustomerSearch from './CustomerSearch';
+import ConsultationAS from './ConsultationAS';
 import { CustomerInfo, ContractInfo, ConsultationHistory, WorkHistory } from '../../services/customerApi';
 
 interface CustomerManagementMenuProps {
@@ -211,6 +212,21 @@ const CustomerManagementMenu: React.FC<CustomerManagementMenuProps> = ({ onNavig
             } : null}
             selectedContract={selectedContract}
             onNavigateToBasicInfo={() => handleNavigateToTab('basic-info')}
+          />
+        );
+      case 'consultation-as':
+        return (
+          <ConsultationAS
+            onBack={onNavigateToMenu}
+            showToast={showToast}
+            selectedCustomer={selectedCustomer ? {
+              custId: selectedCustomer.CUST_ID,
+              custNm: selectedCustomer.CUST_NM,
+              telNo: selectedCustomer.TEL_NO || selectedCustomer.HP_NO || ''
+            } : null}
+            selectedContract={selectedContract}
+            onNavigateToBasicInfo={() => handleNavigateToTab('basic-info')}
+            initialTab={consultationASInitialTab}
           />
         );
       default:
