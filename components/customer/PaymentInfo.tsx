@@ -264,26 +264,32 @@ const PaymentInfo: React.FC<PaymentInfoProps> = ({
                           )}
 
                           {/* 정보 테이블 - 가로 키-값 형태 */}
-                          <table className="w-full text-sm">
+                          <table className="w-full text-sm table-fixed">
+                            <colgroup>
+                              <col style={{ width: '25%' }} />
+                              <col style={{ width: '25%' }} />
+                              <col style={{ width: '25%' }} />
+                              <col style={{ width: '25%' }} />
+                            </colgroup>
                             <tbody>
                               <tr>
-                                <td className="text-gray-500 py-1 pr-2 whitespace-nowrap">납부계정번호</td>
-                                <td className="text-gray-800 font-medium py-1 pr-4">{formatPymAcntId(payment.PYM_ACNT_ID)}</td>
-                                <td className="text-gray-500 py-1 pr-2 whitespace-nowrap">납부방법</td>
-                                <td className="text-gray-800 py-1">{payment.PYM_MTHD_NM || '-'}</td>
+                                <td className="text-gray-500 py-1 text-xs">납부계정번호</td>
+                                <td className="text-gray-800 font-medium py-1 truncate">{formatPymAcntId(payment.PYM_ACNT_ID)}</td>
+                                <td className="text-gray-500 py-1 text-xs">납부방법</td>
+                                <td className="text-gray-800 py-1 truncate">{payment.PYM_MTHD_NM || '-'}</td>
                               </tr>
                               <tr>
-                                <td className="text-gray-500 py-1 pr-2 whitespace-nowrap">은행/카드명</td>
-                                <td className="text-gray-800 py-1 pr-4">{payment.BANK_CARD_NM || '-'}</td>
-                                <td className="text-gray-500 py-1 pr-2 whitespace-nowrap">계좌/카드번호</td>
-                                <td className="text-gray-800 py-1">{maskString(payment.BANK_CARD_NO || '', 4, 4)}</td>
+                                <td className="text-gray-500 py-1 text-xs">은행/카드명</td>
+                                <td className="text-gray-800 py-1 truncate">{payment.BANK_CARD_NM || '-'}</td>
+                                <td className="text-gray-500 py-1 text-xs">계좌/카드번호</td>
+                                <td className="text-gray-800 py-1 truncate">{maskString(payment.BANK_CARD_NO || '', 4, 4)}</td>
                               </tr>
                               <tr>
-                                <td className="text-gray-500 py-1 pr-2 whitespace-nowrap">청구매체</td>
-                                <td className="text-gray-800 py-1" colSpan={3}>{payment.BILL_MTHD || '-'}</td>
+                                <td className="text-gray-500 py-1 text-xs">청구매체</td>
+                                <td className="text-gray-800 py-1 truncate" colSpan={3}>{payment.BILL_MTHD || '-'}</td>
                               </tr>
                               <tr>
-                                <td className="text-gray-500 py-1 pr-2 whitespace-nowrap">미납금액 합계</td>
+                                <td className="text-gray-500 py-1 text-xs">미납금액 합계</td>
                                 <td className={`py-1 font-bold ${payment.UPYM_AMT_ACNT > 0 ? 'text-red-600' : 'text-gray-800'}`} colSpan={3}>
                                   {formatCurrency(payment.UPYM_AMT_ACNT || 0)}원
                                 </td>
@@ -364,22 +370,28 @@ const PaymentInfo: React.FC<PaymentInfoProps> = ({
                               item.UPYM_AMT > 0 ? 'bg-red-50 border-red-200' : 'bg-gray-50 border-gray-200'
                             }`}
                           >
-                            <table className="w-full text-sm">
+                            <table className="w-full text-sm table-fixed">
+                              <colgroup>
+                                <col style={{ width: '25%' }} />
+                                <col style={{ width: '25%' }} />
+                                <col style={{ width: '25%' }} />
+                                <col style={{ width: '25%' }} />
+                              </colgroup>
                               <tbody>
                                 <tr>
-                                  <td className="text-gray-500 py-1 pr-2 whitespace-nowrap">청구년월</td>
-                                  <td className="text-gray-800 font-medium py-1 pr-4">{item.BILL_YYMM}</td>
-                                  <td className="text-gray-500 py-1 pr-2 whitespace-nowrap">청구주기</td>
+                                  <td className="text-gray-500 py-1 text-xs">청구년월</td>
+                                  <td className="text-gray-800 font-medium py-1">{item.BILL_YYMM}</td>
+                                  <td className="text-gray-500 py-1 text-xs">청구주기</td>
                                   <td className="text-gray-800 py-1">{item.BILL_CYCL || '정기'}</td>
                                 </tr>
                                 <tr>
-                                  <td className="text-gray-500 py-1 pr-2 whitespace-nowrap">청구금액</td>
-                                  <td className="text-gray-800 font-medium py-1 pr-4">{formatCurrency(item.BILL_AMT)}원</td>
-                                  <td className="text-gray-500 py-1 pr-2 whitespace-nowrap">수납금액</td>
+                                  <td className="text-gray-500 py-1 text-xs">청구금액</td>
+                                  <td className="text-gray-800 font-medium py-1">{formatCurrency(item.BILL_AMT)}원</td>
+                                  <td className="text-gray-500 py-1 text-xs">수납금액</td>
                                   <td className="text-green-600 font-medium py-1">{formatCurrency(item.RCPT_AMT)}원</td>
                                 </tr>
                                 <tr>
-                                  <td className="text-gray-500 py-1 pr-2 whitespace-nowrap">미납금액</td>
+                                  <td className="text-gray-500 py-1 text-xs">미납금액</td>
                                   <td className={`py-1 font-bold ${item.UPYM_AMT > 0 ? 'text-red-600' : 'text-gray-600'}`} colSpan={3}>
                                     {formatCurrency(item.UPYM_AMT)}원
                                   </td>
