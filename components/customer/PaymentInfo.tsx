@@ -186,7 +186,7 @@ const PaymentInfo: React.FC<PaymentInfoProps> = ({
         className="w-full px-3 py-2.5 flex items-center justify-between text-left"
       >
         <div className="flex items-center gap-2">
-          <span className="font-medium text-gray-800">납부정보</span>
+          <span className="font-medium text-gray-800">납부정보 / 요금내역</span>
           {totalUnpayment > 0 && (
             <span className="text-sm text-red-500 font-medium">
               (미납 {formatCurrency(totalUnpayment)}원)
@@ -263,46 +263,33 @@ const PaymentInfo: React.FC<PaymentInfoProps> = ({
                             </div>
                           )}
 
-                          {/* 정보 그리드 - D'Live SQL 필드 기준 */}
-                          <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
-                            {/* 1행: 납부계정번호 / 납부방법 */}
-                            <div className="flex justify-between items-center">
-                              <span className="text-gray-500 whitespace-nowrap">납부계정번호</span>
-                              <span className="text-gray-800 font-medium">{formatPymAcntId(payment.PYM_ACNT_ID)}</span>
-                            </div>
-                            <div className="flex justify-between items-center">
-                              <span className="text-gray-500 whitespace-nowrap">납부방법</span>
-                              <span className="text-gray-800">{payment.PYM_MTHD_NM || '-'}</span>
-                            </div>
-
-                            {/* 2행: 은행/카드명 / 계좌/카드번호 */}
-                            <div className="flex justify-between items-center">
-                              <span className="text-gray-500 whitespace-nowrap">은행/카드</span>
-                              <span className="text-gray-800">{payment.BANK_CARD_NM || '-'}</span>
-                            </div>
-                            <div className="flex justify-between items-center">
-                              <span className="text-gray-500 whitespace-nowrap">계좌/카드번호</span>
-                              <span className="text-gray-800">{maskString(payment.BANK_CARD_NO || '', 4, 4)}</span>
-                            </div>
-
-                            {/* 3행: 청구매체 */}
-                            <div className="flex justify-between items-center col-span-2">
-                              <span className="text-gray-500 whitespace-nowrap">청구매체</span>
-                              <span className="text-gray-800">{payment.BILL_MTHD || '-'}</span>
-                            </div>
-                          </div>
-
-                          {/* 미납금액 */}
-                          <div className="mt-3 pt-3 border-t border-gray-200">
-                            <div className="flex justify-between items-center">
-                              <span className="text-sm text-gray-600">납부계정 미납금액</span>
-                              <span className={`text-base font-bold ${
-                                payment.UPYM_AMT_ACNT > 0 ? 'text-red-600' : 'text-gray-800'
-                              }`}>
-                                {formatCurrency(payment.UPYM_AMT_ACNT || 0)}원
-                              </span>
-                            </div>
-                          </div>
+                          {/* 정보 테이블 - 가로 키-값 형태 */}
+                          <table className="w-full text-sm">
+                            <tbody>
+                              <tr>
+                                <td className="text-gray-500 py-1 pr-2 whitespace-nowrap">납부계정번호</td>
+                                <td className="text-gray-800 font-medium py-1 pr-4">{formatPymAcntId(payment.PYM_ACNT_ID)}</td>
+                                <td className="text-gray-500 py-1 pr-2 whitespace-nowrap">납부방법</td>
+                                <td className="text-gray-800 py-1">{payment.PYM_MTHD_NM || '-'}</td>
+                              </tr>
+                              <tr>
+                                <td className="text-gray-500 py-1 pr-2 whitespace-nowrap">은행/카드명</td>
+                                <td className="text-gray-800 py-1 pr-4">{payment.BANK_CARD_NM || '-'}</td>
+                                <td className="text-gray-500 py-1 pr-2 whitespace-nowrap">계좌/카드번호</td>
+                                <td className="text-gray-800 py-1">{maskString(payment.BANK_CARD_NO || '', 4, 4)}</td>
+                              </tr>
+                              <tr>
+                                <td className="text-gray-500 py-1 pr-2 whitespace-nowrap">청구매체</td>
+                                <td className="text-gray-800 py-1" colSpan={3}>{payment.BILL_MTHD || '-'}</td>
+                              </tr>
+                              <tr>
+                                <td className="text-gray-500 py-1 pr-2 whitespace-nowrap">미납금액 합계</td>
+                                <td className={`py-1 font-bold ${payment.UPYM_AMT_ACNT > 0 ? 'text-red-600' : 'text-gray-800'}`} colSpan={3}>
+                                  {formatCurrency(payment.UPYM_AMT_ACNT || 0)}원
+                                </td>
+                              </tr>
+                            </tbody>
+                          </table>
 
                           {/* 납부정보 변경 버튼 */}
                           {onNavigateToPaymentChange && (
@@ -377,35 +364,28 @@ const PaymentInfo: React.FC<PaymentInfoProps> = ({
                               item.UPYM_AMT > 0 ? 'bg-red-50 border-red-200' : 'bg-gray-50 border-gray-200'
                             }`}
                           >
-                            {/* 1행: 청구년월 / 청구주기 */}
-                            <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
-                              <div className="flex justify-between items-center">
-                                <span className="text-gray-500 whitespace-nowrap">청구년월</span>
-                                <span className="text-gray-800 font-medium">{item.BILL_YYMM}</span>
-                              </div>
-                              <div className="flex justify-between items-center">
-                                <span className="text-gray-500 whitespace-nowrap">청구주기</span>
-                                <span className="text-gray-800">{item.BILL_CYCL || '정기'}</span>
-                              </div>
-                            </div>
-
-                            {/* 2행: 금액 정보 */}
-                            <div className="grid grid-cols-3 gap-2 mt-2 pt-2 border-t border-gray-200 text-sm">
-                              <div className="text-center">
-                                <div className="text-gray-500 text-xs mb-1">청구금액</div>
-                                <div className="text-gray-800 font-medium">{formatCurrency(item.BILL_AMT)}원</div>
-                              </div>
-                              <div className="text-center">
-                                <div className="text-gray-500 text-xs mb-1">수납금액</div>
-                                <div className="text-green-600 font-medium">{formatCurrency(item.RCPT_AMT)}원</div>
-                              </div>
-                              <div className="text-center">
-                                <div className="text-gray-500 text-xs mb-1">미납금액</div>
-                                <div className={`font-bold ${item.UPYM_AMT > 0 ? 'text-red-600' : 'text-gray-600'}`}>
-                                  {formatCurrency(item.UPYM_AMT)}원
-                                </div>
-                              </div>
-                            </div>
+                            <table className="w-full text-sm">
+                              <tbody>
+                                <tr>
+                                  <td className="text-gray-500 py-1 pr-2 whitespace-nowrap">청구년월</td>
+                                  <td className="text-gray-800 font-medium py-1 pr-4">{item.BILL_YYMM}</td>
+                                  <td className="text-gray-500 py-1 pr-2 whitespace-nowrap">청구주기</td>
+                                  <td className="text-gray-800 py-1">{item.BILL_CYCL || '정기'}</td>
+                                </tr>
+                                <tr>
+                                  <td className="text-gray-500 py-1 pr-2 whitespace-nowrap">청구금액</td>
+                                  <td className="text-gray-800 font-medium py-1 pr-4">{formatCurrency(item.BILL_AMT)}원</td>
+                                  <td className="text-gray-500 py-1 pr-2 whitespace-nowrap">수납금액</td>
+                                  <td className="text-green-600 font-medium py-1">{formatCurrency(item.RCPT_AMT)}원</td>
+                                </tr>
+                                <tr>
+                                  <td className="text-gray-500 py-1 pr-2 whitespace-nowrap">미납금액</td>
+                                  <td className={`py-1 font-bold ${item.UPYM_AMT > 0 ? 'text-red-600' : 'text-gray-600'}`} colSpan={3}>
+                                    {formatCurrency(item.UPYM_AMT)}원
+                                  </td>
+                                </tr>
+                              </tbody>
+                            </table>
                           </div>
                         ))}
                       </div>
