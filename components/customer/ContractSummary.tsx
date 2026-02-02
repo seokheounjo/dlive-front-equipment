@@ -254,9 +254,9 @@ const ContractSummary: React.FC<ContractSummaryProps> = ({
                           개통일: {contract.OPNG_DT ? formatDate(contract.OPNG_DT) : '-'}
                         </div>
 
-                        {/* 미수신 정보 */}
+                        {/* 장비 정보 (NOTRECEV) */}
                         <div className="text-sm text-gray-600">
-                          미수신: {contract.NOTRECEV || '-'}
+                          장비: {contract.NOTRECEV || '-'}
                         </div>
 
                         {/* 장비 정보 */}
