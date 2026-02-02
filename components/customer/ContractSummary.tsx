@@ -60,24 +60,17 @@ const ContractSummary: React.FC<ContractSummaryProps> = ({
   // 상세 펼침 상태
   const [expandedContractId, setExpandedContractId] = useState<string | null>(null);
 
-  // 해지 여부 판별 (상태명 또는 상태코드로 확인)
-  const isTerminated = (contract: ContractInfo) => {
-    const statNm = contract.CTRT_STAT_NM || '';
+  // 사용계약 여부 판별 (CTRT_STAT_CD가 10, 50, 90이 아닌 계약)
+  const isActiveContract = (contract: ContractInfo) => {
     const statCd = contract.CTRT_STAT_CD || '';
-
-    // 상태명에 "해지" 포함되면 해지
-    if (statNm.includes('해지')) return true;
-
-    // 상태코드가 해지 코드면 해지 (90, 30 등)
-    if (['90', '30'].includes(statCd)) return true;
-
-    return false;
+    // 10, 50, 90 제외
+    return !['10', '50', '90'].includes(statCd);
   };
 
   // 필터링된 계약 목록
   const filteredContracts = contracts.filter(contract => {
-    // 상태 필터 (사용중 선택 시 해지 제외)
-    if (filterStatus === 'active' && isTerminated(contract)) return false;
+    // 상태 필터 (사용계약 선택 시 10, 50, 90 제외)
+    if (filterStatus === 'active' && !isActiveContract(contract)) return false;
 
     // 키워드 검색 (계약ID, 상품명, 장비시리얼)
     if (searchKeyword) {
@@ -94,7 +87,7 @@ const ContractSummary: React.FC<ContractSummaryProps> = ({
   // 계약 상태별 카운트
   const statusCount = {
     all: contracts.length,
-    active: contracts.filter(c => !isTerminated(c)).length
+    active: contracts.filter(c => isActiveContract(c)).length
   };
 
   // 계약 선택 핸들러
@@ -164,7 +157,7 @@ const ContractSummary: React.FC<ContractSummaryProps> = ({
                         : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
                     }`}
                   >
-                    사용중 ({statusCount.active})
+                    사용계약 ({statusCount.active})
                   </button>
                 </div>
 
@@ -197,24 +190,24 @@ const ContractSummary: React.FC<ContractSummaryProps> = ({
                       className="cursor-pointer"
                       onClick={() => toggleDetail(contract)}
                     >
-                      <div className="flex items-center justify-between mb-2">
-                        <div className="flex items-center gap-2">
+                      <div className="flex items-center justify-between mb-2 gap-2">
+                        <div className="flex items-center gap-2 min-w-0 flex-1">
                           <div className="flex-shrink-0 w-7 h-7 flex items-center justify-center rounded-full bg-blue-500 text-white text-sm font-bold">
                             {index + 1}
                           </div>
-                          <span className="text-sm text-gray-600">{contract.PROD_NM}</span>
+                          <span className="text-sm text-gray-600 truncate">{contract.PROD_NM}</span>
                         </div>
-                        <div className="flex items-center gap-2">
-                          <span className={`text-xs px-2 py-0.5 rounded ${getContractStatusStyle(contract.CTRT_STAT_CD)}`}>
+                        <div className="flex items-center gap-1 flex-shrink-0">
+                          <span className={`text-xs px-2 py-0.5 rounded whitespace-nowrap ${getContractStatusStyle(contract.CTRT_STAT_CD)}`}>
                             {contract.CTRT_STAT_NM || (contract.CTRT_STAT_CD === '90' ? '해지' : contract.CTRT_STAT_CD === '20' ? '사용중' : '기타')}
                           </span>
                           {contract.SO_NM && (
-                            <span className="text-xs px-2 py-0.5 bg-purple-50 text-purple-600 rounded">
+                            <span className="text-xs px-1.5 py-0.5 bg-purple-50 text-purple-600 rounded whitespace-nowrap">
                               {contract.SO_NM}
                             </span>
                           )}
                           <ChevronDown
-                            className={`w-4 h-4 text-gray-400 transition-transform ${
+                            className={`w-4 h-4 text-gray-400 transition-transform flex-shrink-0 ${
                               expandedContractId === contract.CTRT_ID ? 'rotate-180' : ''
                             }`}
                           />
@@ -266,8 +259,8 @@ const ContractSummary: React.FC<ContractSummaryProps> = ({
                           </div>
                         )}
 
-                        {/* AS/상담 버튼 - 사용중인 계약만 */}
-                        {!isTerminated(contract) && (
+                        {/* AS/상담 버튼 - 사용계약만 (10, 50, 90 제외) */}
+                        {isActiveContract(contract) && (
                           <div className="flex gap-2 mt-3 pt-3 border-t border-gray-200">
                             <button
                               onClick={(e) => {
