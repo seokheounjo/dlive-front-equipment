@@ -353,9 +353,11 @@ const App: React.FC = () => {
       case 'work-item-list':
         return selectedWorkDirection ? <WorkItemList direction={selectedWorkDirection} onBack={navigateBack} onNavigateToView={navigateToView} userId={userInfo?.userId} showToast={showToast} /> : <div>작업 목록을 찾을 수 없습니다.</div>;
       case 'customer-management':
-        return <CustomerManagementMenu onNavigateToMenu={navigateToMenu} showToast={showToast} />;
+        // 고객관리는 별도 렌더링 (상태 유지)
+        return null;
       case 'equipment-management':
-        return <EquipmentManagementMenu onNavigateToMenu={navigateToMenu} />;
+        // 장비관리도 별도 렌더링 (상태 유지)
+        return null;
       case 'api-explorer':
         return <ApiExplorer />;
       case 'other-management':
@@ -416,6 +418,14 @@ const App: React.FC = () => {
           />
           <main className="flex-1 w-full max-w-7xl mx-auto pt-12 pb-[calc(52px+env(safe-area-inset-bottom,0px))] flex flex-col overflow-hidden">
             {renderContent()}
+            {/* 고객관리 - 상태 유지를 위해 항상 렌더링, display로 숨김 */}
+            <div style={{ display: currentView === 'customer-management' ? 'contents' : 'none' }}>
+              <CustomerManagementMenu onNavigateToMenu={navigateToMenu} showToast={showToast} />
+            </div>
+            {/* 장비관리 - 상태 유지를 위해 항상 렌더링, display로 숨김 */}
+            <div style={{ display: currentView === 'equipment-management' ? 'contents' : 'none' }}>
+              <EquipmentManagementMenu onNavigateToMenu={navigateToMenu} />
+            </div>
           </main>
           <BottomNavigation currentView={currentView} onSelectMenu={navigateToView} />
           {toast && (

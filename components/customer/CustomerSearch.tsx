@@ -292,49 +292,9 @@ const CustomerSearch: React.FC<CustomerSearchProps> = ({ onCustomerSelect, showT
                   스캔
                 </button>
               </div>
-
-              {/* 검색 결과 */}
-              <div className="border-t border-gray-100 pt-3">
-                {hasSearched ? (
-                  searchResults.length > 0 ? (
-                    <div className="space-y-2 max-h-48 overflow-y-auto">
-                      <div className="text-xs text-gray-500 mb-2">검색 결과: {searchResults.length}건</div>
-                      {searchResults.map((customer, idx) => (
-                        <button
-                          key={customer.CUST_ID || idx}
-                          onClick={() => handleSelectCustomer(customer)}
-                          className="w-full p-3 bg-gray-50 hover:bg-blue-50 rounded-lg border border-gray-200 hover:border-blue-300 text-left transition-colors"
-                        >
-                          <div className="flex items-center gap-3">
-                            <span className="text-blue-600 font-mono text-sm">{customer.CUST_ID}</span>
-                            <span className="font-semibold text-gray-900">{customer.CUST_NM}</span>
-                          </div>
-                          <div className="mt-1 text-xs text-gray-500 truncate">
-                            {maskPhoneNumber(customer.TEL_NO || customer.HP_NO)}
-                            {customer.CUST_ADDR && ` | ${customer.CUST_ADDR}`}
-                          </div>
-                          {customer.UNPAY_AMT > 0 && (
-                            <div className="mt-1 text-xs text-red-500 font-medium">
-                              미납: {customer.UNPAY_AMT.toLocaleString()}원
-                            </div>
-                          )}
-                        </button>
-                      ))}
-                    </div>
-                  ) : (
-                    <div className="text-center py-4 text-gray-500 text-sm">
-                      검색 결과가 없습니다.
-                    </div>
-                  )
-                ) : (
-                  <div className="text-center py-4 text-gray-400 text-sm">
-                    검색 조건을 입력하고 조회 버튼을 눌러주세요.
-                  </div>
-                )}
-              </div>
             </div>
 
-            {/* 하단 버튼 */}
+            {/* 조회/닫기 버튼 */}
             <div className="p-4 border-t border-gray-100 bg-white flex-shrink-0">
               <div className="flex gap-2">
                 <button
@@ -358,6 +318,46 @@ const CustomerSearch: React.FC<CustomerSearchProps> = ({ onCustomerSelect, showT
                   닫기
                 </button>
               </div>
+            </div>
+
+            {/* 검색 결과 - 조회/닫기 버튼 아래 */}
+            <div className="px-4 pb-4 flex-shrink-0">
+              {hasSearched ? (
+                searchResults.length > 0 ? (
+                  <div className="space-y-2 max-h-48 overflow-y-auto border border-gray-200 rounded-lg p-3 bg-gray-50">
+                    <div className="text-xs text-gray-500 mb-2">검색 결과: {searchResults.length}건</div>
+                    {searchResults.map((customer, idx) => (
+                      <button
+                        key={customer.CUST_ID || idx}
+                        onClick={() => handleSelectCustomer(customer)}
+                        className="w-full p-3 bg-white hover:bg-blue-50 rounded-lg border border-gray-200 hover:border-blue-300 text-left transition-colors"
+                      >
+                        <div className="flex items-center gap-3">
+                          <span className="text-blue-600 font-mono text-sm">{customer.CUST_ID}</span>
+                          <span className="font-semibold text-gray-900">{customer.CUST_NM}</span>
+                        </div>
+                        <div className="mt-1 text-xs text-gray-500 truncate">
+                          {maskPhoneNumber(customer.TEL_NO || customer.HP_NO)}
+                          {customer.CUST_ADDR && ` | ${customer.CUST_ADDR}`}
+                        </div>
+                        {customer.UNPAY_AMT > 0 && (
+                          <div className="mt-1 text-xs text-red-500 font-medium">
+                            미납: {customer.UNPAY_AMT.toLocaleString()}원
+                          </div>
+                        )}
+                      </button>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-4 text-gray-500 text-sm border border-gray-200 rounded-lg bg-gray-50">
+                    검색 결과가 없습니다.
+                  </div>
+                )
+              ) : (
+                <div className="text-center py-4 text-gray-400 text-sm border border-dashed border-gray-200 rounded-lg">
+                  검색 조건을 입력하고 조회 버튼을 눌러주세요.
+                </div>
+              )}
             </div>
           </div>
         </div>

@@ -51,17 +51,23 @@ export interface ContractInfo {
   PROD_NM: string;           // 상품명
   PROD_GRP_NM: string;       // 상품군명
   INST_ADDR: string;         // 설치주소
+  STREET_ADDR_FULL?: string; // 도로명주소 (우선 표시)
+  ADDR_FULL?: string;        // 지번주소 (도로명 없을 때 표시)
   INSTL_LOC?: string;        // 설치위치 (거실, 안방, 침실 등)
   POST_ID?: string;          // 주소ID (AS접수에 필요)
   OPNG_DT: string;           // 개통일
   TERM_DT: string;           // 해지일
   AGMT_MON: string;          // 약정개월
-  AGMT_ST_DT: string;        // 약정시작일
-  AGMT_END_DT: string;       // 약정종료일
+  AGMT_ST_DT: string;        // 약정시작일 (기존)
+  AGMT_END_DT: string;       // 약정종료일 (기존)
+  CTRT_APLY_STRT_DT?: string; // 약정 시작일 (D'Live)
+  CTRT_APLY_END_DT?: string;  // 약정 종료일 (D'Live)
   GRP_NO: string;            // 단체번호
   PYM_ACNT_ID: string;       // 납부계정ID
   DPST_AMT: number;          // 보증금
   PREPAY_AMT: number;        // 선납금
+  SO_NM?: string;            // 지점명
+  NOTRECEV?: string;         // 미수신 정보
   // 장비 정보
   EQT_NM: string;            // 장비명
   EQT_MDL_NM: string;        // 모델명

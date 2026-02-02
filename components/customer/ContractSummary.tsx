@@ -50,8 +50,8 @@ const ContractSummary: React.FC<ContractSummaryProps> = ({
   onNavigateToConsultation,
   onNavigateToAS
 }) => {
-  // 필터 상태 (기본값: 사용중)
-  const [filterStatus, setFilterStatus] = useState<'all' | 'active' | 'terminated'>('active');
+  // 필터 상태 (기본값: 전체)
+  const [filterStatus, setFilterStatus] = useState<'all' | 'active'>('all');
   const [searchKeyword, setSearchKeyword] = useState('');
 
   // 선택된 계약
@@ -76,9 +76,8 @@ const ContractSummary: React.FC<ContractSummaryProps> = ({
 
   // 필터링된 계약 목록
   const filteredContracts = contracts.filter(contract => {
-    // 상태 필터
+    // 상태 필터 (사용중 선택 시 해지 제외)
     if (filterStatus === 'active' && isTerminated(contract)) return false;
-    if (filterStatus === 'terminated' && !isTerminated(contract)) return false;
 
     // 키워드 검색 (계약ID, 상품명, 장비시리얼)
     if (searchKeyword) {
@@ -95,8 +94,7 @@ const ContractSummary: React.FC<ContractSummaryProps> = ({
   // 계약 상태별 카운트
   const statusCount = {
     all: contracts.length,
-    active: contracts.filter(c => !isTerminated(c)).length,
-    terminated: contracts.filter(c => isTerminated(c)).length
+    active: contracts.filter(c => !isTerminated(c)).length
   };
 
   // 계약 선택 핸들러
@@ -149,6 +147,16 @@ const ContractSummary: React.FC<ContractSummaryProps> = ({
                 {/* 상태 필터 버튼 */}
                 <div className="flex flex-wrap gap-2">
                   <button
+                    onClick={() => setFilterStatus('all')}
+                    className={`px-3 py-1.5 text-sm rounded-full transition-colors ${
+                      filterStatus === 'all'
+                        ? 'bg-blue-500 text-white'
+                        : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                    }`}
+                  >
+                    전체 ({statusCount.all})
+                  </button>
+                  <button
                     onClick={() => setFilterStatus('active')}
                     className={`px-3 py-1.5 text-sm rounded-full transition-colors ${
                       filterStatus === 'active'
@@ -157,16 +165,6 @@ const ContractSummary: React.FC<ContractSummaryProps> = ({
                     }`}
                   >
                     사용중 ({statusCount.active})
-                  </button>
-                  <button
-                    onClick={() => setFilterStatus('terminated')}
-                    className={`px-3 py-1.5 text-sm rounded-full transition-colors ${
-                      filterStatus === 'terminated'
-                        ? 'bg-gray-500 text-white'
-                        : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                    }`}
-                  >
-                    해지 ({statusCount.terminated})
                   </button>
                 </div>
 
@@ -210,6 +208,11 @@ const ContractSummary: React.FC<ContractSummaryProps> = ({
                           <span className={`text-xs px-2 py-0.5 rounded ${getContractStatusStyle(contract.CTRT_STAT_CD)}`}>
                             {contract.CTRT_STAT_NM || (contract.CTRT_STAT_CD === '90' ? '해지' : contract.CTRT_STAT_CD === '20' ? '사용중' : '기타')}
                           </span>
+                          {contract.SO_NM && (
+                            <span className="text-xs px-2 py-0.5 bg-purple-50 text-purple-600 rounded">
+                              {contract.SO_NM}
+                            </span>
+                          )}
                           <ChevronDown
                             className={`w-4 h-4 text-gray-400 transition-transform ${
                               expandedContractId === contract.CTRT_ID ? 'rotate-180' : ''
@@ -225,10 +228,12 @@ const ContractSummary: React.FC<ContractSummaryProps> = ({
                         </span>
                       </div>
 
-                      {contract.INST_ADDR && (
+                      {(contract.STREET_ADDR_FULL || contract.ADDR_FULL || contract.INST_ADDR) && (
                         <div className="flex items-center gap-1 text-sm text-gray-600 mt-1">
                           <MapPin className="w-4 h-4" />
-                          <span className="truncate">{contract.INST_ADDR}</span>
+                          <span className="truncate">
+                            {contract.STREET_ADDR_FULL || contract.ADDR_FULL || contract.INST_ADDR}
+                          </span>
                         </div>
                       )}
                     </div>
@@ -239,7 +244,7 @@ const ContractSummary: React.FC<ContractSummaryProps> = ({
                         {/* 약정 정보 */}
                         <div className="text-sm text-gray-600">
                           약정: {contract.AGMT_MON
-                            ? `${contract.AGMT_MON}개월 (${formatDate(contract.AGMT_ST_DT) || '-'} ~ ${formatDate(contract.CTRT_APLY_END_DT) || '-'})`
+                            ? `${contract.AGMT_MON}개월 (${formatDate(contract.CTRT_APLY_STRT_DT) || '-'} ~ ${formatDate(contract.CTRT_APLY_END_DT) || '-'})`
                             : '-'
                           }
                         </div>
@@ -247,6 +252,11 @@ const ContractSummary: React.FC<ContractSummaryProps> = ({
                         {/* 개통일 */}
                         <div className="text-sm text-gray-600">
                           개통일: {contract.OPNG_DT ? formatDate(contract.OPNG_DT) : '-'}
+                        </div>
+
+                        {/* 미수신 정보 */}
+                        <div className="text-sm text-gray-600">
+                          미수신: {contract.NOTRECEV || '-'}
                         </div>
 
                         {/* 장비 정보 */}
