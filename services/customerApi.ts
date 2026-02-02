@@ -592,7 +592,14 @@ const mapContractFields = (data: any): ContractInfo => {
     EQT_MDL_NM: data.EQT_MDL_NM || data.VIEW_MOD_NM || '',      // VIEW_MOD_NM -> EQT_MDL_NM
     EQT_SERNO: data.EQT_SERNO || data.SERNO_DTOA || '',         // SERNO_DTOA -> EQT_SERNO
     PREV_MON_AMT: data.PREV_MON_AMT || data.BILL_AMT_BEFORE || 0,
-    CUR_MON_AMT: data.CUR_MON_AMT || data.BILL_AMT_NOW || 0
+    CUR_MON_AMT: data.CUR_MON_AMT || data.BILL_AMT_NOW || 0,
+    // 추가 필드
+    SO_NM: data.SO_NM || '',                                    // 지점명
+    STREET_ADDR_FULL: data.STREET_ADDR_FULL || data.ROAD_ADDR || '', // 도로명주소
+    ADDR_FULL: data.ADDR_FULL || data.JIBUN_ADDR || '',         // 지번주소
+    CTRT_APLY_STRT_DT: data.CTRT_APLY_STRT_DT || data.AGMT_ST_DT || data.RATE_STRT_DT || '', // 약정 시작일
+    CTRT_APLY_END_DT: data.CTRT_APLY_END_DT || data.AGMT_END_DT || data.RATE_END_DT || '',   // 약정 종료일
+    NOTRECEV: data.NOTRECEV || data.NOT_RECV || ''              // 장비 (미수신 정보)
   };
 };
 
