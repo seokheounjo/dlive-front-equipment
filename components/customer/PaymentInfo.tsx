@@ -199,14 +199,13 @@ const PaymentInfo: React.FC<PaymentInfoProps> = ({
               <Loader2 className="w-5 h-5 animate-spin text-gray-400" />
             </div>
           ) : (
-            <div className="space-y-0">
-              {/* ===== 상단: 납부 정보 섹션 ===== */}
-              <div className="bg-gray-50 rounded-t-lg p-3">
-                {/* 섹션 헤더 */}
-                <div className="flex items-center justify-between mb-3 pb-2 border-b border-gray-300">
-                  <div className="flex items-center gap-2">
-                    <div className="w-1 h-4 bg-blue-500 rounded"></div>
-                    <span className="text-sm font-bold text-gray-800">납부정보</span>
+            <div className="space-y-4">
+              {/* 납부 정보 섹션 */}
+              <div>
+                {/* 헤더 */}
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center gap-1">
+                    <span className="text-sm font-medium text-gray-700">납부 정보</span>
                     <button
                       onClick={loadPaymentAccounts}
                       className="p-1 text-gray-400 hover:text-gray-600"
@@ -214,7 +213,7 @@ const PaymentInfo: React.FC<PaymentInfoProps> = ({
                       <RefreshCw className="w-3.5 h-3.5" />
                     </button>
                   </div>
-                  <span className="text-xs text-gray-500 bg-white px-2 py-0.5 rounded">{paymentAccounts.length}건</span>
+                  <span className="text-xs text-gray-500">{paymentAccounts.length}건</span>
                 </div>
 
                 {/* 납부 정보 목록 - 간략 표시, 선택 시 세부정보 */}
@@ -325,36 +324,26 @@ const PaymentInfo: React.FC<PaymentInfoProps> = ({
                 )}
               </div>
 
-              {/* ===== 구분선 ===== */}
-              <div className="flex items-center py-2 px-3 bg-gray-200">
-                <div className="flex-1 h-px bg-gray-400"></div>
-                <span className="px-3 text-xs text-gray-500 font-medium">요금내역</span>
-                <div className="flex-1 h-px bg-gray-400"></div>
-              </div>
-
-              {/* ===== 하단: 요금 내역 섹션 ===== */}
-              <div className="bg-gray-50 rounded-b-lg p-3">
-                {/* 섹션 헤더 */}
-                <div className="flex items-center justify-between mb-3 pb-2 border-b border-gray-300">
+              {/* 요금 내역 섹션 - 선택된 납부계정별 (getCustBillInfo_m) */}
+              <div className="border-t border-gray-200 pt-4">
+                <button
+                  onClick={() => setShowBillingDetail(!showBillingDetail)}
+                  className="w-full flex items-center justify-between mb-3"
+                >
                   <div className="flex items-center gap-2">
-                    <div className="w-1 h-4 bg-green-500 rounded"></div>
-                    <span className="text-sm font-bold text-gray-800">요금내역</span>
+                    <span className="text-sm font-medium text-gray-700">요금내역</span>
                     {selectedPayment && (
                       <span className="text-xs text-blue-600 bg-blue-50 px-2 py-0.5 rounded">
                         {formatPymAcntId(selectedPayment.PYM_ACNT_ID)}
                       </span>
                     )}
                   </div>
-                  <button
-                    onClick={() => setShowBillingDetail(!showBillingDetail)}
-                    className="text-xs text-gray-500 flex items-center gap-1"
-                  >
-                    {showBillingDetail ? '접기' : '펼치기'}
-                    <ChevronDown
-                      className={`w-3.5 h-3.5 transition-transform ${showBillingDetail ? 'rotate-180' : ''}`}
-                    />
-                  </button>
-                </div>
+                  <ChevronDown
+                    className={`w-4 h-4 text-gray-400 transition-transform ${
+                      showBillingDetail ? 'rotate-180' : ''
+                    }`}
+                  />
+                </button>
 
                 {showBillingDetail && (
                   <>
@@ -414,7 +403,6 @@ const PaymentInfo: React.FC<PaymentInfoProps> = ({
                   </>
                 )}
               </div>
-              {/* ===== 섹션 끝 ===== */}
             </div>
           )}
         </div>
