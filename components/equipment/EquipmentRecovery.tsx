@@ -929,8 +929,37 @@ const EquipmentRecovery: React.FC<EquipmentRecoveryProps> = ({ onBack, showToast
             params
           );
           successCount++;
-        } catch (err) {
+        } catch (err: any) {
           console.error('Recovery process failed:', item.EQT_SERNO, err);
+
+          // Workaround: Oracle 프로시저 PCMWK_NOT_REV_EQT 버그
+          // UPDATE는 성공하지만 결과 반환 시 ORA-30926 발생
+          // "원본 테이블의 고정 행 집합을 가져올 수 없습니다" 에러 발생 시
+          // 실제 처리가 완료되었는지 확인
+          const errorMsg = err?.message || err?.toString() || '';
+          if (errorMsg.includes('원본 테이블의 고정 행 집합') || errorMsg.includes('ORA-30926')) {
+            console.log('[Workaround] Oracle 프로시저 반환 에러 감지, 실제 처리 결과 확인 중...');
+            try {
+              // 잠시 대기 후 장비 상태 확인 (DB 커밋 대기)
+              await new Promise(resolve => setTimeout(resolve, 500));
+              const verifyResult = await getEquipmentHistoryInfo({ EQT_SERNO: item.EQT_SERNO });
+              const verifyData = Array.isArray(verifyResult) ? verifyResult[0] : verifyResult;
+
+              // CHG_KND_CD_NM이 '고객철거'(61)이면 성공으로 처리
+              // 또는 미회수 장비 목록에서 사라졌는지 확인
+              const chgKndNm = verifyData?.CHG_KND_CD_NM || verifyData?.CHG_KND_NM || '';
+              console.log('[Workaround] 장비 상태 확인:', item.EQT_SERNO, '- CHG_KND_NM:', chgKndNm);
+
+              if (chgKndNm.includes('철거') || chgKndNm.includes('회수') || chgKndNm === 'SO기사할당') {
+                console.log('[Workaround] ✅ 실제 처리 완료 확인됨:', item.EQT_SERNO);
+                successCount++;
+              } else {
+                console.log('[Workaround] ⚠️ 상태 변경 미확인, 에러로 처리:', chgKndNm);
+              }
+            } catch (verifyErr) {
+              console.error('[Workaround] 검증 실패:', verifyErr);
+            }
+          }
         }
       }
 
