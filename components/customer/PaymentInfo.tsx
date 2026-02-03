@@ -263,39 +263,41 @@ const PaymentInfo: React.FC<PaymentInfoProps> = ({
                             </div>
                           )}
 
-                          {/* 정보 테이블 - 가로 키-값 형태 */}
-                          <table className="w-full text-sm table-fixed">
-                            <colgroup>
-                              <col style={{ width: '25%' }} />
-                              <col style={{ width: '25%' }} />
-                              <col style={{ width: '25%' }} />
-                              <col style={{ width: '25%' }} />
-                            </colgroup>
-                            <tbody>
-                              <tr>
-                                <td className="text-gray-500 py-1 text-xs">납부계정번호</td>
-                                <td className="text-gray-800 font-medium py-1 truncate">{formatPymAcntId(payment.PYM_ACNT_ID)}</td>
-                                <td className="text-gray-500 py-1 text-xs">납부방법</td>
-                                <td className="text-gray-800 py-1 truncate">{payment.PYM_MTHD_NM || '-'}</td>
-                              </tr>
-                              <tr>
-                                <td className="text-gray-500 py-1 text-xs">은행/카드명</td>
-                                <td className="text-gray-800 py-1 truncate">{payment.BANK_CARD_NM || '-'}</td>
-                                <td className="text-gray-500 py-1 text-xs">계좌/카드번호</td>
-                                <td className="text-gray-800 py-1 truncate">{maskString(payment.BANK_CARD_NO || '', 4, 4)}</td>
-                              </tr>
-                              <tr>
-                                <td className="text-gray-500 py-1 text-xs">청구매체</td>
-                                <td className="text-gray-800 py-1 truncate" colSpan={3}>{payment.BILL_MTHD || '-'}</td>
-                              </tr>
-                              <tr>
-                                <td className="text-gray-500 py-1 text-xs">미납금액 합계</td>
-                                <td className={`py-1 font-bold ${payment.UPYM_AMT_ACNT > 0 ? 'text-red-600' : 'text-gray-800'}`} colSpan={3}>
-                                  {formatCurrency(payment.UPYM_AMT_ACNT || 0)}원
-                                </td>
-                              </tr>
-                            </tbody>
-                          </table>
+                          {/* 정보 - 세로 배치 (잘림 방지) */}
+                          <div className="space-y-2 text-sm">
+                            {/* 납부계정 ID */}
+                            <div className="flex justify-between items-center">
+                              <span className="text-gray-500 text-xs">납부계정 ID</span>
+                              <span className="text-gray-800 font-medium">{formatPymAcntId(payment.PYM_ACNT_ID)}</span>
+                            </div>
+                            {/* 납부방법 */}
+                            <div className="flex justify-between items-center">
+                              <span className="text-gray-500 text-xs">납부방법</span>
+                              <span className="text-gray-800">{payment.PYM_MTHD_NM || '-'}</span>
+                            </div>
+                            {/* 은행/카드 */}
+                            <div className="flex justify-between items-center">
+                              <span className="text-gray-500 text-xs">은행/카드</span>
+                              <span className="text-gray-800">{payment.BANK_CARD_NM || '-'}</span>
+                            </div>
+                            {/* 계좌/카드번호 */}
+                            <div className="flex justify-between items-center">
+                              <span className="text-gray-500 text-xs">계좌/카드번호</span>
+                              <span className="text-gray-800">{maskString(payment.BANK_CARD_NO || '', 4, 4)}</span>
+                            </div>
+                            {/* 청구매체 */}
+                            <div className="flex justify-between items-center">
+                              <span className="text-gray-500 text-xs">청구매체</span>
+                              <span className="text-gray-800">{payment.BILL_MTHD || '-'}</span>
+                            </div>
+                            {/* 미납금액 */}
+                            <div className="flex justify-between items-center pt-1 border-t border-gray-200">
+                              <span className="text-gray-500 text-xs">미납금액</span>
+                              <span className={`font-bold ${payment.UPYM_AMT_ACNT > 0 ? 'text-red-600' : 'text-gray-800'}`}>
+                                {formatCurrency(payment.UPYM_AMT_ACNT || 0)}원
+                              </span>
+                            </div>
+                          </div>
 
                           {/* 납부정보 변경 버튼 */}
                           {onNavigateToPaymentChange && (
@@ -363,43 +365,56 @@ const PaymentInfo: React.FC<PaymentInfoProps> = ({
                       </div>
                     ) : (
                       <div className="space-y-2">
-                        {billingDetails.map((item, index) => (
+                        {/* 미납 요약 (미납 건수가 있을 때만) */}
+                        {billingDetails.filter(b => b.UPYM_AMT > 0).length > 0 && (
+                          <div className="p-3 bg-red-50 border border-red-200 rounded-lg mb-3">
+                            <div className="flex justify-between items-center">
+                              <span className="text-sm text-red-700 font-medium">
+                                미납 {billingDetails.filter(b => b.UPYM_AMT > 0).length}건
+                              </span>
+                              <span className="text-red-700 font-bold">
+                                총 {formatCurrency(billingDetails.filter(b => b.UPYM_AMT > 0).reduce((sum, b) => sum + b.UPYM_AMT, 0))}원
+                              </span>
+                            </div>
+                          </div>
+                        )}
+                        {/* 요금 상세 목록 */}
+                        {billingDetails.slice(0, 10).map((item, index) => (
                           <div
                             key={index}
                             className={`p-3 rounded-lg border ${
                               item.UPYM_AMT > 0 ? 'bg-red-50 border-red-200' : 'bg-gray-50 border-gray-200'
                             }`}
                           >
-                            <table className="w-full text-sm table-fixed">
-                              <colgroup>
-                                <col style={{ width: '25%' }} />
-                                <col style={{ width: '25%' }} />
-                                <col style={{ width: '25%' }} />
-                                <col style={{ width: '25%' }} />
-                              </colgroup>
-                              <tbody>
-                                <tr>
-                                  <td className="text-gray-500 py-1 text-xs">청구년월</td>
-                                  <td className="text-gray-800 font-medium py-1">{item.BILL_YYMM}</td>
-                                  <td className="text-gray-500 py-1 text-xs">청구주기</td>
-                                  <td className="text-gray-800 py-1">{item.BILL_CYCL || '정기'}</td>
-                                </tr>
-                                <tr>
-                                  <td className="text-gray-500 py-1 text-xs">청구금액</td>
-                                  <td className="text-gray-800 font-medium py-1">{formatCurrency(item.BILL_AMT)}원</td>
-                                  <td className="text-gray-500 py-1 text-xs">수납금액</td>
-                                  <td className="text-green-600 font-medium py-1">{formatCurrency(item.RCPT_AMT)}원</td>
-                                </tr>
-                                <tr>
-                                  <td className="text-gray-500 py-1 text-xs">미납금액</td>
-                                  <td className={`py-1 font-bold ${item.UPYM_AMT > 0 ? 'text-red-600' : 'text-gray-600'}`} colSpan={3}>
-                                    {formatCurrency(item.UPYM_AMT)}원
-                                  </td>
-                                </tr>
-                              </tbody>
-                            </table>
+                            {/* 청구년월 헤더 */}
+                            <div className="flex justify-between items-center mb-2 pb-2 border-b border-gray-200">
+                              <span className="font-medium text-gray-800">{item.BILL_YYMM}</span>
+                              <span className="text-xs text-gray-500">{item.BILL_CYCL || '정기'}</span>
+                            </div>
+                            {/* 금액 정보 - 세로 배치 */}
+                            <div className="space-y-1 text-sm">
+                              <div className="flex justify-between">
+                                <span className="text-gray-500 text-xs">청구금액</span>
+                                <span className="text-gray-800">{formatCurrency(item.BILL_AMT)}원</span>
+                              </div>
+                              <div className="flex justify-between">
+                                <span className="text-gray-500 text-xs">수납금액</span>
+                                <span className="text-green-600">{formatCurrency(item.RCPT_AMT)}원</span>
+                              </div>
+                              {item.UPYM_AMT > 0 && (
+                                <div className="flex justify-between pt-1 border-t border-gray-200">
+                                  <span className="text-gray-500 text-xs">미납금액</span>
+                                  <span className="text-red-600 font-bold">{formatCurrency(item.UPYM_AMT)}원</span>
+                                </div>
+                              )}
+                            </div>
                           </div>
                         ))}
+                        {billingDetails.length > 10 && (
+                          <div className="text-center text-sm text-gray-500 py-2">
+                            +{billingDetails.length - 10}건 더 있음
+                          </div>
+                        )}
                       </div>
                     )}
                   </>

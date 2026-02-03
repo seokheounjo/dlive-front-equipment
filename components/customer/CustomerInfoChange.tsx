@@ -1135,13 +1135,72 @@ const CustomerInfoChange: React.FC<CustomerInfoChangeProps> = ({
                 />
               </div>
 
+              {/* 변경 대상 선택 */}
+              <div className="p-3 bg-gray-50 border border-gray-200 rounded-lg space-y-2">
+                <div className="text-xs text-gray-500 mb-2">변경할 주소 유형</div>
+
+                {/* 고객주소 (기본) */}
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={addressForm.changeCustAddr}
+                    onChange={(e) => setAddressForm(prev => ({ ...prev, changeCustAddr: e.target.checked }))}
+                    className="w-4 h-4 text-green-600 rounded"
+                  />
+                  <span className="text-sm text-gray-700">고객주소</span>
+                </label>
+
+                {/* 설치주소 (계약 선택 시에만) */}
+                <label className={`flex items-center gap-2 ${selectedContract?.ctrtId ? 'cursor-pointer' : 'cursor-not-allowed opacity-50'}`}>
+                  <input
+                    type="checkbox"
+                    checked={addressForm.changeInstAddr}
+                    onChange={(e) => setAddressForm(prev => ({ ...prev, changeInstAddr: e.target.checked }))}
+                    disabled={!selectedContract?.ctrtId}
+                    className="w-4 h-4 text-green-600 rounded"
+                  />
+                  <span className="text-sm text-gray-700">설치주소</span>
+                  {!selectedContract?.ctrtId && (
+                    <span className="text-xs text-orange-500">(계약 선택 필요)</span>
+                  )}
+                </label>
+
+                {/* 청구지주소 (고객 1 + 납부계정 1일 때만 활성화) */}
+                <label className={`flex items-center gap-2 ${paymentInfoList.length === 1 ? 'cursor-pointer' : 'cursor-not-allowed opacity-50'}`}>
+                  <input
+                    type="checkbox"
+                    checked={addressForm.changeBillAddr}
+                    onChange={(e) => setAddressForm(prev => ({ ...prev, changeBillAddr: e.target.checked }))}
+                    disabled={paymentInfoList.length !== 1}
+                    className="w-4 h-4 text-green-600 rounded"
+                  />
+                  <span className="text-sm text-gray-700">청구지주소</span>
+                  {paymentInfoList.length !== 1 && (
+                    <span className="text-xs text-orange-500">
+                      (납부계정 {paymentInfoList.length}개 - 단일 계정만 가능)
+                    </span>
+                  )}
+                </label>
+
+                {/* 청구지 변경 시 안내 */}
+                {addressForm.changeBillAddr && paymentInfoList.length === 1 && (
+                  <div className="mt-2 p-2 bg-blue-50 border border-blue-200 rounded text-xs">
+                    <p className="text-blue-700">
+                      <strong>현재 청구지:</strong> {paymentInfoList[0]?.BILL_ADDR || '정보 없음'}
+                    </p>
+                    <p className="text-blue-600 mt-1">
+                      → 위 주소로 변경됩니다
+                    </p>
+                  </div>
+                )}
+              </div>
+
               {/* 안내 메시지 */}
               <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
                 <div className="flex items-start gap-2">
                   <AlertCircle className="w-4 h-4 text-yellow-600 mt-0.5" />
                   <div className="text-sm text-yellow-700">
-                    <p>설치 위치 변경은 작업관리에서 처리됩니다.</p>
-                    <p className="text-xs mt-1">이 화면에서는 주소 정보만 수정됩니다.</p>
+                    <p>설치 위치(거실, 안방 등) 변경은 작업관리에서 처리됩니다.</p>
                   </div>
                 </div>
               </div>
@@ -1149,7 +1208,7 @@ const CustomerInfoChange: React.FC<CustomerInfoChangeProps> = ({
               {/* 저장 버튼 */}
               <button
                 onClick={handleSaveAddress}
-                disabled={isSavingAddress}
+                disabled={isSavingAddress || (!addressForm.changeCustAddr && !addressForm.changeInstAddr && !addressForm.changeBillAddr)}
                 className="w-full flex items-center justify-center gap-2 py-3 bg-green-500 text-white rounded-lg hover:bg-green-600 disabled:bg-gray-400 transition-colors"
               >
                 {isSavingAddress ? (
@@ -1160,7 +1219,7 @@ const CustomerInfoChange: React.FC<CustomerInfoChangeProps> = ({
                 ) : (
                   <>
                     <Save className="w-5 h-5" />
-                    고객주소 변경
+                    주소 변경
                   </>
                 )}
               </button>

@@ -223,18 +223,26 @@ const ContractSummary: React.FC<ContractSummaryProps> = ({
                       </div>
 
                       <div className="flex items-center justify-between text-sm text-gray-600">
-                        <span>계약ID: {contract.CTRT_ID}</span>
+                        <span>계약 ID: {contract.CTRT_ID}</span>
                         <span className="text-xs px-2 py-0.5 bg-indigo-50 text-indigo-600 rounded mr-6">
                           {contract.INSTL_LOC || 'N/A'}
                         </span>
                       </div>
 
+                      {/* 주소 표시 - 도로명 주소 우선 */}
                       {(contract.STREET_ADDR_FULL || contract.ADDR_FULL || contract.INST_ADDR) && (
-                        <div className="flex items-center gap-1 text-sm text-gray-600 mt-1">
-                          <MapPin className="w-4 h-4" />
-                          <span className="truncate">
-                            {contract.STREET_ADDR_FULL || contract.ADDR_FULL || contract.INST_ADDR}
-                          </span>
+                        <div className="flex items-start gap-1 text-sm text-gray-600 mt-1">
+                          <MapPin className="w-4 h-4 flex-shrink-0 mt-0.5" />
+                          <div className="min-w-0">
+                            {contract.STREET_ADDR_FULL ? (
+                              <>
+                                <span className="text-xs text-blue-600 mr-1">[도로명]</span>
+                                <span>{contract.STREET_ADDR_FULL}</span>
+                              </>
+                            ) : (
+                              <span>{contract.ADDR_FULL || contract.INST_ADDR}</span>
+                            )}
+                          </div>
                         </div>
                       )}
                     </div>

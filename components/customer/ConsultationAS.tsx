@@ -83,6 +83,11 @@ const ConsultationAS: React.FC<ConsultationASProps> = ({
   const [consultationCodes, setConsultationCodes] = useState<CodeItem[]>([]);
   const [asReasonCodes, setASReasonCodes] = useState<CodeItem[]>([]);
 
+  // 상담/AS 대상 단위 (계약 or 고객)
+  const [targetUnit, setTargetUnit] = useState<'contract' | 'customer'>(
+    selectedContract ? 'contract' : 'customer'
+  );
+
   // 상담 등록 폼 (와이어프레임 기준: 대/중/소분류)
   const [consultationForm, setConsultationForm] = useState({
     cnslLClCd: '',      // 상담대분류
@@ -281,8 +286,8 @@ const ConsultationAS: React.FC<ConsultationASProps> = ({
     setIsLoadingHistory(true);
     try {
       const [consultRes, workRes] = await Promise.all([
-        getConsultationHistory(selectedCustomer.custId, selectedContract.ctrtId, 20),
-        getWorkHistory(selectedCustomer.custId, selectedContract.ctrtId, 20)
+        getConsultationHistory(selectedCustomer.custId, selectedContract.ctrtId, 10),
+        getWorkHistory(selectedCustomer.custId, selectedContract.ctrtId, 10)
       ]);
 
       if (consultRes.success && consultRes.data) {
@@ -498,15 +503,52 @@ const ConsultationAS: React.FC<ConsultationASProps> = ({
               상담 등록
             </h3>
 
-            {/* 고객 정보 */}
+            {/* 대상 단위 선택 (계약/고객) */}
+            <div className="p-3 bg-gray-50 rounded-lg border border-gray-200">
+              <div className="text-xs text-gray-500 mb-2">상담 대상</div>
+              <div className="flex gap-4">
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="radio"
+                    name="targetUnit"
+                    value="contract"
+                    checked={targetUnit === 'contract'}
+                    onChange={() => setTargetUnit('contract')}
+                    disabled={!selectedContract}
+                    className="w-4 h-4 text-blue-600"
+                  />
+                  <span className={`text-sm ${!selectedContract ? 'text-gray-400' : 'text-gray-700'}`}>
+                    계약 단위
+                  </span>
+                </label>
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="radio"
+                    name="targetUnit"
+                    value="customer"
+                    checked={targetUnit === 'customer'}
+                    onChange={() => setTargetUnit('customer')}
+                    className="w-4 h-4 text-blue-600"
+                  />
+                  <span className="text-sm text-gray-700">고객 단위</span>
+                </label>
+              </div>
+              {targetUnit === 'contract' && !selectedContract && (
+                <div className="mt-2 text-xs text-orange-600">
+                  ⚠️ 기본조회에서 계약을 선택해주세요
+                </div>
+              )}
+            </div>
+
+            {/* 고객/계약 정보 */}
             <div className="p-3 bg-blue-50 rounded-lg">
               <div className="text-sm text-blue-800">
                 <span className="font-medium">{selectedCustomer.custNm}</span>
-                <span className="ml-2 text-blue-600">({selectedCustomer.custId})</span>
+                <span className="ml-2 text-blue-600">(고객ID: {selectedCustomer.custId})</span>
               </div>
-              {selectedContract && (
+              {targetUnit === 'contract' && selectedContract && (
                 <div className="text-xs text-blue-600 mt-1">
-                  선택된 계약: {selectedContract.prodNm}
+                  계약: {selectedContract.prodNm} (계약ID: {selectedContract.ctrtId})
                 </div>
               )}
             </div>
@@ -844,43 +886,43 @@ const ConsultationAS: React.FC<ConsultationASProps> = ({
                   <div className="space-y-3 max-h-[400px] overflow-y-auto">
                     {consultationHistory.map((item, index) => (
                       <div key={index} className="p-3 bg-gray-50 rounded-lg border border-gray-100">
-                        {/* 상단 정보: 접수일 | 상담소분류 | 처리상태 | 접수자 */}
-                        <div className="grid grid-cols-4 gap-2 text-xs">
-                          <div className="flex flex-col">
-                            <span className="text-gray-500 whitespace-nowrap">접수일</span>
-                            <span className="text-gray-800 font-medium">{item.START_DATE || '-'}</span>
+                        {/* 상단: 접수일 + 상담분류 (옆 배치로 가독성 개선) */}
+                        <div className="flex items-center justify-between mb-2">
+                          <div className="flex items-center gap-2">
+                            <span className="text-sm font-medium text-gray-800">{item.START_DATE || '-'}</span>
+                            <span className="px-2 py-0.5 text-xs bg-blue-100 text-blue-700 rounded">
+                              {item.CNSL_SLV_CL_NM || '-'}
+                            </span>
                           </div>
-                          <div className="flex flex-col">
-                            <span className="text-gray-500 whitespace-nowrap">상담소분류</span>
-                            <span className="text-gray-800 font-medium truncate">{item.CNSL_SLV_CL_NM || '-'}</span>
-                          </div>
-                          <div className="flex flex-col">
-                            <span className="text-gray-500 whitespace-nowrap">처리상태</span>
-                            <span className={`font-medium ${
-                              item.CNSL_RSLT?.includes('완료') ? 'text-green-600' : 'text-yellow-600'
-                            }`}>{item.CNSL_RSLT || '처리중'}</span>
-                          </div>
-                          <div className="flex flex-col">
-                            <span className="text-gray-500 whitespace-nowrap">접수자</span>
-                            <span className="text-gray-800 font-medium">{item.RCPT_NM || '-'}</span>
-                          </div>
+                          <span className={`px-2 py-0.5 text-xs rounded font-medium ${
+                            item.CNSL_RSLT?.includes('완료')
+                              ? 'bg-green-100 text-green-700'
+                              : 'bg-yellow-100 text-yellow-700'
+                          }`}>{item.CNSL_RSLT || '처리중'}</span>
+                        </div>
+
+                        {/* 접수자 */}
+                        <div className="text-xs text-gray-500 mb-2">
+                          접수자: <span className="text-gray-700">{item.RCPT_NM || '-'}</span>
                         </div>
 
                         {/* 요청사항 */}
-                        <div className="mt-3">
+                        <div className="mt-2">
                           <div className="text-xs text-gray-500 mb-1">요청사항</div>
-                          <div className="p-2 bg-white border border-gray-200 rounded min-h-[48px] text-gray-700 text-xs">
+                          <div className="p-2 bg-white border border-gray-200 rounded min-h-[40px] text-gray-700 text-xs">
                             {item.REQ_CTX || '-'}
                           </div>
                         </div>
 
                         {/* 응대내용 */}
-                        <div className="mt-2">
-                          <div className="text-xs text-gray-500 mb-1">응대내용</div>
-                          <div className="p-2 bg-white border border-gray-200 rounded min-h-[48px] text-gray-700 text-xs">
-                            {item.PROC_CT || '-'}
+                        {item.PROC_CT && (
+                          <div className="mt-2">
+                            <div className="text-xs text-gray-500 mb-1">응대내용</div>
+                            <div className="p-2 bg-white border border-gray-200 rounded min-h-[40px] text-gray-700 text-xs">
+                              {item.PROC_CT}
+                            </div>
                           </div>
-                        </div>
+                        )}
                       </div>
                     ))}
                   </div>
