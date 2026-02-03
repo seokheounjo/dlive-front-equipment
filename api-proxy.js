@@ -383,7 +383,10 @@ async function handleProxy(req, res) {
     console.log('\n========================================');
     console.log('[PROXY] ' + req.method + ' ' + targetUrl);
     console.log('========================================');
-    console.log('Request body:', req.body ? JSON.stringify(req.body).substring(0, 200) : '(no body)');
+    if (req.body && Object.keys(req.body).length > 0) {
+      console.log('Request body:');
+      console.log(JSON.stringify(req.body, null, 2));
+    }
 
     const http = require('http');
     const url = require('url');
@@ -442,8 +445,15 @@ async function handleProxy(req, res) {
       proxyRes.on('end', () => {
         const responseBody = Buffer.concat(chunks).toString();
 
-        // Log first 200 chars of response for debugging
-        console.log('[PROXY] Response preview:', responseBody.substring(0, 200));
+        // Log response for debugging (pretty print JSON)
+        try {
+          const jsonResponse = JSON.parse(responseBody);
+          console.log('[PROXY] Response:');
+          console.log(JSON.stringify(jsonResponse, null, 2));
+        } catch (e) {
+          // Not JSON, show first 500 chars
+          console.log('[PROXY] Response preview:', responseBody.substring(0, 500));
+        }
 
         Object.keys(proxyRes.headers).forEach(key => {
           if (key.toLowerCase() !== 'transfer-encoding' && key.toLowerCase() !== 'content-type') {

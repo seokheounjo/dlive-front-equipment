@@ -463,7 +463,8 @@ const apiCall = async <T>(
 ): Promise<ApiResponse<T>> => {
   try {
     const url = `${API_BASE}${endpoint}`;
-    console.log(`[CustomerAPI] ${method} ${url}`, params);
+    console.log(`[CustomerAPI] ${method} ${url}`);
+    console.log(JSON.stringify(params, null, 2));
 
     const response = await fetch(url, {
       method,
@@ -479,7 +480,8 @@ const apiCall = async <T>(
     }
 
     const result = await response.json();
-    console.log(`[CustomerAPI] Response:`, result);
+    console.log(`[CustomerAPI] Response:`);
+    console.log(JSON.stringify(result, null, 2));
 
     // 레거시 API 응답 형식 처리
     // D'Live API: { code: 'SUCCESS', message: 'OK', data: [...] }

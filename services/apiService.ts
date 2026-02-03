@@ -761,6 +761,8 @@ export const getWorkOrders = async ({ startDate, endDate }: { startDate: string,
     });
 
     const apiData = await response.json();
+    console.log('📋 [directions] API 응답:');
+    console.log(JSON.stringify(apiData, null, 2));
 
     // API 응답이 빈 배열이면 그대로 반환
     if (!Array.isArray(apiData) || apiData.length === 0) {
@@ -2687,13 +2689,11 @@ export const getCommonCodes = async (codeGroup: string): Promise<CommonCodeItem[
     console.log('📡 공통 코드 조회 API 응답 상태:', response.status, response.statusText);
 
     const result = await response.json();
-    console.log('✅ 공통 코드 조회 API 성공:', result);
-    console.log('  - Type:', Array.isArray(result) ? 'Array' : typeof result);
-    console.log('  - Length:', Array.isArray(result) ? result.length : 'N/A');
+    console.log('✅ 공통 코드 조회 API 성공:');
+    console.log(JSON.stringify(result, null, 2));
 
     // 백엔드가 배열을 직접 반환 (다른 API와 동일)
     if (Array.isArray(result)) {
-      console.log('  - 첫 항목:', result[0]);
       // API 응답 필드(대문자)를 CommonCodeItem 형태(소문자)로 변환
       return result.map((item: any) => ({
         code: item.COMMON_CD || item.code || '',
