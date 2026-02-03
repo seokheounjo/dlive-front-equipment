@@ -198,7 +198,8 @@ const ContractSummary: React.FC<ContractSummaryProps> = ({
                       className="cursor-pointer"
                       onClick={() => toggleDetail(contract)}
                     >
-                      <div className="flex items-center justify-between mb-2 gap-2">
+                      {/* 1행: 번호 + 상품명 + 상태 + 화살표 */}
+                      <div className="flex items-center justify-between mb-1 gap-2">
                         <div className="flex items-center gap-2 min-w-0 flex-1">
                           <div className="flex-shrink-0 w-7 h-7 flex items-center justify-center rounded-full bg-blue-500 text-white text-sm font-bold">
                             {index + 1}
@@ -209,11 +210,6 @@ const ContractSummary: React.FC<ContractSummaryProps> = ({
                           <span className={`text-xs px-2 py-0.5 rounded whitespace-nowrap ${getContractStatusStyle(contract.CTRT_STAT_CD)}`}>
                             {contract.CTRT_STAT_NM || (contract.CTRT_STAT_CD === '90' ? '해지' : contract.CTRT_STAT_CD === '20' ? '사용중' : '기타')}
                           </span>
-                          {contract.SO_NM && (
-                            <span className="text-xs px-1.5 py-0.5 bg-purple-50 text-purple-600 rounded whitespace-nowrap">
-                              {contract.SO_NM}
-                            </span>
-                          )}
                           <ChevronDown
                             className={`w-4 h-4 text-gray-400 transition-transform flex-shrink-0 ${
                               expandedContractId === contract.CTRT_ID ? 'rotate-180' : ''
@@ -222,11 +218,21 @@ const ContractSummary: React.FC<ContractSummaryProps> = ({
                         </div>
                       </div>
 
-                      <div className="flex items-center justify-between text-sm text-gray-600">
-                        <span>계약 ID: {contract.CTRT_ID}</span>
-                        <span className="text-xs px-2 py-0.5 bg-indigo-50 text-indigo-600 rounded mr-6">
+                      {/* 2행: 지점 + 설치위치 (다음 줄로 분리) */}
+                      <div className="flex items-center justify-between mb-1 ml-9">
+                        {contract.SO_NM && (
+                          <span className="text-xs px-1.5 py-0.5 bg-purple-50 text-purple-600 rounded">
+                            {contract.SO_NM}
+                          </span>
+                        )}
+                        <span className="text-xs px-2 py-0.5 bg-indigo-50 text-indigo-600 rounded">
                           {contract.INSTL_LOC || 'N/A'}
                         </span>
+                      </div>
+
+                      {/* 3행: 계약 ID */}
+                      <div className="text-sm text-gray-600 ml-9">
+                        <span>계약 ID: {contract.CTRT_ID}</span>
                       </div>
 
                       {/* 주소 표시 - 도로명 주소 우선 */}
