@@ -218,21 +218,19 @@ const ContractSummary: React.FC<ContractSummaryProps> = ({
                         </div>
                       </div>
 
-                      {/* 2행: 지점 + 설치위치 (다음 줄로 분리) */}
+                      {/* 2행: 계약 ID + 설치위치 + 지점 */}
                       <div className="flex items-center justify-between mb-1 ml-9">
-                        {contract.SO_NM && (
-                          <span className="text-xs px-1.5 py-0.5 bg-purple-50 text-purple-600 rounded">
-                            {contract.SO_NM}
+                        <span className="text-sm text-gray-600">계약 ID: {contract.CTRT_ID}</span>
+                        <div className="flex items-center gap-1">
+                          <span className="text-xs px-2 py-0.5 bg-indigo-50 text-indigo-600 rounded">
+                            {contract.INSTL_LOC || 'N/A'}
                           </span>
-                        )}
-                        <span className="text-xs px-2 py-0.5 bg-indigo-50 text-indigo-600 rounded">
-                          {contract.INSTL_LOC || 'N/A'}
-                        </span>
-                      </div>
-
-                      {/* 3행: 계약 ID */}
-                      <div className="text-sm text-gray-600 ml-9">
-                        <span>계약 ID: {contract.CTRT_ID}</span>
+                          {contract.SO_NM && (
+                            <span className="text-xs px-1.5 py-0.5 bg-purple-50 text-purple-600 rounded">
+                              {contract.SO_NM}
+                            </span>
+                          )}
+                        </div>
                       </div>
 
                       {/* 주소 표시 - 도로명 주소 우선 */}
