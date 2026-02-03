@@ -60,16 +60,24 @@ const ContractSummary: React.FC<ContractSummaryProps> = ({
   // 상세 펼침 상태
   const [expandedContractId, setExpandedContractId] = useState<string | null>(null);
 
-  // 사용계약 여부 판별 (CTRT_STAT_CD가 10, 50, 90이 아닌 계약)
-  const isActiveContract = (contract: ContractInfo) => {
+  // 해지 여부 판별 (해지된 계약은 상담/AS 버튼 비활성화)
+  const isTerminated = (contract: ContractInfo) => {
+    const statNm = contract.CTRT_STAT_NM || '';
     const statCd = contract.CTRT_STAT_CD || '';
-    // 10, 50, 90 제외
-    return !['10', '50', '90'].includes(statCd);
+    // 해지 상태인 경우
+    if (statNm.includes('해지')) return true;
+    if (['90', '30'].includes(statCd)) return true;
+    return false;
+  };
+
+  // 사용계약 여부 판별 (해지가 아닌 모든 계약 = 사용계약)
+  const isActiveContract = (contract: ContractInfo) => {
+    return !isTerminated(contract);
   };
 
   // 필터링된 계약 목록
   const filteredContracts = contracts.filter(contract => {
-    // 상태 필터 (사용계약 선택 시 10, 50, 90 제외)
+    // 상태 필터 (사용계약 선택 시 해지 제외)
     if (filterStatus === 'active' && !isActiveContract(contract)) return false;
 
     // 키워드 검색 (계약ID, 상품명, 장비시리얼)
@@ -259,7 +267,7 @@ const ContractSummary: React.FC<ContractSummaryProps> = ({
                           </div>
                         )}
 
-                        {/* AS/상담 버튼 - 사용계약만 (10, 50, 90 제외) */}
+                        {/* AS/상담 버튼 - 사용계약만 (해지 제외) */}
                         {isActiveContract(contract) && (
                           <div className="flex gap-2 mt-3 pt-3 border-t border-gray-200">
                             <button
