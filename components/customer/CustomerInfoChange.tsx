@@ -1084,7 +1084,7 @@ const CustomerInfoChange: React.FC<CustomerInfoChangeProps> = ({
           </button>
 
           {expandedSections.address && (
-            <div className="px-4 pb-4">
+            <div className="px-4 pb-4 space-y-4">
               {/* 계약 미선택 시 안내 */}
               {!selectedContract?.ctrtId ? (
                 <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
@@ -1099,128 +1099,190 @@ const CustomerInfoChange: React.FC<CustomerInfoChangeProps> = ({
                   </div>
                 </div>
               ) : (
-                <div className="space-y-0">
-                  {/* ===== 상단: 설치주소 변경 섹션 ===== */}
-                  <div className="bg-gray-50 rounded-t-lg p-3 border border-gray-200 border-b-0">
-                    {/* 섹션 헤더 */}
-                    <div className="flex items-center justify-between mb-3 pb-2 border-b border-gray-300">
-                      <div className="flex items-center gap-2">
-                        <div className="w-1 h-4 bg-blue-500 rounded"></div>
-                        <span className="text-sm font-bold text-gray-800">설치주소 변경</span>
-                      </div>
-                      <span className="text-xs text-gray-500">현재: {currentInstallInfo.addr || '-'}</span>
-                    </div>
+                <>
+                  {/* 중분류 탭: 설치주소 변경 / 설치위치 변경 */}
+                  <div className="flex border-b border-gray-200">
+                    <button
+                      onClick={() => setAddressSubTab('address')}
+                      className={`flex-1 py-2.5 text-sm font-medium transition-colors ${
+                        addressSubTab === 'address'
+                          ? 'text-green-600 border-b-2 border-green-500'
+                          : 'text-gray-500 hover:text-gray-700'
+                      }`}
+                    >
+                      설치주소 변경
+                    </button>
+                    <button
+                      onClick={() => setAddressSubTab('location')}
+                      className={`flex-1 py-2.5 text-sm font-medium transition-colors ${
+                        addressSubTab === 'location'
+                          ? 'text-green-600 border-b-2 border-green-500'
+                          : 'text-gray-500 hover:text-gray-700'
+                      }`}
+                    >
+                      설치위치 변경
+                    </button>
+                  </div>
 
-                    {/* 주소 입력 폼 */}
-                    <div className="space-y-3">
+                  {/* 기존 설치 정보 표시 */}
+                  <div className="p-3 bg-gray-100 border border-gray-300 rounded-lg">
+                    <div className="flex items-center gap-2 mb-2">
+                      <Building2 className="w-4 h-4 text-gray-600" />
+                      <span className="text-sm font-medium text-gray-700">현재 설치 정보</span>
+                    </div>
+                    <div className="text-sm text-gray-700 space-y-1">
+                      <p><span className="text-gray-500">상품:</span> {selectedContract.prodNm}</p>
+                      <p><span className="text-gray-500">설치주소:</span> {currentInstallInfo.addr || '-'}</p>
+                      <p><span className="text-gray-500">설치위치:</span> {currentInstallInfo.instlLoc || '-'}</p>
+                    </div>
+                  </div>
+
+                  {/* 설치주소 변경 탭 */}
+                  {addressSubTab === 'address' && (
+                    <>
+                      {/* 안내 문구 */}
+                      <div className="p-2 bg-blue-50 border border-blue-200 rounded text-xs text-blue-700">
+                        💡 설치주소만 변경하려면 아래 주소를 입력 후 저장하세요. 설치위치는 기존 값이 유지됩니다.
+                      </div>
+
                       {/* 우편번호 */}
                       <div>
-                        <label className="block text-xs text-gray-600 mb-1">우편번호</label>
+                        <label className="block text-sm text-gray-600 mb-1">우편번호</label>
                         <div className="flex gap-2">
                           <input
                             type="text"
                             value={addressForm.zipCd}
                             readOnly
-                            placeholder="주소검색을 눌러주세요"
-                            className="flex-1 px-3 py-2 text-sm border border-gray-300 rounded-lg bg-white cursor-pointer"
+                            placeholder="주소검색 버튼을 눌러주세요"
+                            className="flex-1 px-4 py-2 border border-gray-300 rounded-lg bg-gray-50 cursor-pointer"
                             onClick={handleOpenAddressModal}
                           />
                           <button
                             onClick={handleOpenAddressModal}
-                            className="px-3 py-2 bg-blue-500 text-white text-sm rounded-lg hover:bg-blue-600 transition-colors flex items-center gap-1"
+                            className="px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors flex items-center gap-1"
                           >
                             <Search className="w-4 h-4" />
-                            검색
+                            주소검색
                           </button>
                         </div>
                       </div>
 
-                      {/* 기본주소 + 상세주소 */}
-                      <div className="grid grid-cols-1 gap-2">
+                      {/* 기본주소 */}
+                      <div>
+                        <label className="block text-sm text-gray-600 mb-1">기본주소</label>
                         <input
                           type="text"
                           value={addressForm.addr1}
                           onChange={(e) => setAddressForm(prev => ({ ...prev, addr1: e.target.value }))}
-                          placeholder="기본주소"
-                          className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                          placeholder="기본주소 입력"
+                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                         />
+                      </div>
+
+                      {/* 상세주소 */}
+                      <div>
+                        <label className="block text-sm text-gray-600 mb-1">상세주소</label>
                         <input
                           type="text"
                           value={addressForm.addr2}
                           onChange={(e) => setAddressForm(prev => ({ ...prev, addr2: e.target.value }))}
-                          placeholder="상세주소 (선택)"
-                          className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                          placeholder="상세주소 입력 (선택)"
+                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                         />
                       </div>
 
-                      {/* 청구지 함께 변경 */}
-                      <label className={`flex items-center gap-2 text-sm ${canChangeBillAddr ? 'cursor-pointer' : 'cursor-not-allowed opacity-50'}`}>
-                        <input
-                          type="checkbox"
-                          checked={addressForm.changeBillAddr}
-                          onChange={(e) => setAddressForm(prev => ({ ...prev, changeBillAddr: e.target.checked }))}
-                          disabled={!canChangeBillAddr}
-                          className="w-4 h-4 text-blue-600 rounded"
-                        />
-                        <span className="text-gray-700">청구지주소도 함께 변경</span>
-                        {!canChangeBillAddr && (
-                          <span className="text-xs text-orange-500">(납부계정 {paymentInfoList.length}개)</span>
-                        )}
-                      </label>
-
-                      {/* 저장 버튼 */}
-                      <button
-                        onClick={() => { setAddressSubTab('address'); handleSaveAddress(); }}
-                        disabled={isSavingAddress || !addressForm.zipCd}
-                        className="w-full py-2 text-sm bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:bg-gray-400 transition-colors font-medium"
-                      >
-                        {isSavingAddress && addressSubTab === 'address' ? '저장 중...' : '설치주소 변경'}
-                      </button>
-                    </div>
-                  </div>
-
-                  {/* ===== 구분선 ===== */}
-                  <div className="flex items-center py-2 px-3 bg-gray-200 border-l border-r border-gray-200">
-                    <div className="flex-1 h-px bg-gray-400"></div>
-                    <span className="px-3 text-xs text-gray-600 font-medium">또는</span>
-                    <div className="flex-1 h-px bg-gray-400"></div>
-                  </div>
-
-                  {/* ===== 하단: 설치위치 변경 섹션 ===== */}
-                  <div className="bg-gray-50 rounded-b-lg p-3 border border-gray-200 border-t-0">
-                    {/* 섹션 헤더 */}
-                    <div className="flex items-center justify-between mb-3 pb-2 border-b border-gray-300">
-                      <div className="flex items-center gap-2">
-                        <div className="w-1 h-4 bg-green-500 rounded"></div>
-                        <span className="text-sm font-bold text-gray-800">설치위치 변경</span>
-                      </div>
-                      <span className="text-xs text-gray-500">현재: {currentInstallInfo.instlLoc || '-'}</span>
-                    </div>
-
-                    {/* 설치위치 입력 폼 */}
-                    <div className="space-y-3">
+                      {/* 설치위치 (선택) */}
                       <div>
-                        <label className="block text-xs text-gray-600 mb-1">변경할 설치위치 (예: 거실, 안방, 침실)</label>
+                        <label className="block text-sm text-gray-600 mb-1">
+                          설치위치
+                          <span className="text-xs text-gray-400 ml-1">(미입력 시 기존 값 유지)</span>
+                        </label>
+                        <input
+                          type="text"
+                          value={addressForm.instlLoc}
+                          onChange={(e) => setAddressForm(prev => ({ ...prev, instlLoc: e.target.value }))}
+                          placeholder={currentInstallInfo.instlLoc || '예: 거실, 안방, 침실 등'}
+                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        />
+                      </div>
+                    </>
+                  )}
+
+                  {/* 설치위치 변경 탭 */}
+                  {addressSubTab === 'location' && (
+                    <>
+                      {/* 안내 문구 */}
+                      <div className="p-2 bg-blue-50 border border-blue-200 rounded text-xs text-blue-700">
+                        💡 설치위치만 변경하려면 아래 위치를 입력 후 저장하세요. 설치주소는 기존 값이 유지됩니다.
+                      </div>
+
+                      {/* 설치위치 입력 */}
+                      <div>
+                        <label className="block text-sm text-gray-600 mb-1">
+                          변경할 설치위치
+                          <span className="text-xs text-gray-400 ml-1">(예: 거실, 안방, 침실 등)</span>
+                        </label>
                         <input
                           type="text"
                           value={addressForm.instlLoc}
                           onChange={(e) => setAddressForm(prev => ({ ...prev, instlLoc: e.target.value }))}
                           placeholder="새 설치위치 입력"
-                          className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                         />
                       </div>
+                    </>
+                  )}
 
-                      {/* 저장 버튼 */}
-                      <button
-                        onClick={() => { setAddressSubTab('location'); handleSaveAddress(); }}
-                        disabled={isSavingAddress || !addressForm.instlLoc}
-                        className="w-full py-2 text-sm bg-green-500 text-white rounded-lg hover:bg-green-600 disabled:bg-gray-400 transition-colors font-medium"
-                      >
-                        {isSavingAddress && addressSubTab === 'location' ? '저장 중...' : '설치위치 변경'}
-                      </button>
-                    </div>
+                  {/* 청구지주소 함께 변경 옵션 */}
+                  <div className="p-3 bg-gray-50 border border-gray-200 rounded-lg">
+                    <label className={`flex items-center gap-2 ${canChangeBillAddr ? 'cursor-pointer' : 'cursor-not-allowed opacity-50'}`}>
+                      <input
+                        type="checkbox"
+                        checked={addressForm.changeBillAddr}
+                        onChange={(e) => setAddressForm(prev => ({ ...prev, changeBillAddr: e.target.checked }))}
+                        disabled={!canChangeBillAddr}
+                        className="w-4 h-4 text-green-600 rounded"
+                      />
+                      <span className="text-sm text-gray-700">청구지주소도 함께 변경</span>
+                      {!canChangeBillAddr && (
+                        <span className="text-xs text-orange-500">
+                          (납부계정 {paymentInfoList.length}개 - 단일 계정만 가능)
+                        </span>
+                      )}
+                    </label>
+
+                    {/* 청구지 변경 시 안내 */}
+                    {addressForm.changeBillAddr && canChangeBillAddr && (
+                      <div className="mt-2 p-2 bg-blue-50 border border-blue-200 rounded text-xs">
+                        <p className="text-blue-700">
+                          <strong>현재 청구지:</strong> {paymentInfoList[0]?.BILL_ADDR || '정보 없음'}
+                        </p>
+                        <p className="text-blue-600 mt-1">
+                          → 변경된 주소로 청구지도 함께 변경됩니다
+                        </p>
+                      </div>
+                    )}
                   </div>
-                </div>
+
+                  {/* 저장 버튼 */}
+                  <button
+                    onClick={handleSaveAddress}
+                    disabled={isSavingAddress}
+                    className="w-full flex items-center justify-center gap-2 py-3 bg-green-500 text-white rounded-lg hover:bg-green-600 disabled:bg-gray-400 transition-colors"
+                  >
+                    {isSavingAddress ? (
+                      <>
+                        <Loader2 className="w-5 h-5 animate-spin" />
+                        저장 중...
+                      </>
+                    ) : (
+                      <>
+                        <Save className="w-5 h-5" />
+                        {addressSubTab === 'address' ? '설치주소 변경' : '설치위치 변경'}
+                      </>
+                    )}
+                  </button>
+                </>
               )}
             </div>
           )}
