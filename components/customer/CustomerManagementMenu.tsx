@@ -187,6 +187,7 @@ const CustomerManagementMenu: React.FC<CustomerManagementMenuProps> = ({ onNavig
               custNm: selectedCustomer.CUST_NM,
               telNo: selectedCustomer.TEL_NO || selectedCustomer.HP_NO
             } : null}
+            selectedContract={selectedContract}
             initialSection={infoChangeInitialSection}
             initialPymAcntId={infoChangeInitialPymAcntId}
             onPaymentChangeStart={() => setPaymentChangeInProgress(true)}
