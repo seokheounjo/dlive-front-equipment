@@ -537,11 +537,7 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
               }
               // EQT_CL_CD (모델2) 필터 적용
               if (selectedEqtClCd) {
-                console.log('[버그1 디버그] 보유장비 EQT_CL_CD 필터 전:', filtered.length, '건');
-                console.log('[버그1 디버그] selectedEqtClCd:', selectedEqtClCd);
-                console.log('[버그1 디버그] 장비 EQT_CL_CD 목록:', filtered.map((i: any) => ({ serno: i.EQT_SERNO, eqtClCd: i.EQT_CL_CD })));
                 filtered = filtered.filter((item: any) => item.EQT_CL_CD === selectedEqtClCd);
-                console.log('[버그1 디버그] 보유장비 EQT_CL_CD 필터 후:', filtered.length, '건');
               }
               // 보유장비: EQT_USE_ARR_YN='Y' 또는 NULL(미설정)인 장비 표시
               // 검사대기='A', 사용불가='N'만 제외
@@ -715,10 +711,10 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
         // 반납취소 DELETE SQL WHERE 조건 필수 파라미터 (CRITICAL!)
         REQ_DT: item.REQ_DT || '',               // 반납요청일자 (예: "20251229104116")
         RETURN_TP: item.RETURN_TP || '2',        // 반납유형 (항상 "2")
-        // EQT_USE_ARR_YN: API 응답값 그대로 유지 (버그2 수정)
-        // - 'Y': 사용가능, 'N': 사용불가, 'A': 검사대기
-        // - 기본값 처리하지 않음 (실제 상태와 불일치 방지)
-        EQT_USE_ARR_YN: item.EQT_USE_ARR_YN || '',
+        // EQT_USE_ARR_YN: 레거시 API가 null 반환하는 경우 기본값 처리
+        // - 검사대기 카테고리: 'A' (API에서 필터링됨)
+        // - 보유장비/반납요청: 'Y' (재고 상태 장비는 보통 사용가능)
+        EQT_USE_ARR_YN: item.EQT_USE_ARR_YN || (item._category === 'INSPECTION_WAITING' ? 'A' : 'Y'),
         // 카테고리 유지 (API 호출시 추가된 _category)
         _category: item._category || undefined,
         // 반납요청 중인 장비 플래그 유지

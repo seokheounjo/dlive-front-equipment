@@ -174,7 +174,6 @@ const EquipmentMovement: React.FC<EquipmentMovementProps> = ({ onBack, showToast
   const lastTransferTimeRef = useRef(0);  // 마지막 이관 시도 시간 (쿨다운용)
   const [searchError, setSearchError] = useState<string | null>(null); // 검색 에러
   const [scannedSerials, setScannedSerials] = useState<string[]>([]); // 스캔된 S/N 목록
-  const [isScannedMode, setIsScannedMode] = useState(false); // true: 스캔, false: 조회 (버그3 수정)
 
   const [workerModalOpen, setWorkerModalOpen] = useState(false);
   const [showBarcodeScanner, setShowBarcodeScanner] = useState(false);
@@ -455,7 +454,6 @@ const EquipmentMovement: React.FC<EquipmentMovementProps> = ({ onBack, showToast
 
     // S/N만 저장, 스캐너 닫기
     setScannedSerials(prev => [...new Set([normalizedSN, ...prev])]);
-    setIsScannedMode(true); // 바코드 스캔 모드 (버그3 수정)
     setShowBarcodeScanner(false);
   };
 
@@ -581,7 +579,6 @@ const EquipmentMovement: React.FC<EquipmentMovementProps> = ({ onBack, showToast
         if (ownerWrkrId) {
           console.log('[장비이동 디버그] ✅ WRKR_ID 추출 성공 → searchEquipmentByWorker 호출');
           setScannedSerials([normalizedSN]);
-          setIsScannedMode(false); // 조회 버튼으로 검색 (버그3 수정)
           setWorkerInfo(prev => ({ ...prev, WRKR_ID: ownerWrkrId, WRKR_NM: ownerWrkrNm, CRR_ID: ownerCrrId }));
           await searchEquipmentByWorker(ownerWrkrId, ownerWrkrNm, ownerCrrId, normalizedSN);
           setHasSearched(true);
@@ -1494,13 +1491,11 @@ const EquipmentMovement: React.FC<EquipmentMovementProps> = ({ onBack, showToast
             </button>
           </div>
 
-          {/* 스캔/검색된 장비 표시 영역 (버그3 수정: 조회/스캔 구분) */}
+          {/* 스캔된 장비 표시 영역 */}
           {scannedSerials.length > 0 && (
-            <div className={`p-3 border rounded-lg ${isScannedMode ? 'bg-purple-50 border-purple-200' : 'bg-blue-50 border-blue-200'}`}>
+            <div className="p-3 bg-purple-50 border border-purple-200 rounded-lg">
               <div className="flex items-center justify-between mb-2">
-                <span className={`text-xs font-medium ${isScannedMode ? 'text-purple-700' : 'text-blue-700'}`}>
-                  {isScannedMode ? '스캔된 장비' : '검색된 장비'} ({scannedSerials.length}건)
-                </span>
+                <span className="text-xs font-medium text-purple-700">스캔된 장비 ({scannedSerials.length}건)</span>
                 <button
                   onClick={() => {
                     setScannedSerials([]);
