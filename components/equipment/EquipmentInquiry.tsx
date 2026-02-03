@@ -543,15 +543,14 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
                 filtered = filtered.filter((item: any) => item.EQT_CL_CD === selectedEqtClCd);
                 console.log('[버그1 디버그] 보유장비 EQT_CL_CD 필터 후:', filtered.length, '건');
               }
-              // 보유장비: EQT_USE_ARR_YN='Y' 또는 NULL(미설정)인 장비 표시
-              // 검사대기='A', 사용불가='N'만 제외
+              // 보유장비: 검사대기(A)만 제외, 나머지는 모두 표시 (버그1 수정)
+              // Y(사용가능), N(사용불가), NULL/빈값 모두 보유장비로 표시
               filtered = filtered.filter((item: any) => {
                 const yn = item.EQT_USE_ARR_YN;
-                // Y(사용가능) 또는 NULL/빈값(미설정)은 보유장비로 표시
-                // A(검사대기), N(사용불가)만 제외
-                return yn === 'Y' || !yn || yn === '';
+                // 검사대기(A)만 제외 - 검사대기는 별도 카테고리에서 조회
+                return yn !== 'A';
               });
-              console.log('[보유장비] 사용가능 필터 후:', filtered.length, '건');
+              console.log('[보유장비] EQT_USE_ARR_YN 필터 후 (A 제외):', filtered.length, '건');
               // 보유장비 표시용 태그 추가 + 반납요청 중인지 표시
               allResults.push(...filtered.map((item: any) => {
                 const hasReturn = returnRequestEqtNos.has(item.EQT_NO);
