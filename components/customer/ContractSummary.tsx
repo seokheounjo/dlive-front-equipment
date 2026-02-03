@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import {
   FileText, ChevronDown, ChevronUp, Loader2,
-  MapPin, Filter, MessageSquare, Wrench
+  MapPin, Filter, MessageSquare, Wrench, Home
 } from 'lucide-react';
 import { ContractInfo, formatCurrency, formatDate } from '../../services/customerApi';
 
@@ -14,6 +14,7 @@ interface ContractSummaryProps {
   showToast?: (message: string, type: 'success' | 'error' | 'warning' | 'info') => void;
   onNavigateToConsultation?: (contract: ContractInfo) => void;  // 상담등록으로 이동
   onNavigateToAS?: (contract: ContractInfo) => void;            // AS접수로 이동
+  onNavigateToAddressChange?: (contract: ContractInfo) => void; // 주소변경으로 이동
 }
 
 // 계약 상태별 스타일
@@ -48,7 +49,8 @@ const ContractSummary: React.FC<ContractSummaryProps> = ({
   onContractSelect,
   showToast,
   onNavigateToConsultation,
-  onNavigateToAS
+  onNavigateToAS,
+  onNavigateToAddressChange
 }) => {
   // 필터 상태 (기본값: 전체)
   const [filterStatus, setFilterStatus] = useState<'all' | 'active'>('all');
@@ -279,42 +281,47 @@ const ContractSummary: React.FC<ContractSummaryProps> = ({
                           </div>
                         )}
 
-                        {/* AS/상담 버튼 - 사용계약만 (해지 제외) */}
+                        {/* 상담/AS/주소변경 버튼 - 사용계약만 (해지 제외) */}
                         {isActiveContract(contract) && (
                           <div className="flex gap-2 mt-3 pt-3 border-t border-gray-200">
                             <button
                               onClick={(e) => {
                                 e.stopPropagation();
-                                console.log('[ContractSummary] 상담등록 클릭, contract:', contract.CTRT_ID);
-                                console.log('[ContractSummary] onNavigateToConsultation:', typeof onNavigateToConsultation);
                                 handleSelect(contract);
                                 if (onNavigateToConsultation) {
                                   onNavigateToConsultation(contract);
-                                } else {
-                                  console.warn('[ContractSummary] onNavigateToConsultation is undefined!');
                                 }
                               }}
-                              className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 bg-blue-500 hover:bg-blue-600 text-white text-sm font-medium rounded-lg transition-colors"
+                              className="flex-1 flex items-center justify-center gap-1 px-2 py-2 bg-blue-500 hover:bg-blue-600 text-white text-xs font-medium rounded-lg transition-colors"
                             >
-                              <MessageSquare className="w-4 h-4" />
-                              상담등록
+                              <MessageSquare className="w-3.5 h-3.5" />
+                              상담
                             </button>
                             <button
                               onClick={(e) => {
                                 e.stopPropagation();
-                                console.log('[ContractSummary] AS접수 클릭, contract:', contract.CTRT_ID);
-                                console.log('[ContractSummary] onNavigateToAS:', typeof onNavigateToAS);
                                 handleSelect(contract);
                                 if (onNavigateToAS) {
                                   onNavigateToAS(contract);
-                                } else {
-                                  console.warn('[ContractSummary] onNavigateToAS is undefined!');
                                 }
                               }}
-                              className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 bg-orange-500 hover:bg-orange-600 text-white text-sm font-medium rounded-lg transition-colors"
+                              className="flex-1 flex items-center justify-center gap-1 px-2 py-2 bg-orange-500 hover:bg-orange-600 text-white text-xs font-medium rounded-lg transition-colors"
                             >
-                              <Wrench className="w-4 h-4" />
-                              AS접수
+                              <Wrench className="w-3.5 h-3.5" />
+                              AS
+                            </button>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleSelect(contract);
+                                if (onNavigateToAddressChange) {
+                                  onNavigateToAddressChange(contract);
+                                }
+                              }}
+                              className="flex-1 flex items-center justify-center gap-1 px-2 py-2 bg-green-500 hover:bg-green-600 text-white text-xs font-medium rounded-lg transition-colors"
+                            >
+                              <Home className="w-3.5 h-3.5" />
+                              주소변경
                             </button>
                           </div>
                         )}

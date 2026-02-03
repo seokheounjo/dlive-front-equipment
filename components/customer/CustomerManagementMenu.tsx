@@ -154,6 +154,10 @@ const CustomerManagementMenu: React.FC<CustomerManagementMenuProps> = ({ onNavig
               setConsultationASInitialTab(initialTab);
               setActiveTab('consultation-as');
             }}
+            onNavigateToAddressChange={() => {
+              setInfoChangeInitialSection('address');
+              setActiveTab('info-change');
+            }}
             selectedCustomer={selectedCustomer}
             savedContract={selectedContract}
             cachedContracts={cachedContracts}

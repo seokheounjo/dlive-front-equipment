@@ -23,6 +23,7 @@ interface CustomerBasicInfoProps {
   onContractSelect: (contract: { ctrtId: string; prodNm: string; instAddr: string; postId?: string }) => void;
   onNavigateToPaymentChange?: (pymAcntId: string) => void;  // 납부정보 변경 탭으로 이동
   onNavigateToConsultationAS?: (initialTab: 'consultation' | 'as') => void;  // 상담/AS 탭으로 이동
+  onNavigateToAddressChange?: () => void;  // 주소변경 탭으로 이동
   // 상위 컴포넌트에서 전달받은 선택된 고객 정보
   selectedCustomer?: CustomerInfo | null;
   savedContract?: { ctrtId: string; prodNm: string; instAddr: string; postId?: string } | null;
@@ -54,6 +55,7 @@ const CustomerBasicInfo: React.FC<CustomerBasicInfoProps> = ({
   onContractSelect,
   onNavigateToPaymentChange,
   onNavigateToConsultationAS,
+  onNavigateToAddressChange,
   selectedCustomer,
   savedContract,
   cachedContracts = [],
@@ -285,25 +287,21 @@ const CustomerBasicInfo: React.FC<CustomerBasicInfoProps> = ({
               onContractSelect={handleContractSelect}
               showToast={showToast}
               onNavigateToConsultation={(contract) => {
-                console.log('[CustomerBasicInfo] onNavigateToConsultation called, contract:', contract.CTRT_ID);
-                console.log('[CustomerBasicInfo] onNavigateToConsultationAS:', typeof onNavigateToConsultationAS);
                 handleContractSelect(contract);
                 if (onNavigateToConsultationAS) {
-                  console.log('[CustomerBasicInfo] Calling onNavigateToConsultationAS("consultation")');
                   onNavigateToConsultationAS('consultation');
-                } else {
-                  console.warn('[CustomerBasicInfo] onNavigateToConsultationAS is undefined!');
                 }
               }}
               onNavigateToAS={(contract) => {
-                console.log('[CustomerBasicInfo] onNavigateToAS called, contract:', contract.CTRT_ID);
-                console.log('[CustomerBasicInfo] onNavigateToConsultationAS:', typeof onNavigateToConsultationAS);
                 handleContractSelect(contract);
                 if (onNavigateToConsultationAS) {
-                  console.log('[CustomerBasicInfo] Calling onNavigateToConsultationAS("as")');
                   onNavigateToConsultationAS('as');
-                } else {
-                  console.warn('[CustomerBasicInfo] onNavigateToConsultationAS is undefined!');
+                }
+              }}
+              onNavigateToAddressChange={(contract) => {
+                handleContractSelect(contract);
+                if (onNavigateToAddressChange) {
+                  onNavigateToAddressChange();
                 }
               }}
             />
