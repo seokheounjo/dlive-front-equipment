@@ -254,6 +254,7 @@ export interface InstallAddressChangeRequest {
   APT_HO_CNT?: string;       // 아파트호수
   ADDR_DTL?: string;         // 상세주소
   STREET_ID?: string;        // 도로명ID
+  INSTL_LOC?: string;        // 설치위치 (거실, 안방 등)
   CUST_FLAG?: string;        // '1'이면 고객주소도 변경
   PYM_FLAG?: string;         // '1'이면 청구지주소도 변경
   CHG_UID?: string;          // 변경자ID
@@ -1092,6 +1093,7 @@ export const updateInstallAddress = async (params: InstallAddressChangeRequest):
     APT_HO_CNT: params.APT_HO_CNT || '',
     ADDR_DTL: params.ADDR_DTL || '',
     STREET_ID: params.STREET_ID || '',
+    INSTL_LOC: params.INSTL_LOC || '',
     CUST_FLAG: params.CUST_FLAG || '0',
     PYM_FLAG: params.PYM_FLAG || '0',
     CHG_UID: chgUid

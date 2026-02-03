@@ -59,6 +59,8 @@ interface CustomerInfoChangeProps {
     ctrtId: string;
     prodNm: string;
     instAddr: string;
+    streetAddr?: string;    // 도로명주소
+    instlLoc?: string;      // 설치위치 (거실, 안방 등)
     postId?: string;
   } | null;
   initialSection?: 'phone' | 'address' | 'payment' | 'hpPay';  // 초기 펼칠 섹션
@@ -122,6 +124,7 @@ const CustomerInfoChange: React.FC<CustomerInfoChangeProps> = ({
     zipCd: '',
     addr1: '',
     addr2: '',
+    instlLoc: '',           // 설치위치 (거실, 안방 등)
     changeInstAddr: false,  // 설치주소 (CTRT_ID 필요)
     changeCustAddr: true,   // 고객주소 (기본 선택)
     changeBillAddr: false,  // 청구지주소
@@ -761,6 +764,7 @@ const CustomerInfoChange: React.FC<CustomerInfoChangeProps> = ({
           POST_ID: addressForm.postId,
           ADDR_DTL: fullAddr,
           STREET_ID: addressForm.streetId || undefined,
+          INSTL_LOC: addressForm.instlLoc || selectedContract.instlLoc || undefined,
           // 고객주소도 함께 변경
           CUST_FLAG: addressForm.changeCustAddr ? '1' : '0',
           // 청구지주소도 함께 변경
@@ -787,6 +791,7 @@ const CustomerInfoChange: React.FC<CustomerInfoChangeProps> = ({
           zipCd: '',
           addr1: '',
           addr2: '',
+          instlLoc: '',
           changeInstAddr: false,
           changeCustAddr: true,
           changeBillAddr: false,
@@ -1068,16 +1073,36 @@ const CustomerInfoChange: React.FC<CustomerInfoChangeProps> = ({
 
           {expandedSections.address && (
             <div className="px-4 pb-4 space-y-4">
-              {/* 선택된 계약 정보 표시 */}
+              {/* 선택된 계약 정보 - Before 표시 */}
               {selectedContract?.ctrtId && (
-                <div className="p-3 bg-green-50 border border-green-200 rounded-lg">
-                  <div className="flex items-center gap-2 mb-1">
-                    <Building2 className="w-4 h-4 text-green-600" />
-                    <span className="text-sm font-medium text-green-700">선택된 계약</span>
+                <div className="p-3 bg-gray-100 border border-gray-300 rounded-lg">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Building2 className="w-4 h-4 text-gray-600" />
+                    <span className="text-sm font-medium text-gray-700">변경 전 (Before)</span>
                   </div>
-                  <div className="text-xs text-green-600 space-y-0.5">
-                    <p>상품: {selectedContract.prodNm}</p>
-                    <p>현재 설치주소: {selectedContract.instAddr || '-'}</p>
+                  <div className="text-sm text-gray-700 space-y-1">
+                    <p><span className="text-gray-500">상품:</span> {selectedContract.prodNm}</p>
+                    <p><span className="text-gray-500">설치주소:</span> {selectedContract.streetAddr || selectedContract.instAddr || '-'}</p>
+                    <p><span className="text-gray-500">설치위치:</span> {selectedContract.instlLoc || '-'}</p>
+                  </div>
+                </div>
+              )}
+
+              {/* After 표시 (입력 중인 값) */}
+              {selectedContract?.ctrtId && (addressForm.addr1 || addressForm.instlLoc) && (
+                <div className="p-3 bg-green-50 border border-green-300 rounded-lg">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Edit2 className="w-4 h-4 text-green-600" />
+                    <span className="text-sm font-medium text-green-700">변경 후 (After)</span>
+                  </div>
+                  <div className="text-sm text-green-700 space-y-1">
+                    <p><span className="text-green-500">상품:</span> {selectedContract.prodNm}</p>
+                    {addressForm.addr1 && (
+                      <p><span className="text-green-500">설치주소:</span> {addressForm.addr1}{addressForm.addr2 ? ` ${addressForm.addr2}` : ''}</p>
+                    )}
+                    {addressForm.instlLoc && (
+                      <p><span className="text-green-500">설치위치:</span> {addressForm.instlLoc}</p>
+                    )}
                   </div>
                 </div>
               )}
@@ -1134,6 +1159,26 @@ const CustomerInfoChange: React.FC<CustomerInfoChangeProps> = ({
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 />
               </div>
+
+              {/* 설치위치 (계약 선택 시에만) */}
+              {selectedContract?.ctrtId && (
+                <div>
+                  <label className="block text-sm text-gray-600 mb-1">
+                    설치위치
+                    <span className="text-xs text-gray-400 ml-1">(예: 거실, 안방, 침실 등)</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={addressForm.instlLoc}
+                    onChange={(e) => setAddressForm(prev => ({
+                      ...prev,
+                      instlLoc: e.target.value
+                    }))}
+                    placeholder={selectedContract.instlLoc || '설치위치 입력'}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  />
+                </div>
+              )}
 
               {/* 변경 대상 선택 */}
               <div className="p-3 bg-gray-50 border border-gray-200 rounded-lg space-y-2">
@@ -1193,16 +1238,6 @@ const CustomerInfoChange: React.FC<CustomerInfoChangeProps> = ({
                     </p>
                   </div>
                 )}
-              </div>
-
-              {/* 안내 메시지 */}
-              <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
-                <div className="flex items-start gap-2">
-                  <AlertCircle className="w-4 h-4 text-yellow-600 mt-0.5" />
-                  <div className="text-sm text-yellow-700">
-                    <p>설치 위치(거실, 안방 등) 변경은 작업관리에서 처리됩니다.</p>
-                  </div>
-                </div>
               </div>
 
               {/* 저장 버튼 */}

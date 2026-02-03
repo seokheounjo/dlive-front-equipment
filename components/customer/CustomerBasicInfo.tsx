@@ -20,7 +20,7 @@ import {
 interface CustomerBasicInfoProps {
   onBack: () => void;
   showToast?: (message: string, type: 'success' | 'error' | 'warning' | 'info') => void;
-  onContractSelect: (contract: { ctrtId: string; prodNm: string; instAddr: string; postId?: string }) => void;
+  onContractSelect: (contract: { ctrtId: string; prodNm: string; instAddr: string; streetAddr?: string; instlLoc?: string; postId?: string }) => void;
   onNavigateToPaymentChange?: (pymAcntId: string) => void;  // 납부정보 변경 탭으로 이동
   onNavigateToConsultationAS?: (initialTab: 'consultation' | 'as') => void;  // 상담/AS 탭으로 이동
   onNavigateToAddressChange?: () => void;  // 주소변경 탭으로 이동
@@ -197,6 +197,8 @@ const CustomerBasicInfo: React.FC<CustomerBasicInfoProps> = ({
       ctrtId: contract.CTRT_ID,
       prodNm: contract.PROD_NM,
       instAddr: contract.INST_ADDR,
+      streetAddr: contract.STREET_ADDR_FULL,
+      instlLoc: contract.INSTL_LOC,
       postId: contract.POST_ID
     });
 

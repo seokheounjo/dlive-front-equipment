@@ -27,11 +27,13 @@ const CustomerManagementMenu: React.FC<CustomerManagementMenuProps> = ({ onNavig
   // 선택된 고객 정보 (탭 간 공유) - 전체 CustomerInfo 저장
   const [selectedCustomer, setSelectedCustomer] = useState<CustomerInfo | null>(null);
 
-  // 선택된 계약 정보 (AS 접수 등에서 사용)
+  // 선택된 계약 정보 (AS 접수, 주소변경 등에서 사용)
   const [selectedContract, setSelectedContract] = useState<{
     ctrtId: string;
     prodNm: string;
     instAddr: string;
+    streetAddr?: string;
+    instlLoc?: string;
     postId?: string;
   } | null>(null);
 
@@ -125,7 +127,7 @@ const CustomerManagementMenu: React.FC<CustomerManagementMenuProps> = ({ onNavig
   };
 
   // 계약 선택 핸들러 (계약현황에서 계약 선택 시 호출)
-  const handleContractSelect = (contract: { ctrtId: string; prodNm: string; instAddr: string; postId?: string }) => {
+  const handleContractSelect = (contract: { ctrtId: string; prodNm: string; instAddr: string; streetAddr?: string; instlLoc?: string; postId?: string }) => {
     setSelectedContract(contract);
   };
 
