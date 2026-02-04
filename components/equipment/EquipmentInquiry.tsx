@@ -250,15 +250,8 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
   const userInfo = getUserInfo();
 
   // 검색 조건
-  const [selectedSoId, setSelectedSoId] = useState<string>(userInfo?.soId || '');
-
-  // userInfo가 늦게 로드되는 경우 selectedSoId 업데이트
-  useEffect(() => {
-    if (!selectedSoId && userInfo?.soId) {
-      console.log('[장비조회] selectedSoId 업데이트:', userInfo.soId);
-      setSelectedSoId(userInfo.soId);
-    }
-  }, [userInfo?.soId, selectedSoId]);
+  // 초기값을 빈 문자열로 설정 - 전체 SO 조회가 기본 (이관받은 장비 포함)
+  const [selectedSoId, setSelectedSoId] = useState<string>('');
   
   const [selectedItemMidCd, setSelectedItemMidCd] = useState<string>('');  // 모델1 (중분류)
   const [selectedEqtClCd, setSelectedEqtClCd] = useState<string>('');      // 모델2 (소분류)
@@ -295,11 +288,19 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
   // 지점 목록 로드 (컴포넌트 마운트 시)
   useEffect(() => {
     const loadSoList = async () => {
-      const list = await fetchAuthSoList();
+      let list = await fetchAuthSoList();
+
+      // 본사직원의 경우 soId가 있으면 지점 목록에 추가 (AUTH_SO_List가 비어있을 수 있음)
+      if (userInfo?.soId && !list.find(s => s.SO_ID === userInfo.soId)) {
+        const soName = userInfo.soNm || (userInfo.soId === '100' ? '본사' : `지점(${userInfo.soId})`);
+        list = [{ SO_ID: userInfo.soId, SO_NM: soName }, ...list];
+        console.log('[장비조회] 본사직원 soId 추가:', userInfo.soId, soName);
+      }
+
       setSoList(list);
     };
     loadSoList();
-  }, []);
+  }, [userInfo?.soId]);
 
   // 모델2 (소분류) 옵션 로드 - 모델1 선택 시
   useEffect(() => {
