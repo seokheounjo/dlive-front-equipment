@@ -98,6 +98,25 @@ const ConsultationAS: React.FC<ConsultationASProps> = ({
     transDeptCd: ''
   });
 
+  // 상담/작업 이력 개별 접기/펼치기
+  const [expandedConsultItems, setExpandedConsultItems] = useState<Set<number>>(new Set());
+  const [expandedWorkItems, setExpandedWorkItems] = useState<Set<number>>(new Set());
+
+  const toggleConsultItem = (index: number) => {
+    setExpandedConsultItems(prev => {
+      const next = new Set(prev);
+      next.has(index) ? next.delete(index) : next.add(index);
+      return next;
+    });
+  };
+  const toggleWorkItem = (index: number) => {
+    setExpandedWorkItems(prev => {
+      const next = new Set(prev);
+      next.has(index) ? next.delete(index) : next.add(index);
+      return next;
+    });
+  };
+
   // 상담 분류 코드 데이터 (D'Live API에서 로드)
   const [cnslLCodes, setCnslLCodes] = useState<DLiveCode[]>([]);
   const [allCnslMCodes, setAllCnslMCodes] = useState<DLiveCode[]>([]);  // 전체 중분류 (필터용)
@@ -885,42 +904,54 @@ const ConsultationAS: React.FC<ConsultationASProps> = ({
                 consultationHistory.length > 0 ? (
                   <div className="space-y-3 max-h-[400px] overflow-y-auto">
                     {consultationHistory.map((item, index) => (
-                      <div key={index} className="p-3 bg-gray-50 rounded-lg border border-gray-100">
-                        {/* 상단: 접수일 + 상담분류 (옆 배치로 가독성 개선) */}
-                        <div className="flex items-center justify-between mb-2">
-                          <div className="flex items-center gap-2">
-                            <span className="text-sm font-medium text-gray-800">{item.START_DATE || '-'}</span>
-                            <span className="px-2 py-0.5 text-xs bg-blue-100 text-blue-700 rounded">
-                              {item.CNSL_SLV_CL_NM || '-'}
-                            </span>
-                          </div>
-                          <span className={`px-2 py-0.5 text-xs rounded font-medium ${
-                            item.CNSL_RSLT?.includes('완료')
-                              ? 'bg-green-100 text-green-700'
-                              : 'bg-yellow-100 text-yellow-700'
-                          }`}>{item.CNSL_RSLT || '처리중'}</span>
-                        </div>
-
-                        {/* 접수자 */}
-                        <div className="text-xs text-gray-500 mb-2">
-                          접수자: <span className="text-gray-700">{item.RCPT_NM || '-'}</span>
-                        </div>
-
-                        {/* 요청사항 */}
-                        <div className="mt-2">
-                          <div className="text-xs text-gray-500 mb-1">요청사항</div>
-                          <div className="p-2 bg-white border border-gray-200 rounded min-h-[40px] text-gray-700 text-xs">
-                            {item.REQ_CTX || '-'}
-                          </div>
-                        </div>
-
-                        {/* 응대내용 */}
-                        {item.PROC_CT && (
-                          <div className="mt-2">
-                            <div className="text-xs text-gray-500 mb-1">응대내용</div>
-                            <div className="p-2 bg-white border border-gray-200 rounded min-h-[40px] text-gray-700 text-xs">
-                              {item.PROC_CT}
+                      <div key={index} className="bg-gray-50 rounded-lg border border-gray-100">
+                        {/* 상단 정보 (클릭으로 접기/펼치기) */}
+                        <div
+                          className="p-3 cursor-pointer flex items-center justify-between"
+                          onClick={() => toggleConsultItem(index)}
+                        >
+                          <div className="flex-1">
+                            <div className="flex items-center justify-between mb-1">
+                              <div className="flex items-center gap-2">
+                                <span className="text-sm font-medium text-gray-800">{item.START_DATE || '-'}</span>
+                                <span className="px-2 py-0.5 text-xs bg-blue-100 text-blue-700 rounded">
+                                  {item.CNSL_SLV_CL_NM || '-'}
+                                </span>
+                              </div>
+                              <span className={`px-2 py-0.5 text-xs rounded font-medium ${
+                                item.CNSL_RSLT?.includes('완료')
+                                  ? 'bg-green-100 text-green-700'
+                                  : 'bg-yellow-100 text-yellow-700'
+                              }`}>{item.CNSL_RSLT || '처리중'}</span>
                             </div>
+                            <div className="text-xs text-gray-500">
+                              접수자: <span className="text-gray-700">{item.RCPT_NM || '-'}</span>
+                            </div>
+                          </div>
+                          {expandedConsultItems.has(index) ? (
+                            <ChevronUp className="w-4 h-4 text-gray-400 ml-2 flex-shrink-0" />
+                          ) : (
+                            <ChevronDown className="w-4 h-4 text-gray-400 ml-2 flex-shrink-0" />
+                          )}
+                        </div>
+
+                        {/* 요청사항 + 응대내용 (접기/펼치기) */}
+                        {expandedConsultItems.has(index) && (
+                          <div className="px-3 pb-3">
+                            <div>
+                              <div className="text-xs text-gray-500 mb-1">요청사항</div>
+                              <div className="p-2 bg-white border border-gray-200 rounded min-h-[40px] text-gray-700 text-xs">
+                                {item.REQ_CTX || '-'}
+                              </div>
+                            </div>
+                            {item.PROC_CT && (
+                              <div className="mt-2">
+                                <div className="text-xs text-gray-500 mb-1">응대내용</div>
+                                <div className="p-2 bg-white border border-gray-200 rounded min-h-[40px] text-gray-700 text-xs">
+                                  {item.PROC_CT}
+                                </div>
+                              </div>
+                            )}
                           </div>
                         )}
                       </div>
@@ -935,62 +966,77 @@ const ConsultationAS: React.FC<ConsultationASProps> = ({
                 workHistory.length > 0 ? (
                   <div className="space-y-3 max-h-[400px] overflow-y-auto">
                     {workHistory.map((item, index) => (
-                      <div key={index} className="p-3 bg-gray-50 rounded-lg border border-gray-100">
-                        {/* 상단: 작업예정일 | 작업구분 | 작업상태 */}
-                        <div className="grid grid-cols-3 gap-2 text-xs">
-                          <div className="flex flex-col">
-                            <span className="text-gray-500 whitespace-nowrap">작업예정일</span>
-                            <span className="text-gray-800 font-medium">{item.HOPE_DT || '-'}</span>
+                      <div key={index} className="bg-gray-50 rounded-lg border border-gray-100">
+                        {/* 상단 정보 (클릭으로 접기/펼치기) */}
+                        <div
+                          className="p-3 cursor-pointer flex items-center justify-between"
+                          onClick={() => toggleWorkItem(index)}
+                        >
+                          <div className="grid grid-cols-3 gap-2 text-xs flex-1">
+                            <div className="flex flex-col">
+                              <span className="text-gray-500 whitespace-nowrap">작업예정일</span>
+                              <span className="text-gray-800 font-medium">{item.HOPE_DT || '-'}</span>
+                            </div>
+                            <div className="flex flex-col">
+                              <span className="text-gray-500 whitespace-nowrap">작업구분</span>
+                              <span className="text-gray-800 font-medium">{item.WRK_CD_NM || '-'}</span>
+                            </div>
+                            <div className="flex flex-col">
+                              <span className="text-gray-500 whitespace-nowrap">작업상태</span>
+                              <span className={`font-medium ${
+                                item.WRK_STAT_CD_NM?.includes('완료') ? 'text-green-600' :
+                                item.WRK_STAT_CD_NM?.includes('진행') ? 'text-blue-600' :
+                                'text-gray-800'
+                              }`}>{item.WRK_STAT_CD_NM || '-'}</span>
+                            </div>
                           </div>
-                          <div className="flex flex-col">
-                            <span className="text-gray-500 whitespace-nowrap">작업구분</span>
-                            <span className="text-gray-800 font-medium">{item.WRK_CD_NM || '-'}</span>
-                          </div>
-                          <div className="flex flex-col">
-                            <span className="text-gray-500 whitespace-nowrap">작업상태</span>
-                            <span className={`font-medium ${
-                              item.WRK_STAT_CD_NM?.includes('완료') ? 'text-green-600' :
-                              item.WRK_STAT_CD_NM?.includes('진행') ? 'text-blue-600' :
-                              'text-gray-800'
-                            }`}>{item.WRK_STAT_CD_NM || '-'}</span>
-                          </div>
+                          {expandedWorkItems.has(index) ? (
+                            <ChevronUp className="w-4 h-4 text-gray-400 ml-2 flex-shrink-0" />
+                          ) : (
+                            <ChevronDown className="w-4 h-4 text-gray-400 ml-2 flex-shrink-0" />
+                          )}
                         </div>
 
-                        {/* 상품명 */}
-                        <div className="mt-2 grid grid-cols-[auto_1fr] gap-2 text-xs items-center">
-                          <span className="text-gray-500 whitespace-nowrap">상품명</span>
-                          <span className="text-gray-800 font-medium truncate">{item.PROD_NM || '-'}</span>
-                        </div>
+                        {/* 작업지시내용 (접기/펼치기) */}
+                        {expandedWorkItems.has(index) && (
+                          <div className="px-3 pb-3">
+                            {/* 상품명 */}
+                            <div className="grid grid-cols-[auto_1fr] gap-2 text-xs items-center">
+                              <span className="text-gray-500 whitespace-nowrap">상품명</span>
+                              <span className="text-gray-800 font-medium truncate">{item.PROD_NM || '-'}</span>
+                            </div>
 
-                        {/* 완료일자 | 작업자 | 작업자소속 */}
-                        <div className="mt-2 grid grid-cols-3 gap-2 text-xs">
-                          <div className="flex flex-col">
-                            <span className="text-gray-500 whitespace-nowrap">완료일자</span>
-                            <span className="text-gray-800 font-medium">{item.CMPL_DATE || '-'}</span>
-                          </div>
-                          <div className="flex flex-col">
-                            <span className="text-gray-500 whitespace-nowrap">작업자</span>
-                            <span className="text-gray-800 font-medium">{item.WRK_NM || '-'}</span>
-                          </div>
-                          <div className="flex flex-col">
-                            <span className="text-gray-500 whitespace-nowrap">작업자소속</span>
-                            <span className="text-gray-800 font-medium">{item.WRK_CRR_NM || '-'}</span>
-                          </div>
-                        </div>
+                            {/* 완료일자 | 작업자 | 작업자소속 */}
+                            <div className="mt-2 grid grid-cols-3 gap-2 text-xs">
+                              <div className="flex flex-col">
+                                <span className="text-gray-500 whitespace-nowrap">완료일자</span>
+                                <span className="text-gray-800 font-medium">{item.CMPL_DATE || '-'}</span>
+                              </div>
+                              <div className="flex flex-col">
+                                <span className="text-gray-500 whitespace-nowrap">작업자</span>
+                                <span className="text-gray-800 font-medium">{item.WRK_NM || '-'}</span>
+                              </div>
+                              <div className="flex flex-col">
+                                <span className="text-gray-500 whitespace-nowrap">작업자소속</span>
+                                <span className="text-gray-800 font-medium">{item.WRK_CRR_NM || '-'}</span>
+                              </div>
+                            </div>
 
-                        {/* 설치주소 */}
-                        <div className="mt-2 grid grid-cols-[auto_1fr] gap-2 text-xs items-start">
-                          <span className="text-gray-500 whitespace-nowrap">설치주소</span>
-                          <span className="text-gray-800">{item.CTRT_ADDR || '-'}</span>
-                        </div>
+                            {/* 설치주소 */}
+                            <div className="mt-2 grid grid-cols-[auto_1fr] gap-2 text-xs items-start">
+                              <span className="text-gray-500 whitespace-nowrap">설치주소</span>
+                              <span className="text-gray-800">{item.CTRT_ADDR || '-'}</span>
+                            </div>
 
-                        {/* 작업지시내용 */}
-                        <div className="mt-3">
-                          <div className="text-xs text-gray-500 mb-1">작업지시내용</div>
-                          <div className="p-2 bg-white border border-gray-200 rounded min-h-[48px] text-gray-700 text-xs">
-                            {item.MEMO || '-'}
+                            {/* 작업지시내용 */}
+                            <div className="mt-3">
+                              <div className="text-xs text-gray-500 mb-1">작업지시내용</div>
+                              <div className="p-2 bg-white border border-gray-200 rounded min-h-[48px] text-gray-700 text-xs">
+                                {item.MEMO || '-'}
+                              </div>
+                            </div>
                           </div>
-                        </div>
+                        )}
                       </div>
                     ))}
                   </div>
