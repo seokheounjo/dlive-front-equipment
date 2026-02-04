@@ -384,9 +384,8 @@ const CustomerInfoChange: React.FC<CustomerInfoChangeProps> = ({
       }
     };
 
-    // 약간의 딜레이 후 백그라운드 로드 (UI 렌더링 우선)
-    const timer = setTimeout(preloadAddressList, 1000);
-    return () => clearTimeout(timer);
+    // 즉시 백그라운드 로드 시작
+    preloadAddressList();
   }, []);
 
   // 선택된 계약 변경 시 기존 설치정보 초기화
