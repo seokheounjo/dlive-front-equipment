@@ -266,9 +266,6 @@ const CustomerInfoChange: React.FC<CustomerInfoChangeProps> = ({
   const [streetAddressResults, setStreetAddressResults] = useState<StreetAddressInfo[]>([]);
   const [isSearchingAddress, setIsSearchingAddress] = useState(false);
   const [selectedPostId, setSelectedPostId] = useState<string>('');
-  // 주소 캐싱 (전체 목록을 한 번만 로드)
-  const [cachedAddressList, setCachedAddressList] = useState<PostAddressInfo[]>([]);
-  const [isLoadingAddressCache, setIsLoadingAddressCache] = useState(false);
 
   // 은행 코드 목록
   const bankCodes = [
@@ -363,30 +360,6 @@ const CustomerInfoChange: React.FC<CustomerInfoChangeProps> = ({
     loadTelecomCodes();
   }, []);
 
-  // 주소 목록 백그라운드 프리로드 (컴포넌트 마운트 시)
-  useEffect(() => {
-    const preloadAddressList = async () => {
-      if (cachedAddressList.length > 0 || isLoadingAddressCache) return;
-
-      console.log('[AddressCache] 백그라운드 프리로드 시작');
-      setIsLoadingAddressCache(true);
-
-      try {
-        const response = await searchPostAddress({});
-        if (response.success && response.data && response.data.length > 0) {
-          setCachedAddressList(response.data);
-          console.log(`[AddressCache] 프리로드 완료: ${response.data.length}건`);
-        }
-      } catch (error) {
-        console.error('[AddressCache] 프리로드 실패:', error);
-      } finally {
-        setIsLoadingAddressCache(false);
-      }
-    };
-
-    // 즉시 백그라운드 로드 시작
-    preloadAddressList();
-  }, []);
 
   // 선택된 계약 변경 시 기존 설치정보 초기화
   useEffect(() => {
@@ -882,25 +855,7 @@ const CustomerInfoChange: React.FC<CustomerInfoChangeProps> = ({
     setStreetAddressResults([]);
   };
 
-  // 주소 목록 필터링 함수
-  const filterAddressList = (list: PostAddressInfo[], searchTerm: string): PostAddressInfo[] => {
-    const term = searchTerm.toLowerCase();
-    return list.filter((item: PostAddressInfo) => {
-      const dongmyonNm = (item.DONGMYON_NM || '').toLowerCase();
-      const addrFull = (item.ADDR_FULL || '').toLowerCase();
-      const addr = (item.ADDR || '').toLowerCase();
-      const bldNm = (item.BLD_NM || '').toLowerCase();
-      const gugunNm = (item.GUGUN_NM || '').toLowerCase();
-
-      return dongmyonNm.includes(term) ||
-             addrFull.includes(term) ||
-             addr.includes(term) ||
-             bldNm.includes(term) ||
-             gugunNm.includes(term);
-    });
-  };
-
-  // 지번주소 검색 (캐싱 적용 - 전체 목록 한 번만 로드)
+  // 지번주소 검색 (서버에서 필터링)
   const handleSearchPostAddress = async () => {
     if (!addressSearchQuery || addressSearchQuery.length < 2) {
       showToast?.('동/면 이름을 2자 이상 입력해주세요.', 'warning');
@@ -909,48 +864,20 @@ const CustomerInfoChange: React.FC<CustomerInfoChangeProps> = ({
 
     setIsSearchingAddress(true);
     try {
-      // 캐시가 있으면 캐시에서 필터링 (빠름)
-      if (cachedAddressList.length > 0) {
-        console.log(`[AddressSearch] 캐시에서 검색: "${addressSearchQuery}" (캐시 ${cachedAddressList.length}건)`);
-        const results = filterAddressList(cachedAddressList, addressSearchQuery);
-        setPostAddressResults(results);
-        if (results.length === 0) {
+      // 서버에서 필터링된 결과 요청
+      const response = await searchPostAddress({
+        DONGMYONG: addressSearchQuery
+      });
+
+      if (response.success && response.data) {
+        setPostAddressResults(response.data);
+        if (response.data.length === 0) {
           showToast?.('검색 결과가 없습니다.', 'info');
         } else {
-          showToast?.(`${results.length}건의 주소를 찾았습니다.`, 'success');
-        }
-        return;
-      }
-
-      // 캐시 로딩 중이면 대기
-      if (isLoadingAddressCache) {
-        showToast?.('주소 목록을 불러오는 중입니다. 잠시 후 다시 시도해주세요.', 'info');
-        return;
-      }
-
-      // 캐시가 없으면 전체 목록 로드 후 캐싱
-      console.log('[AddressSearch] 캐시 없음, 전체 목록 로드 시작');
-      setIsLoadingAddressCache(true);
-      showToast?.('주소 목록을 불러오는 중...', 'info');
-
-      const fullResponse = await searchPostAddress({});
-
-      if (fullResponse.success && fullResponse.data && fullResponse.data.length > 0) {
-        // 캐시에 저장
-        setCachedAddressList(fullResponse.data);
-        console.log(`[AddressSearch] 캐시 저장 완료: ${fullResponse.data.length}건`);
-
-        // 필터링
-        const results = filterAddressList(fullResponse.data, addressSearchQuery);
-        setPostAddressResults(results);
-
-        if (results.length === 0) {
-          showToast?.('검색 결과가 없습니다.', 'info');
-        } else {
-          showToast?.(`${results.length}건의 주소를 찾았습니다.`, 'success');
+          showToast?.(`${response.data.length}건의 주소를 찾았습니다.`, 'success');
         }
       } else {
-        showToast?.('주소 목록을 불러올 수 없습니다.', 'error');
+        showToast?.(response.message || '주소 검색에 실패했습니다.', 'error');
         setPostAddressResults([]);
       }
     } catch (error) {
@@ -959,7 +886,6 @@ const CustomerInfoChange: React.FC<CustomerInfoChangeProps> = ({
       setPostAddressResults([]);
     } finally {
       setIsSearchingAddress(false);
-      setIsLoadingAddressCache(false);
     }
   };
 
