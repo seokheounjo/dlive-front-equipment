@@ -3943,7 +3943,7 @@ export const sendSignal = async (params: SignalParams): Promise<SignalResult> =>
     });
 
     const result = await response.json();
-    console.log('📡 [신호전송] 응답:', result);
+    console.log('📡 [신호전송] 응답:\n' + JSON.stringify(result, null, 2));
 
     return result as SignalResult;
   } catch (error: any) {
@@ -3980,7 +3980,7 @@ export const sendMetroSignal = async (params: MetroSignalParams): Promise<Signal
     });
 
     const result = await response.json();
-    console.log('📡 [광랜신호] 응답:', result);
+    console.log('📡 [광랜신호] 응답:\n' + JSON.stringify(result, null, 2));
 
     return result as SignalResult;
   } catch (error: any) {
@@ -4014,7 +4014,7 @@ export const sendPortCloseSignal = async (params: Omit<MetroSignalParams, 'msg_i
     });
 
     const result = await response.json();
-    console.log('📡 [포트정지] 응답:', result);
+    console.log('📡 [포트정지] 응답:\n' + JSON.stringify(result, null, 2));
 
     return result as SignalResult;
   } catch (error: any) {
@@ -4048,7 +4048,7 @@ export const sendPortOpenSignal = async (params: Omit<MetroSignalParams, 'msg_id
     });
 
     const result = await response.json();
-    console.log('📡 [포트개통] 응답:', result);
+    console.log('📡 [포트개통] 응답:\n' + JSON.stringify(result, null, 2));
 
     return result as SignalResult;
   } catch (error: any) {
@@ -4082,7 +4082,7 @@ export const sendPortResetSignal = async (params: Omit<MetroSignalParams, 'msg_i
     });
 
     const result = await response.json();
-    console.log('📡 [포트리셋] 응답:', result);
+    console.log('📡 [포트리셋] 응답:\n' + JSON.stringify(result, null, 2));
 
     return result as SignalResult;
   } catch (error: any) {
@@ -4149,7 +4149,7 @@ export const insertWorkRemoveStat = async (params: {
     });
 
     const result = await response.json();
-    console.log('[철거관리 API] 응답:', result);
+    console.log('[철거관리 API] 응답:\n' + JSON.stringify(result, null, 2));
 
     // 서버 응답이 배열이거나 성공 코드인 경우 성공으로 처리
     if (Array.isArray(result) || result.code === 'SUCCESS' || result.success === true) {
@@ -4258,7 +4258,7 @@ export const modAsPdaReceipt = async (params: {
     });
 
     const result = await response.json();
-    console.log('[AS할당 API] 응답:', result);
+    console.log('[AS할당 API] 응답:\n' + JSON.stringify(result, null, 2));
 
     // 서버 응답이 배열이거나 성공 코드인 경우 성공으로 처리
     if (Array.isArray(result) || result.code === 'SUCCESS' || result.success === true) {
@@ -4364,7 +4364,7 @@ export const getHotbillDetail = async (custId: string, rcptId: string): Promise<
     });
 
     const result = await response.json();
-    console.log('[Hotbill API] getHotbillDetail 응답:', result);
+    console.log('[Hotbill API] getHotbillDetail 응답:\n' + JSON.stringify(result, null, 2));
 
     if (Array.isArray(result)) {
       return result.map(item => ({
@@ -4409,7 +4409,7 @@ export const getHotbillRefund = async (rcptId: string): Promise<HotbillRefund | 
     });
 
     const result = await response.json();
-    console.log('[Hotbill API] getHotbillRefund 응답:', result);
+    console.log('[Hotbill API] getHotbillRefund 응답:\n' + JSON.stringify(result, null, 2));
 
     if (Array.isArray(result) && result.length > 0) {
       return {
@@ -4492,7 +4492,7 @@ export const getHotbillSummary = async (custId: string, rcptId: string): Promise
     }
 
     const result = await response.json();
-    console.log('[Hotbill API] getHotbillSummary 응답:', result);
+    console.log('[Hotbill API] getHotbillSummary 응답:\n' + JSON.stringify(result, null, 2));
 
     return {
       details: Array.isArray(result.details) ? result.details.map((item: any) => ({
@@ -4586,7 +4586,7 @@ export const runHotbillSimulation = async (params: HotbillSimulateParams): Promi
     }
 
     const result = await response.json();
-    console.log('[Hotbill API] runHotbillSimulation 응답:', result);
+    console.log('[Hotbill API] runHotbillSimulation 응답:\n' + JSON.stringify(result, null, 2));
 
     return {
       code: result.code || 'ERROR',
@@ -4654,7 +4654,7 @@ export const sendVisitSms = async (data: VisitSmsRequest): Promise<{ code: strin
     }
 
     const result = await response.json();
-    console.log('[SMS API] sendVisitSms 응답:', result);
+    console.log('[SMS API] sendVisitSms 응답:\n' + JSON.stringify(result, null, 2));
 
     // 응답 코드 확인
     if (result.MSGCODE === 'SUCCESS' || result.code === 'SUCCESS') {
@@ -4711,7 +4711,7 @@ export const getMmtSusInfo = async (params: {
     }
 
     const result = await response.json();
-    console.log('[정지기간 API] getMmtSusInfo 응답:', result);
+    console.log('[정지기간 API] getMmtSusInfo 응답:\n' + JSON.stringify(result, null, 2));
 
     // 응답 데이터 반환
     if (result && (result.SUS_HOPE_DD || result.output)) {
@@ -4765,7 +4765,7 @@ export const modMmtSusInfo = async (params: {
     }
 
     const result = await response.json();
-    console.log('[정지기간 API] modMmtSusInfo 응답:', result);
+    console.log('[정지기간 API] modMmtSusInfo 응답:\n' + JSON.stringify(result, null, 2));
 
     if (result.MSGCODE === 'SUCCESS' || result.code === 'SUCCESS') {
       return {
