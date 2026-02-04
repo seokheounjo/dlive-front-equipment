@@ -26,6 +26,12 @@ const formatPymAcntId = (pymAcntId: string): string => {
   return pymAcntId;
 };
 
+// 청구년월 포맷 (YYYYMM -> YYYY-MM)
+const formatBillYymm = (yymm: string): string => {
+  if (!yymm || yymm.length < 6) return yymm || '-';
+  return `${yymm.slice(0, 4)}-${yymm.slice(4, 6)}`;
+};
+
 interface PaymentInfoProps {
   custId: string;
   custNm?: string;
@@ -371,7 +377,7 @@ const PaymentInfo: React.FC<PaymentInfoProps> = ({
                           >
                             {/* 청구년월 헤더 */}
                             <div className="flex justify-between items-center mb-2 pb-2 border-b border-gray-200">
-                              <span className="font-medium text-gray-800">{item.BILL_YYMM}</span>
+                              <span className="font-medium text-gray-800">{formatBillYymm(item.BILL_YYMM)}</span>
                               <span className="text-xs text-gray-500">{item.BILL_CYCL || '정기'}</span>
                             </div>
                             {/* 금액 정보 - 세로 배치 */}
