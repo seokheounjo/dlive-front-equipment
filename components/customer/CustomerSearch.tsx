@@ -5,6 +5,7 @@ import BarcodeScanner from '../equipment/BarcodeScanner';
 
 interface CustomerSearchProps {
   onCustomerSelect: (customer: CustomerInfo) => void;
+  onCustomerClear?: () => void;  // 고객 선택 해제 (리셋)
   showToast?: (message: string, type: 'success' | 'error' | 'warning' | 'info') => void;
   selectedCustomer?: CustomerInfo | null;
 }
@@ -15,7 +16,7 @@ interface CustomerSearchProps {
  * - 팝업: 모든 검색 필드를 한 화면에 표시
  * - API: CUST_ID + SERCH_GB + LOGIN_ID 파라미터 사용
  */
-const CustomerSearch: React.FC<CustomerSearchProps> = ({ onCustomerSelect, showToast, selectedCustomer }) => {
+const CustomerSearch: React.FC<CustomerSearchProps> = ({ onCustomerSelect, onCustomerClear, showToast, selectedCustomer }) => {
   // 팝업 표시 상태
   const [showModal, setShowModal] = useState(false);
 
@@ -51,6 +52,24 @@ const CustomerSearch: React.FC<CustomerSearchProps> = ({ onCustomerSelect, showT
     setShowModal(false);
     setSearchResults([]);
     setHasSearched(false);
+  };
+
+  // 전체 리셋 (모든 필드 초기화 + 선택된 고객 해제)
+  const handleReset = () => {
+    // 검색 필드 초기화
+    setCustomerId('');
+    setContractId('');
+    setPhoneNumber('');
+    setCustomerName('');
+    setEquipmentNo('');
+    // 검색 결과 초기화
+    setSearchResults([]);
+    setHasSearched(false);
+    // 선택된 고객 해제 (기본조회 데이터도 초기화)
+    if (onCustomerClear) {
+      onCustomerClear();
+    }
+    closeModal();
   };
 
   // 검색 실행
@@ -221,10 +240,19 @@ const CustomerSearch: React.FC<CustomerSearchProps> = ({ onCustomerSelect, showT
           <div className="bg-white rounded-xl shadow-xl w-full max-w-md overflow-hidden max-h-[80vh] flex flex-col">
             {/* 헤더 */}
             <div className="p-3 border-b border-gray-100 bg-gradient-to-r from-blue-500 to-blue-600 flex-shrink-0">
-              <h3 className="font-semibold text-white flex items-center gap-2">
-                <User className="w-4 h-4" />
-                고객 검색
-              </h3>
+              <div className="flex items-center justify-between">
+                <h3 className="font-semibold text-white flex items-center gap-2">
+                  <User className="w-4 h-4" />
+                  고객 검색
+                </h3>
+                <button
+                  onClick={handleReset}
+                  className="px-3 py-1 text-xs font-medium text-blue-600 bg-white rounded-lg hover:bg-gray-100 transition-colors flex items-center gap-1"
+                >
+                  <X className="w-3 h-3" />
+                  리셋
+                </button>
+              </div>
             </div>
 
             {/* 검색 입력 영역 */}

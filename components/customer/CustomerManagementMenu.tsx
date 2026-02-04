@@ -274,6 +274,7 @@ const CustomerManagementMenu: React.FC<CustomerManagementMenuProps> = ({ onNavig
       <div className="flex-shrink-0 bg-white border-b border-gray-200 p-3">
         <CustomerSearch
             onCustomerSelect={handleCustomerSelect}
+            onCustomerClear={handleCustomerClear}
             showToast={showToast}
             selectedCustomer={selectedCustomer}
           />
