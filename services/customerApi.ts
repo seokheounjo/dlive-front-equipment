@@ -1529,7 +1529,12 @@ export const getBankCodes = async (): Promise<ApiResponse<any[]>> => {
  * @param params 검색 조건 (동/면 이름)
  */
 export const searchPostAddress = async (params: PostAddressSearchRequest): Promise<ApiResponse<PostAddressInfo[]>> => {
-  return apiCall<PostAddressInfo[]>('/statistics/customer/getPostList', params);
+  // DONGMYONG과 DONGMYON_NM 둘 다 보내서 호환성 확보
+  const searchParams = {
+    ...params,
+    DONGMYON_NM: params.DONGMYONG  // 실제 API가 DONGMYON_NM을 사용할 수 있음
+  };
+  return apiCall<PostAddressInfo[]>('/statistics/customer/getPostList', searchParams);
 };
 
 /**
