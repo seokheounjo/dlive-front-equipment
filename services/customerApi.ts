@@ -776,10 +776,11 @@ export const searchCustomer = async (params: CustomerSearchParams): Promise<ApiR
       SERCH_GB: '3',
       LOGIN_ID: loginId
     };
-    // 전화번호 우선 (둘 다 있으면 전화번호만 사용)
+    // 전화번호, 이름 둘 다 전송 (OR 검색)
     if (params.phoneNumber) {
       reqParams.TEL_NO = params.phoneNumber;
-    } else if (params.customerName) {
+    }
+    if (params.customerName) {
       reqParams.CUST_NM = params.customerName;
     }
     console.log('[CustomerAPI] PHONE_NAME search params:', reqParams);
