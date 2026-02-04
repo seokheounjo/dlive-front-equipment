@@ -363,6 +363,32 @@ const CustomerInfoChange: React.FC<CustomerInfoChangeProps> = ({
     loadTelecomCodes();
   }, []);
 
+  // 주소 목록 백그라운드 프리로드 (컴포넌트 마운트 시)
+  useEffect(() => {
+    const preloadAddressList = async () => {
+      if (cachedAddressList.length > 0 || isLoadingAddressCache) return;
+
+      console.log('[AddressCache] 백그라운드 프리로드 시작');
+      setIsLoadingAddressCache(true);
+
+      try {
+        const response = await searchPostAddress({});
+        if (response.success && response.data && response.data.length > 0) {
+          setCachedAddressList(response.data);
+          console.log(`[AddressCache] 프리로드 완료: ${response.data.length}건`);
+        }
+      } catch (error) {
+        console.error('[AddressCache] 프리로드 실패:', error);
+      } finally {
+        setIsLoadingAddressCache(false);
+      }
+    };
+
+    // 약간의 딜레이 후 백그라운드 로드 (UI 렌더링 우선)
+    const timer = setTimeout(preloadAddressList, 1000);
+    return () => clearTimeout(timer);
+  }, []);
+
   // 선택된 계약 변경 시 기존 설치정보 초기화
   useEffect(() => {
     if (selectedContract) {
