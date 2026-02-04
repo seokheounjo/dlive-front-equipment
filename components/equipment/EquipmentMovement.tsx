@@ -481,7 +481,8 @@ const EquipmentMovement: React.FC<EquipmentMovementProps> = ({ onBack, showToast
         // WRKR_ID 추출: 직접 필드 또는 EQT_LOC_NM에서 추출 (형식: "이름(ID)")
         let ownerWrkrId = eqt.WRKR_ID || eqt.OWNER_WRKR_ID;
         if (!ownerWrkrId && eqt.EQT_LOC_NM) {
-          const match = eqt.EQT_LOC_NM.match(/\(([A-Z]\d+)\)$/);
+          // A20131227 (알파벳+숫자) 또는 20220030 (숫자만) 모두 매칭
+          const match = eqt.EQT_LOC_NM.match(/\(([A-Z]?\d+)\)$/);
           if (match) ownerWrkrId = match[1];
         }
         const ownerWrkrNm = eqt.WRKR_NM || eqt.OWNER_WRKR_NM || '알수없음';
@@ -567,8 +568,8 @@ const EquipmentMovement: React.FC<EquipmentMovementProps> = ({ onBack, showToast
         // WRKR_ID 추출: 직접 필드 또는 EQT_LOC_NM에서 추출 (형식: "이름(ID)")
         let ownerWrkrId = eqt.WRKR_ID || eqt.OWNER_WRKR_ID;
         if (!ownerWrkrId && eqt.EQT_LOC_NM) {
-          // EQT_LOC_NM: "오현민(할당불가)(A20117965)" -> A20117965 추출
-          const match = eqt.EQT_LOC_NM.match(/\(([A-Z]\d+)\)$/);
+          // A20131227 (알파벳+숫자) 또는 20220030 (숫자만) 모두 매칭
+          const match = eqt.EQT_LOC_NM.match(/\(([A-Z]?\d+)\)$/);
           if (match) ownerWrkrId = match[1];
           console.log('[장비이동 디버그] 정규식 매칭 결과:', match ? match[1] : '매칭 실패');
         }
