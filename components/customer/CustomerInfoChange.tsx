@@ -52,7 +52,8 @@ interface CustomerInfoChangeProps {
   selectedCustomer: {
     custId: string;
     custNm: string;
-    telNo: string;
+    telNo: string;   // 전화번호
+    hpNo: string;    // 휴대폰번호
   } | null;
   // 선택된 계약 정보 (설치주소 변경에 필요)
   selectedContract?: {
@@ -113,6 +114,7 @@ const CustomerInfoChange: React.FC<CustomerInfoChangeProps> = ({
 
   // 전화번호 변경 폼
   const [phoneForm, setPhoneForm] = useState({
+    telNoType: 'hp' as 'tel' | 'hp',  // 변경할 번호 유형: tel=전화번호, hp=휴대폰번호
     telNo: '',
     telTpCd: '',  // 통신사
     disconnYn: 'N'  // 결번여부
@@ -712,6 +714,10 @@ const CustomerInfoChange: React.FC<CustomerInfoChangeProps> = ({
         }
       }
 
+      // TEL_NO_TP: '1'=전화번호, '2'=휴대폰번호
+      const telNoTp = phoneForm.telNoType === 'tel' ? '1' : '2';
+      const phoneTypeLabel = phoneForm.telNoType === 'tel' ? '전화번호' : '휴대폰번호';
+
       const params: PhoneChangeRequest = {
         CUST_ID: selectedCustomer.custId,
         TEL_DDD: telDdd,
@@ -719,7 +725,7 @@ const CustomerInfoChange: React.FC<CustomerInfoChangeProps> = ({
         TEL_DTL: telDtl,
         MB_CORP_TP: phoneForm.telTpCd,
         NO_SVC_YN: phoneForm.disconnYn,
-        TEL_NO_TP: '2',
+        TEL_NO_TP: telNoTp,
         USE_YN: 'Y',
         CHG_UID: ''
       };
@@ -727,9 +733,9 @@ const CustomerInfoChange: React.FC<CustomerInfoChangeProps> = ({
       const response = await updatePhoneNumber(params);
 
       if (response.success) {
-        showToast?.('전화번호가 변경되었습니다.', 'success');
+        showToast?.(`${phoneTypeLabel}가 변경되었습니다.`, 'success');
         // 폼 초기화
-        setPhoneForm({ telNo: '', telTpCd: '', disconnYn: 'N' });
+        setPhoneForm({ telNoType: 'hp', telNo: '', telTpCd: '', disconnYn: 'N' });
       } else {
         showToast?.(response.message || '전화번호 변경에 실패했습니다.', 'error');
       }
@@ -974,17 +980,59 @@ const CustomerInfoChange: React.FC<CustomerInfoChangeProps> = ({
 
           {expandedSections.phone && (
             <div className="px-4 pb-4 space-y-4">
-              {/* 현재 전화번호 */}
-              <div className="p-3 bg-gray-50 rounded-lg">
-                <div className="text-xs text-gray-500 mb-1">현재 전화번호</div>
-                <div className="font-medium text-gray-800">
-                  {formatPhoneNumber(selectedCustomer.telNo) || '-'}
+              {/* 현재 전화번호 목록 */}
+              <div className="p-3 bg-gray-50 rounded-lg space-y-2">
+                <div className="text-xs text-gray-500 mb-2 font-medium">현재 등록된 번호</div>
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="p-2 bg-white rounded border border-gray-200">
+                    <div className="text-xs text-gray-500">전화번호</div>
+                    <div className="font-medium text-gray-800 text-sm">
+                      {formatPhoneNumber(selectedCustomer.telNo) || '-'}
+                    </div>
+                  </div>
+                  <div className="p-2 bg-white rounded border border-gray-200">
+                    <div className="text-xs text-gray-500">휴대폰번호</div>
+                    <div className="font-medium text-gray-800 text-sm">
+                      {formatPhoneNumber(selectedCustomer.hpNo) || '-'}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* 변경할 번호 유형 선택 */}
+              <div>
+                <label className="block text-sm text-gray-600 mb-2">변경할 번호 선택</label>
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setPhoneForm(prev => ({ ...prev, telNoType: 'tel' }))}
+                    className={`flex-1 py-2 px-3 rounded-lg text-sm font-medium transition-colors ${
+                      phoneForm.telNoType === 'tel'
+                        ? 'bg-blue-500 text-white'
+                        : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                    }`}
+                  >
+                    전화번호
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setPhoneForm(prev => ({ ...prev, telNoType: 'hp' }))}
+                    className={`flex-1 py-2 px-3 rounded-lg text-sm font-medium transition-colors ${
+                      phoneForm.telNoType === 'hp'
+                        ? 'bg-blue-500 text-white'
+                        : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                    }`}
+                  >
+                    휴대폰번호
+                  </button>
                 </div>
               </div>
 
               {/* 새 전화번호 입력 */}
               <div>
-                <label className="block text-sm text-gray-600 mb-1">새 전화번호</label>
+                <label className="block text-sm text-gray-600 mb-1">
+                  새 {phoneForm.telNoType === 'tel' ? '전화번호' : '휴대폰번호'}
+                </label>
                 <input
                   type="tel"
                   value={phoneForm.telNo}
@@ -992,7 +1040,7 @@ const CustomerInfoChange: React.FC<CustomerInfoChangeProps> = ({
                     ...prev,
                     telNo: e.target.value.replace(/[^0-9]/g, '')
                   }))}
-                  placeholder="01012345678"
+                  placeholder={phoneForm.telNoType === 'tel' ? '0212345678' : '01012345678'}
                   maxLength={11}
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 />
@@ -1058,7 +1106,7 @@ const CustomerInfoChange: React.FC<CustomerInfoChangeProps> = ({
                 ) : (
                   <>
                     <Save className="w-5 h-5" />
-                    전화번호 변경
+                    {phoneForm.telNoType === 'tel' ? '전화번호' : '휴대폰번호'} 변경
                   </>
                 )}
               </button>

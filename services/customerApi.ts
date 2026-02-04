@@ -1056,7 +1056,7 @@ export const updatePhoneNumber = async (params: PhoneChangeRequest): Promise<Api
   return apiCall<any>('/customer/negociation/updateCustTelDetailInfo', {
     ...params,
     CHG_UID: chgUid,
-    TEL_NO_TP: '2',  // 고정값
+    TEL_NO_TP: params.TEL_NO_TP || '2',  // 전달된 값 사용 (기본값: 2=휴대폰)
     USE_YN: 'Y'      // 고정값
   });
 };

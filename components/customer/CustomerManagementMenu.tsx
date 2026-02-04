@@ -185,7 +185,8 @@ const CustomerManagementMenu: React.FC<CustomerManagementMenuProps> = ({ onNavig
             selectedCustomer={selectedCustomer ? {
               custId: selectedCustomer.CUST_ID,
               custNm: selectedCustomer.CUST_NM,
-              telNo: selectedCustomer.TEL_NO || selectedCustomer.HP_NO
+              telNo: selectedCustomer.TEL_NO || '',
+              hpNo: selectedCustomer.HP_NO || ''
             } : null}
             selectedContract={selectedContract}
             initialSection={infoChangeInitialSection}
