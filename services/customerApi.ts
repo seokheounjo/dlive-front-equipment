@@ -640,7 +640,7 @@ export const searchCustomer = async (params: CustomerSearchParams): Promise<ApiR
       SERCH_GB: '3',
       LOGIN_ID: loginId
     };
-    console.log('[CustomerAPI] CUSTOMER_ID search params:', reqParams);
+    console.log('[CustomerAPI] CUSTOMER_ID search params:\n' + JSON.stringify(reqParams, null, 2));
     const result = await apiCall<any>('/customer/common/customercommon/getConditionalCustList2', reqParams);
 
     if (result.success && result.data) {
@@ -677,7 +677,7 @@ export const searchCustomer = async (params: CustomerSearchParams): Promise<ApiR
     // 1차 시도: getCtrtIDforSmartPhone (JAR 배포 후 활성화)
     if (soId) {
       try {
-        console.log('[CustomerAPI] Trying getCtrtIDforSmartPhone for CONTRACT_ID:', params.contractId);
+        console.log('[CustomerAPI] Trying getCtrtIDforSmartPhone for CONTRACT_ID: ' + params.contractId);
         const ctrtResult = await apiCall<any>('/customer/phoneNumber/getCtrtIDforSmartPhone', {
           SO_ID: soId,
           CTRT_ID: params.contractId
@@ -754,7 +754,7 @@ export const searchCustomer = async (params: CustomerSearchParams): Promise<ApiR
         if (params.phoneNumber) ctrtParams.TEL_NO = params.phoneNumber;
         if (params.customerName) ctrtParams.CUST_NM = params.customerName;
 
-        console.log('[CustomerAPI] Trying getCtrtIDforSmartPhone:', ctrtParams);
+        console.log('[CustomerAPI] Trying getCtrtIDforSmartPhone:\n' + JSON.stringify(ctrtParams, null, 2));
         const ctrtResult = await apiCall<any>('/customer/phoneNumber/getCtrtIDforSmartPhone', ctrtParams);
 
         if (ctrtResult.success && ctrtResult.data) {
@@ -783,7 +783,7 @@ export const searchCustomer = async (params: CustomerSearchParams): Promise<ApiR
     if (params.customerName) {
       reqParams.CUST_NM = params.customerName;
     }
-    console.log('[CustomerAPI] PHONE_NAME search params:', reqParams);
+    console.log('[CustomerAPI] PHONE_NAME search params:\n' + JSON.stringify(reqParams, null, 2));
 
     try {
       const result = await apiCall<any>('/customer/common/customercommon/getConditionalCustList2', reqParams);
@@ -806,7 +806,7 @@ export const searchCustomer = async (params: CustomerSearchParams): Promise<ApiR
       EQT_SERNO: params.equipmentNo,
       MAC_ADDR: ''
     };
-    console.log('[CustomerAPI] EQUIPMENT_NO search params:', reqParams);
+    console.log('[CustomerAPI] EQUIPMENT_NO search params:\n' + JSON.stringify(reqParams, null, 2));
 
     try {
       const result = await apiCall<any>('/customer/common/customercommon/getConditionalCustList2', reqParams);
