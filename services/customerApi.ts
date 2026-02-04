@@ -26,12 +26,21 @@ export interface CustomerSearchParams {
   equipmentNo?: string;  // S/N or MAC
 }
 
+// 전화번호 항목
+export interface PhoneNumberItem {
+  type: 'tel' | 'hp';        // tel: 전화번호, hp: 휴대폰번호
+  typeNm: string;            // 표시명 (전화번호, 휴대폰번호, 휴대폰번호2 등)
+  number: string;            // 실제 번호
+  fieldName: string;         // 원본 필드명 (TEL_NO, HP_NO, TEL_NO1 등)
+}
+
 // 고객 기본 정보
 export interface CustomerInfo {
   CUST_ID: string;           // 고객ID (고객번호)
   CUST_NM: string;           // 고객명
-  TEL_NO: string;            // 전화번호
-  HP_NO: string;             // 휴대폰번호
+  TEL_NO: string;            // 전화번호 (대표)
+  HP_NO: string;             // 휴대폰번호 (대표)
+  PHONE_LIST?: PhoneNumberItem[];  // 전화번호 목록 (다중)
   CUST_ADDR: string;         // 고객주소 (지번)
   ROAD_ADDR?: string;        // 도로명주소
   INST_ADDR: string;         // 설치주소
@@ -549,13 +558,60 @@ const mapCustomerFields = (data: any): CustomerInfo => {
     return parts.join(' ') || '';
   };
 
+  // 전화번호 목록 추출 (다중 전화번호 지원)
+  const buildPhoneList = (): PhoneNumberItem[] => {
+    const phoneList: PhoneNumberItem[] = [];
+
+    // TEL_NO (전화번호)
+    const telNo = data.TEL_NO || data.TEL_NO1 || '';
+    if (telNo) {
+      phoneList.push({
+        type: 'tel',
+        typeNm: '전화번호',
+        number: telNo,
+        fieldName: 'TEL_NO'
+      });
+    }
+
+    // HP_NO (휴대폰번호)
+    const hpNo = data.HP_NO || data.TEL_NO2 || '';
+    if (hpNo) {
+      phoneList.push({
+        type: 'hp',
+        typeNm: '휴대폰번호',
+        number: hpNo,
+        fieldName: 'HP_NO'
+      });
+    }
+
+    // 추가 전화번호 (TEL_NO3, TEL_NO4, ... TEL_NO9까지)
+    for (let i = 3; i <= 9; i++) {
+      const fieldName = `TEL_NO${i}`;
+      const value = data[fieldName];
+      if (value) {
+        // 010으로 시작하면 휴대폰, 아니면 전화번호
+        const isHp = value.startsWith('010') || value.startsWith('011') || value.startsWith('016') || value.startsWith('017') || value.startsWith('018') || value.startsWith('019');
+        phoneList.push({
+          type: isHp ? 'hp' : 'tel',
+          typeNm: isHp ? `휴대폰번호${i - 1}` : `전화번호${i - 1}`,
+          number: value,
+          fieldName: fieldName
+        });
+      }
+    }
+
+    return phoneList;
+  };
+
   const fullAddress = buildFullAddress();
+  const phoneList = buildPhoneList();
 
   return {
     CUST_ID: data.CUST_ID || '',
     CUST_NM: data.CUST_NM || '',
     TEL_NO: data.TEL_NO || data.TEL_NO1 || '',           // TEL_NO1 -> TEL_NO
     HP_NO: data.HP_NO || data.TEL_NO2 || '',             // TEL_NO2 -> HP_NO
+    PHONE_LIST: phoneList.length > 0 ? phoneList : undefined,
     CUST_ADDR: fullAddress || data.CUST_ADDR || data.ADDR || data.ADDRESS || '',  // 전체주소 우선
     ROAD_ADDR: data.ROAD_ADDR || fullAddress || '',      // 전체주소 -> ROAD_ADDR
     INST_ADDR: data.INST_ADDR || fullAddress || '',      // 전체주소 -> INST_ADDR

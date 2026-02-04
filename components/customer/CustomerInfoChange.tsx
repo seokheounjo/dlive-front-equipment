@@ -46,6 +46,14 @@ interface PaymentFormData {
   pymDay: string;
 }
 
+// 전화번호 항목 타입 (customerApi.ts와 동일)
+interface PhoneItem {
+  type: 'tel' | 'hp';
+  typeNm: string;
+  number: string;
+  fieldName: string;
+}
+
 interface CustomerInfoChangeProps {
   onBack: () => void;
   showToast?: (message: string, type: 'success' | 'error' | 'warning' | 'info') => void;
@@ -54,6 +62,7 @@ interface CustomerInfoChangeProps {
     custNm: string;
     telNo: string;   // 전화번호
     hpNo: string;    // 휴대폰번호
+    phoneList?: PhoneItem[];  // 전화번호 목록 (다중)
   } | null;
   // 선택된 계약 정보 (설치주소 변경에 필요)
   selectedContract?: {
@@ -1015,20 +1024,36 @@ const CustomerInfoChange: React.FC<CustomerInfoChangeProps> = ({
               {/* 현재 전화번호 목록 */}
               <div className="p-3 bg-gray-50 rounded-lg space-y-2">
                 <div className="text-xs text-gray-500 mb-2 font-medium">현재 등록된 번호</div>
-                <div className="grid grid-cols-2 gap-2">
-                  <div className="p-2 bg-white rounded border border-gray-200">
-                    <div className="text-xs text-gray-500">전화번호</div>
-                    <div className="font-medium text-gray-800 text-sm">
-                      {formatPhoneNumber(selectedCustomer.telNo) || '-'}
+                {/* 다중 전화번호 지원 */}
+                {selectedCustomer.phoneList && selectedCustomer.phoneList.length > 2 ? (
+                  // 3개 이상일 때: 리스트 형태로 표시
+                  <div className="space-y-2">
+                    {selectedCustomer.phoneList.map((phone, idx) => (
+                      <div key={idx} className="p-2 bg-white rounded border border-gray-200 flex justify-between items-center">
+                        <div className="text-xs text-gray-500">{phone.typeNm}</div>
+                        <div className="font-medium text-gray-800 text-sm">
+                          {formatPhoneNumber(phone.number) || '-'}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  // 2개 이하일 때: 기존 2열 그리드 형태
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="p-2 bg-white rounded border border-gray-200">
+                      <div className="text-xs text-gray-500">전화번호</div>
+                      <div className="font-medium text-gray-800 text-sm">
+                        {formatPhoneNumber(selectedCustomer.telNo) || '-'}
+                      </div>
+                    </div>
+                    <div className="p-2 bg-white rounded border border-gray-200">
+                      <div className="text-xs text-gray-500">휴대폰번호</div>
+                      <div className="font-medium text-gray-800 text-sm">
+                        {formatPhoneNumber(selectedCustomer.hpNo) || '-'}
+                      </div>
                     </div>
                   </div>
-                  <div className="p-2 bg-white rounded border border-gray-200">
-                    <div className="text-xs text-gray-500">휴대폰번호</div>
-                    <div className="font-medium text-gray-800 text-sm">
-                      {formatPhoneNumber(selectedCustomer.hpNo) || '-'}
-                    </div>
-                  </div>
-                </div>
+                )}
               </div>
 
               {/* 변경할 번호 유형 선택 */}
