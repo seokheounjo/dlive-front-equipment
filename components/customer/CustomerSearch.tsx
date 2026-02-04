@@ -69,7 +69,6 @@ const CustomerSearch: React.FC<CustomerSearchProps> = ({ onCustomerSelect, onCus
     if (onCustomerClear) {
       onCustomerClear();
     }
-    closeModal();
   };
 
   // 검색 실행
@@ -247,9 +246,8 @@ const CustomerSearch: React.FC<CustomerSearchProps> = ({ onCustomerSelect, onCus
                 </h3>
                 <button
                   onClick={handleReset}
-                  className="px-3 py-1 text-xs font-medium text-blue-600 bg-white rounded-lg hover:bg-gray-100 transition-colors flex items-center gap-1"
+                  className="px-3 py-1 text-xs font-medium text-blue-600 bg-white rounded-lg hover:bg-gray-100 transition-colors"
                 >
-                  <X className="w-3 h-3" />
                   리셋
                 </button>
               </div>
