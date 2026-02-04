@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import {
-  Phone, MapPin, Edit2, Save, X, Loader2,
+  Phone, MapPin, Edit2, X, Loader2,
   ChevronDown, ChevronUp, AlertCircle, Check, Search,
   Smartphone, RefreshCw, CreditCard, Building2, Shield, PenTool
 } from 'lucide-react';
@@ -1105,7 +1105,6 @@ const CustomerInfoChange: React.FC<CustomerInfoChangeProps> = ({
                   </>
                 ) : (
                   <>
-                    <Save className="w-5 h-5" />
                     {phoneForm.telNoType === 'tel' ? '전화번호' : '휴대폰번호'} 변경
                   </>
                 )}
@@ -1325,7 +1324,6 @@ const CustomerInfoChange: React.FC<CustomerInfoChangeProps> = ({
                       </>
                     ) : (
                       <>
-                        <Save className="w-5 h-5" />
                         {addressSubTab === 'address' ? '설치주소 변경' : '설치위치 변경'}
                       </>
                     )}
