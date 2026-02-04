@@ -261,7 +261,9 @@ const EquipmentMovement: React.FC<EquipmentMovementProps> = ({ onBack, showToast
         const result = await getEquipmentTypeList({ ITEM_MID_CD: selectedItemMidCd });
         console.log('[장비이동] 소분류 API 결과:', result);
 
-        const options = result.map((item: any) => ({
+        // API returns {data: [...]} or array directly
+        const dataArray = Array.isArray(result) ? result : (result?.data || []);
+        const options = dataArray.map((item: any) => ({
           code: item.COMMON_CD || item.EQT_CL_CD || '',
           name: item.COMMON_CD_NM || item.EQT_CL_NM || ''
         })).filter((opt: any) => opt.code && opt.name)
