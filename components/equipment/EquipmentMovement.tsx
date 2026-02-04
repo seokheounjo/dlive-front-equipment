@@ -518,6 +518,7 @@ const EquipmentMovement: React.FC<EquipmentMovementProps> = ({ onBack, showToast
 
     setSearchError(null); // 에러 초기화
     setIsLoading(true);
+    setIsScannedMode(false); // 조회 버튼으로 검색 시 스캔모드 해제 (버그3 수정)
 
     console.log('========================================');
     console.log('[장비이동 디버그] S/N 검색 시작:', normalizedSN);
@@ -1745,7 +1746,7 @@ const EquipmentMovement: React.FC<EquipmentMovementProps> = ({ onBack, showToast
                                           {RESTRICTED_SO_NAMES[item.SO_ID]}{item.isTransferable === false ? '(선택불가)' : ''}
                                         </span>
                                       )}
-                                      {item.isScanned && (
+                                      {item.isScanned && isScannedMode && (
                                         <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-700">스캔</span>
                                       )}
                                     </div>
