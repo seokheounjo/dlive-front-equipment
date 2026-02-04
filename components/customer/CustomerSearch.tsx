@@ -164,6 +164,14 @@ const CustomerSearch: React.FC<CustomerSearchProps> = ({ onCustomerSelect, showT
 
   // 고객 선택
   const handleSelectCustomer = (customer: CustomerInfo) => {
+    // 폼 필드에 선택된 고객 정보 채우기
+    setCustomerId(customer.CUST_ID || '');
+    setPhoneNumber(customer.TEL_NO || customer.HP_NO || '');
+    setCustomerName(customer.CUST_NM || '');
+    // 계약ID와 장비번호는 고객 정보에 없으므로 초기화
+    setContractId('');
+    setEquipmentNo('');
+
     onCustomerSelect(customer);
     closeModal();
   };
