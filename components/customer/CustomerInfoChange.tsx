@@ -845,7 +845,7 @@ const CustomerInfoChange: React.FC<CustomerInfoChangeProps> = ({
     setStreetAddressResults([]);
   };
 
-  // 지번주소 검색
+  // 지번주소 검색 (클라이언트 사이드 필터링 적용)
   const handleSearchPostAddress = async () => {
     if (!addressSearchQuery || addressSearchQuery.length < 2) {
       showToast?.('동/면 이름을 2자 이상 입력해주세요.', 'warning');
@@ -854,14 +854,46 @@ const CustomerInfoChange: React.FC<CustomerInfoChangeProps> = ({
 
     setIsSearchingAddress(true);
     try {
+      // 검색어를 서버에 전달하고, 결과가 없으면 전체 목록에서 클라이언트 필터링
       const response = await searchPostAddress({
         DONGMYONG: addressSearchQuery
       });
 
       if (response.success && response.data) {
-        setPostAddressResults(response.data);
-        if (response.data.length === 0) {
+        let results = response.data;
+
+        // 서버에서 필터링된 결과가 없으면 클라이언트 사이드 필터링 시도
+        if (results.length === 0) {
+          console.log('[AddressSearch] 서버 결과 없음, 전체 목록 조회 후 클라이언트 필터링 시도');
+
+          // 전체 목록 조회
+          const fullResponse = await searchPostAddress({});
+
+          if (fullResponse.success && fullResponse.data && fullResponse.data.length > 0) {
+            const searchTerm = addressSearchQuery.toLowerCase();
+
+            // 클라이언트 사이드 필터링 (동/면 이름, 전체주소, 기본주소 등에서 검색)
+            results = fullResponse.data.filter((item: PostAddressInfo) => {
+              const dongmyonNm = (item.DONGMYON_NM || '').toLowerCase();
+              const addrFull = (item.ADDR_FULL || '').toLowerCase();
+              const addr = (item.ADDR || '').toLowerCase();
+              const bldNm = (item.BLD_NM || '').toLowerCase();
+
+              return dongmyonNm.includes(searchTerm) ||
+                     addrFull.includes(searchTerm) ||
+                     addr.includes(searchTerm) ||
+                     bldNm.includes(searchTerm);
+            });
+
+            console.log(`[AddressSearch] 클라이언트 필터링 결과: ${results.length}건 (전체 ${fullResponse.data.length}건 중)`);
+          }
+        }
+
+        setPostAddressResults(results);
+        if (results.length === 0) {
           showToast?.('검색 결과가 없습니다.', 'info');
+        } else {
+          showToast?.(`${results.length}건의 주소를 찾았습니다.`, 'success');
         }
       } else {
         showToast?.(response.message || '주소 검색에 실패했습니다.', 'error');
