@@ -855,7 +855,23 @@ const CustomerInfoChange: React.FC<CustomerInfoChangeProps> = ({
     setStreetAddressResults([]);
   };
 
-  // 지번주소 검색 (서버에서 필터링)
+  // 주소 필터링 함수 (클라이언트 폴백용)
+  const filterAddressList = (list: PostAddressInfo[], searchTerm: string): PostAddressInfo[] => {
+    const term = searchTerm.toLowerCase();
+    return list.filter((item: PostAddressInfo) => {
+      const dongmyonNm = (item.DONGMYON_NM || '').toLowerCase();
+      const addr = (item.ADDR || '').toLowerCase();
+      const gugunNm = (item.GUGUN_NM || '').toLowerCase();
+      const bldNm = (item.BLD_NM || '').toLowerCase();
+
+      return dongmyonNm.includes(term) ||
+             addr.includes(term) ||
+             gugunNm.includes(term) ||
+             bldNm.includes(term);
+    });
+  };
+
+  // 지번주소 검색 (서버 필터링 + 클라이언트 폴백)
   const handleSearchPostAddress = async () => {
     if (!addressSearchQuery || addressSearchQuery.length < 2) {
       showToast?.('동/면 이름을 2자 이상 입력해주세요.', 'warning');
@@ -870,11 +886,19 @@ const CustomerInfoChange: React.FC<CustomerInfoChangeProps> = ({
       });
 
       if (response.success && response.data) {
-        setPostAddressResults(response.data);
-        if (response.data.length === 0) {
+        let results = response.data;
+
+        // 서버가 필터링을 안 했으면 (1000건 이상) 클라이언트에서 필터링
+        if (results.length > 1000) {
+          console.log(`[AddressSearch] 서버 필터링 안됨 (${results.length}건), 클라이언트 필터링 적용`);
+          results = filterAddressList(results, addressSearchQuery);
+        }
+
+        setPostAddressResults(results);
+        if (results.length === 0) {
           showToast?.('검색 결과가 없습니다.', 'info');
         } else {
-          showToast?.(`${response.data.length}건의 주소를 찾았습니다.`, 'success');
+          showToast?.(`${results.length}건의 주소를 찾았습니다.`, 'success');
         }
       } else {
         showToast?.(response.message || '주소 검색에 실패했습니다.', 'error');

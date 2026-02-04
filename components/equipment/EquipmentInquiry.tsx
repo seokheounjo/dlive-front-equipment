@@ -317,9 +317,10 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
         const result = await getEquipmentTypeList({ ITEM_MID_CD: selectedItemMidCd });
         console.log('[장비처리] 소분류 API 결과:', result);
 
-        // API returns array directly with COMMON_CD, COMMON_CD_NM
-        if (result && Array.isArray(result)) {
-          const options = result.map((item: any) => ({
+        // API returns {data: [...]} or array directly
+        const dataArray = Array.isArray(result) ? result : (result?.data || []);
+        if (Array.isArray(dataArray) && dataArray.length > 0) {
+          const options = dataArray.map((item: any) => ({
             code: item.COMMON_CD || item.EQT_CL_CD || '',
             name: item.COMMON_CD_NM || item.EQT_CL_NM || ''
           })).filter((opt: any) => opt.code && opt.name)
