@@ -906,10 +906,11 @@ const CustomerInfoChange: React.FC<CustomerInfoChangeProps> = ({
       if (response.success && response.data) {
         let results = response.data;
 
-        // 서버가 필터링을 안 했으면 (1000건 이상) 클라이언트에서 필터링
-        if (results.length > 1000) {
-          console.log(`[AddressSearch] 서버 필터링 안됨 (${results.length}건), 클라이언트 필터링 적용`);
-          results = filterAddressList(results, addressSearchQuery);
+        // 서버는 SO_ID 지역 전체 주소 반환 → 항상 클라이언트 필터링 적용
+        if (results.length > 0) {
+          const filtered = filterAddressList(results, addressSearchQuery);
+          console.log(`[AddressSearch] 필터링: ${results.length}건 → ${filtered.length}건 (검색어: ${addressSearchQuery})`);
+          results = filtered;
         }
 
         setPostAddressResults(results);
