@@ -16,11 +16,11 @@ import {
   AddressChangeRequest,
   InstallAddressChangeRequest,
   HPPayInfo,
-  getPaymentInfo,
+  getPaymentAccounts,
+  PaymentAccountInfo,
   updatePaymentMethod,
   verifyBankAccount,
   verifyCard,
-  PaymentInfo,
   searchPostAddress,
   searchStreetAddress,
   PostAddressInfo,
@@ -166,7 +166,7 @@ const CustomerInfoChange: React.FC<CustomerInfoChangeProps> = ({
   const [hpPayLoaded, setHpPayLoaded] = useState(false);
 
   // 납부방법 변경
-  const [paymentInfoList, setPaymentInfoList] = useState<PaymentInfo[]>([]);
+  const [paymentInfoList, setPaymentInfoList] = useState<PaymentAccountInfo[]>([]);
   const [selectedPymAcntId, setSelectedPymAcntId] = useState<string>(savedPymAcntId);
   const [isLoadingPayment, setIsLoadingPayment] = useState(false);
   const [paymentLoaded, setPaymentLoaded] = useState(false);
@@ -421,10 +421,9 @@ const CustomerInfoChange: React.FC<CustomerInfoChangeProps> = ({
 
     setIsLoadingPayment(true);
     try {
-      const response = await getPaymentInfo(selectedCustomer.custId);
+      const response = await getPaymentAccounts(selectedCustomer.custId);
       if (response.success && response.data) {
         setPaymentInfoList(response.data);
-        // initialPymAcntId가 있으면 해당 계정 선택, 없으면 첫 번째 계정 선택
         if (response.data.length > 0) {
           const targetId = initialPymAcntId && response.data.find(p => p.PYM_ACNT_ID === initialPymAcntId)
             ? initialPymAcntId
@@ -1303,7 +1302,7 @@ const CustomerInfoChange: React.FC<CustomerInfoChangeProps> = ({
                     {addressForm.changeBillAddr && canChangeBillAddr && (
                       <div className="mt-2 p-2 bg-blue-50 border border-blue-200 rounded text-xs">
                         <p className="text-blue-700">
-                          <strong>현재 청구지:</strong> {paymentInfoList[0]?.BILL_ADDR || '정보 없음'}
+                          <strong>현재 청구지:</strong> {(paymentInfoList[0] as any)?.BILL_ADDR || '설치주소와 동일하게 변경됩니다'}
                         </p>
                         <p className="text-blue-600 mt-1">
                           → 변경된 주소로 청구지도 함께 변경됩니다
@@ -1407,12 +1406,9 @@ const CustomerInfoChange: React.FC<CustomerInfoChangeProps> = ({
                           >
                             <div className="flex items-center justify-between mb-1">
                               <span className="font-mono text-sm text-blue-600">{formatPymAcntId(item.PYM_ACNT_ID)}</span>
-                              <span className="text-xs text-gray-500">{item.PYM_MTH_NM || '-'}</span>
+                              <span className="text-xs text-gray-500">{item.PYM_MTHD_NM || '-'}</span>
                             </div>
-                            <div className="text-sm text-gray-700">{item.BANK_NM || item.CARD_NM || '-'}</div>
-                            {item.BILL_ADDR && (
-                              <div className="text-xs text-gray-500 truncate mt-1">{item.BILL_ADDR}</div>
-                            )}
+                            <div className="text-sm text-gray-700">{item.BANK_CARD_NM || '-'} {item.BANK_CARD_NO || ''}</div>
                           </div>
                         ))}
                       </div>
