@@ -545,14 +545,9 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
                 filtered = filtered.filter((item: any) => item.EQT_CL_CD === selectedEqtClCd);
                 console.log('[버그1 디버그] 보유장비 EQT_CL_CD 필터 후:', filtered.length, '건');
               }
-              // 보유장비: 검사대기(A)만 제외, 나머지는 모두 표시 (버그1 수정)
-              // Y(사용가능), N(사용불가), NULL/빈값 모두 보유장비로 표시
-              filtered = filtered.filter((item: any) => {
-                const yn = item.EQT_USE_ARR_YN;
-                // 검사대기(A)만 제외 - 검사대기는 별도 카테고리에서 조회
-                return yn !== 'A';
-              });
-              console.log('[보유장비] EQT_USE_ARR_YN 필터 후 (A 제외):', filtered.length, '건');
+              // 보유장비: 검사대기(A) 포함하여 모두 표시
+              // Y(사용가능), N(사용불가), A(검사대기), NULL/빈값 모두 보유 탭에서 표시
+              console.log('[보유장비] 전체 (검사대기 포함):', filtered.length, '건');
               // 보유장비 표시용 태그 추가 + 반납요청 중인지 표시
               allResults.push(...filtered.map((item: any) => {
                 const hasReturn = returnRequestEqtNos.has(item.EQT_NO);
@@ -576,6 +571,32 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
                   _category: item._category || 'OWNED',
                   _hasReturnRequest: returnRequestEqtNos.has(item.EQT_NO)
                 })));
+              }
+
+              // 검사대기 전용 API도 호출하여 누락된 검사대기 장비 병합
+              try {
+                const inspResult = await getEquipmentChkStndByAAll({
+                  WRKR_ID: userInfo.userId,
+                  CRR_ID: userInfo.crrId || '',
+                  SO_ID: selectedSoId || '',
+                });
+                if (Array.isArray(inspResult)) {
+                  const existingEqtNos = new Set(allResults.map((item: any) => item.EQT_NO));
+                  const newInspItems = inspResult.filter((item: any) => item.EQT_NO && !existingEqtNos.has(item.EQT_NO));
+                  if (newInspItems.length > 0) {
+                    console.log('[보유장비] 검사대기 API에서 추가 장비 병합:', newInspItems.length, '건');
+                    allResults.push(...newInspItems.map((item: any) => ({
+                      ...item,
+                      _category: 'OWNED',
+                      _hasReturnRequest: returnRequestEqtNos.has(item.EQT_NO),
+                      EQT_USE_ARR_YN: item.EQT_USE_ARR_YN || 'A',
+                    })));
+                  } else {
+                    console.log('[보유장비] 검사대기 API - 추가 장비 없음 (모두 보유장비에 포함됨)');
+                  }
+                }
+              } catch (inspErr) {
+                console.log('[보유장비] 검사대기 API 호출 실패 (무시):', inspErr);
               }
             }
           } catch (e) {
