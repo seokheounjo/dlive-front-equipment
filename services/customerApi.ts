@@ -1733,15 +1733,15 @@ export const searchPostAddress = async (params: PostAddressSearchRequest): Promi
     }
   }
 
-  const searchParams = {
-    ...params,
+  // DONGMYON_NM 절대 보내지 않음 - 서버 쿼리가 깨짐 (0건 반환)
+  // DONGMYONG도 서버에서 무시됨 - 클라이언트 필터링으로 처리
+  const searchParams: Record<string, string> = {
     SO_ID: soId,
     MST_SO_ID: mstSoId || '200',
-    USE_FLAG: params.USE_FLAG || 'Y',
-    DONGMYON_NM: params.DONGMYONG
+    USE_FLAG: params.USE_FLAG || 'Y'
   };
 
-  console.log('[CustomerAPI] searchPostAddress params:', { SO_ID: soId, DONGMYONG: params.DONGMYONG });
+  console.log('[CustomerAPI] searchPostAddress:', { SO_ID: soId, search: params.DONGMYONG });
   return apiCall<PostAddressInfo[]>('/statistics/customer/getPostList', searchParams);
 };
 
