@@ -7,6 +7,8 @@ import {
 import SignaturePad from '../common/SignaturePad';
 import {
   updatePhoneNumber,
+  validatePhoneNumber,
+  splitPhoneNumber,
   updateAddress,
   updateInstallAddress,
   getTelecomCodes,
@@ -692,43 +694,37 @@ const CustomerInfoChange: React.FC<CustomerInfoChangeProps> = ({
       return;
     }
 
-    if (!phoneForm.telNo || phoneForm.telNo.length < 10) {
-      showToast?.('올바른 전화번호를 입력해주세요.', 'warning');
+    const telNo = phoneForm.telNo.replace(/[^0-9]/g, '');
+
+    // 결번이 아닌 경우에만 전화번호 검증 (결번은 기존 번호에 NO_SVC_YN='Y'만 설정)
+    if (phoneForm.disconnYn !== 'Y') {
+      const validationError = validatePhoneNumber(telNo, phoneForm.telNoType);
+      if (validationError) {
+        showToast?.(validationError, 'warning');
+        return;
+      }
+    } else if (!telNo) {
+      showToast?.('전화번호를 입력하세요.', 'warning');
       return;
     }
 
     setIsSavingPhone(true);
     try {
-      // 전화번호 분리 (010-1234-5678 형식으로 분리)
-      const telNo = phoneForm.telNo.replace(/[^0-9]/g, '');
-      let telDdd = '';
-      let telFix = '';
-      let telDtl = '';
-
-      if (telNo.length === 11) {
-        // 010-1234-5678
-        telDdd = telNo.substring(0, 3);
-        telFix = telNo.substring(3, 7);
-        telDtl = telNo.substring(7, 11);
-      } else if (telNo.length === 10) {
-        // 02-1234-5678 or 031-123-4567
-        if (telNo.startsWith('02')) {
-          telDdd = telNo.substring(0, 2);
-          telFix = telNo.substring(2, 6);
-          telDtl = telNo.substring(6, 10);
-        } else {
-          telDdd = telNo.substring(0, 3);
-          telFix = telNo.substring(3, 6);
-          telDtl = telNo.substring(6, 10);
-        }
-      }
+      // 전화번호 분리 (02→2자리, 0130→4자리, 나머지→3자리 DDD)
+      const { ddd: telDdd, fix: telFix, dtl: telDtl } = splitPhoneNumber(telNo);
 
       // TEL_NO_TP: '1'=전화번호, '2'=휴대폰번호
       const telNoTp = phoneForm.telNoType === 'tel' ? '1' : '2';
       const phoneTypeLabel = phoneForm.telNoType === 'tel' ? '전화번호' : '휴대폰번호';
 
+      // 기존 전화번호 (UPDATE 대상 식별용)
+      const existingTelNo = phoneForm.telNoType === 'tel'
+        ? selectedCustomer.telNo?.replace(/[^0-9]/g, '') || ''
+        : selectedCustomer.hpNo?.replace(/[^0-9]/g, '') || '';
+
       const params: PhoneChangeRequest = {
         CUST_ID: selectedCustomer.custId,
+        TEL_NO: existingTelNo,
         TEL_DDD: telDdd,
         TEL_FIX: telFix,
         TEL_DTL: telDtl,
@@ -736,6 +732,8 @@ const CustomerInfoChange: React.FC<CustomerInfoChangeProps> = ({
         NO_SVC_YN: phoneForm.disconnYn,
         TEL_NO_TP: telNoTp,
         USE_YN: 'Y',
+        CTRT_ID: selectedContract?.ctrtId || '',
+        MAIN_TEL_YN: 'N',
         CHG_UID: ''
       };
 
@@ -743,7 +741,6 @@ const CustomerInfoChange: React.FC<CustomerInfoChangeProps> = ({
 
       if (response.success) {
         showToast?.(`${phoneTypeLabel}가 변경되었습니다.`, 'success');
-        // 폼 초기화
         setPhoneForm({ telNoType: 'hp', telNo: '', telTpCd: '', disconnYn: 'N' });
       } else {
         showToast?.(response.message || '전화번호 변경에 실패했습니다.', 'error');
@@ -1115,7 +1112,7 @@ const CustomerInfoChange: React.FC<CustomerInfoChangeProps> = ({
                     telNo: e.target.value.replace(/[^0-9]/g, '')
                   }))}
                   placeholder={phoneForm.telNoType === 'tel' ? '0212345678' : '01012345678'}
-                  maxLength={11}
+                  maxLength={12}
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 />
               </div>

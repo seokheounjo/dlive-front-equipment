@@ -235,19 +235,96 @@ export interface ASRequestUIParams {
   SCHD_TM: string;           // 작업예정시간 (HHMM)
 }
 
-// 전화번호 변경 요청 (Backend: updateCustTelDetailInfo)
+// 전화번호 변경 요청 (Backend: updateCustTelDetailInfo → pcmcu_cust_tel_upd 프로시저)
 // 전화번호는 3개로 분리해서 전송 (TEL_DDD, TEL_FIX, TEL_DTL)
+// DDD 분리 규칙: 02→2자리, 0130→4자리, 나머지→3자리
 export interface PhoneChangeRequest {
   CUST_ID: string;           // 고객ID
-  TEL_DDD: string;           // 전화번호 앞 3자리
-  TEL_FIX: string;           // 전화번호 중간 4자리
-  TEL_DTL: string;           // 전화번호 끝 4자리
+  TEL_NO?: string;           // 기존 전화번호 (UPDATE 대상 식별용)
+  TEL_DDD: string;           // 지역번호/통신사번호 (02, 031, 010 등)
+  TEL_FIX: string;           // 중간번호
+  TEL_DTL: string;           // 끝번호 (4자리)
   MB_CORP_TP: string;        // 통신사코드 (CMCU052)
   NO_SVC_YN: string;         // 결번여부 (Y/N)
-  TEL_NO_TP: string;         // 전화번호구분 (CMCU109) - '2' 고정
-  USE_YN: string;            // 사용여부 - 'Y' 고정
-  CHG_UID: string;           // 수정자 (로그인 사용자)
+  TEL_NO_TP: string;         // 전화번호구분 (CMCU109) - '1'=전화, '2'=휴대폰
+  USE_YN: string;            // 사용여부 - 'Y'=사용, 'N'=삭제
+  CTRT_ID?: string;          // 계약ID
+  MAIN_TEL_YN?: string;      // 대표번호여부 (Y/N)
+  CUST_REL?: string;         // 고객관계 (대리인 전화일 경우)
+  CHG_UID: string;           // 수정자 (로그인 사용자) → REG_UID로 매핑됨
 }
+
+/**
+ * 전화번호 검증 (fcmcu_cust_tel_check 기반)
+ * D'Live 서버 프로시저와 동일한 검증 로직을 프론트에서 사전 체크
+ */
+export const validatePhoneNumber = (telNo: string, telNoType: 'tel' | 'hp'): string | null => {
+  const cleaned = telNo.replace(/[-\s]/g, '');
+
+  if (!cleaned) return '전화번호를 입력하세요.';
+  if (cleaned.length < 9) return '전화번호를 정확히 입력하세요.';
+
+  // DDD 분리
+  let ddd = '';
+  let fix = '';
+  const dtl = cleaned.slice(-4);
+
+  if (cleaned.startsWith('02')) {
+    ddd = cleaned.substring(0, 2);
+    fix = cleaned.substring(2, cleaned.length - 4);
+  } else if (cleaned.startsWith('0130')) {
+    ddd = cleaned.substring(0, 4);
+    fix = cleaned.substring(4, cleaned.length - 4);
+  } else {
+    ddd = cleaned.substring(0, 3);
+    fix = cleaned.substring(3, cleaned.length - 4);
+  }
+
+  if (fix.length < 3) return '전화번호를 정확히 입력하세요.';
+  if (fix === '111' || fix === '1111') return '전화번호를 정확히 입력하세요.';
+  if (ddd === '010' && fix.length < 4) return '휴대폰번호를 정확히 입력하세요.';
+  if (telNoType === 'hp' && !['010', '011', '016', '017', '018', '019'].includes(ddd)) {
+    return '휴대전화번호를 정확히 입력하세요.';
+  }
+  if (ddd !== '0130' && fix.startsWith('0')) return '전화번호를 정확히 입력하세요.';
+
+  // 같은 숫자 7연속 체크
+  let consecutive = 0;
+  for (let i = 0; i < cleaned.length - 1; i++) {
+    if (cleaned[i] === cleaned[i + 1]) {
+      consecutive++;
+      if (consecutive >= 6) return '전화번호를 정확히 입력하세요.';
+    } else {
+      consecutive = 0;
+    }
+  }
+
+  return null; // 검증 통과
+};
+
+/**
+ * 전화번호를 DDD, FIX, DTL로 분리
+ * 02→2자리, 0130→4자리, 나머지→3자리 DDD
+ */
+export const splitPhoneNumber = (telNo: string): { ddd: string; fix: string; dtl: string } => {
+  const cleaned = telNo.replace(/[^0-9]/g, '');
+  let ddd = '';
+  let fix = '';
+  const dtl = cleaned.slice(-4);
+
+  if (cleaned.startsWith('02')) {
+    ddd = cleaned.substring(0, 2);
+    fix = cleaned.substring(2, cleaned.length - 4);
+  } else if (cleaned.startsWith('0130')) {
+    ddd = cleaned.substring(0, 4);
+    fix = cleaned.substring(4, cleaned.length - 4);
+  } else {
+    ddd = cleaned.substring(0, 3);
+    fix = cleaned.substring(3, cleaned.length - 4);
+  }
+
+  return { ddd, fix, dtl };
+};
 
 // 설치주소 변경 요청 (Backend: saveMargeAddrOrdInfo)
 // API: /customer/etc/saveMargeAddrOrdInfo.req
@@ -1155,8 +1232,10 @@ export const updatePhoneNumber = async (params: PhoneChangeRequest): Promise<Api
   return apiCall<any>('/customer/negociation/updateCustTelDetailInfo', {
     ...params,
     CHG_UID: chgUid,
-    TEL_NO_TP: params.TEL_NO_TP || '2',  // 전달된 값 사용 (기본값: 2=휴대폰)
-    USE_YN: 'Y'      // 고정값
+    TEL_NO_TP: params.TEL_NO_TP || '2',
+    USE_YN: params.USE_YN || 'Y',
+    MAIN_TEL_YN: params.MAIN_TEL_YN || 'N',
+    CUST_REL: params.CUST_REL || '',
   });
 };
 
