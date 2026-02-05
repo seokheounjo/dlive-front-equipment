@@ -1704,14 +1704,44 @@ export const getBankCodes = async (): Promise<ApiResponse<any[]>> => {
 
 /**
  * 지번주소 검색 (statistics/customer/getPostList)
+ * SO_ID 필수 - 미전달시 세션에서 자동 획득
  * @param params 검색 조건 (동/면 이름)
  */
 export const searchPostAddress = async (params: PostAddressSearchRequest): Promise<ApiResponse<PostAddressInfo[]>> => {
-  // DONGMYONG과 DONGMYON_NM 둘 다 보내서 호환성 확보
+  // SO_ID가 없으면 세션에서 자동 획득 (getPostList는 SO_ID 필수)
+  let soId = params.SO_ID || '';
+  let mstSoId = '';
+  if (!soId) {
+    try {
+      const userInfoStr = sessionStorage.getItem('userInfo') || localStorage.getItem('userInfo');
+      if (userInfoStr) {
+        const userInfo = JSON.parse(userInfoStr);
+        const authSoList = userInfo.authSoList || userInfo.AUTH_SO_List || [];
+        if (authSoList.length > 0) {
+          soId = authSoList[0].SO_ID || authSoList[0].soId || '';
+          mstSoId = authSoList[0].MST_SO_ID || authSoList[0].mstSoId || '';
+        }
+        if (!soId) {
+          soId = userInfo.soId || userInfo.SO_ID || '';
+        }
+        if (!mstSoId) {
+          mstSoId = userInfo.mstSoId || userInfo.MST_SO_ID || '';
+        }
+      }
+    } catch (e) {
+      console.log('[CustomerAPI] Failed to get SO_ID from session for address search');
+    }
+  }
+
   const searchParams = {
     ...params,
-    DONGMYON_NM: params.DONGMYONG  // 실제 API가 DONGMYON_NM을 사용할 수 있음
+    SO_ID: soId,
+    MST_SO_ID: mstSoId || '200',
+    USE_FLAG: params.USE_FLAG || 'Y',
+    DONGMYON_NM: params.DONGMYONG
   };
+
+  console.log('[CustomerAPI] searchPostAddress params:', { SO_ID: soId, DONGMYONG: params.DONGMYONG });
   return apiCall<PostAddressInfo[]>('/statistics/customer/getPostList', searchParams);
 };
 
