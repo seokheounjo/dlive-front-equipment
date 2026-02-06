@@ -963,17 +963,14 @@ export const searchCustomer = async (params: CustomerSearchParams): Promise<ApiR
 
 /**
  * 고객 통합 검색 (모든 파라미터를 한 번에 전송)
- * API: /customer/common/customercommon/getConditionalCustList2 (SERCH_GB=3)
+ * API: /customer/common/customercommon/getConditionalCustList2
  *
- * getConditionalCustList3 지원 파라미터:
+ * getConditionalCustList2 지원 파라미터:
  * - CUST_ID: 고객ID
- * - CUST_NM: 고객명 (LIKE 검색)
- * - TEL_NO: 전화번호
- * - CTRT_ID: 계약ID
- * - EQT_SERNO: 장비번호
- * - MAC_ADDR: MAC 주소
- * - LOGIN_ID: 로그인ID (필수 - 권한체크용)
+ * - CUST_NM: 고객명 (LIKE prefix 검색)
+ * - TELNO: 전화번호 (주의: TEL_NO가 아닌 TELNO)
  *
+ * CTRT_ID, EQT_SERNO 검색은 별도 API 필요 (getConditionalCustList3, 권한체크 필요)
  * 모든 조건은 AND로 결합되어 모든 조건을 만족하는 결과만 반환
  */
 export const searchCustomerAll = async (params: {
@@ -983,6 +980,9 @@ export const searchCustomerAll = async (params: {
   customerName?: string;
   equipmentNo?: string;
 }): Promise<ApiResponse<CustomerInfo[]>> => {
+  // CTRT_ID나 EQT_SERNO가 있으면 SERCH_GB=3 사용 시도 (권한체크 필요)
+  const needsSerchGb3 = !!(params.contractId || params.equipmentNo);
+
   // 세션에서 LOGIN_ID 획득
   let loginId = 'SYSTEM';
   try {
@@ -995,23 +995,28 @@ export const searchCustomerAll = async (params: {
     console.log('[CustomerAPI] Failed to get session info');
   }
 
-  // 요청 파라미터 구성 - SERCH_GB=3으로 getConditionalCustList3 사용
-  const reqParams: Record<string, any> = {
-    SERCH_GB: '3',
-    LOGIN_ID: loginId
-  };
+  // 요청 파라미터 구성
+  const reqParams: Record<string, any> = {};
 
-  // 입력된 값만 추가
-  if (params.custId) reqParams.CUST_ID = params.custId;
-  if (params.contractId) reqParams.CTRT_ID = params.contractId;
-  if (params.phoneNumber) reqParams.TEL_NO = params.phoneNumber;
-  if (params.customerName) reqParams.CUST_NM = params.customerName;
-  if (params.equipmentNo) reqParams.EQT_SERNO = params.equipmentNo;
+  // CTRT_ID나 EQT_SERNO 검색 시 SERCH_GB=3 사용
+  if (needsSerchGb3) {
+    reqParams.SERCH_GB = '3';
+    reqParams.LOGIN_ID = loginId;
+    if (params.custId) reqParams.CUST_ID = params.custId;
+    if (params.contractId) reqParams.CTRT_ID = params.contractId;
+    if (params.phoneNumber) reqParams.TEL_NO = params.phoneNumber;  // getConditionalCustList3은 TEL_NO 사용
+    if (params.customerName) reqParams.CUST_NM = params.customerName;
+    if (params.equipmentNo) reqParams.EQT_SERNO = params.equipmentNo;
+  } else {
+    // 기본 검색: SERCH_GB 없이 (getConditionalCustList2 사용)
+    if (params.custId) reqParams.CUST_ID = params.custId;
+    if (params.phoneNumber) reqParams.TELNO = params.phoneNumber;  // getConditionalCustList2는 TELNO 사용
+    if (params.customerName) reqParams.CUST_NM = params.customerName;
+  }
 
   console.log('[CustomerAPI] searchCustomerAll 요청 파라미터:\n' + JSON.stringify(reqParams, null, 2));
 
   try {
-    // getConditionalCustList2 API 호출 (SERCH_GB=3 → getConditionalCustList3 SQL 실행)
     const result = await apiCall<any>('/customer/common/customercommon/getConditionalCustList2', reqParams);
     console.log('[CustomerAPI] searchCustomerAll 응답:', result);
 
