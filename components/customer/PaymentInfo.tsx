@@ -8,7 +8,6 @@ import {
   UnpaymentInfo,
   getPaymentAccounts,
   getBillingDetails,
-  getUnpaymentList,
   PaymentAccountInfo,
   BillingDetailInfo,
   formatCurrency,
@@ -184,11 +183,28 @@ const PaymentInfo: React.FC<PaymentInfoProps> = ({
 
     setIsLoadingUnpayment(true);
     try {
-      // 미납 내역 로드 (전체 조회 후 표시 - API가 PYM_ACNT_ID 필터 미지원)
-      const response = await getUnpaymentList(custId);
+      // 요금내역에서 미납 내역 조회 (getCustBillInfo_m의 UPYM_AMT > 0인 항목)
+      const response = await getBillingDetails(custId, selectedPymAcntId);
       if (response.success && response.data) {
-        setModalUnpaymentList(response.data);
-        setShowUnpaymentModal(true);
+        // 미납금이 있는 항목만 필터링하여 UnpaymentInfo 형태로 변환
+        const unpaymentItems: UnpaymentInfo[] = response.data
+          .filter(item => item.UPYM_AMT > 0)
+          .map(item => ({
+            BILL_YM: item.BILL_YYMM,
+            CTRT_ID: '',
+            PROD_NM: item.BILL_CYCL || '정기',
+            BILL_AMT: item.BILL_AMT,
+            UNPAY_AMT: item.UPYM_AMT,
+            UNPAY_DAYS: 0,
+            UNPAY_STAT_NM: '미납'
+          }));
+
+        if (unpaymentItems.length > 0) {
+          setModalUnpaymentList(unpaymentItems);
+          setShowUnpaymentModal(true);
+        } else {
+          showToast?.('미납 내역이 없습니다.', 'info');
+        }
       } else {
         showToast?.('미납 내역 조회에 실패했습니다.', 'error');
       }
