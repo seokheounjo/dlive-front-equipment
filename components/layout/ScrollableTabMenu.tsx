@@ -34,7 +34,7 @@ const ScrollableTabMenu: React.FC<ScrollableTabMenuProps> = ({
       {/* 탭 컨테이너 - 작업관리와 정확히 동일한 스타일 */}
       <div 
         ref={scrollContainerRef}
-        className="w-full justify-start bg-white rounded-none h-auto py-2 px-3 overflow-x-auto border-none"
+        className="w-full justify-start bg-white rounded-none h-auto py-2 px-3 overflow-hidden border-none"
         style={{ 
           scrollbarWidth: 'none', 
           msOverflowStyle: 'none',
