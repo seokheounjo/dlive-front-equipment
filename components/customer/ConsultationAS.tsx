@@ -83,10 +83,32 @@ const ConsultationAS: React.FC<ConsultationASProps> = ({
   const [consultationCodes, setConsultationCodes] = useState<CodeItem[]>([]);
   const [asReasonCodes, setASReasonCodes] = useState<CodeItem[]>([]);
 
-  // 상담/AS 대상 단위 (계약 or 고객)
-  const [targetUnit, setTargetUnit] = useState<'contract' | 'customer'>(
-    selectedContract ? 'contract' : 'customer'
-  );
+  // 상담/AS 대상 단위 (계약 or 고객) - 기본값 고객단위
+  const [targetUnit, setTargetUnit] = useState<'contract' | 'customer'>('customer');
+
+  // 계약단위 선택 확인 팝업
+  const [showContractConfirm, setShowContractConfirm] = useState(false);
+
+  // 계약단위 선택 핸들러
+  const handleTargetUnitChange = (unit: 'contract' | 'customer') => {
+    if (unit === 'contract') {
+      if (!selectedContract) {
+        // 계약이 선택되지 않은 경우 확인 팝업 표시
+        setShowContractConfirm(true);
+      } else {
+        setTargetUnit('contract');
+      }
+    } else {
+      setTargetUnit('customer');
+    }
+  };
+
+  // 계약이 선택되면 자동으로 계약단위로 변경
+  useEffect(() => {
+    if (selectedContract) {
+      setTargetUnit('contract');
+    }
+  }, [selectedContract]);
 
   // 상담 등록 폼 (와이어프레임 기준: 대/중/소분류)
   const [consultationForm, setConsultationForm] = useState({
@@ -530,31 +552,28 @@ const ConsultationAS: React.FC<ConsultationASProps> = ({
                   <input
                     type="radio"
                     name="targetUnit"
-                    value="contract"
-                    checked={targetUnit === 'contract'}
-                    onChange={() => setTargetUnit('contract')}
-                    disabled={!selectedContract}
+                    value="customer"
+                    checked={targetUnit === 'customer'}
+                    onChange={() => handleTargetUnitChange('customer')}
                     className="w-4 h-4 text-blue-600"
                   />
-                  <span className={`text-sm ${!selectedContract ? 'text-gray-400' : 'text-gray-700'}`}>
-                    계약 단위
-                  </span>
+                  <span className="text-sm text-gray-700">고객 단위</span>
                 </label>
                 <label className="flex items-center gap-2 cursor-pointer">
                   <input
                     type="radio"
                     name="targetUnit"
-                    value="customer"
-                    checked={targetUnit === 'customer'}
-                    onChange={() => setTargetUnit('customer')}
+                    value="contract"
+                    checked={targetUnit === 'contract'}
+                    onChange={() => handleTargetUnitChange('contract')}
                     className="w-4 h-4 text-blue-600"
                   />
-                  <span className="text-sm text-gray-700">고객 단위</span>
+                  <span className="text-sm text-gray-700">계약 단위</span>
                 </label>
               </div>
-              {targetUnit === 'contract' && !selectedContract && (
-                <div className="mt-2 text-xs text-orange-600">
-                  ⚠️ 기본조회에서 계약을 선택해주세요
+              {targetUnit === 'contract' && selectedContract && (
+                <div className="mt-2 text-xs text-blue-600">
+                  선택된 계약: {selectedContract.prodNm} ({selectedContract.ctrtId})
                 </div>
               )}
             </div>
@@ -1047,6 +1066,41 @@ const ConsultationAS: React.FC<ConsultationASProps> = ({
           )}
         </div>
       </div>
+
+      {/* 계약단위 선택 확인 팝업 */}
+      {showContractConfirm && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-5 max-w-sm mx-4 shadow-xl">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center">
+                <FileText className="w-5 h-5 text-blue-500" />
+              </div>
+              <h3 className="text-base font-medium text-gray-900">계약 선택 필요</h3>
+            </div>
+            <p className="text-sm text-gray-600 mb-5">
+              계약 단위로 상담을 등록하려면 먼저 계약을 선택해야 합니다.<br />
+              기본조회 화면으로 이동하여 계약을 선택하시겠습니까?
+            </p>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setShowContractConfirm(false)}
+                className="flex-1 px-4 py-2 text-sm text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
+              >
+                취소
+              </button>
+              <button
+                onClick={() => {
+                  setShowContractConfirm(false);
+                  onNavigateToBasicInfo();
+                }}
+                className="flex-1 px-4 py-2 text-sm text-white bg-blue-500 rounded-lg hover:bg-blue-600 transition-colors"
+              >
+                계약 선택하기
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
