@@ -1091,44 +1091,35 @@ export const getPaymentAccountsRaw = async (custId: string): Promise<ApiResponse
 
 /**
  * 납부계정 통합 조회
- * getCustPymInfo (전체 목록 5개: ROLLUP 포함) + getCustAccountInfo_m (상세 정보 3개) 병합
- * getCustPymInfo의 PYM_ACNT_ID 목록을 기준으로 getCustAccountInfo_m의 상세 정보를 매칭
+ * getCustAccountInfo_m API 직접 사용 (ROLLUP 없이 순수 납부계정만)
+ * UPYM_AMT → UPYM_AMT_ACNT 매핑
  */
 export const getPaymentAccounts = async (custId: string): Promise<ApiResponse<PaymentAccountInfo[]>> => {
-  const [pymRes, acntRes] = await Promise.all([
-    getPaymentInfo(custId),
-    getPaymentAccountsRaw(custId)
-  ]);
+  const loginId = getLoginIdFromSession();
 
-  // getCustAccountInfo_m 결과를 맵으로 변환
-  const detailMap = new Map<string, PaymentAccountInfo>();
-  if (acntRes.success && acntRes.data) {
-    for (const acnt of acntRes.data) {
-      detailMap.set(acnt.PYM_ACNT_ID, acnt);
-    }
+  // getCustAccountInfo_m API 직접 호출 (ROLLUP 행 없음)
+  const response = await apiCall<any[]>('/customer/negociation/getCustAccountInfo_m', {
+    CUST_ID: custId,
+    LOGIN_ID: loginId
+  });
+
+  if (response.success && response.data) {
+    // UPYM_AMT → UPYM_AMT_ACNT 매핑 및 유효한 PYM_ACNT_ID만 필터링
+    const mapped: PaymentAccountInfo[] = response.data
+      .filter((item: any) => item.PYM_ACNT_ID && /^\d{10}$/.test(item.PYM_ACNT_ID))
+      .map((item: any) => ({
+        PYM_ACNT_ID: item.PYM_ACNT_ID,
+        PYM_MTHD_NM: item.PYM_MTHD_NM || '',
+        BANK_CARD_NM: item.BANK_CARD_NM || null,
+        BANK_CARD_NO: item.BANK_CARD_NO || null,
+        BILL_MTHD: item.BILL_MTHD || '',
+        UPYM_AMT_ACNT: item.UPYM_AMT ?? item.UPYM_AMT_ACNT ?? 0
+      }));
+
+    return { success: true, data: mapped, code: 'SUCCESS', message: 'OK' } as ApiResponse<PaymentAccountInfo[]>;
   }
 
-  // getCustPymInfo 목록 기준으로 병합
-  if (pymRes.success && pymRes.data) {
-    const combined: PaymentAccountInfo[] = pymRes.data.map((pym: any) => {
-      const detail = detailMap.get(pym.PYM_ACNT_ID);
-      if (detail) {
-        return { ...detail, UPYM_AMT_ACNT: pym.UPYM ?? detail.UPYM_AMT_ACNT };
-      }
-      return {
-        PYM_ACNT_ID: pym.PYM_ACNT_ID,
-        PYM_MTHD_NM: '',
-        BANK_CARD_NM: null as any,
-        BANK_CARD_NO: null as any,
-        BILL_MTHD: '',
-        UPYM_AMT_ACNT: pym.UPYM || 0
-      };
-    });
-    return { success: true, data: combined, code: 'SUCCESS', message: 'OK' } as ApiResponse<PaymentAccountInfo[]>;
-  }
-
-  // fallback: getCustAccountInfo_m만 반환
-  return acntRes;
+  return response as ApiResponse<PaymentAccountInfo[]>;
 };
 
 /**
