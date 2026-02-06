@@ -128,13 +128,32 @@ const CustomerSearch: React.FC<CustomerSearchProps> = ({ onCustomerSelect, onCus
     setHasSearched(true);
 
     try {
-      // 모든 파라미터를 한 번에 전송
+      // S/N만 입력된 경우 → 별도 장비검색 API 사용
+      if (hasEquipmentNo && !hasCustomerId && !hasContractId && !hasPhoneNumber && !hasCustomerName) {
+        const response = await searchCustomer({
+          searchType: 'EQUIPMENT_NO',
+          equipmentNo: equipmentNo
+        });
+
+        if (response.success && response.data && response.data.length > 0) {
+          setSearchResults(response.data);
+        } else {
+          setSearchResults([]);
+          setWarningPopup({
+            show: true,
+            title: '조회 실패',
+            message: '조회대상이 없습니다.\n장비번호를 정확히 입력해주세요.'
+          });
+        }
+        return;
+      }
+
+      // 다른 파라미터들은 통합 API 사용 (S/N 제외 - 지원하지 않음)
       const response = await searchCustomerAll({
         custId: hasCustomerId ? customerIdDigits : undefined,
         contractId: hasContractId ? contractIdDigits : undefined,
         phoneNumber: hasPhoneNumber ? phoneNumberDigits : undefined,
         customerName: hasCustomerName ? customerName : undefined,
-        equipmentNo: hasEquipmentNo ? equipmentNo : undefined,
       });
 
       if (response.success && response.data && response.data.length > 0) {

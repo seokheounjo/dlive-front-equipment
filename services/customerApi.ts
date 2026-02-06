@@ -965,18 +965,22 @@ export const searchCustomer = async (params: CustomerSearchParams): Promise<ApiR
  * 고객 통합 검색 (모든 파라미터를 한 번에 전송)
  * API: /customer/phoneNumber/getCtrtIDforSmartPhone
  *
- * 파라미터:
+ * 지원 파라미터:
+ * - CUST_ID: 고객ID
  * - CTRT_ID: 계약ID
  * - TEL_NO: 전화번호
  * - CUST_NM: 고객명
- * - EQT_SERNO: 장비 S/N
+ * - VOIP_TEL_NO: VoIP 전화번호
+ *
+ * 참고: EQT_SERNO(장비번호)는 이 API에서 지원하지 않음
+ *       → 장비번호 검색은 searchCustomer(searchType: 'EQUIPMENT_NO') 사용
  */
 export const searchCustomerAll = async (params: {
   custId?: string;
   contractId?: string;
   phoneNumber?: string;
   customerName?: string;
-  equipmentNo?: string;
+  voipTelNo?: string;
 }): Promise<ApiResponse<CustomerInfo[]>> => {
   // 세션에서 SO_ID 획득
   let soId = '';
@@ -1008,7 +1012,7 @@ export const searchCustomerAll = async (params: {
   if (params.contractId) reqParams.CTRT_ID = params.contractId;
   if (params.phoneNumber) reqParams.TEL_NO = params.phoneNumber;
   if (params.customerName) reqParams.CUST_NM = params.customerName;
-  if (params.equipmentNo) reqParams.EQT_SERNO = params.equipmentNo;
+  if (params.voipTelNo) reqParams.VOIP_TEL_NO = params.voipTelNo;
 
   console.log('[CustomerAPI] searchCustomerAll 요청 파라미터:\n' + JSON.stringify(reqParams, null, 2));
 
