@@ -14,6 +14,7 @@ import {
   maskString
 } from '../../services/customerApi';
 import UnpaymentCollectionModal from './UnpaymentCollectionModal';
+import PaymentChangeModal from './PaymentChangeModal';
 
 // 납부계정ID 포맷 (3-3-4)
 const formatPymAcntId = (pymAcntId: string): string => {
@@ -83,6 +84,9 @@ const PaymentInfo: React.FC<PaymentInfoProps> = ({
   // 납부계정 전환 확인 모달
   const [showSwitchConfirm, setShowSwitchConfirm] = useState(false);
   const [pendingSwitchPymAcntId, setPendingSwitchPymAcntId] = useState<string>('');
+
+  // 납부방법 변경 모달
+  const [showPaymentChangeModal, setShowPaymentChangeModal] = useState(false);
 
   // 데이터 로드
   useEffect(() => {
@@ -350,10 +354,10 @@ const PaymentInfo: React.FC<PaymentInfoProps> = ({
                   </button>
                 )}
 
-                {/* 납부정보 변경 버튼 */}
-                {onNavigateToPaymentChange && selectedPymAcntId && (
+                {/* 납부정보 변경 버튼 - 팝업으로 변경 */}
+                {selectedPymAcntId && (
                   <button
-                    onClick={() => handlePaymentChangeClick(selectedPymAcntId)}
+                    onClick={() => setShowPaymentChangeModal(true)}
                     className="w-full mt-2 py-2 text-sm text-indigo-600 bg-indigo-50 hover:bg-indigo-100 rounded-lg transition-colors font-medium"
                   >
                     납부정보 변경
@@ -453,6 +457,19 @@ const PaymentInfo: React.FC<PaymentInfoProps> = ({
         custNm={custNm}
         pymAcntId={selectedPymAcntId || ''}
         unpaymentList={modalUnpaymentList}
+        showToast={showToast}
+        onSuccess={() => {
+          loadPaymentAccounts();
+        }}
+      />
+
+      {/* 납부방법 변경 모달 */}
+      <PaymentChangeModal
+        isOpen={showPaymentChangeModal}
+        onClose={() => setShowPaymentChangeModal(false)}
+        custId={custId}
+        custNm={custNm}
+        initialPymAcntId={selectedPymAcntId || ''}
         showToast={showToast}
         onSuccess={() => {
           loadPaymentAccounts();

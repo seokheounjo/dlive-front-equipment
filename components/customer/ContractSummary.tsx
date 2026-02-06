@@ -287,7 +287,7 @@ const ContractSummary: React.FC<ContractSummaryProps> = ({
                         {/* 단체 정보 */}
                         {contract.GRP_NO && (
                           <div className="text-sm text-gray-600">
-                            단체번호: {contract.GRP_NO}
+                            단체 이름: {contract.GRP_NO}
                           </div>
                         )}
 
