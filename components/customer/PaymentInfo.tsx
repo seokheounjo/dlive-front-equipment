@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import {
   ChevronDown, ChevronUp, Loader2,
-  AlertCircle, RefreshCw
+  AlertCircle
 } from 'lucide-react';
 
 import {
@@ -245,113 +245,91 @@ const PaymentInfo: React.FC<PaymentInfoProps> = ({
               <div>
                 {/* 헤더 */}
                 <div className="flex items-center justify-between mb-3">
-                  <div className="flex items-center gap-1">
-                    <span className="text-sm font-medium text-gray-700">납부 정보</span>
-                    <button
-                      onClick={loadPaymentAccounts}
-                      className="p-1 text-gray-400 hover:text-gray-600"
-                    >
-                      <RefreshCw className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
+                  <span className="text-sm font-medium text-gray-700">납부 정보</span>
                   <span className="text-xs text-gray-500">{paymentAccounts.length}건</span>
                 </div>
 
-                {/* 납부 정보 목록 - 간략 표시, 선택 시 세부정보 */}
+                {/* 납부 정보 목록 - 클릭 시 선택, 세부정보는 아래 고정 표시 */}
                 {paymentAccounts.length === 0 ? (
                   <div className="text-center py-4 text-gray-500 text-sm">
                     납부 정보가 없습니다.
                   </div>
                 ) : (
-                  <div className="space-y-2">
-                    {paymentAccounts.map((payment) => {
-                      const isWorking = currentWorkingPymAcntId === payment.PYM_ACNT_ID;
-                      const isSelected = selectedPymAcntId === payment.PYM_ACNT_ID;
+                  <>
+                    {/* 납부계정 선택 리스트 */}
+                    <div className="space-y-1 mb-3">
+                      {paymentAccounts.map((payment, index) => {
+                        const isWorking = currentWorkingPymAcntId === payment.PYM_ACNT_ID;
+                        const isSelected = selectedPymAcntId === payment.PYM_ACNT_ID;
 
-                      return (
-                        <div
-                          key={payment.PYM_ACNT_ID}
-                          className={`rounded-lg border transition-all ${
-                            isWorking
-                              ? 'bg-orange-50 border-orange-300'
-                              : isSelected
-                                ? 'bg-blue-50 border-blue-400'
-                                : 'bg-gray-50 border-gray-200 hover:border-gray-300'
-                          }`}
-                        >
-                          {/* 간략 표시 (항상 보임) - 클릭하면 선택/해제 */}
+                        return (
                           <div
+                            key={payment.PYM_ACNT_ID}
                             onClick={() => handleSelectPaymentAccount(payment.PYM_ACNT_ID)}
-                            className="p-3 cursor-pointer flex justify-between items-center"
+                            className={`p-2 rounded-lg border cursor-pointer transition-all ${
+                              isWorking
+                                ? 'bg-orange-50 border-orange-300'
+                                : isSelected
+                                  ? 'bg-blue-50 border-blue-400'
+                                  : 'bg-gray-50 border-gray-200 hover:border-gray-300'
+                            }`}
                           >
-                            <div className="flex items-center gap-2">
-                              <span className="text-gray-500 text-xs">납부계정 ID</span>
-                              {isWorking && (
-                                <span className="px-1.5 py-0.5 text-xs bg-orange-500 text-white rounded-full animate-pulse">
-                                  작업중
-                                </span>
-                              )}
-                            </div>
-                            <div className="flex items-center gap-2">
-                              <span className="text-gray-800 font-medium">{formatPymAcntId(payment.PYM_ACNT_ID)}</span>
-                              {payment.UPYM_AMT_ACNT > 0 && (
-                                <span className="text-xs text-red-500">미납</span>
-                              )}
-                              <ChevronDown className={`w-4 h-4 text-gray-400 transition-transform ${isSelected ? 'rotate-180' : ''}`} />
+                            <div className="flex items-center justify-between text-sm">
+                              <div className="flex items-center gap-2">
+                                <span className="font-medium text-gray-700">{index + 1}.</span>
+                                <span className="text-gray-800">{formatPymAcntId(payment.PYM_ACNT_ID)}</span>
+                                <span className="text-gray-400">|</span>
+                                <span className="text-gray-600">{payment.PYM_MTHD_NM || '-'}</span>
+                                {isWorking && (
+                                  <span className="px-1.5 py-0.5 text-xs bg-orange-500 text-white rounded-full animate-pulse">
+                                    작업중
+                                  </span>
+                                )}
+                              </div>
+                              <span className={`font-medium ${payment.UPYM_AMT_ACNT > 0 ? 'text-red-600' : 'text-gray-600'}`}>
+                                {formatCurrency(payment.UPYM_AMT_ACNT || 0)}원
+                              </span>
                             </div>
                           </div>
+                        );
+                      })}
+                    </div>
 
-                          {/* 세부 정보 (선택 시에만 펼침) */}
-                          {isSelected && (
-                            <div className="px-3 pb-3 pt-0 border-t border-gray-200">
-                              <div className="space-y-2 text-sm mt-3">
-                                {/* 납부방법 */}
-                                <div className="flex justify-between items-center">
-                                  <span className="text-gray-500 text-xs">납부방법</span>
-                                  <span className="text-gray-800">{payment.PYM_MTHD_NM || '-'}</span>
-                                </div>
-                                {/* 은행/카드 */}
-                                <div className="flex justify-between items-center">
-                                  <span className="text-gray-500 text-xs">은행/카드</span>
-                                  <span className="text-gray-800">{payment.BANK_CARD_NM || '-'}</span>
-                                </div>
-                                {/* 계좌/카드번호 */}
-                                <div className="flex justify-between items-center">
-                                  <span className="text-gray-500 text-xs">계좌/카드번호</span>
-                                  <span className="text-gray-800">{maskString(payment.BANK_CARD_NO || '', 4, 4)}</span>
-                                </div>
-                                {/* 청구매체 */}
-                                <div className="flex justify-between items-center">
-                                  <span className="text-gray-500 text-xs">청구매체</span>
-                                  <span className="text-gray-800">{payment.BILL_MTHD || '-'}</span>
-                                </div>
-                                {/* 미납금액 */}
-                                <div className="flex justify-between items-center pt-2 border-t border-gray-200">
-                                  <span className="text-gray-500 text-xs">미납금액</span>
-                                  <span className={`font-bold ${payment.UPYM_AMT_ACNT > 0 ? 'text-red-600' : 'text-gray-800'}`}>
-                                    {formatCurrency(payment.UPYM_AMT_ACNT || 0)}원
-                                  </span>
-                                </div>
-                              </div>
-
-                              {/* 납부정보 변경 버튼 */}
-                              {onNavigateToPaymentChange && (
-                                <button
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    handlePaymentChangeClick(payment.PYM_ACNT_ID);
-                                  }}
-                                  className="w-full mt-3 py-2 text-sm text-indigo-600 bg-indigo-50 hover:bg-indigo-100 rounded-lg transition-colors font-medium"
-                                >
-                                  납부정보 변경
-                                </button>
-                              )}
-                            </div>
-                          )}
+                    {/* 선택된 납부계정 세부정보 (항상 표시) */}
+                    {selectedPayment && (
+                      <div className="p-3 bg-blue-50 rounded-lg border border-blue-200">
+                        <div className="space-y-2 text-sm">
+                          {/* 납부방법 */}
+                          <div className="flex justify-between items-center">
+                            <span className="text-gray-500 text-xs">납부방법</span>
+                            <span className="text-gray-800">{selectedPayment.PYM_MTHD_NM || '-'}</span>
+                          </div>
+                          {/* 은행/카드 */}
+                          <div className="flex justify-between items-center">
+                            <span className="text-gray-500 text-xs">은행/카드</span>
+                            <span className="text-gray-800">{selectedPayment.BANK_CARD_NM || '-'}</span>
+                          </div>
+                          {/* 계좌/카드번호 */}
+                          <div className="flex justify-between items-center">
+                            <span className="text-gray-500 text-xs">계좌/카드번호</span>
+                            <span className="text-gray-800">{maskString(selectedPayment.BANK_CARD_NO || '', 4, 4)}</span>
+                          </div>
+                          {/* 청구매체 */}
+                          <div className="flex justify-between items-center">
+                            <span className="text-gray-500 text-xs">청구매체</span>
+                            <span className="text-gray-800">{selectedPayment.BILL_MTHD || '-'}</span>
+                          </div>
+                          {/* 미납금액 */}
+                          <div className="flex justify-between items-center pt-2 border-t border-blue-200">
+                            <span className="text-gray-500 text-xs">미납금액</span>
+                            <span className={`font-bold ${selectedPayment.UPYM_AMT_ACNT > 0 ? 'text-red-600' : 'text-gray-800'}`}>
+                              {formatCurrency(selectedPayment.UPYM_AMT_ACNT || 0)}원
+                            </span>
+                          </div>
                         </div>
-                      );
-                    })}
-                  </div>
+                      </div>
+                    )}
+                  </>
                 )}
 
                 {/* 미납금 수납 버튼 - 미납 계정이 있을 때 */}
@@ -369,6 +347,16 @@ const PaymentInfo: React.FC<PaymentInfoProps> = ({
                     ) : (
                       `미납금 수납 (${formatPymAcntId(selectedPymAcntId || '')})`
                     )}
+                  </button>
+                )}
+
+                {/* 납부정보 변경 버튼 */}
+                {onNavigateToPaymentChange && selectedPymAcntId && (
+                  <button
+                    onClick={() => handlePaymentChangeClick(selectedPymAcntId)}
+                    className="w-full mt-2 py-2 text-sm text-indigo-600 bg-indigo-50 hover:bg-indigo-100 rounded-lg transition-colors font-medium"
+                  >
+                    납부정보 변경
                   </button>
                 )}
               </div>

@@ -21,6 +21,16 @@ import {
   formatDate
 } from '../../services/customerApi';
 
+// ID 포맷 (3-3-4 형식)
+const formatId = (id: string): string => {
+  if (!id) return '-';
+  const cleaned = id.replace(/[^0-9]/g, '');
+  if (cleaned.length === 10) {
+    return `${cleaned.slice(0, 3)}-${cleaned.slice(3, 6)}-${cleaned.slice(6, 10)}`;
+  }
+  return id;
+};
+
 interface ConsultationASProps {
   onBack: () => void;
   showToast?: (message: string, type: 'success' | 'error' | 'warning' | 'info') => void;
@@ -34,6 +44,7 @@ interface ConsultationASProps {
     prodNm: string;
     instAddr: string;
     postId?: string;
+    notrecev?: string;
   } | null;
   onNavigateToBasicInfo: () => void;
   initialTab?: 'consultation' | 'as';  // 초기 탭 지정 (AS 버튼에서 이동 시 'as')
@@ -552,17 +563,6 @@ const ConsultationAS: React.FC<ConsultationASProps> = ({
                   <input
                     type="radio"
                     name="targetUnit"
-                    value="customer"
-                    checked={targetUnit === 'customer'}
-                    onChange={() => handleTargetUnitChange('customer')}
-                    className="w-4 h-4 text-blue-600"
-                  />
-                  <span className="text-sm text-gray-700">고객 단위</span>
-                </label>
-                <label className="flex items-center gap-2 cursor-pointer">
-                  <input
-                    type="radio"
-                    name="targetUnit"
                     value="contract"
                     checked={targetUnit === 'contract'}
                     onChange={() => handleTargetUnitChange('contract')}
@@ -570,10 +570,24 @@ const ConsultationAS: React.FC<ConsultationASProps> = ({
                   />
                   <span className="text-sm text-gray-700">계약 단위</span>
                 </label>
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="radio"
+                    name="targetUnit"
+                    value="customer"
+                    checked={targetUnit === 'customer'}
+                    onChange={() => handleTargetUnitChange('customer')}
+                    className="w-4 h-4 text-blue-600"
+                  />
+                  <span className="text-sm text-gray-700">고객 단위</span>
+                </label>
               </div>
               {targetUnit === 'contract' && selectedContract && (
-                <div className="mt-2 text-xs text-blue-600">
-                  선택된 계약: {selectedContract.prodNm} ({selectedContract.ctrtId})
+                <div className="mt-2 text-xs text-blue-600 space-y-1">
+                  <div>선택된 계약: {selectedContract.prodNm} ({formatId(selectedContract.ctrtId)})</div>
+                  {selectedContract.notrecev && (
+                    <div>장비: {selectedContract.notrecev}</div>
+                  )}
                 </div>
               )}
             </div>
@@ -582,11 +596,11 @@ const ConsultationAS: React.FC<ConsultationASProps> = ({
             <div className="p-3 bg-blue-50 rounded-lg">
               <div className="text-sm text-blue-800">
                 <span className="font-medium">{selectedCustomer.custNm}</span>
-                <span className="ml-2 text-blue-600">(고객ID: {selectedCustomer.custId})</span>
+                <span className="ml-2 text-blue-600">(고객ID: {formatId(selectedCustomer.custId)})</span>
               </div>
               {targetUnit === 'contract' && selectedContract && (
                 <div className="text-xs text-blue-600 mt-1">
-                  계약: {selectedContract.prodNm} (계약ID: {selectedContract.ctrtId})
+                  계약: {selectedContract.prodNm} (계약ID: {formatId(selectedContract.ctrtId)})
                 </div>
               )}
             </div>
@@ -726,11 +740,16 @@ const ConsultationAS: React.FC<ConsultationASProps> = ({
                 <div className="p-3 bg-orange-50 rounded-lg">
                   <div className="text-sm text-orange-800">
                     <span className="font-medium">{selectedContract.prodNm}</span>
-                    <span className="ml-2 text-orange-600">({selectedContract.ctrtId})</span>
+                    <span className="ml-2 text-orange-600">({formatId(selectedContract.ctrtId)})</span>
                   </div>
                   <div className="text-xs text-orange-600 mt-1">
                     {selectedContract.instAddr}
                   </div>
+                  {selectedContract.notrecev && (
+                    <div className="text-xs text-orange-600 mt-1">
+                      장비: {selectedContract.notrecev}
+                    </div>
+                  )}
                 </div>
 
                 {/* AS구분 & 콤보상세 */}

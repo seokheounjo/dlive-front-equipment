@@ -1171,23 +1171,6 @@ const CustomerInfoChange: React.FC<CustomerInfoChangeProps> = ({
                 </select>
               </div>
 
-              {/* 결번 여부 */}
-              <div className="flex items-center gap-2">
-                <input
-                  type="checkbox"
-                  id="disconnYn"
-                  checked={phoneForm.disconnYn === 'Y'}
-                  onChange={(e) => setPhoneForm(prev => ({
-                    ...prev,
-                    disconnYn: e.target.checked ? 'Y' : 'N'
-                  }))}
-                  className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
-                />
-                <label htmlFor="disconnYn" className="text-sm text-gray-600">
-                  결번 (연락 불가)
-                </label>
-              </div>
-
               {/* 저장 버튼 */}
               <button
                 onClick={handleSavePhone}

@@ -228,7 +228,8 @@ const CustomerBasicInfo: React.FC<CustomerBasicInfoProps> = ({
       instAddr: contract.INST_ADDR,
       streetAddr: contract.STREET_ADDR_FULL,
       instlLoc: contract.INSTL_LOC,
-      postId: contract.POST_ID
+      postId: contract.POST_ID,
+      notrecev: contract.NOTRECEV
     });
 
     // 선택된 계약으로 이력 로드

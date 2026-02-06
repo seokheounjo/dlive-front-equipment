@@ -291,9 +291,10 @@ const ContractSummary: React.FC<ContractSummaryProps> = ({
                           </div>
                         )}
 
-                        {/* 상담/AS/주소변경 버튼 - 사용계약만 (해지 제외) */}
-                        {isActiveContract(contract) && (
-                          <div className="flex gap-2 mt-3 pt-3 border-t border-gray-200">
+                        {/* 상담/AS/주소변경 버튼 - AS는 해지계약도 가능 */}
+                        <div className="flex gap-2 mt-3 pt-3 border-t border-gray-200">
+                          {/* 상담 - 사용계약만 */}
+                          {isActiveContract(contract) && (
                             <button
                               onClick={(e) => {
                                 e.stopPropagation();
@@ -307,19 +308,23 @@ const ContractSummary: React.FC<ContractSummaryProps> = ({
                               <MessageSquare className="w-3.5 h-3.5" />
                               상담
                             </button>
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleSelect(contract);
-                                if (onNavigateToAS) {
-                                  onNavigateToAS(contract);
-                                }
-                              }}
-                              className="flex-1 flex items-center justify-center gap-1 px-2 py-2 bg-orange-500 hover:bg-orange-600 text-white text-xs font-medium rounded-lg transition-colors"
-                            >
-                              <Wrench className="w-3.5 h-3.5" />
-                              AS
-                            </button>
+                          )}
+                          {/* AS - 모든 계약 (해지 포함) */}
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleSelect(contract);
+                              if (onNavigateToAS) {
+                                onNavigateToAS(contract);
+                              }
+                            }}
+                            className="flex-1 flex items-center justify-center gap-1 px-2 py-2 bg-orange-500 hover:bg-orange-600 text-white text-xs font-medium rounded-lg transition-colors"
+                          >
+                            <Wrench className="w-3.5 h-3.5" />
+                            AS
+                          </button>
+                          {/* 주소변경 - 사용계약만 */}
+                          {isActiveContract(contract) && (
                             <button
                               onClick={(e) => {
                                 e.stopPropagation();
@@ -333,8 +338,8 @@ const ContractSummary: React.FC<ContractSummaryProps> = ({
                               <Home className="w-3.5 h-3.5" />
                               주소변경
                             </button>
-                          </div>
-                        )}
+                          )}
+                        </div>
 
                       </div>
                     )}

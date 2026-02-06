@@ -2,14 +2,32 @@ import React, { useState, useEffect } from 'react';
 import { X, Loader2, AlertCircle, CheckCircle, CreditCard } from 'lucide-react';
 import { UnpaymentInfo, formatCurrency } from '../../services/customerApi';
 
-// 납부계정ID 포맷 (3-3-4)
-const formatPymAcntId = (pymAcntId: string): string => {
-  if (!pymAcntId) return '-';
-  const cleaned = pymAcntId.replace(/[^0-9]/g, '');
+// ID 포맷 (3-3-4) - 납부계정ID, 고객ID 등
+const formatId = (id: string): string => {
+  if (!id) return '-';
+  const cleaned = id.replace(/[^0-9]/g, '');
   if (cleaned.length === 10) {
     return `${cleaned.slice(0, 3)}-${cleaned.slice(3, 6)}-${cleaned.slice(6, 10)}`;
   }
-  return pymAcntId;
+  return id;
+};
+
+// 고객명 마스킹 (홍길동 → 홍*동)
+const maskName = (name: string): string => {
+  if (!name || name.length < 2) return name || '-';
+  if (name.length === 2) return name[0] + '*';
+  return name[0] + '*'.repeat(name.length - 2) + name[name.length - 1];
+};
+
+// 상품명에서 "정기0" 제거
+const cleanProdNm = (prodNm: string): string => {
+  return prodNm?.replace(/정기\d*/g, '').trim() || '';
+};
+
+// 청구년월 포맷 (YYYYMM → YYYY-MM)
+const formatBillYm = (ym: string): string => {
+  if (!ym || ym.length < 6) return ym || '-';
+  return `${ym.slice(0, 4)}-${ym.slice(4, 6)}`;
 };
 
 interface UnpaymentCollectionModalProps {
@@ -160,16 +178,16 @@ const UnpaymentCollectionModal: React.FC<UnpaymentCollectionModalProps> = ({
           <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm">
             <div>
               <span className="text-gray-500">고객명: </span>
-              <span className="font-medium text-gray-900">{custNm || '-'}</span>
+              <span className="font-medium text-gray-900">{maskName(custNm)}</span>
             </div>
             <div>
               <span className="text-gray-500">고객ID: </span>
-              <span className="font-mono text-blue-600">{custId}</span>
+              <span className="font-mono text-blue-600">{formatId(custId)}</span>
             </div>
             {pymAcntId && (
               <div>
                 <span className="text-gray-500">납부계정: </span>
-                <span className="font-mono text-purple-600">{formatPymAcntId(pymAcntId)}</span>
+                <span className="font-mono text-purple-600">{formatId(pymAcntId)}</span>
               </div>
             )}
           </div>
@@ -233,7 +251,7 @@ const UnpaymentCollectionModal: React.FC<UnpaymentCollectionModalProps> = ({
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center justify-between">
                           <span className="text-sm font-medium text-gray-900">
-                            {item.BILL_YM || '-'}
+                            {formatBillYm(item.BILL_YM)}
                           </span>
                           <span className={`text-sm font-bold ${
                             selectedItems.has(index) ? 'text-red-600' : 'text-gray-700'
@@ -242,7 +260,7 @@ const UnpaymentCollectionModal: React.FC<UnpaymentCollectionModalProps> = ({
                           </span>
                         </div>
                         <div className="text-xs text-gray-500 mt-0.5 truncate">
-                          {item.PROD_NM}
+                          {cleanProdNm(item.PROD_NM)}
                           {item.UNPAY_DAYS && ` | 미납 ${item.UNPAY_DAYS}일`}
                         </div>
                       </div>
@@ -284,7 +302,7 @@ const UnpaymentCollectionModal: React.FC<UnpaymentCollectionModalProps> = ({
                       처리 중...
                     </>
                   ) : (
-                    '수납하기'
+                    '카드수납'
                   )}
                 </button>
               </div>

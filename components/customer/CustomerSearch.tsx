@@ -3,6 +3,35 @@ import { Loader2, X, User, AlertCircle } from 'lucide-react';
 import { searchCustomer, CustomerInfo, maskPhoneNumber } from '../../services/customerApi';
 import BarcodeScanner from '../equipment/BarcodeScanner';
 
+// ID 포맷 (3-3-4 형식) - 표시용
+const formatId = (id: string): string => {
+  if (!id) return '-';
+  const cleaned = id.replace(/[^0-9]/g, '');
+  if (cleaned.length === 10) {
+    return `${cleaned.slice(0, 3)}-${cleaned.slice(3, 6)}-${cleaned.slice(6, 10)}`;
+  }
+  return id;
+};
+
+// ID 입력 시 자동 포맷팅 (3-3-4)
+const formatIdInput = (value: string): string => {
+  const cleaned = value.replace(/[^0-9]/g, '');
+  if (cleaned.length <= 3) return cleaned;
+  if (cleaned.length <= 6) return `${cleaned.slice(0, 3)}-${cleaned.slice(3)}`;
+  return `${cleaned.slice(0, 3)}-${cleaned.slice(3, 6)}-${cleaned.slice(6, 10)}`;
+};
+
+// 전화번호 입력 시 자동 포맷팅
+const formatPhoneInput = (value: string): string => {
+  const cleaned = value.replace(/[^0-9]/g, '');
+  if (cleaned.length <= 3) return cleaned;
+  if (cleaned.length <= 7) return `${cleaned.slice(0, 3)}-${cleaned.slice(3)}`;
+  return `${cleaned.slice(0, 3)}-${cleaned.slice(3, 7)}-${cleaned.slice(7, 11)}`;
+};
+
+// 포맷된 값에서 숫자만 추출
+const extractDigits = (value: string): string => value.replace(/[^0-9]/g, '');
+
 interface CustomerSearchProps {
   onCustomerSelect: (customer: CustomerInfo) => void;
   onCustomerClear?: () => void;  // 고객 선택 해제 (리셋)
@@ -71,13 +100,17 @@ const CustomerSearch: React.FC<CustomerSearchProps> = ({ onCustomerSelect, onCus
     }
   };
 
-  // 검색 실행
-  // 조건: 고객ID OR 계약ID OR 전화번호 OR 이름 OR 장비S/N
+  // 검색 실행 - 합집합 조회 (입력된 모든 조건으로 검색 후 결과 병합)
   const handleSearch = async () => {
+    // 입력된 필드에서 숫자만 추출 (포맷팅 제거)
+    const customerIdDigits = extractDigits(customerId);
+    const contractIdDigits = extractDigits(contractId);
+    const phoneNumberDigits = extractDigits(phoneNumber);
+
     // 입력된 필드 확인
-    const hasCustomerId = customerId.length >= 4;
-    const hasContractId = contractId.length >= 4;
-    const hasPhoneNumber = phoneNumber.length >= 4;
+    const hasCustomerId = customerIdDigits.length >= 4;
+    const hasContractId = contractIdDigits.length >= 4;
+    const hasPhoneNumber = phoneNumberDigits.length >= 4;
     const hasCustomerName = customerName.length >= 2;
     const hasEquipmentNo = equipmentNo.length >= 4;
 
@@ -95,64 +128,71 @@ const CustomerSearch: React.FC<CustomerSearchProps> = ({ onCustomerSelect, onCus
     setHasSearched(true);
 
     try {
-      // 검색 타입 결정 (우선순위: 고객ID > 계약ID > 전화번호 > 이름 > 장비번호)
-      let searchType: 'CUSTOMER_ID' | 'CONTRACT_ID' | 'PHONE_NAME' | 'EQUIPMENT_NO';
+      // 합집합 조회: 입력된 조건별로 검색 후 결과 병합
+      const searchPromises: Promise<CustomerInfo[]>[] = [];
+
+      // 고객ID로 검색
       if (hasCustomerId) {
-        searchType = 'CUSTOMER_ID';
-      } else if (hasContractId) {
-        searchType = 'CONTRACT_ID';
-      } else if (hasPhoneNumber || hasCustomerName) {
-        searchType = 'PHONE_NAME';
-      } else {
-        searchType = 'EQUIPMENT_NO';
+        searchPromises.push(
+          searchCustomer({
+            searchType: 'CUSTOMER_ID',
+            customerId: customerIdDigits,
+          }).then(res => res.success && res.data ? res.data : [])
+        );
       }
 
-      const response = await searchCustomer({
-        searchType,
-        customerId: hasCustomerId ? customerId : undefined,
-        contractId: hasContractId ? contractId : undefined,
-        phoneNumber: hasPhoneNumber ? phoneNumber : undefined,
-        customerName: hasCustomerName ? customerName : undefined,
-        equipmentNo: hasEquipmentNo ? equipmentNo : undefined,
-      });
+      // 계약ID로 검색
+      if (hasContractId) {
+        searchPromises.push(
+          searchCustomer({
+            searchType: 'CONTRACT_ID',
+            contractId: contractIdDigits,
+          }).then(res => res.success && res.data ? res.data : [])
+        );
+      }
 
-      if (response.success && response.data) {
-        let results = response.data;
+      // 전화번호/이름으로 검색
+      if (hasPhoneNumber || hasCustomerName) {
+        searchPromises.push(
+          searchCustomer({
+            searchType: 'PHONE_NAME',
+            phoneNumber: hasPhoneNumber ? phoneNumberDigits : undefined,
+            customerName: hasCustomerName ? customerName : undefined,
+          }).then(res => res.success && res.data ? res.data : [])
+        );
+      }
 
-        // 여러 조건이 입력된 경우 OR 필터링 (전화번호, 이름)
-        if (results.length > 0) {
-          // 고객ID가 입력되었으면 일치 확인 (AND)
-          if (hasCustomerId) {
-            results = results.filter(c => c.CUST_ID === customerId);
-          }
-          // 전화번호 OR 이름 필터링
-          if (hasPhoneNumber || hasCustomerName) {
-            results = results.filter(c => {
-              const matchPhone = hasPhoneNumber && (
-                (c.TEL_NO && c.TEL_NO.includes(phoneNumber)) ||
-                (c.HP_NO && c.HP_NO.includes(phoneNumber))
-              );
-              const matchName = hasCustomerName && c.CUST_NM && c.CUST_NM.includes(customerName);
-              return matchPhone || matchName;
-            });
+      // 장비번호로 검색
+      if (hasEquipmentNo) {
+        searchPromises.push(
+          searchCustomer({
+            searchType: 'EQUIPMENT_NO',
+            equipmentNo: equipmentNo,
+          }).then(res => res.success && res.data ? res.data : [])
+        );
+      }
+
+      // 모든 검색 결과 병합 (중복 제거)
+      const allResults = await Promise.all(searchPromises);
+      const mergedResults: CustomerInfo[] = [];
+      const seenCustIds = new Set<string>();
+
+      for (const results of allResults) {
+        for (const customer of results) {
+          if (customer.CUST_ID && !seenCustIds.has(customer.CUST_ID)) {
+            seenCustIds.add(customer.CUST_ID);
+            mergedResults.push(customer);
           }
         }
+      }
 
-        setSearchResults(results);
-        if (results.length === 0) {
-          setWarningPopup({
-            show: true,
-            title: '조회 실패',
-            message: '조회대상이 없습니다.\n값을 정확히 입력해주세요.'
-          });
-        }
-      } else {
+      setSearchResults(mergedResults);
+      if (mergedResults.length === 0) {
         setWarningPopup({
           show: true,
-          title: '검색 실패',
-          message: response.message || '검색에 실패했습니다.'
+          title: '조회 실패',
+          message: '조회대상이 없습니다.\n값을 정확히 입력해주세요.'
         });
-        setSearchResults([]);
       }
     } catch (error) {
       console.error('Customer search error:', error);
@@ -182,9 +222,9 @@ const CustomerSearch: React.FC<CustomerSearchProps> = ({ onCustomerSelect, onCus
 
   // 고객 선택
   const handleSelectCustomer = (customer: CustomerInfo) => {
-    // 폼 필드에 선택된 고객 정보 채우기
-    setCustomerId(customer.CUST_ID || '');
-    setPhoneNumber(customer.TEL_NO || customer.HP_NO || '');
+    // 폼 필드에 선택된 고객 정보 채우기 (포맷팅 적용)
+    setCustomerId(formatIdInput(customer.CUST_ID || ''));
+    setPhoneNumber(formatPhoneInput(customer.TEL_NO || customer.HP_NO || ''));
     setCustomerName(customer.CUST_NM || '');
     // 계약ID와 장비번호는 고객 정보에 없으므로 초기화
     setContractId('');
@@ -218,18 +258,11 @@ const CustomerSearch: React.FC<CustomerSearchProps> = ({ onCustomerSelect, onCus
                 className="flex-1 min-w-0 px-2 py-2 text-sm border border-gray-200 rounded-lg bg-gray-50 cursor-pointer"
                 placeholder="고객ID"
                 type="text"
-                value={selectedCustomer?.CUST_ID || ''}
+                value={selectedCustomer ? formatId(selectedCustomer.CUST_ID) : ''}
               />
             </div>
           </div>
 
-          {/* 조회 버튼 */}
-          <button
-            className="w-full bg-blue-500 hover:bg-blue-600 text-white py-2.5 rounded-lg font-semibold text-sm shadow-sm transition-all active:scale-[0.98]"
-            onClick={openModal}
-          >
-            조회
-          </button>
         </div>
       </div>
 
@@ -261,9 +294,10 @@ const CustomerSearch: React.FC<CustomerSearchProps> = ({ onCustomerSelect, onCus
                 <input
                   type="text"
                   value={customerId}
-                  onChange={(e) => setCustomerId(e.target.value)}
+                  onChange={(e) => setCustomerId(formatIdInput(e.target.value))}
                   onKeyPress={handleKeyPress}
-                  placeholder="고객ID"
+                  placeholder="000-000-0000"
+                  maxLength={12}
                   className="flex-1 px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500"
                 />
               </div>
@@ -274,9 +308,10 @@ const CustomerSearch: React.FC<CustomerSearchProps> = ({ onCustomerSelect, onCus
                 <input
                   type="text"
                   value={contractId}
-                  onChange={(e) => setContractId(e.target.value)}
+                  onChange={(e) => setContractId(formatIdInput(e.target.value))}
                   onKeyPress={handleKeyPress}
-                  placeholder="계약ID"
+                  placeholder="000-000-0000"
+                  maxLength={12}
                   className="flex-1 px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500"
                 />
               </div>
@@ -288,9 +323,10 @@ const CustomerSearch: React.FC<CustomerSearchProps> = ({ onCustomerSelect, onCus
                   <input
                     type="tel"
                     value={phoneNumber}
-                    onChange={(e) => setPhoneNumber(e.target.value.replace(/[^0-9]/g, ''))}
+                    onChange={(e) => setPhoneNumber(formatPhoneInput(e.target.value))}
                     onKeyPress={handleKeyPress}
-                    placeholder="전화번호"
+                    placeholder="010-0000-0000"
+                    maxLength={13}
                     className="flex-1 min-w-0 px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500"
                   />
                   <input
@@ -367,7 +403,7 @@ const CustomerSearch: React.FC<CustomerSearchProps> = ({ onCustomerSelect, onCus
                         className="w-full p-3 bg-white hover:bg-blue-50 rounded-lg border border-gray-200 hover:border-blue-300 text-left transition-colors"
                       >
                         <div className="flex items-center gap-3">
-                          <span className="text-blue-600 font-mono text-sm">{customer.CUST_ID}</span>
+                          <span className="text-blue-600 font-mono text-sm">{formatId(customer.CUST_ID)}</span>
                           <span className="font-semibold text-gray-900">{customer.CUST_NM}</span>
                         </div>
                         <div className="mt-1 text-xs text-gray-500 truncate">
