@@ -5,6 +5,7 @@ import {
   Smartphone, RefreshCw, CreditCard, Building2, Shield, PenTool
 } from 'lucide-react';
 import SignaturePad from '../common/SignaturePad';
+import ConfirmModal, { UseConfirmState, useConfirmInitialState } from '../common/ConfirmModal';
 import {
   updatePhoneNumber,
   validatePhoneNumber,
@@ -202,6 +203,9 @@ const CustomerInfoChange: React.FC<CustomerInfoChangeProps> = ({
   // 납부계정 전환 확인 모달
   const [showSwitchConfirm, setShowSwitchConfirm] = useState(false);
   const [pendingSwitchPymAcntId, setPendingSwitchPymAcntId] = useState<string>('');
+
+  // 휴대폰결제 신청/해지 확인 모달
+  const [confirmModal, setConfirmModal] = useState<UseConfirmState>(useConfirmInitialState);
 
   // 폼이 수정되었는지 확인하는 함수
   const isPaymentFormDirty = (): boolean => {
@@ -634,22 +638,9 @@ const CustomerInfoChange: React.FC<CustomerInfoChangeProps> = ({
     }
   };
 
-  // 휴대폰결제 신청/해지 처리
-  const handleHpPayChange = async (item: HPPayInfo) => {
-    if (!selectedCustomer) {
-      showToast?.('고객 정보가 없습니다.', 'warning');
-      return;
-    }
-
-    const isApply = item.HP_PAY_YN !== 'Y';
-    const actionText = isApply ? '신청' : '해지';
-
-    // 확인 대화상자
-    const confirmed = window.confirm(
-      `${item.PROD_NM || '해당 상품'}의 휴대폰결제를 ${actionText}하시겠습니까?\n\n상담 접수 후 처리됩니다.`
-    );
-
-    if (!confirmed) return;
+  // 휴대폰결제 신청/해지 실제 처리
+  const executeHpPayChange = async (item: HPPayInfo, actionText: string) => {
+    if (!selectedCustomer) return;
 
     try {
       // 상담 등록 요청 (ConsultationRequest 인터페이스에 맞게)
@@ -675,6 +666,26 @@ const CustomerInfoChange: React.FC<CustomerInfoChangeProps> = ({
       console.error('HP Pay change error:', error);
       showToast?.(`${actionText} 요청 중 오류가 발생했습니다.`, 'error');
     }
+  };
+
+  // 휴대폰결제 신청/해지 처리 (확인 모달 표시)
+  const handleHpPayChange = (item: HPPayInfo) => {
+    if (!selectedCustomer) {
+      showToast?.('고객 정보가 없습니다.', 'warning');
+      return;
+    }
+
+    const isApply = item.HP_PAY_YN !== 'Y';
+    const actionText = isApply ? '신청' : '해지';
+
+    // ConfirmModal 표시
+    setConfirmModal({
+      isOpen: true,
+      title: `휴대폰결제 ${actionText}`,
+      message: `${item.PROD_NM || '해당 상품'}의 휴대폰결제를 ${actionText}하시겠습니까?\n\n상담 접수 후 처리됩니다.`,
+      type: 'confirm',
+      onConfirm: () => executeHpPayChange(item, actionText)
+    });
   };
 
   // 납부계정ID 포맷 (000-000-0000)
@@ -2074,6 +2085,18 @@ const CustomerInfoChange: React.FC<CustomerInfoChangeProps> = ({
           </div>
         </div>
       )}
+
+      {/* 휴대폰결제 신청/해지 확인 모달 */}
+      <ConfirmModal
+        isOpen={confirmModal.isOpen}
+        onClose={() => setConfirmModal(useConfirmInitialState)}
+        onConfirm={confirmModal.onConfirm}
+        title={confirmModal.title}
+        message={confirmModal.message}
+        type={confirmModal.type}
+        confirmText="확인"
+        cancelText="취소"
+      />
     </div>
   );
 };
