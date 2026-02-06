@@ -230,37 +230,39 @@ const ContractSummary: React.FC<ContractSummaryProps> = ({
                         </div>
                       </div>
 
-                      {/* 2행: 계약 ID + 설치위치 + 지점 */}
-                      <div className="flex items-center justify-between mb-1 ml-9">
+                      {/* 2행: 계약 ID */}
+                      <div className="ml-9 mb-1">
                         <span className="text-sm text-gray-600">계약 ID: {formatId(contract.CTRT_ID)}</span>
-                        <div className="flex items-center gap-1">
-                          <span className="text-xs px-2 py-0.5 bg-indigo-50 text-indigo-600 rounded">
-                            {contract.INSTL_LOC || 'N/A'}
-                          </span>
-                          {contract.SO_NM && (
-                            <span className="text-xs px-1.5 py-0.5 bg-purple-50 text-purple-600 rounded">
-                              {contract.SO_NM}
-                            </span>
-                          )}
-                        </div>
                       </div>
 
-                      {/* 주소 표시 - 도로명 주소 우선 */}
-                      {(contract.STREET_ADDR_FULL || contract.ADDR_FULL || contract.INST_ADDR) && (
-                        <div className="flex items-start gap-1 text-sm text-gray-600 mt-1">
-                          <MapPin className="w-4 h-4 flex-shrink-0 mt-0.5" />
-                          <div className="min-w-0">
+                      {/* 3행: 주소 + 설치위치 + 지점 (한 줄에 배치) */}
+                      <div className="flex items-start gap-1 text-sm text-gray-600 mt-1">
+                        <MapPin className="w-4 h-4 flex-shrink-0 mt-0.5" />
+                        <div className="flex-1 min-w-0 flex items-start justify-between gap-2">
+                          <div className="min-w-0 flex-1">
                             {contract.STREET_ADDR_FULL ? (
                               <>
                                 <span className="text-xs text-blue-600 mr-1">[도로명]</span>
-                                <span>{contract.STREET_ADDR_FULL}</span>
+                                <span className="break-words">{contract.STREET_ADDR_FULL}</span>
                               </>
+                            ) : contract.ADDR_FULL || contract.INST_ADDR ? (
+                              <span className="break-words">{contract.ADDR_FULL || contract.INST_ADDR}</span>
                             ) : (
-                              <span>{contract.ADDR_FULL || contract.INST_ADDR}</span>
+                              <span className="text-gray-400">주소 없음</span>
+                            )}
+                          </div>
+                          <div className="flex items-center gap-1 flex-shrink-0">
+                            <span className="text-xs px-1.5 py-0.5 bg-indigo-50 text-indigo-600 rounded whitespace-nowrap">
+                              {contract.INSTL_LOC || 'N/A'}
+                            </span>
+                            {contract.SO_NM && (
+                              <span className="text-xs px-1.5 py-0.5 bg-purple-50 text-purple-600 rounded whitespace-nowrap">
+                                {contract.SO_NM}
+                              </span>
                             )}
                           </div>
                         </div>
-                      )}
+                      </div>
                     </div>
 
                     {/* 계약 상세 정보 (펼침 시) */}
