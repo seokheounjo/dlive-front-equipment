@@ -231,8 +231,8 @@ const ContractSummary: React.FC<ContractSummaryProps> = ({
                       </div>
 
                       {/* 2행: 계약 ID + 설치위치 + 지점 */}
-                      <div className="flex items-center justify-between mb-1 ml-9 gap-2">
-                        <span className="text-sm text-gray-600 flex-shrink-0">계약 ID: {formatId(contract.CTRT_ID)}</span>
+                      <div className="flex items-center justify-between mb-1 ml-9 gap-2 flex-nowrap overflow-hidden">
+                        <span className="text-sm text-gray-600 flex-shrink-0 whitespace-nowrap">계약 ID: {formatId(contract.CTRT_ID)}</span>
                         <div className="flex items-center gap-1 flex-shrink-0">
                           <span className="text-xs px-1.5 py-0.5 bg-indigo-50 text-indigo-600 rounded whitespace-nowrap">
                             {contract.INSTL_LOC || 'N/A'}

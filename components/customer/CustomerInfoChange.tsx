@@ -1058,68 +1058,70 @@ const CustomerInfoChange: React.FC<CustomerInfoChangeProps> = ({
 
           {expandedSections.phone && (
             <div className="px-4 pb-4 space-y-4">
-              {/* 현재 전화번호 목록 */}
+              {/* 현재 전화번호 목록 - 클릭하여 변경할 번호 선택 */}
               <div className="p-3 bg-gray-50 rounded-lg space-y-2">
-                <div className="text-xs text-gray-500 mb-2 font-medium">현재 등록된 번호</div>
+                <div className="text-xs text-gray-500 mb-2 font-medium">변경할 번호 선택 (클릭)</div>
                 {/* 다중 전화번호 지원 */}
                 {selectedCustomer.phoneList && selectedCustomer.phoneList.length > 2 ? (
                   // 3개 이상일 때: 리스트 형태로 표시
                   <div className="space-y-2">
                     {selectedCustomer.phoneList.map((phone, idx) => (
-                      <div key={idx} className="p-2 bg-white rounded border border-gray-200 flex justify-between items-center">
-                        <div className="text-xs text-gray-500">{phone.typeNm}</div>
-                        <div className="font-medium text-gray-800 text-sm">
+                      <button
+                        key={idx}
+                        type="button"
+                        onClick={() => setPhoneForm(prev => ({ ...prev, telNoType: phone.type }))}
+                        className={`w-full p-2 rounded border flex justify-between items-center transition-colors ${
+                          phoneForm.telNoType === phone.type
+                            ? 'bg-blue-50 border-blue-500 ring-2 ring-blue-200'
+                            : 'bg-white border-gray-200 hover:border-blue-300'
+                        }`}
+                      >
+                        <div className={`text-xs ${phoneForm.telNoType === phone.type ? 'text-blue-600 font-medium' : 'text-gray-500'}`}>
+                          {phone.typeNm}
+                        </div>
+                        <div className={`font-medium text-sm ${phoneForm.telNoType === phone.type ? 'text-blue-700' : 'text-gray-800'}`}>
                           {formatPhoneNumber(phone.number) || '-'}
                         </div>
-                      </div>
+                      </button>
                     ))}
                   </div>
                 ) : (
-                  // 2개 이하일 때: 기존 2열 그리드 형태
+                  // 2개 이하일 때: 기존 2열 그리드 형태 (클릭 가능)
                   <div className="grid grid-cols-2 gap-2">
-                    <div className="p-2 bg-white rounded border border-gray-200">
-                      <div className="text-xs text-gray-500">전화번호</div>
-                      <div className="font-medium text-gray-800 text-sm">
+                    <button
+                      type="button"
+                      onClick={() => setPhoneForm(prev => ({ ...prev, telNoType: 'tel' }))}
+                      className={`p-2 rounded border text-left transition-colors ${
+                        phoneForm.telNoType === 'tel'
+                          ? 'bg-blue-50 border-blue-500 ring-2 ring-blue-200'
+                          : 'bg-white border-gray-200 hover:border-blue-300'
+                      }`}
+                    >
+                      <div className={`text-xs ${phoneForm.telNoType === 'tel' ? 'text-blue-600 font-medium' : 'text-gray-500'}`}>
+                        전화번호
+                      </div>
+                      <div className={`font-medium text-sm ${phoneForm.telNoType === 'tel' ? 'text-blue-700' : 'text-gray-800'}`}>
                         {formatPhoneNumber(selectedCustomer.telNo) || '-'}
                       </div>
-                    </div>
-                    <div className="p-2 bg-white rounded border border-gray-200">
-                      <div className="text-xs text-gray-500">휴대폰번호</div>
-                      <div className="font-medium text-gray-800 text-sm">
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setPhoneForm(prev => ({ ...prev, telNoType: 'hp' }))}
+                      className={`p-2 rounded border text-left transition-colors ${
+                        phoneForm.telNoType === 'hp'
+                          ? 'bg-blue-50 border-blue-500 ring-2 ring-blue-200'
+                          : 'bg-white border-gray-200 hover:border-blue-300'
+                      }`}
+                    >
+                      <div className={`text-xs ${phoneForm.telNoType === 'hp' ? 'text-blue-600 font-medium' : 'text-gray-500'}`}>
+                        휴대폰번호
+                      </div>
+                      <div className={`font-medium text-sm ${phoneForm.telNoType === 'hp' ? 'text-blue-700' : 'text-gray-800'}`}>
                         {formatPhoneNumber(selectedCustomer.hpNo) || '-'}
                       </div>
-                    </div>
+                    </button>
                   </div>
                 )}
-              </div>
-
-              {/* 변경할 번호 유형 선택 */}
-              <div>
-                <label className="block text-sm text-gray-600 mb-2">변경할 번호 선택</label>
-                <div className="flex gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setPhoneForm(prev => ({ ...prev, telNoType: 'tel' }))}
-                    className={`flex-1 py-2 px-3 rounded-lg text-sm font-medium transition-colors ${
-                      phoneForm.telNoType === 'tel'
-                        ? 'bg-blue-500 text-white'
-                        : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                    }`}
-                  >
-                    전화번호
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setPhoneForm(prev => ({ ...prev, telNoType: 'hp' }))}
-                    className={`flex-1 py-2 px-3 rounded-lg text-sm font-medium transition-colors ${
-                      phoneForm.telNoType === 'hp'
-                        ? 'bg-blue-500 text-white'
-                        : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                    }`}
-                  >
-                    휴대폰번호
-                  </button>
-                </div>
               </div>
 
               {/* 새 전화번호 입력 */}
