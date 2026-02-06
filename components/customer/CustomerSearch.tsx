@@ -141,7 +141,7 @@ const CustomerSearch: React.FC<CustomerSearchProps> = ({ onCustomerSelect, onCus
         );
       }
 
-      // 계약ID로 검색
+      // 계약ID로 검색 (CTRT_ID)
       if (hasContractId) {
         searchPromises.push(
           searchCustomer({
@@ -151,18 +151,27 @@ const CustomerSearch: React.FC<CustomerSearchProps> = ({ onCustomerSelect, onCus
         );
       }
 
-      // 전화번호/이름으로 검색
-      if (hasPhoneNumber || hasCustomerName) {
+      // 전화번호로 검색 (TEL_NO) - 별도 호출
+      if (hasPhoneNumber) {
         searchPromises.push(
           searchCustomer({
             searchType: 'PHONE_NAME',
-            phoneNumber: hasPhoneNumber ? phoneNumberDigits : undefined,
-            customerName: hasCustomerName ? customerName : undefined,
+            phoneNumber: phoneNumberDigits,
           }).then(res => res.success && res.data ? res.data : [])
         );
       }
 
-      // 장비번호로 검색
+      // 고객명으로 검색 (CUST_NM) - 별도 호출
+      if (hasCustomerName) {
+        searchPromises.push(
+          searchCustomer({
+            searchType: 'PHONE_NAME',
+            customerName: customerName,
+          }).then(res => res.success && res.data ? res.data : [])
+        );
+      }
+
+      // 장비번호로 검색 (EQT_SERNO)
       if (hasEquipmentNo) {
         searchPromises.push(
           searchCustomer({
