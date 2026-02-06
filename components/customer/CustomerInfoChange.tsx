@@ -927,9 +927,8 @@ const CustomerInfoChange: React.FC<CustomerInfoChangeProps> = ({
         setPostAddressResults(results);
         if (results.length === 0) {
           showToast?.('검색 결과가 없습니다.', 'info');
-        } else {
-          showToast?.(`${results.length}건의 주소를 찾았습니다.`, 'success');
         }
+        // 검색 결과가 있으면 목록이 바로 보이므로 Toast 불필요
       } else {
         showToast?.(response.message || '주소 검색에 실패했습니다.', 'error');
         setPostAddressResults([]);
