@@ -962,6 +962,73 @@ export const searchCustomer = async (params: CustomerSearchParams): Promise<ApiR
 };
 
 /**
+ * 고객 통합 검색 (모든 파라미터를 한 번에 전송)
+ * API: /customer/phoneNumber/getCtrtIDforSmartPhone
+ *
+ * 파라미터:
+ * - CTRT_ID: 계약ID
+ * - TEL_NO: 전화번호
+ * - CUST_NM: 고객명
+ * - EQT_SERNO: 장비 S/N
+ */
+export const searchCustomerAll = async (params: {
+  custId?: string;
+  contractId?: string;
+  phoneNumber?: string;
+  customerName?: string;
+  equipmentNo?: string;
+}): Promise<ApiResponse<CustomerInfo[]>> => {
+  // 세션에서 SO_ID 획득
+  let soId = '';
+  let loginId = 'SYSTEM';
+  try {
+    const userInfoStr = sessionStorage.getItem('userInfo') || localStorage.getItem('userInfo');
+    if (userInfoStr) {
+      const userInfo = JSON.parse(userInfoStr);
+      loginId = userInfo.userId || userInfo.USR_ID || userInfo.LOGIN_ID || 'SYSTEM';
+      const authSoList = userInfo.authSoList || userInfo.AUTH_SO_List || [];
+      if (authSoList.length > 0) {
+        soId = authSoList[0].SO_ID || authSoList[0].soId || '';
+      }
+      if (!soId) {
+        soId = userInfo.soId || userInfo.SO_ID || '';
+      }
+    }
+  } catch (e) {
+    console.log('[CustomerAPI] Failed to get session info');
+  }
+
+  // 요청 파라미터 구성 (입력된 값만 추가)
+  const reqParams: Record<string, any> = {
+    SO_ID: soId,
+    LOGIN_ID: loginId
+  };
+
+  if (params.custId) reqParams.CUST_ID = params.custId;
+  if (params.contractId) reqParams.CTRT_ID = params.contractId;
+  if (params.phoneNumber) reqParams.TEL_NO = params.phoneNumber;
+  if (params.customerName) reqParams.CUST_NM = params.customerName;
+  if (params.equipmentNo) reqParams.EQT_SERNO = params.equipmentNo;
+
+  console.log('[CustomerAPI] searchCustomerAll 요청 파라미터:\n' + JSON.stringify(reqParams, null, 2));
+
+  try {
+    const result = await apiCall<any>('/customer/phoneNumber/getCtrtIDforSmartPhone', reqParams);
+    console.log('[CustomerAPI] searchCustomerAll 응답:', result);
+
+    if (result.success && result.data) {
+      const dataArray = Array.isArray(result.data) ? result.data : [result.data];
+      const mappedData = dataArray.map(mapCustomerFields);
+      return { ...result, data: mappedData };
+    }
+    return { ...result, data: [] };
+  } catch (error) {
+    console.error('[CustomerAPI] searchCustomerAll 오류:', error);
+    return { success: false, message: '검색 중 오류가 발생했습니다.', data: [] };
+  }
+};
+
+/**
  * 고객 상세 정보 조회
  */
 export const getCustomerDetail = async (custId: string): Promise<ApiResponse<CustomerInfo>> => {
@@ -1848,6 +1915,7 @@ export const maskString = (str: string, showFirst: number = 4, showLast: number 
 export default {
   // 기본조회
   searchCustomer,
+  searchCustomerAll,
   getCustomerDetail,
   getContractStatusCount,
   getContractList,

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Loader2, X, User, AlertCircle } from 'lucide-react';
-import { searchCustomer, CustomerInfo, maskPhoneNumber } from '../../services/customerApi';
+import { searchCustomer, searchCustomerAll, CustomerInfo, maskPhoneNumber } from '../../services/customerApi';
 import BarcodeScanner from '../equipment/BarcodeScanner';
 
 // ID 포맷 (3-3-4 형식) - 표시용
@@ -100,7 +100,7 @@ const CustomerSearch: React.FC<CustomerSearchProps> = ({ onCustomerSelect, onCus
     }
   };
 
-  // 검색 실행 - 합집합 조회 (입력된 모든 조건으로 검색 후 결과 병합)
+  // 검색 실행 - 모든 파라미터를 한 번에 전송
   const handleSearch = async () => {
     // 입력된 필드에서 숫자만 추출 (포맷팅 제거)
     const customerIdDigits = extractDigits(customerId);
@@ -128,75 +128,19 @@ const CustomerSearch: React.FC<CustomerSearchProps> = ({ onCustomerSelect, onCus
     setHasSearched(true);
 
     try {
-      // 합집합 조회: 입력된 조건별로 검색 후 결과 병합
-      const searchPromises: Promise<CustomerInfo[]>[] = [];
+      // 모든 파라미터를 한 번에 전송
+      const response = await searchCustomerAll({
+        custId: hasCustomerId ? customerIdDigits : undefined,
+        contractId: hasContractId ? contractIdDigits : undefined,
+        phoneNumber: hasPhoneNumber ? phoneNumberDigits : undefined,
+        customerName: hasCustomerName ? customerName : undefined,
+        equipmentNo: hasEquipmentNo ? equipmentNo : undefined,
+      });
 
-      // 고객ID로 검색
-      if (hasCustomerId) {
-        searchPromises.push(
-          searchCustomer({
-            searchType: 'CUSTOMER_ID',
-            customerId: customerIdDigits,
-          }).then(res => res.success && res.data ? res.data : [])
-        );
-      }
-
-      // 계약ID로 검색 (CTRT_ID)
-      if (hasContractId) {
-        searchPromises.push(
-          searchCustomer({
-            searchType: 'CONTRACT_ID',
-            contractId: contractIdDigits,
-          }).then(res => res.success && res.data ? res.data : [])
-        );
-      }
-
-      // 전화번호로 검색 (TEL_NO) - 별도 호출
-      if (hasPhoneNumber) {
-        searchPromises.push(
-          searchCustomer({
-            searchType: 'PHONE_NAME',
-            phoneNumber: phoneNumberDigits,
-          }).then(res => res.success && res.data ? res.data : [])
-        );
-      }
-
-      // 고객명으로 검색 (CUST_NM) - 별도 호출
-      if (hasCustomerName) {
-        searchPromises.push(
-          searchCustomer({
-            searchType: 'PHONE_NAME',
-            customerName: customerName,
-          }).then(res => res.success && res.data ? res.data : [])
-        );
-      }
-
-      // 장비번호로 검색 (EQT_SERNO)
-      if (hasEquipmentNo) {
-        searchPromises.push(
-          searchCustomer({
-            searchType: 'EQUIPMENT_NO',
-            equipmentNo: equipmentNo,
-          }).then(res => res.success && res.data ? res.data : [])
-        );
-      }
-
-      // 모든 검색 결과 병합 (중복 제거)
-      const allResults = await Promise.all(searchPromises);
-      const mergedResults: CustomerInfo[] = [];
-      const seenCustIds = new Set<string>();
-
-      for (const results of allResults) {
-        for (const customer of results) {
-          if (customer.CUST_ID && !seenCustIds.has(customer.CUST_ID)) {
-            seenCustIds.add(customer.CUST_ID);
-            mergedResults.push(customer);
-          }
-        }
-      }
-
-      setSearchResults(mergedResults);
-      if (mergedResults.length === 0) {
+      if (response.success && response.data && response.data.length > 0) {
+        setSearchResults(response.data);
+      } else {
+        setSearchResults([]);
         setWarningPopup({
           show: true,
           title: '조회 실패',
