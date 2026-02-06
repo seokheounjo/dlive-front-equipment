@@ -5,6 +5,16 @@ import {
 } from 'lucide-react';
 import { ContractInfo, formatCurrency, formatDate } from '../../services/customerApi';
 
+// ID 포맷 (3-3-4 형식)
+const formatId = (id: string): string => {
+  if (!id) return '-';
+  const cleaned = id.replace(/[^0-9]/g, '');
+  if (cleaned.length === 10) {
+    return `${cleaned.slice(0, 3)}-${cleaned.slice(3, 6)}-${cleaned.slice(6, 10)}`;
+  }
+  return id;
+};
+
 interface ContractSummaryProps {
   contracts: ContractInfo[];
   isLoading: boolean;
@@ -222,7 +232,7 @@ const ContractSummary: React.FC<ContractSummaryProps> = ({
 
                       {/* 2행: 계약 ID + 설치위치 + 지점 */}
                       <div className="flex items-center justify-between mb-1 ml-9">
-                        <span className="text-sm text-gray-600">계약 ID: {contract.CTRT_ID}</span>
+                        <span className="text-sm text-gray-600">계약 ID: {formatId(contract.CTRT_ID)}</span>
                         <div className="flex items-center gap-1">
                           <span className="text-xs px-2 py-0.5 bg-indigo-50 text-indigo-600 rounded">
                             {contract.INSTL_LOC || 'N/A'}

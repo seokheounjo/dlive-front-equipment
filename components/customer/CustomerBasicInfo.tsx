@@ -17,6 +17,16 @@ import {
   WorkHistory
 } from '../../services/customerApi';
 
+// ID 포맷 (3-3-4 형식)
+const formatId = (id: string): string => {
+  if (!id) return '-';
+  const cleaned = id.replace(/[^0-9]/g, '');
+  if (cleaned.length === 10) {
+    return `${cleaned.slice(0, 3)}-${cleaned.slice(3, 6)}-${cleaned.slice(6, 10)}`;
+  }
+  return id;
+};
+
 interface CustomerBasicInfoProps {
   onBack: () => void;
   showToast?: (message: string, type: 'success' | 'error' | 'warning' | 'info') => void;
@@ -254,7 +264,7 @@ const CustomerBasicInfo: React.FC<CustomerBasicInfoProps> = ({
                   <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-sm">
                     <div className="flex justify-between">
                       <span className="text-gray-500">고객번호</span>
-                      <span className="font-medium text-gray-800">{selectedCustomer.CUST_ID}</span>
+                      <span className="font-medium text-gray-800">{formatId(selectedCustomer.CUST_ID)}</span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-gray-500">고객명</span>
