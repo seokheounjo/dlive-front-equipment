@@ -963,61 +963,56 @@ export const searchCustomer = async (params: CustomerSearchParams): Promise<ApiR
 
 /**
  * 고객 통합 검색 (모든 파라미터를 한 번에 전송)
- * API: /customer/phoneNumber/getCtrtIDforSmartPhone
+ * API: /customer/common/customercommon/getConditionalCustList2 (SERCH_GB=3)
  *
- * 지원 파라미터:
+ * getConditionalCustList3 지원 파라미터:
  * - CUST_ID: 고객ID
- * - CTRT_ID: 계약ID
+ * - CUST_NM: 고객명 (LIKE 검색)
  * - TEL_NO: 전화번호
- * - CUST_NM: 고객명
- * - VOIP_TEL_NO: VoIP 전화번호
+ * - CTRT_ID: 계약ID
+ * - EQT_SERNO: 장비번호
+ * - MAC_ADDR: MAC 주소
+ * - LOGIN_ID: 로그인ID (필수 - 권한체크용)
  *
- * 참고: EQT_SERNO(장비번호)는 이 API에서 지원하지 않음
- *       → 장비번호 검색은 searchCustomer(searchType: 'EQUIPMENT_NO') 사용
+ * 모든 조건은 AND로 결합되어 모든 조건을 만족하는 결과만 반환
  */
 export const searchCustomerAll = async (params: {
   custId?: string;
   contractId?: string;
   phoneNumber?: string;
   customerName?: string;
-  voipTelNo?: string;
+  equipmentNo?: string;
 }): Promise<ApiResponse<CustomerInfo[]>> => {
-  // 세션에서 SO_ID 획득
-  let soId = '';
+  // 세션에서 LOGIN_ID 획득
   let loginId = 'SYSTEM';
   try {
     const userInfoStr = sessionStorage.getItem('userInfo') || localStorage.getItem('userInfo');
     if (userInfoStr) {
       const userInfo = JSON.parse(userInfoStr);
       loginId = userInfo.userId || userInfo.USR_ID || userInfo.LOGIN_ID || 'SYSTEM';
-      const authSoList = userInfo.authSoList || userInfo.AUTH_SO_List || [];
-      if (authSoList.length > 0) {
-        soId = authSoList[0].SO_ID || authSoList[0].soId || '';
-      }
-      if (!soId) {
-        soId = userInfo.soId || userInfo.SO_ID || '';
-      }
     }
   } catch (e) {
     console.log('[CustomerAPI] Failed to get session info');
   }
 
-  // 요청 파라미터 구성 (입력된 값만 추가)
+  // 요청 파라미터 구성 - SERCH_GB=3으로 getConditionalCustList3 사용
   const reqParams: Record<string, any> = {
-    SO_ID: soId,
+    SERCH_GB: '3',
     LOGIN_ID: loginId
   };
 
+  // 입력된 값만 추가
   if (params.custId) reqParams.CUST_ID = params.custId;
   if (params.contractId) reqParams.CTRT_ID = params.contractId;
   if (params.phoneNumber) reqParams.TEL_NO = params.phoneNumber;
   if (params.customerName) reqParams.CUST_NM = params.customerName;
-  if (params.voipTelNo) reqParams.VOIP_TEL_NO = params.voipTelNo;
+  if (params.equipmentNo) reqParams.EQT_SERNO = params.equipmentNo;
 
   console.log('[CustomerAPI] searchCustomerAll 요청 파라미터:\n' + JSON.stringify(reqParams, null, 2));
 
   try {
-    const result = await apiCall<any>('/customer/phoneNumber/getCtrtIDforSmartPhone', reqParams);
+    // getConditionalCustList2 API 호출 (SERCH_GB=3 → getConditionalCustList3 SQL 실행)
+    const result = await apiCall<any>('/customer/common/customercommon/getConditionalCustList2', reqParams);
     console.log('[CustomerAPI] searchCustomerAll 응답:', result);
 
     if (result.success && result.data) {

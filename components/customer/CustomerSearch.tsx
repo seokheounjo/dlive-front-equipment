@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Loader2, X, User, AlertCircle } from 'lucide-react';
-import { searchCustomer, searchCustomerAll, CustomerInfo, maskPhoneNumber } from '../../services/customerApi';
+import { searchCustomerAll, CustomerInfo, maskPhoneNumber } from '../../services/customerApi';
 import BarcodeScanner from '../equipment/BarcodeScanner';
 
 // ID 포맷 (3-3-4 형식) - 표시용
@@ -100,7 +100,7 @@ const CustomerSearch: React.FC<CustomerSearchProps> = ({ onCustomerSelect, onCus
     }
   };
 
-  // 검색 실행 - 모든 파라미터를 한 번에 전송
+  // 검색 실행 - 모든 파라미터를 한 번에 전송 (getConditionalCustList3 사용)
   const handleSearch = async () => {
     // 입력된 필드에서 숫자만 추출 (포맷팅 제거)
     const customerIdDigits = extractDigits(customerId);
@@ -128,32 +128,13 @@ const CustomerSearch: React.FC<CustomerSearchProps> = ({ onCustomerSelect, onCus
     setHasSearched(true);
 
     try {
-      // S/N만 입력된 경우 → 별도 장비검색 API 사용
-      if (hasEquipmentNo && !hasCustomerId && !hasContractId && !hasPhoneNumber && !hasCustomerName) {
-        const response = await searchCustomer({
-          searchType: 'EQUIPMENT_NO',
-          equipmentNo: equipmentNo
-        });
-
-        if (response.success && response.data && response.data.length > 0) {
-          setSearchResults(response.data);
-        } else {
-          setSearchResults([]);
-          setWarningPopup({
-            show: true,
-            title: '조회 실패',
-            message: '조회대상이 없습니다.\n장비번호를 정확히 입력해주세요.'
-          });
-        }
-        return;
-      }
-
-      // 다른 파라미터들은 통합 API 사용 (S/N 제외 - 지원하지 않음)
+      // 모든 파라미터를 한 번에 전송 (getConditionalCustList3 사용)
       const response = await searchCustomerAll({
         custId: hasCustomerId ? customerIdDigits : undefined,
         contractId: hasContractId ? contractIdDigits : undefined,
         phoneNumber: hasPhoneNumber ? phoneNumberDigits : undefined,
         customerName: hasCustomerName ? customerName : undefined,
+        equipmentNo: hasEquipmentNo ? equipmentNo : undefined,
       });
 
       if (response.success && response.data && response.data.length > 0) {
