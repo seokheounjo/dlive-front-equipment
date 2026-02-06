@@ -49,6 +49,7 @@ export interface CustomerInfo {
   CUST_TP_CD: string;        // 고객유형코드
   CUST_TP_NM: string;        // 고객유형명 (고객구분)
   GRP_NO?: string;           // 단체번호
+  GRP_NM?: string;           // 단체 이름
   REG_DT: string;            // 등록일
 }
 
@@ -72,6 +73,7 @@ export interface ContractInfo {
   CTRT_APLY_STRT_DT?: string; // 약정 시작일 (D'Live)
   CTRT_APLY_END_DT?: string;  // 약정 종료일 (D'Live)
   GRP_NO: string;            // 단체번호
+  GRP_NM?: string;           // 단체 이름
   PYM_ACNT_ID: string;       // 납부계정ID
   DPST_AMT: number;          // 보증금
   PREPAY_AMT: number;        // 선납금
@@ -697,6 +699,7 @@ const mapCustomerFields = (data: any): CustomerInfo => {
     CUST_TP_CD: data.CUST_TP_CD || data.CUST_TP || '',   // CUST_TP -> CUST_TP_CD
     CUST_TP_NM: data.CUST_TP_NM || data.CUST_CL_NM || '', // CUST_CL_NM -> CUST_TP_NM
     GRP_NO: data.GRP_NO || data.GRP_ID || '',            // GRP_ID -> GRP_NO
+    GRP_NM: data.GRP_NM || '',                           // 단체 이름
     REG_DT: data.REG_DT || ''                            // D'Live API does not return this
   };
 };
@@ -721,6 +724,7 @@ const mapContractFields = (data: any): ContractInfo => {
     AGMT_ST_DT: data.AGMT_ST_DT || data.RATE_STRT_DT || '',     // RATE_STRT_DT -> AGMT_ST_DT
     AGMT_END_DT: data.AGMT_END_DT || data.RATE_END_DT || '',    // RATE_END_DT -> AGMT_END_DT
     GRP_NO: data.GRP_NO || data.GRP_ID || '',                   // GRP_ID -> GRP_NO
+    GRP_NM: data.GRP_NM || '',                                  // 단체 이름
     PYM_ACNT_ID: data.PYM_ACNT_ID || '',
     DPST_AMT: data.DPST_AMT || data.ASSR_BAL || 0,              // ASSR_BAL -> DPST_AMT
     PREPAY_AMT: data.PREPAY_AMT || data.PREPD_BAL || 0,         // PREPD_BAL -> PREPAY_AMT

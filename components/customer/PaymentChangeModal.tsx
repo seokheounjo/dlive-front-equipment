@@ -352,14 +352,8 @@ const PaymentChangeModal: React.FC<PaymentChangeModalProps> = ({
     }
   };
 
-  // 납부계정 선택
-  const handleAccountSelect = (pymAcntId: string) => {
-    if (pymAcntId !== selectedPymAcntId) {
-      setSelectedPymAcntId(pymAcntId);
-      setPaymentForm({ ...defaultPaymentForm });
-      setIsVerified(false);
-    }
-  };
+  // 선택된 납부계정 정보
+  const selectedPayment = paymentAccounts.find(p => p.PYM_ACNT_ID === selectedPymAcntId);
 
   if (!isOpen) return null;
 
@@ -390,32 +384,20 @@ const PaymentChangeModal: React.FC<PaymentChangeModalProps> = ({
             <div className="flex items-center justify-center py-8">
               <Loader2 className="w-6 h-6 text-orange-500 animate-spin" />
             </div>
-          ) : paymentAccounts.length === 0 ? (
+          ) : !selectedPayment ? (
             <div className="text-center py-8 text-gray-500">
               <CreditCard className="w-12 h-12 text-gray-300 mx-auto mb-2" />
               <p>납부계정 정보가 없습니다.</p>
             </div>
           ) : (
             <>
-              {/* 납부계정 선택 */}
-              <div className="space-y-2">
-                {paymentAccounts.map((item) => (
-                  <div
-                    key={item.PYM_ACNT_ID}
-                    onClick={() => handleAccountSelect(item.PYM_ACNT_ID)}
-                    className={`p-3 rounded-lg border cursor-pointer transition-colors ${
-                      selectedPymAcntId === item.PYM_ACNT_ID
-                        ? 'bg-orange-50 border-orange-300'
-                        : 'bg-gray-50 border-gray-200 hover:border-gray-300'
-                    }`}
-                  >
-                    <div className="flex items-center justify-between mb-1">
-                      <span className="font-mono text-sm text-blue-600">{formatPymAcntId(item.PYM_ACNT_ID)}</span>
-                      <span className="text-xs text-gray-500">{item.PYM_MTHD_NM || '-'}</span>
-                    </div>
-                    <div className="text-sm text-gray-700">{item.BANK_CARD_NM || '-'} {item.BANK_CARD_NO || ''}</div>
-                  </div>
-                ))}
+              {/* 선택된 납부계정 정보 (단일 표시) */}
+              <div className="p-3 rounded-lg bg-orange-50 border border-orange-300">
+                <div className="flex items-center justify-between mb-1">
+                  <span className="font-mono text-sm text-blue-600">{formatPymAcntId(selectedPayment.PYM_ACNT_ID)}</span>
+                  <span className="text-xs text-gray-500">{selectedPayment.PYM_MTHD_NM || '-'}</span>
+                </div>
+                <div className="text-sm text-gray-700">{selectedPayment.BANK_CARD_NM || '-'} {selectedPayment.BANK_CARD_NO || ''}</div>
               </div>
 
               {/* 납부정보 폼 */}
@@ -649,7 +631,7 @@ const PaymentChangeModal: React.FC<PaymentChangeModalProps> = ({
         </div>
 
         {/* 푸터 - 버튼 */}
-        {paymentAccounts.length > 0 && (
+        {selectedPayment && (
           <div className="p-4 border-t border-gray-200 bg-gray-50 rounded-b-xl">
             <div className="flex gap-2">
               <button

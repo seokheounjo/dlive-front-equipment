@@ -285,7 +285,7 @@ const CustomerBasicInfo: React.FC<CustomerBasicInfoProps> = ({
                     </div>
                     <div className="flex justify-between">
                       <span className="text-gray-500">단체 이름</span>
-                      <span className="text-gray-800">{selectedCustomer.GRP_NO || '-'}</span>
+                      <span className="text-gray-800">{selectedCustomer.GRP_NM || '-'}</span>
                     </div>
                   </div>
 
