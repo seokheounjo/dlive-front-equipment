@@ -65,7 +65,6 @@ const PaymentInfo: React.FC<PaymentInfoProps> = ({
   // 데이터 상태 (D'Live API 응답 기준)
   const [paymentAccounts, setPaymentAccounts] = useState<PaymentAccountInfo[]>([]);
   const [billingDetails, setBillingDetails] = useState<BillingDetailInfo[]>([]);
-  const [unpaymentList, setUnpaymentList] = useState<UnpaymentInfo[]>([]);
 
   // 로딩 상태
   const [isLoading, setIsLoading] = useState(false);
@@ -79,6 +78,8 @@ const PaymentInfo: React.FC<PaymentInfoProps> = ({
 
   // 미납금 수납 모달
   const [showUnpaymentModal, setShowUnpaymentModal] = useState(false);
+  const [modalUnpaymentList, setModalUnpaymentList] = useState<UnpaymentInfo[]>([]);
+  const [isLoadingUnpayment, setIsLoadingUnpayment] = useState(false);
 
   // 납부계정 전환 확인 모달
   const [showSwitchConfirm, setShowSwitchConfirm] = useState(false);
@@ -102,10 +103,7 @@ const PaymentInfo: React.FC<PaymentInfoProps> = ({
   const loadPaymentAccounts = async () => {
     setIsLoading(true);
     try {
-      const [paymentRes, unpaymentRes] = await Promise.all([
-        getPaymentAccounts(custId),
-        getUnpaymentList(custId)
-      ]);
+      const paymentRes = await getPaymentAccounts(custId);
 
       if (paymentRes.success && paymentRes.data) {
         setPaymentAccounts(paymentRes.data);
@@ -113,10 +111,6 @@ const PaymentInfo: React.FC<PaymentInfoProps> = ({
         if (paymentRes.data.length > 0 && !selectedPymAcntId) {
           setSelectedPymAcntId(paymentRes.data[0].PYM_ACNT_ID);
         }
-      }
-
-      if (unpaymentRes.success && unpaymentRes.data) {
-        setUnpaymentList(unpaymentRes.data);
       }
     } catch (error) {
       console.error('Load payment accounts error:', error);
@@ -180,6 +174,31 @@ const PaymentInfo: React.FC<PaymentInfoProps> = ({
 
   // 선택된 납부계정 정보
   const selectedPayment = paymentAccounts.find(p => p.PYM_ACNT_ID === selectedPymAcntId);
+
+  // 미납금 수납 버튼 클릭 핸들러
+  const handleUnpaymentClick = async () => {
+    if (!selectedPymAcntId) {
+      showToast?.('납부계정을 선택해주세요.', 'warning');
+      return;
+    }
+
+    setIsLoadingUnpayment(true);
+    try {
+      // 선택된 납부계정의 미납 내역 로드
+      const response = await getUnpaymentList(custId, selectedPymAcntId);
+      if (response.success && response.data) {
+        setModalUnpaymentList(response.data);
+        setShowUnpaymentModal(true);
+      } else {
+        showToast?.('미납 내역 조회에 실패했습니다.', 'error');
+      }
+    } catch (error) {
+      console.error('Load unpayment list error:', error);
+      showToast?.('미납 내역 조회 중 오류가 발생했습니다.', 'error');
+    } finally {
+      setIsLoadingUnpayment(false);
+    }
+  };
 
   return (
     <div className="bg-white rounded-lg shadow-sm border border-gray-200">
@@ -322,10 +341,18 @@ const PaymentInfo: React.FC<PaymentInfoProps> = ({
                 {/* 미납금 수납 버튼 - 미납 계정이 있을 때 */}
                 {paymentAccounts.some(p => p.UPYM_AMT_ACNT > 0) && (
                   <button
-                    onClick={() => setShowUnpaymentModal(true)}
-                    className="w-full mt-3 py-2.5 text-sm bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors font-medium"
+                    onClick={handleUnpaymentClick}
+                    disabled={isLoadingUnpayment || !selectedPymAcntId}
+                    className="w-full mt-3 py-2.5 text-sm bg-red-500 text-white rounded-lg hover:bg-red-600 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors font-medium flex items-center justify-center gap-2"
                   >
-                    미납금 수납
+                    {isLoadingUnpayment ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        조회 중...
+                      </>
+                    ) : (
+                      `미납금 수납 (${formatPymAcntId(selectedPymAcntId || '')})`
+                    )}
                   </button>
                 )}
               </div>
@@ -420,7 +447,8 @@ const PaymentInfo: React.FC<PaymentInfoProps> = ({
         onClose={() => setShowUnpaymentModal(false)}
         custId={custId}
         custNm={custNm}
-        unpaymentList={unpaymentList}
+        pymAcntId={selectedPymAcntId || ''}
+        unpaymentList={modalUnpaymentList}
         showToast={showToast}
         onSuccess={() => {
           loadPaymentAccounts();

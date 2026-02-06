@@ -2,11 +2,22 @@ import React, { useState, useEffect } from 'react';
 import { X, Loader2, AlertCircle, CheckCircle, CreditCard } from 'lucide-react';
 import { UnpaymentInfo, formatCurrency } from '../../services/customerApi';
 
+// 납부계정ID 포맷 (3-3-4)
+const formatPymAcntId = (pymAcntId: string): string => {
+  if (!pymAcntId) return '-';
+  const cleaned = pymAcntId.replace(/[^0-9]/g, '');
+  if (cleaned.length === 10) {
+    return `${cleaned.slice(0, 3)}-${cleaned.slice(3, 6)}-${cleaned.slice(6, 10)}`;
+  }
+  return pymAcntId;
+};
+
 interface UnpaymentCollectionModalProps {
   isOpen: boolean;
   onClose: () => void;
   custId: string;
   custNm?: string;
+  pymAcntId?: string;
   unpaymentList: UnpaymentInfo[];
   showToast?: (message: string, type: 'success' | 'error' | 'warning' | 'info') => void;
   onSuccess?: () => void;
@@ -28,6 +39,7 @@ const UnpaymentCollectionModal: React.FC<UnpaymentCollectionModalProps> = ({
   onClose,
   custId,
   custNm,
+  pymAcntId,
   unpaymentList,
   showToast,
   onSuccess
@@ -145,7 +157,7 @@ const UnpaymentCollectionModal: React.FC<UnpaymentCollectionModalProps> = ({
 
         {/* 고객 정보 */}
         <div className="p-3 bg-gray-50 border-b border-gray-200">
-          <div className="flex items-center gap-4 text-sm">
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm">
             <div>
               <span className="text-gray-500">고객명: </span>
               <span className="font-medium text-gray-900">{custNm || '-'}</span>
@@ -154,6 +166,12 @@ const UnpaymentCollectionModal: React.FC<UnpaymentCollectionModalProps> = ({
               <span className="text-gray-500">고객ID: </span>
               <span className="font-mono text-blue-600">{custId}</span>
             </div>
+            {pymAcntId && (
+              <div>
+                <span className="text-gray-500">납부계정: </span>
+                <span className="font-mono text-purple-600">{formatPymAcntId(pymAcntId)}</span>
+              </div>
+            )}
           </div>
         </div>
 
