@@ -207,6 +207,18 @@ const CustomerInfoChange: React.FC<CustomerInfoChangeProps> = ({
   // 휴대폰결제 신청/해지 확인 모달
   const [confirmModal, setConfirmModal] = useState<UseConfirmState>(useConfirmInitialState);
 
+  // 알림 모달 (Toast 대체)
+  const [alertModal, setAlertModal] = useState<{
+    isOpen: boolean;
+    message: string;
+    type: 'success' | 'error' | 'warning' | 'info';
+  }>({ isOpen: false, message: '', type: 'info' });
+
+  // showToast 대체 함수 (모달로 표시)
+  const showAlert = (message: string, type: 'success' | 'error' | 'warning' | 'info' = 'info') => {
+    setAlertModal({ isOpen: true, message, type });
+  };
+
   // 폼이 수정되었는지 확인하는 함수
   const isPaymentFormDirty = (): boolean => {
     // 기본 폼값과 비교하여 변경 여부 확인
@@ -458,15 +470,15 @@ const CustomerInfoChange: React.FC<CustomerInfoChangeProps> = ({
   // 계좌/카드 인증
   const handleVerify = async () => {
     if (!paymentForm.acntHolderNm) {
-      showToast?.('예금주/카드소유주 명을 입력해주세요.', 'warning');
+      showAlert('예금주/카드소유주 명을 입력해주세요.', 'warning');
       return;
     }
     if (!paymentForm.bankCd) {
-      showToast?.('은행/카드사를 선택해주세요.', 'warning');
+      showAlert('은행/카드사를 선택해주세요.', 'warning');
       return;
     }
     if (!paymentForm.acntNo) {
-      showToast?.('계좌번호/카드번호를 입력해주세요.', 'warning');
+      showAlert('계좌번호/카드번호를 입력해주세요.', 'warning');
       return;
     }
 
@@ -481,14 +493,14 @@ const CustomerInfoChange: React.FC<CustomerInfoChangeProps> = ({
         });
         if (response.success) {
           setIsVerified(true);
-          showToast?.('계좌 인증이 완료되었습니다.', 'success');
+          showAlert('계좌 인증이 완료되었습니다.', 'success');
         } else {
-          showToast?.(response.message || '계좌 인증에 실패했습니다.', 'error');
+          showAlert(response.message || '계좌 인증에 실패했습니다.', 'error');
         }
       } else {
         // 카드 인증
         if (!paymentForm.cardExpMm || !paymentForm.cardExpYy) {
-          showToast?.('카드 유효기간을 입력해주세요.', 'warning');
+          showAlert('카드 유효기간을 입력해주세요.', 'warning');
           setIsVerifying(false);
           return;
         }
@@ -501,14 +513,14 @@ const CustomerInfoChange: React.FC<CustomerInfoChangeProps> = ({
         });
         if (response.success) {
           setIsVerified(true);
-          showToast?.('카드 인증이 완료되었습니다.', 'success');
+          showAlert('카드 인증이 완료되었습니다.', 'success');
         } else {
-          showToast?.(response.message || '카드 인증에 실패했습니다.', 'error');
+          showAlert(response.message || '카드 인증에 실패했습니다.', 'error');
         }
       }
     } catch (error) {
       console.error('Verify error:', error);
-      showToast?.('인증 중 오류가 발생했습니다.', 'error');
+      showAlert('인증 중 오류가 발생했습니다.', 'error');
     } finally {
       setIsVerifying(false);
     }
@@ -559,7 +571,7 @@ const CustomerInfoChange: React.FC<CustomerInfoChangeProps> = ({
       const response = await updatePaymentMethod(params);
 
       if (response.success) {
-        showToast?.('납부방법이 변경되었습니다.', 'success');
+        showAlert('납부방법이 변경되었습니다.', 'success');
         // 폼 초기화
         setPaymentForm({
           pymMthCd: '01',
@@ -582,11 +594,11 @@ const CustomerInfoChange: React.FC<CustomerInfoChangeProps> = ({
         // 납부정보 다시 로드
         loadPaymentInfo();
       } else {
-        showToast?.(response.message || '납부방법 변경에 실패했습니다.', 'error');
+        showAlert(response.message || '납부방법 변경에 실패했습니다.', 'error');
       }
     } catch (error) {
       console.error('Save payment error:', error);
-      showToast?.('납부방법 변경 중 오류가 발생했습니다.', 'error');
+      showAlert('납부방법 변경 중 오류가 발생했습니다.', 'error');
     } finally {
       setIsSavingPayment(false);
     }
@@ -595,23 +607,23 @@ const CustomerInfoChange: React.FC<CustomerInfoChangeProps> = ({
   // 납부방법 변경 저장 (서명 모달 표시)
   const handleSavePayment = () => {
     if (!selectedPymAcntId) {
-      showToast?.('납부계정을 선택해주세요.', 'warning');
+      showAlert('납부계정을 선택해주세요.', 'warning');
       return;
     }
     if (!isVerified) {
-      showToast?.('먼저 계좌/카드 인증을 완료해주세요.', 'warning');
+      showAlert('먼저 계좌/카드 인증을 완료해주세요.', 'warning');
       return;
     }
     if (!paymentForm.changeReasonL || !paymentForm.changeReasonM) {
-      showToast?.('변경사유를 선택해주세요.', 'warning');
+      showAlert('변경사유를 선택해주세요.', 'warning');
       return;
     }
     if (!paymentForm.birthDt || paymentForm.birthDt.length !== 8) {
-      showToast?.('생년월일을 정확히 입력해주세요.', 'warning');
+      showAlert('생년월일을 정확히 입력해주세요.', 'warning');
       return;
     }
     if (!paymentForm.pyrRel) {
-      showToast?.('납부자관계를 선택해주세요.', 'warning');
+      showAlert('납부자관계를 선택해주세요.', 'warning');
       return;
     }
 
@@ -656,22 +668,22 @@ const CustomerInfoChange: React.FC<CustomerInfoChangeProps> = ({
       const response = await registerConsultation(consultParams as ConsultationRequest);
 
       if (response.success) {
-        showToast?.(`휴대폰결제 ${actionText} 요청이 접수되었습니다.`, 'success');
+        showAlert(`휴대폰결제 ${actionText} 요청이 접수되었습니다.`, 'success');
         // 목록 새로고침
         loadHpPayList();
       } else {
-        showToast?.(response.message || `${actionText} 요청 접수에 실패했습니다.`, 'error');
+        showAlert(response.message || `${actionText} 요청 접수에 실패했습니다.`, 'error');
       }
     } catch (error) {
       console.error('HP Pay change error:', error);
-      showToast?.(`${actionText} 요청 중 오류가 발생했습니다.`, 'error');
+      showAlert(`${actionText} 요청 중 오류가 발생했습니다.`, 'error');
     }
   };
 
   // 휴대폰결제 신청/해지 처리 (확인 모달 표시)
   const handleHpPayChange = (item: HPPayInfo) => {
     if (!selectedCustomer) {
-      showToast?.('고객 정보가 없습니다.', 'warning');
+      showAlert('고객 정보가 없습니다.', 'warning');
       return;
     }
 
@@ -701,7 +713,7 @@ const CustomerInfoChange: React.FC<CustomerInfoChangeProps> = ({
   // 전화번호 변경 저장
   const handleSavePhone = async () => {
     if (!selectedCustomer) {
-      showToast?.('먼저 고객을 선택해주세요.', 'warning');
+      showAlert('먼저 고객을 선택해주세요.', 'warning');
       return;
     }
 
@@ -711,11 +723,11 @@ const CustomerInfoChange: React.FC<CustomerInfoChangeProps> = ({
     if (phoneForm.disconnYn !== 'Y') {
       const validationError = validatePhoneNumber(telNo, phoneForm.telNoType);
       if (validationError) {
-        showToast?.(validationError, 'warning');
+        showAlert(validationError, 'warning');
         return;
       }
     } else if (!telNo) {
-      showToast?.('전화번호를 입력하세요.', 'warning');
+      showAlert('전화번호를 입력하세요.', 'warning');
       return;
     }
 
@@ -751,14 +763,14 @@ const CustomerInfoChange: React.FC<CustomerInfoChangeProps> = ({
       const response = await updatePhoneNumber(params);
 
       if (response.success) {
-        showToast?.(`${phoneTypeLabel}가 변경되었습니다.`, 'success');
+        showAlert(`${phoneTypeLabel}가 변경되었습니다.`, 'success');
         setPhoneForm({ telNoType: 'hp', telNo: '', telTpCd: '', disconnYn: 'N' });
       } else {
-        showToast?.(response.message || '전화번호 변경에 실패했습니다.', 'error');
+        showAlert(response.message || '전화번호 변경에 실패했습니다.', 'error');
       }
     } catch (error) {
       console.error('Update phone error:', error);
-      showToast?.('전화번호 변경 중 오류가 발생했습니다.', 'error');
+      showAlert('전화번호 변경 중 오류가 발생했습니다.', 'error');
     } finally {
       setIsSavingPhone(false);
     }
@@ -767,16 +779,16 @@ const CustomerInfoChange: React.FC<CustomerInfoChangeProps> = ({
   // 설치주소 변경 저장
   const handleSaveAddress = async () => {
     if (!selectedContract?.ctrtId) {
-      showToast?.('기본조회 탭에서 계약을 선택한 후 진행해주세요.', 'warning');
+      showAlert('기본조회 탭에서 계약을 선택한 후 진행해주세요.', 'warning');
       return;
     }
 
     if (!addressForm.zipCd || !addressForm.addr1) {
-      showToast?.('우편번호와 기본주소를 입력해주세요.', 'warning');
+      showAlert('우편번호와 기본주소를 입력해주세요.', 'warning');
       return;
     }
     if (!addressForm.postId) {
-      showToast?.('주소 검색 후 주소를 선택해주세요.', 'warning');
+      showAlert('주소 검색 후 주소를 선택해주세요.', 'warning');
       return;
     }
 
@@ -799,7 +811,7 @@ const CustomerInfoChange: React.FC<CustomerInfoChangeProps> = ({
       const response = await updateInstallAddress(installParams);
 
       if (response.success) {
-        showToast?.('설치주소가 변경되었습니다.', 'success');
+        showAlert('설치주소가 변경되었습니다.', 'success');
 
         const newAddr = `${addressForm.addr1}${addressForm.addr2 ? ' ' + addressForm.addr2 : ''}`;
         setCurrentInstallInfo(prev => ({ ...prev, addr: newAddr }));
@@ -816,11 +828,11 @@ const CustomerInfoChange: React.FC<CustomerInfoChangeProps> = ({
         });
         setSelectedPostId('');
       } else {
-        showToast?.(response.message || '주소 변경에 실패했습니다.', 'error');
+        showAlert(response.message || '주소 변경에 실패했습니다.', 'error');
       }
     } catch (error) {
       console.error('Update address error:', error);
-      showToast?.('주소 변경 중 오류가 발생했습니다.', 'error');
+      showAlert('주소 변경 중 오류가 발생했습니다.', 'error');
     } finally {
       setIsSavingAddress(false);
     }
@@ -832,11 +844,11 @@ const CustomerInfoChange: React.FC<CustomerInfoChangeProps> = ({
 
   const handleSaveLocation = async () => {
     if (!selectedContract?.ctrtId) {
-      showToast?.('기본조회 탭에서 계약을 선택한 후 진행해주세요.', 'warning');
+      showAlert('기본조회 탭에서 계약을 선택한 후 진행해주세요.', 'warning');
       return;
     }
     if (!locationForm) {
-      showToast?.('변경할 설치위치를 입력해주세요.', 'warning');
+      showAlert('변경할 설치위치를 입력해주세요.', 'warning');
       return;
     }
 
@@ -854,15 +866,15 @@ const CustomerInfoChange: React.FC<CustomerInfoChangeProps> = ({
       const response = await updateInstallAddress(installParams);
 
       if (response.success) {
-        showToast?.('설치위치가 변경되었습니다.', 'success');
+        showAlert('설치위치가 변경되었습니다.', 'success');
         setCurrentInstallInfo(prev => ({ ...prev, instlLoc: locationForm }));
         setLocationForm('');
       } else {
-        showToast?.(response.message || '설치위치 변경에 실패했습니다.', 'error');
+        showAlert(response.message || '설치위치 변경에 실패했습니다.', 'error');
       }
     } catch (error) {
       console.error('Update location error:', error);
-      showToast?.('설치위치 변경 중 오류가 발생했습니다.', 'error');
+      showAlert('설치위치 변경 중 오류가 발생했습니다.', 'error');
     } finally {
       setIsSavingLocation(false);
     }
@@ -903,7 +915,7 @@ const CustomerInfoChange: React.FC<CustomerInfoChangeProps> = ({
   // 지번주소 검색 (서버 필터링 + 클라이언트 폴백)
   const handleSearchPostAddress = async () => {
     if (!addressSearchQuery || addressSearchQuery.length < 2) {
-      showToast?.('동/면 이름을 2자 이상 입력해주세요.', 'warning');
+      showAlert('동/면 이름을 2자 이상 입력해주세요.', 'warning');
       return;
     }
 
@@ -926,16 +938,16 @@ const CustomerInfoChange: React.FC<CustomerInfoChangeProps> = ({
 
         setPostAddressResults(results);
         if (results.length === 0) {
-          showToast?.('검색 결과가 없습니다.', 'info');
+          showAlert('검색 결과가 없습니다.', 'info');
         }
         // 검색 결과가 있으면 목록이 바로 보이므로 Toast 불필요
       } else {
-        showToast?.(response.message || '주소 검색에 실패했습니다.', 'error');
+        showAlert(response.message || '주소 검색에 실패했습니다.', 'error');
         setPostAddressResults([]);
       }
     } catch (error) {
       console.error('Search post address error:', error);
-      showToast?.('주소 검색 중 오류가 발생했습니다.', 'error');
+      showAlert('주소 검색 중 오류가 발생했습니다.', 'error');
       setPostAddressResults([]);
     } finally {
       setIsSearchingAddress(false);
@@ -945,7 +957,7 @@ const CustomerInfoChange: React.FC<CustomerInfoChangeProps> = ({
   // 도로명주소 검색
   const handleSearchStreetAddress = async () => {
     if (!streetSearchForm.streetNm || streetSearchForm.streetNm.length < 2) {
-      showToast?.('도로명을 2자 이상 입력해주세요.', 'warning');
+      showAlert('도로명을 2자 이상 입력해주세요.', 'warning');
       return;
     }
 
@@ -961,15 +973,15 @@ const CustomerInfoChange: React.FC<CustomerInfoChangeProps> = ({
       if (response.success && response.data) {
         setStreetAddressResults(response.data);
         if (response.data.length === 0) {
-          showToast?.('검색 결과가 없습니다.', 'info');
+          showAlert('검색 결과가 없습니다.', 'info');
         }
       } else {
-        showToast?.(response.message || '주소 검색에 실패했습니다.', 'error');
+        showAlert(response.message || '주소 검색에 실패했습니다.', 'error');
         setStreetAddressResults([]);
       }
     } catch (error) {
       console.error('Search street address error:', error);
-      showToast?.('주소 검색 중 오류가 발생했습니다.', 'error');
+      showAlert('주소 검색 중 오류가 발생했습니다.', 'error');
       setStreetAddressResults([]);
     } finally {
       setIsSearchingAddress(false);
@@ -989,7 +1001,7 @@ const CustomerInfoChange: React.FC<CustomerInfoChangeProps> = ({
     }));
     setSelectedPostId(addr.POST_ID);
     handleCloseAddressModal();
-    showToast?.('주소가 입력되었습니다. 상세주소를 입력해주세요.', 'info');
+    showAlert('주소가 입력되었습니다. 상세주소를 입력해주세요.', 'info');
   };
 
   // 도로명주소 선택
@@ -1005,7 +1017,7 @@ const CustomerInfoChange: React.FC<CustomerInfoChangeProps> = ({
     }));
     setSelectedPostId(addr.POST_ID);
     handleCloseAddressModal();
-    showToast?.('주소가 입력되었습니다. 상세주소를 입력해주세요.', 'info');
+    showAlert('주소가 입력되었습니다. 상세주소를 입력해주세요.', 'info');
   };
 
   // 고객 미선택 시 안내
@@ -2095,6 +2107,17 @@ const CustomerInfoChange: React.FC<CustomerInfoChangeProps> = ({
         type={confirmModal.type}
         confirmText="확인"
         cancelText="취소"
+      />
+
+      {/* 알림 모달 (Toast 대체) */}
+      <ConfirmModal
+        isOpen={alertModal.isOpen}
+        onClose={() => setAlertModal({ isOpen: false, message: '', type: 'info' })}
+        onConfirm={() => {}}
+        message={alertModal.message}
+        type={alertModal.type === 'success' ? 'confirm' : alertModal.type === 'warning' ? 'warning' : alertModal.type === 'error' ? 'error' : 'info'}
+        confirmText="확인"
+        showCancel={false}
       />
     </div>
   );
