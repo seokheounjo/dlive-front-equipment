@@ -184,8 +184,8 @@ const PaymentInfo: React.FC<PaymentInfoProps> = ({
 
     setIsLoadingUnpayment(true);
     try {
-      // 선택된 납부계정의 미납 내역 로드
-      const response = await getUnpaymentList(custId, selectedPymAcntId);
+      // 미납 내역 로드 (전체 조회 후 표시 - API가 PYM_ACNT_ID 필터 미지원)
+      const response = await getUnpaymentList(custId);
       if (response.success && response.data) {
         setModalUnpaymentList(response.data);
         setShowUnpaymentModal(true);
