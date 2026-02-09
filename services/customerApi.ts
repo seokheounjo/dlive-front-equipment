@@ -995,16 +995,24 @@ export const searchCustomerAll = async (params: {
   }
 
   // 요청 파라미터 구성 - SERCH_GB=3으로 getConditionalCustList3 SQL 사용
+  // D'Live API는 복수 파라미터를 AND로 처리하므로, 우선순위에 따라 하나만 전송
+  // 우선순위: 고객ID > 계약ID > 전화번호 > 이름 > 장비S/N
   const reqParams: Record<string, any> = {
     SERCH_GB: '3',
     LOGIN_ID: loginId
   };
 
-  if (params.custId) reqParams.CUST_ID = params.custId;
-  if (params.contractId) reqParams.CTRT_ID = params.contractId;
-  if (params.phoneNumber) reqParams.TEL_NO = params.phoneNumber;
-  if (params.customerName) reqParams.CUST_NM = params.customerName;
-  if (params.equipmentNo) reqParams.EQT_SERNO = params.equipmentNo;
+  if (params.custId) {
+    reqParams.CUST_ID = params.custId;
+  } else if (params.contractId) {
+    reqParams.CTRT_ID = params.contractId;
+  } else if (params.phoneNumber) {
+    reqParams.TEL_NO = params.phoneNumber;
+  } else if (params.customerName) {
+    reqParams.CUST_NM = params.customerName;
+  } else if (params.equipmentNo) {
+    reqParams.EQT_SERNO = params.equipmentNo;
+  }
 
   console.log('[CustomerAPI] searchCustomerAll 요청 파라미터:\n' + JSON.stringify(reqParams, null, 2));
 
