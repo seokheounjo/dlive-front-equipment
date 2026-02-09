@@ -575,6 +575,10 @@ const apiCall = async <T>(
     // 레거시 API 응답 형식 처리
     // D'Live API: { code: 'SUCCESS', message: 'OK', data: [...] }
     // 레거시 API: { resultCode: '0000', resultData: [...] }
+    // 공통코드 API: 배열을 직접 반환하는 경우
+    if (Array.isArray(result)) {
+      return { success: true, data: result as T };
+    }
     if (result.code === 'SUCCESS' || result.resultCode === '0000' || result.success) {
       return {
         success: true,

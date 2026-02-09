@@ -555,52 +555,44 @@ const ConsultationAS: React.FC<ConsultationASProps> = ({
               상담 등록
             </h3>
 
-            {/* 대상 단위 선택 (계약/고객) */}
-            <div className="p-3 bg-gray-50 rounded-lg border border-gray-200">
-              <div className="text-xs text-gray-500 mb-2">상담 대상</div>
-              <div className="flex gap-4">
-                <label className="flex items-center gap-2 cursor-pointer">
-                  <input
-                    type="radio"
-                    name="targetUnit"
-                    value="contract"
-                    checked={targetUnit === 'contract'}
-                    onChange={() => handleTargetUnitChange('contract')}
-                    className="w-4 h-4 text-blue-600"
-                  />
-                  <span className="text-sm text-gray-700">계약 단위</span>
-                </label>
-                <label className="flex items-center gap-2 cursor-pointer">
-                  <input
-                    type="radio"
-                    name="targetUnit"
-                    value="customer"
-                    checked={targetUnit === 'customer'}
-                    onChange={() => handleTargetUnitChange('customer')}
-                    className="w-4 h-4 text-blue-600"
-                  />
-                  <span className="text-sm text-gray-700">고객 단위</span>
-                </label>
-              </div>
-              {targetUnit === 'contract' && selectedContract && (
-                <div className="mt-2 text-xs text-blue-600 space-y-1">
-                  <div>선택된 계약: {selectedContract.prodNm} ({formatId(selectedContract.ctrtId)})</div>
-                  {selectedContract.notrecev && (
-                    <div>장비: {selectedContract.notrecev}</div>
-                  )}
+            {/* 대상 단위 선택 + 고객/계약 정보 (통합) */}
+            <div className="p-3 bg-blue-50 rounded-lg border border-blue-200">
+              <div className="flex items-center justify-between mb-2">
+                <div className="text-sm text-blue-800">
+                  <span className="font-medium">{selectedCustomer.custNm}</span>
+                  <span className="ml-1 text-blue-600 text-xs">(고객ID: {formatId(selectedCustomer.custId)})</span>
                 </div>
-              )}
-            </div>
-
-            {/* 고객/계약 정보 */}
-            <div className="p-3 bg-blue-50 rounded-lg">
-              <div className="text-sm text-blue-800">
-                <span className="font-medium">{selectedCustomer.custNm}</span>
-                <span className="ml-2 text-blue-600">(고객ID: {formatId(selectedCustomer.custId)})</span>
+                <div className="flex gap-3">
+                  <label className="flex items-center gap-1 cursor-pointer">
+                    <input
+                      type="radio"
+                      name="targetUnit"
+                      value="customer"
+                      checked={targetUnit === 'customer'}
+                      onChange={() => handleTargetUnitChange('customer')}
+                      className="w-3.5 h-3.5 text-blue-600"
+                    />
+                    <span className="text-xs text-gray-700">고객</span>
+                  </label>
+                  <label className="flex items-center gap-1 cursor-pointer">
+                    <input
+                      type="radio"
+                      name="targetUnit"
+                      value="contract"
+                      checked={targetUnit === 'contract'}
+                      onChange={() => handleTargetUnitChange('contract')}
+                      className="w-3.5 h-3.5 text-blue-600"
+                    />
+                    <span className="text-xs text-gray-700">계약</span>
+                  </label>
+                </div>
               </div>
               {targetUnit === 'contract' && selectedContract && (
-                <div className="text-xs text-blue-600 mt-1">
-                  계약: {selectedContract.prodNm} (계약ID: {formatId(selectedContract.ctrtId)})
+                <div className="text-xs text-blue-700 pt-1 border-t border-blue-200">
+                  {selectedContract.prodNm} ({formatId(selectedContract.ctrtId)})
+                  {selectedContract.notrecev && (
+                    <span className="ml-2 text-blue-500">장비: {selectedContract.notrecev}</span>
+                  )}
                 </div>
               )}
             </div>
