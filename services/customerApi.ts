@@ -1855,19 +1855,35 @@ export const searchPostAddress = async (params: PostAddressSearchRequest): Promi
 
 /**
  * 도로명주소 검색 (customer/common/customercommon/getStreetAddrList)
- * D'Live 백엔드가 STREET_NM 등 필터 파라미터를 무시하므로
- * SO_ID로 전체 조회 후 클라이언트에서 필터링
- * @param params 검색 조건 (도로명, 건물번호 등)
+ *
+ * D'Live 백엔드 제약사항:
+ * - STREET_NM 파라미터 전달 시 무조건 0건 반환 (서버 버그)
+ * - BUILD_NM 파라미터 전달 시 서버 크래시
+ * - SO_ID만 정상 동작 (해당 지점 전체 도로명주소 반환)
+ *
+ * 전략: 첫 조회 시 SO_ID로 전체 데이터를 캐시, 이후 검색은 캐시에서 필터링
  */
-export const searchStreetAddress = async (params: StreetAddressSearchRequest): Promise<ApiResponse<StreetAddressInfo[]>> => {
-  // SO_ID가 명시적으로 전달된 경우 해당 지점만 조회
-  if (params.SO_ID) {
-    console.log('[CustomerAPI] searchStreetAddress (단일):', { SO_ID: params.SO_ID });
-    return apiCall<StreetAddressInfo[]>('/customer/common/customercommon/getStreetAddrList', { SO_ID: params.SO_ID });
-  }
 
-  // SO_ID 미전달 → 세션의 authSoList 전체 지점으로 조회
-  let soList: Array<{ soId: string }> = [];
+// 도로명주소 캐시 (SO_ID별)
+const streetAddressCache: { [soId: string]: StreetAddressInfo[] } = {};
+
+const loadStreetAddressCache = async (soId: string): Promise<StreetAddressInfo[]> => {
+  if (streetAddressCache[soId]) {
+    return streetAddressCache[soId];
+  }
+  const result = await apiCall<StreetAddressInfo[]>(
+    '/customer/common/customercommon/getStreetAddrList', { SO_ID: soId }
+  );
+  if (result.success && result.data) {
+    streetAddressCache[soId] = result.data;
+    return result.data;
+  }
+  return [];
+};
+
+export const searchStreetAddress = async (params: StreetAddressSearchRequest): Promise<ApiResponse<StreetAddressInfo[]>> => {
+  // 세션에서 authSoList 가져오기
+  let soList: string[] = [];
   try {
     const userInfoStr = sessionStorage.getItem('userInfo') || localStorage.getItem('userInfo');
     if (userInfoStr) {
@@ -1875,47 +1891,68 @@ export const searchStreetAddress = async (params: StreetAddressSearchRequest): P
       const authSoList = userInfo.authSoList || userInfo.AUTH_SO_List || [];
       if (authSoList.length > 0) {
         soList = authSoList
-          .map((so: any) => ({ soId: so.SO_ID || so.soId || '' }))
-          .filter((so: { soId: string }) => so.soId);
+          .map((so: any) => so.SO_ID || so.soId || '')
+          .filter((id: string) => id);
       }
       if (soList.length === 0) {
         const fallbackSoId = userInfo.soId || userInfo.SO_ID || '';
-        if (fallbackSoId) soList = [{ soId: fallbackSoId }];
+        if (fallbackSoId) soList = [fallbackSoId];
       }
     }
   } catch (e) {
-    console.log('[CustomerAPI] Failed to get SO_ID from session for street address search');
+    console.log('[CustomerAPI] Failed to get SO_ID from session');
   }
+
+  // SO_ID가 명시적으로 전달된 경우
+  if (params.SO_ID) soList = [params.SO_ID];
 
   if (soList.length === 0) {
     return { success: false, data: [], message: 'SO_ID를 찾을 수 없습니다.' };
   }
 
-  // 전체 지점에 대해 병렬 조회 (SO_ID만 전송 - 다른 파라미터는 서버가 무시함)
-  console.log('[CustomerAPI] searchStreetAddress (전체 지점):', soList.map(s => s.soId));
-  const promises = soList.map(so =>
-    apiCall<StreetAddressInfo[]>('/customer/common/customercommon/getStreetAddrList', { SO_ID: so.soId })
-      .catch(() => ({ success: false, data: [] as StreetAddressInfo[], message: '' }))
+  // 전체 지점 캐시 로드 (병렬)
+  const cacheResults = await Promise.all(
+    soList.map(soId => loadStreetAddressCache(soId).catch(() => [] as StreetAddressInfo[]))
   );
 
-  const results = await Promise.all(promises);
-
-  // 결과 합치기 (STREET_ID + POST_ID로 중복 제거)
+  // 합치기 (STREET_ID 중복 제거)
   const seen = new Set<string>();
-  const allData: StreetAddressInfo[] = [];
-  for (const result of results) {
-    if (result.success && result.data) {
-      for (const item of result.data) {
-        const key = item.STREET_ID || `${item.SO_ID}_${item.STREET_ADDR}`;
-        if (!seen.has(key)) {
-          seen.add(key);
-          allData.push(item);
-        }
+  let allData: StreetAddressInfo[] = [];
+  for (const items of cacheResults) {
+    for (const item of items) {
+      const key = item.STREET_ID || `${item.SO_ID}_${item.STREET_ADDR}`;
+      if (!seen.has(key)) {
+        seen.add(key);
+        allData.push(item);
       }
     }
   }
 
-  console.log(`[CustomerAPI] searchStreetAddress 전체 결과: ${allData.length}건 (${soList.length}개 지점)`);
+  // 클라이언트 필터링 (서버가 STREET_NM/BUILD_NM 필터를 지원하지 않으므로)
+  const streetNm = (params.STREET_NM || '').trim().toLowerCase();
+  const bunM = (params.STREET_BUN_M || '').trim();
+  const bunS = (params.STREET_BUN_S || '').trim();
+  const buildNm = (params.BUILD_NM || '').trim().toLowerCase();
+
+  if (streetNm || bunM || bunS || buildNm) {
+    allData = allData.filter(item => {
+      if (streetNm) {
+        const addr = (item.STREET_ADDR || '').toLowerCase();
+        const addr1 = (item.ADDR || item.ADDR1 || '').toLowerCase();
+        if (!addr.includes(streetNm) && !addr1.includes(streetNm)) return false;
+      }
+      if (bunM && item.BUN_NO && !item.BUN_NO.includes(bunM)) return false;
+      if (bunS && item.HO_NM && !item.HO_NM.includes(bunS)) return false;
+      if (buildNm) {
+        const bldNm = (item.BLD_NM || '').toLowerCase();
+        const bldDtl = (item.BLD_DTL_NM || '').toLowerCase();
+        if (!bldNm.includes(buildNm) && !bldDtl.includes(buildNm)) return false;
+      }
+      return true;
+    });
+  }
+
+  console.log(`[CustomerAPI] searchStreetAddress: ${allData.length}건 (캐시${Object.keys(streetAddressCache).length > 0 ? '사용' : '로드'})`);
   return { success: true, data: allData, message: '' };
 };
 

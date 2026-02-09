@@ -954,7 +954,7 @@ const CustomerInfoChange: React.FC<CustomerInfoChangeProps> = ({
     }
   };
 
-  // 도로명주소 검색 (서버는 SO_ID만 처리 → 클라이언트 필터링)
+  // 도로명주소 검색
   const handleSearchStreetAddress = async () => {
     if (!streetSearchForm.streetNm || streetSearchForm.streetNm.length < 2) {
       showAlert('도로명을 2자 이상 입력해주세요.', 'warning');
@@ -963,40 +963,16 @@ const CustomerInfoChange: React.FC<CustomerInfoChangeProps> = ({
 
     setIsSearchingAddress(true);
     try {
-      // SO_ID로 전체 조회 (서버가 필터 파라미터를 무시하므로)
-      const response = await searchStreetAddress({});
+      const response = await searchStreetAddress({
+        STREET_NM: streetSearchForm.streetNm,
+        STREET_BUN_M: streetSearchForm.streetBunM || undefined,
+        STREET_BUN_S: streetSearchForm.streetBunS || undefined,
+        BUILD_NM: streetSearchForm.buildNm || undefined
+      });
 
       if (response.success && response.data) {
-        // 클라이언트 사이드 필터링
-        const keyword = streetSearchForm.streetNm.trim().toLowerCase();
-        const bunM = streetSearchForm.streetBunM?.trim();
-        const bunS = streetSearchForm.streetBunS?.trim();
-        const buildNm = streetSearchForm.buildNm?.trim().toLowerCase();
-
-        const filtered = response.data.filter(item => {
-          // 도로명 필터: STREET_ADDR 또는 ADDR에서 검색
-          const addr = (item.STREET_ADDR || '').toLowerCase();
-          const addr1 = (item.ADDR || item.ADDR1 || '').toLowerCase();
-          if (!addr.includes(keyword) && !addr1.includes(keyword)) return false;
-
-          // 본번 필터
-          if (bunM && item.BUN_NO && !item.BUN_NO.includes(bunM)) return false;
-
-          // 부번 필터
-          if (bunS && item.HO_NM && !item.HO_NM.includes(bunS)) return false;
-
-          // 건물명 필터
-          if (buildNm) {
-            const bldNm = (item.BLD_NM || '').toLowerCase();
-            const bldDtl = (item.BLD_DTL_NM || '').toLowerCase();
-            if (!bldNm.includes(buildNm) && !bldDtl.includes(buildNm)) return false;
-          }
-
-          return true;
-        });
-
-        setStreetAddressResults(filtered);
-        if (filtered.length === 0) {
+        setStreetAddressResults(response.data);
+        if (response.data.length === 0) {
           showAlert('검색 결과가 없습니다.', 'info');
         }
       } else {
