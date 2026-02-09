@@ -1,6 +1,17 @@
 import React, { useState, useEffect } from 'react';
-import { X, Loader2, AlertCircle, CheckCircle, CreditCard } from 'lucide-react';
-import { UnpaymentInfo, formatCurrency } from '../../services/customerApi';
+import { X, Loader2, AlertCircle, CheckCircle, CreditCard, ChevronDown } from 'lucide-react';
+import {
+  UnpaymentInfo,
+  formatCurrency,
+  getCardVendorBySoId,
+  insertDpstAndDTL,
+  insertCardPayStage,
+  processCardPayment,
+  generateOrderNo,
+  getOrderDate,
+  CardDpstParams,
+  CardDpstDtlItem
+} from '../../services/customerApi';
 
 // ID 포맷 (3-3-4) - 납부계정ID, 고객ID 등
 const formatId = (id: string): string => {
@@ -30,27 +41,35 @@ const formatBillYm = (ym: string): string => {
   return `${ym.slice(0, 4)}-${ym.slice(4, 6)}`;
 };
 
+// 카드번호 포맷 (4자리씩)
+const formatCardNo = (value: string): string => {
+  const digits = value.replace(/\D/g, '').slice(0, 16);
+  const groups = [];
+  for (let i = 0; i < digits.length; i += 4) {
+    groups.push(digits.slice(i, i + 4));
+  }
+  return groups.join('-');
+};
+
 interface UnpaymentCollectionModalProps {
   isOpen: boolean;
   onClose: () => void;
   custId: string;
   custNm?: string;
   pymAcntId?: string;
+  soId?: string;
   unpaymentList: UnpaymentInfo[];
   showToast?: (message: string, type: 'success' | 'error' | 'warning' | 'info') => void;
   onSuccess?: () => void;
 }
 
 /**
- * 미납금 수납 모달
+ * 미납금 수납 모달 (카드결제)
  *
- * 기능:
- * - 미납 내역 목록 표시 (체크박스로 선택 가능)
- * - 선택된 미납금 합계 계산
- * - 수납 처리 (현재는 UI만 - 실제 결제 연동은 추후 구현)
- *
- * 와이어프레임 기준:
- * - 납부정보에서 미납금 있을 때 "미납금 수납" 버튼 클릭 시 표시
+ * 결제 흐름:
+ * 1. 미납 항목 선택 + 카드정보 입력
+ * 2. "카드수납" 클릭 → getCardVendorBySoId + insertDpstAndDTL
+ * 3. "결제하기" 클릭 → insertCardPayStage + processCardPayment (PG)
  */
 const UnpaymentCollectionModal: React.FC<UnpaymentCollectionModalProps> = ({
   isOpen,
@@ -58,6 +77,7 @@ const UnpaymentCollectionModal: React.FC<UnpaymentCollectionModalProps> = ({
   custId,
   custNm,
   pymAcntId,
+  soId,
   unpaymentList,
   showToast,
   onSuccess
@@ -65,31 +85,46 @@ const UnpaymentCollectionModal: React.FC<UnpaymentCollectionModalProps> = ({
   // 선택된 미납 항목
   const [selectedItems, setSelectedItems] = useState<Set<number>>(new Set());
 
-  // 처리 중 상태
+  // 처리 상태: 'select' → 'processing' → 'completed'
   const [isProcessing, setIsProcessing] = useState(false);
-
-  // 처리 완료 상태
   const [isCompleted, setIsCompleted] = useState(false);
+
+  // 카드 입력 폼
+  const [cardNo, setCardNo] = useState('');
+  const [expMonth, setExpMonth] = useState('');
+  const [expYear, setExpYear] = useState('');
+  const [installment, setInstallment] = useState('00'); // '00' = 일시불
+  const [korId, setKorId] = useState('');  // 생년월일(6) 또는 사업자번호(10)
+
+  // 결제 결과 정보
+  const [paymentResult, setPaymentResult] = useState<{
+    mid?: string;
+    orderNo?: string;
+    orderDt?: string;
+  } | null>(null);
 
   // 모달 열릴 때 초기화
   useEffect(() => {
     if (isOpen) {
-      // 기본으로 모든 항목 선택
       setSelectedItems(new Set(unpaymentList.map((_, idx) => idx)));
       setIsCompleted(false);
+      setCardNo('');
+      setExpMonth('');
+      setExpYear('');
+      setInstallment('00');
+      setKorId('');
+      setPaymentResult(null);
     }
   }, [isOpen, unpaymentList]);
 
-  // 모달 닫힐 때 백그라운드 스크롤 제어
+  // 백그라운드 스크롤 제어
   useEffect(() => {
     if (isOpen) {
       document.body.style.overflow = 'hidden';
     } else {
       document.body.style.overflow = '';
     }
-    return () => {
-      document.body.style.overflow = '';
-    };
+    return () => { document.body.style.overflow = ''; };
   }, [isOpen]);
 
   if (!isOpen) return null;
@@ -122,31 +157,141 @@ const UnpaymentCollectionModal: React.FC<UnpaymentCollectionModalProps> = ({
   // 전체 미납 금액
   const totalUnpayment = unpaymentList.reduce((sum, item) => sum + (item.UNPAY_AMT || 0), 0);
 
-  // 수납 처리 (실제 결제 API 연동 전 - UI 데모)
+  // 카드번호 입력 핸들러
+  const handleCardNoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const raw = e.target.value.replace(/\D/g, '').slice(0, 16);
+    setCardNo(raw);
+  };
+
+  // 생년월일/사업자번호 입력 핸들러
+  const handleKorIdChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const raw = e.target.value.replace(/\D/g, '').slice(0, 10);
+    setKorId(raw);
+  };
+
+  // 폼 유효성 검증
+  const validateForm = (): string | null => {
+    if (selectedItems.size === 0) return '수납할 항목을 선택해주세요.';
+    if (cardNo.length < 15) return '카드번호를 정확히 입력해주세요.';
+    if (!expMonth || !expYear) return '유효기간을 선택해주세요.';
+    if (korId.length < 6) return '생년월일(6자리) 또는 사업자번호(10자리)를 입력해주세요.';
+    return null;
+  };
+
+  // 카드 유효기간 년도 옵션 (현재~10년후)
+  const currentYear = new Date().getFullYear();
+  const yearOptions = Array.from({ length: 11 }, (_, i) => {
+    const y = currentYear + i;
+    return { value: String(y).slice(2), label: String(y) };
+  });
+
+  // 결제 처리
   const handlePayment = async () => {
-    if (selectedItems.size === 0) {
-      showToast?.('수납할 항목을 선택해주세요.', 'warning');
+    const error = validateForm();
+    if (error) {
+      showToast?.(error, 'warning');
       return;
     }
 
     setIsProcessing(true);
 
     try {
-      // TODO: 실제 수납 API 연동
-      // 현재는 데모용으로 2초 대기 후 완료 표시
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      // Step 1: 카드사 벤더(MID) 조회
+      console.log('[Payment] Step 1: getCardVendorBySoId');
+      const vendorRes = await getCardVendorBySoId(soId);
+      let mid = 'dlivecon';  // 기본 MID
+      if (vendorRes.success && vendorRes.data) {
+        const vendor = Array.isArray(vendorRes.data) ? vendorRes.data[0] : vendorRes.data;
+        if (vendor?.CARD_VENDOR) {
+          mid = vendor.CARD_VENDOR;
+        }
+      }
+      console.log('[Payment] MID:', mid);
 
-      setIsCompleted(true);
-      showToast?.(`${formatCurrency(selectedTotal)}원 수납 처리가 완료되었습니다.`, 'success');
-      onSuccess?.();
+      const orderDt = getOrderDate();
+      const orderNo = generateOrderNo();
+      const fullOrderNo = mid + orderDt + orderNo;
+      const amountStr = String(selectedTotal);
 
-      // 2초 후 모달 닫기
-      setTimeout(() => {
-        onClose();
-      }, 2000);
-    } catch (error) {
-      console.error('Payment error:', error);
-      showToast?.('수납 처리 중 오류가 발생했습니다.', 'error');
+      // Step 2: 입금 등록 (insertDpstAndDTL)
+      console.log('[Payment] Step 2: insertDpstAndDTL');
+      const loginId = sessionStorage.getItem('userInfo')
+        ? JSON.parse(sessionStorage.getItem('userInfo') || '{}').userId || 'SYSTEM'
+        : 'SYSTEM';
+
+      const selectedBills = unpaymentList.filter((_, idx) => selectedItems.has(idx));
+      const dtlList: CardDpstDtlItem[] = selectedBills.map((item, idx) => ({
+        master_store_id: mid,
+        order_dt: orderDt,
+        order_no: orderNo,
+        BILL_SEQ_NO: String(idx + 1),
+        SO_ID: soId || '',
+        BILL_AMT: item.BILL_AMT || item.UNPAY_AMT,
+        PRE_RCPT_AMT: (item.BILL_AMT || 0) - (item.UNPAY_AMT || 0),
+        RCPT_AMT: item.UNPAY_AMT
+      }));
+
+      const dpstParams: CardDpstParams = {
+        master_store_id: mid,
+        order_dt: orderDt,
+        order_no: orderNo,
+        ctrt_so_id: soId || '',
+        pym_acnt_id: pymAcntId || '',
+        cust_id: custId,
+        prod_info_cd: '0',
+        encrypted_amt: amountStr,
+        reqr_nm: custNm || '',
+        pyr_rel: '01',
+        user_id: loginId,
+        rcpt_bill_emp_id: loginId,
+        smry: '모바일 미납금 카드수납',
+        cust_email: '',
+        dtlList
+      };
+
+      const dpstRes = await insertDpstAndDTL(dpstParams);
+      console.log('[Payment] insertDpstAndDTL result:', dpstRes.success);
+
+      // Step 3: CardPayStage 등록 (stage '03')
+      console.log('[Payment] Step 3: insertCardPayStage (03)');
+      await insertCardPayStage({
+        order_no: fullOrderNo,
+        order_dt: orderDt,
+        pym_acnt_id: pymAcntId || '',
+        encrypted_amt: amountStr,
+        stage: '03'
+      });
+
+      // Step 4: PG 결제 요청
+      console.log('[Payment] Step 4: processCardPayment');
+      const payRes = await processCardPayment({
+        mid,
+        order_dt: orderDt,
+        oid: orderNo,
+        amount: amountStr,
+        buyer: custNm || '',
+        productinfo: '미납금수납',
+        card_no: cardNo,
+        card_expyear: expYear,
+        card_expmon: expMonth,
+        kor_id: korId,
+        install: installment,
+        pym_acnt_id: pymAcntId || '',
+        encrypted_amt: amountStr
+      });
+
+      if (payRes.success) {
+        setIsCompleted(true);
+        setPaymentResult({ mid, orderNo: fullOrderNo, orderDt });
+        showToast?.(`${formatCurrency(selectedTotal)}원 카드수납이 완료되었습니다.`, 'success');
+        onSuccess?.();
+        setTimeout(() => { onClose(); }, 2500);
+      } else {
+        showToast?.(payRes.message || '결제 처리에 실패했습니다.', 'error');
+      }
+    } catch (error: any) {
+      console.error('[Payment] Error:', error);
+      showToast?.(error?.message || '결제 처리 중 오류가 발생했습니다.', 'error');
     } finally {
       setIsProcessing(false);
     }
@@ -261,7 +406,7 @@ const UnpaymentCollectionModal: React.FC<UnpaymentCollectionModalProps> = ({
                         </div>
                         <div className="text-xs text-gray-500 mt-0.5 truncate">
                           {cleanProdNm(item.PROD_NM)}
-                          {item.UNPAY_DAYS && ` | 미납 ${item.UNPAY_DAYS}일`}
+                          {item.UNPAY_DAYS ? ` | 미납 ${item.UNPAY_DAYS}일` : ''}
                         </div>
                       </div>
                     </label>
@@ -270,16 +415,115 @@ const UnpaymentCollectionModal: React.FC<UnpaymentCollectionModalProps> = ({
               )}
             </div>
 
-            {/* 푸터 - 합계 및 버튼 */}
+            {/* 푸터 - 합계 + 카드폼 + 버튼 */}
             <div className="p-4 border-t border-gray-200 bg-gray-50 rounded-b-xl">
               {/* 선택 합계 */}
-              <div className="flex items-center justify-between mb-4 p-3 bg-white rounded-lg border border-gray-200">
+              <div className="flex items-center justify-between mb-3 p-3 bg-white rounded-lg border border-gray-200">
                 <span className="text-sm text-gray-600">
                   선택 금액 ({selectedItems.size}건)
                 </span>
                 <span className="text-xl font-bold text-red-600">
                   {formatCurrency(selectedTotal)}원
                 </span>
+              </div>
+
+              {/* 카드 정보 입력 */}
+              <div className="mb-3 p-3 bg-white rounded-lg border border-gray-200">
+                <div className="flex items-center gap-1.5 mb-3">
+                  <CreditCard className="w-4 h-4 text-gray-500" />
+                  <span className="text-sm font-medium text-gray-700">카드 정보</span>
+                </div>
+
+                {/* 카드번호 */}
+                <div className="mb-2.5">
+                  <label className="block text-xs text-gray-500 mb-1">카드번호</label>
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    value={formatCardNo(cardNo)}
+                    onChange={handleCardNoChange}
+                    placeholder="0000-0000-0000-0000"
+                    disabled={isProcessing}
+                    className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none disabled:bg-gray-100 font-mono tracking-wider"
+                    maxLength={19}
+                  />
+                </div>
+
+                {/* 유효기간 + 할부 (한 줄) */}
+                <div className="flex gap-2 mb-2.5">
+                  {/* 유효기간 */}
+                  <div className="flex-1">
+                    <label className="block text-xs text-gray-500 mb-1">유효기간</label>
+                    <div className="flex gap-1">
+                      <div className="relative flex-1">
+                        <select
+                          value={expMonth}
+                          onChange={(e) => setExpMonth(e.target.value)}
+                          disabled={isProcessing}
+                          className="w-full px-2 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none appearance-none bg-white disabled:bg-gray-100 pr-7"
+                        >
+                          <option value="">월</option>
+                          {Array.from({ length: 12 }, (_, i) => {
+                            const m = String(i + 1).padStart(2, '0');
+                            return <option key={m} value={m}>{m}</option>;
+                          })}
+                        </select>
+                        <ChevronDown className="absolute right-1.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400 pointer-events-none" />
+                      </div>
+                      <span className="self-center text-gray-400 text-sm">/</span>
+                      <div className="relative flex-1">
+                        <select
+                          value={expYear}
+                          onChange={(e) => setExpYear(e.target.value)}
+                          disabled={isProcessing}
+                          className="w-full px-2 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none appearance-none bg-white disabled:bg-gray-100 pr-7"
+                        >
+                          <option value="">년</option>
+                          {yearOptions.map(y => (
+                            <option key={y.value} value={y.value}>{y.label}</option>
+                          ))}
+                        </select>
+                        <ChevronDown className="absolute right-1.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400 pointer-events-none" />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* 할부 */}
+                  <div className="w-24">
+                    <label className="block text-xs text-gray-500 mb-1">할부</label>
+                    <div className="relative">
+                      <select
+                        value={installment}
+                        onChange={(e) => setInstallment(e.target.value)}
+                        disabled={isProcessing}
+                        className="w-full px-2 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none appearance-none bg-white disabled:bg-gray-100 pr-7"
+                      >
+                        <option value="00">일시불</option>
+                        {[2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map(m => (
+                          <option key={m} value={String(m).padStart(2, '0')}>{m}개월</option>
+                        ))}
+                      </select>
+                      <ChevronDown className="absolute right-1.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400 pointer-events-none" />
+                    </div>
+                  </div>
+                </div>
+
+                {/* 생년월일/사업자번호 */}
+                <div>
+                  <label className="block text-xs text-gray-500 mb-1">
+                    생년월일(6자리) / 사업자번호(10자리)
+                  </label>
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    value={korId}
+                    onChange={handleKorIdChange}
+                    placeholder="예) 900101"
+                    disabled={isProcessing}
+                    className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none disabled:bg-gray-100"
+                    maxLength={10}
+                  />
+                </div>
               </div>
 
               {/* 버튼 */}
@@ -299,10 +543,10 @@ const UnpaymentCollectionModal: React.FC<UnpaymentCollectionModalProps> = ({
                   {isProcessing ? (
                     <>
                       <Loader2 className="w-4 h-4 animate-spin" />
-                      처리 중...
+                      결제 처리 중...
                     </>
                   ) : (
-                    '카드수납'
+                    <>결제하기 {selectedTotal > 0 ? formatCurrency(selectedTotal) + '원' : ''}</>
                   )}
                 </button>
               </div>

@@ -461,6 +461,13 @@ const PaymentInfo: React.FC<PaymentInfoProps> = ({
         onSuccess={() => {
           loadPaymentAccounts();
         }}
+        soId={(() => {
+          try {
+            const u = JSON.parse(sessionStorage.getItem('userInfo') || localStorage.getItem('userInfo') || '{}');
+            const list = u.authSoList || u.AUTH_SO_List || [];
+            return list[0]?.SO_ID || list[0]?.soId || u.soId || u.SO_ID || '';
+          } catch { return ''; }
+        })()}
       />
 
       {/* 납부방법 변경 모달 */}
