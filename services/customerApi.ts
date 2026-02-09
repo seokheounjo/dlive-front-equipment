@@ -1771,41 +1771,82 @@ export const getBankCodes = async (): Promise<ApiResponse<any[]>> => {
  * @param params 검색 조건 (동/면 이름)
  */
 export const searchPostAddress = async (params: PostAddressSearchRequest): Promise<ApiResponse<PostAddressInfo[]>> => {
-  // SO_ID가 없으면 세션에서 자동 획득 (getPostList는 SO_ID 필수)
-  let soId = params.SO_ID || '';
-  let mstSoId = '';
-  if (!soId) {
-    try {
-      const userInfoStr = sessionStorage.getItem('userInfo') || localStorage.getItem('userInfo');
-      if (userInfoStr) {
-        const userInfo = JSON.parse(userInfoStr);
-        const authSoList = userInfo.authSoList || userInfo.AUTH_SO_List || [];
-        if (authSoList.length > 0) {
-          soId = authSoList[0].SO_ID || authSoList[0].soId || '';
-          mstSoId = authSoList[0].MST_SO_ID || authSoList[0].mstSoId || '';
-        }
-        if (!soId) {
-          soId = userInfo.soId || userInfo.SO_ID || '';
-        }
-        if (!mstSoId) {
-          mstSoId = userInfo.mstSoId || userInfo.MST_SO_ID || '';
+  // SO_ID가 명시적으로 전달된 경우 해당 지점만 조회
+  if (params.SO_ID) {
+    const searchParams: Record<string, string> = {
+      SO_ID: params.SO_ID,
+      MST_SO_ID: '200',
+      USE_FLAG: params.USE_FLAG || 'Y'
+    };
+    console.log('[CustomerAPI] searchPostAddress (단일):', { SO_ID: params.SO_ID, search: params.DONGMYONG });
+    return apiCall<PostAddressInfo[]>('/statistics/customer/getPostList', searchParams);
+  }
+
+  // SO_ID 미전달 → 세션의 authSoList 전체 지점으로 조회
+  let soList: Array<{ soId: string; mstSoId: string }> = [];
+  try {
+    const userInfoStr = sessionStorage.getItem('userInfo') || localStorage.getItem('userInfo');
+    if (userInfoStr) {
+      const userInfo = JSON.parse(userInfoStr);
+      const authSoList = userInfo.authSoList || userInfo.AUTH_SO_List || [];
+      if (authSoList.length > 0) {
+        soList = authSoList.map((so: any) => ({
+          soId: so.SO_ID || so.soId || '',
+          mstSoId: so.MST_SO_ID || so.mstSoId || ''
+        })).filter((so: { soId: string }) => so.soId);
+      }
+      // authSoList가 비어있으면 기본 soId 사용
+      if (soList.length === 0) {
+        const fallbackSoId = userInfo.soId || userInfo.SO_ID || '';
+        const fallbackMstSoId = userInfo.mstSoId || userInfo.MST_SO_ID || '';
+        if (fallbackSoId) {
+          soList = [{ soId: fallbackSoId, mstSoId: fallbackMstSoId }];
         }
       }
-    } catch (e) {
-      console.log('[CustomerAPI] Failed to get SO_ID from session for address search');
+    }
+  } catch (e) {
+    console.log('[CustomerAPI] Failed to get SO_ID from session for address search');
+  }
+
+  if (soList.length === 0) {
+    console.log('[CustomerAPI] searchPostAddress: SO_ID를 찾을 수 없음');
+    return { success: false, data: [], message: 'SO_ID를 찾을 수 없습니다.' };
+  }
+
+  // 전체 지점에 대해 병렬 조회
+  console.log('[CustomerAPI] searchPostAddress (전체 지점):', soList.map(s => s.soId), '검색어:', params.DONGMYONG);
+  const promises = soList.map(so => {
+    const searchParams: Record<string, string> = {
+      SO_ID: so.soId,
+      MST_SO_ID: so.mstSoId || '200',
+      USE_FLAG: params.USE_FLAG || 'Y'
+    };
+    return apiCall<PostAddressInfo[]>('/statistics/customer/getPostList', searchParams)
+      .catch(err => {
+        console.log(`[CustomerAPI] searchPostAddress SO_ID=${so.soId} 실패:`, err);
+        return { success: false, data: [] as PostAddressInfo[], message: '' };
+      });
+  });
+
+  const results = await Promise.all(promises);
+
+  // 결과 합치기 (POST_ID로 중복 제거)
+  const seen = new Set<string>();
+  const allData: PostAddressInfo[] = [];
+  for (const result of results) {
+    if (result.success && result.data) {
+      for (const item of result.data) {
+        const key = item.POST_ID || `${item.SO_ID}_${item.DONGMYON_NM}_${item.ADDR}`;
+        if (!seen.has(key)) {
+          seen.add(key);
+          allData.push(item);
+        }
+      }
     }
   }
 
-  // DONGMYON_NM 절대 보내지 않음 - 서버 쿼리가 깨짐 (0건 반환)
-  // DONGMYONG도 서버에서 무시됨 - 클라이언트 필터링으로 처리
-  const searchParams: Record<string, string> = {
-    SO_ID: soId,
-    MST_SO_ID: mstSoId || '200',
-    USE_FLAG: params.USE_FLAG || 'Y'
-  };
-
-  console.log('[CustomerAPI] searchPostAddress:', { SO_ID: soId, search: params.DONGMYONG });
-  return apiCall<PostAddressInfo[]>('/statistics/customer/getPostList', searchParams);
+  console.log(`[CustomerAPI] searchPostAddress 전체 결과: ${allData.length}건 (${soList.length}개 지점)`);
+  return { success: true, data: allData, message: '' };
 };
 
 /**
