@@ -263,8 +263,8 @@ const PaymentInfo: React.FC<PaymentInfoProps> = ({
                     {/* 납부계정 선택 리스트 */}
                     <div className="space-y-1 mb-3">
                       {paymentAccounts.map((payment, index) => {
+                        const isWorking = currentWorkingPymAcntId === payment.PYM_ACNT_ID;
                         const isSelected = selectedPymAcntId === payment.PYM_ACNT_ID;
-                        const isWorking = isSelected;
 
                         return (
                           <div
