@@ -1855,10 +1855,68 @@ export const searchPostAddress = async (params: PostAddressSearchRequest): Promi
 
 /**
  * 도로명주소 검색 (customer/common/customercommon/getStreetAddrList)
+ * D'Live 백엔드가 STREET_NM 등 필터 파라미터를 무시하므로
+ * SO_ID로 전체 조회 후 클라이언트에서 필터링
  * @param params 검색 조건 (도로명, 건물번호 등)
  */
 export const searchStreetAddress = async (params: StreetAddressSearchRequest): Promise<ApiResponse<StreetAddressInfo[]>> => {
-  return apiCall<StreetAddressInfo[]>('/customer/common/customercommon/getStreetAddrList', params);
+  // SO_ID가 명시적으로 전달된 경우 해당 지점만 조회
+  if (params.SO_ID) {
+    console.log('[CustomerAPI] searchStreetAddress (단일):', { SO_ID: params.SO_ID });
+    return apiCall<StreetAddressInfo[]>('/customer/common/customercommon/getStreetAddrList', { SO_ID: params.SO_ID });
+  }
+
+  // SO_ID 미전달 → 세션의 authSoList 전체 지점으로 조회
+  let soList: Array<{ soId: string }> = [];
+  try {
+    const userInfoStr = sessionStorage.getItem('userInfo') || localStorage.getItem('userInfo');
+    if (userInfoStr) {
+      const userInfo = JSON.parse(userInfoStr);
+      const authSoList = userInfo.authSoList || userInfo.AUTH_SO_List || [];
+      if (authSoList.length > 0) {
+        soList = authSoList
+          .map((so: any) => ({ soId: so.SO_ID || so.soId || '' }))
+          .filter((so: { soId: string }) => so.soId);
+      }
+      if (soList.length === 0) {
+        const fallbackSoId = userInfo.soId || userInfo.SO_ID || '';
+        if (fallbackSoId) soList = [{ soId: fallbackSoId }];
+      }
+    }
+  } catch (e) {
+    console.log('[CustomerAPI] Failed to get SO_ID from session for street address search');
+  }
+
+  if (soList.length === 0) {
+    return { success: false, data: [], message: 'SO_ID를 찾을 수 없습니다.' };
+  }
+
+  // 전체 지점에 대해 병렬 조회 (SO_ID만 전송 - 다른 파라미터는 서버가 무시함)
+  console.log('[CustomerAPI] searchStreetAddress (전체 지점):', soList.map(s => s.soId));
+  const promises = soList.map(so =>
+    apiCall<StreetAddressInfo[]>('/customer/common/customercommon/getStreetAddrList', { SO_ID: so.soId })
+      .catch(() => ({ success: false, data: [] as StreetAddressInfo[], message: '' }))
+  );
+
+  const results = await Promise.all(promises);
+
+  // 결과 합치기 (STREET_ID + POST_ID로 중복 제거)
+  const seen = new Set<string>();
+  const allData: StreetAddressInfo[] = [];
+  for (const result of results) {
+    if (result.success && result.data) {
+      for (const item of result.data) {
+        const key = item.STREET_ID || `${item.SO_ID}_${item.STREET_ADDR}`;
+        if (!seen.has(key)) {
+          seen.add(key);
+          allData.push(item);
+        }
+      }
+    }
+  }
+
+  console.log(`[CustomerAPI] searchStreetAddress 전체 결과: ${allData.length}건 (${soList.length}개 지점)`);
+  return { success: true, data: allData, message: '' };
 };
 
 // ============ 유틸리티 함수 ============
@@ -1958,6 +2016,142 @@ export const maskString = (str: string, showFirst: number = 4, showLast: number 
   return str.slice(0, showFirst) + masked + str.slice(-showLast);
 };
 
+// ============ 카드 수납 (미납금 결제) ============
+
+/**
+ * 세션에서 SO_ID 가져오기
+ */
+const getSoIdFromSession = (): string => {
+  try {
+    const userInfoStr = sessionStorage.getItem('userInfo') || localStorage.getItem('userInfo');
+    if (userInfoStr) {
+      const userInfo = JSON.parse(userInfoStr);
+      const authSoList = userInfo.authSoList || userInfo.AUTH_SO_List || [];
+      if (authSoList.length > 0) {
+        return authSoList[0].SO_ID || authSoList[0].soId || '';
+      }
+      return userInfo.soId || userInfo.SO_ID || '';
+    }
+  } catch (e) {
+    console.log('[CustomerAPI] Failed to get SO_ID from session');
+  }
+  return '';
+};
+
+/**
+ * 카드사 벤더(MID) 조회
+ * API: billing/payment/anony/getCardVendorBySoId.req
+ * SO_ID로 PG 가맹점 ID(MID) 조회
+ */
+export const getCardVendorBySoId = async (soId?: string): Promise<ApiResponse<{ CARD_VENDOR: string }>> => {
+  const finalSoId = soId || getSoIdFromSession();
+  return apiCall<{ CARD_VENDOR: string }>('/billing/payment/anony/getCardVendorBySoId', {
+    SO_ID: finalSoId
+  });
+};
+
+/**
+ * 카드수납 입금 등록 (마스터 + 상세)
+ * API: billing/payment/anony/insertDpstAndDTL.req
+ *
+ * 마스터: TBLPY_CARD_DPST (order_no, pym_acnt_id, cust_id, encrypted_amt 등)
+ * 상세: TBLPY_CARD_DPST_DTL (bill_seq_no, bill_amt, rcpt_amt 등)
+ */
+export interface CardDpstParams {
+  master_store_id: string;   // MID (가맹점ID)
+  order_dt: string;          // 주문일자 YYYYMMDD
+  order_no: string;          // 주문번호
+  ctrt_so_id: string;        // 지점 SO_ID
+  pym_acnt_id: string;       // 납부계정ID
+  cust_id: string;           // 고객ID
+  prod_info_cd: string;      // 상품코드
+  encrypted_amt: string;     // 결제금액
+  reqr_nm: string;           // 요청자명
+  pyr_rel: string;           // 납부자관계
+  user_id: string;           // 등록자ID
+  rcpt_bill_emp_id: string;  // 수납담당자ID
+  smry: string;              // 적요
+  cust_email: string;        // 고객이메일
+  // 상세 리스트
+  dtlList?: CardDpstDtlItem[];
+}
+
+export interface CardDpstDtlItem {
+  master_store_id: string;
+  order_dt: string;
+  order_no: string;
+  BILL_SEQ_NO: string;       // 청구순번
+  SO_ID: string;
+  BILL_AMT: number;          // 청구금액
+  PRE_RCPT_AMT: number;      // 기수납금액
+  RCPT_AMT: number;          // 수납금액
+}
+
+export const insertDpstAndDTL = async (params: CardDpstParams): Promise<ApiResponse<any>> => {
+  return apiCall<any>('/billing/payment/anony/insertDpstAndDTL', params);
+};
+
+/**
+ * 카드결제 Stage 등록
+ * API: billing/payment/anony/insertCardPayStage.req
+ * Stage: '03'(요청) → '04'(확인) → '05'(처리중) → '06'(완료)
+ */
+export interface CardPayStageParams {
+  order_no: string;
+  order_dt: string;
+  pym_acnt_id: string;
+  encrypted_amt: string;
+  stage: string;             // '03', '04', '05', '06'
+}
+
+export const insertCardPayStage = async (params: CardPayStageParams): Promise<ApiResponse<any>> => {
+  return apiCall<any>('/billing/payment/anony/insertCardPayStage', params);
+};
+
+/**
+ * 카드결제 처리 (PG 요청)
+ * api_pay_pre_req.jsp → CardAuth_db.jsp 호출
+ * 실제로는 백엔드에서 처리
+ */
+export interface CardPaymentRequest {
+  mid: string;               // 가맹점ID
+  order_dt: string;          // 주문일자
+  oid: string;               // 주문번호
+  amount: string;            // 결제금액
+  buyer: string;             // 구매자명
+  productinfo: string;       // 상품정보
+  card_no: string;           // 카드번호
+  card_expyear: string;      // 유효기간 년 (YY)
+  card_expmon: string;       // 유효기간 월 (MM)
+  kor_id: string;            // 생년월일(6자리) 또는 사업자번호(10자리)
+  install: string;           // 할부개월 ('00'=일시불)
+  pym_acnt_id: string;       // 납부계정ID
+  encrypted_amt: string;     // 결제금액
+}
+
+export const processCardPayment = async (params: CardPaymentRequest): Promise<ApiResponse<any>> => {
+  return apiCall<any>('/billing/payment/anony/processCardPayment', params);
+};
+
+/**
+ * 주문번호 생성 (MID + YYYYMMDD + 10자리 순번)
+ */
+export const generateOrderNo = (): string => {
+  const now = new Date();
+  const pad = (n: number, len: number = 2) => String(n).padStart(len, '0');
+  const timestamp = pad(now.getHours()) + pad(now.getMinutes()) + pad(now.getSeconds());
+  const random = String(Math.floor(Math.random() * 10000)).padStart(4, '0');
+  return timestamp + random;  // 10자리
+};
+
+export const getOrderDate = (): string => {
+  const now = new Date();
+  const y = now.getFullYear();
+  const m = String(now.getMonth() + 1).padStart(2, '0');
+  const d = String(now.getDate()).padStart(2, '0');
+  return `${y}${m}${d}`;
+};
+
 export default {
   // 기본조회
   searchCustomer,
@@ -2002,6 +2196,13 @@ export default {
   // 주소검색
   searchPostAddress,
   searchStreetAddress,
+  // 카드수납
+  getCardVendorBySoId,
+  insertDpstAndDTL,
+  insertCardPayStage,
+  processCardPayment,
+  generateOrderNo,
+  getOrderDate,
   // 유틸
   formatPhoneNumber,
   maskPhoneNumber,
