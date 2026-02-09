@@ -54,7 +54,7 @@ const CustomerSearch: React.FC<CustomerSearchProps> = ({ onCustomerSelect, onCus
   const [contractId, setContractId] = useState('1003687719');
   const [phoneNumber, setPhoneNumber] = useState('01051346878');
   const [customerName, setCustomerName] = useState('푸꾸옥');
-  const [equipmentNo, setEquipmentNo] = useState('S123456789');
+  const [equipmentNo, setEquipmentNo] = useState('');
 
   // 상태
   const [isSearching, setIsSearching] = useState(false);
