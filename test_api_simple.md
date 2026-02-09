@@ -1,33 +1,33 @@
-# 완료된 작업 API 테스트 가이드
+﻿# ?꾨즺???묒뾽 API ?뚯뒪??媛?대뱶
 
-## 📋 방법 1: 스크립트 실행
+## ?뱥 諛⑸쾿 1: ?ㅽ겕由쏀듃 ?ㅽ뻾
 
-### 1. 스크립트 파일 수정
-`test_completed_work_api.sh` 파일을 열어서 다음 변수들을 실제 값으로 변경하세요:
+### 1. ?ㅽ겕由쏀듃 ?뚯씪 ?섏젙
+`test_completed_work_api.sh` ?뚯씪???댁뼱???ㅼ쓬 蹂?섎뱾???ㅼ젣 媛믪쑝濡?蹂寃쏀븯?몄슂:
 
 ```bash
-WORK_ID="YOUR_COMPLETED_WORK_ID"    # 완료된 작업 ID
-CTRT_ID="YOUR_CONTRACT_ID"          # 계약 ID
-CUST_ID="YOUR_CUSTOMER_ID"          # 고객 ID
-SO_ID="YOUR_SO_ID"                  # 지점 ID
-PROD_CD="YOUR_PROD_CD"              # 상품 코드
+WORK_ID="YOUR_COMPLETED_WORK_ID"    # ?꾨즺???묒뾽 ID
+CTRT_ID="YOUR_CONTRACT_ID"          # 怨꾩빟 ID
+CUST_ID="YOUR_CUSTOMER_ID"          # 怨좉컼 ID
+SO_ID="YOUR_SO_ID"                  # 吏??ID
+PROD_CD="YOUR_PROD_CD"              # ?곹뭹 肄붾뱶
 ```
 
-### 2. 스크립트 실행
+### 2. ?ㅽ겕由쏀듃 ?ㅽ뻾
 ```bash
-cd /Users/hanseungsu/Desktop/poby/딜라이브/dlive-json-api/mobile-cona-front
+cd /Users/hanseungsu/Desktop/poby/?쒕씪?대툕/dlive-json-api/mobile-cona-front
 ./test_completed_work_api.sh
 ```
 
 ---
 
-## 📋 방법 2: 직접 curl 명령어 실행
+## ?뱥 諛⑸쾿 2: 吏곸젒 curl 紐낅졊???ㅽ뻾
 
-### 기본 템플릿 (EC2 서버)
+### 湲곕낯 ?쒗뵆由?(EC2 ?쒕쾭)
 ```bash
-curl -X POST 'http://52.63.131.157/api/customer/work/getCustProdInfo' \
+curl -X POST 'http://52.63.232.141/api/customer/work/getCustProdInfo' \
   -H 'Content-Type: application/json' \
-  -H 'Origin: http://52.63.131.157' \
+  -H 'Origin: http://52.63.232.141' \
   --cookie-jar cookies.txt \
   --cookie cookies.txt \
   -d '{
@@ -44,11 +44,11 @@ curl -X POST 'http://52.63.131.157/api/customer/work/getCustProdInfo' \
   }' | jq '.'
 ```
 
-### 예시 (실제 데이터로 변경 필요)
+### ?덉떆 (?ㅼ젣 ?곗씠?곕줈 蹂寃??꾩슂)
 ```bash
-curl -X POST 'http://52.63.131.157/api/customer/work/getCustProdInfo' \
+curl -X POST 'http://52.63.232.141/api/customer/work/getCustProdInfo' \
   -H 'Content-Type: application/json' \
-  -H 'Origin: http://52.63.131.157' \
+  -H 'Origin: http://52.63.232.141' \
   -d '{
     "WRKR_ID": "A20130708",
     "SO_ID": "S001",
@@ -65,40 +65,40 @@ curl -X POST 'http://52.63.131.157/api/customer/work/getCustProdInfo' \
 
 ---
 
-## 🔍 확인할 항목
+## ?뵇 ?뺤씤????ぉ
 
-응답에서 다음 필드들이 있는지 확인:
+?묐떟?먯꽌 ?ㅼ쓬 ?꾨뱶?ㅼ씠 ?덈뒗吏 ?뺤씤:
 
-### 1. 작업완료 기본 정보
-- ✅ `CUST_REL` - 고객관계
-- ✅ `INSTL_LOC` - 설치위치
-- ✅ `UP_CTRL_CL` - 상향제어
-- ✅ `MEMO` - 작업비고
+### 1. ?묒뾽?꾨즺 湲곕낯 ?뺣낫
+- ??`CUST_REL` - 怨좉컼愿怨?
+- ??`INSTL_LOC` - ?ㅼ튂?꾩튂
+- ??`UP_CTRL_CL` - ?곹뼢?쒖뼱
+- ??`MEMO` - ?묒뾽鍮꾧퀬
 
-### 2. 설치정보
-- ✅ `installInfo` 객체
-  - `NET_CL` - 망구분 코드
-  - `NET_CL_NM` - 망구분 이름
-  - `INSTL_TP` - 설치유형
-  - `WRNG_TP` - 배선유형
-  - 기타 설치정보 필드들...
+### 2. ?ㅼ튂?뺣낫
+- ??`installInfo` 媛앹껜
+  - `NET_CL` - 留앷뎄遺?肄붾뱶
+  - `NET_CL_NM` - 留앷뎄遺??대쫫
+  - `INSTL_TP` - ?ㅼ튂?좏삎
+  - `WRNG_TP` - 諛곗꽑?좏삎
+  - 湲고? ?ㅼ튂?뺣낫 ?꾨뱶??..
 
-### 3. 서비스 이용구분
-- ✅ `INTERNET_USE` - 인터넷 이용
-- ✅ `VOIP_USE` - VoIP 이용
-- ✅ `DTV_USE` - 디지털방송 이용
+### 3. ?쒕퉬???댁슜援щ텇
+- ??`INTERNET_USE` - ?명꽣???댁슜
+- ??`VOIP_USE` - VoIP ?댁슜
+- ??`DTV_USE` - ?붿??몃갑???댁슜
 
-### 4. 장비 정보 (이미 확인됨)
-- ✅ `contractEquipments` (output2)
-- ✅ `technicianEquipments` (output3)
-- ✅ `customerEquipments` (output4) ← 이미 사용 중
-- ✅ `removedEquipments` (output5)
+### 4. ?λ퉬 ?뺣낫 (?대? ?뺤씤??
+- ??`contractEquipments` (output2)
+- ??`technicianEquipments` (output3)
+- ??`customerEquipments` (output4) ???대? ?ъ슜 以?
+- ??`removedEquipments` (output5)
 
 ---
 
-## 📊 응답 예시 (예상)
+## ?뱤 ?묐떟 ?덉떆 (?덉긽)
 
-### 만약 작업완료 정보가 포함되어 있다면:
+### 留뚯빟 ?묒뾽?꾨즺 ?뺣낫媛 ?ы븿?섏뼱 ?덈떎硫?
 ```json
 {
   "contractEquipments": [...],
@@ -109,9 +109,9 @@ curl -X POST 'http://52.63.131.157/api/customer/work/getCustProdInfo' \
   "prodGrp": "V",
   "workCompleteInfo": {
     "CUST_REL": "10",
-    "INSTL_LOC": "거실",
+    "INSTL_LOC": "嫄곗떎",
     "UP_CTRL_CL": "Y",
-    "MEMO": "정상 설치 완료",
+    "MEMO": "?뺤긽 ?ㅼ튂 ?꾨즺",
     "INTERNET_USE": "Y",
     "VOIP_USE": "N",
     "DTV_USE": "Y"
@@ -126,7 +126,7 @@ curl -X POST 'http://52.63.131.157/api/customer/work/getCustProdInfo' \
 }
 ```
 
-### 만약 작업완료 정보가 없다면:
+### 留뚯빟 ?묒뾽?꾨즺 ?뺣낫媛 ?녿떎硫?
 ```json
 {
   "contractEquipments": [...],
@@ -135,49 +135,49 @@ curl -X POST 'http://52.63.131.157/api/customer/work/getCustProdInfo' \
   "removedEquipments": [...],
   "kpiProdGrpCd": "V",
   "prodGrp": "V"
-  // workCompleteInfo 없음
-  // installInfo 없음
+  // workCompleteInfo ?놁쓬
+  // installInfo ?놁쓬
 }
 ```
 
 ---
 
-## 💡 다음 단계
+## ?뮕 ?ㅼ쓬 ?④퀎
 
-### ✅ 작업완료 정보가 포함되어 있다면
-→ **방법 1 진행**: `WorkCompleteForm`에서 `getTechnicianEquipments` API 응답 활용
+### ???묒뾽?꾨즺 ?뺣낫媛 ?ы븿?섏뼱 ?덈떎硫?
+??**諛⑸쾿 1 吏꾪뻾**: `WorkCompleteForm`?먯꽌 `getTechnicianEquipments` API ?묐떟 ?쒖슜
 
-### ❌ 작업완료 정보가 없다면
-→ **방법 2 진행**: 별도 `getWorkCompleteInfo` API 구현 필요
-
----
-
-## 🛠️ 브라우저 개발자 도구로 확인하기
-
-1. 완료된 작업 상세 페이지 접속
-2. F12 → Network 탭 열기
-3. `/customer/work/getCustProdInfo` 요청 찾기
-4. Response 탭에서 응답 데이터 확인
+### ???묒뾽?꾨즺 ?뺣낫媛 ?녿떎硫?
+??**諛⑸쾿 2 吏꾪뻾**: 蹂꾨룄 `getWorkCompleteInfo` API 援ы쁽 ?꾩슂
 
 ---
 
-## 📝 테스트 결과 기록
+## ?썱截?釉뚮씪?곗? 媛쒕컻???꾧뎄濡??뺤씤?섍린
 
-테스트 후 이 섹션에 결과를 기록하세요:
+1. ?꾨즺???묒뾽 ?곸꽭 ?섏씠吏 ?묒냽
+2. F12 ??Network ???닿린
+3. `/customer/work/getCustProdInfo` ?붿껌 李얘린
+4. Response ??뿉???묐떟 ?곗씠???뺤씤
+
+---
+
+## ?뱷 ?뚯뒪??寃곌낵 湲곕줉
+
+?뚯뒪???????뱀뀡??寃곌낵瑜?湲곕줉?섏꽭??
 
 ```
-테스트 일시:
-작업 ID:
-작업 상태: 완료 (WRK_STAT_CD=4)
+?뚯뒪???쇱떆:
+?묒뾽 ID:
+?묒뾽 ?곹깭: ?꾨즺 (WRK_STAT_CD=4)
 
-결과:
-[ ] workCompleteInfo 있음
-[ ] installInfo 있음
-[ ] CUST_REL 있음
-[ ] NET_CL 있음
-[ ] 서비스 이용구분 있음
+寃곌낵:
+[ ] workCompleteInfo ?덉쓬
+[ ] installInfo ?덉쓬
+[ ] CUST_REL ?덉쓬
+[ ] NET_CL ?덉쓬
+[ ] ?쒕퉬???댁슜援щ텇 ?덉쓬
 
-결론:
-[ ] 방법 1 진행 가능
-[ ] 방법 2 필요
+寃곕줎:
+[ ] 諛⑸쾿 1 吏꾪뻾 媛??
+[ ] 諛⑸쾿 2 ?꾩슂
 ```

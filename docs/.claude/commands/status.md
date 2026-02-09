@@ -1,213 +1,213 @@
+﻿---
+description: ?꾨줈?앺듃 ?꾩옱 ?곹깭 諛?吏꾪뻾?ы빆 ?뺤씤
 ---
-description: 프로젝트 현재 상태 및 진행사항 확인
----
 
-# 프로젝트 상태 확인
+# ?꾨줈?앺듃 ?곹깭 ?뺤씤
 
-D-Live 장비관리 시스템의 현재 진행 상태를 확인합니다.
+D-Live ?λ퉬愿由??쒖뒪?쒖쓽 ?꾩옱 吏꾪뻾 ?곹깭瑜??뺤씤?⑸땲??
 
-## 확인 항목
+## ?뺤씤 ??ぉ
 
-1. **Git 상태**
+1. **Git ?곹깭**
    ```bash
-   # 현재 브랜치
+   # ?꾩옱 釉뚮옖移?
    git branch
 
-   # 변경사항 확인
+   # 蹂寃쎌궗???뺤씤
    git status
 
-   # 최근 커밋
+   # 理쒓렐 而ㅻ컠
    git log --oneline -10
 
-   # 원격 브랜치와 비교
+   # ?먭꺽 釉뚮옖移섏? 鍮꾧탳
    git fetch teamart
    git log HEAD..teamart/main --oneline
    ```
 
-2. **로컬 개발 환경**
+2. **濡쒖뺄 媛쒕컻 ?섍꼍**
    ```bash
-   # Frontend 개발 서버
+   # Frontend 媛쒕컻 ?쒕쾭
    ps aux | grep vite
-   # → 실행 중: ✅ / 중지: ❌
+   # ???ㅽ뻾 以? ??/ 以묒?: ??
 
-   # API 프록시 서버
+   # API ?꾨줉???쒕쾭
    ps aux | grep api-proxy
-   # → 실행 중: ✅ / 중지: ❌
+   # ???ㅽ뻾 以? ??/ 以묒?: ??
 
-   # 포트 사용 확인
+   # ?ы듃 ?ъ슜 ?뺤씤
    lsof -i :3000  # Frontend
    lsof -i :8080  # API Proxy
    ```
 
-3. **장비관리 기능 진행 상태**
+3. **?λ퉬愿由?湲곕뒫 吏꾪뻾 ?곹깭**
 
-   | ID | 기능명 | 파일 | API | 상태 | 담당자 |
+   | ID | 湲곕뒫紐?| ?뚯씪 | API | ?곹깭 | ?대떦??|
    |----|--------|------|-----|------|--------|
-   | EM-010 | 장비 이력 조회 | EquipmentStatusView.tsx | getEquipmentHistoryInfo | ✅ 완료 | 조석현 |
-   | EM-004 | 기사 보유장비 조회 | EquipmentAssignment.tsx | getEquipmentOutList (3개) | 🔄 진행중 | 조석현 |
-   | EM-011 | 장비 작업자 이관 | EquipmentTransfer.tsx | changeEqtWrkr_3 | 🔄 계획 | 조석현 |
-   | EM-015 | 미회수 장비 조회 | EquipmentRecovery.tsx | getEquipLossInfo | 🔄 진행중 | 조석현 |
+   | EM-010 | ?λ퉬 ?대젰 議고쉶 | EquipmentStatusView.tsx | getEquipmentHistoryInfo | ???꾨즺 | 議곗꽍??|
+   | EM-004 | 湲곗궗 蹂댁쑀?λ퉬 議고쉶 | EquipmentAssignment.tsx | getEquipmentOutList (3媛? | ?봽 吏꾪뻾以?| 議곗꽍??|
+   | EM-011 | ?λ퉬 ?묒뾽???닿? | EquipmentTransfer.tsx | changeEqtWrkr_3 | ?봽 怨꾪쉷 | 議곗꽍??|
+   | EM-015 | 誘명쉶???λ퉬 議고쉶 | EquipmentRecovery.tsx | getEquipLossInfo | ?봽 吏꾪뻾以?| 議곗꽍??|
 
-4. **컴포넌트별 TODO 확인**
+4. **而댄룷?뚰듃蹂?TODO ?뺤씤**
 
    ```bash
-   # TODO 주석 검색
+   # TODO 二쇱꽍 寃??
    grep -r "TODO" mobile-cona-front/components/*.tsx | grep -v node_modules
 
-   # API 연동 필요한 부분
-   grep -r "TODO: API 연동" mobile-cona-front/components/*.tsx
+   # API ?곕룞 ?꾩슂??遺遺?
+   grep -r "TODO: API ?곕룞" mobile-cona-front/components/*.tsx
    ```
 
-5. **EC2 서버 상태** (SSH 접속 가능 시)
+5. **EC2 ?쒕쾭 ?곹깭** (SSH ?묒냽 媛????
 
    ```bash
-   # SSH 접속
-   ssh ubuntu@52.63.131.157
+   # SSH ?묒냽
+   ssh ubuntu@52.63.232.141
 
-   # PM2 상태
+   # PM2 ?곹깭
    pm2 status
 
-   # 최근 배포 커밋
+   # 理쒓렐 諛고룷 而ㅻ컠
    cd /home/ubuntu/dlive-cona-client
    git log --oneline -5
 
-   # 로그 확인
+   # 濡쒓렇 ?뺤씤
    pm2 logs dlive --lines 20
    ```
 
-6. **빌드 상태**
+6. **鍮뚮뱶 ?곹깭**
 
    ```bash
-   # TypeScript 타입 체크
+   # TypeScript ???泥댄겕
    npm run type-check
 
-   # 빌드 테스트
+   # 鍮뚮뱶 ?뚯뒪??
    npm run build
 
-   # Lint 검사
+   # Lint 寃??
    npm run lint
    ```
 
-## 출력 형식
+## 異쒕젰 ?뺤떇
 
 ```
-📊 D-Live 프로젝트 현재 상태
+?뱤 D-Live ?꾨줈?앺듃 ?꾩옱 ?곹깭
 
-🔧 Git 상태
+?뵩 Git ?곹깭
 - Current Branch: jsh/equipment-assignment
 - Behind Main: 0 commits
 - Uncommitted Changes: 2 files
-- Last Commit: abc1234 "feat: 장비 할당 UI 완성"
+- Last Commit: abc1234 "feat: ?λ퉬 ?좊떦 UI ?꾩꽦"
 
-💻 로컬 환경
-- Frontend Dev Server: ✅ Running (PID: 12345)
-- API Proxy Server: ✅ Running (PID: 67890)
-- Port 3000: ✅ LISTEN
-- Port 8080: ❌ Not in use
+?뮲 濡쒖뺄 ?섍꼍
+- Frontend Dev Server: ??Running (PID: 12345)
+- API Proxy Server: ??Running (PID: 67890)
+- Port 3000: ??LISTEN
+- Port 8080: ??Not in use
 
-📋 장비관리 기능 (Phase 1)
-- ✅ EM-010: 장비 이력 조회 (100% 완료)
-- 🔄 EM-004: 기사 보유장비 조회 (70% - UI 완성, API 3개 필요)
-- 🔄 EM-011: 장비 작업자 이관 (30% - 기획 완료)
-- 🔄 EM-015: 미회수 장비 조회 (50% - UI 완성, API 1개 필요)
+?뱥 ?λ퉬愿由?湲곕뒫 (Phase 1)
+- ??EM-010: ?λ퉬 ?대젰 議고쉶 (100% ?꾨즺)
+- ?봽 EM-004: 湲곗궗 蹂댁쑀?λ퉬 議고쉶 (70% - UI ?꾩꽦, API 3媛??꾩슂)
+- ?봽 EM-011: ?λ퉬 ?묒뾽???닿? (30% - 湲고쉷 ?꾨즺)
+- ?봽 EM-015: 誘명쉶???λ퉬 議고쉶 (50% - UI ?꾩꽦, API 1媛??꾩슂)
 
-📝 TODO 항목
-- [ ] EquipmentAssignment.tsx: 3개 API 연동 (라인 97, 103, 108)
-- [ ] EquipmentRecovery.tsx: 1개 API 연동 (라인 50)
-- [ ] EquipmentTransfer.tsx: 1개 API + 모달 (라인 96)
+?뱷 TODO ??ぉ
+- [ ] EquipmentAssignment.tsx: 3媛?API ?곕룞 (?쇱씤 97, 103, 108)
+- [ ] EquipmentRecovery.tsx: 1媛?API ?곕룞 (?쇱씤 50)
+- [ ] EquipmentTransfer.tsx: 1媛?API + 紐⑤떖 (?쇱씤 96)
 
-🚀 EC2 배포 상태
+?? EC2 諛고룷 ?곹깭
 - PM2 Status: online
 - Last Deploy: 2025-01-28 10:30:00
-- Deployed Commit: xyz7890 "feat: 장비 상태 조회 완성"
+- Deployed Commit: xyz7890 "feat: ?λ퉬 ?곹깭 議고쉶 ?꾩꽦"
 - Uptime: 2h 30m
 
-🔨 빌드 상태
-- TypeScript: ✅ No errors
-- Build: ✅ Success (dist/ 생성됨)
-- Lint: ⚠️ 3 warnings
+?뵪 鍮뚮뱶 ?곹깭
+- TypeScript: ??No errors
+- Build: ??Success (dist/ ?앹꽦??
+- Lint: ?좑툘 3 warnings
 
-🎯 다음 작업 우선순위
-1. EM-004: getEquipmentOutList API 연동 (예상: 2시간)
-2. EM-015: getEquipLossInfo API 연동 (예상: 1시간)
-3. EM-011: 장비 이관 기능 구현 (예상: 3시간)
+?렞 ?ㅼ쓬 ?묒뾽 ?곗꽑?쒖쐞
+1. EM-004: getEquipmentOutList API ?곕룞 (?덉긽: 2?쒓컙)
+2. EM-015: getEquipLossInfo API ?곕룞 (?덉긽: 1?쒓컙)
+3. EM-011: ?λ퉬 ?닿? 湲곕뒫 援ы쁽 (?덉긽: 3?쒓컙)
 
-📊 전체 진행률: 35% (1/4 완료)
+?뱤 ?꾩껜 吏꾪뻾瑜? 35% (1/4 ?꾨즺)
 ```
 
-## 자동 상태 체크 스크립트
+## ?먮룞 ?곹깭 泥댄겕 ?ㅽ겕由쏀듃
 
 ```bash
 #!/bin/bash
 # check-status.sh
 
-echo "📊 D-Live 프로젝트 상태 체크"
+echo "?뱤 D-Live ?꾨줈?앺듃 ?곹깭 泥댄겕"
 echo "================================"
 
-# Git 상태
+# Git ?곹깭
 echo ""
-echo "🔧 Git 상태:"
+echo "?뵩 Git ?곹깭:"
 echo "- Current Branch: $(git branch --show-current)"
 echo "- Uncommitted Files: $(git status --short | wc -l)"
 
-# 프로세스 확인
+# ?꾨줈?몄뒪 ?뺤씤
 echo ""
-echo "💻 로컬 환경:"
+echo "?뮲 濡쒖뺄 ?섍꼍:"
 if pgrep -f "vite" > /dev/null; then
-  echo "- Frontend Dev Server: ✅ Running"
+  echo "- Frontend Dev Server: ??Running"
 else
-  echo "- Frontend Dev Server: ❌ Stopped"
+  echo "- Frontend Dev Server: ??Stopped"
 fi
 
 if pgrep -f "api-proxy" > /dev/null; then
-  echo "- API Proxy Server: ✅ Running"
+  echo "- API Proxy Server: ??Running"
 else
-  echo "- API Proxy Server: ❌ Stopped"
+  echo "- API Proxy Server: ??Stopped"
 fi
 
-# TODO 카운트
+# TODO 移댁슫??
 echo ""
-echo "📝 TODO 항목:"
+echo "?뱷 TODO ??ぉ:"
 TODO_COUNT=$(grep -r "TODO" mobile-cona-front/components/*.tsx 2>/dev/null | wc -l)
 echo "- Total TODOs: $TODO_COUNT"
 
-# 빌드 테스트
+# 鍮뚮뱶 ?뚯뒪??
 echo ""
-echo "🔨 빌드 상태:"
+echo "?뵪 鍮뚮뱶 ?곹깭:"
 if npm run type-check > /dev/null 2>&1; then
-  echo "- TypeScript: ✅ No errors"
+  echo "- TypeScript: ??No errors"
 else
-  echo "- TypeScript: ❌ Errors found"
+  echo "- TypeScript: ??Errors found"
 fi
 
 echo ""
-echo "✅ 상태 체크 완료"
+echo "???곹깭 泥댄겕 ?꾨즺"
 ```
 
-## 상세 정보 확인
+## ?곸꽭 ?뺣낫 ?뺤씤
 
-필요 시 다음 명령어로 상세 정보 확인:
+?꾩슂 ???ㅼ쓬 紐낅졊?대줈 ?곸꽭 ?뺣낫 ?뺤씤:
 
 ```bash
-# 특정 기능 상태
+# ?뱀젙 湲곕뒫 ?곹깭
 /analyze-api /customer/equipment/getEquipmentOutList
 
-# 테스트 실행
+# ?뚯뒪???ㅽ뻾
 /test-equipment EM-004
 
-# 배포 준비 확인
+# 諛고룷 以鍮??뺤씤
 /deploy --check
 
-# 문서 확인
+# 臾몄꽌 ?뺤씤
 cat COMPREHENSIVE_GUIDE.md | grep "EM-004" -A 20
 ```
 
-## 주의사항
+## 二쇱쓽?ы빆
 
-- EC2 서버 상태는 SSH 접속 필요
-- TODO 카운트는 코드 주석 기반
-- 진행률은 수동 업데이트 필요
-- 실시간 상태는 `watch`명령어 사용:
+- EC2 ?쒕쾭 ?곹깭??SSH ?묒냽 ?꾩슂
+- TODO 移댁슫?몃뒗 肄붾뱶 二쇱꽍 湲곕컲
+- 吏꾪뻾瑜좎? ?섎룞 ?낅뜲?댄듃 ?꾩슂
+- ?ㅼ떆媛??곹깭??`watch`紐낅졊???ъ슜:
   ```bash
   watch -n 5 'pm2 status'
   ```

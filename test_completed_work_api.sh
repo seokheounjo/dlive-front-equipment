@@ -1,34 +1,34 @@
-#!/bin/bash
+﻿#!/bin/bash
 
-# 완료된 작업의 getTechnicianEquipments API 응답 확인 스크립트
-# 작업완료 정보(고객관계, 설치위치, 망구분 등)가 포함되어 있는지 확인
+# ?꾨즺???묒뾽??getTechnicianEquipments API ?묐떟 ?뺤씤 ?ㅽ겕由쏀듃
+# ?묒뾽?꾨즺 ?뺣낫(怨좉컼愿怨? ?ㅼ튂?꾩튂, 留앷뎄遺???媛 ?ы븿?섏뼱 ?덈뒗吏 ?뺤씤
 
 echo "=========================================="
-echo "완료된 작업 API 응답 구조 확인"
+echo "?꾨즺???묒뾽 API ?묐떟 援ъ“ ?뺤씤"
 echo "=========================================="
 echo ""
 
-# ⚠️ 여기에 실제 완료된 작업 정보를 입력하세요
-WORK_ID="YOUR_COMPLETED_WORK_ID"        # 완료된 작업 ID
-CTRT_ID="YOUR_CONTRACT_ID"              # 계약 ID
-CUST_ID="YOUR_CUSTOMER_ID"              # 고객 ID
-WRKR_ID="A20130708"                     # 기사 ID (테스트용)
-SO_ID="YOUR_SO_ID"                      # 지점 ID
-WRK_CD="01"                             # 작업 코드 (예: 01=신규설치)
-WRK_STAT_CD="4"                         # 작업 상태 (4=완료)
-PROD_CD="YOUR_PROD_CD"                  # 상품 코드
+# ?좑툘 ?ш린???ㅼ젣 ?꾨즺???묒뾽 ?뺣낫瑜??낅젰?섏꽭??
+WORK_ID="YOUR_COMPLETED_WORK_ID"        # ?꾨즺???묒뾽 ID
+CTRT_ID="YOUR_CONTRACT_ID"              # 怨꾩빟 ID
+CUST_ID="YOUR_CUSTOMER_ID"              # 怨좉컼 ID
+WRKR_ID="A20130708"                     # 湲곗궗 ID (?뚯뒪?몄슜)
+SO_ID="YOUR_SO_ID"                      # 吏??ID
+WRK_CD="01"                             # ?묒뾽 肄붾뱶 (?? 01=?좉퇋?ㅼ튂)
+WRK_STAT_CD="4"                         # ?묒뾽 ?곹깭 (4=?꾨즺)
+PROD_CD="YOUR_PROD_CD"                  # ?곹뭹 肄붾뱶
 
-# API Base URL - EC2 서버
-API_BASE="http://52.63.131.157/api"
-ORIGIN="http://52.63.131.157"
+# API Base URL - EC2 ?쒕쾭
+API_BASE="http://52.63.232.141/api"
+ORIGIN="http://52.63.232.141"
 
-echo "📋 요청 정보:"
+echo "?뱥 ?붿껌 ?뺣낫:"
 echo "  - WORK_ID: $WORK_ID"
 echo "  - CTRT_ID: $CTRT_ID"
-echo "  - WRK_STAT_CD: $WRK_STAT_CD (4=완료)"
+echo "  - WRK_STAT_CD: $WRK_STAT_CD (4=?꾨즺)"
 echo ""
 
-# JSON 요청 데이터
+# JSON ?붿껌 ?곗씠??
 REQUEST_JSON=$(cat <<EOF
 {
   "WRKR_ID": "$WRKR_ID",
@@ -45,14 +45,14 @@ REQUEST_JSON=$(cat <<EOF
 EOF
 )
 
-echo "📤 요청 데이터:"
+echo "?뱾 ?붿껌 ?곗씠??"
 echo "$REQUEST_JSON" | jq '.'
 echo ""
 
-echo "🚀 API 호출 중..."
+echo "?? API ?몄텧 以?.."
 echo ""
 
-# API 호출
+# API ?몄텧
 RESPONSE=$(curl -s -X POST \
   "${API_BASE}/customer/work/getCustProdInfo" \
   -H "Content-Type: application/json" \
@@ -62,62 +62,62 @@ RESPONSE=$(curl -s -X POST \
   -d "$REQUEST_JSON")
 
 echo "=========================================="
-echo "📥 API 응답:"
+echo "?뱿 API ?묐떟:"
 echo "=========================================="
 echo ""
 
-# 응답을 예쁘게 출력
+# ?묐떟???덉걯寃?異쒕젰
 echo "$RESPONSE" | jq '.'
 
 echo ""
 echo "=========================================="
-echo "🔍 주요 확인 사항:"
+echo "?뵇 二쇱슂 ?뺤씤 ?ы빆:"
 echo "=========================================="
 echo ""
 
-# 작업완료 관련 필드가 있는지 확인
-echo "1. 작업완료 기본 정보 확인:"
-echo "$RESPONSE" | jq 'if has("workCompleteInfo") then "✅ workCompleteInfo 존재" else "❌ workCompleteInfo 없음" end'
-echo "$RESPONSE" | jq 'if has("CUST_REL") then "✅ CUST_REL (고객관계) 존재: " + .CUST_REL else "❌ CUST_REL 없음" end'
-echo "$RESPONSE" | jq 'if has("INSTL_LOC") then "✅ INSTL_LOC (설치위치) 존재: " + .INSTL_LOC else "❌ INSTL_LOC 없음" end'
-echo "$RESPONSE" | jq 'if has("UP_CTRL_CL") then "✅ UP_CTRL_CL (상향제어) 존재: " + .UP_CTRL_CL else "❌ UP_CTRL_CL 없음" end'
+# ?묒뾽?꾨즺 愿???꾨뱶媛 ?덈뒗吏 ?뺤씤
+echo "1. ?묒뾽?꾨즺 湲곕낯 ?뺣낫 ?뺤씤:"
+echo "$RESPONSE" | jq 'if has("workCompleteInfo") then "??workCompleteInfo 議댁옱" else "??workCompleteInfo ?놁쓬" end'
+echo "$RESPONSE" | jq 'if has("CUST_REL") then "??CUST_REL (怨좉컼愿怨? 議댁옱: " + .CUST_REL else "??CUST_REL ?놁쓬" end'
+echo "$RESPONSE" | jq 'if has("INSTL_LOC") then "??INSTL_LOC (?ㅼ튂?꾩튂) 議댁옱: " + .INSTL_LOC else "??INSTL_LOC ?놁쓬" end'
+echo "$RESPONSE" | jq 'if has("UP_CTRL_CL") then "??UP_CTRL_CL (?곹뼢?쒖뼱) 議댁옱: " + .UP_CTRL_CL else "??UP_CTRL_CL ?놁쓬" end'
 echo ""
 
-echo "2. 설치정보 확인:"
-echo "$RESPONSE" | jq 'if has("installInfo") then "✅ installInfo 존재" else "❌ installInfo 없음" end'
-echo "$RESPONSE" | jq 'if .installInfo.NET_CL then "✅ NET_CL (망구분) 존재: " + .installInfo.NET_CL else "❌ NET_CL 없음" end'
-echo "$RESPONSE" | jq 'if .installInfo.NET_CL_NM then "✅ NET_CL_NM (망구분명) 존재: " + .installInfo.NET_CL_NM else "❌ NET_CL_NM 없음" end'
-echo "$RESPONSE" | jq 'if .installInfo.INSTL_TP then "✅ INSTL_TP (설치유형) 존재: " + .installInfo.INSTL_TP else "❌ INSTL_TP 없음" end'
+echo "2. ?ㅼ튂?뺣낫 ?뺤씤:"
+echo "$RESPONSE" | jq 'if has("installInfo") then "??installInfo 議댁옱" else "??installInfo ?놁쓬" end'
+echo "$RESPONSE" | jq 'if .installInfo.NET_CL then "??NET_CL (留앷뎄遺? 議댁옱: " + .installInfo.NET_CL else "??NET_CL ?놁쓬" end'
+echo "$RESPONSE" | jq 'if .installInfo.NET_CL_NM then "??NET_CL_NM (留앷뎄遺꾨챸) 議댁옱: " + .installInfo.NET_CL_NM else "??NET_CL_NM ?놁쓬" end'
+echo "$RESPONSE" | jq 'if .installInfo.INSTL_TP then "??INSTL_TP (?ㅼ튂?좏삎) 議댁옱: " + .installInfo.INSTL_TP else "??INSTL_TP ?놁쓬" end'
 echo ""
 
-echo "3. 서비스 이용구분 확인:"
-echo "$RESPONSE" | jq 'if has("INTERNET_USE") then "✅ INTERNET_USE 존재: " + .INTERNET_USE else "❌ INTERNET_USE 없음" end'
-echo "$RESPONSE" | jq 'if has("VOIP_USE") then "✅ VOIP_USE 존재: " + .VOIP_USE else "❌ VOIP_USE 없음" end'
-echo "$RESPONSE" | jq 'if has("DTV_USE") then "✅ DTV_USE 존재: " + .DTV_USE else "❌ DTV_USE 없음" end'
+echo "3. ?쒕퉬???댁슜援щ텇 ?뺤씤:"
+echo "$RESPONSE" | jq 'if has("INTERNET_USE") then "??INTERNET_USE 議댁옱: " + .INTERNET_USE else "??INTERNET_USE ?놁쓬" end'
+echo "$RESPONSE" | jq 'if has("VOIP_USE") then "??VOIP_USE 議댁옱: " + .VOIP_USE else "??VOIP_USE ?놁쓬" end'
+echo "$RESPONSE" | jq 'if has("DTV_USE") then "??DTV_USE 議댁옱: " + .DTV_USE else "??DTV_USE ?놁쓬" end'
 echo ""
 
-echo "4. 장비 정보 확인:"
-echo "$RESPONSE" | jq 'if .contractEquipments then "✅ contractEquipments: " + (.contractEquipments | length | tostring) + "개" else "❌ contractEquipments 없음" end'
-echo "$RESPONSE" | jq 'if .technicianEquipments then "✅ technicianEquipments: " + (.technicianEquipments | length | tostring) + "개" else "❌ technicianEquipments 없음" end'
-echo "$RESPONSE" | jq 'if .customerEquipments then "✅ customerEquipments: " + (.customerEquipments | length | tostring) + "개" else "❌ customerEquipments 없음" end'
-echo "$RESPONSE" | jq 'if .removedEquipments then "✅ removedEquipments: " + (.removedEquipments | length | tostring) + "개" else "❌ removedEquipments 없음" end'
+echo "4. ?λ퉬 ?뺣낫 ?뺤씤:"
+echo "$RESPONSE" | jq 'if .contractEquipments then "??contractEquipments: " + (.contractEquipments | length | tostring) + "媛? else "??contractEquipments ?놁쓬" end'
+echo "$RESPONSE" | jq 'if .technicianEquipments then "??technicianEquipments: " + (.technicianEquipments | length | tostring) + "媛? else "??technicianEquipments ?놁쓬" end'
+echo "$RESPONSE" | jq 'if .customerEquipments then "??customerEquipments: " + (.customerEquipments | length | tostring) + "媛? else "??customerEquipments ?놁쓬" end'
+echo "$RESPONSE" | jq 'if .removedEquipments then "??removedEquipments: " + (.removedEquipments | length | tostring) + "媛? else "??removedEquipments ?놁쓬" end'
 echo ""
 
 echo "=========================================="
-echo "💡 결론:"
+echo "?뮕 寃곕줎:"
 echo "=========================================="
 echo ""
-echo "위 결과를 보고 다음을 확인하세요:"
+echo "??寃곌낵瑜?蹂닿퀬 ?ㅼ쓬???뺤씤?섏꽭??"
 echo ""
-echo "✅ 작업완료 정보가 포함되어 있다면:"
-echo "   → 방법 1 진행: WorkCompleteForm에서 이 API 응답을 활용"
+echo "???묒뾽?꾨즺 ?뺣낫媛 ?ы븿?섏뼱 ?덈떎硫?"
+echo "   ??諛⑸쾿 1 吏꾪뻾: WorkCompleteForm?먯꽌 ??API ?묐떟???쒖슜"
 echo ""
-echo "❌ 작업완료 정보가 없다면:"
-echo "   → 방법 2 진행: 별도 getWorkCompleteInfo API 필요"
+echo "???묒뾽?꾨즺 ?뺣낫媛 ?녿떎硫?"
+echo "   ??諛⑸쾿 2 吏꾪뻾: 蹂꾨룄 getWorkCompleteInfo API ?꾩슂"
 echo ""
 echo "=========================================="
 
-# 응답을 파일로 저장
+# ?묐떟???뚯씪濡????
 echo "$RESPONSE" > completed_work_response.json
-echo "📁 전체 응답이 completed_work_response.json에 저장되었습니다."
+echo "?뱚 ?꾩껜 ?묐떟??completed_work_response.json????λ릺?덉뒿?덈떎."
 echo ""

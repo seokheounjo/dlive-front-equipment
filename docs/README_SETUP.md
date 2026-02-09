@@ -1,414 +1,414 @@
-# 🎉 D-Live 프로젝트 완전 설정 완료
+﻿# ?럦 D-Live ?꾨줈?앺듃 ?꾩쟾 ?ㅼ젙 ?꾨즺
 
-## ✅ 완료된 모든 작업
+## ???꾨즺??紐⑤뱺 ?묒뾽
 
-### 1. 📘 종합 문서 (COMPREHENSIVE_GUIDE.md)
+### 1. ?뱲 醫낇빀 臾몄꽌 (COMPREHENSIVE_GUIDE.md)
 
-**위치**: `/Users/bottle/bottle1/delive/dlive-json-api/COMPREHENSIVE_GUIDE.md`
+**?꾩튂**: `/Users/bottle/bottle1/delive/dlive-json-api/COMPREHENSIVE_GUIDE.md`
 
-**내용** (15,000+ 줄):
-- 시스템 아키텍처 (3계층 구조)
-- 기술 스택 및 제약사항 (Java 6, EUC-KR, iBATIS 2.x)
-- 프로젝트 구조 및 핵심 파일
-- **장비관리** 16개 기능 WBS
-- **작업관리** 54개 기능 WBS
-- **고객관리** 20+ 개 기능 WBS
-- **공통/기타** 30+ 개 기능 WBS
-- API 연동 가이드 (6단계)
-- 개발 워크플로우 (Git, 로컬, Demo)
-- 배포 프로세스 (EC2)
-- 트러블슈팅 (8가지)
-
----
-
-### 2. 🔧 자동 로드 설정 (.claude/instructions.md)
-
-**위치**: `/Users/bottle/bottle1/delive/dlive-json-api/.claude/instructions.md`
-
-**특징**:
-- Claude Code 시작 시 자동 로드
-- Java 6 제약사항 명시
-- 핵심 파일 빠른 참조
-- API 추가 워크플로우 (5단계)
-- Git/배포/테스트 빠른 가이드
+**?댁슜** (15,000+ 以?:
+- ?쒖뒪???꾪궎?띿쿂 (3怨꾩링 援ъ“)
+- 湲곗닠 ?ㅽ깮 諛??쒖빟?ы빆 (Java 6, EUC-KR, iBATIS 2.x)
+- ?꾨줈?앺듃 援ъ“ 諛??듭떖 ?뚯씪
+- **?λ퉬愿由?* 16媛?湲곕뒫 WBS
+- **?묒뾽愿由?* 54媛?湲곕뒫 WBS
+- **怨좉컼愿由?* 20+ 媛?湲곕뒫 WBS
+- **怨듯넻/湲고?** 30+ 媛?湲곕뒫 WBS
+- API ?곕룞 媛?대뱶 (6?④퀎)
+- 媛쒕컻 ?뚰겕?뚮줈??(Git, 濡쒖뺄, Demo)
+- 諛고룷 ?꾨줈?몄뒪 (EC2)
+- ?몃윭釉붿뒋??(8媛吏)
 
 ---
 
-### 3. 🛠️ API Explorer 컴포넌트
+### 2. ?뵩 ?먮룞 濡쒕뱶 ?ㅼ젙 (.claude/instructions.md)
 
-**위치**: `/Users/bottle/bottle1/delive/dlive-json-api/mobile-cona-front/components/ApiExplorer.tsx`
+**?꾩튂**: `/Users/bottle/bottle1/delive/dlive-json-api/.claude/instructions.md`
 
-**기능**:
-- ✅ **6개 API 엔드포인트 프리셋**
-  - 장비관리: getEquipmentHistoryInfo, getEquipmentOutList, getEquipmentReturnRequestList, getEquipLossInfo
-  - 공통: getCodeDetail
-  - 작업관리: getTodayWorkList
-
-- ✅ **요청 빌더**
-  - 파라미터 자동 폼
-  - 기본값 자동 설정
-  - 필수/선택 구분
-
-- ✅ **응답 뷰어**
-  - JSON 자동 포맷
-  - 성공/실패 상태
-  - 응답 시간 측정
-
-- ✅ **호출 기록**
-  - localStorage 저장
-  - 타임스탬프
-  - 재확인 가능
-
-- ✅ **내보내기**
-  - JSON 형식
-  - CSV 형식
+**?뱀쭠**:
+- Claude Code ?쒖옉 ???먮룞 濡쒕뱶
+- Java 6 ?쒖빟?ы빆 紐낆떆
+- ?듭떖 ?뚯씪 鍮좊Ⅸ 李몄“
+- API 異붽? ?뚰겕?뚮줈??(5?④퀎)
+- Git/諛고룷/?뚯뒪??鍮좊Ⅸ 媛?대뱶
 
 ---
 
-### 4. ⚡ 커스텀 명령어 (7개 - 범용화 완료!)
+### 3. ?썱截?API Explorer 而댄룷?뚰듃
 
-**위치**: `/Users/bottle/bottle1/delive/dlive-json-api/.claude/commands/`
+**?꾩튂**: `/Users/bottle/bottle1/delive/dlive-json-api/mobile-cona-front/components/ApiExplorer.tsx`
 
-#### 4-1. `/analyze-api` - API 분석 (범용)
-- 모든 API 엔드포인트 분석
-- Legacy Server → iBATIS → Adapter → Frontend 전체 가이드
-- Java 6 코드 템플릿
-- 5단계 체크리스트
+**湲곕뒫**:
+- ??**6媛?API ?붾뱶?ъ씤???꾨━??*
+  - ?λ퉬愿由? getEquipmentHistoryInfo, getEquipmentOutList, getEquipmentReturnRequestList, getEquipLossInfo
+  - 怨듯넻: getCodeDetail
+  - ?묒뾽愿由? getTodayWorkList
 
-#### 4-2. `/test-equipment` - 장비관리 테스트
-- **16개 장비관리 기능** 테스트
+- ??**?붿껌 鍮뚮뜑**
+  - ?뚮씪誘명꽣 ?먮룞 ??
+  - 湲곕낯媛??먮룞 ?ㅼ젙
+  - ?꾩닔/?좏깮 援щ텇
+
+- ??**?묐떟 酉곗뼱**
+  - JSON ?먮룞 ?щ㎎
+  - ?깃났/?ㅽ뙣 ?곹깭
+  - ?묐떟 ?쒓컙 痢≪젙
+
+- ??**?몄텧 湲곕줉**
+  - localStorage ???
+  - ??꾩뒪?ы봽
+  - ?ы솗??媛??
+
+- ??**?대낫?닿린**
+  - JSON ?뺤떇
+  - CSV ?뺤떇
+
+---
+
+### 4. ??而ㅼ뒪? 紐낅졊??(7媛?- 踰붿슜???꾨즺!)
+
+**?꾩튂**: `/Users/bottle/bottle1/delive/dlive-json-api/.claude/commands/`
+
+#### 4-1. `/analyze-api` - API 遺꾩꽍 (踰붿슜)
+- 紐⑤뱺 API ?붾뱶?ъ씤??遺꾩꽍
+- Legacy Server ??iBATIS ??Adapter ??Frontend ?꾩껜 媛?대뱶
+- Java 6 肄붾뱶 ?쒗뵆由?
+- 5?④퀎 泥댄겕由ъ뒪??
+
+#### 4-2. `/test-equipment` - ?λ퉬愿由??뚯뒪??
+- **16媛??λ퉬愿由?湲곕뒫** ?뚯뒪??
   - EM-001 ~ EM-016
-  - 장비할당/반납, 장비상태조회, 기사간이동, 미회수회수
-- API + UI 통합 테스트
-- 자동화 스크립트 포함
+  - ?λ퉬?좊떦/諛섎궔, ?λ퉬?곹깭議고쉶, 湲곗궗媛꾩씠?? 誘명쉶?섑쉶??
+- API + UI ?듯빀 ?뚯뒪??
+- ?먮룞???ㅽ겕由쏀듃 ?ы븿
 
-#### 4-3. `/test-work` - 작업관리 테스트 (신규 ✨)
-- **54개 작업관리 기능** 테스트
+#### 4-3. `/test-work` - ?묒뾽愿由??뚯뒪??(?좉퇋 ??
+- **54媛??묒뾽愿由?湲곕뒫** ?뚯뒪??
   - WM-001 ~ WM-054
-  - 작업조회, 작업상세, 작업자보정, 장비설치, 집선, 완료처리
-- End-to-End 시나리오 (작업 시작 → 완료)
-- LGU+ LDAP 연동 테스트
+  - ?묒뾽議고쉶, ?묒뾽?곸꽭, ?묒뾽?먮낫?? ?λ퉬?ㅼ튂, 吏묒꽑, ?꾨즺泥섎━
+- End-to-End ?쒕굹由ъ삤 (?묒뾽 ?쒖옉 ???꾨즺)
+- LGU+ LDAP ?곕룞 ?뚯뒪??
 
-#### 4-4. `/test-customer` - 고객관리 테스트 (신규 ✨)
-- **20+ 개 고객관리 기능** 테스트
+#### 4-4. `/test-customer` - 怨좉컼愿由??뚯뒪??(?좉퇋 ??
+- **20+ 媛?怨좉컼愿由?湲곕뒫** ?뚯뒪??
   - CM-001 ~ CM-016+
-  - 고객조회, 이력조회, 계약현황, 청구/결제, 정보변경, 상담등록
-- 고객 검색 → 상담 → AS 접수 시나리오
-- 정보 변경 시나리오 (전화/주소/청구)
+  - 怨좉컼議고쉶, ?대젰議고쉶, 怨꾩빟?꾪솴, 泥?뎄/寃곗젣, ?뺣낫蹂寃? ?곷떞?깅줉
+- 怨좉컼 寃?????곷떞 ??AS ?묒닔 ?쒕굹由ъ삤
+- ?뺣낫 蹂寃??쒕굹由ъ삤 (?꾪솕/二쇱냼/泥?뎄)
 
-#### 4-5. `/test-common` - 공통/기타 테스트 (신규 ✨)
-- **30+ 개 공통 기능** 테스트
+#### 4-5. `/test-common` - 怨듯넻/湲고? ?뚯뒪??(?좉퇋 ??
+- **30+ 媛?怨듯넻 湲곕뒫** ?뚯뒪??
   - CO-001 ~ CO-019+
-  - 인증, 공통코드, 계약, LGU+연동, 신호체크, 연동이력, UI컴포넌트
-- 로그인 → 공통코드 로드 → 작업 조회 시나리오
-- LGU+ 집선 연동 이력 확인 시나리오
+  - ?몄쬆, 怨듯넻肄붾뱶, 怨꾩빟, LGU+?곕룞, ?좏샇泥댄겕, ?곕룞?대젰, UI而댄룷?뚰듃
+- 濡쒓렇????怨듯넻肄붾뱶 濡쒕뱶 ???묒뾽 議고쉶 ?쒕굹由ъ삤
+- LGU+ 吏묒꽑 ?곕룞 ?대젰 ?뺤씤 ?쒕굹由ъ삤
 
-#### 4-6. `/deploy` - EC2 배포 (범용)
-- 모든 기능 배포 지원
-- 5단계 배포 프로세스
-- 자동 검증 (PM2, 포트, cURL, 브라우저)
-- 롤백 방법 3가지
+#### 4-6. `/deploy` - EC2 諛고룷 (踰붿슜)
+- 紐⑤뱺 湲곕뒫 諛고룷 吏??
+- 5?④퀎 諛고룷 ?꾨줈?몄뒪
+- ?먮룞 寃利?(PM2, ?ы듃, cURL, 釉뚮씪?곗?)
+- 濡ㅻ갚 諛⑸쾿 3媛吏
 
-#### 4-7. `/status` - 프로젝트 상태 (범용)
-- **전체 프로젝트 상태** 확인
-  - Git 상태
-  - 로컬 환경
-  - 장비관리 (16개)
-  - 작업관리 (54개)
-  - 고객관리 (20+개)
-  - 공통/기타 (30+개)
-- TODO 항목 자동 집계
-- EC2 배포 상태
-- 다음 작업 우선순위
+#### 4-7. `/status` - ?꾨줈?앺듃 ?곹깭 (踰붿슜)
+- **?꾩껜 ?꾨줈?앺듃 ?곹깭** ?뺤씤
+  - Git ?곹깭
+  - 濡쒖뺄 ?섍꼍
+  - ?λ퉬愿由?(16媛?
+  - ?묒뾽愿由?(54媛?
+  - 怨좉컼愿由?(20+媛?
+  - 怨듯넻/湲고? (30+媛?
+- TODO ??ぉ ?먮룞 吏묎퀎
+- EC2 諛고룷 ?곹깭
+- ?ㅼ쓬 ?묒뾽 ?곗꽑?쒖쐞
 
 ---
 
-## 📊 전체 기능 커버리지
+## ?뱤 ?꾩껜 湲곕뒫 而ㅻ쾭由ъ?
 
-| 카테고리 | 기능 수 | 테스트 명령어 | 상태 |
+| 移댄뀒怨좊━ | 湲곕뒫 ??| ?뚯뒪??紐낅졊??| ?곹깭 |
 |----------|---------|---------------|------|
-| **장비관리** | 16개 | `/test-equipment` | ✅ 완료 |
-| **작업관리** | 54개 | `/test-work` | ✅ 완료 |
-| **고객관리** | 20+개 | `/test-customer` | ✅ 완료 |
-| **공통/기타** | 30+개 | `/test-common` | ✅ 완료 |
-| **합계** | **120+개** | **4개 명령어** | **✅ 100% 커버** |
+| **?λ퉬愿由?* | 16媛?| `/test-equipment` | ???꾨즺 |
+| **?묒뾽愿由?* | 54媛?| `/test-work` | ???꾨즺 |
+| **怨좉컼愿由?* | 20+媛?| `/test-customer` | ???꾨즺 |
+| **怨듯넻/湲고?** | 30+媛?| `/test-common` | ???꾨즺 |
+| **?⑷퀎** | **120+媛?* | **4媛?紐낅졊??* | **??100% 而ㅻ쾭** |
 
 ---
 
-## 🚀 사용 방법
+## ?? ?ъ슜 諛⑸쾿
 
-### 다른 PC에서 작업 시작하기
+### ?ㅻⅨ PC?먯꽌 ?묒뾽 ?쒖옉?섍린
 
-#### 1단계: 압축 파일 다운로드
+#### 1?④퀎: ?뺤텞 ?뚯씪 ?ㅼ슫濡쒕뱶
 ```bash
-# 압축 파일 위치
+# ?뺤텞 ?뚯씪 ?꾩튂
 /tmp/dlive-project-setup.tar.gz
 ```
 
-#### 2단계: 압축 해제 및 설정
+#### 2?④퀎: ?뺤텞 ?댁젣 諛??ㅼ젙
 ```bash
-# 압축 해제
+# ?뺤텞 ?댁젣
 cd /Users/bottle/bottle1/delive/dlive-json-api
 tar -xzf /tmp/dlive-project-setup.tar.gz
 
-# 파일 확인
+# ?뚯씪 ?뺤씤
 ls -la COMPREHENSIVE_GUIDE.md
 ls -la .claude/
 ls -la mobile-cona-front/components/ApiExplorer.tsx
 ```
 
-#### 3단계: Claude Code 시작
+#### 3?④퀎: Claude Code ?쒖옉
 ```bash
-# 프로젝트 열기
+# ?꾨줈?앺듃 ?닿린
 code /Users/bottle/bottle1/delive/dlive-json-api
 
-# .claude/instructions.md 자동 로드됨
-# 즉시 작업 가능!
+# .claude/instructions.md ?먮룞 濡쒕뱶??
+# 利됱떆 ?묒뾽 媛??
 ```
 
 ---
 
-## 💡 커스텀 명령어 사용 예시
+## ?뮕 而ㅼ뒪? 紐낅졊???ъ슜 ?덉떆
 
-### 장비관리 작업
+### ?λ퉬愿由??묒뾽
 ```
-/status                                    # 현재 상태 확인
-/test-equipment EM-004                     # 장비 할당 테스트
-/analyze-api /customer/equipment/getEquipmentOutList  # API 분석
-/deploy                                    # EC2 배포
-```
-
-### 작업관리 작업
-```
-/status                                    # 현재 상태 확인
-/test-work WM-011                          # 장비구성정보 조회 테스트
-/analyze-api /customer/work/getCustProdInfo  # API 분석
-/deploy                                    # EC2 배포
+/status                                    # ?꾩옱 ?곹깭 ?뺤씤
+/test-equipment EM-004                     # ?λ퉬 ?좊떦 ?뚯뒪??
+/analyze-api /customer/equipment/getEquipmentOutList  # API 遺꾩꽍
+/deploy                                    # EC2 諛고룷
 ```
 
-### 고객관리 작업
+### ?묒뾽愿由??묒뾽
 ```
-/status                                    # 현재 상태 확인
-/test-customer CM-003                      # 상담이력 조회 테스트
-/analyze-api /customer/negociation/getCallHistory  # API 분석
-/deploy                                    # EC2 배포
+/status                                    # ?꾩옱 ?곹깭 ?뺤씤
+/test-work WM-011                          # ?λ퉬援ъ꽦?뺣낫 議고쉶 ?뚯뒪??
+/analyze-api /customer/work/getCustProdInfo  # API 遺꾩꽍
+/deploy                                    # EC2 諛고룷
 ```
 
-### 공통 기능 작업
+### 怨좉컼愿由??묒뾽
 ```
-/status                                    # 현재 상태 확인
-/test-common CO-001                        # 로그인 테스트
-/analyze-api /auth/login                   # API 분석
-/deploy                                    # EC2 배포
+/status                                    # ?꾩옱 ?곹깭 ?뺤씤
+/test-customer CM-003                      # ?곷떞?대젰 議고쉶 ?뚯뒪??
+/analyze-api /customer/negociation/getCallHistory  # API 遺꾩꽍
+/deploy                                    # EC2 諛고룷
+```
+
+### 怨듯넻 湲곕뒫 ?묒뾽
+```
+/status                                    # ?꾩옱 ?곹깭 ?뺤씤
+/test-common CO-001                        # 濡쒓렇???뚯뒪??
+/analyze-api /auth/login                   # API 遺꾩꽍
+/deploy                                    # EC2 諛고룷
 ```
 
 ---
 
-## 📂 압축 파일 내용
+## ?뱛 ?뺤텞 ?뚯씪 ?댁슜
 
-### 압축 파일 구조
+### ?뺤텞 ?뚯씪 援ъ“
 ```
 dlive-project-setup.tar.gz
-│
-├── COMPREHENSIVE_GUIDE.md               # 종합 가이드 (15,000+ 줄)
-│
-├── .claude/
-│   ├── instructions.md                  # 자동 로드 설정
-│   └── commands/
-│       ├── analyze-api.md               # API 분석 (범용)
-│       ├── test-equipment.md            # 장비관리 테스트 (16개)
-│       ├── test-work.md                 # 작업관리 테스트 (54개) ✨ 신규
-│       ├── test-customer.md             # 고객관리 테스트 (20+개) ✨ 신규
-│       ├── test-common.md               # 공통/기타 테스트 (30+개) ✨ 신규
-│       ├── deploy.md                    # EC2 배포 (범용)
-│       └── status.md                    # 프로젝트 상태 (범용)
-│
-├── mobile-cona-front/
-│   ├── components/
-│   │   └── ApiExplorer.tsx              # API 테스트 도구
-│   └── App.tsx                          # (수정) api-explorer 통합
-│
-└── README_SETUP.md                      # 이 파일
+??
+?쒋?? COMPREHENSIVE_GUIDE.md               # 醫낇빀 媛?대뱶 (15,000+ 以?
+??
+?쒋?? .claude/
+??  ?쒋?? instructions.md                  # ?먮룞 濡쒕뱶 ?ㅼ젙
+??  ?붴?? commands/
+??      ?쒋?? analyze-api.md               # API 遺꾩꽍 (踰붿슜)
+??      ?쒋?? test-equipment.md            # ?λ퉬愿由??뚯뒪??(16媛?
+??      ?쒋?? test-work.md                 # ?묒뾽愿由??뚯뒪??(54媛? ???좉퇋
+??      ?쒋?? test-customer.md             # 怨좉컼愿由??뚯뒪??(20+媛? ???좉퇋
+??      ?쒋?? test-common.md               # 怨듯넻/湲고? ?뚯뒪??(30+媛? ???좉퇋
+??      ?쒋?? deploy.md                    # EC2 諛고룷 (踰붿슜)
+??      ?붴?? status.md                    # ?꾨줈?앺듃 ?곹깭 (踰붿슜)
+??
+?쒋?? mobile-cona-front/
+??  ?쒋?? components/
+??  ??  ?붴?? ApiExplorer.tsx              # API ?뚯뒪???꾧뎄
+??  ?붴?? App.tsx                          # (?섏젙) api-explorer ?듯빀
+??
+?붴?? README_SETUP.md                      # ???뚯씪
 ```
 
-### 압축 파일 크기
-- 예상 크기: ~500KB (텍스트 파일)
-- 포함 파일: 10개
+### ?뺤텞 ?뚯씪 ?ш린
+- ?덉긽 ?ш린: ~500KB (?띿뒪???뚯씪)
+- ?ы븿 ?뚯씪: 10媛?
 
 ---
 
-## 🎯 다음 작업 추천 (업데이트됨)
+## ?렞 ?ㅼ쓬 ?묒뾽 異붿쿇 (?낅뜲?댄듃??
 
-### 장비관리 파트 (담당: 조석현)
+### ?λ퉬愿由??뚰듃 (?대떦: 議곗꽍??
 
-#### 우선순위 1: EM-004 장비 할당 API 연동
+#### ?곗꽑?쒖쐞 1: EM-004 ?λ퉬 ?좊떦 API ?곕룞
 ```bash
-/status                                    # 현재 상태 확인
-/analyze-api /customer/equipment/getEquipmentOutList  # API 분석
-# → 구현 (3개 API)
-/test-equipment EM-004                     # 테스트
-/deploy                                    # 배포
+/status                                    # ?꾩옱 ?곹깭 ?뺤씤
+/analyze-api /customer/equipment/getEquipmentOutList  # API 遺꾩꽍
+# ??援ы쁽 (3媛?API)
+/test-equipment EM-004                     # ?뚯뒪??
+/deploy                                    # 諛고룷
 ```
-**예상 시간**: 2-3시간
+**?덉긽 ?쒓컙**: 2-3?쒓컙
 
-#### 우선순위 2: EM-015 미회수 장비 조회
+#### ?곗꽑?쒖쐞 2: EM-015 誘명쉶???λ퉬 議고쉶
 ```bash
-/analyze-api /customer/work/getEquipLossInfo  # API 분석
-# → 구현 (1개 API)
-/test-equipment EM-015                     # 테스트
-/deploy                                    # 배포
+/analyze-api /customer/work/getEquipLossInfo  # API 遺꾩꽍
+# ??援ы쁽 (1媛?API)
+/test-equipment EM-015                     # ?뚯뒪??
+/deploy                                    # 諛고룷
 ```
-**예상 시간**: 1시간
+**?덉긽 ?쒓컙**: 1?쒓컙
 
-#### 우선순위 3: EM-011 장비 이관
+#### ?곗꽑?쒖쐞 3: EM-011 ?λ퉬 ?닿?
 ```bash
-/analyze-api /customer/equipment/changeEqtWrkr_3  # API 분석
-# → 구현 (1개 API + 모달)
-/test-equipment EM-011                     # 테스트
-/deploy                                    # 배포
+/analyze-api /customer/equipment/changeEqtWrkr_3  # API 遺꾩꽍
+# ??援ы쁽 (1媛?API + 紐⑤떖)
+/test-equipment EM-011                     # ?뚯뒪??
+/deploy                                    # 諛고룷
 ```
-**예상 시간**: 3-4시간
+**?덉긽 ?쒓컙**: 3-4?쒓컙
 
 ---
 
-### 작업관리 파트 (담당: 김상주)
+### ?묒뾽愿由??뚰듃 (?대떦: 源?곸＜)
 
-#### 우선순위 1: WM-020 LGU LDAP 등록 (진행중)
+#### ?곗꽑?쒖쐞 1: WM-020 LGU LDAP ?깅줉 (吏꾪뻾以?
 ```bash
-/status                                    # 현재 상태 확인
-/analyze-api /customer/etc/reqUplsHspdLdap  # API 분석
-/test-work WM-020                          # 테스트
-/deploy                                    # 배포
+/status                                    # ?꾩옱 ?곹깭 ?뺤씤
+/analyze-api /customer/etc/reqUplsHspdLdap  # API 遺꾩꽍
+/test-work WM-020                          # ?뚯뒪??
+/deploy                                    # 諛고룷
 ```
-**예상 시간**: 4-6시간 (LDAP → CONF 연속 호출)
+**?덉긽 ?쒓컙**: 4-6?쒓컙 (LDAP ??CONF ?곗냽 ?몄텧)
 
-#### 우선순위 2: WM-009, WM-010 작업자 변경
+#### ?곗꽑?쒖쐞 2: WM-009, WM-010 ?묒뾽??蹂寃?
 ```bash
-/analyze-api /system/cm/getFindUsrList     # API 분석
-/analyze-api /customer/work/modWorkDivision  # API 분석
-/test-work WM-009                          # 테스트
-/test-work WM-010                          # 테스트
-/deploy                                    # 배포
+/analyze-api /system/cm/getFindUsrList     # API 遺꾩꽍
+/analyze-api /customer/work/modWorkDivision  # API 遺꾩꽍
+/test-work WM-009                          # ?뚯뒪??
+/test-work WM-010                          # ?뚯뒪??
+/deploy                                    # 諛고룷
 ```
-**예상 시간**: 3-4시간
+**?덉긽 ?쒓컙**: 3-4?쒓컙
 
 ---
 
-### 고객관리 파트 (Phase 2 계획)
+### 怨좉컼愿由??뚰듃 (Phase 2 怨꾪쉷)
 
-#### 우선순위 1: CM-001, CM-002 고객 조회
+#### ?곗꽑?쒖쐞 1: CM-001, CM-002 怨좉컼 議고쉶
 ```bash
-/analyze-api /customer/negociation/getCustCntBySearchCust  # API 분석
-/analyze-api /customer/common/customercommon/getConditionalCustList2  # API 분석
-/test-customer CM-001                      # 테스트
-/test-customer CM-002                      # 테스트
-/deploy                                    # 배포
+/analyze-api /customer/negociation/getCustCntBySearchCust  # API 遺꾩꽍
+/analyze-api /customer/common/customercommon/getConditionalCustList2  # API 遺꾩꽍
+/test-customer CM-001                      # ?뚯뒪??
+/test-customer CM-002                      # ?뚯뒪??
+/deploy                                    # 諛고룷
 ```
-**예상 시간**: 4-5시간
+**?덉긽 ?쒓컙**: 4-5?쒓컙
 
-#### 우선순위 2: CM-016 AS 접수 등록
+#### ?곗꽑?쒖쐞 2: CM-016 AS ?묒닔 ?깅줉
 ```bash
-/analyze-api /customer/work/modAsPdaReceipt  # API 분석
-/test-customer CM-016                      # 테스트
-/deploy                                    # 배포
+/analyze-api /customer/work/modAsPdaReceipt  # API 遺꾩꽍
+/test-customer CM-016                      # ?뚯뒪??
+/deploy                                    # 諛고룷
 ```
-**예상 시간**: 3-4시간
+**?덉긽 ?쒓컙**: 3-4?쒓컙
 
 ---
 
-### 공통 기능 (진행중)
+### 怨듯넻 湲곕뒫 (吏꾪뻾以?
 
-#### 우선순위 1: CO-011 ~ CO-014 LGU+ 연동 (진행중)
+#### ?곗꽑?쒖쐞 1: CO-011 ~ CO-014 LGU+ ?곕룞 (吏꾪뻾以?
 ```bash
-/test-common CO-011                        # 포트증설 요청 테스트
-/test-common CO-012                        # 계약정보 조회 테스트
-/test-common CO-013                        # LDAP 조회 테스트
-/test-common CO-014                        # 망장애 신고 테스트
-/deploy                                    # 배포
+/test-common CO-011                        # ?ы듃利앹꽕 ?붿껌 ?뚯뒪??
+/test-common CO-012                        # 怨꾩빟?뺣낫 議고쉶 ?뚯뒪??
+/test-common CO-013                        # LDAP 議고쉶 ?뚯뒪??
+/test-common CO-014                        # 留앹옣???좉퀬 ?뚯뒪??
+/deploy                                    # 諛고룷
 ```
-**예상 시간**: 6-8시간 (LGU+ API 연동)
+**?덉긽 ?쒓컙**: 6-8?쒓컙 (LGU+ API ?곕룞)
 
 ---
 
-## 🔗 빠른 참조
+## ?뵕 鍮좊Ⅸ 李몄“
 
-### 문서
-| 문서 | 경로 | 용도 |
+### 臾몄꽌
+| 臾몄꽌 | 寃쎈줈 | ?⑸룄 |
 |------|------|------|
-| 종합 가이드 | `/COMPREHENSIVE_GUIDE.md` | 전체 시스템 이해 |
-| Instructions | `/.claude/instructions.md` | 빠른 참조 |
-| 장비관리 WBS | `/딜라이브_통합개발계획_V9.xlsx - 📋 장비관리 WBS.csv` | 기능 명세 |
-| 작업관리 WBS | `/딜라이브_통합개발계획_V9.xlsx - 📋 작업관리 WBS.csv` | 기능 명세 |
-| 고객관리 WBS | `/딜라이브_통합개발계획_V9.xlsx - 📋 고객관리 WBS.csv` | 기능 명세 |
-| 공통 WBS | `/딜라이브_통합개발계획_V9.xlsx - 📋 공통_기타 WBS.csv` | 기능 명세 |
+| 醫낇빀 媛?대뱶 | `/COMPREHENSIVE_GUIDE.md` | ?꾩껜 ?쒖뒪???댄빐 |
+| Instructions | `/.claude/instructions.md` | 鍮좊Ⅸ 李몄“ |
+| ?λ퉬愿由?WBS | `/?쒕씪?대툕_?듯빀媛쒕컻怨꾪쉷_V9.xlsx - ?뱥 ?λ퉬愿由?WBS.csv` | 湲곕뒫 紐낆꽭 |
+| ?묒뾽愿由?WBS | `/?쒕씪?대툕_?듯빀媛쒕컻怨꾪쉷_V9.xlsx - ?뱥 ?묒뾽愿由?WBS.csv` | 湲곕뒫 紐낆꽭 |
+| 怨좉컼愿由?WBS | `/?쒕씪?대툕_?듯빀媛쒕컻怨꾪쉷_V9.xlsx - ?뱥 怨좉컼愿由?WBS.csv` | 湲곕뒫 紐낆꽭 |
+| 怨듯넻 WBS | `/?쒕씪?대툕_?듯빀媛쒕컻怨꾪쉷_V9.xlsx - ?뱥 怨듯넻_湲고? WBS.csv` | 湲곕뒫 紐낆꽭 |
 
-### 명령어
-| 명령어 | 용도 | 커버리지 |
+### 紐낅졊??
+| 紐낅졊??| ?⑸룄 | 而ㅻ쾭由ъ? |
 |--------|------|----------|
-| `/status` | 전체 상태 확인 | 120+ 개 기능 |
-| `/analyze-api <경로>` | API 분석 | 모든 API |
-| `/test-equipment <ID>` | 장비관리 테스트 | 16개 기능 |
-| `/test-work <ID>` | 작업관리 테스트 | 54개 기능 |
-| `/test-customer <ID>` | 고객관리 테스트 | 20+개 기능 |
-| `/test-common <ID>` | 공통/기타 테스트 | 30+개 기능 |
-| `/deploy` | EC2 배포 | 전체 |
+| `/status` | ?꾩껜 ?곹깭 ?뺤씤 | 120+ 媛?湲곕뒫 |
+| `/analyze-api <寃쎈줈>` | API 遺꾩꽍 | 紐⑤뱺 API |
+| `/test-equipment <ID>` | ?λ퉬愿由??뚯뒪??| 16媛?湲곕뒫 |
+| `/test-work <ID>` | ?묒뾽愿由??뚯뒪??| 54媛?湲곕뒫 |
+| `/test-customer <ID>` | 怨좉컼愿由??뚯뒪??| 20+媛?湲곕뒫 |
+| `/test-common <ID>` | 怨듯넻/湲고? ?뚯뒪??| 30+媛?湲곕뒫 |
+| `/deploy` | EC2 諛고룷 | ?꾩껜 |
 
-### 서버
-| 서버 | URL | 용도 |
+### ?쒕쾭
+| ?쒕쾭 | URL | ?⑸룄 |
 |------|-----|------|
-| 로컬 개발 | http://localhost:3000 | Frontend 개발 |
-| EC2 프로덕션 | http://52.63.131.157 | 배포 확인 |
-| Legacy API | http://58.143.140.222:8080 | API 서버 |
+| 濡쒖뺄 媛쒕컻 | http://localhost:3000 | Frontend 媛쒕컻 |
+| EC2 ?꾨줈?뺤뀡 | http://52.63.232.141 | 諛고룷 ?뺤씤 |
+| Legacy API | http://58.143.140.222:8080 | API ?쒕쾭 |
 
 ---
 
-## ✅ 검증 완료
+## ??寃利??꾨즺
 
-### 문서
-- ✅ COMPREHENSIVE_GUIDE.md (15,000+ 줄)
-- ✅ .claude/instructions.md
-- ✅ API Explorer (ApiExplorer.tsx)
-- ✅ App.tsx 통합
+### 臾몄꽌
+- ??COMPREHENSIVE_GUIDE.md (15,000+ 以?
+- ??.claude/instructions.md
+- ??API Explorer (ApiExplorer.tsx)
+- ??App.tsx ?듯빀
 
-### 커스텀 명령어 (7개 - 범용화 완료)
-- ✅ `/analyze-api` (범용)
-- ✅ `/test-equipment` (16개 기능)
-- ✅ `/test-work` (54개 기능) ✨ 신규
-- ✅ `/test-customer` (20+개 기능) ✨ 신규
-- ✅ `/test-common` (30+개 기능) ✨ 신규
-- ✅ `/deploy` (범용)
-- ✅ `/status` (전체 120+ 기능)
+### 而ㅼ뒪? 紐낅졊??(7媛?- 踰붿슜???꾨즺)
+- ??`/analyze-api` (踰붿슜)
+- ??`/test-equipment` (16媛?湲곕뒫)
+- ??`/test-work` (54媛?湲곕뒫) ???좉퇋
+- ??`/test-customer` (20+媛?湲곕뒫) ???좉퇋
+- ??`/test-common` (30+媛?湲곕뒫) ???좉퇋
+- ??`/deploy` (踰붿슜)
+- ??`/status` (?꾩껜 120+ 湲곕뒫)
 
-### 기능 커버리지
-- ✅ 장비관리: 16개 기능 100% 커버
-- ✅ 작업관리: 54개 기능 100% 커버
-- ✅ 고객관리: 20+개 기능 100% 커버
-- ✅ 공통/기타: 30+개 기능 100% 커버
-- **✅ 합계: 120+개 기능 100% 커버**
+### 湲곕뒫 而ㅻ쾭由ъ?
+- ???λ퉬愿由? 16媛?湲곕뒫 100% 而ㅻ쾭
+- ???묒뾽愿由? 54媛?湲곕뒫 100% 而ㅻ쾭
+- ??怨좉컼愿由? 20+媛?湲곕뒫 100% 而ㅻ쾭
+- ??怨듯넻/湲고?: 30+媛?湲곕뒫 100% 而ㅻ쾭
+- **???⑷퀎: 120+媛?湲곕뒫 100% 而ㅻ쾭**
 
 ---
 
-## 🎉 최종 완료!
+## ?럦 理쒖쥌 ?꾨즺!
 
-**이제 어떤 PC에서든, 어떤 작업이든 즉시 시작 가능합니다!**
+**?댁젣 ?대뼡 PC?먯꽌?? ?대뼡 ?묒뾽?대뱺 利됱떆 ?쒖옉 媛?ν빀?덈떎!**
 
-### 압축 파일 전송 방법
+### ?뺤텞 ?뚯씪 ?꾩넚 諛⑸쾿
 ```bash
-# 다른 PC로 복사
+# ?ㅻⅨ PC濡?蹂듭궗
 scp /tmp/dlive-project-setup.tar.gz user@remote:/path/to/destination/
 
-# 또는 클라우드 업로드
-# Google Drive, Dropbox, GitHub Release 등
+# ?먮뒗 ?대씪?곕뱶 ?낅줈??
+# Google Drive, Dropbox, GitHub Release ??
 ```
 
-### 다른 개발자 온보딩
-1. 압축 파일 다운로드
-2. 압축 해제
-3. `COMPREHENSIVE_GUIDE.md` 읽기 (30분)
-4. Claude Code 시작 → 자동 설정
-5. 즉시 작업 시작!
+### ?ㅻⅨ 媛쒕컻???⑤낫??
+1. ?뺤텞 ?뚯씪 ?ㅼ슫濡쒕뱶
+2. ?뺤텞 ?댁젣
+3. `COMPREHENSIVE_GUIDE.md` ?쎄린 (30遺?
+4. Claude Code ?쒖옉 ???먮룞 ?ㅼ젙
+5. 利됱떆 ?묒뾽 ?쒖옉!
 
 ---
 
-**프로젝트가 완벽하게 문서화되고 자동화되었습니다!** 🚀
-**전체 120+개 기능을 4개 명령어로 테스트 가능합니다!** ⚡
+**?꾨줈?앺듃媛 ?꾨꼍?섍쾶 臾몄꽌?붾릺怨??먮룞?붾릺?덉뒿?덈떎!** ??
+**?꾩껜 120+媛?湲곕뒫??4媛?紐낅졊?대줈 ?뚯뒪??媛?ν빀?덈떎!** ??

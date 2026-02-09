@@ -1,77 +1,77 @@
-# D-Live Equipment Management - Claude Code Instructions
+﻿# D-Live Equipment Management - Claude Code Instructions
 
-> **중요**: 이 파일은 프로젝트 시작 시 자동으로 로드됩니다.
-> 전체 문서는 `/COMPREHENSIVE_GUIDE.md`를 참조하세요.
+> **以묒슂**: ???뚯씪? ?꾨줈?앺듃 ?쒖옉 ???먮룞?쇰줈 濡쒕뱶?⑸땲??
+> ?꾩껜 臾몄꽌??`/COMPREHENSIVE_GUIDE.md`瑜?李몄“?섏꽭??
 
 ---
 
-## 🎯 프로젝트 개요
+## ?렞 ?꾨줈?앺듃 媛쒖슂
 
-**D-Live 장비관리 시스템** - 레거시 MiPlatform 시스템을 React 기반으로 마이그레이션
+**D-Live ?λ퉬愿由??쒖뒪??* - ?덇굅??MiPlatform ?쒖뒪?쒖쓣 React 湲곕컲?쇰줈 留덉씠洹몃젅?댁뀡
 
 - **Frontend**: React 19 + TypeScript (mobile-cona-front/)
 - **Adapter**: Java 6 + Spring 2.x (adapter-build-deploy/)
 - **Legacy**: Java 6 + iBATIS 2.x (legacy-server/)
-- **현재 작업**: 장비관리 파트 Phase 1 구현
+- **?꾩옱 ?묒뾽**: ?λ퉬愿由??뚰듃 Phase 1 援ы쁽
 
 ---
 
-## 🚨 절대 준수 사항
+## ?슚 ?덈? 以???ы빆
 
-### 0. 개발/테스트 필수 규칙 (CRITICAL - 최우선!)
+### 0. 媛쒕컻/?뚯뒪???꾩닔 洹쒖튃 (CRITICAL - 理쒖슦??)
 
-**⛔ 로컬 개발서버 사용 절대 금지!**
+**??濡쒖뺄 媛쒕컻?쒕쾭 ?ъ슜 ?덈? 湲덉?!**
 ```
-- npm run dev (localhost:3000) 절대 사용 금지!
-- 로컬에서 API 테스트 절대 금지!
-- curl localhost:3000 같은 로컬 테스트 절대 금지!
+- npm run dev (localhost:3000) ?덈? ?ъ슜 湲덉?!
+- 濡쒖뺄?먯꽌 API ?뚯뒪???덈? 湲덉?!
+- curl localhost:3000 媛숈? 濡쒖뺄 ?뚯뒪???덈? 湲덉?!
 
-올바른 테스트 방법:
-1. 코드 수정
-2. git add → git commit → git push
-3. GitHub Actions 자동 배포 대기
-4. https://dlivestore2.store/ 에서 직접 테스트
-```
-
-**⛔ 사용자에게 테스트 떠넘기기 금지!**
-```
-- "확인해주세요" → ❌ 금지!
-- "테스트해보세요" → ❌ 금지!
-- Claude가 직접 배포된 사이트에서 API 호출하여 테스트 → ✅
-
-수정 완료 후 필수 절차:
-1. 프론트엔드 + 백엔드 모두 정상 동작 확인
-2. API 호출하여 예상 결과값 확인
-3. 오류 없이 완료 후에만 사용자에게 "완료" 보고
+?щ컮瑜??뚯뒪??諛⑸쾿:
+1. 肄붾뱶 ?섏젙
+2. git add ??git commit ??git push
+3. GitHub Actions ?먮룞 諛고룷 ?湲?
+4. https://dlivestore2.store/ ?먯꽌 吏곸젒 ?뚯뒪??
 ```
 
-### 1. Java 6 제약사항 (Adapter & Legacy)
+**???ъ슜?먯뿉寃??뚯뒪???좊꽆湲곌린 湲덉?!**
+```
+- "?뺤씤?댁＜?몄슂" ????湲덉?!
+- "?뚯뒪?명빐蹂댁꽭?? ????湲덉?!
+- Claude媛 吏곸젒 諛고룷???ъ씠?몄뿉??API ?몄텧?섏뿬 ?뚯뒪??????
 
-**❌ 사용 불가**:
+?섏젙 ?꾨즺 ???꾩닔 ?덉감:
+1. ?꾨줎?몄뿏??+ 諛깆뿏??紐⑤몢 ?뺤긽 ?숈옉 ?뺤씤
+2. API ?몄텧?섏뿬 ?덉긽 寃곌낵媛??뺤씤
+3. ?ㅻ쪟 ?놁씠 ?꾨즺 ?꾩뿉留??ъ슜?먯뿉寃?"?꾨즺" 蹂닿퀬
+```
+
+### 1. Java 6 ?쒖빟?ы빆 (Adapter & Legacy)
+
+**???ъ슜 遺덇?**:
 ```java
-// Generic 사용 불가
-List<String> list = new ArrayList<String>();  // ❌
+// Generic ?ъ슜 遺덇?
+List<String> list = new ArrayList<String>();  // ??
 
-// Diamond Operator 불가
-Map<String, Object> map = new HashMap<>();    // ❌
+// Diamond Operator 遺덇?
+Map<String, Object> map = new HashMap<>();    // ??
 
-// Try-with-resources 불가
-try (InputStream is = ...) { }                // ❌
+// Try-with-resources 遺덇?
+try (InputStream is = ...) { }                // ??
 
-// Enhanced for loop 불가 (Collection)
-for (String item : list) { }                  // ❌
+// Enhanced for loop 遺덇? (Collection)
+for (String item : list) { }                  // ??
 ```
 
-**✅ 사용 가능**:
+**???ъ슜 媛??*:
 ```java
-// Raw Type 사용
+// Raw Type ?ъ슜
 List list = new ArrayList();
 String item = (String) list.get(0);
 
-// 명시적 타입
+// 紐낆떆?????
 Map map = new HashMap();
 
-// finally 블록
+// finally 釉붾줉
 InputStream is = null;
 try {
     is = new FileInputStream("file.txt");
@@ -79,32 +79,32 @@ try {
     if (is != null) is.close();
 }
 
-// Iterator 사용
+// Iterator ?ъ슜
 for (Iterator it = list.iterator(); it.hasNext();) {
     String item = (String) it.next();
 }
 ```
 
-### 2. 인코딩 제약사항
+### 2. ?몄퐫???쒖빟?ы빆
 
-**모든 Java 파일과 XML 파일은 EUC-KR 인코딩**:
+**紐⑤뱺 Java ?뚯씪怨?XML ?뚯씪? EUC-KR ?몄퐫??*:
 ```bash
-# 파일 인코딩 확인
+# ?뚯씪 ?몄퐫???뺤씤
 file -I equipment-manager.xml
-# → charset=euc-kr
+# ??charset=euc-kr
 
-# 변환 필요 시
+# 蹂???꾩슂 ??
 iconv -f UTF-8 -t EUC-KR input.xml > output.xml
 
-# Ant 빌드 시 인코딩 지정
+# Ant 鍮뚮뱶 ???몄퐫??吏??
 ant -Dfile.encoding=EUC-KR build
 ```
 
-### 3. iBATIS 2.x 문법 (NOT MyBatis 3.x)
+### 3. iBATIS 2.x 臾몃쾿 (NOT MyBatis 3.x)
 
-**❌ MyBatis 3.x 문법 사용 불가**:
+**??MyBatis 3.x 臾몃쾿 ?ъ슜 遺덇?**:
 ```xml
-<!-- MyBatis 3.x (사용 불가) -->
+<!-- MyBatis 3.x (?ъ슜 遺덇?) -->
 <select id="test" parameterType="HashMap" resultType="HashMap">
   SELECT * FROM TB WHERE ID = #{id}
 </select>
@@ -114,9 +114,9 @@ ant -Dfile.encoding=EUC-KR build
 </if>
 ```
 
-**✅ iBATIS 2.x 문법**:
+**??iBATIS 2.x 臾몃쾿**:
 ```xml
-<!-- iBATIS 2.x (사용 필수) -->
+<!-- iBATIS 2.x (?ъ슜 ?꾩닔) -->
 <select id="test" parameterClass="HashMap" resultClass="HashMap">
   SELECT * FROM TB WHERE ID = #id#
 </select>
@@ -128,53 +128,53 @@ ant -Dfile.encoding=EUC-KR build
 
 ---
 
-## 📁 핵심 파일 위치
+## ?뱚 ?듭떖 ?뚯씪 ?꾩튂
 
 ### Frontend (React)
 ```
 mobile-cona-front/
-├── components/
-│   ├── EquipmentStatusView.tsx      # ✅ 완료 (EM-010)
-│   ├── EquipmentAssignment.tsx      # 🔄 진행중 (EM-004)
-│   ├── EquipmentMovement.tsx        # 🔄 계획 (EM-011)
-│   └── EquipmentRecovery.tsx        # 🔄 진행중 (EM-015)
-├── services/
-│   └── apiService.ts                # 3,253줄 - 모든 API 함수
-├── api-proxy.js                     # Express 프록시 (66 endpoints)
-└── App.tsx                          # 네비게이션 계층 구조 (라인 35-48)
+?쒋?? components/
+??  ?쒋?? EquipmentStatusView.tsx      # ???꾨즺 (EM-010)
+??  ?쒋?? EquipmentAssignment.tsx      # ?봽 吏꾪뻾以?(EM-004)
+??  ?쒋?? EquipmentMovement.tsx        # ?봽 怨꾪쉷 (EM-011)
+??  ?붴?? EquipmentRecovery.tsx        # ?봽 吏꾪뻾以?(EM-015)
+?쒋?? services/
+??  ?붴?? apiService.ts                # 3,253以?- 紐⑤뱺 API ?⑥닔
+?쒋?? api-proxy.js                     # Express ?꾨줉??(66 endpoints)
+?붴?? App.tsx                          # ?ㅻ퉬寃뚯씠??怨꾩링 援ъ“ (?쇱씤 35-48)
 ```
 
 ### Adapter (Java 6)
 ```
 adapter-build-deploy/
-├── common-src/src/com/company/api/controller/
-│   └── WorkApiController.java       # 2,746줄 - JSON ↔ MiPlatform 변환
-├── build.xml                        # Ant 빌드 스크립트
-└── Dockerfile                       # Java 6 Docker 환경
+?쒋?? common-src/src/com/company/api/controller/
+??  ?붴?? WorkApiController.java       # 2,746以?- JSON ??MiPlatform 蹂??
+?쒋?? build.xml                        # Ant 鍮뚮뱶 ?ㅽ겕由쏀듃
+?붴?? Dockerfile                       # Java 6 Docker ?섍꼍
 ```
 
 ### Legacy (Java 6 + iBATIS)
 ```
 legacy-server/src/com/cona/
-├── customer/equipment/
-│   ├── web/EquipmentManagerDelegate.java        # 40+ API 핸들러
-│   ├── service/impl/EquipmentManagerImpl.java   # 3,496줄, 314 메소드
-│   └── dao/sqlmaps/maps/equipment-manager.xml   # iBATIS SQL 맵 (EUC-KR)
+?쒋?? customer/equipment/
+??  ?쒋?? web/EquipmentManagerDelegate.java        # 40+ API ?몃뱾??
+??  ?쒋?? service/impl/EquipmentManagerImpl.java   # 3,496以? 314 硫붿냼??
+??  ?붴?? dao/sqlmaps/maps/equipment-manager.xml   # iBATIS SQL 留?(EUC-KR)
 ```
 
 ---
 
-## 🔌 새 API 추가 워크플로우
+## ?뵆 ??API 異붽? ?뚰겕?뚮줈??
 
-### Step 1: Legacy Server 확인
+### Step 1: Legacy Server ?뺤씤
 ```java
 // legacy-server/.../EquipmentManagerDelegate.java
 public void getEquipmentOutList(VariableList inVl, DataSetList inDl, DataSetList outDl) {
-    // 메소드 존재 확인
+    // 硫붿냼??議댁옱 ?뺤씤
 }
 ```
 
-### Step 2: iBATIS SQL 확인
+### Step 2: iBATIS SQL ?뺤씤
 ```xml
 <!-- legacy-server/.../equipment-manager.xml -->
 <select id="getEquipmentOutList" resultClass="HashMap" parameterClass="HashMap">
@@ -186,7 +186,7 @@ public void getEquipmentOutList(VariableList inVl, DataSetList inDl, DataSetList
 </select>
 ```
 
-### Step 3: Adapter에 라우팅 추가
+### Step 3: Adapter???쇱슦??異붽?
 ```java
 // adapter-build-deploy/.../WorkApiController.java
 public void service(HttpServletRequest request, HttpServletResponse response) {
@@ -198,13 +198,13 @@ public void service(HttpServletRequest request, HttpServletResponse response) {
 }
 
 private void handleGetEquipmentOutList(HttpServletRequest request, HttpServletResponse response) {
-    // JSON → MiPlatform → Legacy → MiPlatform → JSON
+    // JSON ??MiPlatform ??Legacy ??MiPlatform ??JSON
 }
 ```
 
-### Step 4: Frontend API 함수 추가
+### Step 4: Frontend API ?⑥닔 異붽?
 ```typescript
-// mobile-cona-front/services/apiService.ts (파일 끝에 추가)
+// mobile-cona-front/services/apiService.ts (?뚯씪 ?앹뿉 異붽?)
 export const getEquipmentOutList = async (params: {
   OUT_DT?: string;
   SO_ID?: string;
@@ -221,7 +221,7 @@ export const getEquipmentOutList = async (params: {
 };
 ```
 
-### Step 5: 컴포넌트에서 사용
+### Step 5: 而댄룷?뚰듃?먯꽌 ?ъ슜
 ```typescript
 // mobile-cona-front/components/EquipmentAssignment.tsx
 import { getEquipmentOutList } from '../services/apiService';
@@ -244,132 +244,132 @@ const handleSearch = async () => {
 
 ---
 
-## 🚀 Git 워크플로우
+## ?? Git ?뚰겕?뚮줈??
 
 ```bash
-# 1. Main 최신화
+# 1. Main 理쒖떊??
 git checkout main
 git pull teamart main
 
-# 2. Feature 브랜치 생성
+# 2. Feature 釉뚮옖移??앹꽦
 git checkout -b jsh/equipment-feature-name
 
-# 3. 작업 후 Commit
+# 3. ?묒뾽 ??Commit
 git add .
-git commit -m "feat: 기능 설명
+git commit -m "feat: 湲곕뒫 ?ㅻ챸
 
-상세 내용
+?곸꽭 ?댁슜
 
-🤖 Generated with [Claude Code](https://claude.com/claude-code)
+?쨼 Generated with [Claude Code](https://claude.com/claude-code)
 
 Co-Authored-By: Claude <noreply@anthropic.com>"
 
 # 4. Push
 git push origin jsh/equipment-feature-name --force-with-lease
 
-# 5. PR 생성
-gh pr create --title "feat: 제목" --body "내용"
+# 5. PR ?앹꽦
+gh pr create --title "feat: ?쒕ぉ" --body "?댁슜"
 
-# 6. Merge 후 정리
+# 6. Merge ???뺣━
 git checkout main && git pull teamart main
 git branch -d jsh/equipment-feature-name
 ```
 
 ---
 
-## 🚢 EC2 배포
+## ?슓 EC2 諛고룷
 
 ```bash
-# SSH 접속
-ssh ubuntu@52.63.131.157
+# SSH ?묒냽
+ssh ubuntu@52.63.232.141
 
-# 배포
+# 諛고룷
 cd /home/ubuntu/dlive-cona-client
 git pull origin main
 npm run build
 pm2 restart dlive
 pm2 logs dlive --lines 20
 
-# 접속 확인
-# http://52.63.131.157/
+# ?묒냽 ?뺤씤
+# http://52.63.232.141/
 ```
 
 ---
 
-## 📋 현재 작업 우선순위
+## ?뱥 ?꾩옱 ?묒뾽 ?곗꽑?쒖쐞
 
-### Phase 1 (진행중)
+### Phase 1 (吏꾪뻾以?
 
-1. **EM-004: 기사 보유장비 조회** (최우선)
-   - 파일: `EquipmentAssignment.tsx` (300줄 UI 완성)
-   - 필요 API: 3개
-     - `getEquipmentOutList` (라인 97)
-     - `getOutTargetEquipmentList` (라인 103)
-     - `processEquipmentReceive` (라인 108)
-   - 예상 시간: 2-3시간
+1. **EM-004: 湲곗궗 蹂댁쑀?λ퉬 議고쉶** (理쒖슦??
+   - ?뚯씪: `EquipmentAssignment.tsx` (300以?UI ?꾩꽦)
+   - ?꾩슂 API: 3媛?
+     - `getEquipmentOutList` (?쇱씤 97)
+     - `getOutTargetEquipmentList` (?쇱씤 103)
+     - `processEquipmentReceive` (?쇱씤 108)
+   - ?덉긽 ?쒓컙: 2-3?쒓컙
 
-2. **EM-015: 미회수 장비 조회**
-   - 파일: `EquipmentRecovery.tsx` (147줄 UI 완성)
-   - 필요 API: 1개
-     - `getUnreturnedEquipmentList` (라인 50)
-   - 예상 시간: 1시간
+2. **EM-015: 誘명쉶???λ퉬 議고쉶**
+   - ?뚯씪: `EquipmentRecovery.tsx` (147以?UI ?꾩꽦)
+   - ?꾩슂 API: 1媛?
+     - `getUnreturnedEquipmentList` (?쇱씤 50)
+   - ?덉긽 ?쒓컙: 1?쒓컙
 
-3. **EM-011: 장비 작업자 이관**
-   - 파일: `EquipmentTransfer.tsx`
-   - 필요 API: 1개 + 모달 컴포넌트
-   - 예상 시간: 3-4시간
+3. **EM-011: ?λ퉬 ?묒뾽???닿?**
+   - ?뚯씪: `EquipmentTransfer.tsx`
+   - ?꾩슂 API: 1媛?+ 紐⑤떖 而댄룷?뚰듃
+   - ?덉긽 ?쒓컙: 3-4?쒓컙
 
-### 완료된 작업
+### ?꾨즺???묒뾽
 
-- ✅ **EM-010: 장비 이력 조회** (2025-01-25)
-  - 파일: `EquipmentStatusView.tsx`
+- ??**EM-010: ?λ퉬 ?대젰 議고쉶** (2025-01-25)
+  - ?뚯씪: `EquipmentStatusView.tsx`
   - API: `getEquipmentHistoryInfo`
-  - 상태: EC2 배포 완료
+  - ?곹깭: EC2 諛고룷 ?꾨즺
 
 ---
 
-## 🔍 자주 사용하는 명령어
+## ?뵇 ?먯＜ ?ъ슜?섎뒗 紐낅졊??
 
-### 개발 서버 실행
+### 媛쒕컻 ?쒕쾭 ?ㅽ뻾
 ```bash
 cd /Users/bottle/bottle1/delive/dlive-json-api/mobile-cona-front
 
-# Frontend 개발 서버
+# Frontend 媛쒕컻 ?쒕쾭
 npm run dev
 
-# API 프록시 서버 (별도 터미널)
+# API ?꾨줉???쒕쾭 (蹂꾨룄 ?곕???
 node api-proxy.js
 ```
 
-### 빌드 & 테스트
+### 鍮뚮뱶 & ?뚯뒪??
 ```bash
-# TypeScript 타입 체크
+# TypeScript ???泥댄겕
 npm run type-check
 
-# 빌드
+# 鍮뚮뱶
 npm run build
 
-# 빌드 프리뷰
+# 鍮뚮뱶 ?꾨━酉?
 npm run preview
 ```
 
-### Demo Mode 활성화 (브라우저 Console)
+### Demo Mode ?쒖꽦??(釉뚮씪?곗? Console)
 ```javascript
 // Demo Mode ON
 localStorage.setItem('demoMode', 'true');
 
-// 사용자 정보 설정
+// ?ъ슜???뺣낫 ?ㅼ젙
 localStorage.setItem('userInfo', JSON.stringify({
   USR_ID: 'TEST_USER',
-  USR_NM: '테스트기사',
+  USR_NM: '?뚯뒪?멸린??,
   SO_ID: 'SO001',
-  SO_NM: '서울지점'
+  SO_NM: '?쒖슱吏??
 }));
 
-// 지점 목록 설정
+// 吏??紐⑸줉 ?ㅼ젙
 localStorage.setItem('branchList', JSON.stringify([
-  { SO_ID: 'SO001', SO_NM: '서울지점' },
-  { SO_ID: 'SO002', SO_NM: '부산지점' }
+  { SO_ID: 'SO001', SO_NM: '?쒖슱吏?? },
+  { SO_ID: 'SO002', SO_NM: '遺?곗??? }
 ]));
 
 location.reload();
@@ -377,97 +377,97 @@ location.reload();
 
 ---
 
-## 📚 참고 문서
+## ?뱴 李멸퀬 臾몄꽌
 
-1. **COMPREHENSIVE_GUIDE.md** - 전체 시스템 분석 (이 문서의 상위 문서)
-2. **아카이브/** - 레거시 분석 자료
-   - TSYCM_CODE_DETAIL.xlsx - 공통코드 1,280개
-   - 기능분해도_Ver0.7.xlsx - 전체 기능 명세
-3. **WBS CSV 파일들** - 개발 계획 (6개)
-   - 장비관리, 작업관리, 고객관리 등
-
----
-
-## ⚠️ 주의사항
-
-### 코딩 시 반드시 확인
-
-- [ ] Java 파일에 Generic 사용 안 함
-- [ ] Java/XML 파일 인코딩 EUC-KR 유지
-- [ ] iBATIS 2.x 문법 사용 (MyBatis 3.x 아님)
-- [ ] API 함수에 Circuit Breaker 패턴 적용
-- [ ] TypeScript 타입 정의 명확히
-- [ ] 로딩 상태 및 에러 처리 추가
-
-### Git 작업 시 반드시 확인
-
-- [ ] Main 최신화 후 브랜치 생성
-- [ ] Commit 메시지에 Co-Author 추가
-- [ ] PR 생성 전 빌드 테스트
-- [ ] Merge 후 EC2 배포 확인
-
-### 배포 시 반드시 확인
-
-- [ ] `npm run build` 성공
-- [ ] `pm2 restart dlive` 실행
-- [ ] `pm2 logs dlive` 에러 없음
-- [ ] 브라우저에서 기능 동작 확인
+1. **COMPREHENSIVE_GUIDE.md** - ?꾩껜 ?쒖뒪??遺꾩꽍 (??臾몄꽌???곸쐞 臾몄꽌)
+2. **?꾩뭅?대툕/** - ?덇굅??遺꾩꽍 ?먮즺
+   - TSYCM_CODE_DETAIL.xlsx - 怨듯넻肄붾뱶 1,280媛?
+   - 湲곕뒫遺꾪빐??Ver0.7.xlsx - ?꾩껜 湲곕뒫 紐낆꽭
+3. **WBS CSV ?뚯씪??* - 媛쒕컻 怨꾪쉷 (6媛?
+   - ?λ퉬愿由? ?묒뾽愿由? 怨좉컼愿由???
 
 ---
 
-## 🆘 트러블슈팅 빠른 참조
+## ?좑툘 二쇱쓽?ы빆
 
-### API 호출 실패
+### 肄붾뵫 ??諛섎뱶???뺤씤
+
+- [ ] Java ?뚯씪??Generic ?ъ슜 ????
+- [ ] Java/XML ?뚯씪 ?몄퐫??EUC-KR ?좎?
+- [ ] iBATIS 2.x 臾몃쾿 ?ъ슜 (MyBatis 3.x ?꾨떂)
+- [ ] API ?⑥닔??Circuit Breaker ?⑦꽩 ?곸슜
+- [ ] TypeScript ????뺤쓽 紐낇솗??
+- [ ] 濡쒕뵫 ?곹깭 諛??먮윭 泥섎━ 異붽?
+
+### Git ?묒뾽 ??諛섎뱶???뺤씤
+
+- [ ] Main 理쒖떊????釉뚮옖移??앹꽦
+- [ ] Commit 硫붿떆吏??Co-Author 異붽?
+- [ ] PR ?앹꽦 ??鍮뚮뱶 ?뚯뒪??
+- [ ] Merge ??EC2 諛고룷 ?뺤씤
+
+### 諛고룷 ??諛섎뱶???뺤씤
+
+- [ ] `npm run build` ?깃났
+- [ ] `pm2 restart dlive` ?ㅽ뻾
+- [ ] `pm2 logs dlive` ?먮윭 ?놁쓬
+- [ ] 釉뚮씪?곗??먯꽌 湲곕뒫 ?숈옉 ?뺤씤
+
+---
+
+## ?넊 ?몃윭釉붿뒋??鍮좊Ⅸ 李몄“
+
+### API ?몄텧 ?ㅽ뙣
 ```bash
-# API 프록시 확인
+# API ?꾨줉???뺤씤
 ps aux | grep api-proxy
 node api-proxy.js &
 
-# Legacy 서버 ping
+# Legacy ?쒕쾭 ping
 ping 58.143.140.222
 
-# cURL 테스트
+# cURL ?뚯뒪??
 curl -X POST http://localhost:3000/api/customer/equipment/getEquipmentHistoryInfo \
   -H "Content-Type: application/json" \
   -d '{"EQT_SERNO":"TEST"}'
 ```
 
-### 빌드 에러
+### 鍮뚮뱶 ?먮윭
 ```bash
-# 타입 체크
+# ???泥댄겕
 npm run type-check
 
-# 의존성 재설치
+# ?섏〈???ъ꽕移?
 rm -rf node_modules package-lock.json
 npm install
 ```
 
-### EC2 배포 실패
+### EC2 諛고룷 ?ㅽ뙣
 ```bash
-# PM2 상태 확인
+# PM2 ?곹깭 ?뺤씤
 pm2 status
 
-# 재빌드
+# ?щ퉴??
 npm run build
 pm2 restart dlive
 
-# 로그 확인
+# 濡쒓렇 ?뺤씤
 pm2 logs dlive --lines 100
 ```
 
-### Java 6 빌드 에러
+### Java 6 鍮뚮뱶 ?먮윭
 ```bash
-# Ant 재빌드
+# Ant ?щ퉴??
 cd adapter-build-deploy
 ant clean build
 
-# Docker 재빌드
+# Docker ?щ퉴??
 docker build -t dlive-adapter:latest .
 docker-compose restart adapter
 ```
 
 ---
 
-**작업 시작 전 반드시 COMPREHENSIVE_GUIDE.md를 한 번 읽어보세요!**
+**?묒뾽 ?쒖옉 ??諛섎뱶??COMPREHENSIVE_GUIDE.md瑜???踰??쎌뼱蹂댁꽭??**
 
-**불명확한 사항은 먼저 문서를 확인하고, 없으면 사용자에게 질문하세요.**
+**遺덈챸?뺥븳 ?ы빆? 癒쇱? 臾몄꽌瑜??뺤씤?섍퀬, ?놁쑝硫??ъ슜?먯뿉寃?吏덈Ц?섏꽭??**
