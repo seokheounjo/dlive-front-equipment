@@ -995,7 +995,8 @@ export const searchCustomerAll = async (params: {
   }
 
   // 요청 파라미터 구성 - SERCH_GB=3으로 getConditionalCustList3 SQL 사용
-  // 입력된 파라미터를 모두 전송 (D'Live API가 AND 조건으로 처리)
+  // D'Live API AND 조건: CUST_NM이 포함되면 결과가 0건이 되는 문제 있음
+  // → CUST_ID/CTRT_ID/TEL_NO가 있으면 CUST_NM 제외, CUST_NM만 단독 전송
   const reqParams: Record<string, any> = {
     SERCH_GB: '3',
     LOGIN_ID: loginId
@@ -1004,8 +1005,11 @@ export const searchCustomerAll = async (params: {
   if (params.custId) reqParams.CUST_ID = params.custId;
   if (params.contractId) reqParams.CTRT_ID = params.contractId;
   if (params.phoneNumber) reqParams.TEL_NO = params.phoneNumber;
-  if (params.customerName) reqParams.CUST_NM = params.customerName;
   if (params.equipmentNo) reqParams.EQT_SERNO = params.equipmentNo;
+  // CUST_NM은 다른 검색조건이 없을 때만 전송 (AND 조건 충돌 방지)
+  if (params.customerName && !params.custId && !params.contractId && !params.phoneNumber && !params.equipmentNo) {
+    reqParams.CUST_NM = params.customerName;
+  }
 
   console.log('[CustomerAPI] searchCustomerAll 요청 파라미터:\n' + JSON.stringify(reqParams, null, 2));
 
