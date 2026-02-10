@@ -52,14 +52,6 @@ const formatDateDash = (dateStr: string): string => {
 };
 
 
-// 레거시 방식: 타지점 이동 제한 지점 (경기동부, 강남방송, 서초지점)
-const RESTRICTED_SO_IDS = ['401', '402', '328'];
-const RESTRICTED_SO_NAMES: { [key: string]: string } = {
-  '401': '경기동부',
-  '402': '강남방송',
-  '328': '서초지점'
-};
-
 interface EquipmentMovementProps {
   onBack: () => void;
   showToast?: (message: string, type: 'success' | 'error' | 'warning' | 'info') => void;
@@ -236,11 +228,6 @@ const EquipmentMovement: React.FC<EquipmentMovementProps> = ({ onBack, showToast
   // 조회 조건 메시지 (결과 없을 때 표시용)
   const [searchConditionMessage, setSearchConditionMessage] = useState<string>('');
 
-  // 선택 모드: 'none' | 'restricted-{soId}' | 'normal'
-  // 제한지점(401,402,328) 장비 선택 시 해당 지점만 선택 가능
-  // 일반지점 장비 선택 시 제한지점 장비 선택 불가
-  const [selectionMode, setSelectionMode] = useState<string>('none');
-
   useEffect(() => {
     loadInitialData();
   }, []);
@@ -294,94 +281,6 @@ const EquipmentMovement: React.FC<EquipmentMovementProps> = ({ onBack, showToast
     // 중분류 변경 시 소분류 선택 초기화
     setSelectedEqtClCd('');
   }, [selectedItemMidCd]);
-
-  // 선택된 장비 기준으로 선택 모드 결정
-  const getSelectionModeFromCheckedItems = (items: EqtTrns[]): string => {
-    const checkedItems = items.filter(item => item.CHK);
-    if (checkedItems.length === 0) return 'none';
-
-    const firstItem = checkedItems[0];
-    const firstSoId = firstItem.SO_ID || '';
-
-    if (RESTRICTED_SO_IDS.includes(firstSoId)) {
-      return `restricted-${firstSoId}`;
-    }
-    return 'normal';
-  };
-
-  // 현재 선택 모드에서 해당 장비 선택 가능 여부 판단
-  const canSelectItem = (item: EqtTrns, currentMode: string): boolean => {
-    const itemSoId = item.SO_ID || '';
-    const isRestrictedItem = RESTRICTED_SO_IDS.includes(itemSoId);
-
-    if (currentMode === 'none') return true;  // 아무것도 선택 안됨
-
-    if (currentMode.startsWith('restricted-')) {
-      // 제한 지점 모드: 같은 지점만 선택 가능
-      const restrictedSoId = currentMode.replace('restricted-', '');
-      return itemSoId === restrictedSoId;
-    }
-
-    // normal 모드: 제한 지점 장비 선택 불가
-    return !isRestrictedItem;
-  };
-
-  // 선택 모드에 따라 이관 가능한 지점 목록 계산
-  const getAvailableTargetSoList = (): { SO_ID: string; SO_NM: string }[] => {
-    const checkedItems = eqtTrnsList.filter(item => item.CHK);
-    if (checkedItems.length === 0) return userAuthSoList;
-
-    const firstItem = checkedItems[0];
-    const firstSoId = firstItem.SO_ID || '';
-
-    if (RESTRICTED_SO_IDS.includes(firstSoId)) {
-      // 제한 지점 장비 선택됨 → 해당 지점만 이관 가능
-      return userAuthSoList.filter(so => so.SO_ID === firstSoId);
-    }
-
-    // 일반 지점 장비 선택됨 → 제한 지점 제외
-    return userAuthSoList.filter(so => !RESTRICTED_SO_IDS.includes(so.SO_ID));
-  };
-
-  // selectionMode 변경 시 이관 가능 여부 재계산
-  useEffect(() => {
-    if (eqtTrnsList.length > 0) {
-      setEqtTrnsList(prev => prev.map(item => {
-        const canSelect = canSelectItem(item, selectionMode);
-        return {
-          ...item,
-          isTransferable: canSelect,
-          CHK: canSelect ? item.CHK : false  // 선택 불가 장비는 체크 해제
-        };
-      }));
-    }
-    // 모달 내 장비 목록도 재계산
-    if (modalEquipmentList.length > 0) {
-      setModalEquipmentList(prev => prev.map(item => {
-        const canSelect = canSelectItem(item, selectionMode);
-        return {
-          ...item,
-          isTransferable: canSelect,
-          CHK: canSelect ? item.CHK : false
-        };
-      }));
-    }
-  }, [selectionMode]);
-
-  // 이관지점 자동 설정 (선택 모드 변경 시)
-  useEffect(() => {
-    if (selectionMode.startsWith('restricted-')) {
-      // 제한 지점 모드: 해당 지점으로 자동 설정
-      const restrictedSoId = selectionMode.replace('restricted-', '');
-      setTargetSoId(restrictedSoId);
-    } else if (selectionMode === 'normal') {
-      // 일반 모드: 제한 지점이 아닌 첫 번째 지점으로 설정
-      const availableSo = userAuthSoList.find(so => !RESTRICTED_SO_IDS.includes(so.SO_ID));
-      if (availableSo) {
-        setTargetSoId(availableSo.SO_ID);
-      }
-    }
-  }, [selectionMode, userAuthSoList]);
 
   const loadInitialData = async () => {
     try {
@@ -694,16 +593,7 @@ const EquipmentMovement: React.FC<EquipmentMovementProps> = ({ onBack, showToast
           console.log('[장비이동 디버그] 모델2 필터 적용 후:', filteredResult.length, '건 (필터:', selectedEqtClCd, ')');
         }
 
-        // 레거시 방식: 특정 지점(401, 402, 328)만 타지점 이동 제한
-
         let transformedList: EqtTrns[] = filteredResult.map((item: any) => {
-          const itemSoId = item.SO_ID || '';
-          // 이관 가능 여부:
-          // - 제한 지점(401, 402, 328) 장비 → 해당 지점으로만 이동 가능 (targetSoId와 일치해야 함)
-          // - 다른 지점 장비 → 자유롭게 이동 가능
-          const isRestrictedSo = RESTRICTED_SO_IDS.includes(itemSoId);
-          const isTransferable = isRestrictedSo ? (targetSoId === itemSoId) : true;
-
           return {
             CHK: false,
             EQT_NO: item.EQT_NO || '',
@@ -734,7 +624,7 @@ const EquipmentMovement: React.FC<EquipmentMovementProps> = ({ onBack, showToast
             EQT_USE_ARR_YN: item.EQT_USE_ARR_YN || '',
             EQT_USE_END_DT: item.EQT_USE_END_DT || '',
             isScanned: scannedSN ? item.EQT_SERNO === scannedSN || scannedSerials.includes(item.EQT_SERNO) : scannedSerials.includes(item.EQT_SERNO),
-            isTransferable
+            isTransferable: true
           };
         });
 
@@ -920,16 +810,7 @@ const EquipmentMovement: React.FC<EquipmentMovementProps> = ({ onBack, showToast
       const params: any = { WRKR_ID: worker.USR_ID, CRR_ID: '', SO_ID: '' };
       const result = await debugApiCall('EquipmentMovement', 'getWrkrHaveEqtList (modal)', () => getWrkrHaveEqtList(params), params);
       if (Array.isArray(result) && result.length > 0) {
-        // 레거시 방식: 특정 지점(401, 402, 328)만 타지점 이동 제한
-
         const transformedList: EqtTrns[] = result.map((item: any) => {
-          const itemSoId = item.SO_ID || '';
-          // 이관 가능 여부:
-          // - 제한 지점(401, 402, 328) 장비 → 해당 지점으로만 이동 가능
-          // - 다른 지점 장비 → 자유롭게 이동 가능
-          const isRestrictedSo = RESTRICTED_SO_IDS.includes(itemSoId);
-          const isTransferable = isRestrictedSo ? (targetSoId === itemSoId) : true;
-
           return {
             CHK: false,
             EQT_NO: item.EQT_NO || '',
@@ -960,7 +841,7 @@ const EquipmentMovement: React.FC<EquipmentMovementProps> = ({ onBack, showToast
             EQT_USE_ARR_YN: item.EQT_USE_ARR_YN || '',
             EQT_USE_END_DT: item.EQT_USE_END_DT || '',
             isScanned: false,
-            isTransferable
+            isTransferable: true
           };
         });
         setModalEquipmentList(transformedList);
@@ -982,13 +863,9 @@ const EquipmentMovement: React.FC<EquipmentMovementProps> = ({ onBack, showToast
     setModalEquipmentList(newList);
   };
 
-  // 모달 내 전체 선택 (필터 적용, 이관가능 장비만)
+  // 모달 내 전체 선택 (필터 적용)
   const handleModalCheckAll = (checked: boolean) => {
     setModalEquipmentList(modalEquipmentList.map(item => {
-      // 이관불가 장비는 선택 불가
-      if (item.isTransferable === false) {
-        return item;
-      }
       // 필터가 없으면 전체 선택, 필터가 있으면 해당 모델만 선택
       if (!modalModelFilter || (item.ITEM_MID_NM || item.EQT_CL_NM || '기타') === modalModelFilter) {
         return { ...item, CHK: checked };
@@ -1216,148 +1093,39 @@ const EquipmentMovement: React.FC<EquipmentMovementProps> = ({ onBack, showToast
     }
   };
 
-  // 전체 체크 (선택 가능 장비만)
+  // 전체 체크
   const handleCheckAll = (checked: boolean) => {
-    if (checked) {
-      // 전체 선택 시: 첫 번째 장비 기준으로 선택 모드 결정
-      const firstItem = eqtTrnsList.find(item => item.isTransferable !== false);
-      if (firstItem) {
-        const firstSoId = firstItem.SO_ID || '';
-        const newMode = RESTRICTED_SO_IDS.includes(firstSoId) ? `restricted-${firstSoId}` : 'normal';
-        setSelectionMode(newMode);
-
-        // 새 모드에 맞는 장비만 체크
-        setEqtTrnsList(eqtTrnsList.map(item => ({
-          ...item,
-          CHK: canSelectItem(item, newMode) ? true : false
-        })));
-      }
-    } else {
-      // 전체 해제: 선택 모드 초기화
-      setSelectionMode('none');
-      setEqtTrnsList(eqtTrnsList.map(item => ({ ...item, CHK: false })));
-    }
+    setEqtTrnsList(eqtTrnsList.map(item => ({ ...item, CHK: checked })));
   };
 
-  // 개별 체크 - 선택 모드에 따른 제한 적용
+  // 개별 체크
   const handleCheckItem = (index: number, checked: boolean) => {
-    const item = eqtTrnsList[index];
-    const itemSoId = item.SO_ID || '';
-    const isRestrictedItem = RESTRICTED_SO_IDS.includes(itemSoId);
-
-    if (checked) {
-      // 선택 시: 선택 모드 확인/설정
-      const currentCheckedCount = eqtTrnsList.filter(i => i.CHK).length;
-
-      if (currentCheckedCount === 0) {
-        // 첫 번째 선택: 선택 모드 설정
-        const newMode = isRestrictedItem ? `restricted-${itemSoId}` : 'normal';
-        setSelectionMode(newMode);
-      } else {
-        // 추가 선택: 선택 모드 호환 확인
-        if (!canSelectItem(item, selectionMode)) {
-          const modeDesc = selectionMode.startsWith('restricted-')
-            ? `${RESTRICTED_SO_NAMES[selectionMode.replace('restricted-', '')]}(${selectionMode.replace('restricted-', '')}) 지점 장비만`
-            : '일반 지점 장비만';
-          showToast?.(`현재 ${modeDesc} 선택 가능합니다. 제한지점과 일반지점 장비는 함께 선택할 수 없습니다.`, 'warning');
-          return;
-        }
-      }
-    }
-
-    // 체크 상태 업데이트
     const newList = [...eqtTrnsList];
     newList[index].CHK = checked;
     setEqtTrnsList(newList);
-
-    // 모두 해제되면 선택 모드 초기화
-    if (!checked && newList.filter(i => i.CHK).length === 0) {
-      setSelectionMode('none');
-    }
   };
 
-  // 지점별 전체 체크 (선택 가능 장비만)
+  // 지점별 전체 체크
   const handleCheckSo = (soKey: string, checked: boolean) => {
-    if (checked) {
-      // 해당 지점의 첫 장비로 선택 모드 결정
-      const firstSoItem = eqtTrnsList.find(item =>
-        (item.SO_NM || item.SO_ID || '미지정') === soKey
-      );
-      if (firstSoItem) {
-        const firstSoId = firstSoItem.SO_ID || '';
-        const isRestricted = RESTRICTED_SO_IDS.includes(firstSoId);
-
-        // 현재 선택 모드와 호환 확인
-        const currentChecked = eqtTrnsList.filter(i => i.CHK);
-        if (currentChecked.length > 0) {
-          if (!canSelectItem(firstSoItem, selectionMode)) {
-            showToast?.('제한지점과 일반지점 장비는 함께 선택할 수 없습니다.', 'warning');
-            return;
-          }
-        } else {
-          // 첫 선택: 모드 설정
-          setSelectionMode(isRestricted ? `restricted-${firstSoId}` : 'normal');
-        }
-      }
-    }
-
     setEqtTrnsList(eqtTrnsList.map(item => {
       const itemSo = item.SO_NM || item.SO_ID || '미지정';
-      if (itemSo === soKey && canSelectItem(item, checked ? selectionMode : 'none')) {
+      if (itemSo === soKey) {
         return { ...item, CHK: checked };
       }
       return item;
     }));
-
-    // 모두 해제되면 선택 모드 초기화
-    if (!checked) {
-      const remaining = eqtTrnsList.filter(i =>
-        (i.SO_NM || i.SO_ID || '미지정') !== soKey && i.CHK
-      );
-      if (remaining.length === 0) {
-        setSelectionMode('none');
-      }
-    }
   };
 
-  // 장비종류별 전체 체크 (선택 가능 장비만)
+  // 장비종류별 전체 체크
   const handleCheckItemType = (soKey: string, itemTypeKey: string, checked: boolean) => {
-    if (checked) {
-      const firstTypeItem = eqtTrnsList.find(item =>
-        (item.SO_NM || item.SO_ID || '미지정') === soKey &&
-        (item.ITEM_MID_NM || '기타') === itemTypeKey
-      );
-      if (firstTypeItem) {
-        const currentChecked = eqtTrnsList.filter(i => i.CHK);
-        if (currentChecked.length > 0 && !canSelectItem(firstTypeItem, selectionMode)) {
-          showToast?.('제한지점과 일반지점 장비는 함께 선택할 수 없습니다.', 'warning');
-          return;
-        }
-        if (currentChecked.length === 0) {
-          const firstSoId = firstTypeItem.SO_ID || '';
-          const isRestricted = RESTRICTED_SO_IDS.includes(firstSoId);
-          setSelectionMode(isRestricted ? `restricted-${firstSoId}` : 'normal');
-        }
-      }
-    }
-
     setEqtTrnsList(eqtTrnsList.map(item => {
       const itemSo = item.SO_NM || item.SO_ID || '미지정';
       const itemType = item.ITEM_MID_NM || '기타';
-      if (itemSo === soKey && itemType === itemTypeKey && canSelectItem(item, checked ? selectionMode : 'none')) {
+      if (itemSo === soKey && itemType === itemTypeKey) {
         return { ...item, CHK: checked };
       }
       return item;
     }));
-
-    if (!checked) {
-      const remaining = eqtTrnsList.filter(i =>
-        !((i.SO_NM || i.SO_ID || '미지정') === soKey && (i.ITEM_MID_NM || '기타') === itemTypeKey) && i.CHK
-      );
-      if (remaining.length === 0) {
-        setSelectionMode('none');
-      }
-    }
   };
 
   // 카테고리 접기/펼치기
@@ -1624,22 +1392,6 @@ const EquipmentMovement: React.FC<EquipmentMovementProps> = ({ onBack, showToast
                 </button>
               </div>
             </div>
-            {/* 제한지점 전용 모드 표시 (일반 모드는 표시 안 함) */}
-            {selectionMode.startsWith('restricted-') && (
-              <div className="mx-4 my-2 px-3 py-2 rounded-lg text-xs font-medium flex items-center justify-between bg-amber-100 text-amber-800 border border-amber-200">
-                <span>{RESTRICTED_SO_NAMES[selectionMode.replace('restricted-', '')]} 지점 전용 모드</span>
-                <button
-                  onClick={() => {
-                    setSelectionMode('none');
-                    setEqtTrnsList(prev => prev.map(item => ({ ...item, CHK: false, isTransferable: true })));
-                  }}
-                  className="px-2 py-0.5 rounded text-xs bg-amber-200 hover:bg-amber-300"
-                >
-                  초기화
-                </button>
-              </div>
-            )}
-
             {/* 지점 > 장비종류 2단계 그룹 */}
             <div className="divide-y divide-gray-100">
               {soKeys.map(soKey => {
@@ -1714,7 +1466,6 @@ const EquipmentMovement: React.FC<EquipmentMovementProps> = ({ onBack, showToast
                             <div
                               key={item.EQT_NO || idx}
                               className={`p-3 rounded-lg border-2 transition-all ${
-                                item.isTransferable === false ? 'bg-red-50 border-red-200 opacity-60' :
                                 item.isScanned ? 'bg-purple-50 border-purple-200' :
                                 'bg-gray-50 border-gray-200 hover:border-gray-300'
                               }`}
@@ -1724,28 +1475,13 @@ const EquipmentMovement: React.FC<EquipmentMovementProps> = ({ onBack, showToast
                                   type="checkbox"
                                   checked={item.CHK || false}
                                   onChange={(e) => handleCheckItem(globalIndex, e.target.checked)}
-                                  disabled={item.isTransferable === false}
-                                  className={`w-5 h-5 rounded focus:ring-blue-500 mt-0.5 ${
-                                    item.isTransferable === false ? 'text-gray-300 cursor-not-allowed' : 'text-blue-500'
-                                  }`}
+                                  className="w-5 h-5 rounded focus:ring-blue-500 mt-0.5 text-blue-500"
                                 />
                                 <div className="flex-1 min-w-0">
-                                  {/* Line 1: 모델명 + 이관불가/스캔뱃지 */}
+                                  {/* Line 1: 모델명 + 스캔뱃지 */}
                                   <div className="flex items-center justify-between">
-                                    <span className={`text-base font-bold truncate ${
-                                      item.isTransferable === false ? 'text-gray-500' : 'text-gray-900'
-                                    }`}>{item.EQT_CL_NM || item.ITEM_NM || '-'}</span>
+                                    <span className="text-base font-bold truncate text-gray-900">{item.EQT_CL_NM || item.ITEM_NM || '-'}</span>
                                     <div className="flex items-center gap-1 flex-shrink-0 ml-2">
-                                      {/* 제한 지점 장비 표시 */}
-                                      {RESTRICTED_SO_IDS.includes(item.SO_ID) && (
-                                        <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
-                                          item.isTransferable === false
-                                            ? 'bg-red-100 text-red-700'
-                                            : 'bg-amber-100 text-amber-700'
-                                        }`}>
-                                          {RESTRICTED_SO_NAMES[item.SO_ID]}{item.isTransferable === false ? '(선택불가)' : ''}
-                                        </span>
-                                      )}
                                       {item.isScanned && isScannedMode && (
                                         <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-700">스캔</span>
                                       )}
@@ -1895,59 +1631,39 @@ const EquipmentMovement: React.FC<EquipmentMovementProps> = ({ onBack, showToast
         }
       >
         <div className="space-y-4">
-          {/* 이관지점 선택 - 선택된 장비에 따라 제한 */}
-          {(() => {
-            const availableSoList = getAvailableTargetSoList();
-            const isRestrictedMode = selectionMode.startsWith('restricted-');
-            const restrictedSoId = isRestrictedMode ? selectionMode.replace('restricted-', '') : '';
-
-            return (
-              <div className={`rounded-xl p-4 ${isRestrictedMode ? 'bg-amber-50 border border-amber-200' : 'bg-blue-50 border border-blue-200'}`}>
-                <label className={`block text-sm font-semibold mb-2 ${isRestrictedMode ? 'text-amber-800' : 'text-blue-800'}`}>
-                  이관지점 {isRestrictedMode ? `(${RESTRICTED_SO_NAMES[restrictedSoId]} 전용)` : '선택'}
-                </label>
-                {isRestrictedMode ? (
-                  <>
-                    {/* 제한 지점 모드: 해당 지점만 표시 (읽기 전용) */}
-                    <div className="w-full px-4 py-3 border border-amber-300 rounded-xl text-sm bg-amber-100 text-amber-900 font-semibold">
-                      {RESTRICTED_SO_NAMES[restrictedSoId]} ({restrictedSoId})
-                    </div>
-                    <p className="text-xs text-amber-600 mt-2">
-                      {RESTRICTED_SO_NAMES[restrictedSoId]} 장비는 해당 지점 내에서만 이관 가능합니다
-                    </p>
-                  </>
-                ) : availableSoList.length > 1 ? (
-                  <>
-                    {/* 일반 모드: 제한 지점 제외한 지점 선택 */}
-                    <select
-                      value={targetSoId}
-                      onChange={(e) => setTargetSoId(e.target.value)}
-                      className="w-full px-4 py-3 border border-blue-300 rounded-xl text-sm bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                    >
-                      {availableSoList.map((so) => (
-                        <option key={so.SO_ID} value={so.SO_ID}>
-                          {so.SO_NM} ({so.SO_ID})
-                        </option>
-                      ))}
-                    </select>
-                    <p className="text-xs text-blue-600 mt-2">
-                      장비가 선택한 지점으로 이관됩니다
-                    </p>
-                  </>
-                ) : availableSoList.length === 1 ? (
-                  <>
-                    {/* 선택 가능 지점이 1개뿐 */}
-                    <div className="w-full px-4 py-3 border border-blue-300 rounded-xl text-sm bg-blue-100 text-blue-900 font-semibold">
-                      {availableSoList[0].SO_NM} ({availableSoList[0].SO_ID})
-                    </div>
-                    <p className="text-xs text-blue-600 mt-2">
-                      이관 가능한 지점으로 자동 설정됩니다
-                    </p>
-                  </>
-                ) : null}
-              </div>
-            );
-          })()}
+          {/* 이관지점 선택 */}
+          <div className="rounded-xl p-4 bg-blue-50 border border-blue-200">
+            <label className="block text-sm font-semibold mb-2 text-blue-800">
+              이관지점 선택
+            </label>
+            {userAuthSoList.length > 1 ? (
+              <>
+                <select
+                  value={targetSoId}
+                  onChange={(e) => setTargetSoId(e.target.value)}
+                  className="w-full px-4 py-3 border border-blue-300 rounded-xl text-sm bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                >
+                  {userAuthSoList.map((so) => (
+                    <option key={so.SO_ID} value={so.SO_ID}>
+                      {so.SO_NM} ({so.SO_ID})
+                    </option>
+                  ))}
+                </select>
+                <p className="text-xs text-blue-600 mt-2">
+                  장비가 선택한 지점으로 이관됩니다
+                </p>
+              </>
+            ) : userAuthSoList.length === 1 ? (
+              <>
+                <div className="w-full px-4 py-3 border border-blue-300 rounded-xl text-sm bg-blue-100 text-blue-900 font-semibold">
+                  {userAuthSoList[0].SO_NM} ({userAuthSoList[0].SO_ID})
+                </div>
+                <p className="text-xs text-blue-600 mt-2">
+                  이관 가능한 지점으로 자동 설정됩니다
+                </p>
+              </>
+            ) : null}
+          </div>
 
           {/* 이관 정보 요약 */}
           <div className="bg-gray-50 rounded-xl p-4">
@@ -2132,7 +1848,6 @@ const EquipmentMovement: React.FC<EquipmentMovementProps> = ({ onBack, showToast
                   <div
                     key={item.EQT_NO || idx}
                     className={`px-4 py-3 flex items-center gap-3 ${
-                      item.isTransferable === false ? 'bg-red-50 opacity-60' :
                       item.CHK ? 'bg-blue-50' : 'hover:bg-gray-50'
                     }`}
                   >
@@ -2140,23 +1855,14 @@ const EquipmentMovement: React.FC<EquipmentMovementProps> = ({ onBack, showToast
                       type="checkbox"
                       checked={item.CHK || false}
                       onChange={(e) => handleModalEquipmentCheck(idx, e.target.checked)}
-                      disabled={item.isTransferable === false}
-                      className={`rounded flex-shrink-0 ${
-                        item.isTransferable === false ? 'text-gray-300 cursor-not-allowed' : ''
-                      }`}
+                      className="rounded flex-shrink-0"
                     />
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2">
-                        <span className={`px-1.5 py-0.5 text-[10px] rounded font-medium ${
-                          item.isTransferable === false ? 'bg-red-100 text-red-700' : 'bg-blue-100 text-blue-700'
-                        }`}>
-                          {item.isTransferable === false && RESTRICTED_SO_IDS.includes(item.SO_ID)
-                            ? `${RESTRICTED_SO_NAMES[item.SO_ID]}전용`
-                            : (item.ITEM_MID_NM || item.EQT_CL_NM || '장비')}
+                        <span className="px-1.5 py-0.5 text-[10px] rounded font-medium bg-blue-100 text-blue-700">
+                          {item.ITEM_MID_NM || item.EQT_CL_NM || '장비'}
                         </span>
-                        <span className={`font-mono text-xs truncate ${
-                          item.isTransferable === false ? 'text-gray-500' : 'text-gray-800'
-                        }`}>
+                        <span className="font-mono text-xs truncate text-gray-800">
                           {item.EQT_SERNO || '-'}
                         </span>
                       </div>
