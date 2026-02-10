@@ -229,6 +229,11 @@ const CustomerBasicInfo: React.FC<CustomerBasicInfoProps> = ({
 
   // 계약 목록 로드 (고객 선택 시)
   const loadAllData = async (custId: string) => {
+    // 계약별 이력 데이터 초기화 (이전 고객 데이터 제거)
+    setConsultationHistory([]);
+    setWorkHistory([]);
+    setSelectedCtrtIdForHistory('');
+
     const contractsResult = await loadContracts(custId);
 
     // 전체 이력 로드 (일자별 보기)
@@ -389,7 +394,7 @@ const CustomerBasicInfo: React.FC<CustomerBasicInfoProps> = ({
                 >
                   <span className="font-medium text-gray-800">상담이력</span>
                   <span className="text-xs text-gray-500">
-                    ({historyViewMode === 'byDate' ? allConsultationHistory.length : consultationHistory.length})
+                    ({historyViewMode === 'byDate' ? allConsultationHistory.length : (selectedCtrtIdForHistory ? consultationHistory.length : 0)})
                   </span>
                 </button>
                 <div className="flex items-center gap-1 mr-2">
@@ -513,7 +518,7 @@ const CustomerBasicInfo: React.FC<CustomerBasicInfoProps> = ({
                 >
                   <span className="font-medium text-gray-800">작업이력</span>
                   <span className="text-xs text-gray-500">
-                    ({historyViewMode === 'byDate' ? allWorkHistory.length : workHistory.length})
+                    ({historyViewMode === 'byDate' ? allWorkHistory.length : (selectedCtrtIdForHistory ? workHistory.length : 0)})
                   </span>
                 </button>
                 <div className="flex items-center gap-1 mr-2">
