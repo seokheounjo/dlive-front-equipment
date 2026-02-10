@@ -394,7 +394,13 @@ const CustomerBasicInfo: React.FC<CustomerBasicInfoProps> = ({
                 </button>
                 <div className="flex items-center gap-1 mr-2">
                   <button
-                    onClick={(e) => { e.stopPropagation(); setHistoryViewMode('byDate'); }}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setHistoryViewMode('byDate');
+                      if (selectedCustomer && allConsultationHistory.length === 0 && allWorkHistory.length === 0) {
+                        loadAllHistory(selectedCustomer.CUST_ID);
+                      }
+                    }}
                     className={`px-2 py-0.5 text-xs rounded-full transition-colors ${
                       historyViewMode === 'byDate'
                         ? 'bg-blue-500 text-white'
@@ -402,7 +408,13 @@ const CustomerBasicInfo: React.FC<CustomerBasicInfoProps> = ({
                     }`}
                   >일자별</button>
                   <button
-                    onClick={(e) => { e.stopPropagation(); setHistoryViewMode('byContract'); }}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setHistoryViewMode('byContract');
+                      if (selectedCustomer && selectedCtrtIdForHistory && consultationHistory.length === 0 && workHistory.length === 0) {
+                        loadHistory(selectedCustomer.CUST_ID, selectedCtrtIdForHistory);
+                      }
+                    }}
                     className={`px-2 py-0.5 text-xs rounded-full transition-colors ${
                       historyViewMode === 'byContract'
                         ? 'bg-blue-500 text-white'
@@ -506,7 +518,13 @@ const CustomerBasicInfo: React.FC<CustomerBasicInfoProps> = ({
                 </button>
                 <div className="flex items-center gap-1 mr-2">
                   <button
-                    onClick={(e) => { e.stopPropagation(); setHistoryViewMode('byDate'); }}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setHistoryViewMode('byDate');
+                      if (selectedCustomer && allConsultationHistory.length === 0 && allWorkHistory.length === 0) {
+                        loadAllHistory(selectedCustomer.CUST_ID);
+                      }
+                    }}
                     className={`px-2 py-0.5 text-xs rounded-full transition-colors ${
                       historyViewMode === 'byDate'
                         ? 'bg-blue-500 text-white'
@@ -514,7 +532,13 @@ const CustomerBasicInfo: React.FC<CustomerBasicInfoProps> = ({
                     }`}
                   >일자별</button>
                   <button
-                    onClick={(e) => { e.stopPropagation(); setHistoryViewMode('byContract'); }}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setHistoryViewMode('byContract');
+                      if (selectedCustomer && selectedCtrtIdForHistory && consultationHistory.length === 0 && workHistory.length === 0) {
+                        loadHistory(selectedCustomer.CUST_ID, selectedCtrtIdForHistory);
+                      }
+                    }}
                     className={`px-2 py-0.5 text-xs rounded-full transition-colors ${
                       historyViewMode === 'byContract'
                         ? 'bg-blue-500 text-white'
