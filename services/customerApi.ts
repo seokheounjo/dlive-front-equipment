@@ -1536,6 +1536,7 @@ export const registerConsultation = async (params: ConsultationRequest): Promise
     MST_SO_ID: mstSoId,
     USR_ID: usrId,
     CRR_ID: crrId,
+    CALLER_UID: usrId,  // 접속자 ID (상담이력 반영에 필수)
     // 고정값
     RCPT_TP: 'G1',
     CUST_REL: 'A',
