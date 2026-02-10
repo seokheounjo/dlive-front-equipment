@@ -267,6 +267,7 @@ router.post('/customer/work/workComplete', handleProxy);
 router.post('/customer/work/saveInstallInfo', handleProxy);
 router.post('/customer/work/insertWorkRemoveStat', handleProxy);
 router.post('/customer/work/modAsPdaReceipt', handleProxy);
+router.post('/customer/work/getProd_Grp', handleProxy);
 router.post('/customer/work/getEquipLossInfo', handleProxy);
 router.post('/customer/work/modEquipLoss', handleProxy);
 
