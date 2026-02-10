@@ -2151,7 +2151,36 @@ export interface CardDpstDtlItem {
 }
 
 export const insertDpstAndDTL = async (params: CardDpstParams): Promise<ApiResponse<any>> => {
-  return apiCall<any>('/billing/payment/anony/insertDpstAndDTL', params);
+  // Transform to backend expected uppercase param names
+  const backendParams: any = {
+    MID: params.master_store_id,
+    OID: params.order_no,
+    ORDER_DT: params.order_dt,
+    SO_ID: params.ctrt_so_id,
+    CUST_ID: params.cust_id,
+    CUST_NM: params.reqr_nm,
+    AMT: params.encrypted_amt,
+    PYM_ACNT_ID: params.pym_acnt_id,
+    USER_ID: params.user_id,
+    RCPT_BILL_EMP_ID: params.rcpt_bill_emp_id,
+    SMRY: params.smry,
+    PYR_REL: params.pyr_rel,
+    PROD_INFO_CD: params.prod_info_cd,
+    CUST_EMAIL: params.cust_email,
+  };
+  if (params.dtlList) {
+    backendParams.DTL_LIST = params.dtlList.map(dtl => ({
+      MID: dtl.master_store_id,
+      OID: dtl.order_no,
+      ORDER_DT: dtl.order_dt,
+      BILL_SEQ_NO: dtl.BILL_SEQ_NO,
+      SO_ID: dtl.SO_ID,
+      BILL_AMT: dtl.BILL_AMT,
+      PRE_RCPT_AMT: dtl.PRE_RCPT_AMT,
+      RCPT_AMT: dtl.RCPT_AMT,
+    }));
+  }
+  return apiCall<any>('/billing/payment/anony/insertDpstAndDTL', backendParams);
 };
 
 /**
@@ -2168,7 +2197,15 @@ export interface CardPayStageParams {
 }
 
 export const insertCardPayStage = async (params: CardPayStageParams): Promise<ApiResponse<any>> => {
-  return apiCall<any>('/billing/payment/anony/insertCardPayStage', params);
+  // Transform to backend expected uppercase param names
+  const backendParams: any = {
+    OID: params.order_no,
+    STAGE: params.stage,
+    ORDER_DT: params.order_dt,
+    PYM_ACNT_ID: params.pym_acnt_id,
+    AMT: params.encrypted_amt,
+  };
+  return apiCall<any>('/billing/payment/anony/insertCardPayStage', backendParams);
 };
 
 /**
@@ -2193,7 +2230,21 @@ export interface CardPaymentRequest {
 }
 
 export const processCardPayment = async (params: CardPaymentRequest): Promise<ApiResponse<any>> => {
-  return apiCall<any>('/billing/payment/anony/processCardPayment', params);
+  // Transform to backend expected uppercase param names
+  const backendParams: any = {
+    MID: params.mid,
+    OID: params.oid,
+    ORDER_DT: params.order_dt,
+    AMT: params.amount,
+    CUST_NM: params.buyer,
+    GOODNAME: params.productinfo,
+    CARD_NO: params.card_no,
+    CARD_EXPIRY: params.card_expyear + params.card_expmon,  // YYMM
+    KOR_ID: params.kor_id,
+    INSTALL_PERIOD: params.install,
+    PYM_ACNT_ID: params.pym_acnt_id,
+  };
+  return apiCall<any>('/billing/payment/anony/processCardPayment', backendParams);
 };
 
 /**
