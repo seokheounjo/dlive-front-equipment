@@ -398,7 +398,7 @@ const PaymentInfo: React.FC<PaymentInfoProps> = ({
                       </div>
                     ) : billingDetails.length === 0 ? (
                       <div className="text-center py-4 text-gray-500 text-sm">
-                        요금 내역이 없습니다.
+                        최근 3개월 요금 내역 또는 미납 내역이 없습니다.
                       </div>
                     ) : (
                       <div className="space-y-2">
