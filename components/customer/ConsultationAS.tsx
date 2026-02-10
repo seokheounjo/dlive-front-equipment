@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import {
   MessageSquare, Wrench, ChevronDown, ChevronUp,
   Loader2, AlertCircle, Send, Calendar, Clock,
-  RefreshCw, ArrowLeft, FileText
+  RefreshCw, ArrowLeft, FileText, CheckCircle, XCircle
 } from 'lucide-react';
 import {
   getConsultationHistory,
@@ -300,6 +300,18 @@ const ConsultationAS: React.FC<ConsultationASProps> = ({
   const [isLoadingCodes, setIsLoadingCodes] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
 
+  // 결과 팝업 상태
+  const [resultPopup, setResultPopup] = useState<{
+    show: boolean;
+    type: 'success' | 'error' | 'warning';
+    title: string;
+    message: string;
+  }>({ show: false, type: 'success', title: '', message: '' });
+
+  const showPopup = (type: 'success' | 'error' | 'warning', title: string, message: string) => {
+    setResultPopup({ show: true, type, title, message });
+  };
+
   // 섹션 펼침 상태
   const [showHistory, setShowHistory] = useState(true);
 
@@ -437,17 +449,17 @@ const ConsultationAS: React.FC<ConsultationASProps> = ({
   // 상담 등록
   const handleRegisterConsultation = async () => {
     if (!selectedCustomer) {
-      showToast?.('먼저 고객을 선택해주세요.', 'warning');
+      showPopup('warning', '안내', '먼저 고객을 선택해주세요.');
       return;
     }
 
     if (!consultationForm.cnslLClCd || !consultationForm.cnslMClCd || !consultationForm.cnslSClCd) {
-      showToast?.('상담 분류를 모두 선택해주세요.', 'warning');
+      showPopup('warning', '안내', '상담 분류를 모두 선택해주세요.');
       return;
     }
 
     if (!consultationForm.reqCntn.trim()) {
-      showToast?.('요청사항을 입력해주세요.', 'warning');
+      showPopup('warning', '안내', '요청사항을 입력해주세요.');
       return;
     }
 
@@ -471,7 +483,7 @@ const ConsultationAS: React.FC<ConsultationASProps> = ({
       const response = await registerConsultation(params);
 
       if (response.success) {
-        showToast?.('상담이 등록되었습니다.', 'success');
+        showPopup('success', '상담 등록 완료', '상담이 정상적으로 등록되었습니다.');
         // 폼 초기화
         setConsultationForm({
           cnslLClCd: '',
@@ -486,11 +498,11 @@ const ConsultationAS: React.FC<ConsultationASProps> = ({
         // 이력 새로고침
         loadHistory();
       } else {
-        showToast?.(response.message || '상담 등록에 실패했습니다.', 'error');
+        showPopup('error', '상담 등록 실패', response.message || '상담 등록에 실패했습니다.');
       }
     } catch (error) {
       console.error('Register consultation error:', error);
-      showToast?.('상담 등록 중 오류가 발생했습니다.', 'error');
+      showPopup('error', '오류', '상담 등록 중 오류가 발생했습니다.');
     } finally {
       setIsSaving(false);
     }
@@ -499,34 +511,34 @@ const ConsultationAS: React.FC<ConsultationASProps> = ({
   // AS 접수
   const handleRegisterAS = async () => {
     if (!selectedCustomer) {
-      showToast?.('먼저 고객을 선택해주세요.', 'warning');
+      showPopup('warning', '안내', '먼저 고객을 선택해주세요.');
       return;
     }
 
     // 가입자 모드: 계약 필수
     if (asSubscriberType === 'subscriber' && !selectedContract) {
-      showToast?.('AS 접수를 위해 계약을 선택해주세요.', 'warning');
+      showPopup('warning', '안내', '가입자 AS 접수를 위해 계약을 선택해주세요.');
       return;
     }
 
     if (!asForm.asClCd) {
-      showToast?.('AS구분을 선택해주세요.', 'warning');
+      showPopup('warning', '안내', 'AS구분을 선택해주세요.');
       return;
     }
 
     if (!asForm.asResnLCd) {
-      showToast?.('AS접수사유(대)를 선택해주세요.', 'warning');
+      showPopup('warning', '안내', 'AS접수사유(대)를 선택해주세요.');
       return;
     }
 
     // 중분류가 있는 대분류인 경우에만 중분류 필수 검증
     if (asResnMCodes.length > 0 && !asForm.asResnMCd) {
-      showToast?.('AS접수사유(중)를 선택해주세요.', 'warning');
+      showPopup('warning', '안내', 'AS접수사유(중)를 선택해주세요.');
       return;
     }
 
     if (!asForm.asCntn.trim()) {
-      showToast?.('AS 내용을 입력해주세요.', 'warning');
+      showPopup('warning', '안내', 'AS 내용을 입력해주세요.');
       return;
     }
 
@@ -554,7 +566,7 @@ const ConsultationAS: React.FC<ConsultationASProps> = ({
       const response = await registerASRequest(params);
 
       if (response.success) {
-        showToast?.('AS가 접수되었습니다.', 'success');
+        showPopup('success', 'AS 접수 완료', 'AS가 정상적으로 접수되었습니다.');
         // 폼 초기화
         setASForm({
           asClCd: '',
@@ -571,11 +583,11 @@ const ConsultationAS: React.FC<ConsultationASProps> = ({
         // 이력 새로고침
         loadHistory();
       } else {
-        showToast?.(response.message || 'AS 접수에 실패했습니다.', 'error');
+        showPopup('error', 'AS 접수 실패', response.message || 'AS 접수에 실패했습니다.');
       }
     } catch (error) {
       console.error('Register AS error:', error);
-      showToast?.('AS 접수 중 오류가 발생했습니다.', 'error');
+      showPopup('error', '오류', 'AS 접수 중 오류가 발생했습니다.');
     } finally {
       setIsSaving(false);
     }
@@ -1232,6 +1244,40 @@ const ConsultationAS: React.FC<ConsultationASProps> = ({
           )}
         </div>
       </div>
+
+      {/* 결과 팝업 */}
+      {resultPopup.show && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-5 max-w-sm mx-4 shadow-xl">
+            <div className="flex items-center gap-3 mb-4">
+              <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
+                resultPopup.type === 'success' ? 'bg-green-100' :
+                resultPopup.type === 'error' ? 'bg-red-100' : 'bg-yellow-100'
+              }`}>
+                {resultPopup.type === 'success' ? (
+                  <CheckCircle className="w-5 h-5 text-green-500" />
+                ) : resultPopup.type === 'error' ? (
+                  <XCircle className="w-5 h-5 text-red-500" />
+                ) : (
+                  <AlertCircle className="w-5 h-5 text-yellow-500" />
+                )}
+              </div>
+              <h3 className="text-base font-medium text-gray-900">{resultPopup.title}</h3>
+            </div>
+            <p className="text-sm text-gray-600 mb-5">{resultPopup.message}</p>
+            <button
+              onClick={() => setResultPopup(prev => ({ ...prev, show: false }))}
+              className={`w-full px-4 py-2 text-sm text-white rounded-lg transition-colors ${
+                resultPopup.type === 'success' ? 'bg-green-500 hover:bg-green-600' :
+                resultPopup.type === 'error' ? 'bg-red-500 hover:bg-red-600' :
+                'bg-yellow-500 hover:bg-yellow-600'
+              }`}
+            >
+              확인
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* 계약단위 선택 확인 팝업 */}
       {showContractConfirm && (
