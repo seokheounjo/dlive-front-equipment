@@ -24,11 +24,6 @@ const LEGACY_REQ_ROUTES = [
   "/customer/phoneNumber/getOwnEqtLstForMobile_3",  // 장비반납
   "/customer/equipment/getAuthSoList",  // SO 권한 목록
   "/customer/equipment/getEqtTrnsList",  // 장비이동내역
-
-  // History APIs - .req로 직접 호출 (Java controller의 CTRT_ID 필수 검증 우회)
-  // 백엔드 SQL 변경: CTRT_ID 없이 CUST_ID만으로 조회 가능
-  "/customer/negociation/getTgtCtrtRcptHist_m",  // 상담이력
-  "/customer/negociation/getTgtCtrtWorkList_m",  // 작업이력
 ];
 
 // Parse MiPlatform XML response to JSON
@@ -360,6 +355,15 @@ async function handleProxy(req, res) {
         req.body.PASSWORD = req.body.USR_PW;
         delete req.body.USR_PW;
         console.log('[PROXY] Transformed USR_PW to PASSWORD for login');
+      }
+    }
+
+    // Inject dummy CTRT_ID for history APIs (backend SQL no longer uses CTRT_ID,
+    // but Java adapter controller still validates it as required parameter)
+    if ((apiPath.endsWith('/getTgtCtrtRcptHist_m') || apiPath.endsWith('/getTgtCtrtWorkList_m')) && req.body) {
+      if (!req.body.CTRT_ID) {
+        req.body.CTRT_ID = '*';
+        console.log('[PROXY] Injected dummy CTRT_ID for history API: ' + apiPath);
       }
     }
 
