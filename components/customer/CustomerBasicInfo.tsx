@@ -82,6 +82,11 @@ const CustomerBasicInfo: React.FC<CustomerBasicInfoProps> = ({
   const [consultationHistory, setConsultationHistory] = useState<ConsultationHistory[]>([]);
   const [workHistory, setWorkHistory] = useState<WorkHistory[]>([]);
 
+  // 일자별/계약별 뷰 모드
+  const [historyViewMode, setHistoryViewMode] = useState<'byDate' | 'byContract'>('byDate');
+  const [allConsultationHistory, setAllConsultationHistory] = useState<ConsultationHistory[]>([]);
+  const [allWorkHistory, setAllWorkHistory] = useState<WorkHistory[]>([]);
+
   // 로딩 상태
   const [isLoadingContracts, setIsLoadingContracts] = useState(false);
   const [isLoadingHistory, setIsLoadingHistory] = useState(false);
@@ -127,6 +132,10 @@ const CustomerBasicInfo: React.FC<CustomerBasicInfoProps> = ({
         setContracts(cachedContracts);
         setConsultationHistory(cachedConsultationHistory);
         setWorkHistory(cachedWorkHistory);
+        // 전체 이력이 없으면 로드
+        if (allConsultationHistory.length === 0 && allWorkHistory.length === 0 && cachedContracts.length > 0) {
+          loadAllHistory(selectedCustomer.CUST_ID, cachedContracts);
+        }
       } else {
         // 캐시가 없으면 새로 로드
         loadAllData(selectedCustomer.CUST_ID);
@@ -202,11 +211,52 @@ const CustomerBasicInfo: React.FC<CustomerBasicInfoProps> = ({
     }
   };
 
+  // 전체 계약의 이력을 병합 로드 (일자별 보기용)
+  const loadAllHistory = async (custId: string, contractList: ContractInfo[]) => {
+    if (contractList.length === 0) {
+      setAllConsultationHistory([]);
+      setAllWorkHistory([]);
+      return;
+    }
+
+    setIsLoadingHistory(true);
+    try {
+      const results = await Promise.all(
+        contractList.map(c => Promise.all([
+          getConsultationHistory(custId, c.CTRT_ID, 10),
+          getWorkHistory(custId, c.CTRT_ID, 10)
+        ]))
+      );
+
+      let allConsult: ConsultationHistory[] = [];
+      let allWork: WorkHistory[] = [];
+
+      results.forEach(([consultRes, workRes]) => {
+        if (consultRes.success && consultRes.data) allConsult = allConsult.concat(consultRes.data);
+        if (workRes.success && workRes.data) allWork = allWork.concat(workRes.data);
+      });
+
+      // 날짜 내림차순 정렬 후 최신 10건
+      allConsult.sort((a, b) => (b.START_DATE || '').localeCompare(a.START_DATE || ''));
+      allWork.sort((a, b) => (b.HOPE_DT || '').localeCompare(a.HOPE_DT || ''));
+
+      setAllConsultationHistory(allConsult.slice(0, 10));
+      setAllWorkHistory(allWork.slice(0, 10));
+    } catch (error) {
+      console.error('Load all history error:', error);
+    } finally {
+      setIsLoadingHistory(false);
+    }
+  };
+
   // 계약 목록 로드 (고객 선택 시)
   const loadAllData = async (custId: string) => {
     const contractsResult = await loadContracts(custId);
 
-    // 이력은 계약 선택 후에 로드되므로 빈 배열 전달
+    // 전체 이력 로드 (일자별 보기)
+    setHistoryViewMode('byDate');
+    await loadAllHistory(custId, contractsResult);
+
     if (onDataLoaded) {
       onDataLoaded(custId, contractsResult, [], []);
     }
@@ -232,9 +282,10 @@ const CustomerBasicInfo: React.FC<CustomerBasicInfoProps> = ({
       notrecev: contract.NOTRECEV
     });
 
-    // 선택된 계약으로 이력 로드
+    // 선택된 계약으로 이력 로드 + 계약별 모드로 전환
     if (selectedCustomer && contract.CTRT_ID !== selectedCtrtIdForHistory) {
       setSelectedCtrtIdForHistory(contract.CTRT_ID);
+      setHistoryViewMode('byContract');
       loadHistory(selectedCustomer.CUST_ID, contract.CTRT_ID);
     }
   };
@@ -353,36 +404,56 @@ const CustomerBasicInfo: React.FC<CustomerBasicInfoProps> = ({
 
             {/* 상담 이력 */}
             <div className="bg-white rounded-lg shadow-sm border border-gray-200">
-              <button
-                onClick={() => toggleSection('consultation')}
-                className="w-full px-3 py-2.5 flex items-center justify-between text-left"
-              >
-                <div className="flex items-center gap-2">
+              <div className="flex items-center justify-between px-3 py-2.5">
+                <button
+                  onClick={() => toggleSection('consultation')}
+                  className="flex items-center gap-2 flex-1 text-left"
+                >
                   <span className="font-medium text-gray-800">상담이력</span>
-                  {consultationHistory.length > 0 && (
-                    <span className="text-xs text-gray-500">({consultationHistory.length})</span>
-                  )}
+                  <span className="text-xs text-gray-500">
+                    ({historyViewMode === 'byDate' ? allConsultationHistory.length : consultationHistory.length})
+                  </span>
+                </button>
+                <div className="flex items-center gap-1 mr-2">
+                  <button
+                    onClick={(e) => { e.stopPropagation(); setHistoryViewMode('byDate'); }}
+                    className={`px-2 py-0.5 text-xs rounded-full transition-colors ${
+                      historyViewMode === 'byDate'
+                        ? 'bg-blue-500 text-white'
+                        : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                    }`}
+                  >일자별</button>
+                  <button
+                    onClick={(e) => { e.stopPropagation(); setHistoryViewMode('byContract'); }}
+                    className={`px-2 py-0.5 text-xs rounded-full transition-colors ${
+                      historyViewMode === 'byContract'
+                        ? 'bg-blue-500 text-white'
+                        : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                    }`}
+                  >계약별</button>
                 </div>
-                {expandedSections.consultation ? (
-                  <ChevronUp className="w-4 h-4 text-gray-400" />
-                ) : (
-                  <ChevronDown className="w-4 h-4 text-gray-400" />
-                )}
-              </button>
+                <button onClick={() => toggleSection('consultation')}>
+                  {expandedSections.consultation ? (
+                    <ChevronUp className="w-4 h-4 text-gray-400" />
+                  ) : (
+                    <ChevronDown className="w-4 h-4 text-gray-400" />
+                  )}
+                </button>
+              </div>
 
               {expandedSections.consultation && (
                 <div className="px-3 pb-3">
-                  {!selectedCtrtIdForHistory ? (
-                    <div className="text-center py-3 text-gray-500 text-sm">
-                      계약 현황에서 계약을 선택하세요
-                    </div>
-                  ) : isLoadingHistory ? (
+                  {isLoadingHistory ? (
                     <div className="flex items-center justify-center py-3">
                       <Loader2 className="w-4 h-4 animate-spin text-gray-400" />
                     </div>
-                  ) : consultationHistory.length > 0 ? (
+                  ) : historyViewMode === 'byContract' && !selectedCtrtIdForHistory ? (
+                    <div className="text-center py-3 text-gray-500 text-sm">
+                      계약 현황에서 계약을 선택하세요
+                    </div>
+                  ) : (historyViewMode === 'byDate' ? allConsultationHistory : consultationHistory).length > 0 ? (
                     <div className="space-y-3">
-                      {consultationHistory.map((item, index) => (
+                      {(historyViewMode === 'byDate' ? allConsultationHistory : consultationHistory).map((item, index) => (
                         <div key={index} className="bg-gray-50 rounded-lg text-sm border border-gray-100">
                           {/* 상단 정보 (클릭으로 접기/펼치기) */}
                           <div
@@ -445,36 +516,56 @@ const CustomerBasicInfo: React.FC<CustomerBasicInfoProps> = ({
 
             {/* 작업 이력 */}
             <div className="bg-white rounded-lg shadow-sm border border-gray-200">
-              <button
-                onClick={() => toggleSection('work')}
-                className="w-full px-3 py-2.5 flex items-center justify-between text-left"
-              >
-                <div className="flex items-center gap-2">
+              <div className="flex items-center justify-between px-3 py-2.5">
+                <button
+                  onClick={() => toggleSection('work')}
+                  className="flex items-center gap-2 flex-1 text-left"
+                >
                   <span className="font-medium text-gray-800">작업이력</span>
-                  {workHistory.length > 0 && (
-                    <span className="text-xs text-gray-500">({workHistory.length})</span>
-                  )}
+                  <span className="text-xs text-gray-500">
+                    ({historyViewMode === 'byDate' ? allWorkHistory.length : workHistory.length})
+                  </span>
+                </button>
+                <div className="flex items-center gap-1 mr-2">
+                  <button
+                    onClick={(e) => { e.stopPropagation(); setHistoryViewMode('byDate'); }}
+                    className={`px-2 py-0.5 text-xs rounded-full transition-colors ${
+                      historyViewMode === 'byDate'
+                        ? 'bg-blue-500 text-white'
+                        : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                    }`}
+                  >일자별</button>
+                  <button
+                    onClick={(e) => { e.stopPropagation(); setHistoryViewMode('byContract'); }}
+                    className={`px-2 py-0.5 text-xs rounded-full transition-colors ${
+                      historyViewMode === 'byContract'
+                        ? 'bg-blue-500 text-white'
+                        : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                    }`}
+                  >계약별</button>
                 </div>
-                {expandedSections.work ? (
-                  <ChevronUp className="w-4 h-4 text-gray-400" />
-                ) : (
-                  <ChevronDown className="w-4 h-4 text-gray-400" />
-                )}
-              </button>
+                <button onClick={() => toggleSection('work')}>
+                  {expandedSections.work ? (
+                    <ChevronUp className="w-4 h-4 text-gray-400" />
+                  ) : (
+                    <ChevronDown className="w-4 h-4 text-gray-400" />
+                  )}
+                </button>
+              </div>
 
               {expandedSections.work && (
                 <div className="px-3 pb-3">
-                  {!selectedCtrtIdForHistory ? (
-                    <div className="text-center py-3 text-gray-500 text-sm">
-                      계약 현황에서 계약을 선택하세요
-                    </div>
-                  ) : isLoadingHistory ? (
+                  {isLoadingHistory ? (
                     <div className="flex items-center justify-center py-3">
                       <Loader2 className="w-4 h-4 animate-spin text-gray-400" />
                     </div>
-                  ) : workHistory.length > 0 ? (
+                  ) : historyViewMode === 'byContract' && !selectedCtrtIdForHistory ? (
+                    <div className="text-center py-3 text-gray-500 text-sm">
+                      계약 현황에서 계약을 선택하세요
+                    </div>
+                  ) : (historyViewMode === 'byDate' ? allWorkHistory : workHistory).length > 0 ? (
                     <div className="space-y-3">
-                      {workHistory.map((item, index) => (
+                      {(historyViewMode === 'byDate' ? allWorkHistory : workHistory).map((item, index) => (
                         <div key={index} className="p-3 bg-gray-50 rounded-lg text-sm border border-gray-100">
                           {/* 상단: 작업예정일 | 작업구분 | 작업상태 */}
                           <div className="grid grid-cols-3 gap-2 text-xs">

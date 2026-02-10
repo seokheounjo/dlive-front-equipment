@@ -220,6 +220,7 @@ const CustomerManagementMenu: React.FC<CustomerManagementMenuProps> = ({ onNavig
               telNo: selectedCustomer.TEL_NO || selectedCustomer.HP_NO || ''
             } : null}
             selectedContract={selectedContract}
+            contracts={cachedContracts}
             onNavigateToBasicInfo={() => handleNavigateToTab('basic-info')}
             initialTab={consultationASInitialTab}
           />
