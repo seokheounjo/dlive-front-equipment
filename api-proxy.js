@@ -179,6 +179,71 @@ function escapeXml(str) {
     .replace(/'/g, '&apos;');
 }
 
+// Build multi-dataset MiPlatform XML (원본 CONA 클라이언트 형식)
+// D'Live .req 서블릿은 여러 데이터셋을 하나의 XML에서 읽음
+function buildMultiDatasetXML(datasets) {
+  let xml = '<?xml version="1.0" encoding="UTF-8"?>\n';
+  xml += '<Root xmlns="http://www.tobesoft.com/platform/dataset">\n';
+
+  for (const [name, data] of Object.entries(datasets)) {
+    if (!data || typeof data !== 'object') continue;
+    const columns = Object.keys(data);
+    xml += '<Dataset id="' + name + '">\n<ColumnInfo>';
+    columns.forEach(col => {
+      xml += '<Column id="' + col + '" type="STRING" size="256"/>';
+    });
+    xml += '</ColumnInfo>\n<Rows>';
+    if (columns.length > 0) {
+      xml += '<Row>';
+      columns.forEach(col => {
+        xml += '<Col id="' + col + '">' + escapeXml(String(data[col] || '')) + '</Col>';
+      });
+      xml += '</Row>';
+    }
+    xml += '</Rows>\n</Dataset>\n';
+  }
+
+  xml += '</Root>';
+  return xml;
+}
+
+// Parse MiPlatform Dataset XML response (<Col id="KEY">value</Col> 형식)
+function parseMiPlatformDatasetXMLtoJSON(xmlString) {
+  try {
+    const result = {};
+    const colRegex = /<Col\s+id="(\w+)"[^>]*>([^<]*)<\/Col>/gi;
+    let match;
+    while ((match = colRegex.exec(xmlString)) !== null) {
+      result[match[1]] = match[2]
+        .replace(/&amp;/g, '&')
+        .replace(/&lt;/g, '<')
+        .replace(/&gt;/g, '>')
+        .replace(/&quot;/g, '"')
+        .replace(/&apos;/g, "'");
+    }
+    return Object.keys(result).length > 0 ? result : null;
+  } catch (e) {
+    console.error('[PROXY] Dataset XML parsing error:', e.message);
+    return null;
+  }
+}
+
+// Routes that bypass adapter and go directly to .req servlet with multi-dataset XML
+// 상담등록: 원본 CONA는 ds_call_info + ds_trans + gds_user 3개 데이터셋을 전송
+// Java 어댑터의 parseJsonToMap이 CALLER_UID를 제거하므로 .req로 직접 전송하여 우회
+const DIRECT_REQ_ROUTES = {
+  '/customer/negociation/saveCnslRcptInfo': {
+    reqPath: '/customer/negociation/saveCnslRcptInfo.req',
+    buildXml: (body) => {
+      return buildMultiDatasetXML({
+        'ds_call_info': body,
+        'ds_trans': {},
+        'gds_user': { USR_ID: body.CALLER_UID || body.USR_ID || '' }
+      });
+    }
+  }
+};
+
 // Proxy routes
 router.post('/login', handleProxy);
 router.post('/work/directions', handleProxy);
@@ -400,7 +465,14 @@ async function handleProxy(req, res) {
 
     // Check if this route should go directly to legacy .req servlet
     let isLegacyReq = false;
-    if (LEGACY_REQ_ROUTES.includes(apiPath)) {
+    let directReqConfig = null;
+
+    if (DIRECT_REQ_ROUTES[apiPath]) {
+      directReqConfig = DIRECT_REQ_ROUTES[apiPath];
+      finalPath = directReqConfig.reqPath;
+      isLegacyReq = true;
+      console.log('[PROXY] Direct .req route (multi-dataset): ' + apiPath + ' -> ' + finalPath);
+    } else if (LEGACY_REQ_ROUTES.includes(apiPath)) {
       finalPath = apiPath + '.req';
       isLegacyReq = true;
       console.log('[PROXY] Legacy .req route: ' + apiPath + ' -> ' + finalPath);
@@ -433,9 +505,15 @@ async function handleProxy(req, res) {
     if (req.method === 'POST' || req.method === 'PUT') {
       if (isLegacyReq && req.body) {
         // Convert JSON to MiPlatform XML format for legacy .req endpoints
-        postData = jsonToMiPlatformXML('ds_request', req.body);
+        if (directReqConfig) {
+          // Multi-dataset XML for direct .req routes (e.g., 상담등록)
+          postData = directReqConfig.buildXml(req.body);
+          console.log('[PROXY] Multi-dataset XML for .req:', postData.substring(0, 500));
+        } else {
+          postData = jsonToMiPlatformXML('ds_request', req.body);
+          console.log('[PROXY] Converted to MiPlatform XML:', postData.substring(0, 300));
+        }
         contentType = 'text/xml; charset=UTF-8';
-        console.log('[PROXY] Converted to MiPlatform XML:', postData.substring(0, 300));
       } else {
         postData = JSON.stringify(req.body);
       }
@@ -518,6 +596,24 @@ async function handleProxy(req, res) {
             res.setHeader('Content-Type', 'application/json; charset=utf-8');
             res.status(proxyRes.statusCode);
             res.json(jsonData);
+            return;
+          }
+        }
+
+        // For legacy .req routes with Dataset XML response (<Col id="KEY"> format)
+        if (isLegacyReq && responseBody.includes('<Col ')) {
+          console.log('[PROXY] Parsing XML <Col> Dataset response to JSON');
+          const jsonData = parseMiPlatformDatasetXMLtoJSON(responseBody);
+          if (jsonData) {
+            // Wrap in standard response format for frontend compatibility
+            const isSuccess = (jsonData.MESSAGE === 'SUCCESS' || jsonData.MSGCODE === 'SUCCESS');
+            res.setHeader('Content-Type', 'application/json; charset=utf-8');
+            res.status(proxyRes.statusCode);
+            res.json({
+              code: isSuccess ? 'SUCCESS' : (jsonData.MSGCODE || 'ERROR'),
+              message: isSuccess ? 'OK' : (jsonData.MESSAGE || 'Unknown error'),
+              data: jsonData
+            });
             return;
           }
         }

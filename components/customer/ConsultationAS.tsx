@@ -475,6 +475,7 @@ const ConsultationAS: React.FC<ConsultationASProps> = ({
         REQ_CTX: consultationForm.reqCntn,          // 요청사항
         POST_ID: selectedContract?.postId || '',
         SAVE_TP: '2',
+        CNSL_RSLT: '5',   // 완료 (원본 CONA mowoe03m04.xml 기준)
         RCPT_TP: 'G1', CUST_REL: 'A', PRESS_RCPT_YN: 'N',
         SUBS_TP: '1', CTI_CID: '0',
         SO_ID: '', MST_SO_ID: ''

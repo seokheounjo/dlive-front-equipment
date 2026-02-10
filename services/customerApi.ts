@@ -194,6 +194,7 @@ export interface ConsultationRequest {
   PROC_PLNR_ID?: string;     // 전달자ID (전달처리 시)
   DEPT_CD?: string;          // 지점 선택 시
   CRR_ID?: string;           // 업체 선택 시
+  CNSL_RSLT?: string;        // 상담결과 - '5'=완료 (원본 CONA mowoe03m04.xml 기준)
 }
 
 // AS 접수 요청 (Backend: modAsPdaReceipt)
@@ -1536,7 +1537,8 @@ export const registerConsultation = async (params: ConsultationRequest): Promise
     MST_SO_ID: mstSoId,
     USR_ID: usrId,
     CRR_ID: crrId,
-    CALLER_UID: usrId,  // 접속자 ID (상담이력 반영에 필수)
+    CALLER_UID: usrId,  // 접속자 ID (상담이력 반영에 필수 - mowoe03m04.xml 참조)
+    CNSL_RSLT: params.CNSL_RSLT || '5',  // 완료 (원본 CONA: 이관 아닐 때 '5')
     // 고정값
     RCPT_TP: 'G1',
     CUST_REL: 'A',
