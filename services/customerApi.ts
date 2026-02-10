@@ -1501,14 +1501,18 @@ export const verifyCard = async (params: CardVerifyRequest): Promise<ApiResponse
  * 고정값: RCPT_TP='G1', CUST_REL='A', PRESS_RCPT_YN='N', SUBS_TP='1', CTI_CID='0'
  */
 export const registerConsultation = async (params: ConsultationRequest): Promise<ApiResponse<any>> => {
-  // 세션/로컬 스토리지에서 SO_ID, MST_SO_ID 가져오기
+  // 세션/로컬 스토리지에서 SO_ID, MST_SO_ID, USR_ID 가져오기
   let soId = params.SO_ID || '';
   let mstSoId = params.MST_SO_ID || '';
+  let usrId = '';
+  let crrId = '';
   try {
-    // sessionStorage 먼저 시도, 없으면 localStorage fallback
-    const userInfoStr = sessionStorage.getItem('userInfo') || localStorage.getItem('userInfo') || localStorage.getItem('userInfo');
+    const userInfoStr = sessionStorage.getItem('userInfo') || localStorage.getItem('userInfo');
     if (userInfoStr) {
       const userInfo = JSON.parse(userInfoStr);
+      // USR_ID 추출
+      usrId = userInfo.userId || userInfo.USR_ID || userInfo.usrId || '';
+      crrId = userInfo.crrId || userInfo.CRR_ID || '';
       if (!soId) {
         const authSoList = userInfo.authSoList || userInfo.AUTH_SO_List || [];
         if (authSoList.length > 0) {
@@ -1523,13 +1527,15 @@ export const registerConsultation = async (params: ConsultationRequest): Promise
       }
     }
   } catch (e) {
-    console.log('[CustomerAPI] Failed to get SO_ID from session/localStorage');
+    console.log('[CustomerAPI] Failed to get user info from session/localStorage');
   }
 
   return apiCall<any>('/customer/negociation/saveCnslRcptInfo', {
     ...params,
     SO_ID: soId,
     MST_SO_ID: mstSoId,
+    USR_ID: usrId,
+    CRR_ID: crrId,
     // 고정값
     RCPT_TP: 'G1',
     CUST_REL: 'A',
