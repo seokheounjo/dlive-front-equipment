@@ -2172,6 +2172,9 @@ export interface CardPayStageParams {
   pym_acnt_id: string;
   encrypted_amt: string;
   stage: string;             // '03', '04', '05', '06'
+  so_id?: string;            // SO_ID (SQL requires)
+  cust_id?: string;          // CUST_ID (SQL requires)
+  ctrt_id?: string;          // CTRT_ID (SQL requires)
 }
 
 export const insertCardPayStage = async (params: CardPayStageParams): Promise<ApiResponse<any>> => {
@@ -2182,6 +2185,9 @@ export const insertCardPayStage = async (params: CardPayStageParams): Promise<Ap
     ORDER_DT: params.order_dt,
     PYM_ACNT_ID: params.pym_acnt_id,
     AMT: params.encrypted_amt,
+    SO_ID: params.so_id || '',
+    CUST_ID: params.cust_id || '',
+    CTRT_ID: params.ctrt_id || '',
   };
   return apiCall<any>('/billing/payment/anony/insertCardPayStage', backendParams);
 };
@@ -2205,6 +2211,9 @@ export interface CardPaymentRequest {
   install: string;           // 할부개월 ('00'=일시불)
   pym_acnt_id: string;       // 납부계정ID
   encrypted_amt: string;     // 결제금액
+  so_id?: string;            // SO_ID (stage insert용)
+  cust_id?: string;          // CUST_ID (stage insert용)
+  ctrt_id?: string;          // CTRT_ID (stage insert용)
 }
 
 export const processCardPayment = async (params: CardPaymentRequest): Promise<ApiResponse<any>> => {
@@ -2221,6 +2230,9 @@ export const processCardPayment = async (params: CardPaymentRequest): Promise<Ap
     KOR_ID: params.kor_id,
     INSTALL_PERIOD: params.install,
     PYM_ACNT_ID: params.pym_acnt_id,
+    SO_ID: params.so_id || '',
+    CUST_ID: params.cust_id || '',
+    CTRT_ID: params.ctrt_id || '',
   };
   return apiCall<any>('/billing/payment/anony/processCardPayment', backendParams);
 };
