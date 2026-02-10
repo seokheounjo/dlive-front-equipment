@@ -372,6 +372,26 @@ async function handleProxy(req, res) {
       }
     }
 
+    // 도로명주소 검색: D'Live 서버 버그 우회
+    // - STREET_NM 전달 시 무조건 0건 반환 (서버 버그)
+    // - BUILD_NM 전달 시 서버 크래시
+    // 해결: 요청에서 제거 후 D'Live 전달, 응답에서 서버사이드 필터링
+    let streetAddrFilter = null;
+    if (apiPath.endsWith('/getStreetAddrList') && req.body) {
+      streetAddrFilter = {};
+      if (req.body.STREET_NM) {
+        streetAddrFilter.STREET_NM = req.body.STREET_NM;
+        delete req.body.STREET_NM;
+        console.log('[PROXY] 도로명주소: STREET_NM 분리:', streetAddrFilter.STREET_NM);
+      }
+      if (req.body.BUILD_NM) {
+        streetAddrFilter.BUILD_NM = req.body.BUILD_NM;
+        delete req.body.BUILD_NM;
+        console.log('[PROXY] 도로명주소: BUILD_NM 제거 (크래시 방지)');
+      }
+    }
+
+
     const queryString = req.url.includes('?') ? req.url.substring(req.url.indexOf('?')) : '';
 
     // CRITICAL FIX: Route to api-servlet (/api/*) NOT cona-servlet (*.req)
@@ -499,6 +519,33 @@ async function handleProxy(req, res) {
             res.status(proxyRes.statusCode);
             res.json(jsonData);
             return;
+          }
+        }
+
+        // 도로명주소 응답 필터링 (STREET_NM 서버사이드 처리)
+        if (streetAddrFilter && streetAddrFilter.STREET_NM) {
+          try {
+            const jsonResp = JSON.parse(responseBody);
+            let items = jsonResp.data || jsonResp;
+            if (Array.isArray(items)) {
+              const origCount = items.length;
+              const nm = streetAddrFilter.STREET_NM.toLowerCase();
+              items = items.filter(item => {
+                const addr = (item.STREET_ADDR || '').toLowerCase();
+                const addr1 = (item.ADDR || '').toLowerCase();
+                return addr.includes(nm) || addr1.includes(nm);
+              });
+              if (jsonResp.data !== undefined) {
+                jsonResp.data = items;
+              }
+              console.log('[PROXY] 도로명 필터: ' + origCount + '건 -> ' + items.length + '건 (STREET_NM=' + streetAddrFilter.STREET_NM + ')');
+              res.setHeader('Content-Type', 'application/json; charset=utf-8');
+              res.status(proxyRes.statusCode);
+              res.json(jsonResp.data !== undefined ? jsonResp : items);
+              return;
+            }
+          } catch (filterErr) {
+            console.log('[PROXY] 도로명 필터링 실패:', filterErr.message);
           }
         }
 
