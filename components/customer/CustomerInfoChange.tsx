@@ -960,13 +960,21 @@ const CustomerInfoChange: React.FC<CustomerInfoChangeProps> = ({
       showAlert('도로명을 2자 이상 입력해주세요.', 'warning');
       return;
     }
+    if (!streetSearchForm.streetBunM) {
+      showAlert('건물본번을 입력해주세요.', 'warning');
+      return;
+    }
+    if (!streetSearchForm.streetBunS) {
+      showAlert('건물부번을 입력해주세요.', 'warning');
+      return;
+    }
 
     setIsSearchingAddress(true);
     try {
       const response = await searchStreetAddress({
         STREET_NM: streetSearchForm.streetNm,
-        STREET_BUN_M: streetSearchForm.streetBunM || undefined,
-        STREET_BUN_S: streetSearchForm.streetBunS || undefined,
+        STREET_BUN_M: streetSearchForm.streetBunM,
+        STREET_BUN_S: streetSearchForm.streetBunS,
         BUILD_NM: streetSearchForm.buildNm || undefined
       });
 
@@ -1550,29 +1558,38 @@ const CustomerInfoChange: React.FC<CustomerInfoChangeProps> = ({
                 </div>
               ) : (
                 <div className="space-y-2">
-                  <input
-                    type="text"
-                    value={streetSearchForm.streetNm}
-                    onChange={(e) => setStreetSearchForm(prev => ({ ...prev, streetNm: e.target.value }))}
-                    onKeyPress={(e) => e.key === 'Enter' && handleSearchStreetAddress()}
-                    placeholder="도로명 입력 (예: 테헤란로)"
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
-                  />
+                  <div>
+                    <label className="block text-xs text-gray-500 mb-1">도로명 *</label>
+                    <input
+                      type="text"
+                      value={streetSearchForm.streetNm}
+                      onChange={(e) => setStreetSearchForm(prev => ({ ...prev, streetNm: e.target.value }))}
+                      onKeyPress={(e) => e.key === 'Enter' && handleSearchStreetAddress()}
+                      placeholder="예: 테헤란로"
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                    />
+                  </div>
                   <div className="flex gap-2">
-                    <input
-                      type="text"
-                      value={streetSearchForm.streetBunM}
-                      onChange={(e) => setStreetSearchForm(prev => ({ ...prev, streetBunM: e.target.value.replace(/[^0-9]/g, '') }))}
-                      placeholder="건물본번"
-                      className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
-                    />
-                    <input
-                      type="text"
-                      value={streetSearchForm.streetBunS}
-                      onChange={(e) => setStreetSearchForm(prev => ({ ...prev, streetBunS: e.target.value.replace(/[^0-9]/g, '') }))}
-                      placeholder="건물부번"
-                      className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
-                    />
+                    <div className="flex-1">
+                      <label className="block text-xs text-gray-500 mb-1">건물본번 *</label>
+                      <input
+                        type="text"
+                        value={streetSearchForm.streetBunM}
+                        onChange={(e) => setStreetSearchForm(prev => ({ ...prev, streetBunM: e.target.value.replace(/[^0-9]/g, '') }))}
+                        placeholder="예: 123"
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                      />
+                    </div>
+                    <div className="flex-1">
+                      <label className="block text-xs text-gray-500 mb-1">건물부번 *</label>
+                      <input
+                        type="text"
+                        value={streetSearchForm.streetBunS}
+                        onChange={(e) => setStreetSearchForm(prev => ({ ...prev, streetBunS: e.target.value.replace(/[^0-9]/g, '') }))}
+                        placeholder="예: 0"
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                      />
+                    </div>
                   </div>
                   <input
                     type="text"

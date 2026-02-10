@@ -1966,8 +1966,14 @@ export const searchStreetAddress = async (params: StreetAddressSearchRequest): P
         const addr1 = (item.ADDR || item.ADDR1 || '').toLowerCase();
         if (!addr.includes(streetNm) && !addr1.includes(streetNm)) return false;
       }
-      if (bunM && item.BUN_NO && !item.BUN_NO.includes(bunM)) return false;
-      if (bunS && item.HO_NM && !item.HO_NM.includes(bunS)) return false;
+      if (bunM) {
+        const itemBunM = item.STREET_BUN_M || item.BUN_NO || '';
+        if (!itemBunM || !itemBunM.includes(bunM)) return false;
+      }
+      if (bunS) {
+        const itemBunS = item.STREET_BUN_S || item.HO_NM || '';
+        if (!itemBunS || !itemBunS.includes(bunS)) return false;
+      }
       if (buildNm) {
         const bldNm = (item.BLD_NM || '').toLowerCase();
         const bldDtl = (item.BLD_DTL_NM || '').toLowerCase();
