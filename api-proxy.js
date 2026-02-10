@@ -24,6 +24,11 @@ const LEGACY_REQ_ROUTES = [
   "/customer/phoneNumber/getOwnEqtLstForMobile_3",  // 장비반납
   "/customer/equipment/getAuthSoList",  // SO 권한 목록
   "/customer/equipment/getEqtTrnsList",  // 장비이동내역
+
+  // History APIs - .req로 직접 호출 (Java controller의 CTRT_ID 필수 검증 우회)
+  // 백엔드 SQL 변경: CTRT_ID 없이 CUST_ID만으로 조회 가능
+  "/customer/negociation/getTgtCtrtRcptHist_m",  // 상담이력
+  "/customer/negociation/getTgtCtrtWorkList_m",  // 작업이력
 ];
 
 // Parse MiPlatform XML response to JSON
@@ -233,7 +238,7 @@ router.post('/customer/negociation/getCustPymInfo', handleProxy);
 router.post('/customer/negociation/getHPPayList', handleProxy);
 router.post('/billing/unpayment/upreport/getUnpaymentNowList', handleProxy);
 router.post('/billing/unpayment/upreport/getUnpaymentNowDtlList', handleProxy);
-// 4. History (D'Live: getTgtCtrtRcptHist_m, getTgtCtrtWorkList_m - CUST_ID + CTRT_ID 필수)
+// 4. History (D'Live: CUST_ID만으로 조회 가능 - LEGACY_REQ_ROUTES로 .req 직접 호출)
 router.post('/customer/negociation/getTgtCtrtRcptHist_m', handleProxy);  // 상담이력
 router.post('/customer/negociation/getTgtCtrtWorkList_m', handleProxy);  // 작업이력
 // 4-1. Payment & Billing (Mobile) - D'Live SQL 스펙
