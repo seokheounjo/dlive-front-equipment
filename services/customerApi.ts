@@ -1235,42 +1235,44 @@ export const getHPPayList = async (custId: string): Promise<ApiResponse<HPPayInf
  * 상담 이력 조회
  * API: customer/negociation/getTgtCtrtRcptHist_m.req
  *
- * D'Live SQL: CUST_ID + CTRT_ID 필수
+ * 백엔드 변경: CTRT_ID 없이 CUST_ID만으로 조회 가능 (최근 3개월, 최대 10건)
  * 응답: START_DATE, CNSL_SLV_CL_NM, CNSL_RSLT, RCPT_NM, REQ_CTX, PROC_CT
  */
 export const getConsultationHistory = async (
   custId: string,
-  ctrtId: string,
+  ctrtId?: string,
   limit: number = 10
 ): Promise<ApiResponse<ConsultationHistory[]>> => {
   const loginId = getLoginIdFromSession();
-  return apiCall<ConsultationHistory[]>('/customer/negociation/getTgtCtrtRcptHist_m', {
+  const params: any = {
     CUST_ID: custId,
-    CTRT_ID: ctrtId,
     PAGE_SIZE: limit,
     LOGIN_ID: loginId
-  });
+  };
+  if (ctrtId) params.CTRT_ID = ctrtId;
+  return apiCall<ConsultationHistory[]>('/customer/negociation/getTgtCtrtRcptHist_m', params);
 };
 
 /**
  * 작업 이력 조회
  * API: customer/negociation/getTgtCtrtWorkList_m.req
  *
- * D'Live SQL: CUST_ID + CTRT_ID 필수
+ * 백엔드 변경: CTRT_ID 없이 CUST_ID만으로 조회 가능 (최근 3개월, 최대 10건)
  * 응답: HOPE_DT, PROD_NM, WRK_CD_NM, WRK_STAT_CD_NM, CMPL_DATE, WRK_NM, WRK_CRR_NM, CTRT_ADDR, MEMO
  */
 export const getWorkHistory = async (
   custId: string,
-  ctrtId: string,
+  ctrtId?: string,
   limit: number = 10
 ): Promise<ApiResponse<WorkHistory[]>> => {
   const loginId = getLoginIdFromSession();
-  return apiCall<WorkHistory[]>('/customer/negociation/getTgtCtrtWorkList_m', {
+  const params: any = {
     CUST_ID: custId,
-    CTRT_ID: ctrtId,
     PAGE_SIZE: limit,
     LOGIN_ID: loginId
-  });
+  };
+  if (ctrtId) params.CTRT_ID = ctrtId;
+  return apiCall<WorkHistory[]>('/customer/negociation/getTgtCtrtWorkList_m', params);
 };
 
 // ============ 정보 변경 API ============

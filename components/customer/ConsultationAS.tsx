@@ -277,15 +277,15 @@ const ConsultationAS: React.FC<ConsultationASProps> = ({
     if (selectedCustomer && selectedContract) {
       setHistoryViewMode('byContract');
       loadHistory();
-    } else if (selectedCustomer && contracts.length > 0) {
+    } else if (selectedCustomer) {
       setHistoryViewMode('byDate');
       loadAllHistory();
     }
   }, [selectedCustomer, selectedContract]);
 
-  // contracts 변경 시 전체 이력 로드
+  // 고객 선택 시 전체 이력 로드 (계약 유무 무관)
   useEffect(() => {
-    if (selectedCustomer && contracts.length > 0 && allConsultationHistory.length === 0 && allWorkHistory.length === 0) {
+    if (selectedCustomer && allConsultationHistory.length === 0 && allWorkHistory.length === 0) {
       loadAllHistory();
     }
   }, [contracts]);
@@ -347,9 +347,9 @@ const ConsultationAS: React.FC<ConsultationASProps> = ({
     }
   };
 
-  // 전체 계약의 이력을 병합 로드 (일자별 보기용)
+  // 전체 이력 로드 (CUST_ID만으로 조회 - 계약 유무 무관)
   const loadAllHistory = async () => {
-    if (!selectedCustomer || contracts.length === 0) {
+    if (!selectedCustomer) {
       setAllConsultationHistory([]);
       setAllWorkHistory([]);
       return;
@@ -357,26 +357,17 @@ const ConsultationAS: React.FC<ConsultationASProps> = ({
 
     setIsLoadingHistory(true);
     try {
-      const results = await Promise.all(
-        contracts.map(c => Promise.all([
-          getConsultationHistory(selectedCustomer.custId, c.CTRT_ID, 10),
-          getWorkHistory(selectedCustomer.custId, c.CTRT_ID, 10)
-        ]))
-      );
+      // CTRT_ID 없이 CUST_ID만으로 1회 호출 (백엔드에서 최근 3개월, 최대 10건 반환)
+      const [consultRes, workRes] = await Promise.all([
+        getConsultationHistory(selectedCustomer.custId, undefined, 10),
+        getWorkHistory(selectedCustomer.custId, undefined, 10)
+      ]);
 
-      let allConsult: ConsultationHistory[] = [];
-      let allWork: WorkHistory[] = [];
+      const allConsult = consultRes.success && consultRes.data ? consultRes.data : [];
+      const allWork = workRes.success && workRes.data ? workRes.data : [];
 
-      results.forEach(([consultRes, workRes]) => {
-        if (consultRes.success && consultRes.data) allConsult = allConsult.concat(consultRes.data);
-        if (workRes.success && workRes.data) allWork = allWork.concat(workRes.data);
-      });
-
-      allConsult.sort((a, b) => (b.START_DATE || '').localeCompare(a.START_DATE || ''));
-      allWork.sort((a, b) => (b.HOPE_DT || '').localeCompare(a.HOPE_DT || ''));
-
-      setAllConsultationHistory(allConsult.slice(0, 10));
-      setAllWorkHistory(allWork.slice(0, 10));
+      setAllConsultationHistory(allConsult);
+      setAllWorkHistory(allWork);
     } catch (error) {
       console.error('Load all history error:', error);
     } finally {

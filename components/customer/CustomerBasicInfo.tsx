@@ -133,8 +133,8 @@ const CustomerBasicInfo: React.FC<CustomerBasicInfoProps> = ({
         setConsultationHistory(cachedConsultationHistory);
         setWorkHistory(cachedWorkHistory);
         // 전체 이력이 없으면 로드
-        if (allConsultationHistory.length === 0 && allWorkHistory.length === 0 && cachedContracts.length > 0) {
-          loadAllHistory(selectedCustomer.CUST_ID, cachedContracts);
+        if (allConsultationHistory.length === 0 && allWorkHistory.length === 0) {
+          loadAllHistory(selectedCustomer.CUST_ID);
         }
       } else {
         // 캐시가 없으면 새로 로드
@@ -181,14 +181,8 @@ const CustomerBasicInfo: React.FC<CustomerBasicInfoProps> = ({
   // 선택된 계약 ID (이력 조회용)
   const [selectedCtrtIdForHistory, setSelectedCtrtIdForHistory] = useState<string>('');
 
-  // 이력 로드 (CUST_ID + CTRT_ID 필수)
-  const loadHistory = async (custId: string, ctrtId: string): Promise<{ consultation: ConsultationHistory[], work: WorkHistory[] }> => {
-    if (!ctrtId) {
-      setConsultationHistory([]);
-      setWorkHistory([]);
-      return { consultation: [], work: [] };
-    }
-
+  // 이력 로드 (CUST_ID 필수, CTRT_ID 선택)
+  const loadHistory = async (custId: string, ctrtId?: string): Promise<{ consultation: ConsultationHistory[], work: WorkHistory[] }> => {
     setIsLoadingHistory(true);
     try {
       const [consultRes, workRes] = await Promise.all([
@@ -211,37 +205,21 @@ const CustomerBasicInfo: React.FC<CustomerBasicInfoProps> = ({
     }
   };
 
-  // 전체 계약의 이력을 병합 로드 (일자별 보기용)
-  const loadAllHistory = async (custId: string, contractList: ContractInfo[]) => {
-    if (contractList.length === 0) {
-      setAllConsultationHistory([]);
-      setAllWorkHistory([]);
-      return;
-    }
-
+  // 전체 이력 로드 (CUST_ID만으로 조회 - 계약 유무 무관)
+  const loadAllHistory = async (custId: string) => {
     setIsLoadingHistory(true);
     try {
-      const results = await Promise.all(
-        contractList.map(c => Promise.all([
-          getConsultationHistory(custId, c.CTRT_ID, 10),
-          getWorkHistory(custId, c.CTRT_ID, 10)
-        ]))
-      );
+      // CTRT_ID 없이 CUST_ID만으로 1회 호출 (백엔드에서 최근 3개월, 최대 10건 반환)
+      const [consultRes, workRes] = await Promise.all([
+        getConsultationHistory(custId, undefined, 10),
+        getWorkHistory(custId, undefined, 10)
+      ]);
 
-      let allConsult: ConsultationHistory[] = [];
-      let allWork: WorkHistory[] = [];
+      const allConsult = consultRes.success && consultRes.data ? consultRes.data : [];
+      const allWork = workRes.success && workRes.data ? workRes.data : [];
 
-      results.forEach(([consultRes, workRes]) => {
-        if (consultRes.success && consultRes.data) allConsult = allConsult.concat(consultRes.data);
-        if (workRes.success && workRes.data) allWork = allWork.concat(workRes.data);
-      });
-
-      // 날짜 내림차순 정렬 후 최신 10건
-      allConsult.sort((a, b) => (b.START_DATE || '').localeCompare(a.START_DATE || ''));
-      allWork.sort((a, b) => (b.HOPE_DT || '').localeCompare(a.HOPE_DT || ''));
-
-      setAllConsultationHistory(allConsult.slice(0, 10));
-      setAllWorkHistory(allWork.slice(0, 10));
+      setAllConsultationHistory(allConsult);
+      setAllWorkHistory(allWork);
     } catch (error) {
       console.error('Load all history error:', error);
     } finally {
@@ -255,7 +233,7 @@ const CustomerBasicInfo: React.FC<CustomerBasicInfoProps> = ({
 
     // 전체 이력 로드 (일자별 보기)
     setHistoryViewMode('byDate');
-    await loadAllHistory(custId, contractsResult);
+    await loadAllHistory(custId);
 
     if (onDataLoaded) {
       onDataLoaded(custId, contractsResult, [], []);
