@@ -105,6 +105,9 @@ const ConsultationAS: React.FC<ConsultationASProps> = ({
   // 상담/AS 대상 단위 (계약 or 고객) - 기본값 고객단위
   const [targetUnit, setTargetUnit] = useState<'contract' | 'customer'>('customer');
 
+  // AS접수 가입자/비가입자 구분
+  const [asSubscriberType, setAsSubscriberType] = useState<'subscriber' | 'nonSubscriber'>('subscriber');
+
   // 계약단위 선택 확인 팝업
   const [showContractConfirm, setShowContractConfirm] = useState(false);
 
@@ -197,19 +200,16 @@ const ConsultationAS: React.FC<ConsultationASProps> = ({
 
   // AS 코드 데이터
   const [asClCodes] = useState([
-    { CODE: '01', CODE_NM: 'A/S' },
-    { CODE: '02', CODE_NM: '재설치' },
-    { CODE: '03', CODE_NM: '철거' },
-    { CODE: '04', CODE_NM: '장비교체' }
+    { CODE: '01', CODE_NM: '장애처리(A/S)' },
+    { CODE: '02', CODE_NM: '장비변경(A/S)' },
+    { CODE: '03', CODE_NM: '망장애(A/S)' },
+    { CODE: '04', CODE_NM: '현장방어(A/S)' },
+    { CODE: '05', CODE_NM: 'OTT BOX(A/S)' },
+    { CODE: '06', CODE_NM: '올인원(A/S)' },
+    { CODE: '07', CODE_NM: '완전철거(재할당)' },
   ]);
 
-  const [asClDtlCodes] = useState([
-    { CODE: '01', CODE_NM: '화면불량' },
-    { CODE: '02', CODE_NM: '음성불량' },
-    { CODE: '03', CODE_NM: '인터넷불량' },
-    { CODE: '04', CODE_NM: '리모컨불량' },
-    { CODE: '05', CODE_NM: '기타' }
-  ]);
+  const [asClDtlCodes] = useState<CodeItem[]>([]);
 
   const [tripFeeCodes] = useState([
     { CODE: '00', CODE_NM: '무료' },
@@ -217,10 +217,18 @@ const ConsultationAS: React.FC<ConsultationASProps> = ({
   ]);
 
   const [asResnLCodes] = useState([
-    { CODE: '01', CODE_NM: '장비장애' },
-    { CODE: '02', CODE_NM: '회선장애' },
-    { CODE: '03', CODE_NM: '고객요청' },
-    { CODE: '04', CODE_NM: '기타' }
+    { CODE: '01', CODE_NM: '장비' },
+    { CODE: '02', CODE_NM: '장비/리모콘' },
+    { CODE: '03', CODE_NM: '채널안나옴' },
+    { CODE: '04', CODE_NM: '화질/소리불량' },
+    { CODE: '05', CODE_NM: '인터넷느림/안됨' },
+    { CODE: '06', CODE_NM: '전화안됨/기능불량' },
+    { CODE: '07', CODE_NM: 'CS(고객서비스)' },
+    { CODE: '08', CODE_NM: 'CS(해지회선)' },
+    { CODE: '09', CODE_NM: 'OTT BOX' },
+    { CODE: '10', CODE_NM: '올인원방문서비스' },
+    { CODE: '11', CODE_NM: '고객환경' },
+    { CODE: '12', CODE_NM: '스마트카드 장애' },
   ]);
 
   const [asResnMCodes, setAsResnMCodes] = useState<CodeItem[]>([]);
@@ -228,26 +236,50 @@ const ConsultationAS: React.FC<ConsultationASProps> = ({
   // AS사유(대) 변경 시 중분류 설정
   const handleAsResnLChange = (code: string) => {
     setASForm(prev => ({ ...prev, asResnLCd: code, asResnMCd: '' }));
-    // 대분류에 따른 중분류 설정
+    // 대분류에 따른 중분류 설정 (CMAS001 매핑)
     const mCodes: Record<string, CodeItem[]> = {
       '01': [
-        { CODE: '0101', CODE_NM: 'STB 불량' },
-        { CODE: '0102', CODE_NM: '모뎀 불량' },
-        { CODE: '0103', CODE_NM: '케이블 불량' }
+        { CODE: '0101', CODE_NM: '장비교체요청' },
+        { CODE: '0102', CODE_NM: '전원불량' },
+        { CODE: '0103', CODE_NM: '(과금)모뎀 교체' },
+        { CODE: '0104', CODE_NM: '(과금)AP 교체' },
       ],
       '02': [
-        { CODE: '0201', CODE_NM: '신호불량' },
-        { CODE: '0202', CODE_NM: '단선' },
-        { CODE: '0203', CODE_NM: '혼선' }
+        { CODE: '0201', CODE_NM: 'STB오작동' },
+        { CODE: '0202', CODE_NM: '전원불량' },
+        { CODE: '0203', CODE_NM: '장비교체요청(리모콘)' },
+        { CODE: '0204', CODE_NM: '장비교체요청(셋탑/모뎀)' },
       ],
       '03': [
-        { CODE: '0301', CODE_NM: '위치변경' },
-        { CODE: '0302', CODE_NM: '추가설치' },
-        { CODE: '0303', CODE_NM: '해지요청' }
+        { CODE: '0301', CODE_NM: '전채널 안나옴(수신장애)' },
+        { CODE: '0302', CODE_NM: '특정채널 안나옴(수신장애)' },
       ],
       '04': [
-        { CODE: '0401', CODE_NM: '기타' }
-      ]
+        { CODE: '0401', CODE_NM: '소리불량' },
+        { CODE: '0402', CODE_NM: '화질불량' },
+      ],
+      '05': [],
+      '06': [],
+      '07': [],
+      '08': [
+        { CODE: '0801', CODE_NM: '(해지회선)일정변경' },
+        { CODE: '0802', CODE_NM: '(해지회선)2인1조' },
+        { CODE: '0803', CODE_NM: '(해지회선)고소차량' },
+      ],
+      '09': [
+        { CODE: '0901', CODE_NM: '네트워크 장애' },
+        { CODE: '0902', CODE_NM: '조작설명' },
+        { CODE: '0903', CODE_NM: '전원불량' },
+      ],
+      '10': [
+        { CODE: '1001', CODE_NM: '올인원방문서비스' },
+      ],
+      '11': [
+        { CODE: '1101', CODE_NM: '공유기(AP)장애' },
+        { CODE: '1102', CODE_NM: '사용불편' },
+        { CODE: '1103', CODE_NM: '재연결' },
+      ],
+      '12': [],
     };
     setAsResnMCodes(mCodes[code] || []);
   };
@@ -421,19 +453,19 @@ const ConsultationAS: React.FC<ConsultationASProps> = ({
 
     setIsSaving(true);
     try {
-      // D'Live API에 맞는 파라미터명 사용
-      // CNSL_LCL_CD (대분류), CNSL_MCL_CD (중분류), CNSL_SCL_CD (소분류)
-      const params: any = {
+      // ConsultationRequest 인터페이스에 맞는 파라미터명 사용
+      const params: ConsultationRequest = {
         CUST_ID: selectedCustomer.custId,
         CTRT_ID: selectedContract?.ctrtId || '',
-        CNSL_LCL_CD: consultationForm.cnslLClCd,   // 대분류 (CMCS010: AS, IN, RT, etc)
-        CNSL_MCL_CD: consultationForm.cnslMClCd,   // 중분류 (CMCS020: ASC, INE, etc)
-        CNSL_SCL_CD: consultationForm.cnslSClCd,   // 소분류 (CMCS030: ASE1, etc)
-        CNSL_CNTN: consultationForm.reqCntn,       // 상담내용
+        CNSL_MST_CL: consultationForm.cnslLClCd,   // 대분류 (CMCS010)
+        CNSL_MID_CL: consultationForm.cnslMClCd,   // 중분류 (CMCS020)
+        CNSL_SLV_CL: consultationForm.cnslSClCd,   // 소분류 (CMCS030)
+        REQ_CTX: consultationForm.reqCntn,          // 요청사항
         POST_ID: selectedContract?.postId || '',
-        SAVE_TP: '2',  // 완료 저장
-        TRANS_YN: consultationForm.transYn,
-        TRANS_DEPT_CD: consultationForm.transDeptCd || undefined
+        SAVE_TP: '2',
+        RCPT_TP: 'G1', CUST_REL: 'A', PRESS_RCPT_YN: 'N',
+        SUBS_TP: '1', CTI_CID: '0',
+        SO_ID: '', MST_SO_ID: ''
       };
 
       const response = await registerConsultation(params);
@@ -471,7 +503,8 @@ const ConsultationAS: React.FC<ConsultationASProps> = ({
       return;
     }
 
-    if (!selectedContract) {
+    // 가입자 모드: 계약 필수
+    if (asSubscriberType === 'subscriber' && !selectedContract) {
       showToast?.('AS 접수를 위해 계약을 선택해주세요.', 'warning');
       return;
     }
@@ -481,8 +514,14 @@ const ConsultationAS: React.FC<ConsultationASProps> = ({
       return;
     }
 
-    if (!asForm.asResnLCd || !asForm.asResnMCd) {
-      showToast?.('AS접수사유를 선택해주세요.', 'warning');
+    if (!asForm.asResnLCd) {
+      showToast?.('AS접수사유(대)를 선택해주세요.', 'warning');
+      return;
+    }
+
+    // 중분류가 있는 대분류인 경우에만 중분류 필수 검증
+    if (asResnMCodes.length > 0 && !asForm.asResnMCd) {
+      showToast?.('AS접수사유(중)를 선택해주세요.', 'warning');
       return;
     }
 
@@ -498,9 +537,9 @@ const ConsultationAS: React.FC<ConsultationASProps> = ({
 
       const params = {
         CUST_ID: selectedCustomer.custId,
-        CTRT_ID: selectedContract.ctrtId,
-        POST_ID: selectedContract.postId || '',
-        INST_ADDR: selectedContract.instAddr,
+        CTRT_ID: asSubscriberType === 'subscriber' ? (selectedContract?.ctrtId || '') : '',
+        POST_ID: asSubscriberType === 'subscriber' ? (selectedContract?.postId || '') : '',
+        INST_ADDR: asSubscriberType === 'subscriber' ? (selectedContract?.instAddr || '') : '',
         AS_CL_CD: asForm.asClCd,
         AS_CL_DTL_CD: asForm.asClDtlCd,
         TRIP_FEE_CD: asForm.tripFeeCd,
@@ -752,8 +791,34 @@ const ConsultationAS: React.FC<ConsultationASProps> = ({
               AS 접수
             </h3>
 
-            {/* 계약 선택 안내 */}
-            {!selectedContract ? (
+            {/* 가입자/비가입자 선택 */}
+            <div className="p-3 bg-gray-50 rounded-lg border border-gray-200 flex items-center gap-4">
+              <label className="flex items-center gap-1.5 cursor-pointer">
+                <input
+                  type="radio"
+                  name="asSubscriberType"
+                  value="subscriber"
+                  checked={asSubscriberType === 'subscriber'}
+                  onChange={() => setAsSubscriberType('subscriber')}
+                  className="w-3.5 h-3.5 text-orange-600"
+                />
+                <span className="text-sm text-gray-700 font-medium">가입자AS</span>
+              </label>
+              <label className="flex items-center gap-1.5 cursor-pointer">
+                <input
+                  type="radio"
+                  name="asSubscriberType"
+                  value="nonSubscriber"
+                  checked={asSubscriberType === 'nonSubscriber'}
+                  onChange={() => setAsSubscriberType('nonSubscriber')}
+                  className="w-3.5 h-3.5 text-orange-600"
+                />
+                <span className="text-sm text-gray-700 font-medium">비가입자AS</span>
+              </label>
+            </div>
+
+            {/* 가입자 모드: 계약 선택 안내 */}
+            {asSubscriberType === 'subscriber' && !selectedContract ? (
               <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
                 <div className="flex items-start gap-2">
                   <AlertCircle className="w-5 h-5 text-yellow-600 mt-0.5" />
@@ -775,21 +840,30 @@ const ConsultationAS: React.FC<ConsultationASProps> = ({
               </div>
             ) : (
               <>
-                {/* 선택된 계약 정보 */}
-                <div className="p-3 bg-orange-50 rounded-lg">
-                  <div className="text-sm text-orange-800">
-                    <span className="font-medium">{selectedContract.prodNm}</span>
-                    <span className="ml-2 text-orange-600">({formatId(selectedContract.ctrtId)})</span>
-                  </div>
-                  <div className="text-xs text-orange-600 mt-1">
-                    {selectedContract.instAddr}
-                  </div>
-                  {selectedContract.notrecev && (
-                    <div className="text-xs text-orange-600 mt-1">
-                      장비: {selectedContract.notrecev}
+                {/* 선택된 계약 정보 (가입자이고 계약이 있을 때만 표시) */}
+                {asSubscriberType === 'subscriber' && selectedContract && (
+                  <div className="p-3 bg-orange-50 rounded-lg">
+                    <div className="text-sm text-orange-800">
+                      <span className="font-medium">{selectedContract.prodNm}</span>
+                      <span className="ml-2 text-orange-600">({formatId(selectedContract.ctrtId)})</span>
                     </div>
-                  )}
-                </div>
+                    <div className="text-xs text-orange-600 mt-1">
+                      {selectedContract.instAddr}
+                    </div>
+                    {selectedContract.notrecev && (
+                      <div className="text-xs text-orange-600 mt-1">
+                        장비: {selectedContract.notrecev}
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* 비가입자 모드 안내 */}
+                {asSubscriberType === 'nonSubscriber' && (
+                  <div className="p-2 bg-orange-50 rounded-lg text-xs text-orange-700">
+                    비가입자 AS접수 - 계약 없이 접수합니다.
+                  </div>
+                )}
 
                 {/* AS구분 & 콤보상세 */}
                 <div className="grid grid-cols-2 gap-3">
@@ -852,14 +926,16 @@ const ConsultationAS: React.FC<ConsultationASProps> = ({
                     </select>
                   </div>
                   <div>
-                    <label className="block text-sm text-gray-600 mb-1">AS접수사유(중) *</label>
+                    <label className="block text-sm text-gray-600 mb-1">
+                      AS접수사유(중) {asResnMCodes.length > 0 ? '*' : ''}
+                    </label>
                     <select
                       value={asForm.asResnMCd}
                       onChange={(e) => setASForm(prev => ({ ...prev, asResnMCd: e.target.value }))}
-                      disabled={!asForm.asResnLCd}
+                      disabled={!asForm.asResnLCd || asResnMCodes.length === 0}
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 disabled:bg-gray-100"
                     >
-                      <option value="">선택</option>
+                      <option value="">{asResnMCodes.length === 0 ? '해당없음' : '선택'}</option>
                       {asResnMCodes.map(code => (
                         <option key={code.CODE} value={code.CODE}>{code.CODE_NM}</option>
                       ))}
