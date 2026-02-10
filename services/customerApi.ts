@@ -1782,7 +1782,8 @@ export const searchPostAddress = async (params: PostAddressSearchRequest): Promi
       MST_SO_ID: '200',
       USE_FLAG: params.USE_FLAG || 'Y'
     };
-    console.log('[CustomerAPI] searchPostAddress (단일):', { SO_ID: params.SO_ID, search: params.DONGMYONG });
+    if (params.DONGMYONG) searchParams.DONGMYONG = params.DONGMYONG;
+    console.log('[CustomerAPI] searchPostAddress (단일):', { SO_ID: params.SO_ID, DONGMYONG: params.DONGMYONG });
     return apiCall<PostAddressInfo[]>('/statistics/customer/getPostList', searchParams);
   }
 
@@ -1825,6 +1826,7 @@ export const searchPostAddress = async (params: PostAddressSearchRequest): Promi
       MST_SO_ID: so.mstSoId || '200',
       USE_FLAG: params.USE_FLAG || 'Y'
     };
+    if (params.DONGMYONG) searchParams.DONGMYONG = params.DONGMYONG;
     return apiCall<PostAddressInfo[]>('/statistics/customer/getPostList', searchParams)
       .catch(err => {
         console.log(`[CustomerAPI] searchPostAddress SO_ID=${so.soId} 실패:`, err);
@@ -1867,7 +1869,19 @@ export const searchPostAddress = async (params: PostAddressSearchRequest): Promi
 // 도로명주소 캐시 (SO_ID별)
 const streetAddressCache: { [soId: string]: StreetAddressInfo[] } = {};
 
-const loadStreetAddressCache = async (soId: string): Promise<StreetAddressInfo[]> => {
+const loadStreetAddressCache = async (soId: string, searchParams?: Record<string, string>): Promise<StreetAddressInfo[]> => {
+  // 검색 파라미터가 있으면 서버에 직접 전달 (캐시 미사용)
+  if (searchParams && Object.keys(searchParams).length > 0) {
+    const result = await apiCall<StreetAddressInfo[]>(
+      '/customer/common/customercommon/getStreetAddrList', { SO_ID: soId, ...searchParams }
+    );
+    if (result.success && result.data && result.data.length > 0) {
+      console.log(`[CustomerAPI] searchStreetAddress SO_ID=${soId} 서버 필터 결과: ${result.data.length}건`);
+      return result.data;
+    }
+    // 서버 필터가 0건이면 캐시 폴백
+    console.log(`[CustomerAPI] searchStreetAddress SO_ID=${soId} 서버 필터 0건, 캐시 폴백`);
+  }
   if (streetAddressCache[soId]) {
     return streetAddressCache[soId];
   }
@@ -1910,9 +1924,20 @@ export const searchStreetAddress = async (params: StreetAddressSearchRequest): P
     return { success: false, data: [], message: 'SO_ID를 찾을 수 없습니다.' };
   }
 
-  // 전체 지점 캐시 로드 (병렬)
+  // 검색 파라미터 구성 (서버 필터용)
+  const serverSearchParams: Record<string, string> = {};
+  if (params.STREET_NM) serverSearchParams.STREET_NM = params.STREET_NM;
+  if (params.STREET_BUN_M) serverSearchParams.STREET_BUN_M = params.STREET_BUN_M;
+  if (params.STREET_BUN_S) serverSearchParams.STREET_BUN_S = params.STREET_BUN_S;
+  if (params.BUILD_NM) serverSearchParams.BUILD_NM = params.BUILD_NM;
+
+  // 전체 지점 로드 (검색 파라미터를 서버에 전달, 실패시 캐시 폴백)
+  const hasSearchParams = Object.keys(serverSearchParams).length > 0;
   const cacheResults = await Promise.all(
-    soList.map(soId => loadStreetAddressCache(soId).catch(() => [] as StreetAddressInfo[]))
+    soList.map(soId =>
+      loadStreetAddressCache(soId, hasSearchParams ? serverSearchParams : undefined)
+        .catch(() => [] as StreetAddressInfo[])
+    )
   );
 
   // 합치기 (STREET_ID 중복 제거)
