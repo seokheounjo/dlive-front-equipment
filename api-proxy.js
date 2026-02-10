@@ -475,7 +475,8 @@ async function handleProxy(req, res) {
       console.log('[PROXY] Direct .req route (session detected): ' + apiPath + ' -> ' + finalPath);
     } else if (DIRECT_REQ_ROUTES[apiPath]) {
       // 세션 없음 (curl/API): 어댑터 경유 (폴백)
-      console.log('[PROXY] No session cookie, falling back to adapter: ' + apiPath);
+      finalPath = '/api' + apiPath;
+      console.log('[PROXY] No session cookie, falling back to adapter: ' + apiPath + ' -> ' + finalPath);
     } else if (LEGACY_REQ_ROUTES.includes(apiPath)) {
       finalPath = apiPath + '.req';
       isLegacyReq = true;
