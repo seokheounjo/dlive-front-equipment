@@ -1860,27 +1860,21 @@ export const searchPostAddress = async (params: PostAddressSearchRequest): Promi
  * 도로명주소 검색 (customer/common/customercommon/getStreetAddrList)
  *
  * D'Live 백엔드 제약사항:
- * - STREET_NM 파라미터 전달 시 무조건 0건 반환 (서버 버그) → 클라이언트 필터링
- * - BUILD_NM 파라미터 전달 시 서버 크래시 → 클라이언트 필터링
- * - SO_ID + STREET_BUN_M + STREET_BUN_S는 정상 동작
+ * - STREET_NM 전달 시 D'Live 서버 버그로 0건 반환 → EC2 프록시에서 분리 후 서버사이드 필터링
+ * - BUILD_NM 전달 시 D'Live 서버 크래시 → EC2 프록시에서 제거
  *
- * 전략: SO_ID + BUN_M + BUN_S로 단일 API 호출 → 캐시 → STREET_NM은 클라이언트 필터링
+ * 전략: 프론트 → EC2 프록시(STREET_NM 분리+필터링) → D'Live(SO_ID+BUN_M+BUN_S)
  */
 
 // 도로명주소 캐시 (SO_ID별)
 const streetAddressCache: { [soId: string]: StreetAddressInfo[] } = {};
 
 const loadStreetAddressCache = async (soId: string, searchParams?: Record<string, string>): Promise<StreetAddressInfo[]> => {
-  // 캐시에 있으면 바로 반환 (API 재호출 불필요)
-  if (streetAddressCache[soId]) {
-    return streetAddressCache[soId];
-  }
-
-  // 단일 API 호출: SO_ID + STREET_BUN_M + STREET_BUN_S 포함
-  // 주의: STREET_NM은 D'Live 서버 버그로 0건 반환되므로 제외 (클라이언트 필터링)
-  //       BUILD_NM은 서버 크래시 유발하므로 제외
+  // 모든 검색 파라미터를 EC2 프록시에 전달
+  // EC2 프록시가 STREET_NM을 분리하여 D'Live 전달 후 서버사이드 필터링 처리
   const callParams: Record<string, string> = { SO_ID: soId };
   if (searchParams) {
+    if (searchParams.STREET_NM) callParams.STREET_NM = searchParams.STREET_NM;
     if (searchParams.STREET_BUN_M) callParams.STREET_BUN_M = searchParams.STREET_BUN_M;
     if (searchParams.STREET_BUN_S) callParams.STREET_BUN_S = searchParams.STREET_BUN_S;
   }
@@ -1890,7 +1884,6 @@ const loadStreetAddressCache = async (soId: string, searchParams?: Record<string
     '/customer/common/customercommon/getStreetAddrList', callParams
   );
   if (result.success && result.data) {
-    streetAddressCache[soId] = result.data;
     return result.data;
   }
   return [];
@@ -1925,10 +1918,9 @@ export const searchStreetAddress = async (params: StreetAddressSearchRequest): P
     return { success: false, data: [], message: 'SO_ID를 찾을 수 없습니다.' };
   }
 
-  // 검색 파라미터 구성 (서버 전달용: STREET_BUN_M, STREET_BUN_S만)
-  // STREET_NM은 D'Live 서버 버그(0건 반환)로 제외 → 클라이언트 필터링
-  // BUILD_NM은 D'Live 서버 크래시 유발으로 제외 → 클라이언트 필터링
+  // 검색 파라미터 구성 (EC2 프록시가 STREET_NM을 D'Live 전달 전 분리하여 서버사이드 필터링)
   const serverSearchParams: Record<string, string> = {};
+  if (params.STREET_NM) serverSearchParams.STREET_NM = params.STREET_NM;
   if (params.STREET_BUN_M) serverSearchParams.STREET_BUN_M = params.STREET_BUN_M;
   if (params.STREET_BUN_S) serverSearchParams.STREET_BUN_S = params.STREET_BUN_S;
 
@@ -1954,31 +1946,9 @@ export const searchStreetAddress = async (params: StreetAddressSearchRequest): P
     }
   }
 
-  // 클라이언트 필터링 (STREET_NM은 서버 버그로 클라이언트에서 처리)
-  const streetNm = (params.STREET_NM || '').trim().toLowerCase();
-  const bunM = (params.STREET_BUN_M || '').trim();
-  const bunS = (params.STREET_BUN_S || '').trim();
-
-  if (streetNm || bunM || bunS) {
-    allData = allData.filter(item => {
-      if (streetNm) {
-        const addr = (item.STREET_ADDR || '').toLowerCase();
-        const addr1 = (item.ADDR || item.ADDR1 || '').toLowerCase();
-        if (!addr.includes(streetNm) && !addr1.includes(streetNm)) return false;
-      }
-      if (bunM) {
-        const itemBunM = item.STREET_BUN_M || item.BUN_NO || '';
-        if (!itemBunM || !itemBunM.includes(bunM)) return false;
-      }
-      if (bunS) {
-        const itemBunS = item.STREET_BUN_S || item.HO_NM || '';
-        if (!itemBunS || !itemBunS.includes(bunS)) return false;
-      }
-      return true;
-    });
-  }
-
-  console.log(`[CustomerAPI] searchStreetAddress: ${allData.length}건 (캐시${Object.keys(streetAddressCache).length > 0 ? '사용' : '로드'})`);
+  // EC2 프록시에서 STREET_NM + BUN_M + BUN_S 필터링 완료
+  // 클라이언트 추가 필터는 불필요 (프록시가 처리)
+  console.log(`[CustomerAPI] searchStreetAddress: ${allData.length}건`);
   return { success: true, data: allData, message: '' };
 };
 
