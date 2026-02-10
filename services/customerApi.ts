@@ -1560,68 +1560,6 @@ export const registerConsultation = async (params: ConsultationRequest): Promise
  * - AS_CNTN -> MEMO
  */
 export const registerASRequest = async (params: ASRequestParams): Promise<ApiResponse<any>> => {
-  // WRK_DTL_TCD 매핑 (AS구분 -> 작업상세유형코드) - CMWT001
-  const wrkDtlTcdMap: Record<string, string> = {
-    '01': '0310',  // 장애처리(AS)
-    '02': '0320',  // 장비변경(AS)
-    '03': '0330',  // 망장애(AS)
-    '04': '0350',  // 현장방어(AS)
-    '05': '0360',  // OTT BOX (AS)
-    '06': '0370',  // 올인원(AS)
-    '07': '0380',  // 완전철거(재할당)
-  };
-
-  // WRK_RCPT_CL 매핑 (AS사유대분류 -> 작업접수분류) - CMAS000
-  const wrkRcptClMap: Record<string, string> = {
-    '01': 'EQ',    // 장비
-    '02': 'ER',    // 장비/리모콘
-    '03': 'CH',    // 채널안나옴
-    '04': 'SV',    // 화질/소리불량
-    '05': 'IN',    // 인터넷느림/안됨
-    '06': 'TL',    // 전화안됨/기능불량
-    '07': 'JJ',    // CS(고객서비스)
-    '08': 'JH',    // CS(해지회선)
-    '09': 'OT',    // OTT BOX
-    '10': 'OL',    // 올인원방문서비스
-    '11': 'CE',    // 고객환경
-    '12': 'SM',    // 스마트카드 장애
-  };
-
-  // WRK_RCPT_CL_DTL 매핑 (AS사유중분류 -> 작업접수분류상세) - CMAS001
-  const wrkRcptClDtlMap: Record<string, string> = {
-    // 장비(EQ)
-    '0101': 'EQ1', // 장비교체요청
-    '0102': 'EQ3', // 전원불량
-    '0103': 'EQ4', // (과금)모뎀 교체
-    '0104': 'EQ5', // (과금)AP 교체
-    // 장비/리모콘(ER)
-    '0201': 'ER4', // STB오작동
-    '0202': 'ER5', // 전원불량
-    '0203': 'ER6', // 장비교체요청(리모콘)
-    '0204': 'ER7', // 장비교체요청(셋탑/모뎀)
-    // 채널안나옴(CH)
-    '0301': 'CH1', // 전채널 안나옴(수신장애)
-    '0302': 'CH2', // 특정채널 안나옴(수신장애)
-    // 화질/소리불량(SV)
-    '0401': 'SV1', // 소리불량
-    '0402': 'SV2', // 화질불량
-    // 인터넷(IN) - 상세코드 없음, 대분류만 사용
-    // CS(해지회선)(JH)
-    '0801': 'JHA', // (해지회선)일정변경
-    '0802': 'JHB', // (해지회선)2인1조
-    '0803': 'JHC', // (해지회선)고소차량
-    // OTT BOX(OT)
-    '0901': 'OT1', // 네트워크 장애
-    '0902': 'OT2', // 조작설명
-    '0903': 'OT7', // 전원불량
-    // 올인원(OL)
-    '1001': 'OL1', // 올인원방문서비스
-    // 고객환경(CE)
-    '1101': 'CE1', // 공유기(AP)장애
-    '1102': 'CE2', // 사용불편
-    '1103': 'CE5', // 재연결
-  };
-
   // 세션에서 사용자 정보 가져오기
   let wrkrId = 'MOBILE_USER';
   let crrId = '';
@@ -1636,13 +1574,14 @@ export const registerASRequest = async (params: ASRequestParams): Promise<ApiRes
     console.log('[CustomerAPI] Failed to get user info from session');
   }
 
-  // UI params인 경우 변환
+  // UI params → 백엔드 파라미터 변환
+  // AS구분(AS_CL_CD)은 CMWT001 API 코드값 직접 사용 (0310, 0320, ...)
+  // AS사유대(AS_RESN_L_CD)는 CMAS000 API 코드값 직접 사용 (EQ, ER, CH, ...)
+  // AS사유중(AS_RESN_M_CD)는 CMAS001 API 코드값 직접 사용 (EQ1, CH1, ...)
   const uiParams = params as unknown as ASRequestUIParams;
   const isUIParams = 'AS_CL_CD' in params;
 
-  // 백엔드 파라미터 구성
   const backendParams: Record<string, any> = {
-    // 필수
     POST_ID: (params as ASRequestParams).POST_ID || '',
     CUST_ID: params.CUST_ID,
     CTRT_ID: (params as ASRequestParams).CTRT_ID || '',
@@ -1652,27 +1591,25 @@ export const registerASRequest = async (params: ASRequestParams): Promise<ApiRes
     HOPE_DTTM: isUIParams
       ? uiParams.SCHD_DT + uiParams.SCHD_TM
       : (params as ASRequestParams).HOPE_DTTM || (params as ASRequestParams).WRK_HOPE_DTTM,
+    // API에서 불러온 코드값을 직접 전달 (하드코딩 매핑 제거)
     WRK_DTL_TCD: isUIParams
-      ? (wrkDtlTcdMap[uiParams.AS_CL_CD] || '0310')
+      ? uiParams.AS_CL_CD       // CMWT001 코드값 (0310, 0320, ...)
       : (params as ASRequestParams).WRK_DTL_TCD,
     WRK_RCPT_CL: isUIParams
-      ? (wrkRcptClMap[uiParams.AS_RESN_L_CD] || 'EQ')
+      ? uiParams.AS_RESN_L_CD   // CMAS000 코드값 (EQ, ER, CH, ...)
       : (params as ASRequestParams).WRK_RCPT_CL,
     WRK_RCPT_CL_DTL: isUIParams
-      ? (wrkRcptClDtlMap[uiParams.AS_RESN_M_CD] || 'EQ1')
+      ? (uiParams.AS_RESN_M_CD || '')  // CMAS001 코드값 (EQ1, CH1, ...) - 없을 수 있음
       : (params as ASRequestParams).WRK_RCPT_CL_DTL,
     MEMO: isUIParams ? uiParams.AS_CNTN : (params as ASRequestParams).MEMO,
-    // 고정값
     EMRG_YN: 'N',
     HOLY_YN: 'N',
     TRANS_PROC_YN: 'Y',
-    // 사용자 정보
     CRR_ID: crrId,
     WRKR_ID: wrkrId,
     REG_UID: wrkrId,
   };
 
-  // 선택 정보
   if (isUIParams && uiParams.AS_CL_DTL_CD) {
     backendParams.AS_BIZ_CL = uiParams.AS_CL_DTL_CD;
   }
@@ -1750,11 +1687,40 @@ export const getConsultationSmallCodes = async (): Promise<ApiResponse<any[]>> =
 };
 
 /**
- * AS사유 코드 조회
+ * AS구분 코드 조회 (CMWT001 - ref_code='03'이 AS 관련)
+ * Returns: code (0310=장애처리, 0320=장비변경, ...), name, ref_code
  */
-export const getASReasonCodes = async (): Promise<ApiResponse<any[]>> => {
-  return apiCall<any[]>('/common/getCommonCodes', { CODE_GROUP: 'AS_RESN' });
+export const getASClassCodes = async (): Promise<ApiResponse<any[]>> => {
+  return apiCall<any[]>('/common/getCommonCodes', { CODE_GROUP: 'CMWT001' });
 };
+
+/**
+ * AS사유 대분류 코드 조회 (CMAS000)
+ * Returns: code (EQ=장비, ER=장비/리모콘, CH=채널안나옴, ...), name
+ */
+export const getASReasonLargeCodes = async (): Promise<ApiResponse<any[]>> => {
+  return apiCall<any[]>('/common/getCommonCodes', { CODE_GROUP: 'CMAS000' });
+};
+
+/**
+ * AS사유 중분류 코드 조회 (CMAS001)
+ * Returns: code (EQ1, EQ3, CH1, ...), name, ref_code (CMAS000 코드 참조)
+ */
+export const getASReasonDetailCodes = async (): Promise<ApiResponse<any[]>> => {
+  return apiCall<any[]>('/common/getCommonCodes', { CODE_GROUP: 'CMAS001' });
+};
+
+/**
+ * 콤보상세 - 계약별 상품그룹 조회
+ * API: /customer/work/getProd_Grp
+ * Returns: biz_cl (코드), SVC_NM (서비스명)
+ */
+export const getProductGroups = async (ctrtId: string): Promise<ApiResponse<any[]>> => {
+  return apiCall<any[]>('/customer/work/getProd_Grp', { CTRT_ID: ctrtId });
+};
+
+// 하위호환 (기존 코드 참조용)
+export const getASReasonCodes = getASReasonLargeCodes;
 
 /**
  * 고객유형 코드 조회
@@ -1764,10 +1730,43 @@ export const getCustomerTypeCodes = async (): Promise<ApiResponse<any[]>> => {
 };
 
 /**
- * 통신사 코드 조회
+ * 통신사 코드 조회 (CMCU052)
+ * Returns: code (01=SKT, 02=KT, 03=LGU+, 04=알뜰폰), name
  */
 export const getTelecomCodes = async (): Promise<ApiResponse<any[]>> => {
-  return apiCall<any[]>('/common/getCommonCodes', { CODE_GROUP: 'TEL_TP' });
+  return apiCall<any[]>('/common/getCommonCodes', { CODE_GROUP: 'CMCU052' });
+};
+
+/**
+ * 은행 코드 조회 (BLPY015)
+ * Returns: code (03=기업, 04=국민, 20=우리, ...), name
+ */
+export const getBankCodesDLive = async (): Promise<ApiResponse<any[]>> => {
+  return apiCall<any[]>('/common/getCommonCodes', { CODE_GROUP: 'BLPY015' });
+};
+
+/**
+ * 카드사 코드 조회 (BLPY016)
+ * Returns: code (01=비씨, 02=국민, 04=삼성, ...), name
+ */
+export const getCardCompanyCodes = async (): Promise<ApiResponse<any[]>> => {
+  return apiCall<any[]>('/common/getCommonCodes', { CODE_GROUP: 'BLPY016' });
+};
+
+/**
+ * 납부자관계 코드 조회 (CMCU005)
+ * Returns: code (A=본인, B=배우자, C=자녀, D=부모, ...), name
+ */
+export const getPayerRelationCodes = async (): Promise<ApiResponse<any[]>> => {
+  return apiCall<any[]>('/common/getCommonCodes', { CODE_GROUP: 'CMCU005' });
+};
+
+/**
+ * 고객유형/신분유형 코드 조회 (CMCU002)
+ * Returns: code (A=개인, B=개인사업자, C=외국인, D=법인사업자, E=단체), name
+ */
+export const getIdTypeCodes = async (): Promise<ApiResponse<any[]>> => {
+  return apiCall<any[]>('/common/getCommonCodes', { CODE_GROUP: 'CMCU002' });
 };
 
 /**
@@ -2283,6 +2282,14 @@ export default {
   getConsultationMiddleCodes,
   getConsultationSmallCodes,
   getASReasonCodes,
+  getASClassCodes,
+  getASReasonLargeCodes,
+  getASReasonDetailCodes,
+  getProductGroups,
+  getBankCodesDLive,
+  getCardCompanyCodes,
+  getPayerRelationCodes,
+  getIdTypeCodes,
   getCustomerTypeCodes,
   getTelecomCodes,
   getBankCodes,

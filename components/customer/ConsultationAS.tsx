@@ -13,7 +13,10 @@ import {
   getConsultationLargeCodes,
   getConsultationMiddleCodes,
   getConsultationSmallCodes,
-  getASReasonCodes,
+  getASClassCodes,
+  getASReasonLargeCodes,
+  getASReasonDetailCodes,
+  getProductGroups,
   ConsultationHistory,
   WorkHistory,
   ContractInfo,
@@ -55,6 +58,7 @@ interface ConsultationASProps {
 interface CodeItem {
   CODE: string;
   CODE_NM: string;
+  ref_code?: string;  // 상위 코드 참조 (CMAS001 → CMAS000 연결)
 }
 
 // D'Live 코드 형식 (CMCS010/020/030)
@@ -100,7 +104,6 @@ const ConsultationAS: React.FC<ConsultationASProps> = ({
 
   // 코드 데이터
   const [consultationCodes, setConsultationCodes] = useState<CodeItem[]>([]);
-  const [asReasonCodes, setASReasonCodes] = useState<CodeItem[]>([]);
 
   // 상담/AS 대상 단위 (계약 or 고객) - 기본값 고객단위
   const [targetUnit, setTargetUnit] = useState<'contract' | 'customer'>('customer');
@@ -198,90 +201,24 @@ const ConsultationAS: React.FC<ConsultationASProps> = ({
     schdMin: '00'         // 작업예정분 (10분 단위)
   });
 
-  // AS 코드 데이터
-  const [asClCodes] = useState([
-    { CODE: '01', CODE_NM: '장애처리(A/S)' },
-    { CODE: '02', CODE_NM: '장비변경(A/S)' },
-    { CODE: '03', CODE_NM: '망장애(A/S)' },
-    { CODE: '04', CODE_NM: '현장방어(A/S)' },
-    { CODE: '05', CODE_NM: 'OTT BOX(A/S)' },
-    { CODE: '06', CODE_NM: '올인원(A/S)' },
-    { CODE: '07', CODE_NM: '완전철거(재할당)' },
-  ]);
-
-  const [asClDtlCodes] = useState<CodeItem[]>([]);
+  // AS 코드 데이터 (API에서 로드)
+  const [asClCodes, setAsClCodes] = useState<CodeItem[]>([]);        // AS구분 (CMWT001 ref_code='03')
+  const [asClDtlCodes, setAsClDtlCodes] = useState<CodeItem[]>([]);  // 콤보상세 (계약별 상품그룹)
 
   const [tripFeeCodes] = useState([
     { CODE: '00', CODE_NM: '무료' },
     { CODE: '01', CODE_NM: '유료' }
   ]);
 
-  const [asResnLCodes] = useState([
-    { CODE: '01', CODE_NM: '장비' },
-    { CODE: '02', CODE_NM: '장비/리모콘' },
-    { CODE: '03', CODE_NM: '채널안나옴' },
-    { CODE: '04', CODE_NM: '화질/소리불량' },
-    { CODE: '05', CODE_NM: '인터넷느림/안됨' },
-    { CODE: '06', CODE_NM: '전화안됨/기능불량' },
-    { CODE: '07', CODE_NM: 'CS(고객서비스)' },
-    { CODE: '08', CODE_NM: 'CS(해지회선)' },
-    { CODE: '09', CODE_NM: 'OTT BOX' },
-    { CODE: '10', CODE_NM: '올인원방문서비스' },
-    { CODE: '11', CODE_NM: '고객환경' },
-    { CODE: '12', CODE_NM: '스마트카드 장애' },
-  ]);
+  const [asResnLCodes, setAsResnLCodes] = useState<CodeItem[]>([]);  // AS사유 대분류 (CMAS000)
+  const [allAsResnMCodes, setAllAsResnMCodes] = useState<CodeItem[]>([]);  // AS사유 중분류 전체 (CMAS001)
+  const [asResnMCodes, setAsResnMCodes] = useState<CodeItem[]>([]);  // 필터된 AS사유 중분류
 
-  const [asResnMCodes, setAsResnMCodes] = useState<CodeItem[]>([]);
-
-  // AS사유(대) 변경 시 중분류 설정
+  // AS사유(대) 변경 시 중분류 필터링 (CMAS001의 ref_code로 연결)
   const handleAsResnLChange = (code: string) => {
     setASForm(prev => ({ ...prev, asResnLCd: code, asResnMCd: '' }));
-    // 대분류에 따른 중분류 설정 (CMAS001 매핑)
-    const mCodes: Record<string, CodeItem[]> = {
-      '01': [
-        { CODE: '0101', CODE_NM: '장비교체요청' },
-        { CODE: '0102', CODE_NM: '전원불량' },
-        { CODE: '0103', CODE_NM: '(과금)모뎀 교체' },
-        { CODE: '0104', CODE_NM: '(과금)AP 교체' },
-      ],
-      '02': [
-        { CODE: '0201', CODE_NM: 'STB오작동' },
-        { CODE: '0202', CODE_NM: '전원불량' },
-        { CODE: '0203', CODE_NM: '장비교체요청(리모콘)' },
-        { CODE: '0204', CODE_NM: '장비교체요청(셋탑/모뎀)' },
-      ],
-      '03': [
-        { CODE: '0301', CODE_NM: '전채널 안나옴(수신장애)' },
-        { CODE: '0302', CODE_NM: '특정채널 안나옴(수신장애)' },
-      ],
-      '04': [
-        { CODE: '0401', CODE_NM: '소리불량' },
-        { CODE: '0402', CODE_NM: '화질불량' },
-      ],
-      '05': [],
-      '06': [],
-      '07': [],
-      '08': [
-        { CODE: '0801', CODE_NM: '(해지회선)일정변경' },
-        { CODE: '0802', CODE_NM: '(해지회선)2인1조' },
-        { CODE: '0803', CODE_NM: '(해지회선)고소차량' },
-      ],
-      '09': [
-        { CODE: '0901', CODE_NM: '네트워크 장애' },
-        { CODE: '0902', CODE_NM: '조작설명' },
-        { CODE: '0903', CODE_NM: '전원불량' },
-      ],
-      '10': [
-        { CODE: '1001', CODE_NM: '올인원방문서비스' },
-      ],
-      '11': [
-        { CODE: '1101', CODE_NM: '공유기(AP)장애' },
-        { CODE: '1102', CODE_NM: '사용불편' },
-        { CODE: '1103', CODE_NM: '재연결' },
-      ],
-      '12': [],
-    };
-    setAsResnMCodes(mCodes[code] || []);
+    const filtered = allAsResnMCodes.filter(m => m.ref_code === code);
+    setAsResnMCodes(filtered);
   };
 
   // 시간 옵션 생성
@@ -334,55 +271,83 @@ const ConsultationAS: React.FC<ConsultationASProps> = ({
     }
   }, [contracts]);
 
+  // 계약 선택 시 콤보상세 (상품그룹) 로드
+  useEffect(() => {
+    if (selectedContract?.ctrtId) {
+      getProductGroups(selectedContract.ctrtId).then(res => {
+        if (res.success && res.data) {
+          const codes = (Array.isArray(res.data) ? res.data : [res.data])
+            .filter((item: any) => item.biz_cl || item.BIZ_CL || item.code)
+            .map((item: any) => ({
+              CODE: item.biz_cl || item.BIZ_CL || item.code || '',
+              CODE_NM: item.SVC_NM || item.svc_nm || item.name || item.biz_cl || ''
+            }));
+          setAsClDtlCodes(codes);
+        }
+      }).catch(() => setAsClDtlCodes([]));
+    } else {
+      setAsClDtlCodes([]);
+    }
+  }, [selectedContract]);
+
   const loadCodes = async () => {
     setIsLoadingCodes(true);
     try {
-      // D'Live 상담분류 코드 (CMCS010/020/030) 로드
-      const [lCodesRes, mCodesRes, sCodesRes, asRes] = await Promise.all([
+      // 상담분류 (CMCS010/020/030) + AS구분 (CMWT001) + AS사유 (CMAS000/001) 동시 로드
+      const [lCodesRes, mCodesRes, sCodesRes, asClRes, asResnLRes, asResnMRes] = await Promise.all([
         getConsultationLargeCodes(),
         getConsultationMiddleCodes(),
         getConsultationSmallCodes(),
-        getASReasonCodes()
+        getASClassCodes(),           // CMWT001 (AS구분)
+        getASReasonLargeCodes(),     // CMAS000 (AS사유 대분류)
+        getASReasonDetailCodes(),    // CMAS001 (AS사유 중분류)
       ]);
 
-      // 대분류 (CMCS010) - 빈 코드와 선택 제외
+      const filterCodes = (data: any[]) => data
+        .filter((item: any) => item.code && item.code !== '[]' && item.name !== '선택')
+        .map((item: any) => ({
+          code: item.code,
+          name: item.name,
+          ref_code: item.ref_code
+        }));
+
+      // 상담 대분류 (CMCS010)
       if (lCodesRes.success && lCodesRes.data) {
-        const filtered = lCodesRes.data
-          .filter((item: any) => item.code && item.code !== '[]' && item.name !== '선택')
-          .map((item: any) => ({
-            code: item.code,
-            name: item.name,
-            ref_code: item.ref_code
-          }));
-        setCnslLCodes(filtered);
+        setCnslLCodes(filterCodes(lCodesRes.data));
       }
 
-      // 중분류 (CMCS020) - ref_code로 대분류와 연결
+      // 상담 중분류 (CMCS020) - ref_code로 대분류와 연결
       if (mCodesRes.success && mCodesRes.data) {
-        const filtered = mCodesRes.data
-          .filter((item: any) => item.code && item.code !== '[]' && item.name !== '선택')
-          .map((item: any) => ({
-            code: item.code,
-            name: item.name,
-            ref_code: item.ref_code  // 대분류 코드 참조
-          }));
-        setAllCnslMCodes(filtered);
+        setAllCnslMCodes(filterCodes(mCodesRes.data));
       }
 
-      // 소분류 (CMCS030) - ref_code로 중분류와 연결
+      // 상담 소분류 (CMCS030) - ref_code로 중분류와 연결
       if (sCodesRes.success && sCodesRes.data) {
-        const filtered = sCodesRes.data
-          .filter((item: any) => item.code && item.code !== '[]' && item.name !== '선택')
-          .map((item: any) => ({
-            code: item.code,
-            name: item.name,
-            ref_code: item.ref_code  // 중분류 코드 참조
-          }));
-        setAllCnslSCodes(filtered);
+        setAllCnslSCodes(filterCodes(sCodesRes.data));
       }
 
-      if (asRes.success && asRes.data) {
-        setASReasonCodes(asRes.data);
+      // AS구분 (CMWT001, ref_code='03'이 AS 관련)
+      if (asClRes.success && asClRes.data) {
+        const asCodes = asClRes.data
+          .filter((item: any) => item.code && item.code !== '[]' && item.ref_code === '03')
+          .map((item: any) => ({ CODE: item.code, CODE_NM: item.name }));
+        setAsClCodes(asCodes);
+      }
+
+      // AS사유 대분류 (CMAS000)
+      if (asResnLRes.success && asResnLRes.data) {
+        const resnLCodes = asResnLRes.data
+          .filter((item: any) => item.code && item.code !== '[]' && item.name !== '선택')
+          .map((item: any) => ({ CODE: item.code, CODE_NM: item.name }));
+        setAsResnLCodes(resnLCodes);
+      }
+
+      // AS사유 중분류 (CMAS001) - ref_code로 대분류와 연결
+      if (asResnMRes.success && asResnMRes.data) {
+        const resnMCodes = asResnMRes.data
+          .filter((item: any) => item.code && item.code !== '[]' && item.name !== '선택')
+          .map((item: any) => ({ CODE: item.code, CODE_NM: item.name, ref_code: item.ref_code }));
+        setAllAsResnMCodes(resnMCodes);
       }
     } catch (error) {
       console.error('Load codes error:', error);

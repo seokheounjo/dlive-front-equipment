@@ -29,7 +29,11 @@ import {
   PostAddressInfo,
   StreetAddressInfo,
   registerConsultation,
-  ConsultationRequest
+  ConsultationRequest,
+  getBankCodesDLive,
+  getCardCompanyCodes,
+  getPayerRelationCodes,
+  getIdTypeCodes
 } from '../../services/customerApi';
 
 // 납부폼 타입 정의
@@ -284,97 +288,19 @@ const CustomerInfoChange: React.FC<CustomerInfoChangeProps> = ({
   const [isSearchingAddress, setIsSearchingAddress] = useState(false);
   const [selectedPostId, setSelectedPostId] = useState<string>('');
 
-  // 은행 코드 목록
-  const bankCodes = [
-    { CODE: '003', CODE_NM: 'IBK기업' },
-    { CODE: '004', CODE_NM: 'KB국민' },
-    { CODE: '011', CODE_NM: 'NH농협' },
-    { CODE: '020', CODE_NM: '우리' },
-    { CODE: '023', CODE_NM: 'SC제일' },
-    { CODE: '031', CODE_NM: '대구' },
-    { CODE: '032', CODE_NM: '부산' },
-    { CODE: '039', CODE_NM: '경남' },
-    { CODE: '045', CODE_NM: '새마을' },
-    { CODE: '048', CODE_NM: '신협' },
-    { CODE: '071', CODE_NM: '우체국' },
-    { CODE: '081', CODE_NM: '하나' },
-    { CODE: '088', CODE_NM: '신한' },
-    { CODE: '089', CODE_NM: 'K뱅크' },
-    { CODE: '090', CODE_NM: '카카오뱅크' },
-    { CODE: '092', CODE_NM: '토스뱅크' }
-  ];
+  // 코드 데이터 (API에서 로드)
+  const [bankCodes, setBankCodes] = useState<{ CODE: string; CODE_NM: string }[]>([]);
+  const [cardCompanyCodes, setCardCompanyCodes] = useState<{ CODE: string; CODE_NM: string }[]>([]);
+  const [changeReasonLargeCodes, setChangeReasonLargeCodes] = useState<{ CODE: string; CODE_NM: string }[]>([]);
+  const [changeReasonMiddleCodes, setChangeReasonMiddleCodes] = useState<Record<string, { CODE: string; CODE_NM: string }[]>>({});
+  const [idTypeCodes, setIdTypeCodes] = useState<{ CODE: string; CODE_NM: string }[]>([]);
+  const [pyrRelCodes, setPyrRelCodes] = useState<{ CODE: string; CODE_NM: string }[]>([]);
+  const [paymentDays, setPaymentDays] = useState<{ CODE: string; CODE_NM: string }[]>([]);
 
-  // 카드사 코드 목록
-  const cardCompanyCodes = [
-    { CODE: '01', CODE_NM: '삼성카드' },
-    { CODE: '02', CODE_NM: '현대카드' },
-    { CODE: '03', CODE_NM: 'KB국민카드' },
-    { CODE: '04', CODE_NM: '신한카드' },
-    { CODE: '05', CODE_NM: '롯데카드' },
-    { CODE: '06', CODE_NM: '하나카드' },
-    { CODE: '07', CODE_NM: '우리카드' },
-    { CODE: '08', CODE_NM: 'BC카드' },
-    { CODE: '09', CODE_NM: 'NH농협카드' }
-  ];
-
-  // 변경사유 대분류
-  const changeReasonLargeCodes = [
-    { CODE: '01', CODE_NM: '개인사정' },
-    { CODE: '02', CODE_NM: '요금관련' },
-    { CODE: '03', CODE_NM: '서비스관련' },
-    { CODE: '04', CODE_NM: '기타' }
-  ];
-
-  // 변경사유 중분류
-  const changeReasonMiddleCodes: Record<string, { CODE: string; CODE_NM: string }[]> = {
-    '01': [
-      { CODE: '0101', CODE_NM: '계좌/카드 변경' },
-      { CODE: '0102', CODE_NM: '명의 변경' },
-      { CODE: '0103', CODE_NM: '주소 이전' }
-    ],
-    '02': [
-      { CODE: '0201', CODE_NM: '요금 미납' },
-      { CODE: '0202', CODE_NM: '요금 문의' },
-      { CODE: '0203', CODE_NM: '할인 요청' }
-    ],
-    '03': [
-      { CODE: '0301', CODE_NM: '서비스 불만' },
-      { CODE: '0302', CODE_NM: '상품 변경' }
-    ],
-    '04': [
-      { CODE: '0401', CODE_NM: '기타 사유' }
-    ]
-  };
-
-  // 신분유형 코드
-  const idTypeCodes = [
-    { CODE: '01', CODE_NM: '주민등록번호' },
-    { CODE: '02', CODE_NM: '사업자등록번호' },
-    { CODE: '03', CODE_NM: '외국인등록번호' }
-  ];
-
-  // 납부자관계 코드
-  const pyrRelCodes = [
-    { CODE: '01', CODE_NM: '본인' },
-    { CODE: '02', CODE_NM: '배우자' },
-    { CODE: '03', CODE_NM: '부모' },
-    { CODE: '04', CODE_NM: '자녀' },
-    { CODE: '05', CODE_NM: '기타' }
-  ];
-
-  // 결제일 목록
-  const paymentDays = [
-    { CODE: '05', CODE_NM: '5일' },
-    { CODE: '10', CODE_NM: '10일' },
-    { CODE: '15', CODE_NM: '15일' },
-    { CODE: '20', CODE_NM: '20일' },
-    { CODE: '25', CODE_NM: '25일' },
-    { CODE: '27', CODE_NM: '27일' }
-  ];
-
-  // 통신사 코드 로드
+  // 코드 데이터 로드 (통신사, 은행, 카드사, 납부자관계, 신분유형 등)
   useEffect(() => {
     loadTelecomCodes();
+    loadPaymentCodes();
   }, []);
 
 
@@ -397,17 +323,89 @@ const CustomerInfoChange: React.FC<CustomerInfoChangeProps> = ({
     }
   }, [paymentForm, selectedPymAcntId, isVerified]);
 
+  // API 응답 매핑 헬퍼 (code, name → CODE, CODE_NM)
+  const mapApiCodes = (data: any[]) => data
+    .filter((item: any) => item.code && item.code !== '[]' && item.name !== '선택')
+    .map((item: any) => ({
+      CODE: item.code || item.CODE,
+      CODE_NM: item.name || item.CODE_NM,
+      ref_code: item.ref_code || ''
+    }));
+
   const loadTelecomCodes = async () => {
     setIsLoadingCodes(true);
     try {
       const response = await getTelecomCodes();
       if (response.success && response.data) {
-        setTelecomCodes(response.data);
+        setTelecomCodes(mapApiCodes(response.data));
       }
     } catch (error) {
       console.error('Load telecom codes error:', error);
     } finally {
       setIsLoadingCodes(false);
+    }
+  };
+
+  // 납부 관련 코드 로드 (은행, 카드사, 납부자관계, 신분유형, 결제일, 변경사유)
+  const loadPaymentCodes = async () => {
+    try {
+      const [bankRes, cardRes, pyrRelRes, idTypeRes] = await Promise.all([
+        getBankCodesDLive(),      // BLPY015 (은행)
+        getCardCompanyCodes(),    // BLPY016 (카드사)
+        getPayerRelationCodes(),  // CMCU005 (납부자관계)
+        getIdTypeCodes(),         // CMCU002 (신분유형)
+      ]);
+
+      if (bankRes.success && bankRes.data) {
+        setBankCodes(mapApiCodes(bankRes.data));
+      }
+      if (cardRes.success && cardRes.data) {
+        setCardCompanyCodes(mapApiCodes(cardRes.data));
+      }
+      if (pyrRelRes.success && pyrRelRes.data) {
+        setPyrRelCodes(mapApiCodes(pyrRelRes.data));
+      }
+      if (idTypeRes.success && idTypeRes.data) {
+        setIdTypeCodes(mapApiCodes(idTypeRes.data));
+      }
+
+      // 변경사유 및 결제일 - D'Live 공통코드에 해당 CODE_GROUP이 없어 기본값 설정
+      // 추후 D'Live 공통코드 테이블에 추가 시 API 로드로 전환 가능
+      setChangeReasonLargeCodes([
+        { CODE: '01', CODE_NM: '개인사정' },
+        { CODE: '02', CODE_NM: '요금관련' },
+        { CODE: '03', CODE_NM: '서비스관련' },
+        { CODE: '04', CODE_NM: '기타' }
+      ]);
+      setChangeReasonMiddleCodes({
+        '01': [
+          { CODE: '0101', CODE_NM: '계좌/카드 변경' },
+          { CODE: '0102', CODE_NM: '명의 변경' },
+          { CODE: '0103', CODE_NM: '주소 이전' }
+        ],
+        '02': [
+          { CODE: '0201', CODE_NM: '요금 미납' },
+          { CODE: '0202', CODE_NM: '요금 문의' },
+          { CODE: '0203', CODE_NM: '할인 요청' }
+        ],
+        '03': [
+          { CODE: '0301', CODE_NM: '서비스 불만' },
+          { CODE: '0302', CODE_NM: '상품 변경' }
+        ],
+        '04': [
+          { CODE: '0401', CODE_NM: '기타 사유' }
+        ]
+      });
+      setPaymentDays([
+        { CODE: '05', CODE_NM: '5일' },
+        { CODE: '10', CODE_NM: '10일' },
+        { CODE: '15', CODE_NM: '15일' },
+        { CODE: '20', CODE_NM: '20일' },
+        { CODE: '25', CODE_NM: '25일' },
+        { CODE: '27', CODE_NM: '27일' }
+      ]);
+    } catch (error) {
+      console.error('Load payment codes error:', error);
     }
   };
 
@@ -1166,13 +1164,8 @@ const CustomerInfoChange: React.FC<CustomerInfoChangeProps> = ({
                     </option>
                   ))}
                   {/* 기본 통신사 옵션 (코드 로드 실패 시) */}
-                  {telecomCodes.length === 0 && (
-                    <>
-                      <option value="SKT">SKT</option>
-                      <option value="KT">KT</option>
-                      <option value="LGU">LG U+</option>
-                      <option value="MVNO">알뜰폰</option>
-                    </>
+                  {telecomCodes.length === 0 && isLoadingCodes && (
+                    <option value="" disabled>로딩중...</option>
                   )}
                 </select>
               </div>
