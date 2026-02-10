@@ -278,7 +278,6 @@ const CustomerInfoChange: React.FC<CustomerInfoChangeProps> = ({
     streetNm: '',      // 도로명
     streetBunM: '',    // 건물본번
     streetBunS: '',    // 건물부번
-    buildNm: ''        // 건물명
   });
   const [postAddressResults, setPostAddressResults] = useState<PostAddressInfo[]>([]);
   const [streetAddressResults, setStreetAddressResults] = useState<StreetAddressInfo[]>([]);
@@ -884,7 +883,7 @@ const CustomerInfoChange: React.FC<CustomerInfoChangeProps> = ({
   const handleOpenAddressModal = () => {
     setShowAddressModal(true);
     setAddressSearchQuery('');
-    setStreetSearchForm({ streetNm: '', streetBunM: '', streetBunS: '', buildNm: '' });
+    setStreetSearchForm({ streetNm: '', streetBunM: '', streetBunS: '' });
     setPostAddressResults([]);
     setStreetAddressResults([]);
   };
@@ -974,8 +973,7 @@ const CustomerInfoChange: React.FC<CustomerInfoChangeProps> = ({
       const response = await searchStreetAddress({
         STREET_NM: streetSearchForm.streetNm,
         STREET_BUN_M: streetSearchForm.streetBunM,
-        STREET_BUN_S: streetSearchForm.streetBunS,
-        BUILD_NM: streetSearchForm.buildNm || undefined
+        STREET_BUN_S: streetSearchForm.streetBunS
       });
 
       if (response.success && response.data) {
@@ -1591,13 +1589,6 @@ const CustomerInfoChange: React.FC<CustomerInfoChangeProps> = ({
                       />
                     </div>
                   </div>
-                  <input
-                    type="text"
-                    value={streetSearchForm.buildNm}
-                    onChange={(e) => setStreetSearchForm(prev => ({ ...prev, buildNm: e.target.value }))}
-                    placeholder="건물명 (선택)"
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
-                  />
                 </div>
               )}
 

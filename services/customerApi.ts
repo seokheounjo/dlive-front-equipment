@@ -498,7 +498,6 @@ export interface StreetAddressSearchRequest {
   NM_SMALL?: string;         // 읍면동
   HEAD_BUNJI?: string;       // 본번지
   GAJI_BUNJI?: string;       // 부번지
-  BUILD_NM?: string;         // 건물명
   SO_ID?: string;            // 지점ID
 }
 
@@ -1953,13 +1952,12 @@ export const searchStreetAddress = async (params: StreetAddressSearchRequest): P
     }
   }
 
-  // 클라이언트 필터링 (서버가 STREET_NM/BUILD_NM 필터를 지원하지 않으므로)
+  // 클라이언트 필터링 (STREET_NM은 서버 버그로 클라이언트에서 처리)
   const streetNm = (params.STREET_NM || '').trim().toLowerCase();
   const bunM = (params.STREET_BUN_M || '').trim();
   const bunS = (params.STREET_BUN_S || '').trim();
-  const buildNm = (params.BUILD_NM || '').trim().toLowerCase();
 
-  if (streetNm || bunM || bunS || buildNm) {
+  if (streetNm || bunM || bunS) {
     allData = allData.filter(item => {
       if (streetNm) {
         const addr = (item.STREET_ADDR || '').toLowerCase();
@@ -1973,11 +1971,6 @@ export const searchStreetAddress = async (params: StreetAddressSearchRequest): P
       if (bunS) {
         const itemBunS = item.STREET_BUN_S || item.HO_NM || '';
         if (!itemBunS || !itemBunS.includes(bunS)) return false;
-      }
-      if (buildNm) {
-        const bldNm = (item.BLD_NM || '').toLowerCase();
-        const bldDtl = (item.BLD_DTL_NM || '').toLowerCase();
-        if (!bldNm.includes(buildNm) && !bldDtl.includes(buildNm)) return false;
       }
       return true;
     });
