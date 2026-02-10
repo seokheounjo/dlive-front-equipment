@@ -1859,34 +1859,34 @@ export const searchPostAddress = async (params: PostAddressSearchRequest): Promi
  * 도로명주소 검색 (customer/common/customercommon/getStreetAddrList)
  *
  * D'Live 백엔드 제약사항:
- * - STREET_NM 파라미터 전달 시 무조건 0건 반환 (서버 버그)
- * - BUILD_NM 파라미터 전달 시 서버 크래시
- * - SO_ID만 정상 동작 (해당 지점 전체 도로명주소 반환)
+ * - STREET_NM 파라미터 전달 시 무조건 0건 반환 (서버 버그) → 클라이언트 필터링
+ * - BUILD_NM 파라미터 전달 시 서버 크래시 → 클라이언트 필터링
+ * - SO_ID + STREET_BUN_M + STREET_BUN_S는 정상 동작
  *
- * 전략: 첫 조회 시 SO_ID로 전체 데이터를 캐시, 이후 검색은 캐시에서 필터링
+ * 전략: SO_ID + BUN_M + BUN_S로 단일 API 호출 → 캐시 → STREET_NM은 클라이언트 필터링
  */
 
 // 도로명주소 캐시 (SO_ID별)
 const streetAddressCache: { [soId: string]: StreetAddressInfo[] } = {};
 
 const loadStreetAddressCache = async (soId: string, searchParams?: Record<string, string>): Promise<StreetAddressInfo[]> => {
-  // 검색 파라미터가 있으면 서버에 직접 전달 (캐시 미사용)
-  if (searchParams && Object.keys(searchParams).length > 0) {
-    const result = await apiCall<StreetAddressInfo[]>(
-      '/customer/common/customercommon/getStreetAddrList', { SO_ID: soId, ...searchParams }
-    );
-    if (result.success && result.data && result.data.length > 0) {
-      console.log(`[CustomerAPI] searchStreetAddress SO_ID=${soId} 서버 필터 결과: ${result.data.length}건`);
-      return result.data;
-    }
-    // 서버 필터가 0건이면 캐시 폴백
-    console.log(`[CustomerAPI] searchStreetAddress SO_ID=${soId} 서버 필터 0건, 캐시 폴백`);
-  }
+  // 캐시에 있으면 바로 반환 (API 재호출 불필요)
   if (streetAddressCache[soId]) {
     return streetAddressCache[soId];
   }
+
+  // 단일 API 호출: SO_ID + STREET_BUN_M + STREET_BUN_S 포함
+  // 주의: STREET_NM은 D'Live 서버 버그로 0건 반환되므로 제외 (클라이언트 필터링)
+  //       BUILD_NM은 서버 크래시 유발하므로 제외
+  const callParams: Record<string, string> = { SO_ID: soId };
+  if (searchParams) {
+    if (searchParams.STREET_BUN_M) callParams.STREET_BUN_M = searchParams.STREET_BUN_M;
+    if (searchParams.STREET_BUN_S) callParams.STREET_BUN_S = searchParams.STREET_BUN_S;
+  }
+
+  console.log(`[CustomerAPI] getStreetAddrList 호출:`, callParams);
   const result = await apiCall<StreetAddressInfo[]>(
-    '/customer/common/customercommon/getStreetAddrList', { SO_ID: soId }
+    '/customer/common/customercommon/getStreetAddrList', callParams
   );
   if (result.success && result.data) {
     streetAddressCache[soId] = result.data;
@@ -1924,14 +1924,14 @@ export const searchStreetAddress = async (params: StreetAddressSearchRequest): P
     return { success: false, data: [], message: 'SO_ID를 찾을 수 없습니다.' };
   }
 
-  // 검색 파라미터 구성 (서버 필터용)
+  // 검색 파라미터 구성 (서버 전달용: STREET_BUN_M, STREET_BUN_S만)
+  // STREET_NM은 D'Live 서버 버그(0건 반환)로 제외 → 클라이언트 필터링
+  // BUILD_NM은 D'Live 서버 크래시 유발으로 제외 → 클라이언트 필터링
   const serverSearchParams: Record<string, string> = {};
-  if (params.STREET_NM) serverSearchParams.STREET_NM = params.STREET_NM;
   if (params.STREET_BUN_M) serverSearchParams.STREET_BUN_M = params.STREET_BUN_M;
   if (params.STREET_BUN_S) serverSearchParams.STREET_BUN_S = params.STREET_BUN_S;
-  if (params.BUILD_NM) serverSearchParams.BUILD_NM = params.BUILD_NM;
 
-  // 전체 지점 로드 (검색 파라미터를 서버에 전달, 실패시 캐시 폴백)
+  // 전체 지점 로드 (단일 API 호출, 캐시 활용)
   const hasSearchParams = Object.keys(serverSearchParams).length > 0;
   const cacheResults = await Promise.all(
     soList.map(soId =>
