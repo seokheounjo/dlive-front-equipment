@@ -24,6 +24,7 @@ const LEGACY_REQ_ROUTES = [
   "/customer/phoneNumber/getOwnEqtLstForMobile_3",  // 장비반납
   "/customer/equipment/getAuthSoList",  // SO 권한 목록
   "/customer/equipment/getEqtTrnsList",  // 장비이동내역
+  "/customer/work/getProd_Grp",  // AS접수 콤보상세 (상품그룹)
 ];
 
 // Parse MiPlatform XML response to JSON
