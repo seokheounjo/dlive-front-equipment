@@ -517,11 +517,7 @@ async function handleProxy(req, res) {
         }
         contentType = 'text/xml; charset=UTF-8';
       } else {
-        // Escape non-ASCII characters to \uXXXX for safe transmission to CONA server
-        // CONA WebSphere may use EUC-KR encoding, garbling UTF-8 Korean characters
-        postData = JSON.stringify(req.body).replace(/[\u0080-\uffff]/g, (ch) => {
-          return '\\u' + ('0000' + ch.charCodeAt(0).toString(16)).slice(-4);
-        });
+        postData = JSON.stringify(req.body);
       }
     }
 
