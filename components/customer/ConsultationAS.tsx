@@ -510,8 +510,9 @@ const ConsultationAS: React.FC<ConsultationASProps> = ({
         });
         setCnslMCodes([]);
         setCnslSCodes([]);
-        // 이력 새로고침
+        // 이력 새로고침 (계약별 + 전체)
         loadHistory();
+        loadAllHistory();
       } else {
         showPopup('error', '상담 등록 실패', response.message || '상담 등록에 실패했습니다.');
       }
@@ -595,8 +596,9 @@ const ConsultationAS: React.FC<ConsultationASProps> = ({
           schdMin: '00'
         });
         setAsResnMCodes([]);
-        // 이력 새로고침
+        // 이력 새로고침 (계약별 + 전체)
         loadHistory();
+        loadAllHistory();
       } else {
         showPopup('error', 'AS 접수 실패', response.message || 'AS 접수에 실패했습니다.');
       }

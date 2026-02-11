@@ -21,7 +21,7 @@ interface CustomerTypeCode {
 }
 
 /**
- * 잠재고객 생성 화면
+ * 재약정 등록 화면
  *
  * 회의록 기준:
  * - 필수 입력값: 고객명, 주민등록번호, 고객유형(개인, 사업자, 외국인, 단체)
@@ -226,10 +226,10 @@ const CustomerCreate: React.FC<CustomerCreateProps> = ({
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
           <div className="flex items-center gap-2">
             <UserPlus className="w-6 h-6 text-teal-500" />
-            <h2 className="text-lg font-medium text-gray-800">잠재고객 생성</h2>
+            <h2 className="text-lg font-medium text-gray-800">재약정 등록</h2>
           </div>
           <p className="text-sm text-gray-500 mt-1">
-            신규 잠재고객을 등록합니다. 단체 고객을 제외하고 실명인증이 필요합니다.
+            재약정 고객을 등록합니다. 단체 고객을 제외하고 실명인증이 필요합니다.
           </p>
         </div>
 

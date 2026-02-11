@@ -49,11 +49,11 @@ const CustomerSearch: React.FC<CustomerSearchProps> = ({ onCustomerSelect, onCus
   // 팝업 표시 상태
   const [showModal, setShowModal] = useState(false);
 
-  // 검색 입력값 - 테스트용 기본값
-  const [customerId, setCustomerId] = useState('1001857577');
-  const [contractId, setContractId] = useState('1003687719');
-  const [phoneNumber, setPhoneNumber] = useState('01051346878');
-  const [customerName, setCustomerName] = useState('푸꾸옥');
+  // 검색 입력값
+  const [customerId, setCustomerId] = useState('');
+  const [contractId, setContractId] = useState('');
+  const [phoneNumber, setPhoneNumber] = useState('');
+  const [customerName, setCustomerName] = useState('');
   const [equipmentNo, setEquipmentNo] = useState('');
 
   // 상태
@@ -179,9 +179,11 @@ const CustomerSearch: React.FC<CustomerSearchProps> = ({ onCustomerSelect, onCus
     setCustomerId(formatIdInput(customer.CUST_ID || ''));
     setPhoneNumber(formatPhoneInput(customer.TEL_NO || customer.HP_NO || ''));
     setCustomerName(customer.CUST_NM || '');
-    // 계약ID와 장비번호는 고객 정보에 없으므로 초기화
-    setContractId('');
-    setEquipmentNo('');
+    // 계약ID: 결과에 CTRT_ID가 있으면 유지, 없으면 기존 입력값 보존
+    if (customer.CTRT_ID) {
+      setContractId(formatIdInput(customer.CTRT_ID));
+    }
+    // S/N 입력값은 보존 (초기화하지 않음)
 
     onCustomerSelect(customer);
     closeModal();
@@ -359,6 +361,11 @@ const CustomerSearch: React.FC<CustomerSearchProps> = ({ onCustomerSelect, onCus
                           <span className="text-blue-600 font-mono text-sm">{formatId(customer.CUST_ID)}</span>
                           <span className="font-semibold text-gray-900">{customer.CUST_NM}</span>
                         </div>
+                        {customer.CTRT_ID && (
+                          <div className="mt-1 text-xs text-gray-600">
+                            <span className="text-gray-400">계약ID:</span> <span className="font-mono">{formatId(customer.CTRT_ID)}</span>
+                          </div>
+                        )}
                         <div className="mt-1 text-xs text-gray-500 truncate">
                           {maskPhoneNumber(customer.TEL_NO || customer.HP_NO)}
                           {customer.CUST_ADDR && ` | ${customer.CUST_ADDR}`}

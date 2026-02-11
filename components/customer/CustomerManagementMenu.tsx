@@ -18,7 +18,7 @@ interface CustomerManagementMenuProps {
  * 2. 정보변경: 전화번호/주소 변경 (설치주소, 고객주소, 청구지주소)
  * 3. 상담/AS: 상담이력 조회/등록 및 AS 접수
  * 4. 전자계약: 전자계약서 서명/발송 (모두싸인 API 연동)
- * 5. 고객생성: 잠재고객 신규 등록
+ * 5. 고객생성: 재약정 등록
  */
 const CustomerManagementMenu: React.FC<CustomerManagementMenuProps> = ({ onNavigateToMenu, showToast }) => {
   const [activeTab, setActiveTab] = useState<string>('basic-info');
