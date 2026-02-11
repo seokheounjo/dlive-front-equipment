@@ -1053,7 +1053,13 @@ const ConsultationAS: React.FC<ConsultationASProps> = ({
                   }`}
                 >일자별</button>
                 <button
-                  onClick={(e) => { e.stopPropagation(); setHistoryViewMode('byContract'); }}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setHistoryViewMode('byContract');
+                    if (selectedContract && consultationHistory.length === 0 && workHistory.length === 0) {
+                      loadHistory();
+                    }
+                  }}
                   className={`px-2 py-0.5 text-xs rounded-full transition-colors ${
                     historyViewMode === 'byContract'
                       ? 'bg-blue-500 text-white'

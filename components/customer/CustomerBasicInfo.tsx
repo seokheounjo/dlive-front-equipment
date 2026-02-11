@@ -180,6 +180,8 @@ const CustomerBasicInfo: React.FC<CustomerBasicInfoProps> = ({
 
   // 선택된 계약 ID (이력 조회용)
   const [selectedCtrtIdForHistory, setSelectedCtrtIdForHistory] = useState<string>('');
+  // 선택된 계약의 납부계정 ID (납부정보 필터링용)
+  const [selectedPymAcntIdFromContract, setSelectedPymAcntIdFromContract] = useState<string>('');
 
   // 이력 로드 (CUST_ID 필수, CTRT_ID 선택)
   const loadHistory = async (custId: string, ctrtId?: string): Promise<{ consultation: ConsultationHistory[], work: WorkHistory[] }> => {
@@ -272,6 +274,11 @@ const CustomerBasicInfo: React.FC<CustomerBasicInfoProps> = ({
       setSelectedCtrtIdForHistory(contract.CTRT_ID);
       setHistoryViewMode('byContract');
       loadHistory(selectedCustomer.CUST_ID, contract.CTRT_ID);
+    }
+
+    // 선택된 계약의 납부계정 자동 연동
+    if (contract.PYM_ACNT_ID) {
+      setSelectedPymAcntIdFromContract(contract.PYM_ACNT_ID);
     }
   };
 
@@ -385,6 +392,7 @@ const CustomerBasicInfo: React.FC<CustomerBasicInfoProps> = ({
               paymentChangeInProgress={paymentChangeInProgress}
               onCancelPaymentChange={onCancelPaymentChange}
               currentWorkingPymAcntId={currentWorkingPymAcntId}
+              selectedPymAcntIdFromContract={selectedPymAcntIdFromContract}
             />
 
             {/* 상담 이력 */}

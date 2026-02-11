@@ -42,6 +42,7 @@ interface PaymentInfoProps {
   paymentChangeInProgress?: boolean;
   onCancelPaymentChange?: () => void;
   currentWorkingPymAcntId?: string;
+  selectedPymAcntIdFromContract?: string;  // 계약 선택 시 해당 납부계정ID
 }
 
 /**
@@ -60,7 +61,8 @@ const PaymentInfo: React.FC<PaymentInfoProps> = ({
   onNavigateToPaymentChange,
   paymentChangeInProgress,
   onCancelPaymentChange,
-  currentWorkingPymAcntId
+  currentWorkingPymAcntId,
+  selectedPymAcntIdFromContract
 }) => {
   // 데이터 상태 (D'Live API 응답 기준)
   const [paymentAccounts, setPaymentAccounts] = useState<PaymentAccountInfo[]>([]);
@@ -94,6 +96,16 @@ const PaymentInfo: React.FC<PaymentInfoProps> = ({
       loadPaymentAccounts();
     }
   }, [expanded, custId]);
+
+  // 계약 선택 시 해당 납부계정 자동 선택
+  useEffect(() => {
+    if (selectedPymAcntIdFromContract && selectedPymAcntIdFromContract !== selectedPymAcntId) {
+      setSelectedPymAcntId(selectedPymAcntIdFromContract);
+      if (!expanded) {
+        onToggle();  // 납부정보 섹션 자동 펼침
+      }
+    }
+  }, [selectedPymAcntIdFromContract]);
 
   // 선택된 납부계정 변경 시 요금내역 로드
   useEffect(() => {
