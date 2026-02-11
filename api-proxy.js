@@ -2,6 +2,7 @@
 // Routes to /api/* servlet (our custom controllers) instead of *.req (CONA servlet)
 const express = require('express');
 const router = express.Router();
+const iconv = require('iconv-lite');
 
 const DLIVE_API_BASE = process.env.DLIVE_API_BASE || 'http://58.143.140.222:8080';
 
@@ -29,9 +30,6 @@ const LEGACY_REQ_ROUTES = [
   "/customer/equipment/getEqtTrnsList",  // 장비이동내역
   "/customer/work/getProd_Grp",  // AS접수 콤보상세 (상품그룹)
 
-  // Customer Search - route via .req servlet for correct Korean encoding
-  // The adapter's readBody may garble UTF-8 Korean characters
-  "/customer/common/customercommon/getConditionalCustList2",
 ];
 
 // Parse MiPlatform XML response to JSON
@@ -540,7 +538,18 @@ async function handleProxy(req, res) {
         }
         contentType = 'text/xml; charset=UTF-8';
       } else {
-        postData = JSON.stringify(req.body);
+        const jsonStr = JSON.stringify(req.body);
+        // Check if body contains non-ASCII characters (Korean, etc.)
+        const hasNonAscii = /[^\x00-\x7f]/.test(jsonStr);
+        if (hasNonAscii) {
+          // Encode as EUC-KR for CONA WebSphere (default encoding is likely EUC-KR)
+          // WebSphere reads body with default charset, so we must match it
+          postData = iconv.encode(jsonStr, 'euc-kr');
+          contentType = 'application/json';  // No charset - let server use default
+          console.log('[PROXY] Encoded body as EUC-KR (non-ASCII detected), bytes:', postData.length);
+        } else {
+          postData = jsonStr;
+        }
       }
     }
 
@@ -561,7 +570,7 @@ async function handleProxy(req, res) {
     };
 
     if (postData) {
-      options.headers['Content-Length'] = Buffer.byteLength(postData, 'utf8');
+      options.headers['Content-Length'] = Buffer.isBuffer(postData) ? postData.length : Buffer.byteLength(postData, 'utf8');
     }
 
     // 쿠키 처리: 브라우저 쿠키 + 저장된 JSESSIONID 주입
