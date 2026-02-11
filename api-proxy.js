@@ -232,21 +232,10 @@ function parseMiPlatformDatasetXMLtoJSON(xmlString) {
   }
 }
 
-// Routes that bypass adapter and go directly to .req servlet with multi-dataset XML
-// 상담등록: 원본 CONA는 ds_call_info + ds_trans + gds_user 3개 데이터셋을 전송
-// Java 어댑터의 parseJsonToMap이 CALLER_UID를 제거하므로 .req로 직접 전송하여 우회
-const DIRECT_REQ_ROUTES = {
-  '/customer/negociation/saveCnslRcptInfo': {
-    reqPath: '/customer/negociation/saveCnslRcptInfo.req',
-    buildXml: (body) => {
-      return buildMultiDatasetXML({
-        'ds_call_info': body,
-        'ds_trans': {},
-        'gds_user': { USR_ID: body.CALLER_UID || body.USR_ID || '' }
-      });
-    }
-  }
-};
+// DIRECT_REQ_ROUTES: .req 서블릿 직접 라우팅 (현재 비활성)
+// 상담등록은 어댑터(/api/...) 경로 사용 - TaskAuthController 세션이 .req 서블릿에서 인식 안됨
+// .req 서블릿은 CONA 원본 MiPlatform 로그인 세션만 인식
+const DIRECT_REQ_ROUTES = {};
 
 // Proxy routes
 router.post('/login', handleProxy);
