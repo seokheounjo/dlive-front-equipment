@@ -28,6 +28,10 @@ const LEGACY_REQ_ROUTES = [
   "/customer/equipment/getAuthSoList",  // SO 권한 목록
   "/customer/equipment/getEqtTrnsList",  // 장비이동내역
   "/customer/work/getProd_Grp",  // AS접수 콤보상세 (상품그룹)
+
+  // Customer Search - route via .req servlet for correct Korean encoding
+  // The adapter's readBody may garble UTF-8 Korean characters
+  "/customer/common/customercommon/getConditionalCustList2",
 ];
 
 // Parse MiPlatform XML response to JSON
@@ -214,16 +218,35 @@ function buildMultiDatasetXML(datasets) {
 // Parse MiPlatform Dataset XML response (<Col id="KEY">value</Col> 형식)
 function parseMiPlatformDatasetXMLtoJSON(xmlString) {
   try {
+    const decodeEntities = (str) => str
+      .replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>')
+      .replace(/&quot;/g, '"').replace(/&apos;/g, "'")
+      .replace(/&#32;/g, ' ').replace(/&#10;/g, '\n').replace(/&#9;/g, '\t');
+
+    // Try multi-row parsing first: extract each <Row>...</Row>
+    const rowRegex = /<Row>([\s\S]*?)<\/Row>/gi;
+    const rows = [];
+    let rowMatch;
+    while ((rowMatch = rowRegex.exec(xmlString)) !== null) {
+      const rowContent = rowMatch[1];
+      const row = {};
+      const colRegex = /<Col\s+id="([^"]+)"[^>]*>([^<]*)<\/Col>/gi;
+      let colMatch;
+      while ((colMatch = colRegex.exec(rowContent)) !== null) {
+        row[colMatch[1]] = decodeEntities(colMatch[2]);
+      }
+      if (Object.keys(row).length > 0) {
+        rows.push(row);
+      }
+    }
+    if (rows.length > 0) return rows;
+
+    // Fallback: flat object (single row without <Row> wrapper)
     const result = {};
-    const colRegex = /<Col\s+id="(\w+)"[^>]*>([^<]*)<\/Col>/gi;
+    const colRegex = /<Col\s+id="([^"]+)"[^>]*>([^<]*)<\/Col>/gi;
     let match;
     while ((match = colRegex.exec(xmlString)) !== null) {
-      result[match[1]] = match[2]
-        .replace(/&amp;/g, '&')
-        .replace(/&lt;/g, '<')
-        .replace(/&gt;/g, '>')
-        .replace(/&quot;/g, '"')
-        .replace(/&apos;/g, "'");
+      result[match[1]] = decodeEntities(match[2]);
     }
     return Object.keys(result).length > 0 ? result : null;
   } catch (e) {
@@ -607,7 +630,9 @@ async function handleProxy(req, res) {
           if (jsonData) {
             res.setHeader('Content-Type', 'application/json; charset=utf-8');
             res.status(proxyRes.statusCode);
-            res.json(jsonData);
+            // Wrap in standard response format
+            const dataArr = Array.isArray(jsonData) ? jsonData : [jsonData];
+            res.json({ code: 'SUCCESS', message: 'OK', data: dataArr });
             return;
           }
         }
@@ -636,15 +661,19 @@ async function handleProxy(req, res) {
           console.log('[PROXY] Parsing XML <Col> Dataset response to JSON');
           const jsonData = parseMiPlatformDatasetXMLtoJSON(responseBody);
           if (jsonData) {
-            // Wrap in standard response format for frontend compatibility
-            const isSuccess = (jsonData.MESSAGE === 'SUCCESS' || jsonData.MSGCODE === 'SUCCESS');
             res.setHeader('Content-Type', 'application/json; charset=utf-8');
             res.status(proxyRes.statusCode);
-            res.json({
-              code: isSuccess ? 'SUCCESS' : (jsonData.MSGCODE || 'ERROR'),
-              message: isSuccess ? 'OK' : (jsonData.MESSAGE || 'Unknown error'),
-              data: jsonData
-            });
+            // If array (multi-row), wrap as data array
+            if (Array.isArray(jsonData)) {
+              res.json({ code: 'SUCCESS', message: 'OK', data: jsonData });
+            } else {
+              const isSuccess = (jsonData.MESSAGE === 'SUCCESS' || jsonData.MSGCODE === 'SUCCESS');
+              res.json({
+                code: isSuccess ? 'SUCCESS' : (jsonData.MSGCODE || 'ERROR'),
+                message: isSuccess ? 'OK' : (jsonData.MESSAGE || 'Unknown error'),
+                data: jsonData
+              });
+            }
             return;
           }
         }
