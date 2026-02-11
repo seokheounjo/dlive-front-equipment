@@ -281,11 +281,16 @@ const CustomerBasicInfo: React.FC<CustomerBasicInfoProps> = ({
     }
   };
 
-  // 계약별 모드: 전체 이력에서 CTRT_ID로 클라이언트 필터링
+  // 계약별 모드: CTRT_ID로 클라이언트 필터링
+  // 상담이력: SQL에 CTRT_ID가 없으므로 CTRT_ID가 있는 항목만 필터, 없으면 전체 표시
   const filteredConsultation = historyViewMode === 'byContract' && selectedCtrtIdForHistory
-    ? allConsultationHistory.filter(item => item.CTRT_ID === selectedCtrtIdForHistory)
+    ? (() => {
+        const matched = allConsultationHistory.filter(item => item.CTRT_ID === selectedCtrtIdForHistory);
+        return matched.length > 0 ? matched : allConsultationHistory;
+      })()
     : historyViewMode === 'byContract' ? [] : allConsultationHistory;
 
+  // 작업이력: SQL에 CTRT_ID 포함되어 있어 정상 필터링
   const filteredWork = historyViewMode === 'byContract' && selectedCtrtIdForHistory
     ? allWorkHistory.filter(item => item.CTRT_ID === selectedCtrtIdForHistory)
     : historyViewMode === 'byContract' ? [] : allWorkHistory;
@@ -470,11 +475,7 @@ const CustomerBasicInfo: React.FC<CustomerBasicInfoProps> = ({
                             className="p-3 cursor-pointer flex items-center justify-between"
                             onClick={() => toggleConsultItem(index)}
                           >
-                            <div className="grid grid-cols-5 gap-2 text-xs flex-1">
-                              <div className="flex flex-col">
-                                <span className="text-gray-500 whitespace-nowrap">계약ID</span>
-                                <span className="text-gray-800 font-medium text-[10px]">{item.CTRT_ID ? formatId(item.CTRT_ID) : '-'}</span>
-                              </div>
+                            <div className="grid grid-cols-4 gap-2 text-xs flex-1">
                               <div className="flex flex-col">
                                 <span className="text-gray-500 whitespace-nowrap">접수일</span>
                                 <span className="text-gray-800 font-medium">{item.START_DATE || '-'}</span>
