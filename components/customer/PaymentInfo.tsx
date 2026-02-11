@@ -97,13 +97,10 @@ const PaymentInfo: React.FC<PaymentInfoProps> = ({
     }
   }, [expanded, custId]);
 
-  // 계약 선택 시 해당 납부계정 자동 선택
+  // 계약 선택 시 해당 납부계정 자동 선택 (펼치지는 않음 - 데이터만 준비)
   useEffect(() => {
     if (selectedPymAcntIdFromContract && selectedPymAcntIdFromContract !== selectedPymAcntId) {
       setSelectedPymAcntId(selectedPymAcntIdFromContract);
-      if (!expanded) {
-        onToggle();  // 납부정보 섹션 자동 펼침
-      }
     }
   }, [selectedPymAcntIdFromContract]);
 

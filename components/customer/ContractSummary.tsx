@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   FileText, ChevronDown, ChevronUp, Loader2,
   MapPin, Filter, MessageSquare, Wrench, Home
@@ -25,6 +25,7 @@ interface ContractSummaryProps {
   onNavigateToConsultation?: (contract: ContractInfo) => void;  // 상담등록으로 이동
   onNavigateToAS?: (contract: ContractInfo) => void;            // AS접수로 이동
   onNavigateToAddressChange?: (contract: ContractInfo) => void; // 주소변경으로 이동
+  initialSearchKeyword?: string;  // S/N 검색 시 자동 입력될 검색어
 }
 
 // 계약 상태별 스타일
@@ -60,11 +61,19 @@ const ContractSummary: React.FC<ContractSummaryProps> = ({
   showToast,
   onNavigateToConsultation,
   onNavigateToAS,
-  onNavigateToAddressChange
+  onNavigateToAddressChange,
+  initialSearchKeyword
 }) => {
   // 필터 상태 (기본값: 전체)
   const [filterStatus, setFilterStatus] = useState<'all' | 'active'>('all');
-  const [searchKeyword, setSearchKeyword] = useState('');
+  const [searchKeyword, setSearchKeyword] = useState(initialSearchKeyword || '');
+
+  // S/N 검색어가 변경되면 자동 반영
+  useEffect(() => {
+    if (initialSearchKeyword) {
+      setSearchKeyword(initialSearchKeyword);
+    }
+  }, [initialSearchKeyword]);
 
   // 선택된 계약
   const [selectedContractId, setSelectedContractId] = useState<string | null>(null);

@@ -51,6 +51,8 @@ export interface CustomerInfo {
   GRP_NO?: string;           // 단체번호
   GRP_NM?: string;           // 단체 이름
   REG_DT: string;            // 등록일
+  CTRT_ID?: string;          // 계약ID (S/N 검색 시 해당 장비의 계약ID)
+  EQT_SERNO?: string;        // 장비시리얼 (S/N 검색 시 검색에 사용된 S/N)
 }
 
 // 계약 정보
@@ -707,7 +709,8 @@ const mapCustomerFields = (data: any): CustomerInfo => {
     CUST_TP_NM: data.CUST_TP_NM || data.CUST_CL_NM || '', // CUST_CL_NM -> CUST_TP_NM
     GRP_NO: data.GRP_NO || data.GRP_ID || '',            // GRP_ID -> GRP_NO
     GRP_NM: data.GRP_NM || '',                           // 단체 이름
-    REG_DT: data.REG_DT || ''                            // D'Live API does not return this
+    REG_DT: data.REG_DT || '',                           // D'Live API does not return this
+    CTRT_ID: data.CTRT_ID || '',                         // 계약ID (S/N 검색 시)
   };
 };
 

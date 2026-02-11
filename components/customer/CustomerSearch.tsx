@@ -195,7 +195,12 @@ const CustomerSearch: React.FC<CustomerSearchProps> = ({ onCustomerSelect, onCus
     }
     // S/N 입력값은 보존 (초기화하지 않음)
 
-    onCustomerSelect(customer);
+    // S/N으로 검색한 경우 장비번호를 customer 객체에 첨부 (계약현황 검색필드 연동)
+    const enrichedCustomer = {
+      ...customer,
+      EQT_SERNO: equipmentNo || customer.EQT_SERNO || undefined,
+    };
+    onCustomerSelect(enrichedCustomer);
     closeModal();
   };
 

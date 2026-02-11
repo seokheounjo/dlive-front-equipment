@@ -378,6 +378,7 @@ const CustomerBasicInfo: React.FC<CustomerBasicInfoProps> = ({
               onToggle={() => toggleSection('contracts')}
               onContractSelect={handleContractSelect}
               showToast={showToast}
+              initialSearchKeyword={selectedCustomer?.EQT_SERNO || ''}
               onNavigateToConsultation={(contract) => {
                 handleContractSelect(contract);
                 if (onNavigateToConsultationAS) {
