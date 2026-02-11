@@ -465,6 +465,11 @@ const ConsultationAS: React.FC<ConsultationASProps> = ({
       return;
     }
 
+    if (!selectedContract) {
+      showPopup('warning', '안내', '상담등록을 위해 계약을 선택해주세요.\n기본조회 탭에서 계약을 선택 후 진행해주세요.');
+      return;
+    }
+
     if (!consultationForm.cnslLClCd || !consultationForm.cnslMClCd || !consultationForm.cnslSClCd) {
       showPopup('warning', '안내', '상담 분류를 모두 선택해주세요.');
       return;
@@ -561,11 +566,12 @@ const ConsultationAS: React.FC<ConsultationASProps> = ({
       // 로그인 사용자 정보 (localStorage에서)
       const userInfo = JSON.parse(localStorage.getItem('userInfo') || '{}');
 
+      const isSubscriber = asSubscriberType === 'subscriber';
       const params = {
         CUST_ID: selectedCustomer.custId,
-        CTRT_ID: asSubscriberType === 'subscriber' ? (selectedContract?.ctrtId || '') : '',
-        POST_ID: asSubscriberType === 'subscriber' ? (selectedContract?.postId || '') : '',
-        INST_ADDR: asSubscriberType === 'subscriber' ? (selectedContract?.instAddr || '') : '',
+        CTRT_ID: isSubscriber ? (selectedContract?.ctrtId || '') : '',
+        POST_ID: isSubscriber ? (selectedContract?.postId || '') : '',
+        INST_ADDR: isSubscriber ? (selectedContract?.instAddr || '') : '',
         AS_CL_CD: asForm.asClCd,
         AS_CL_DTL_CD: asForm.asClDtlCd,
         TRIP_FEE_CD: asForm.tripFeeCd,
@@ -574,7 +580,12 @@ const ConsultationAS: React.FC<ConsultationASProps> = ({
         AS_CNTN: asForm.asCntn,
         SCHD_DT: asForm.schdDt.replace(/-/g, ''),
         SCHD_TM: asForm.schdHour + asForm.schdMin,
-        WRKR_ID: userInfo.userId || ''
+        WRKR_ID: userInfo.userId || '',
+        // PG_GUBUN: 가입자=0, 비가입자=1 (D'Live CONA modAsPdaReceipt 기준)
+        PG_GUBUN: isSubscriber ? '0' : '1',
+        // SO_ID, MST_SO_ID: 가입자인 경우 계약의 SO_ID 사용
+        SO_ID: isSubscriber ? (selectedContract?.soId || '') : '',
+        MST_SO_ID: ''
       };
 
       const response = await registerASRequest(params);

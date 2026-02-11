@@ -1601,6 +1601,8 @@ export const registerASRequest = async (params: ASRequestParams): Promise<ApiRes
   const isUIParams = 'AS_CL_CD' in params;
 
   const backendParams: Record<string, any> = {
+    // PG_GUBUN: 가입자=0, 비가입자=1 (D'Live CONA modAsPdaReceipt 기준)
+    PG_GUBUN: isUIParams ? (uiParams.PG_GUBUN || '0') : '0',
     POST_ID: (params as ASRequestParams).POST_ID || '',
     CUST_ID: params.CUST_ID,
     CTRT_ID: (params as ASRequestParams).CTRT_ID || '',
@@ -1627,8 +1629,8 @@ export const registerASRequest = async (params: ASRequestParams): Promise<ApiRes
     CRR_ID: crrId,
     WRKR_ID: wrkrId,
     REG_UID: wrkrId,
-    SO_ID: soId,
-    MST_SO_ID: mstSoId,
+    SO_ID: isUIParams ? (uiParams.SO_ID || soId) : soId,
+    MST_SO_ID: isUIParams ? (uiParams.MST_SO_ID || mstSoId) : mstSoId,
   };
 
   if (isUIParams && uiParams.AS_CL_DTL_CD) {
