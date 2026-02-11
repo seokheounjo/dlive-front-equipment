@@ -659,7 +659,7 @@ const CustomerInfoChange: React.FC<CustomerInfoChangeProps> = ({
         CNSL_MST_CL: '04',  // 대분류: 기타
         CNSL_MID_CL: '0401',  // 중분류: 기타 일반
         CNSL_SLV_CL: '040101',  // 소분류: 기타
-        REQ_CTX: `[휴대폰결제 ${actionText} 요청]\n상품: ${item.PROD_NM}\n계약ID: ${item.CTRT_ID}\n현재상태: ${item.HP_STAT === '신청' ? '신청' : '미신청'}\n요청: ${actionText}`
+        REQ_CTX: `[휴대폰결제 ${actionText} 요청]\n상품: ${item.PROD_NM}\n계약ID: ${item.CTRT_ID}\n현재상태: ${item.HP_STAT || '미신청'}\n요청: ${actionText}`
       };
 
       const response = await registerConsultation(consultParams as ConsultationRequest);
@@ -1427,10 +1427,12 @@ const CustomerInfoChange: React.FC<CustomerInfoChangeProps> = ({
                           className={`px-2 py-0.5 text-xs rounded-full ${
                             item.HP_STAT === '신청'
                               ? 'bg-green-100 text-green-700'
-                              : 'bg-gray-100 text-gray-600'
+                              : item.HP_STAT === '해제'
+                                ? 'bg-orange-100 text-orange-700'
+                                : 'bg-gray-100 text-gray-600'
                           }`}
                         >
-                          {item.HP_STAT === '신청' ? '신청' : '미신청'}
+                          {item.HP_STAT || '미신청'}
                         </span>
                       </div>
                       <div className="text-xs text-gray-500 space-y-1">
