@@ -568,29 +568,35 @@ const EquipmentMovement: React.FC<EquipmentMovementProps> = ({ onBack, showToast
       }
       // EQT_SERNO 없으면 기사의 전체 장비 조회 (기존 동작)
 
-      // 모델 필터 파라미터 추가 (백엔드에서 지원하면 사용)
-      if (selectedItemMidCd) params.ITEM_MID_CD = selectedItemMidCd;
-      if (selectedEqtClCd) params.EQT_CL_CD = selectedEqtClCd;
+      // 모델 필터 파라미터 추가 (S/N 직접 검색 시에는 모델 필터 무시)
+      if (!scannedSN) {
+        if (selectedItemMidCd) params.ITEM_MID_CD = selectedItemMidCd;
+        if (selectedEqtClCd) params.EQT_CL_CD = selectedEqtClCd;
+      }
 
       const result = await debugApiCall('EquipmentMovement', 'getWrkrHaveEqtList', () => getWrkrHaveEqtList(params), params);
 
       console.log('[장비이동 디버그] getWrkrHaveEqtList 응답 건수:', Array.isArray(result) ? result.length : 'NOT_ARRAY');
 
       if (Array.isArray(result) && result.length > 0) {
-        // 모델 필터 클라이언트 필터링 (백엔드에서 지원 안 할 경우 대비)
+        // 모델 필터 클라이언트 필터링 (S/N 직접 검색 시에는 모델 필터 무시)
         let filteredResult = result;
-        if (selectedItemMidCd) {
-          filteredResult = result.filter((item: any) => {
-            return item.ITEM_MID_CD === selectedItemMidCd;
-          });
-          console.log('[장비이동 디버그] 모델1 필터 적용 후:', filteredResult.length, '건 (필터:', selectedItemMidCd, ')');
-        }
-        // 소분류 필터 추가
-        if (selectedEqtClCd) {
-          filteredResult = filteredResult.filter((item: any) => {
-            return item.EQT_CL_CD === selectedEqtClCd;
-          });
-          console.log('[장비이동 디버그] 모델2 필터 적용 후:', filteredResult.length, '건 (필터:', selectedEqtClCd, ')');
+        if (!scannedSN) {
+          if (selectedItemMidCd) {
+            filteredResult = result.filter((item: any) => {
+              return item.ITEM_MID_CD === selectedItemMidCd;
+            });
+            console.log('[장비이동 디버그] 모델1 필터 적용 후:', filteredResult.length, '건 (필터:', selectedItemMidCd, ')');
+          }
+          // 소분류 필터 추가
+          if (selectedEqtClCd) {
+            filteredResult = filteredResult.filter((item: any) => {
+              return item.EQT_CL_CD === selectedEqtClCd;
+            });
+            console.log('[장비이동 디버그] 모델2 필터 적용 후:', filteredResult.length, '건 (필터:', selectedEqtClCd, ')');
+          }
+        } else {
+          console.log('[장비이동 디버그] S/N 직접 검색 - 모델 필터 건너뜀');
         }
 
         let transformedList: EqtTrns[] = filteredResult.map((item: any) => {
