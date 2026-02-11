@@ -4,6 +4,7 @@ import CustomerBasicInfo from './CustomerBasicInfo';
 import CustomerInfoChange from './CustomerInfoChange';
 import CustomerSearch from './CustomerSearch';
 import ConsultationAS from './ConsultationAS';
+import CustomerCreate from './CustomerCreate';
 import { CustomerInfo, ContractInfo, ConsultationHistory, WorkHistory } from '../../services/customerApi';
 
 interface CustomerManagementMenuProps {
@@ -83,7 +84,8 @@ const CustomerManagementMenu: React.FC<CustomerManagementMenuProps> = ({ onNavig
   const tabs: TabItem[] = [
     { id: 'basic-info', title: '기본조회', description: '고객 검색 및 정보 조회' },
     { id: 'info-change', title: '정보변경', description: '전화번호/주소 변경' },
-    { id: 'consultation-as', title: '상담/AS등록', description: '상담등록 및 AS접수' }
+    { id: 'consultation-as', title: '상담/AS등록', description: '상담등록 및 AS접수' },
+    { id: 'customer-create', title: '재약정 등록', description: '재약정 등록' }
   ];
 
   const handleTabChange = (tabId: string) => {
@@ -227,6 +229,13 @@ const CustomerManagementMenu: React.FC<CustomerManagementMenuProps> = ({ onNavig
             initialTab={consultationASInitialTab}
           />
         );
+      case 'customer-create':
+        return (
+          <CustomerCreate
+            onBack={onNavigateToMenu}
+            showToast={showToast}
+          />
+        );
       default:
         return null;
     }
@@ -259,16 +268,17 @@ const CustomerManagementMenu: React.FC<CustomerManagementMenuProps> = ({ onNavig
         </div>
       </div>
 
-      {/* 고객 검색 - 고객생성 탭 제외하고 모든 탭에서 표시 */}
-      {/* 고객 검색 - 모든 탭에서 표시 */}
-      <div className="flex-shrink-0 bg-white border-b border-gray-200 p-3">
-        <CustomerSearch
-            onCustomerSelect={handleCustomerSelect}
-            onCustomerClear={handleCustomerClear}
-            showToast={showToast}
-            selectedCustomer={selectedCustomer}
-          />
-      </div>
+      {/* 고객 검색 - 재약정 등록 탭 제외하고 모든 탭에서 표시 */}
+      {activeTab !== 'customer-create' && (
+        <div className="flex-shrink-0 bg-white border-b border-gray-200 p-3">
+          <CustomerSearch
+              onCustomerSelect={handleCustomerSelect}
+              onCustomerClear={handleCustomerClear}
+              showToast={showToast}
+              selectedCustomer={selectedCustomer}
+            />
+        </div>
+      )}
 
       {/* 콘텐츠 영역 - flex-1로 남은 공간 채움, 내부 스크롤 */}
       <div className="flex-1 overflow-hidden">
