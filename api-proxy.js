@@ -600,9 +600,16 @@ async function handleProxy(req, res) {
           console.log('[PROXY] Parsing XML <params> response to JSON for legacy route');
           const jsonData = parseMiPlatformParamsXMLtoJSON(responseBody);
           if (jsonData) {
+            // Wrap in standard response format for frontend compatibility
+            const isSuccess = (jsonData.MESSAGE === 'SUCCESS' || jsonData.MSGCODE === 'SUCCESS' || jsonData.RESULT === '0');
+            const isError = (jsonData.ErrorCode === '-200' || jsonData.ExceptionReason);
             res.setHeader('Content-Type', 'application/json; charset=utf-8');
             res.status(proxyRes.statusCode);
-            res.json(jsonData);
+            res.json({
+              code: isError ? 'ERROR' : (isSuccess ? 'SUCCESS' : (jsonData.MSGCODE || jsonData.RESULT || 'UNKNOWN')),
+              message: isError ? (jsonData.ExceptionReason || 'Error') : (isSuccess ? 'OK' : (jsonData.MESSAGE || 'Unknown')),
+              data: jsonData
+            });
             return;
           }
         }
