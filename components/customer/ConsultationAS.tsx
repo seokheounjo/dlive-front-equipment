@@ -16,6 +16,7 @@ import {
   getASClassCodes,
   getASReasonLargeCodes,
   getASReasonDetailCodes,
+  getTripFeeCodes,
   getProductGroups,
   ConsultationHistory,
   WorkHistory,
@@ -216,10 +217,7 @@ const ConsultationAS: React.FC<ConsultationASProps> = ({
   const [asClCodes, setAsClCodes] = useState<CodeItem[]>([]);        // AS구분 (CMWT001 ref_code='03')
   const [asClDtlCodes, setAsClDtlCodes] = useState<CodeItem[]>([]);  // 콤보상세 (계약별 상품그룹)
 
-  const [tripFeeCodes] = useState([
-    { CODE: '00', CODE_NM: '무료' },
-    { CODE: '01', CODE_NM: '유료' }
-  ]);
+  const [tripFeeCodes, setTripFeeCodes] = useState<CodeItem[]>([]);  // 출장비 (CMAS004)
 
   const [asResnLCodes, setAsResnLCodes] = useState<CodeItem[]>([]);  // AS사유 대분류 (CMAS000)
   const [allAsResnMCodes, setAllAsResnMCodes] = useState<CodeItem[]>([]);  // AS사유 중분류 전체 (CMAS001)
@@ -288,9 +286,9 @@ const ConsultationAS: React.FC<ConsultationASProps> = ({
     }
   }, [contracts]);
 
-  // 계약 선택 시 콤보상세 (상품그룹) 로드
+  // 계약 선택 시 콤보상세 (상품그룹) 로드 - PROD_GRP='C'(케이블)인 경우에만
   useEffect(() => {
-    if (selectedContract?.ctrtId) {
+    if (selectedContract?.ctrtId && selectedContract?.prodGrp === 'C') {
       getProductGroups(selectedContract.ctrtId).then(res => {
         if (res.success && res.data) {
           const codes = (Array.isArray(res.data) ? res.data : [res.data])
@@ -310,14 +308,15 @@ const ConsultationAS: React.FC<ConsultationASProps> = ({
   const loadCodes = async () => {
     setIsLoadingCodes(true);
     try {
-      // 상담분류 (CMCS010/020/030) + AS구분 (CMWT001) + AS사유 (CMAS000/001) 동시 로드
-      const [lCodesRes, mCodesRes, sCodesRes, asClRes, asResnLRes, asResnMRes] = await Promise.all([
+      // 상담분류 (CMCS010/020/030) + AS구분 (CMWT001) + AS사유 (CMAS000/001) + 출장비 (CMAS004) 동시 로드
+      const [lCodesRes, mCodesRes, sCodesRes, asClRes, asResnLRes, asResnMRes, tripFeeRes] = await Promise.all([
         getConsultationLargeCodes(),
         getConsultationMiddleCodes(),
         getConsultationSmallCodes(),
         getASClassCodes(),           // CMWT001 (AS구분)
         getASReasonLargeCodes(),     // CMAS000 (AS사유 대분류)
         getASReasonDetailCodes(),    // CMAS001 (AS사유 중분류)
+        getTripFeeCodes(),           // CMAS004 (출장비안내)
       ]);
 
       const filterCodes = (data: any[]) => data
@@ -372,6 +371,14 @@ const ConsultationAS: React.FC<ConsultationASProps> = ({
           .filter((item: any) => item.code && item.code !== '[]' && item.name !== '선택')
           .map((item: any) => ({ CODE: item.code, CODE_NM: item.name, ref_code: item.ref_code }));
         setAllAsResnMCodes(resnMCodes);
+      }
+
+      // 출장비안내 (CMAS004)
+      if (tripFeeRes.success && tripFeeRes.data) {
+        const tfCodes = tripFeeRes.data
+          .filter((item: any) => item.code && item.code !== '[]' && item.name !== '선택')
+          .map((item: any) => ({ CODE: item.code, CODE_NM: item.name }));
+        setTripFeeCodes(tfCodes);
       }
     } catch (error) {
       console.error('Load codes error:', error);

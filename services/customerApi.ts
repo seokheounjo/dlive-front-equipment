@@ -1713,6 +1713,14 @@ export const getASClassCodes = async (): Promise<ApiResponse<any[]>> => {
 };
 
 /**
+ * 출장비안내 코드 조회 (CMAS004)
+ * Returns: code (1=미안내(회사귀책), 2=안내완료(고객귀책), 3=안내완료(판단불가), 4=면제)
+ */
+export const getTripFeeCodes = async (): Promise<ApiResponse<any[]>> => {
+  return apiCall<any[]>('/common/getCommonCodes', { CODE_GROUP: 'CMAS004' });
+};
+
+/**
  * AS사유 대분류 코드 조회 (CMAS000)
  * Returns: code (EQ=장비, ER=장비/리모콘, CH=채널안나옴, ...), name
  */
