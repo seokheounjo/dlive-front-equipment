@@ -354,11 +354,10 @@ const ConsultationAS: React.FC<ConsultationASProps> = ({
       }
 
       // 상담 소분류 (CMCS030) - ref_code로 중분류와 연결
-      // mowoe03m04.xml 기준: REF_CODE12='Y'인 항목만 모바일에서 표시
+      // 대→중→소 캐스케이딩 패턴에서는 전체 소분류 사용 (ref_code12 필터 미적용)
+      // ref_code12='Y' 항목은 OPA/OBG/OBE/RTC/OBI/OBD 중분류만 커버하여 AS 등에서 빈 목록 발생
       if (sCodesRes.success && sCodesRes.data) {
-        const allSmallCodes = filterCodes(sCodesRes.data);
-        const mobileFiltered = allSmallCodes.filter(c => c.ref_code12 === 'Y');
-        setAllCnslSCodes(mobileFiltered.length > 0 ? mobileFiltered : allSmallCodes);
+        setAllCnslSCodes(filterCodes(sCodesRes.data));
       }
 
       // AS구분 (CMWT001, ref_code='03'이 AS 관련)
