@@ -1017,7 +1017,8 @@ export const searchCustomerAll = async (params: {
   if (params.contractId) reqParams.CTRT_ID = params.contractId;
   if (params.phoneNumber) reqParams.TEL_NO = params.phoneNumber;
   if (params.equipmentNo) reqParams.EQT_SERNO = params.equipmentNo;
-  // CUST_NM은 다른 검색조건이 없을 때만 전송 (AND 조건 충돌 방지)
+  // CUST_NM은 다른 검색조건이 없을 때만 전송 (D'Live SQL AND 조건 충돌 방지)
+  // 주의: D'Live SQL의 USR_SO_MATRIX 권한체크로 SO 미할당 사용자는 이름검색 0건
   if (params.customerName && !params.custId && !params.contractId && !params.phoneNumber && !params.equipmentNo) {
     reqParams.CUST_NM = params.customerName;
   }
