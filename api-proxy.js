@@ -5,9 +5,12 @@ const router = express.Router();
 
 const DLIVE_API_BASE = process.env.DLIVE_API_BASE || 'http://58.143.140.222:8080';
 
+// CONA JSESSIONID 저장 (로그인 시 캡처, 이후 모든 요청에 주입)
+let storedJSessionId = null;
+
 // Path mapping from frontend API to D'Live legacy API
 const PATH_MAPPING = {
-  "/login": "/login",
+  "/login": "/api/login",   // TaskAuthController로 라우팅 (CONA 세션 생성)
   "/ping": "/ping",
   "/work/directions": "/api/work/directions",
   "/work/receipts": "/api/work/receipts",
@@ -469,15 +472,15 @@ async function handleProxy(req, res) {
     let isLegacyReq = false;
     let directReqConfig = null;
 
-    // DIRECT_REQ_ROUTES: JSESSIONID가 있을 때만 .req 직접 라우팅
-    // (Express 세션 쿠키만 있고 D'Live JSESSIONID 없으면 어댑터로 폴백)
-    const hasJSessionId = req.headers.cookie && req.headers.cookie.includes('JSESSIONID');
+    // DIRECT_REQ_ROUTES: JSESSIONID가 있으면 .req 직접 라우팅
+    // 브라우저 쿠키 또는 서버 저장 JSESSIONID 모두 체크
+    const hasJSessionId = (req.headers.cookie && req.headers.cookie.includes('JSESSIONID')) || storedJSessionId;
     if (DIRECT_REQ_ROUTES[apiPath] && hasJSessionId) {
-      // D'Live CONA 세션 있음: .req로 직접 라우팅 (어댑터 우회, CALLER_UID 전달)
+      // JSESSIONID 있음: .req로 직접 라우팅 (어댑터 우회, CALLER_UID 전달)
       directReqConfig = DIRECT_REQ_ROUTES[apiPath];
       finalPath = directReqConfig.reqPath;
       isLegacyReq = true;
-      console.log('[PROXY] Direct .req route (JSESSIONID detected): ' + apiPath + ' -> ' + finalPath);
+      console.log('[PROXY] Direct .req route (JSESSIONID available): ' + apiPath + ' -> ' + finalPath);
     } else if (DIRECT_REQ_ROUTES[apiPath]) {
       // JSESSIONID 없음: 어댑터 경유 (폴백)
       finalPath = '/api' + apiPath;
@@ -487,7 +490,7 @@ async function handleProxy(req, res) {
       isLegacyReq = true;
       console.log('[PROXY] Legacy .req route: ' + apiPath + ' -> ' + finalPath);
     }
-    // For /login and /ping - keep as is (already mapped in web.xml)
+    // For /ping - keep as is; /login is now mapped to /api/login via PATH_MAPPING
     // For all other paths - add /api prefix to route to api-servlet
     else if (apiPath !== '/login' && apiPath !== '/ping' && !apiPath.startsWith('/api/')) {
       finalPath = '/api' + apiPath;
@@ -549,8 +552,17 @@ async function handleProxy(req, res) {
       options.headers['Content-Length'] = Buffer.byteLength(postData, 'utf8');
     }
 
-    if (req.headers.cookie) {
-      options.headers['Cookie'] = req.headers.cookie;
+    // 쿠키 처리: 브라우저 쿠키 + 저장된 JSESSIONID 주입
+    {
+      let cookie = req.headers.cookie || '';
+      // 브라우저에 JSESSIONID가 없으면 서버에 저장된 것을 주입
+      if (storedJSessionId && !cookie.includes('JSESSIONID')) {
+        cookie = (cookie ? cookie + '; ' : '') + 'JSESSIONID=' + storedJSessionId;
+        console.log('[PROXY] Injected stored JSESSIONID');
+      }
+      if (cookie) {
+        options.headers['Cookie'] = cookie;
+      }
     }
 
     console.log('[PROXY] Target:', targetUrl);
@@ -558,6 +570,19 @@ async function handleProxy(req, res) {
 
     const proxyReq = http.request(options, (proxyRes) => {
       console.log('[PROXY] Response status:', proxyRes.statusCode);
+
+      // 로그인 응답에서 JSESSIONID 캡처
+      const setCookies = proxyRes.headers['set-cookie'];
+      if (setCookies) {
+        const arr = Array.isArray(setCookies) ? setCookies : [setCookies];
+        arr.forEach(c => {
+          const match = c.match(/JSESSIONID=([^;]+)/);
+          if (match) {
+            storedJSessionId = match[1];
+            console.log('[PROXY] Captured JSESSIONID from response: ' + storedJSessionId.substring(0, 20) + '...');
+          }
+        });
+      }
 
       let chunks = [];
       proxyRes.on('data', (chunk) => {
