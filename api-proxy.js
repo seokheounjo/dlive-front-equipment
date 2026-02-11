@@ -443,6 +443,14 @@ async function handleProxy(req, res) {
       }
     }
 
+    // 고객명 1글자 검색 차단 (너무 많은 결과로 타임아웃 발생)
+    if (apiPath.endsWith('/getConditionalCustList2') && req.body && req.body.CUST_NM) {
+      const nm = req.body.CUST_NM.trim();
+      if (nm.length > 0 && nm.length < 2) {
+        return res.status(400).json({ code: 'VALIDATION_ERROR', message: '고객명은 2글자 이상 입력해주세요.', data: [] });
+      }
+    }
+
     // CTRT_ID for history APIs: SQL now uses <isNotEmpty> dynamic filter
     // - CTRT_ID 있으면 계약별 필터링, 없으면 전체 조회
     // - '*' 주입 금지 (SQL이 실제값으로 인식하여 0건 반환됨)
@@ -566,7 +574,7 @@ async function handleProxy(req, res) {
         'X-Forwarded-For': (req.headers['x-forwarded-for'] || req.socket.remoteAddress || '').toString(),
         'X-Forwarded-Proto': 'http'
       },
-      timeout: 30000
+      timeout: 60000
     };
 
     if (postData) {

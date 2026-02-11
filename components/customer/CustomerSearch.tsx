@@ -114,6 +114,16 @@ const CustomerSearch: React.FC<CustomerSearchProps> = ({ onCustomerSelect, onCus
     const hasCustomerName = customerName.length >= 2;
     const hasEquipmentNo = equipmentNo.length >= 4;
 
+    // 이름 1글자 검색 차단 (2글자 이상 필요)
+    if (customerName.length === 1) {
+      setWarningPopup({
+        show: true,
+        title: '입력 오류',
+        message: '고객명은 2글자 이상 입력해주세요.'
+      });
+      return;
+    }
+
     // 최소 하나의 조건이 필요
     if (!hasCustomerId && !hasContractId && !hasPhoneNumber && !hasCustomerName && !hasEquipmentNo) {
       setWarningPopup({
