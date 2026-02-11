@@ -281,14 +281,24 @@ const CustomerBasicInfo: React.FC<CustomerBasicInfoProps> = ({
     }
   };
 
-  // 계약별 모드: CTRT_ID로 클라이언트 필터링
-  const filteredConsultation = historyViewMode === 'byContract' && selectedCtrtIdForHistory
-    ? allConsultationHistory.filter(item => item.CTRT_ID === selectedCtrtIdForHistory)
-    : historyViewMode === 'byContract' ? [] : allConsultationHistory;
+  // 계약별 모드: CTRT_ID로 클라이언트 필터링 (필터 결과 0건이면 전체 표시)
+  const filteredConsultation = (() => {
+    if (historyViewMode === 'byContract' && selectedCtrtIdForHistory) {
+      const matched = allConsultationHistory.filter(item => item.CTRT_ID === selectedCtrtIdForHistory);
+      return matched.length > 0 ? matched : allConsultationHistory;
+    }
+    if (historyViewMode === 'byContract') return [];
+    return allConsultationHistory;
+  })();
 
-  const filteredWork = historyViewMode === 'byContract' && selectedCtrtIdForHistory
-    ? allWorkHistory.filter(item => item.CTRT_ID === selectedCtrtIdForHistory)
-    : historyViewMode === 'byContract' ? [] : allWorkHistory;
+  const filteredWork = (() => {
+    if (historyViewMode === 'byContract' && selectedCtrtIdForHistory) {
+      const matched = allWorkHistory.filter(item => item.CTRT_ID === selectedCtrtIdForHistory);
+      return matched.length > 0 ? matched : allWorkHistory;
+    }
+    if (historyViewMode === 'byContract') return [];
+    return allWorkHistory;
+  })();
 
   return (
     <div className="h-full overflow-y-auto bg-gray-50">

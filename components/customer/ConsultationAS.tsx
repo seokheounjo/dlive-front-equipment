@@ -267,14 +267,24 @@ const ConsultationAS: React.FC<ConsultationASProps> = ({
   // 섹션 펼침 상태
   const [showHistory, setShowHistory] = useState(true);
 
-  // 계약별 모드: CTRT_ID로 클라이언트 필터링
-  const filteredConsultation = historyViewMode === 'byContract' && selectedContract?.ctrtId
-    ? allConsultationHistory.filter(item => item.CTRT_ID === selectedContract.ctrtId)
-    : historyViewMode === 'byContract' ? [] : allConsultationHistory;
+  // 계약별 모드: CTRT_ID로 클라이언트 필터링 (필터 결과 0건이면 전체 표시)
+  const filteredConsultation = (() => {
+    if (historyViewMode === 'byContract' && selectedContract?.ctrtId) {
+      const matched = allConsultationHistory.filter(item => item.CTRT_ID === selectedContract.ctrtId);
+      return matched.length > 0 ? matched : allConsultationHistory;
+    }
+    if (historyViewMode === 'byContract') return [];
+    return allConsultationHistory;
+  })();
 
-  const filteredWork = historyViewMode === 'byContract' && selectedContract?.ctrtId
-    ? allWorkHistory.filter(item => item.CTRT_ID === selectedContract.ctrtId)
-    : historyViewMode === 'byContract' ? [] : allWorkHistory;
+  const filteredWork = (() => {
+    if (historyViewMode === 'byContract' && selectedContract?.ctrtId) {
+      const matched = allWorkHistory.filter(item => item.CTRT_ID === selectedContract.ctrtId);
+      return matched.length > 0 ? matched : allWorkHistory;
+    }
+    if (historyViewMode === 'byContract') return [];
+    return allWorkHistory;
+  })();
 
   // 초기 데이터 로드
   useEffect(() => {
