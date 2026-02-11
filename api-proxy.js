@@ -422,12 +422,12 @@ async function handleProxy(req, res) {
       }
     }
 
-    // Inject dummy CTRT_ID for history APIs (backend SQL no longer uses CTRT_ID,
-    // but Java adapter controller still validates it as required parameter)
+    // CTRT_ID for history APIs: SQL now uses <isNotEmpty> dynamic filter
+    // - CTRT_ID 있으면 계약별 필터링, 없으면 전체 조회
+    // - '*' 주입 금지 (SQL이 실제값으로 인식하여 0건 반환됨)
     if ((apiPath.endsWith('/getTgtCtrtRcptHist_m') || apiPath.endsWith('/getTgtCtrtWorkList_m')) && req.body) {
-      if (!req.body.CTRT_ID) {
-        req.body.CTRT_ID = '*';
-        console.log('[PROXY] Injected dummy CTRT_ID for history API: ' + apiPath);
+      if (req.body.CTRT_ID === '*' || req.body.CTRT_ID === '') {
+        delete req.body.CTRT_ID;
       }
     }
 
