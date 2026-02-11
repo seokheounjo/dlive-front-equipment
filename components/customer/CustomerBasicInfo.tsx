@@ -269,11 +269,10 @@ const CustomerBasicInfo: React.FC<CustomerBasicInfoProps> = ({
       prodGrp: contract.PROD_GRP,
     });
 
-    // 선택된 계약으로 이력 로드 + 계약별 모드로 전환
-    if (selectedCustomer && contract.CTRT_ID !== selectedCtrtIdForHistory) {
+    // 선택된 계약으로 계약별 모드 전환 (클라이언트 필터링)
+    if (contract.CTRT_ID !== selectedCtrtIdForHistory) {
       setSelectedCtrtIdForHistory(contract.CTRT_ID);
       setHistoryViewMode('byContract');
-      loadHistory(selectedCustomer.CUST_ID, contract.CTRT_ID);
     }
 
     // 선택된 계약의 납부계정 자동 연동
@@ -281,6 +280,15 @@ const CustomerBasicInfo: React.FC<CustomerBasicInfoProps> = ({
       setSelectedPymAcntIdFromContract(contract.PYM_ACNT_ID);
     }
   };
+
+  // 계약별 모드: 전체 이력에서 CTRT_ID로 클라이언트 필터링
+  const filteredConsultation = historyViewMode === 'byContract' && selectedCtrtIdForHistory
+    ? allConsultationHistory.filter(item => item.CTRT_ID === selectedCtrtIdForHistory)
+    : historyViewMode === 'byContract' ? [] : allConsultationHistory;
+
+  const filteredWork = historyViewMode === 'byContract' && selectedCtrtIdForHistory
+    ? allWorkHistory.filter(item => item.CTRT_ID === selectedCtrtIdForHistory)
+    : historyViewMode === 'byContract' ? [] : allWorkHistory;
 
   return (
     <div className="h-full overflow-y-auto bg-gray-50">
@@ -404,7 +412,7 @@ const CustomerBasicInfo: React.FC<CustomerBasicInfoProps> = ({
                 >
                   <span className="font-medium text-gray-800">상담이력</span>
                   <span className="text-xs text-gray-500">
-                    ({historyViewMode === 'byDate' ? allConsultationHistory.length : (selectedCtrtIdForHistory ? consultationHistory.length : 0)})
+                    ({filteredConsultation.length})
                   </span>
                 </button>
                 <div className="flex items-center gap-1 mr-2">
@@ -426,9 +434,6 @@ const CustomerBasicInfo: React.FC<CustomerBasicInfoProps> = ({
                     onClick={(e) => {
                       e.stopPropagation();
                       setHistoryViewMode('byContract');
-                      if (selectedCustomer && selectedCtrtIdForHistory && consultationHistory.length === 0 && workHistory.length === 0) {
-                        loadHistory(selectedCustomer.CUST_ID, selectedCtrtIdForHistory);
-                      }
                     }}
                     className={`px-2 py-0.5 text-xs rounded-full transition-colors ${
                       historyViewMode === 'byContract'
@@ -456,16 +461,20 @@ const CustomerBasicInfo: React.FC<CustomerBasicInfoProps> = ({
                     <div className="text-center py-3 text-gray-500 text-sm">
                       계약 현황에서 계약을 선택하세요
                     </div>
-                  ) : (historyViewMode === 'byDate' ? allConsultationHistory : consultationHistory).length > 0 ? (
+                  ) : filteredConsultation.length > 0 ? (
                     <div className="space-y-3">
-                      {(historyViewMode === 'byDate' ? allConsultationHistory : consultationHistory).map((item, index) => (
+                      {filteredConsultation.map((item, index) => (
                         <div key={index} className="bg-gray-50 rounded-lg text-sm border border-gray-100">
                           {/* 상단 정보 (클릭으로 접기/펼치기) */}
                           <div
                             className="p-3 cursor-pointer flex items-center justify-between"
                             onClick={() => toggleConsultItem(index)}
                           >
-                            <div className="grid grid-cols-4 gap-2 text-xs flex-1">
+                            <div className="grid grid-cols-5 gap-2 text-xs flex-1">
+                              <div className="flex flex-col">
+                                <span className="text-gray-500 whitespace-nowrap">계약ID</span>
+                                <span className="text-gray-800 font-medium text-[10px]">{item.CTRT_ID ? formatId(item.CTRT_ID) : '-'}</span>
+                              </div>
                               <div className="flex flex-col">
                                 <span className="text-gray-500 whitespace-nowrap">접수일</span>
                                 <span className="text-gray-800 font-medium">{item.START_DATE || '-'}</span>
@@ -528,7 +537,7 @@ const CustomerBasicInfo: React.FC<CustomerBasicInfoProps> = ({
                 >
                   <span className="font-medium text-gray-800">작업이력</span>
                   <span className="text-xs text-gray-500">
-                    ({historyViewMode === 'byDate' ? allWorkHistory.length : (selectedCtrtIdForHistory ? workHistory.length : 0)})
+                    ({filteredWork.length})
                   </span>
                 </button>
                 <div className="flex items-center gap-1 mr-2">
@@ -550,9 +559,6 @@ const CustomerBasicInfo: React.FC<CustomerBasicInfoProps> = ({
                     onClick={(e) => {
                       e.stopPropagation();
                       setHistoryViewMode('byContract');
-                      if (selectedCustomer && selectedCtrtIdForHistory && consultationHistory.length === 0 && workHistory.length === 0) {
-                        loadHistory(selectedCustomer.CUST_ID, selectedCtrtIdForHistory);
-                      }
                     }}
                     className={`px-2 py-0.5 text-xs rounded-full transition-colors ${
                       historyViewMode === 'byContract'
@@ -580,12 +586,16 @@ const CustomerBasicInfo: React.FC<CustomerBasicInfoProps> = ({
                     <div className="text-center py-3 text-gray-500 text-sm">
                       계약 현황에서 계약을 선택하세요
                     </div>
-                  ) : (historyViewMode === 'byDate' ? allWorkHistory : workHistory).length > 0 ? (
+                  ) : filteredWork.length > 0 ? (
                     <div className="space-y-3">
-                      {(historyViewMode === 'byDate' ? allWorkHistory : workHistory).map((item, index) => (
+                      {filteredWork.map((item, index) => (
                         <div key={index} className="p-3 bg-gray-50 rounded-lg text-sm border border-gray-100">
-                          {/* 상단: 작업예정일 | 작업구분 | 작업상태 */}
-                          <div className="grid grid-cols-3 gap-2 text-xs">
+                          {/* 상단: 계약ID | 작업예정일 | 작업구분 | 작업상태 */}
+                          <div className="grid grid-cols-4 gap-2 text-xs">
+                            <div className="flex flex-col">
+                              <span className="text-gray-500 whitespace-nowrap">계약ID</span>
+                              <span className="text-gray-800 font-medium text-[10px]">{item.CTRT_ID ? formatId(item.CTRT_ID) : '-'}</span>
+                            </div>
                             <div className="flex flex-col">
                               <span className="text-gray-500 whitespace-nowrap">작업예정일</span>
                               <span className="text-gray-800 font-medium">{item.HOPE_DT || '-'}</span>

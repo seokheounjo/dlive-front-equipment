@@ -267,6 +267,15 @@ const ConsultationAS: React.FC<ConsultationASProps> = ({
   // 섹션 펼침 상태
   const [showHistory, setShowHistory] = useState(true);
 
+  // 계약별 모드: 전체 이력에서 CTRT_ID로 클라이언트 필터링
+  const filteredConsultation = historyViewMode === 'byContract' && selectedContract?.ctrtId
+    ? allConsultationHistory.filter(item => item.CTRT_ID === selectedContract.ctrtId)
+    : historyViewMode === 'byContract' ? [] : allConsultationHistory;
+
+  const filteredWork = historyViewMode === 'byContract' && selectedContract?.ctrtId
+    ? allWorkHistory.filter(item => item.CTRT_ID === selectedContract.ctrtId)
+    : historyViewMode === 'byContract' ? [] : allWorkHistory;
+
   // 초기 데이터 로드
   useEffect(() => {
     loadCodes();
@@ -1032,8 +1041,8 @@ const ConsultationAS: React.FC<ConsultationASProps> = ({
               </span>
               <span className="text-sm text-gray-500">
                 ({activeTab === 'consultation'
-                  ? (historyViewMode === 'byDate' ? allConsultationHistory.length : consultationHistory.length)
-                  : (historyViewMode === 'byDate' ? allWorkHistory.length : workHistory.length)}건)
+                  ? filteredConsultation.length
+                  : filteredWork.length}건)
               </span>
             </button>
             <div className="flex items-center gap-2">
@@ -1056,9 +1065,6 @@ const ConsultationAS: React.FC<ConsultationASProps> = ({
                   onClick={(e) => {
                     e.stopPropagation();
                     setHistoryViewMode('byContract');
-                    if (selectedContract && consultationHistory.length === 0 && workHistory.length === 0) {
-                      loadHistory();
-                    }
                   }}
                   className={`px-2 py-0.5 text-xs rounded-full transition-colors ${
                     historyViewMode === 'byContract'
@@ -1070,11 +1076,7 @@ const ConsultationAS: React.FC<ConsultationASProps> = ({
               <button
                 onClick={(e) => {
                   e.stopPropagation();
-                  if (historyViewMode === 'byDate') {
-                    loadAllHistory();
-                  } else {
-                    loadHistory();
-                  }
+                  loadAllHistory();
                 }}
                 className="p-1 text-gray-400 hover:text-gray-600"
               >
@@ -1101,9 +1103,9 @@ const ConsultationAS: React.FC<ConsultationASProps> = ({
                   기본조회에서 계약을 선택해주세요.
                 </div>
               ) : activeTab === 'consultation' ? (
-                (historyViewMode === 'byDate' ? allConsultationHistory : consultationHistory).length > 0 ? (
+                filteredConsultation.length > 0 ? (
                   <div className="space-y-3 max-h-[400px] overflow-y-auto">
-                    {(historyViewMode === 'byDate' ? allConsultationHistory : consultationHistory).map((item, index) => (
+                    {filteredConsultation.map((item, index) => (
                       <div key={index} className="bg-gray-50 rounded-lg border border-gray-100">
                         {/* 상단 정보 (클릭으로 접기/펼치기) */}
                         <div
@@ -1166,9 +1168,9 @@ const ConsultationAS: React.FC<ConsultationASProps> = ({
                   </div>
                 )
               ) : (
-                (historyViewMode === 'byDate' ? allWorkHistory : workHistory).length > 0 ? (
+                filteredWork.length > 0 ? (
                   <div className="space-y-3 max-h-[400px] overflow-y-auto">
-                    {(historyViewMode === 'byDate' ? allWorkHistory : workHistory).map((item, index) => (
+                    {filteredWork.map((item, index) => (
                       <div key={index} className="p-3 bg-gray-50 rounded-lg border border-gray-100">
                         {/* 계약ID + 작업예정일 */}
                         {item.CTRT_ID && (
