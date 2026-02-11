@@ -164,8 +164,8 @@ export interface WorkHistory {
 export interface HPPayInfo {
   CTRT_ID: string;           // 계약ID
   PROD_NM: string;           // 상품명
-  HP_PAY_YN: string;         // 신청여부 (Y/N)
-  INST_ADDR: string;         // 설치주소
+  HP_STAT: string;           // 휴대폰결제 상태 ('신청'/'해지'/기타)
+  ADDR: string;              // 설치주소
   CTRT_STAT_NM: string;      // 계약상태
 }
 

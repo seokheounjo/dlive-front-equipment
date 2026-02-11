@@ -659,7 +659,7 @@ const CustomerInfoChange: React.FC<CustomerInfoChangeProps> = ({
         CNSL_MST_CL: '04',  // 대분류: 기타
         CNSL_MID_CL: '0401',  // 중분류: 기타 일반
         CNSL_SLV_CL: '040101',  // 소분류: 기타
-        REQ_CTX: `[휴대폰결제 ${actionText} 요청]\n상품: ${item.PROD_NM}\n계약ID: ${item.CTRT_ID}\n현재상태: ${item.HP_PAY_YN === 'Y' ? '신청' : '미신청'}\n요청: ${actionText}`
+        REQ_CTX: `[휴대폰결제 ${actionText} 요청]\n상품: ${item.PROD_NM}\n계약ID: ${item.CTRT_ID}\n현재상태: ${item.HP_STAT === '신청' ? '신청' : '미신청'}\n요청: ${actionText}`
       };
 
       const response = await registerConsultation(consultParams as ConsultationRequest);
@@ -684,7 +684,7 @@ const CustomerInfoChange: React.FC<CustomerInfoChangeProps> = ({
       return;
     }
 
-    const isApply = item.HP_PAY_YN !== 'Y';
+    const isApply = item.HP_STAT !== '신청';
     const actionText = isApply ? '신청' : '해지';
 
     // ConfirmModal 표시
@@ -1425,12 +1425,12 @@ const CustomerInfoChange: React.FC<CustomerInfoChangeProps> = ({
                         </span>
                         <span
                           className={`px-2 py-0.5 text-xs rounded-full ${
-                            item.HP_PAY_YN === 'Y'
+                            item.HP_STAT === '신청'
                               ? 'bg-green-100 text-green-700'
                               : 'bg-gray-100 text-gray-600'
                           }`}
                         >
-                          {item.HP_PAY_YN === 'Y' ? '신청' : '미신청'}
+                          {item.HP_STAT === '신청' ? '신청' : '미신청'}
                         </span>
                       </div>
                       <div className="text-xs text-gray-500 space-y-1">
@@ -1442,11 +1442,11 @@ const CustomerInfoChange: React.FC<CustomerInfoChangeProps> = ({
                           <span>계약상태:</span>
                           <span className="text-gray-700">{item.CTRT_STAT_NM || '-'}</span>
                         </div>
-                        {item.INST_ADDR && (
+                        {item.ADDR && (
                           <div className="flex justify-between">
                             <span>설치주소:</span>
                             <span className="text-gray-700 text-right max-w-[200px] truncate">
-                              {item.INST_ADDR}
+                              {item.ADDR}
                             </span>
                           </div>
                         )}
@@ -1456,12 +1456,12 @@ const CustomerInfoChange: React.FC<CustomerInfoChangeProps> = ({
                         <button
                           onClick={() => handleHpPayChange(item)}
                           className={`w-full py-2 text-sm font-medium rounded-lg transition-colors ${
-                            item.HP_PAY_YN === 'Y'
+                            item.HP_STAT === '신청'
                               ? 'bg-red-100 text-red-700 hover:bg-red-200'
                               : 'bg-purple-100 text-purple-700 hover:bg-purple-200'
                           }`}
                         >
-                          {item.HP_PAY_YN === 'Y' ? '해지 신청' : '신청하기'}
+                          {item.HP_STAT === '신청' ? '해지 신청' : '신청하기'}
                         </button>
                       </div>
                     </div>
