@@ -49,6 +49,8 @@ interface ConsultationASProps {
     instAddr: string;
     postId?: string;
     notrecev?: string;
+    soId?: string;
+    prodGrp?: string;
   } | null;
   contracts?: ContractInfo[];  // 전체 계약 목록 (일자별 이력 조회용)
   onNavigateToBasicInfo: () => void;
@@ -65,7 +67,9 @@ interface CodeItem {
 interface DLiveCode {
   code: string;
   name: string;
-  ref_code?: string;  // 상위 분류 코드 참조
+  ref_code?: string;   // 상위 분류 코드 참조
+  ref_code2?: string;  // 추가 참조 코드 (CMAS000: 상품그룹 필터용)
+  ref_code12?: string; // 모바일 표시 여부 (CMCS030: 'Y'=모바일 표시)
 }
 
 /**
@@ -188,6 +192,13 @@ const ConsultationAS: React.FC<ConsultationASProps> = ({
     setCnslSCodes(filtered);
   };
 
+  // 작업예정시 기본값: 현재 시간 +1시간 (09~21 범위, 범위 밖이면 09시)
+  const getDefaultHour = () => {
+    const nextHour = new Date().getHours() + 1;
+    if (nextHour >= 9 && nextHour <= 21) return nextHour.toString().padStart(2, '0');
+    return '09';
+  };
+
   // AS 접수 폼 (와이어프레임 기준 확장)
   const [asForm, setASForm] = useState({
     asClCd: '',           // AS구분
@@ -197,7 +208,7 @@ const ConsultationAS: React.FC<ConsultationASProps> = ({
     asResnMCd: '',        // AS접수사유(중)
     asCntn: '',           // AS 내용
     schdDt: new Date().toISOString().split('T')[0],  // 작업예정일
-    schdHour: '09',       // 작업예정시 (09~21)
+    schdHour: getDefaultHour(),  // 작업예정시 (현재+1시간, 09~21)
     schdMin: '00'         // 작업예정분 (10분 단위)
   });
 
@@ -213,6 +224,12 @@ const ConsultationAS: React.FC<ConsultationASProps> = ({
   const [asResnLCodes, setAsResnLCodes] = useState<CodeItem[]>([]);  // AS사유 대분류 (CMAS000)
   const [allAsResnMCodes, setAllAsResnMCodes] = useState<CodeItem[]>([]);  // AS사유 중분류 전체 (CMAS001)
   const [asResnMCodes, setAsResnMCodes] = useState<CodeItem[]>([]);  // 필터된 AS사유 중분류
+
+  // AS사유 대분류: 선택된 계약의 PROD_GRP로 필터링 (mowoe03m03.xml 기준)
+  // ref_code에 PROD_GRP 문자가 포함된 항목만 표시 (예: PROD_GRP='D' → ref_code에 'D' 포함)
+  const filteredAsResnLCodes = selectedContract?.prodGrp
+    ? asResnLCodes.filter(c => !c.ref_code || c.ref_code.includes(selectedContract.prodGrp!))
+    : asResnLCodes;
 
   // AS사유(대) 변경 시 중분류 필터링 (CMAS001의 ref_code로 연결)
   const handleAsResnLChange = (code: string) => {
@@ -308,7 +325,9 @@ const ConsultationAS: React.FC<ConsultationASProps> = ({
         .map((item: any) => ({
           code: item.code,
           name: item.name,
-          ref_code: item.ref_code
+          ref_code: item.ref_code,
+          ref_code2: item.ref_code2,
+          ref_code12: item.ref_code12,
         }));
 
       // 상담 대분류 (CMCS010)
@@ -322,23 +341,28 @@ const ConsultationAS: React.FC<ConsultationASProps> = ({
       }
 
       // 상담 소분류 (CMCS030) - ref_code로 중분류와 연결
+      // mowoe03m04.xml 기준: REF_CODE12='Y'인 항목만 모바일에서 표시
       if (sCodesRes.success && sCodesRes.data) {
-        setAllCnslSCodes(filterCodes(sCodesRes.data));
+        const allSmallCodes = filterCodes(sCodesRes.data);
+        const mobileFiltered = allSmallCodes.filter(c => c.ref_code12 === 'Y');
+        setAllCnslSCodes(mobileFiltered.length > 0 ? mobileFiltered : allSmallCodes);
       }
 
       // AS구분 (CMWT001, ref_code='03'이 AS 관련)
+      // mowoe03m03.xml 기준: 0350(현장방어), 0360(OTT BOX), 0370(올인원) 제외
       if (asClRes.success && asClRes.data) {
+        const excludeCodes = ['0350', '0360', '0370'];
         const asCodes = asClRes.data
-          .filter((item: any) => item.code && item.code !== '[]' && item.ref_code === '03')
+          .filter((item: any) => item.code && item.code !== '[]' && item.ref_code === '03' && !excludeCodes.includes(item.code))
           .map((item: any) => ({ CODE: item.code, CODE_NM: item.name }));
         setAsClCodes(asCodes);
       }
 
-      // AS사유 대분류 (CMAS000)
+      // AS사유 대분류 (CMAS000) - ref_code2에 상품그룹(PROD_GRP) 필터 정보 포함
       if (asResnLRes.success && asResnLRes.data) {
         const resnLCodes = asResnLRes.data
           .filter((item: any) => item.code && item.code !== '[]' && item.name !== '선택')
-          .map((item: any) => ({ CODE: item.code, CODE_NM: item.name }));
+          .map((item: any) => ({ CODE: item.code, CODE_NM: item.name, ref_code: item.ref_code2 || '' }));
         setAsResnLCodes(resnLCodes);
       }
 
@@ -542,7 +566,7 @@ const ConsultationAS: React.FC<ConsultationASProps> = ({
           asResnMCd: '',
           asCntn: '',
           schdDt: new Date().toISOString().split('T')[0],
-          schdHour: '09',
+          schdHour: getDefaultHour(),
           schdMin: '00'
         });
         setAsResnMCodes([]);
@@ -898,7 +922,7 @@ const ConsultationAS: React.FC<ConsultationASProps> = ({
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
                     >
                       <option value="">선택</option>
-                      {asResnLCodes.map(code => (
+                      {filteredAsResnLCodes.map(code => (
                         <option key={code.CODE} value={code.CODE}>{code.CODE_NM}</option>
                       ))}
                     </select>
@@ -1077,6 +1101,9 @@ const ConsultationAS: React.FC<ConsultationASProps> = ({
                             <div className="flex items-center justify-between mb-1">
                               <div className="flex items-center gap-2">
                                 <span className="text-sm font-medium text-gray-800">{item.START_DATE || '-'}</span>
+                                {item.CTRT_ID && (
+                                  <span className="text-xs text-gray-500 font-mono">{formatId(item.CTRT_ID)}</span>
+                                )}
                                 <span className="px-2 py-0.5 text-xs bg-blue-100 text-blue-700 rounded">
                                   {item.CNSL_SLV_CL_NM || '-'}
                                 </span>
@@ -1130,6 +1157,12 @@ const ConsultationAS: React.FC<ConsultationASProps> = ({
                   <div className="space-y-3 max-h-[400px] overflow-y-auto">
                     {(historyViewMode === 'byDate' ? allWorkHistory : workHistory).map((item, index) => (
                       <div key={index} className="p-3 bg-gray-50 rounded-lg border border-gray-100">
+                        {/* 계약ID + 작업예정일 */}
+                        {item.CTRT_ID && (
+                          <div className="text-xs text-gray-500 mb-1">
+                            계약: <span className="font-mono text-gray-700">{formatId(item.CTRT_ID)}</span>
+                          </div>
+                        )}
                         {/* 상단: 작업예정일 | 작업구분 | 작업상태 */}
                         <div className="grid grid-cols-3 gap-2 text-xs">
                           <div className="flex flex-col">

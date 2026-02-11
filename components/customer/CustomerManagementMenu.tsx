@@ -35,6 +35,8 @@ const CustomerManagementMenu: React.FC<CustomerManagementMenuProps> = ({ onNavig
     instlLoc?: string;
     postId?: string;
     notrecev?: string;
+    soId?: string;
+    prodGrp?: string;
   } | null>(null);
 
   // 정보변경 탭의 초기 섹션 및 납부계정 ID
@@ -127,7 +129,7 @@ const CustomerManagementMenu: React.FC<CustomerManagementMenuProps> = ({ onNavig
   };
 
   // 계약 선택 핸들러 (계약현황에서 계약 선택 시 호출)
-  const handleContractSelect = (contract: { ctrtId: string; prodNm: string; instAddr: string; streetAddr?: string; instlLoc?: string; postId?: string; notrecev?: string }) => {
+  const handleContractSelect = (contract: { ctrtId: string; prodNm: string; instAddr: string; streetAddr?: string; instlLoc?: string; postId?: string; notrecev?: string; soId?: string; prodGrp?: string }) => {
     setSelectedContract(contract);
   };
 

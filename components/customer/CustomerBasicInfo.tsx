@@ -30,7 +30,7 @@ const formatId = (id: string): string => {
 interface CustomerBasicInfoProps {
   onBack: () => void;
   showToast?: (message: string, type: 'success' | 'error' | 'warning' | 'info') => void;
-  onContractSelect: (contract: { ctrtId: string; prodNm: string; instAddr: string; streetAddr?: string; instlLoc?: string; postId?: string }) => void;
+  onContractSelect: (contract: { ctrtId: string; prodNm: string; instAddr: string; streetAddr?: string; instlLoc?: string; postId?: string; soId?: string; prodGrp?: string }) => void;
   onNavigateToPaymentChange?: (pymAcntId: string) => void;  // 납부정보 변경 탭으로 이동
   onNavigateToConsultationAS?: (initialTab: 'consultation' | 'as') => void;  // 상담/AS 탭으로 이동
   onNavigateToAddressChange?: () => void;  // 주소변경 탭으로 이동
@@ -262,7 +262,9 @@ const CustomerBasicInfo: React.FC<CustomerBasicInfoProps> = ({
       streetAddr: contract.STREET_ADDR_FULL,
       instlLoc: contract.INSTL_LOC,
       postId: contract.POST_ID,
-      notrecev: contract.NOTRECEV
+      notrecev: contract.NOTRECEV,
+      soId: contract.SO_ID,
+      prodGrp: contract.PROD_GRP,
     });
 
     // 선택된 계약으로 이력 로드 + 계약별 모드로 전환

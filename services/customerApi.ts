@@ -78,6 +78,8 @@ export interface ContractInfo {
   DPST_AMT: number;          // 보증금
   PREPAY_AMT: number;        // 선납금
   SO_NM?: string;            // 지점명
+  SO_ID?: string;            // 지점ID (AS접수에 필요)
+  PROD_GRP?: string;         // 상품그룹 코드 (AS사유 필터링: A/D/I/V/C)
   NOTRECEV?: string;         // 미수신 정보
   // 장비 정보
   EQT_NM: string;            // 장비명
@@ -138,6 +140,7 @@ export interface UnpaymentInfo {
 // 상담 이력 (D'Live: getTgtCtrtRcptHist_m)
 export interface ConsultationHistory {
   START_DATE: string;        // 접수일 (yyyy-mm-dd)
+  CTRT_ID?: string;          // 계약ID
   CNSL_SLV_CL_NM: string;    // 상담소분류
   CNSL_RSLT: string;         // 처리결과
   RCPT_NM: string;           // 접수자
@@ -739,6 +742,8 @@ const mapContractFields = (data: any): ContractInfo => {
     CUR_MON_AMT: data.CUR_MON_AMT || data.BILL_AMT_NOW || 0,
     // 추가 필드
     SO_NM: data.SO_NM || '',                                    // 지점명
+    SO_ID: data.SO_ID || '',                                    // 지점ID
+    PROD_GRP: data.PROD_GRP || '',                              // 상품그룹 코드
     STREET_ADDR_FULL: data.STREET_ADDR_FULL || data.ROAD_ADDR || '', // 도로명주소
     ADDR_FULL: data.ADDR_FULL || data.JIBUN_ADDR || '',         // 지번주소
     CTRT_APLY_STRT_DT: data.CTRT_APLY_STRT_DT || '',              // 약정 시작일 (없으면 '-' 표시)
@@ -1563,12 +1568,23 @@ export const registerASRequest = async (params: ASRequestParams): Promise<ApiRes
   // 세션에서 사용자 정보 가져오기
   let wrkrId = 'MOBILE_USER';
   let crrId = '';
+  let soId = '';
+  let mstSoId = '';
   try {
     const userInfoStr = sessionStorage.getItem('userInfo') || localStorage.getItem('userInfo');
     if (userInfoStr) {
       const userInfo = JSON.parse(userInfoStr);
       wrkrId = userInfo.userId || userInfo.USR_ID || wrkrId;
       crrId = userInfo.crrId || userInfo.CRR_ID || '';
+      // SO_ID, MST_SO_ID 획득 (가입자AS에 필수 - mowoe03m03.xml 참조)
+      const authSoList = userInfo.authSoList || userInfo.AUTH_SO_List || [];
+      if (authSoList.length > 0) {
+        soId = authSoList[0].SO_ID || authSoList[0].soId || '';
+      }
+      if (!soId) {
+        soId = userInfo.soId || userInfo.SO_ID || '';
+      }
+      mstSoId = userInfo.mstSoId || userInfo.MST_SO_ID || soId;
     }
   } catch (e) {
     console.log('[CustomerAPI] Failed to get user info from session');
@@ -1608,6 +1624,8 @@ export const registerASRequest = async (params: ASRequestParams): Promise<ApiRes
     CRR_ID: crrId,
     WRKR_ID: wrkrId,
     REG_UID: wrkrId,
+    SO_ID: soId,
+    MST_SO_ID: mstSoId,
   };
 
   if (isUIParams && uiParams.AS_CL_DTL_CD) {
