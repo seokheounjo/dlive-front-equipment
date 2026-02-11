@@ -716,39 +716,41 @@ const mapCustomerFields = (data: any): CustomerInfo => {
  * D'Live API 응답 -> 프론트엔드 인터페이스
  */
 const mapContractFields = (data: any): ContractInfo => {
+  // 백엔드에서 null을 "None" 문자열로 반환하는 경우 정리
+  const v = (val: any) => (val === null || val === undefined || val === 'None' || val === 'null') ? '' : val;
+  const n = (val: any) => (val === null || val === undefined || val === 'None' || val === 'null') ? 0 : val;
   return {
-    CTRT_ID: data.CTRT_ID || '',
-    CTRT_STAT_CD: data.CTRT_STAT_CD || data.CTRT_STAT || '',    // CTRT_STAT -> CTRT_STAT_CD
-    CTRT_STAT_NM: data.CTRT_STAT_NM || '',
-    PROD_NM: data.PROD_NM || data.BASIC_PROD_CD_NM || '',       // BASIC_PROD_CD_NM -> PROD_NM
-    PROD_GRP_NM: data.PROD_GRP_NM || '',
-    INST_ADDR: data.INST_ADDR || data.ADDR_FULL || data.ADDR || '', // ADDR_FULL -> INST_ADDR
-    INSTL_LOC: data.INSTL_LOC || '',                            // 설치위치 (거실, 안방, 침실 등)
-    POST_ID: data.POST_ID || '',                                // 주소ID
-    OPNG_DT: data.OPNG_DT || data.OPEN_DD || '',                // OPEN_DD -> OPNG_DT
-    TERM_DT: data.TERM_DT || '',
-    AGMT_MON: data.AGMT_MON || data.PROM_CNT?.toString() || '', // PROM_CNT -> AGMT_MON
-    AGMT_ST_DT: data.AGMT_ST_DT || data.RATE_STRT_DT || '',     // RATE_STRT_DT -> AGMT_ST_DT
-    AGMT_END_DT: data.AGMT_END_DT || data.RATE_END_DT || '',    // RATE_END_DT -> AGMT_END_DT
-    GRP_NO: data.GRP_NO || data.GRP_ID || '',                   // GRP_ID -> GRP_NO
-    GRP_NM: data.GRP_NM || '',                                  // 단체 이름
-    PYM_ACNT_ID: data.PYM_ACNT_ID || '',
-    DPST_AMT: data.DPST_AMT || data.ASSR_BAL || 0,              // ASSR_BAL -> DPST_AMT
-    PREPAY_AMT: data.PREPAY_AMT || data.PREPD_BAL || 0,         // PREPD_BAL -> PREPAY_AMT
-    EQT_NM: data.EQT_NM || '',
-    EQT_MDL_NM: data.EQT_MDL_NM || data.VIEW_MOD_NM || '',      // VIEW_MOD_NM -> EQT_MDL_NM
-    EQT_SERNO: data.EQT_SERNO || data.SERNO_DTOA || '',         // SERNO_DTOA -> EQT_SERNO
-    PREV_MON_AMT: data.PREV_MON_AMT || data.BILL_AMT_BEFORE || 0,
-    CUR_MON_AMT: data.CUR_MON_AMT || data.BILL_AMT_NOW || 0,
-    // 추가 필드
-    SO_NM: data.SO_NM || '',                                    // 지점명
-    SO_ID: data.SO_ID || '',                                    // 지점ID
-    PROD_GRP: data.PROD_GRP || '',                              // 상품그룹 코드
-    STREET_ADDR_FULL: data.STREET_ADDR_FULL || data.ROAD_ADDR || '', // 도로명주소
-    ADDR_FULL: data.ADDR_FULL || data.JIBUN_ADDR || '',         // 지번주소
-    CTRT_APLY_STRT_DT: data.CTRT_APLY_STRT_DT || '',              // 약정 시작일 (없으면 '-' 표시)
-    CTRT_APLY_END_DT: data.CTRT_APLY_END_DT || '',                // 약정 종료일 (없으면 '-' 표시)
-    NOTRECEV: data.NOTRECEV || data.NOT_RECV || ''              // 장비 (미수신 정보)
+    CTRT_ID: v(data.CTRT_ID),
+    CTRT_STAT_CD: v(data.CTRT_STAT_CD) || v(data.CTRT_STAT),
+    CTRT_STAT_NM: v(data.CTRT_STAT_NM),
+    PROD_NM: v(data.PROD_NM) || v(data.BASIC_PROD_CD_NM),
+    PROD_GRP_NM: v(data.PROD_GRP_NM),
+    INST_ADDR: v(data.INST_ADDR) || v(data.ADDR_FULL) || v(data.ADDR),
+    INSTL_LOC: v(data.INSTL_LOC),
+    POST_ID: v(data.POST_ID),
+    OPNG_DT: v(data.OPNG_DT) || v(data.OPEN_DD),
+    TERM_DT: v(data.TERM_DT),
+    AGMT_MON: v(data.AGMT_MON) || (data.PROM_CNT != null && data.PROM_CNT !== 'None' ? String(data.PROM_CNT) : ''),
+    AGMT_ST_DT: v(data.AGMT_ST_DT) || v(data.RATE_STRT_DT),
+    AGMT_END_DT: v(data.AGMT_END_DT) || v(data.RATE_END_DT),
+    GRP_NO: v(data.GRP_NO) || v(data.GRP_ID),
+    GRP_NM: v(data.GRP_NM),
+    PYM_ACNT_ID: v(data.PYM_ACNT_ID),
+    DPST_AMT: n(data.DPST_AMT) || n(data.ASSR_BAL),
+    PREPAY_AMT: n(data.PREPAY_AMT) || n(data.PREPD_BAL),
+    EQT_NM: v(data.EQT_NM),
+    EQT_MDL_NM: v(data.EQT_MDL_NM) || v(data.VIEW_MOD_NM),
+    EQT_SERNO: v(data.EQT_SERNO) || v(data.SERNO_DTOA),
+    PREV_MON_AMT: n(data.PREV_MON_AMT) || n(data.BILL_AMT_BEFORE),
+    CUR_MON_AMT: n(data.CUR_MON_AMT) || n(data.BILL_AMT_NOW),
+    SO_NM: v(data.SO_NM),
+    SO_ID: v(data.SO_ID),
+    PROD_GRP: v(data.PROD_GRP),
+    STREET_ADDR_FULL: v(data.STREET_ADDR_FULL) || v(data.ROAD_ADDR),
+    ADDR_FULL: v(data.ADDR_FULL) || v(data.JIBUN_ADDR),
+    CTRT_APLY_STRT_DT: v(data.CTRT_APLY_STRT_DT),
+    CTRT_APLY_END_DT: v(data.CTRT_APLY_END_DT),
+    NOTRECEV: v(data.NOTRECEV) || v(data.NOT_RECV)
   };
 };
 
