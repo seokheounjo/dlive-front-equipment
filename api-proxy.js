@@ -469,16 +469,19 @@ async function handleProxy(req, res) {
     let isLegacyReq = false;
     let directReqConfig = null;
 
-    if (DIRECT_REQ_ROUTES[apiPath] && req.headers.cookie) {
-      // 브라우저 요청 (세션 쿠키 있음): .req로 직접 라우팅 (어댑터 우회, CALLER_UID 전달)
+    // DIRECT_REQ_ROUTES: JSESSIONID가 있을 때만 .req 직접 라우팅
+    // (Express 세션 쿠키만 있고 D'Live JSESSIONID 없으면 어댑터로 폴백)
+    const hasJSessionId = req.headers.cookie && req.headers.cookie.includes('JSESSIONID');
+    if (DIRECT_REQ_ROUTES[apiPath] && hasJSessionId) {
+      // D'Live CONA 세션 있음: .req로 직접 라우팅 (어댑터 우회, CALLER_UID 전달)
       directReqConfig = DIRECT_REQ_ROUTES[apiPath];
       finalPath = directReqConfig.reqPath;
       isLegacyReq = true;
-      console.log('[PROXY] Direct .req route (session detected): ' + apiPath + ' -> ' + finalPath);
+      console.log('[PROXY] Direct .req route (JSESSIONID detected): ' + apiPath + ' -> ' + finalPath);
     } else if (DIRECT_REQ_ROUTES[apiPath]) {
-      // 세션 없음 (curl/API): 어댑터 경유 (폴백)
+      // JSESSIONID 없음: 어댑터 경유 (폴백)
       finalPath = '/api' + apiPath;
-      console.log('[PROXY] No session cookie, falling back to adapter: ' + apiPath + ' -> ' + finalPath);
+      console.log('[PROXY] No JSESSIONID, falling back to adapter: ' + apiPath + ' -> ' + finalPath);
     } else if (LEGACY_REQ_ROUTES.includes(apiPath)) {
       finalPath = apiPath + '.req';
       isLegacyReq = true;
