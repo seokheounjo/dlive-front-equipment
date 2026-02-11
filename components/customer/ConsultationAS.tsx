@@ -268,15 +268,10 @@ const ConsultationAS: React.FC<ConsultationASProps> = ({
   const [showHistory, setShowHistory] = useState(true);
 
   // 계약별 모드: CTRT_ID로 클라이언트 필터링
-  // 상담이력: SQL에 CTRT_ID가 없으므로 매칭 항목 없으면 전체 표시
   const filteredConsultation = historyViewMode === 'byContract' && selectedContract?.ctrtId
-    ? (() => {
-        const matched = allConsultationHistory.filter(item => item.CTRT_ID === selectedContract.ctrtId);
-        return matched.length > 0 ? matched : allConsultationHistory;
-      })()
+    ? allConsultationHistory.filter(item => item.CTRT_ID === selectedContract.ctrtId)
     : historyViewMode === 'byContract' ? [] : allConsultationHistory;
 
-  // 작업이력: SQL에 CTRT_ID 포함되어 있어 정상 필터링
   const filteredWork = historyViewMode === 'byContract' && selectedContract?.ctrtId
     ? allWorkHistory.filter(item => item.CTRT_ID === selectedContract.ctrtId)
     : historyViewMode === 'byContract' ? [] : allWorkHistory;
