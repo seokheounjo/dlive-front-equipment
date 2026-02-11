@@ -1539,8 +1539,32 @@ export const registerConsultation = async (params: ConsultationRequest): Promise
     console.log('[CustomerAPI] Failed to get user info from session/localStorage');
   }
 
+  // PL/SQL 프로시저의 VARCHAR2 버퍼가 분류코드 최대 4자까지만 허용
+  // D'Live API 코드: 대분류 "OPA"(3자), 중분류 "OPA001"(6자), 소분류 "OPA001001"(9자)
+  // → 중분류/소분류는 상위 접두사를 제거하여 접미사만 전달 (예: "001")
+  const mstCl = params.CNSL_MST_CL || '';
+  let midCl = params.CNSL_MID_CL || '';
+  let slvCl = params.CNSL_SLV_CL || '';
+  if (midCl.startsWith(mstCl) && midCl.length > mstCl.length) {
+    midCl = midCl.substring(mstCl.length);  // "OPA001" → "001"
+  }
+  if (slvCl.startsWith(midCl.length > 0 ? (mstCl + midCl) : '') && slvCl.length > 4) {
+    slvCl = slvCl.substring((mstCl + midCl).length);  // "OPA001001" → "001"
+  } else if (slvCl.length > 4) {
+    // Fallback: 원본 중분류 코드로 접두사 제거 시도
+    const origMid = params.CNSL_MID_CL || '';
+    if (slvCl.startsWith(origMid) && slvCl.length > origMid.length) {
+      slvCl = slvCl.substring(origMid.length);
+    } else {
+      slvCl = slvCl.substring(slvCl.length - 3);  // 마지막 3자
+    }
+  }
+
   return apiCall<any>('/customer/negociation/saveCnslRcptInfo', {
     ...params,
+    CNSL_MST_CL: mstCl,
+    CNSL_MID_CL: midCl,
+    CNSL_SLV_CL: slvCl,
     SO_ID: soId,
     MST_SO_ID: mstSoId,
     USR_ID: usrId,
