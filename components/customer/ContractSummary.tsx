@@ -229,8 +229,18 @@ const ContractSummary: React.FC<ContractSummaryProps> = ({
                           <span className="text-sm text-gray-600 truncate">{contract.PROD_NM}</span>
                         </div>
                         <div className="flex items-center gap-1 flex-shrink-0">
-                          <span className={`text-xs px-2 py-0.5 rounded whitespace-nowrap ${getContractStatusStyle(contract.CTRT_STAT_CD)}`}>
-                            {contract.CTRT_STAT_NM || (contract.CTRT_STAT_CD === '90' ? '해지' : contract.CTRT_STAT_CD === '20' ? '사용중' : '기타')}
+                          <span className={`text-xs px-2 py-0.5 rounded whitespace-nowrap ${
+                            contract.CLOSE_DANGER === 'Y' && (contract.CTRT_STAT_NM || '').includes('사용중')
+                              ? 'bg-orange-100 text-orange-700'
+                              : getContractStatusStyle(contract.CTRT_STAT_CD)
+                          }`}>
+                            {(() => {
+                              const statNm = contract.CTRT_STAT_NM || (contract.CTRT_STAT_CD === '90' ? '해지' : contract.CTRT_STAT_CD === '20' ? '사용중' : '기타');
+                              if (contract.CLOSE_DANGER === 'Y' && statNm.includes('사용중')) {
+                                return '사용중(기간도래)';
+                              }
+                              return statNm;
+                            })()}
                           </span>
                           <ChevronDown
                             className={`w-4 h-4 text-gray-400 transition-transform flex-shrink-0 ${
