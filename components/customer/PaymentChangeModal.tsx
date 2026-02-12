@@ -6,7 +6,8 @@ import {
   PaymentAccountInfo,
   updatePaymentMethod,
   verifyBankAccount,
-  verifyCard
+  verifyCard,
+  savePaymentSignature
 } from '../../services/customerApi';
 
 // 납부계정ID 포맷 (3-3-4)
@@ -85,8 +86,9 @@ const PaymentChangeModal: React.FC<PaymentChangeModalProps> = ({
   const [isVerifying, setIsVerifying] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
 
-  // 서명 모달
+  // 서명
   const [showSignatureModal, setShowSignatureModal] = useState(false);
+  const [signatureData, setSignatureData] = useState<string>('');  // base64 서명 이미지
 
   // 알림 팝업
   const [alertPopup, setAlertPopup] = useState<{
@@ -196,6 +198,7 @@ const PaymentChangeModal: React.FC<PaymentChangeModalProps> = ({
     if (isOpen) {
       setPaymentForm({ ...defaultPaymentForm });
       setIsVerified(false);
+      setSignatureData('');
       if (initialPymAcntId) {
         setSelectedPymAcntId(initialPymAcntId);
       }
@@ -296,8 +299,8 @@ const PaymentChangeModal: React.FC<PaymentChangeModalProps> = ({
     }
   };
 
-  // 저장 (서명 모달 표시)
-  const handleSave = () => {
+  // 서명 버튼 클릭 → 서명 모달 표시
+  const handleOpenSignature = () => {
     if (!selectedPymAcntId) {
       showAlert('납부계정을 선택해주세요.', 'warning');
       return;
@@ -313,12 +316,27 @@ const PaymentChangeModal: React.FC<PaymentChangeModalProps> = ({
     setShowSignatureModal(true);
   };
 
-  // 서명 완료 후 저장
-  const handleSignatureComplete = async (signature: string) => {
+  // 서명 완료 → 서명 이미지 저장 (저장 버튼 활성화)
+  const handleSignatureComplete = (signature: string) => {
     setShowSignatureModal(false);
-    setIsSaving(true);
+    setSignatureData(signature);
+  };
 
+  // 서명 다시하기
+  const handleResetSignature = () => {
+    setSignatureData('');
+  };
+
+  // 저장 (서명 완료 후 활성화)
+  const handleSave = async () => {
+    if (!signatureData) {
+      showAlert('서명을 먼저 완료해주세요.', 'warning');
+      return;
+    }
+
+    setIsSaving(true);
     try {
+      // 1. 납부방법 변경 API 호출
       const response = await updatePaymentMethod({
         CUST_ID: custId,
         PYM_ACNT_ID: selectedPymAcntId,
@@ -337,6 +355,18 @@ const PaymentChangeModal: React.FC<PaymentChangeModalProps> = ({
       });
 
       if (response.success) {
+        // 2. 서명 이미지 저장 (stub - 추후 API 연결)
+        try {
+          await savePaymentSignature({
+            CUST_ID: custId,
+            PYM_ACNT_ID: selectedPymAcntId,
+            SIGN_TYPE: 'PYM_CHG',
+            SIGNATURE_DATA: signatureData,
+          });
+        } catch (signErr) {
+          console.log('[PaymentChange] Signature save stub (API not connected yet):', signErr);
+        }
+
         showToast?.('납부방법이 변경되었습니다.', 'success');
         onSuccess?.();
         onClose();
@@ -615,13 +645,56 @@ const PaymentChangeModal: React.FC<PaymentChangeModalProps> = ({
                 </div>
               </div>
 
+              {/* 서명 영역 */}
+              <div className="border border-gray-200 rounded-lg p-3">
+                <div className="flex items-center justify-between mb-2">
+                  <label className="text-xs font-medium text-gray-700">고객 서명</label>
+                  {signatureData && (
+                    <button
+                      onClick={handleResetSignature}
+                      className="text-xs text-red-500 hover:text-red-600"
+                    >
+                      다시 서명
+                    </button>
+                  )}
+                </div>
+                {signatureData ? (
+                  <div className="border border-green-300 rounded-lg bg-green-50 p-2 flex flex-col items-center">
+                    <img
+                      src={signatureData}
+                      alt="서명"
+                      className="max-h-24 rounded border border-gray-200 bg-white"
+                    />
+                    <div className="flex items-center gap-1 mt-1.5">
+                      <Check className="w-3.5 h-3.5 text-green-600" />
+                      <span className="text-xs text-green-600 font-medium">서명 완료</span>
+                    </div>
+                  </div>
+                ) : (
+                  <button
+                    onClick={handleOpenSignature}
+                    disabled={!isVerified}
+                    className={`w-full py-4 border-2 border-dashed rounded-lg flex flex-col items-center gap-1.5 transition-colors ${
+                      isVerified
+                        ? 'border-blue-300 bg-blue-50 hover:bg-blue-100 text-blue-600 cursor-pointer'
+                        : 'border-gray-200 bg-gray-50 text-gray-400 cursor-not-allowed'
+                    }`}
+                  >
+                    <PenTool className="w-5 h-5" />
+                    <span className="text-sm font-medium">
+                      {isVerified ? '여기를 눌러 서명하세요' : '인증 완료 후 서명 가능'}
+                    </span>
+                  </button>
+                )}
+              </div>
+
               {/* 안내 메시지 */}
               <div className="p-3 bg-orange-50 border border-orange-200 rounded-lg">
                 <div className="flex items-start gap-2">
                   <AlertCircle className="w-4 h-4 text-orange-600 mt-0.5" />
                   <div className="text-sm text-orange-700">
                     <p>납부방법 변경 시 다음 청구월부터 적용됩니다.</p>
-                    <p className="text-xs mt-1">계좌/카드 인증 후 변경이 가능합니다.</p>
+                    <p className="text-xs mt-1">인증 → 서명 → 저장 순서로 진행해주세요.</p>
                   </div>
                 </div>
               </div>
@@ -635,8 +708,12 @@ const PaymentChangeModal: React.FC<PaymentChangeModalProps> = ({
             <div className="flex gap-2">
               <button
                 onClick={handleSave}
-                disabled={isSaving || !isVerified}
-                className="flex-1 py-2.5 bg-orange-500 text-white rounded-lg hover:bg-orange-600 disabled:bg-gray-400 transition-colors text-sm font-medium flex items-center justify-center gap-2"
+                disabled={isSaving || !signatureData}
+                className={`flex-1 py-2.5 rounded-lg transition-colors text-sm font-medium flex items-center justify-center gap-2 ${
+                  signatureData
+                    ? 'bg-orange-500 text-white hover:bg-orange-600'
+                    : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                }`}
               >
                 {isSaving ? (
                   <>

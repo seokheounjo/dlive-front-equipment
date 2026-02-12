@@ -1515,6 +1515,76 @@ export const verifyCard = async (params: CardVerifyRequest): Promise<ApiResponse
   });
 };
 
+// ============ 납부방법 변경 - 서명 저장 API (Stub) ============
+
+/**
+ * 서명 이미지 저장 (Stub - 추후 API 연결)
+ * 납부방법 변경 시 고객 서명 이미지를 서버에 저장
+ *
+ * TODO: 실제 API 연결 시 아래 사항 확인
+ * - 엔드포인트: TBD (예: /customer/signature/save)
+ * - 서명 이미지 형식: base64 PNG
+ * - 연관 키: CUST_ID + PYM_ACNT_ID + 일시
+ */
+export interface SignatureSaveRequest {
+  CUST_ID: string;
+  PYM_ACNT_ID: string;
+  SIGN_TYPE: string;       // 'PYM_CHG' (납부변경), 'CTRT' (계약), 'AS' (AS접수) 등
+  SIGNATURE_DATA: string;  // base64 이미지 데이터
+  CTRT_ID?: string;        // 계약ID (계약 관련 서명 시)
+}
+
+export const savePaymentSignature = async (params: SignatureSaveRequest): Promise<ApiResponse<any>> => {
+  // TODO: 실제 서명 저장 API 연결
+  // return apiCall<any>('/customer/signature/save', params);
+
+  // 현재는 stub (API 미연결)
+  console.log('[CustomerAPI] savePaymentSignature stub called:', {
+    CUST_ID: params.CUST_ID,
+    PYM_ACNT_ID: params.PYM_ACNT_ID,
+    SIGN_TYPE: params.SIGN_TYPE,
+    DATA_SIZE: params.SIGNATURE_DATA?.length || 0
+  });
+  return Promise.resolve({
+    success: true,
+    data: { saved: false, stub: true },
+    message: '서명 저장 API 미연결 (stub)'
+  });
+};
+
+/**
+ * 납부방법 변경 - 공통코드 조회 (Stub - 추후 API 연결)
+ * 은행코드, 카드사코드, 변경사유코드 등을 서버에서 조회
+ *
+ * TODO: 실제 API 연결 시 아래 사항 확인
+ * - 엔드포인트: TBD (예: /customer/common/getCodeList)
+ * - 코드그룹: BLPY015(은행), BLPY016(카드사), CMCU079(변경사유), BLIV005(납부방법)
+ */
+export interface CommonCodeRequest {
+  CODE_GRP: string;        // 코드그룹 (BLPY015, BLPY016, CMCU079 등)
+  PARENT_CD?: string;      // 상위코드 (중분류 조회 시)
+}
+
+export interface CommonCodeItem {
+  CODE: string;
+  CODE_NM: string;
+  PARENT_CD?: string;
+  SORT_SEQ?: number;
+}
+
+export const getPaymentCommonCodes = async (params: CommonCodeRequest): Promise<ApiResponse<CommonCodeItem[]>> => {
+  // TODO: 실제 공통코드 API 연결
+  // return apiCall<CommonCodeItem[]>('/customer/common/getCodeList', params);
+
+  // 현재는 stub (프론트엔드 하드코딩 사용 중)
+  console.log('[CustomerAPI] getPaymentCommonCodes stub called:', params);
+  return Promise.resolve({
+    success: true,
+    data: [],
+    message: '공통코드 API 미연결 (stub) - 프론트엔드 하드코딩 사용 중'
+  });
+};
+
 // ============ 상담/AS API ============
 
 /**
