@@ -469,6 +469,9 @@ const PaymentInfo: React.FC<PaymentInfoProps> = ({
         showToast={showToast}
         onSuccess={() => {
           loadPaymentAccounts();
+          if (selectedPymAcntId) {
+            loadBillingDetails(selectedPymAcntId);
+          }
         }}
         soId={(() => {
           try {
