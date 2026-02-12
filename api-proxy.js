@@ -2,7 +2,7 @@
 // Routes to /api/* servlet (our custom controllers) instead of *.req (CONA servlet)
 const express = require('express');
 const router = express.Router();
-// iconv-lite 제거: 백엔드 어댑터가 UTF-8로 변경됨 (commit 062b3f5)
+const iconv = require('iconv-lite');
 
 const DLIVE_API_BASE = process.env.DLIVE_API_BASE || 'http://58.143.140.222:8080';
 
@@ -547,10 +547,17 @@ async function handleProxy(req, res) {
         contentType = 'text/xml; charset=UTF-8';
       } else {
         const jsonStr = JSON.stringify(req.body);
-        // 백엔드 어댑터가 UTF-8로 readBody() 변경됨 (commit 062b3f5)
-        // EUC-KR 인코딩 제거 → UTF-8 그대로 전송
-        postData = jsonStr;
-        contentType = 'application/json; charset=utf-8';
+        // Check if body contains non-ASCII characters (Korean, etc.)
+        const hasNonAscii = /[^\x00-\x7f]/.test(jsonStr);
+        if (hasNonAscii) {
+          // Encode as EUC-KR for CONA WebSphere (default encoding is likely EUC-KR)
+          // WebSphere reads body with default charset, so we must match it
+          postData = iconv.encode(jsonStr, 'euc-kr');
+          contentType = 'application/json';  // No charset - let server use default
+          console.log('[PROXY] Encoded body as EUC-KR (non-ASCII detected), bytes:', postData.length);
+        } else {
+          postData = jsonStr;
+        }
       }
     }
 
@@ -571,7 +578,7 @@ async function handleProxy(req, res) {
     };
 
     if (postData) {
-      options.headers['Content-Length'] = Buffer.byteLength(postData, 'utf8');
+      options.headers['Content-Length'] = Buffer.isBuffer(postData) ? postData.length : Buffer.byteLength(postData, 'utf8');
     }
 
     // 쿠키 처리: 브라우저 쿠키 + 저장된 JSESSIONID 주입
