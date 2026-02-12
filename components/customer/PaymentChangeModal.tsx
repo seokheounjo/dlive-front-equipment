@@ -322,19 +322,18 @@ const PaymentChangeModal: React.FC<PaymentChangeModalProps> = ({
       const response = await updatePaymentMethod({
         CUST_ID: custId,
         PYM_ACNT_ID: selectedPymAcntId,
-        PYM_MTHD_CD: paymentForm.pymMthCd,
+        PYM_MTH_CD: paymentForm.pymMthCd,
         BANK_CD: paymentForm.bankCd,
         ACNT_NO: paymentForm.acntNo,
         ACNT_OWNER_NM: paymentForm.acntHolderNm,
-        ID_TP_CD: paymentForm.idType,
+        ID_TYPE_CD: paymentForm.idType,
         BIRTH_DT: paymentForm.birthDt,
-        PYR_REL_CD: paymentForm.pyrRel,
-        PYM_DAY: paymentForm.pymDay,
+        PAYER_REL_CD: paymentForm.pyrRel,
+        PAY_DAY_CD: paymentForm.pymDay,
         CARD_VALID_YM: paymentForm.pymMthCd === '02' ? paymentForm.cardExpYy + paymentForm.cardExpMm : undefined,
         JOIN_CARD_YN: paymentForm.pymMthCd === '02' ? paymentForm.joinCardYn : undefined,
-        CHG_REAS_L_CD: paymentForm.changeReasonL,
-        CHG_REAS_M_CD: paymentForm.changeReasonM,
-        SIGNATURE: signature
+        CHG_RESN_L_CD: paymentForm.changeReasonL,
+        CHG_RESN_M_CD: paymentForm.changeReasonM,
       });
 
       if (response.success) {

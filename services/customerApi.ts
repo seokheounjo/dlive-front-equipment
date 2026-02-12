@@ -1425,21 +1425,35 @@ export const updateAddress = async (params: AddressChangeRequest): Promise<ApiRe
  * - USR_ID: 처리자ID
  */
 export const updatePaymentMethod = async (params: PaymentMethodChangeRequest): Promise<ApiResponse<any>> => {
-  // 세션에서 사용자 ID 가져오기
+  // 세션에서 사용자 ID, SO_ID, MST_SO_ID 가져오기
   let usrId = params.USR_ID || 'MOBILE_USER';
+  let soId = params.SO_ID || '';
+  let mstSoId = params.MST_SO_ID || '';
   try {
     const userInfoStr = sessionStorage.getItem('userInfo') || localStorage.getItem('userInfo');
     if (userInfoStr) {
       const userInfo = JSON.parse(userInfoStr);
       usrId = userInfo.userId || userInfo.USR_ID || usrId;
+      if (!soId) {
+        const authSoList = userInfo.authSoList || userInfo.AUTH_SO_List || [];
+        if (authSoList.length > 0) {
+          soId = authSoList[0].SO_ID || authSoList[0].soId || '';
+        }
+        if (!soId) soId = userInfo.soId || userInfo.SO_ID || '';
+      }
+      if (!mstSoId) {
+        mstSoId = userInfo.mstSoId || userInfo.MST_SO_ID || soId;
+      }
     }
   } catch (e) {
-    console.log('[CustomerAPI] Failed to get USR_ID from session');
+    console.log('[CustomerAPI] Failed to get session info for payment change');
   }
 
   return apiCall<any>('/customer/customer/general/customerPymChgAddManager', {
     ...params,
-    USR_ID: usrId
+    USR_ID: usrId,
+    SO_ID: soId,
+    MST_SO_ID: mstSoId
   });
 };
 
