@@ -87,6 +87,9 @@ const CustomerBasicInfo: React.FC<CustomerBasicInfoProps> = ({
   const [allConsultationHistory, setAllConsultationHistory] = useState<ConsultationHistory[]>([]);
   const [allWorkHistory, setAllWorkHistory] = useState<WorkHistory[]>([]);
 
+  // S/N 검색 시 매칭된 계약의 CTRT_ID
+  const [matchedCtrtIdFromSN, setMatchedCtrtIdFromSN] = useState('');
+
   // 로딩 상태
   const [isLoadingContracts, setIsLoadingContracts] = useState(false);
   const [isLoadingHistory, setIsLoadingHistory] = useState(false);
@@ -156,6 +159,24 @@ const CustomerBasicInfo: React.FC<CustomerBasicInfoProps> = ({
       loadHistory(selectedCustomer.CUST_ID, savedContract.ctrtId);
     }
   }, [selectedCustomer, savedContract]);
+
+  // S/N 검색 후 계약 로드 시, NOTRECEV에서 매칭 계약 찾아 CTRT_ID 추출
+  useEffect(() => {
+    if (selectedCustomer?.EQT_SERNO && contracts.length > 0) {
+      const sn = selectedCustomer.EQT_SERNO.toLowerCase();
+      const matchingContract = contracts.find(c =>
+        c.NOTRECEV?.toLowerCase().includes(sn) ||
+        c.EQT_SERNO?.toLowerCase().includes(sn)
+      );
+      if (matchingContract) {
+        setMatchedCtrtIdFromSN(matchingContract.CTRT_ID);
+      } else {
+        setMatchedCtrtIdFromSN('');
+      }
+    } else {
+      setMatchedCtrtIdFromSN('');
+    }
+  }, [selectedCustomer?.EQT_SERNO, contracts]);
 
   // 계약 목록 로드
   const loadContracts = async (custId: string): Promise<ContractInfo[]> => {
@@ -378,7 +399,7 @@ const CustomerBasicInfo: React.FC<CustomerBasicInfoProps> = ({
               onToggle={() => toggleSection('contracts')}
               onContractSelect={handleContractSelect}
               showToast={showToast}
-              initialSearchKeyword={selectedCustomer?.EQT_SERNO || ''}
+              initialSearchKeyword={matchedCtrtIdFromSN || ''}
               onNavigateToConsultation={(contract) => {
                 handleContractSelect(contract);
                 if (onNavigateToConsultationAS) {

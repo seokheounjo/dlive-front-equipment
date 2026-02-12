@@ -101,13 +101,14 @@ const ContractSummary: React.FC<ContractSummaryProps> = ({
     // 상태 필터 (사용계약 선택 시 해지 제외)
     if (filterStatus === 'active' && !isActiveContract(contract)) return false;
 
-    // 키워드 검색 (계약ID, 상품명, 장비시리얼)
+    // 키워드 검색 (계약ID, 상품명, 장비시리얼, NOTRECEV 장비정보)
     if (searchKeyword) {
       const keyword = searchKeyword.toLowerCase();
       const matchCtrtId = contract.CTRT_ID?.toLowerCase().includes(keyword);
       const matchProdNm = contract.PROD_NM?.toLowerCase().includes(keyword);
       const matchEqtSerno = contract.EQT_SERNO?.toLowerCase().includes(keyword);
-      return matchCtrtId || matchProdNm || matchEqtSerno;
+      const matchNotrecev = contract.NOTRECEV?.toLowerCase().includes(keyword);
+      return matchCtrtId || matchProdNm || matchEqtSerno || matchNotrecev;
     }
 
     return true;
