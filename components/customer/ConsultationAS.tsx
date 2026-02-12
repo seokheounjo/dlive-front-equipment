@@ -16,7 +16,6 @@ import {
   getASClassCodes,
   getASReasonLargeCodes,
   getASReasonDetailCodes,
-  getTripFeeCodes,
   getProductGroups,
   ConsultationHistory,
   WorkHistory,
@@ -203,8 +202,7 @@ const ConsultationAS: React.FC<ConsultationASProps> = ({
   // AS 접수 폼 (와이어프레임 기준 확장)
   const [asForm, setASForm] = useState({
     asClCd: '',           // AS구분
-    asClDtlCd: '',        // 콤보상세
-    tripFeeCd: '',        // 출장비
+    asClDtlCd: '',        // 콤보상세 (reserved)
     asResnLCd: '',        // AS접수사유(대)
     asResnMCd: '',        // AS접수사유(중)
     asCntn: '',           // AS 내용
@@ -215,9 +213,7 @@ const ConsultationAS: React.FC<ConsultationASProps> = ({
 
   // AS 코드 데이터 (API에서 로드)
   const [asClCodes, setAsClCodes] = useState<CodeItem[]>([]);        // AS구분 (CMWT001 ref_code='03')
-  const [asClDtlCodes, setAsClDtlCodes] = useState<CodeItem[]>([]);  // 콤보상세 (계약별 상품그룹)
-
-  const [tripFeeCodes, setTripFeeCodes] = useState<CodeItem[]>([]);  // 출장비 (CMAS004)
+  const [asClDtlCodes, setAsClDtlCodes] = useState<CodeItem[]>([]);  // 콤보상세 (reserved)
 
   const [asResnLCodes, setAsResnLCodes] = useState<CodeItem[]>([]);  // AS사유 대분류 (CMAS000)
   const [allAsResnMCodes, setAllAsResnMCodes] = useState<CodeItem[]>([]);  // AS사유 중분류 전체 (CMAS001)
@@ -325,15 +321,14 @@ const ConsultationAS: React.FC<ConsultationASProps> = ({
   const loadCodes = async () => {
     setIsLoadingCodes(true);
     try {
-      // 상담분류 (CMCS010/020/030) + AS구분 (CMWT001) + AS사유 (CMAS000/001) + 출장비 (CMAS004) 동시 로드
-      const [lCodesRes, mCodesRes, sCodesRes, asClRes, asResnLRes, asResnMRes, tripFeeRes] = await Promise.all([
+      // 상담분류 (CMCS010/020/030) + AS구분 (CMWT001) + AS사유 (CMAS000/001) 동시 로드
+      const [lCodesRes, mCodesRes, sCodesRes, asClRes, asResnLRes, asResnMRes] = await Promise.all([
         getConsultationLargeCodes(),
         getConsultationMiddleCodes(),
         getConsultationSmallCodes(),
         getASClassCodes(),           // CMWT001 (AS구분)
         getASReasonLargeCodes(),     // CMAS000 (AS사유 대분류)
         getASReasonDetailCodes(),    // CMAS001 (AS사유 중분류)
-        getTripFeeCodes(),           // CMAS004 (출장비안내)
       ]);
 
       const filterCodes = (data: any[]) => data
@@ -389,13 +384,6 @@ const ConsultationAS: React.FC<ConsultationASProps> = ({
         setAllAsResnMCodes(resnMCodes);
       }
 
-      // 출장비안내 (CMAS004)
-      if (tripFeeRes.success && tripFeeRes.data) {
-        const tfCodes = tripFeeRes.data
-          .filter((item: any) => item.code && item.code !== '[]' && item.name !== '선택')
-          .map((item: any) => ({ CODE: item.code, CODE_NM: item.name }));
-        setTripFeeCodes(tfCodes);
-      }
     } catch (error) {
       console.error('Load codes error:', error);
     } finally {
@@ -573,8 +561,6 @@ const ConsultationAS: React.FC<ConsultationASProps> = ({
         POST_ID: isSubscriber ? (selectedContract?.postId || '') : '',
         INST_ADDR: isSubscriber ? (selectedContract?.instAddr || '') : '',
         AS_CL_CD: asForm.asClCd,
-        AS_CL_DTL_CD: asForm.asClDtlCd,
-        TRIP_FEE_CD: asForm.tripFeeCd,
         AS_RESN_L_CD: asForm.asResnLCd,
         AS_RESN_M_CD: asForm.asResnMCd,
         AS_CNTN: asForm.asCntn,
@@ -596,7 +582,6 @@ const ConsultationAS: React.FC<ConsultationASProps> = ({
         setASForm({
           asClCd: '',
           asClDtlCd: '',
-          tripFeeCd: '',
           asResnLCd: '',
           asResnMCd: '',
           asCntn: '',
@@ -903,46 +888,16 @@ const ConsultationAS: React.FC<ConsultationASProps> = ({
                   </div>
                 )}
 
-                {/* AS구분 & 콤보상세 */}
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-sm text-gray-600 mb-1">AS구분 *</label>
-                    <select
-                      value={asForm.asClCd}
-                      onChange={(e) => setASForm(prev => ({ ...prev, asClCd: e.target.value }))}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
-                    >
-                      <option value="">선택</option>
-                      {asClCodes.map(code => (
-                        <option key={code.CODE} value={code.CODE}>{code.CODE_NM}</option>
-                      ))}
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-sm text-gray-600 mb-1">콤보상세</label>
-                    <select
-                      value={asForm.asClDtlCd}
-                      onChange={(e) => setASForm(prev => ({ ...prev, asClDtlCd: e.target.value }))}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
-                    >
-                      <option value="">선택</option>
-                      {asClDtlCodes.map(code => (
-                        <option key={code.CODE} value={code.CODE}>{code.CODE_NM}</option>
-                      ))}
-                    </select>
-                  </div>
-                </div>
-
-                {/* 출장비 */}
+                {/* AS구분 */}
                 <div>
-                  <label className="block text-sm text-gray-600 mb-1">출장비</label>
+                  <label className="block text-sm text-gray-600 mb-1">AS구분 *</label>
                   <select
-                    value={asForm.tripFeeCd}
-                    onChange={(e) => setASForm(prev => ({ ...prev, tripFeeCd: e.target.value }))}
+                    value={asForm.asClCd}
+                    onChange={(e) => setASForm(prev => ({ ...prev, asClCd: e.target.value }))}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
                   >
                     <option value="">선택</option>
-                    {tripFeeCodes.map(code => (
+                    {asClCodes.map(code => (
                       <option key={code.CODE} value={code.CODE}>{code.CODE_NM}</option>
                     ))}
                   </select>
