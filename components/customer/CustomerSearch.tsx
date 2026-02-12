@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Loader2, X, User, AlertCircle } from 'lucide-react';
-import { searchCustomerAll, CustomerInfo, maskPhoneNumber } from '../../services/customerApi';
+import { searchCustomerAll, getContractList, CustomerInfo, maskPhoneNumber } from '../../services/customerApi';
 import BarcodeScanner from '../equipment/BarcodeScanner';
 
 // ID 포맷 (3-3-4 형식) - 표시용
@@ -148,7 +148,32 @@ const CustomerSearch: React.FC<CustomerSearchProps> = ({ onCustomerSelect, onCus
       });
 
       if (response.success && response.data && response.data.length > 0) {
-        setSearchResults(response.data);
+        let enrichedResults = response.data;
+
+        // S/N 검색 시: 계약 목록에서 해당 S/N과 매칭되는 CTRT_ID 찾기
+        if (hasEquipmentNo && enrichedResults.length > 0) {
+          try {
+            const custId = enrichedResults[0].CUST_ID;
+            const contractRes = await getContractList(custId);
+            if (contractRes.success && contractRes.data) {
+              const sn = equipmentNo.toLowerCase();
+              const matchingContract = contractRes.data.find(c =>
+                c.NOTRECEV?.toLowerCase().includes(sn) ||
+                c.EQT_SERNO?.toLowerCase().includes(sn)
+              );
+              if (matchingContract) {
+                enrichedResults = enrichedResults.map(customer => ({
+                  ...customer,
+                  CTRT_ID: matchingContract.CTRT_ID,
+                }));
+              }
+            }
+          } catch (e) {
+            console.log('[CustomerSearch] S/N → CTRT_ID lookup failed:', e);
+          }
+        }
+
+        setSearchResults(enrichedResults);
       } else {
         setSearchResults([]);
         setWarningPopup({
