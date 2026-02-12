@@ -5,7 +5,6 @@ import {
   formatCurrency,
   getCardVendorBySoId,
   insertDpstAndDTL,
-  insertCardPayStage,
   processCardPayment,
   generateOrderNo,
   getOrderDate,
@@ -252,18 +251,9 @@ const UnpaymentCollectionModal: React.FC<UnpaymentCollectionModalProps> = ({
       const dpstRes = await insertDpstAndDTL(dpstParams);
       console.log('[Payment] insertDpstAndDTL result:', dpstRes.success);
 
-      // Step 3: CardPayStage 등록 (stage '03')
-      console.log('[Payment] Step 3: insertCardPayStage (03)');
-      await insertCardPayStage({
-        order_no: fullOrderNo,
-        order_dt: orderDt,
-        pym_acnt_id: pymAcntId || '',
-        encrypted_amt: amountStr,
-        stage: '03'
-      });
-
-      // Step 4: PG 결제 요청
-      console.log('[Payment] Step 4: processCardPayment');
+      // Step 3: PG 결제 요청
+      // Stage 03~06은 백엔드 어댑터가 직접 관리 (JSP stage 03 중복 방지)
+      console.log('[Payment] Step 3: processCardPayment');
       const payRes = await processCardPayment({
         mid,
         order_dt: orderDt,
@@ -277,7 +267,9 @@ const UnpaymentCollectionModal: React.FC<UnpaymentCollectionModalProps> = ({
         kor_id: korId,
         install: installment,
         pym_acnt_id: pymAcntId || '',
-        encrypted_amt: amountStr
+        encrypted_amt: amountStr,
+        so_id: soId || '',
+        cust_id: custId
       });
 
       if (payRes.success) {

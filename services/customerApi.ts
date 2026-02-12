@@ -2275,7 +2275,8 @@ export interface CardPaymentRequest {
 }
 
 export const processCardPayment = async (params: CardPaymentRequest): Promise<ApiResponse<any>> => {
-  // Transform to backend expected uppercase param names
+  // Transform to backend expected param names
+  // PG JSP expects: amount, buyer, productinfo, card_no, card_expyear, card_expmon, install
   const backendParams: any = {
     MID: params.mid,
     OID: params.oid,
@@ -2284,10 +2285,13 @@ export const processCardPayment = async (params: CardPaymentRequest): Promise<Ap
     CUST_NM: params.buyer,
     GOODNAME: params.productinfo,
     CARD_NO: params.card_no,
-    CARD_EXPIRY: params.card_expyear + params.card_expmon,  // YYMM
+    CARD_EXPIRY: params.card_expyear + params.card_expmon,  // YYMM (하위호환)
+    CARD_EXPYEAR: params.card_expyear,    // YY (분리 전송 - 신규)
+    CARD_EXPMON: params.card_expmon,       // MM (분리 전송 - 신규)
     KOR_ID: params.kor_id,
     INSTALL_PERIOD: params.install,
     PYM_ACNT_ID: params.pym_acnt_id,
+    ENCRYPTED_AMT: params.encrypted_amt,
     SO_ID: params.so_id || '',
     CUST_ID: params.cust_id || '',
     CTRT_ID: params.ctrt_id || '',
