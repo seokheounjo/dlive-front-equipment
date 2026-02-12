@@ -547,17 +547,10 @@ async function handleProxy(req, res) {
         contentType = 'text/xml; charset=UTF-8';
       } else {
         const jsonStr = JSON.stringify(req.body);
-        // Check if body contains non-ASCII characters (Korean, etc.)
-        const hasNonAscii = /[^\x00-\x7f]/.test(jsonStr);
-        if (hasNonAscii) {
-          // Encode as EUC-KR for CONA WebSphere (default encoding is likely EUC-KR)
-          // WebSphere reads body with default charset, so we must match it
-          postData = iconv.encode(jsonStr, 'euc-kr');
-          contentType = 'application/json';  // No charset - let server use default
-          console.log('[PROXY] Encoded body as EUC-KR (non-ASCII detected), bytes:', postData.length);
-        } else {
-          postData = jsonStr;
-        }
+        // 백엔드 어댑터가 UTF-8로 readBody() 변경됨 (commit 062b3f5)
+        // EUC-KR 인코딩 제거 → UTF-8 그대로 전송
+        postData = jsonStr;
+        contentType = 'application/json; charset=utf-8';
       }
     }
 
