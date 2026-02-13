@@ -332,7 +332,7 @@ router.post('/customer/negociation/getCustWorkList', handleProxy);
 router.post('/customer/negociation/updateCustTelDetailInfo', handleProxy);
 router.post('/customer/etc/saveMargeAddrOrdInfo', handleProxy);
 router.post('/customer/etc/savePymAddrInfo', handleProxy);
-router.post('/customer/customer/general/customerPymChgAddManager', handlePaymentMethodChange);
+router.post('/customer/customer/general/customerPymChgAddManager', handlePaymentMethodChange);  // handlePaymentMethodChange calls .req directly; adapter fallback via handleProxy if needed
 router.post('/customer/customer/general/addCustomerPymInfoChange', handleProxy);
 // 6. Consultation/AS
 router.post('/customer/negociation/saveCnslRcptInfo', handleProxy);
@@ -512,15 +512,67 @@ async function handlePaymentMethodChange(req, res) {
     console.log('[PaymentMethodChange] Mobile params:', JSON.stringify(mobileParams, null, 2));
     console.log('[PaymentMethodChange] ACCESS_TICKET userId:', userId);
 
-    // 5. 순차 시도: addCustomerPymChgInfo(MERGED_LIST) → savePymAtmtApplInfo(ARGUMENT_VARIABLES)
-    // customerPymChgAddManager.req를 먼저 시도 (MERGED_LIST 방식으로 데이터 전달, NPE 방지)
-    // savePymAtmtApplInfo.req는 ARGUMENT_VARIABLES를 기대하여 NPE 발생 가능
-    const endpoints = [
-      { url: '/customer/customer/general/customerPymChgAddManager.req', params: desktopParams, name: 'addCustomerPymChgInfo' },
-      { url: '/customer/customer/general/savePymAtmtApplInfo.req', params: mobileParams, name: 'savePymAtmtApplInfo' }
-    ];
+    // 5. 먼저 어댑터(api-servlet) 경유 시도, 실패 시 .req 직접 호출
+    // 어댑터는 negociationDao의 SqlMapClient를 통해 직접 프로시저 호출 가능
+    console.log('[PaymentMethodChange] Step 1: Trying adapter path...');
+    const adapterBody = JSON.stringify(body);
+    const adapterPath = '/api/customer/customer/general/customerPymChgAddManager';
+    const adapterUrl = DLIVE_API_BASE + adapterPath;
 
-    callLegacyReqEndpoint(endpoints, 0, accessTicket, res);
+    const adapterHttp = require('http');
+    const adapterUrlMod = require('url');
+    const adapterParsedUrl = adapterUrlMod.parse(adapterUrl);
+
+    const adapterReq = adapterHttp.request({
+      hostname: adapterParsedUrl.hostname,
+      port: adapterParsedUrl.port || 80,
+      path: adapterParsedUrl.path,
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Content-Length': Buffer.byteLength(adapterBody),
+        'Cookie': storedJSessionId ? 'JSESSIONID=' + storedJSessionId : ''
+      },
+      timeout: 30000
+    }, (adapterRes) => {
+      let chunks = [];
+      adapterRes.on('data', (chunk) => chunks.push(chunk));
+      adapterRes.on('end', () => {
+        const responseText = Buffer.concat(chunks).toString('utf-8');
+        console.log('[PaymentMethodChange] Adapter response status:', adapterRes.statusCode);
+        console.log('[PaymentMethodChange] Adapter response:', responseText.substring(0, 500));
+
+        try {
+          const adapterData = JSON.parse(responseText);
+          // 어댑터 성공 시
+          if (adapterData.code === 'SUCCESS' || adapterData.code === '0') {
+            console.log('[PaymentMethodChange] Adapter SUCCESS!');
+            return res.json({ success: true, code: 'SUCCESS', message: adapterData.message || '납부방법이 변경되었습니다', data: adapterData.data || {} });
+          }
+          // 어댑터 실패 시 .req fallback
+          console.log('[PaymentMethodChange] Adapter failed (code=' + adapterData.code + '), falling back to .req endpoints...');
+        } catch (e) {
+          console.log('[PaymentMethodChange] Adapter parse error, falling back to .req endpoints...');
+        }
+
+        // Fallback: .req 직접 호출
+        const endpoints = [
+          { url: '/customer/customer/general/customerPymChgAddManager.req', params: desktopParams, name: 'addCustomerPymChgInfo' },
+          { url: '/customer/customer/general/savePymAtmtApplInfo.req', params: mobileParams, name: 'savePymAtmtApplInfo' }
+        ];
+        callLegacyReqEndpoint(endpoints, 0, accessTicket, res);
+      });
+    });
+    adapterReq.on('error', (err) => {
+      console.error('[PaymentMethodChange] Adapter error:', err.message, ', falling back to .req endpoints...');
+      const endpoints = [
+        { url: '/customer/customer/general/customerPymChgAddManager.req', params: desktopParams, name: 'addCustomerPymChgInfo' },
+        { url: '/customer/customer/general/savePymAtmtApplInfo.req', params: mobileParams, name: 'savePymAtmtApplInfo' }
+      ];
+      callLegacyReqEndpoint(endpoints, 0, accessTicket, res);
+    });
+    adapterReq.write(adapterBody);
+    adapterReq.end();
 
   } catch (error) {
     console.error('[PaymentMethodChange] Error:', error.message);
