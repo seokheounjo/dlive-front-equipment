@@ -150,6 +150,14 @@ const CustomerSearch: React.FC<CustomerSearchProps> = ({ onCustomerSelect, onCus
       if (response.success && response.data && response.data.length > 0) {
         let enrichedResults = response.data;
 
+        // 계약ID 검색 시: 검색한 CTRT_ID를 결과에 첨부
+        if (hasContractId && enrichedResults.length > 0) {
+          enrichedResults = enrichedResults.map(customer => ({
+            ...customer,
+            CTRT_ID: contractIdDigits,
+          }));
+        }
+
         // S/N 검색 시: 계약 목록에서 해당 S/N과 매칭되는 CTRT_ID 찾기
         if (hasEquipmentNo && enrichedResults.length > 0) {
           try {

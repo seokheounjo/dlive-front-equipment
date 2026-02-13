@@ -399,7 +399,7 @@ const CustomerBasicInfo: React.FC<CustomerBasicInfoProps> = ({
               onToggle={() => toggleSection('contracts')}
               onContractSelect={handleContractSelect}
               showToast={showToast}
-              initialSearchKeyword={matchedCtrtIdFromSN || ''}
+              initialSearchKeyword={matchedCtrtIdFromSN || selectedCustomer?.CTRT_ID || ''}
               onNavigateToConsultation={(contract) => {
                 handleContractSelect(contract);
                 if (onNavigateToConsultationAS) {
