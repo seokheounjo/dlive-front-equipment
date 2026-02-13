@@ -5,7 +5,6 @@ import CustomerInfoChange from './CustomerInfoChange';
 import CustomerSearch from './CustomerSearch';
 import ConsultationAS from './ConsultationAS';
 import CustomerCreate from './CustomerCreate';
-import ReContractRegistration from './ReContractRegistration';
 import { CustomerInfo, ContractInfo, ConsultationHistory, WorkHistory } from '../../services/customerApi';
 
 interface CustomerManagementMenuProps {
@@ -80,14 +79,12 @@ const CustomerManagementMenu: React.FC<CustomerManagementMenuProps> = ({ onNavig
   const [cachedDataCustId, setCachedDataCustId] = useState<string>('');  // 어떤 고객의 데이터인지 추적
 
   // 상담/AS 탭의 초기 탭 상태
-  const [consultationASInitialTab, setConsultationASInitialTab] = useState<'consultation' | 'as'>('consultation');
+  const [consultationASInitialTab, setConsultationASInitialTab] = useState<'consultation' | 'as' | 're-contract'>('consultation');
 
   const tabs: TabItem[] = [
     { id: 'basic-info', title: '기본조회', description: '고객 검색 및 정보 조회' },
     { id: 'info-change', title: '정보변경', description: '전화번호/주소 변경' },
-    { id: 'consultation-as', title: '상담/AS등록', description: '상담등록 및 AS접수' },
-    { id: 're-contract', title: '재약정등록', description: '재약정 등록' },
-    { id: 'customer-create', title: '고객생성', description: '고객생성' }
+    { id: 'consultation-as', title: '상담/AS/재약정', description: '상담등록, AS접수, 재약정등록' },
   ];
 
   const handleTabChange = (tabId: string) => {
@@ -199,21 +196,6 @@ const CustomerManagementMenu: React.FC<CustomerManagementMenuProps> = ({ onNavig
             initialTab={consultationASInitialTab}
           />
         );
-      case 're-contract':
-        return (
-          <ReContractRegistration
-            onBack={onNavigateToMenu}
-            showToast={showToast}
-            selectedCustomer={selectedCustomer ? {
-              custId: selectedCustomer.CUST_ID,
-              custNm: selectedCustomer.CUST_NM,
-              telNo: selectedCustomer.TEL_NO || selectedCustomer.HP_NO || ''
-            } : null}
-            selectedContract={selectedContract}
-            contracts={cachedContracts}
-            onNavigateToBasicInfo={() => handleNavigateToTab('basic-info')}
-          />
-        );
       case 'customer-create':
         return (
           <CustomerCreate
@@ -253,8 +235,8 @@ const CustomerManagementMenu: React.FC<CustomerManagementMenuProps> = ({ onNavig
         </div>
       </div>
 
-      {/* 고객 검색 - 재약정 등록 탭 제외하고 모든 탭에서 표시 */}
-      {activeTab !== 'customer-create' && (
+      {/* 고객 검색 - 모든 탭에서 표시 */}
+      {(
         <div className="flex-shrink-0 bg-white border-b border-gray-200 p-3">
           <CustomerSearch
               onCustomerSelect={handleCustomerSelect}
@@ -283,7 +265,8 @@ const CustomerManagementMenu: React.FC<CustomerManagementMenuProps> = ({ onNavig
               setActiveTab('info-change');
             }}
             onNavigateToReContract={() => {
-              setActiveTab('re-contract');
+              setConsultationASInitialTab('re-contract');
+              setActiveTab('consultation-as');
             }}
             selectedCustomer={selectedCustomer}
             savedContract={selectedContract}
