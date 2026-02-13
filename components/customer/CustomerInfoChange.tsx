@@ -890,10 +890,8 @@ const CustomerInfoChange: React.FC<CustomerInfoChangeProps> = ({
 
     setIsSavingAddress(true);
     try {
-      const fullAddr = addressForm.addr2
-        ? `${addressForm.addr1} ${addressForm.addr2}`
-        : addressForm.addr1;
-
+      // ADDR_DTL은 상세주소만 전달 (기본주소는 POST_ID로 결정됨)
+      // 기본주소까지 넣으면 ADDR_FULL에서 중복 발생
       const installParams: InstallAddressChangeRequest = {
         CTRT_ID: selectedContract.ctrtId,
         POST_ID: addressForm.postId,
@@ -901,7 +899,7 @@ const CustomerInfoChange: React.FC<CustomerInfoChangeProps> = ({
         BLD_NM: addressForm.bldNm || '',
         BUN_NO: addressForm.bunNo || '',
         HO_NM: addressForm.hoNm || '',
-        ADDR_DTL: fullAddr,
+        ADDR_DTL: addressForm.addr2 || '',
         STREET_ID: addressForm.streetId || undefined,
         INSTL_LOC: currentInstallInfo.instlLoc || undefined,
         CUST_FLAG: '0',
