@@ -423,6 +423,7 @@ router.get('/customer/debug/customerManager/methods', handleProxy);
 router.get('/customer/debug/billingManagement/methods', handleProxy);
 router.get('/customer/debug/customerEtcManagement/methods', handleProxy);
 router.get('/customer/debug/sampleHistoryData', handleProxy);
+router.post('/customer/debug/testDao', handleProxy);
 
 // === 납부방법 변경 특별 핸들러 ===
 // 어댑터의 addCustomerPymChgInfo (잘못된 메서드명: saveHdcPymAcntInfo로 fallback) 대신
