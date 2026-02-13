@@ -774,7 +774,7 @@ export const completeEquipmentInspection = async (params: {
   try {
     const origin = typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000';
 
-    const response = await fetchWithRetry(`${API_BASE}/customer/equipment/setEquipmentChkStndByY`, {
+    const response = await fetchWithRetry(`${API_BASE}/customer/equipment/setEquipmentChkStndByY_ForM`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
