@@ -633,9 +633,21 @@ const getLoginIdFromSession = (): string => {
  * D'Live API 응답 -> 프론트엔드 인터페이스
  */
 const mapCustomerFields = (data: any): CustomerInfo => {
-  // 전체 주소 조합: ADDRESS + BUN_NO번지 + HO_NM호 + BLD_NM
+  // 전체 주소 조합: ADDR_DTL 우선 (ADDR_FULL은 D'Live API에서 중복 포함될 수 있음)
   const buildFullAddress = (): string => {
-    if (data.ADDR_FULL) return data.ADDR_FULL;
+    // ADDR_DTL이 가장 정확 (중복 없음)
+    if (data.ADDR_DTL) return data.ADDR_DTL;
+
+    // ADDR_FULL은 동 이름이 중복될 수 있으므로 체크
+    if (data.ADDR_FULL) {
+      const addr = data.ADDR_FULL as string;
+      const base = data.ADDRESS || data.ADDR || '';
+      // "서울시 송파구 송파2동 서울시 송파구 송파2동 146~150" 같은 중복 제거
+      if (base && addr.startsWith(base + ' ' + base)) {
+        return addr.substring(base.length + 1);
+      }
+      return addr;
+    }
 
     const parts: string[] = [];
     const baseAddr = data.ADDRESS || data.ADDR || '';
@@ -2027,12 +2039,8 @@ export const searchPostAddress = async (params: PostAddressSearchRequest): Promi
 
 /**
  * 도로명주소 검색 (customer/common/customercommon/getStreetAddrList)
- *
- * D'Live 백엔드 제약사항:
- * - STREET_NM 전달 시 D'Live 서버 버그로 0건 반환 → EC2 프록시에서 분리 후 서버사이드 필터링
- * - BUILD_NM 전달 시 D'Live 서버 크래시 → EC2 프록시에서 제거
- *
- * 전략: 프론트 → EC2 프록시(STREET_NM 분리+필터링) → D'Live(SO_ID+BUN_M+BUN_S)
+ * 파라미터를 서버에 직접 전달, 서버에서 필터링 처리
+ * STREET_NM 필수, STREET_BUN_M/STREET_BUN_S/SO_ID 선택
  */
 
 export const searchStreetAddress = async (params: StreetAddressSearchRequest): Promise<ApiResponse<StreetAddressInfo[]>> => {
