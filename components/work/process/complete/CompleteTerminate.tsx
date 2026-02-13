@@ -600,7 +600,7 @@ const CompleteTerminate: React.FC<CompleteTerminateProps> = ({
                 // Address fields (from pendingASData)
                 POST_ID: pendingASData.POST_ID || '',
                 BLD_ID: pendingASData.BLD_ID || '',
-                BLD_CL: pendingASData.BLD_CL || '0',
+                BLD_CL: pendingASData.BLD_CL || '',
                 BLD_NM: pendingASData.BLD_NM || '',
                 BUN_CL: pendingASData.BUN_CL || '',
                 BUN_NO: pendingASData.BUN_NO || '',
@@ -862,7 +862,7 @@ const CompleteTerminate: React.FC<CompleteTerminateProps> = ({
         addressInfo={{
           POST_ID: (order as any).POST_ID || '',
           BLD_ID: (order as any).BLD_ID || '',
-          BLD_CL: (order as any).BLD_CL || '0',
+          BLD_CL: (order as any).BLD_CL || '',
           BLD_NM: (order as any).BLD_NM || '',
           BUN_CL: (order as any).BUN_CL || '',
           BUN_NO: (order as any).BUN_NO || '',

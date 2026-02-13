@@ -4235,7 +4235,7 @@ export const modAsPdaReceipt = async (params: {
       // Address fields
       POST_ID: params.POST_ID || '',
       BLD_ID: params.BLD_ID || '',
-      BLD_CL: params.BLD_CL || '0',
+      BLD_CL: params.BLD_CL || '',
       BLD_NM: params.BLD_NM || '',
       BUN_CL: params.BUN_CL || '',
       BUN_NO: params.BUN_NO || '',

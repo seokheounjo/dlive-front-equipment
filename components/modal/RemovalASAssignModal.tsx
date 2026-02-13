@@ -189,7 +189,7 @@ const RemovalASAssignModal: React.FC<RemovalASAssignModalProps> = ({
       // Address fields (legacy ds_cust_info)
       POST_ID: addressInfo?.POST_ID || '',
       BLD_ID: addressInfo?.BLD_ID || '',
-      BLD_CL: addressInfo?.BLD_CL || '0',
+      BLD_CL: addressInfo?.BLD_CL || '',
       BLD_NM: addressInfo?.BLD_NM || '',
       BUN_CL: addressInfo?.BUN_CL || '',
       BUN_NO: addressInfo?.BUN_NO || '',
