@@ -1245,6 +1245,21 @@ export const getHPPayList = async (custId: string): Promise<ApiResponse<HPPayInf
   return apiCall<HPPayInfo[]>('/customer/negociation/getHPPayList', { CUST_ID: custId });
 };
 
+/**
+ * 휴대폰결제(선불) 신청/해지
+ * API: customer/negociation/saveHPPayInfo
+ */
+export const saveHPPayInfo = async (params: {
+  CUST_ID: string;
+  CTRT_ID: string;
+  HP_PAY_STAT: string;  // 'Y'=신청, 'N'=해지
+  SO_ID?: string;
+  MST_SO_ID?: string;
+  USR_ID?: string;
+}): Promise<ApiResponse<any>> => {
+  return apiCall<any>('/customer/negociation/saveHPPayInfo', params);
+};
+
 // ============ 이력 조회 API ============
 
 /**

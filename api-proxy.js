@@ -314,6 +314,7 @@ router.post('/customer/negociation/getCustAccountInfo', handleProxy);
 router.post('/customer/negociation/getCustDpstInfo', handleProxy);
 router.post('/customer/negociation/getCustPymInfo', handleProxy);
 router.post('/customer/negociation/getHPPayList', handleProxy);
+router.post('/customer/negociation/saveHPPayInfo', handleProxy);  // HP Pay apply/cancel
 router.post('/billing/unpayment/upreport/getUnpaymentNowList', handleProxy);
 router.post('/billing/unpayment/upreport/getUnpaymentNowDtlList', handleProxy);
 // 3-1. Card Payment (미납금 카드수납)

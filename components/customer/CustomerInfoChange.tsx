@@ -30,6 +30,7 @@ import {
   StreetAddressInfo,
   registerConsultation,
   ConsultationRequest,
+  saveHPPayInfo,
   getBankCodesDLive,
   getCardCompanyCodes,
   getPayerRelationCodes,
@@ -657,25 +658,45 @@ const CustomerInfoChange: React.FC<CustomerInfoChangeProps> = ({
   const executeHpPayChange = async (item: HPPayInfo, actionText: string) => {
     if (!selectedCustomer) return;
 
+    const isApply = actionText === '신청';
+    const userInfo = JSON.parse(sessionStorage.getItem('userInfo') || localStorage.getItem('userInfo') || '{}');
+
     try {
-      // 상담 등록 요청 (ConsultationRequest 인터페이스에 맞게)
+      // 1차: 직접 HP Pay 상태 변경 API 호출
+      const saveParams = {
+        CUST_ID: selectedCustomer.custId,
+        CTRT_ID: item.CTRT_ID,
+        HP_PAY_STAT: isApply ? 'Y' : 'N',
+        SO_ID: selectedContract?.soId || userInfo.soId || '',
+        MST_SO_ID: userInfo.mstSoId || '200',
+        USR_ID: userInfo.userId || userInfo.USR_ID || ''
+      };
+
+      const response = await saveHPPayInfo(saveParams);
+
+      if (response.success) {
+        showAlert(`휴대폰결제 ${actionText} 완료되었습니다.`, 'success');
+        loadHpPayList();
+        return;
+      }
+
+      // 2차: 직접 변경 실패 시 상담 등록으로 폴백
+      console.warn('HP Pay direct save failed, falling back to consultation:', response.message);
       const consultParams: Partial<ConsultationRequest> = {
         CUST_ID: selectedCustomer.custId,
         CTRT_ID: item.CTRT_ID,
-        CNSL_MST_CL: '04',  // 대분류: 기타
-        CNSL_MID_CL: '0401',  // 중분류: 기타 일반
-        CNSL_SLV_CL: '040101',  // 소분류: 기타
+        CNSL_MST_CL: '04',
+        CNSL_MID_CL: '0401',
+        CNSL_SLV_CL: '040101',
         REQ_CTX: `[휴대폰결제 ${actionText} 요청]\n상품: ${item.PROD_NM}\n계약ID: ${item.CTRT_ID}\n현재상태: ${item.HP_STAT || '미신청'}\n요청: ${actionText}`
       };
 
-      const response = await registerConsultation(consultParams as ConsultationRequest);
-
-      if (response.success) {
-        showAlert(`휴대폰결제 ${actionText} 요청이 접수되었습니다.`, 'success');
-        // 목록 새로고침
+      const consultResponse = await registerConsultation(consultParams as ConsultationRequest);
+      if (consultResponse.success) {
+        showAlert(`휴대폰결제 ${actionText} 상담이 접수되었습니다. 담당자 확인 후 처리됩니다.`, 'info');
         loadHpPayList();
       } else {
-        showAlert(response.message || `${actionText} 요청 접수에 실패했습니다.`, 'error');
+        showAlert(consultResponse.message || `${actionText} 요청에 실패했습니다.`, 'error');
       }
     } catch (error) {
       console.error('HP Pay change error:', error);
