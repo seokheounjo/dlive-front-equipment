@@ -332,7 +332,7 @@ router.post('/customer/negociation/getCustWorkList', handleProxy);
 router.post('/customer/negociation/updateCustTelDetailInfo', handleProxy);
 router.post('/customer/etc/saveMargeAddrOrdInfo', handleProxy);
 router.post('/customer/etc/savePymAddrInfo', handleProxy);
-router.post('/customer/customer/general/customerPymChgAddManager', handleProxy);  // Now goes through adapter (backend fix deployed)
+router.post('/customer/customer/general/customerPymChgAddManager', handlePaymentMethodChange);
 router.post('/customer/customer/general/addCustomerPymInfoChange', handleProxy);
 // 6. Consultation/AS
 router.post('/customer/negociation/saveCnslRcptInfo', handleProxy);
@@ -512,10 +512,12 @@ async function handlePaymentMethodChange(req, res) {
     console.log('[PaymentMethodChange] Mobile params:', JSON.stringify(mobileParams, null, 2));
     console.log('[PaymentMethodChange] ACCESS_TICKET userId:', userId);
 
-    // 5. 순차 시도: savePymAtmtApplInfo → addCustomerPymChgInfo
+    // 5. 순차 시도: addCustomerPymChgInfo(MERGED_LIST) → savePymAtmtApplInfo(ARGUMENT_VARIABLES)
+    // customerPymChgAddManager.req를 먼저 시도 (MERGED_LIST 방식으로 데이터 전달, NPE 방지)
+    // savePymAtmtApplInfo.req는 ARGUMENT_VARIABLES를 기대하여 NPE 발생 가능
     const endpoints = [
-      { url: '/customer/customer/general/savePymAtmtApplInfo.req', params: mobileParams, name: 'savePymAtmtApplInfo' },
-      { url: '/customer/customer/general/customerPymChgAddManager.req', params: desktopParams, name: 'addCustomerPymChgInfo' }
+      { url: '/customer/customer/general/customerPymChgAddManager.req', params: desktopParams, name: 'addCustomerPymChgInfo' },
+      { url: '/customer/customer/general/savePymAtmtApplInfo.req', params: mobileParams, name: 'savePymAtmtApplInfo' }
     ];
 
     callLegacyReqEndpoint(endpoints, 0, accessTicket, res);
@@ -594,9 +596,10 @@ function callLegacyReqEndpoint(endpoints, index, accessTicket, res) {
 
       if (errorCode && errorCode !== '0') {
         console.error('[PaymentMethodChange] [' + ep.name + '] CONA error: code=' + errorCode + ', reason=' + errorReason);
-        // 세션/인증 에러는 다음 엔드포인트로 시도
-        if (errorCode === '-200' || (errorReason && (errorReason.includes('로그인') || errorReason.includes('인증')))) {
-          console.log('[PaymentMethodChange] Auth error, trying next endpoint...');
+        // 서버 에러(-1: NPE/Exception) 또는 세션/인증 에러(-200)는 다음 엔드포인트로 시도
+        if (errorCode === '-1' || errorCode === '-200' ||
+            (errorReason && (errorReason.includes('NullPointer') || errorReason.includes('로그인') || errorReason.includes('인증') || errorReason.includes('Exception')))) {
+          console.log('[PaymentMethodChange] Server/auth error (code=' + errorCode + '), trying next endpoint...');
           return callLegacyReqEndpoint(endpoints, index + 1, accessTicket, res);
         }
         // 비즈니스 에러는 그대로 반환 (실제 처리가 되었다는 뜻)
