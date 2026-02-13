@@ -1369,7 +1369,7 @@ export const updateInstallAddress = async (params: InstallAddressChangeRequest):
     APT_DONG_NO: params.APT_DONG_NO || '',
     APT_HO_CNT: params.APT_HO_CNT || '',
     ADDR_DTL: params.ADDR_DTL || '',
-    STREET_ID: params.STREET_ID || '',
+    STREET_ID: (params.STREET_ID || '').substring(0, 10),
     INSTL_LOC: params.INSTL_LOC || '',
     CUST_FLAG: params.CUST_FLAG || '0',
     PYM_FLAG: params.PYM_FLAG || '0',
