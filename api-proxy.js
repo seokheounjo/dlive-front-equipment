@@ -31,6 +31,8 @@ const LEGACY_REQ_ROUTES = [
   "/customer/equipment/getEqtTrnsList",  // 장비이동내역
   "/customer/work/getProd_Grp",  // AS접수 콤보상세 (상품그룹)
 
+  // 도로명주소 검색 - .req 서블릿으로 직접 라우팅
+  "/customer/common/customercommon/getStreetAddrList",
 ];
 
 // Parse MiPlatform XML response to JSON
