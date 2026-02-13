@@ -1168,6 +1168,7 @@ export interface PaymentAccountInfo {
   BANK_CARD_NO: string;      // 계좌/카드번호
   BILL_MTHD: string;         // 청구방법 (실물+이메일+SMS 등)
   UPYM_AMT_ACNT: number;     // 미납금액
+  SO_ID?: string;            // SO ID (계약 기반 매핑)
 }
 
 export const getPaymentAccountsRaw = async (custId: string): Promise<ApiResponse<PaymentAccountInfo[]>> => {
@@ -1202,7 +1203,8 @@ export const getPaymentAccounts = async (custId: string): Promise<ApiResponse<Pa
         BANK_CARD_NM: item.BANK_CARD_NM || null,
         BANK_CARD_NO: item.BANK_CARD_NO || null,
         BILL_MTHD: item.BILL_MTHD || '',
-        UPYM_AMT_ACNT: item.UPYM_AMT ?? item.UPYM_AMT_ACNT ?? 0
+        UPYM_AMT_ACNT: item.UPYM_AMT ?? item.UPYM_AMT_ACNT ?? 0,
+        SO_ID: item.SO_ID || undefined
       }));
 
     return { success: true, data: mapped, code: 'SUCCESS', message: 'OK' } as ApiResponse<PaymentAccountInfo[]>;

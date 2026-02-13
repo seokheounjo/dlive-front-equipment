@@ -477,16 +477,20 @@ const PaymentInfo: React.FC<PaymentInfoProps> = ({
           }
         }}
         soId={(() => {
-          // 선택된 납부계정(PYM_ACNT_ID)에 해당하는 계약의 SO_ID 사용
+          // 1순위: 선택된 납부계정의 SO_ID (API 응답에서 직접 제공)
+          if (selectedPymAcntId) {
+            const account = paymentAccounts.find(a => a.PYM_ACNT_ID === selectedPymAcntId);
+            if (account?.SO_ID) return account.SO_ID;
+          }
+          // 2순위: 계약 데이터에서 PYM_ACNT_ID → SO_ID 매핑
           if (selectedPymAcntId && contracts.length > 0) {
             const matchedAll = contracts.filter(c => c.PYM_ACNT_ID === selectedPymAcntId && c.SO_ID);
             if (matchedAll.length > 0) {
-              // 사용중(10) 계약 우선, 없으면 첫 번째
               const active = matchedAll.find(c => c.CTRT_STAT_CD === '10');
               return (active || matchedAll[0]).SO_ID!;
             }
           }
-          // fallback: 세션 정보
+          // 3순위: 세션 정보 fallback
           try {
             const u = JSON.parse(sessionStorage.getItem('userInfo') || localStorage.getItem('userInfo') || '{}');
             const list = u.authSoList || u.AUTH_SO_List || [];
