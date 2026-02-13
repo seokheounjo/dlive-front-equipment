@@ -149,38 +149,6 @@ const CustomerManagementMenu: React.FC<CustomerManagementMenuProps> = ({ onNavig
 
   const renderContent = () => {
     switch (activeTab) {
-      case 'basic-info':
-        return (
-          <CustomerBasicInfo
-            onBack={onNavigateToMenu}
-            showToast={showToast}
-            onContractSelect={handleContractSelect}
-            onNavigateToPaymentChange={handleNavigateToPaymentChange}
-            onNavigateToConsultationAS={(initialTab) => {
-              setConsultationASInitialTab(initialTab);
-              setActiveTab('consultation-as');
-            }}
-            onNavigateToAddressChange={() => {
-              setInfoChangeInitialSection('address');
-              setActiveTab('info-change');
-            }}
-            selectedCustomer={selectedCustomer}
-            savedContract={selectedContract}
-            cachedContracts={cachedContracts}
-            cachedConsultationHistory={cachedConsultationHistory}
-            cachedWorkHistory={cachedWorkHistory}
-            cachedDataCustId={cachedDataCustId}
-            onDataLoaded={handleDataLoaded}
-            paymentChangeInProgress={paymentChangeInProgress}
-            onCancelPaymentChange={() => {
-              setPaymentChangeInProgress(false);
-              setPaymentFormData(null);
-              setPaymentSelectedPymAcntId('');
-              setPaymentIsVerified(false);
-            }}
-            currentWorkingPymAcntId={paymentSelectedPymAcntId}
-          />
-        );
       case 'info-change':
         return (
           <CustomerInfoChange
@@ -282,7 +250,40 @@ const CustomerManagementMenu: React.FC<CustomerManagementMenuProps> = ({ onNavig
 
       {/* 콘텐츠 영역 - flex-1로 남은 공간 채움, 내부 스크롤 */}
       <div className="flex-1 overflow-hidden">
-        {renderContent()}
+        {/* 기본조회 - 항상 마운트 (탭 전환 시 상태 보존) */}
+        <div className={`h-full ${activeTab === 'basic-info' ? '' : 'hidden'}`}>
+          <CustomerBasicInfo
+            onBack={onNavigateToMenu}
+            showToast={showToast}
+            onContractSelect={handleContractSelect}
+            onNavigateToPaymentChange={handleNavigateToPaymentChange}
+            onNavigateToConsultationAS={(initialTab) => {
+              setConsultationASInitialTab(initialTab);
+              setActiveTab('consultation-as');
+            }}
+            onNavigateToAddressChange={() => {
+              setInfoChangeInitialSection('address');
+              setActiveTab('info-change');
+            }}
+            selectedCustomer={selectedCustomer}
+            savedContract={selectedContract}
+            cachedContracts={cachedContracts}
+            cachedConsultationHistory={cachedConsultationHistory}
+            cachedWorkHistory={cachedWorkHistory}
+            cachedDataCustId={cachedDataCustId}
+            onDataLoaded={handleDataLoaded}
+            paymentChangeInProgress={paymentChangeInProgress}
+            onCancelPaymentChange={() => {
+              setPaymentChangeInProgress(false);
+              setPaymentFormData(null);
+              setPaymentSelectedPymAcntId('');
+              setPaymentIsVerified(false);
+            }}
+            currentWorkingPymAcntId={paymentSelectedPymAcntId}
+          />
+        </div>
+        {/* 나머지 탭은 조건부 렌더링 */}
+        {activeTab !== 'basic-info' && renderContent()}
       </div>
 
     </div>
