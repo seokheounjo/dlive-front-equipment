@@ -160,7 +160,11 @@ const CustomerInfoChange: React.FC<CustomerInfoChangeProps> = ({
     // 주소 검색 결과에서 가져오는 추가 정보
     postId: '',             // 주소ID (POST_ID)
     streetId: '',           // 도로명ID (STREET_ID)
-    dongmyonNm: ''          // 읍면동명 (DONGMYON_NM)
+    dongmyonNm: '',         // 읍면동명 (DONGMYON_NM)
+    bldCl: '0',             // 건물구분 (0:일반, 1:건물, 2:아파트)
+    bldNm: '',              // 건물명
+    bunNo: '',              // 본번
+    hoNm: ''                // 부번(호명)
   });
 
   // 로딩/저장 상태
@@ -872,6 +876,10 @@ const CustomerInfoChange: React.FC<CustomerInfoChangeProps> = ({
       const installParams: InstallAddressChangeRequest = {
         CTRT_ID: selectedContract.ctrtId,
         POST_ID: addressForm.postId,
+        BLD_CL: addressForm.bldCl || '0',
+        BLD_NM: addressForm.bldNm || '',
+        BUN_NO: addressForm.bunNo || '',
+        HO_NM: addressForm.hoNm || '',
         ADDR_DTL: fullAddr,
         STREET_ID: addressForm.streetId || undefined,
         INSTL_LOC: currentInstallInfo.instlLoc || undefined,
@@ -895,7 +903,11 @@ const CustomerInfoChange: React.FC<CustomerInfoChangeProps> = ({
           changeBillAddr: false,
           postId: '',
           streetId: '',
-          dongmyonNm: ''
+          dongmyonNm: '',
+          bldCl: '0',
+          bldNm: '',
+          bunNo: '',
+          hoNm: ''
         });
         setSelectedPostId('');
       } else {
@@ -1070,6 +1082,10 @@ const CustomerInfoChange: React.FC<CustomerInfoChangeProps> = ({
 
   // 지번주소 선택
   const handleSelectPostAddress = (addr: PostAddressInfo) => {
+    // 건물구분: 건물명이 있으면 '1'(건물), 아파트면 '2', 없으면 '0'(일반)
+    const bldCl = addr.BLD_NM
+      ? (addr.BLD_NM.includes('아파트') || addr.BLD_NM.includes('APT') ? '2' : '1')
+      : '0';
     setAddressForm(prev => ({
       ...prev,
       zipCd: addr.ZIP_CD,
@@ -1077,7 +1093,11 @@ const CustomerInfoChange: React.FC<CustomerInfoChangeProps> = ({
       addr2: '',
       postId: addr.POST_ID,
       streetId: '',  // 지번주소는 도로명ID 없음
-      dongmyonNm: addr.DONGMYON_NM || ''
+      dongmyonNm: addr.DONGMYON_NM || '',
+      bldCl,
+      bldNm: addr.BLD_NM || '',
+      bunNo: addr.STRT_BUNGIHO || '',
+      hoNm: ''
     }));
     setSelectedPostId(addr.POST_ID);
     handleCloseAddressModal();
@@ -1086,6 +1106,10 @@ const CustomerInfoChange: React.FC<CustomerInfoChangeProps> = ({
 
   // 도로명주소 선택
   const handleSelectStreetAddress = (addr: StreetAddressInfo) => {
+    // 건물구분: 건물명이 있으면 '1'(건물), 아파트면 '2', 없으면 '0'(일반)
+    const bldCl = addr.BLD_NM
+      ? (addr.BLD_NM.includes('아파트') || addr.BLD_NM.includes('APT') ? '2' : '1')
+      : '0';
     setAddressForm(prev => ({
       ...prev,
       zipCd: addr.ZIP_CD,
@@ -1093,7 +1117,11 @@ const CustomerInfoChange: React.FC<CustomerInfoChangeProps> = ({
       addr2: '',
       postId: addr.POST_ID,
       streetId: addr.STREET_ID,
-      dongmyonNm: addr.DONGMYON_NM || addr.NM_SMALL || ''
+      dongmyonNm: addr.DONGMYON_NM || addr.NM_SMALL || '',
+      bldCl,
+      bldNm: addr.BLD_NM || '',
+      bunNo: addr.BUN_NO || '',
+      hoNm: addr.HO_NM || ''
     }));
     setSelectedPostId(addr.POST_ID);
     handleCloseAddressModal();
