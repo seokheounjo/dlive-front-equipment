@@ -3,6 +3,16 @@ import { Loader2, X, User, AlertCircle } from 'lucide-react';
 import { searchCustomerAll, getContractList, CustomerInfo, maskPhoneNumber } from '../../services/customerApi';
 import BarcodeScanner from '../equipment/BarcodeScanner';
 
+// ID 포맷 (3-3-4 형식) - 메인 화면 표시용
+const formatId = (id: string): string => {
+  if (!id) return '-';
+  const cleaned = id.replace(/[^0-9]/g, '');
+  if (cleaned.length === 10) {
+    return `${cleaned.slice(0, 3)}-${cleaned.slice(3, 6)}-${cleaned.slice(6, 10)}`;
+  }
+  return id;
+};
+
 // 숫자만 추출
 const extractDigits = (value: string): string => value.replace(/[^0-9]/g, '');
 
@@ -235,7 +245,7 @@ const CustomerSearch: React.FC<CustomerSearchProps> = ({ onCustomerSelect, onCus
                 className="flex-1 min-w-0 px-2 py-2 text-sm border border-gray-200 rounded-lg bg-gray-50 cursor-pointer"
                 placeholder="고객ID"
                 type="text"
-                value={selectedCustomer?.CUST_ID || ''}
+                value={selectedCustomer ? formatId(selectedCustomer.CUST_ID) : ''}
               />
             </div>
           </div>
