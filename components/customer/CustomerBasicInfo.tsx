@@ -17,9 +17,13 @@ import {
   WorkHistory
 } from '../../services/customerApi';
 
-// ID 표시 (숫자만)
+// ID 포맷 (3-3-4 형식)
 const formatId = (id: string): string => {
   if (!id) return '-';
+  const cleaned = id.replace(/[^0-9]/g, '');
+  if (cleaned.length === 10) {
+    return `${cleaned.slice(0, 3)}-${cleaned.slice(3, 6)}-${cleaned.slice(6, 10)}`;
+  }
   return id;
 };
 

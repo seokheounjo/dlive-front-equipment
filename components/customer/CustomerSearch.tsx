@@ -194,7 +194,7 @@ const CustomerSearch: React.FC<CustomerSearchProps> = ({ onCustomerSelect, onCus
   const handleSelectCustomer = (customer: CustomerInfo) => {
     // 폼 필드에 선택된 고객 정보 채우기 (포맷팅 적용)
     setCustomerId(customer.CUST_ID || '');
-    setPhoneNumber(customer.TEL_NO || customer.HP_NO || '');
+    setPhoneNumber(extractDigits(customer.TEL_NO || customer.HP_NO || ''));
     setCustomerName(customer.CUST_NM || '');
     // 계약ID: 결과에 CTRT_ID가 있으면 유지, 없으면 기존 입력값 보존
     if (customer.CTRT_ID) {
