@@ -900,6 +900,129 @@ async function handleProxy(req, res) {
       proxyRes.on('end', () => {
         const responseBody = Buffer.concat(chunks).toString();
 
+        // ============ ADAPTER FALLBACK: .req 자동 폴백 ============
+        // 어댑터 서블릿 에러(SRVE0207E/SRVE0255E) 시 .req 엔드포인트로 자동 재시도
+        if (!isLegacyReq && (proxyRes.statusCode === 500 || proxyRes.statusCode === 404) &&
+            (responseBody.includes('SRVE0207E') || responseBody.includes('SRVE0255E'))) {
+          console.log('[PROXY] ⚠ Adapter servlet error, falling back to .req endpoint');
+          const reqPath = apiPath + '.req';
+          const reqUrl = DLIVE_API_BASE + reqPath;
+          const xmlData = jsonToMiPlatformXML('DS_INPUT', req.body || {});
+          console.log('[PROXY] Fallback .req:', reqUrl);
+          console.log('[PROXY] Fallback XML:', xmlData.substring(0, 300));
+
+          const fbOpts = {
+            hostname: parsedUrl.hostname,
+            port: parsedUrl.port || 80,
+            path: reqPath,
+            method: 'POST',
+            headers: {
+              'Content-Type': 'text/xml; charset=UTF-8',
+              'Content-Length': Buffer.byteLength(xmlData, 'utf8'),
+              'Host': parsedUrl.host
+            },
+            timeout: 60000
+          };
+          // JSESSIONID 주입
+          {
+            let fbCookie = req.headers.cookie || '';
+            if (storedJSessionId && !fbCookie.includes('JSESSIONID')) {
+              fbCookie = (fbCookie ? fbCookie + '; ' : '') + 'JSESSIONID=' + storedJSessionId;
+            }
+            if (fbCookie) fbOpts.headers['Cookie'] = fbCookie;
+          }
+
+          const fbReq = http.request(fbOpts, (fbRes) => {
+            // Capture JSESSIONID from fallback response
+            const fbSetCookies = fbRes.headers['set-cookie'];
+            if (fbSetCookies) {
+              (Array.isArray(fbSetCookies) ? fbSetCookies : [fbSetCookies]).forEach(c => {
+                const m = c.match(/JSESSIONID=([^;]+)/);
+                if (m) { storedJSessionId = m[1]; }
+              });
+            }
+            let fbChunks = [];
+            fbRes.on('data', c => fbChunks.push(c));
+            fbRes.on('end', () => {
+              const fbBody = Buffer.concat(fbChunks).toString();
+              console.log('[PROXY] Fallback response:', fbRes.statusCode, fbBody.substring(0, 300));
+
+              res.setHeader('Content-Type', 'application/json; charset=utf-8');
+              res.setHeader('Access-Control-Allow-Origin', req.headers.origin || '*');
+              res.setHeader('Access-Control-Allow-Credentials', 'true');
+
+              // Parse XML <record> format
+              if (fbBody.includes('<record>')) {
+                const jsonData = parseMiPlatformXMLtoJSON(fbBody);
+                if (jsonData) {
+                  let dataArr = Array.isArray(jsonData) ? jsonData : [jsonData];
+                  if (streetAddrFilter && streetAddrFilter.STREET_NM) {
+                    const nm = streetAddrFilter.STREET_NM.toLowerCase();
+                    dataArr = dataArr.filter(item => {
+                      const a1 = (item.STREET_ADDR || '').toLowerCase();
+                      const a2 = (item.ADDR || '').toLowerCase();
+                      return a1.includes(nm) || a2.includes(nm);
+                    });
+                    console.log('[PROXY] 도로명 필터 (.req fallback): ' + dataArr.length + '건');
+                  }
+                  return res.json({ code: 'SUCCESS', message: 'OK', data: dataArr });
+                }
+              }
+              // Parse XML <params>/<param> format
+              if (fbBody.includes('<params>') || fbBody.includes('<param ')) {
+                const jsonData = parseMiPlatformParamsXMLtoJSON(fbBody);
+                if (jsonData) {
+                  const isSuccess = (jsonData.MESSAGE === 'SUCCESS' || jsonData.MSGCODE === 'SUCCESS' || jsonData.RESULT === '0');
+                  const isError = (jsonData.ErrorCode === '-200' || jsonData.ExceptionReason);
+                  return res.json({
+                    code: isError ? 'CONA_ERROR' : (isSuccess ? 'SUCCESS' : (jsonData.MSGCODE || jsonData.RESULT || 'UNKNOWN')),
+                    message: isError ? (jsonData.ExceptionReason || 'Error') : (isSuccess ? 'OK' : (jsonData.MESSAGE || '')),
+                    data: jsonData
+                  });
+                }
+              }
+              // Parse XML <Col> Dataset format
+              if (fbBody.includes('<Col ')) {
+                const jsonData = parseMiPlatformDatasetXMLtoJSON(fbBody);
+                if (jsonData) {
+                  let dataArr = Array.isArray(jsonData) ? jsonData : [jsonData];
+                  if (streetAddrFilter && streetAddrFilter.STREET_NM) {
+                    const nm = streetAddrFilter.STREET_NM.toLowerCase();
+                    dataArr = dataArr.filter(item => {
+                      const a1 = (item.STREET_ADDR || '').toLowerCase();
+                      const a2 = (item.ADDR || '').toLowerCase();
+                      return a1.includes(nm) || a2.includes(nm);
+                    });
+                  }
+                  return res.json({ code: 'SUCCESS', message: 'OK', data: dataArr });
+                }
+              }
+              // Fallback: raw response
+              if (fbRes.statusCode >= 400) {
+                return res.status(fbRes.statusCode).json({
+                  code: 'CONA_ERROR',
+                  message: fbBody.substring(0, 300),
+                  data: null
+                });
+              }
+              res.status(fbRes.statusCode).send(fbBody);
+            });
+          });
+          fbReq.on('error', (err) => {
+            console.error('[PROXY] Fallback .req error:', err.message);
+            res.status(500).json({ code: 'PROXY_ERROR', message: 'Adapter & .req both failed: ' + err.message });
+          });
+          fbReq.on('timeout', () => {
+            fbReq.destroy();
+            console.error('[PROXY] Fallback .req timeout');
+            res.status(504).json({ code: 'TIMEOUT', message: '.req fallback timeout' });
+          });
+          fbReq.write(xmlData);
+          fbReq.end();
+          return;
+        }
+        // ============ END ADAPTER FALLBACK ============
+
         // Log response for debugging (pretty print JSON)
         try {
           const jsonResponse = JSON.parse(responseBody);
