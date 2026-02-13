@@ -8,6 +8,7 @@ const DLIVE_API_BASE = process.env.DLIVE_API_BASE || 'http://58.143.140.222:8080
 
 // CONA JSESSIONID 저장 (로그인 시 캡처, 이후 모든 요청에 주입)
 let storedJSessionId = null;
+let storedUserId = null;  // 로그인한 사용자 ID (ACCESS_TICKET용)
 
 // Path mapping from frontend API to D'Live legacy API
 const PATH_MAPPING = {
@@ -165,8 +166,8 @@ function jsonToMiPlatformXML(datasetName, jsonData) {
   });
   rowData += '</Row>';
 
-  // Full XML structure
-  return `<?xml version="1.0" encoding="UTF-8"?>
+  // Full XML structure (euc-kr: CONA PlatformRequest uses euc-kr charset)
+  return `<?xml version="1.0" encoding="euc-kr"?>
 <Root xmlns="http://www.tobesoft.com/platform/dataset">
 <Dataset id="${datasetName}">
 <ColumnInfo>${columnInfo}</ColumnInfo>
@@ -424,31 +425,44 @@ router.get('/customer/debug/customerEtcManagement/methods', handleProxy);
 router.get('/customer/debug/sampleHistoryData', handleProxy);
 
 // === 납부방법 변경 특별 핸들러 ===
-// 어댑터의 addCustomerPymChgInfo (잘못된 메서드명) 대신
-// 레거시 savePymAtmtApplInfo.req (모바일용 프로시저) 직접 호출
+// 어댑터의 addCustomerPymChgInfo (잘못된 메서드명: saveHdcPymAcntInfo로 fallback) 대신
+// 레거시 .req 엔드포인트 직접 호출 (ACCESS_TICKET으로 UserVO 인증 우회)
+//
+// 전략:
+// 1차: savePymAtmtApplInfo.req (모바일용, ARGUMENT_VARIABLES 사용, UPPERCASE 파라미터)
+// 2차: customerPymChgAddManager.req (데스크톱용, MERGED_LIST 사용, lowercase 파라미터)
+// 어댑터 fallback 없음 (어댑터가 saveHdcPymAcntInfo 호출하여 실제 DB 변경 안 됨)
 async function handlePaymentMethodChange(req, res) {
   try {
     const body = req.body || {};
     console.log('\n========== [PaymentMethodChange] ==========');
     console.log('Input params:', JSON.stringify(body, null, 2));
 
-    // 1. 파라미터 매핑 (프론트엔드 → 레거시 savePymAtmtApplInfo 프로시저)
+    // 1. ACCESS_TICKET 구성 (Authentication.java의 UserVO 자동생성 우회)
+    // 형식: userId###fileUUID###expireDate
+    const userId = body.USR_ID || storedUserId || '';
+    if (!userId) {
+      return res.json({ success: false, code: 'NO_USER', message: '로그인이 필요합니다 (USR_ID 없음)', data: {} });
+    }
+    const accessTicket = encodeURIComponent(userId + '###payment-change###2099/01/01_00:00:00:0000');
+
+    // 2. 파라미터 매핑
     const pymMthCd = body.PYM_MTH_CD || body.PYM_MTHD || '';
     let pymMthd = pymMthCd;
-    // 코드 변환: 01(자동이체)→02, 02(카드)→04
+    // 코드 변환: 프론트 01(자동이체)→CONA 02, 프론트 02(카드)→CONA 04
     if (pymMthCd === '01') pymMthd = '02';
     else if (pymMthCd === '02') pymMthd = '04';
 
-    const bankCard = body.BANK_CD || body.CARD_CO_CD || body.BANK_CARD || '';
+    const bankCard = body.BANK_CD || body.CARD_CO_CD || body.BNK_CARD_CD || body.BANK_CARD || '';
     const acntNo = body.ACNT_NO || body.CARD_NO || body.ACNT_CARD_NO || '';
     const ownerNm = body.ACNT_OWNER_NM || body.PYM_CUST_NM || '';
     const cardValidYm = body.CARD_VALID_YM || body.CDTCD_EXP_DT || '';
     const payDay = body.PAY_DAY_CD || body.PYM_CARD_DATE || body.PYM_HOPE_DD || '';
     const birthDt = body.BIRTH_DT || body.PYM_CUST_CRRNO || body.RSDTNO || '';
     const pyrRel = body.PAYER_REL_CD || body.PYR_REL || '';
-    const changeResn = body.CHG_RESN_M_CD || body.CHG_RESN_L_CD || body.PMC_RESN || '';
 
-    const legacyParams = {
+    // 3. savePymAtmtApplInfo용 UPPERCASE 파라미터 (pcmcu_pym_mthd_mobile_upd 프로시저)
+    const mobileParams = {
       PYM_ACNT_ID: body.PYM_ACNT_ID || '',
       RCPT_ID: body.RCPT_ID || '',
       PYM_MTHD: pymMthd,
@@ -456,7 +470,7 @@ async function handlePaymentMethodChange(req, res) {
       BNK_CARD_CD: bankCard,
       ACNT_NO: acntNo,
       RSDTNO: birthDt,
-      CARD_CL: body.CARD_CL || body.partnerCardCd || '',
+      CARD_CL: body.CARD_CL || '',
       REQR_NM: body.REQR_NM || ownerNm,
       PYR_REL: pyrRel,
       CDTCD_EXP_DT: cardValidYm,
@@ -464,115 +478,180 @@ async function handlePaymentMethodChange(req, res) {
       CORP_CD: body.CORP_CD || '',
       PYM_HOPE_DD: payDay,
       ATRT_CRR_ID: body.ATRT_CRR_ID || body.SO_ID || '',
-      ATRT_EMP_ID: body.ATRT_EMP_ID || body.USR_ID || '',
-      REG_UID: body.USR_ID || body.REG_UID || ''
+      ATRT_EMP_ID: body.ATRT_EMP_ID || userId,
+      REG_UID: userId
     };
 
-    console.log('Mapped legacy params:', JSON.stringify(legacyParams, null, 2));
-
-    // 2. JSESSIONID 확인
-    if (!storedJSessionId) {
-      console.log('[PaymentMethodChange] No JSESSIONID, falling back to adapter');
-      return handleProxy(req, res);
-    }
-
-    // 3. MiPlatform XML 생성 (DS_INPUT 데이터셋)
-    const xmlBody = jsonToMiPlatformXML('DS_INPUT', legacyParams);
-    console.log('[PaymentMethodChange] XML request:', xmlBody.substring(0, 500));
-
-    // 4. savePymAtmtApplInfo.req 직접 호출
-    const targetUrl = DLIVE_API_BASE + '/customer/customer/general/savePymAtmtApplInfo.req';
-    console.log('[PaymentMethodChange] Calling:', targetUrl);
-
-    const http = require('http');
-    const url = require('url');
-    const parsedUrl = url.parse(targetUrl);
-    const postData = Buffer.from(xmlBody, 'utf-8');
-
-    const options = {
-      hostname: parsedUrl.hostname,
-      port: parsedUrl.port || 80,
-      path: parsedUrl.path,
-      method: 'POST',
-      headers: {
-        'Content-Type': 'text/xml; charset=utf-8',
-        'Content-Length': postData.length,
-        'Cookie': 'JSESSIONID=' + storedJSessionId
-      },
-      timeout: 30000
+    // 4. addCustomerPymChgInfo용 lowercase 파라미터 (pcmcu_pym_mthd_card_info_upd 프로시저)
+    const desktopParams = {
+      pym_mthd: pymMthd,
+      bank_card: bankCard,
+      acnt_card_no: acntNo,
+      pym_card_date: payDay,
+      pym_cust_nm: ownerNm,
+      pym_cust_crrno: birthDt,
+      pyr_rel: pyrRel,
+      pmc_resn: body.CHG_RESN_M_CD || body.CHG_RESN_L_CD || body.PMC_RESN || '',
+      cdtcd_exp_dt: cardValidYm,
+      partner_card_cd: body.CARD_CL || '',
+      pym_acnt_id: body.PYM_ACNT_ID || '',
+      ctrt_id: body.CTRT_ID || '',
+      cust_id: body.CUST_ID || '',
+      so_id: body.SO_ID || '',
+      user_id: userId,
+      // 프로시저 필수 기본값들
+      bill_mdm_cd: '01',
+      bill_mdm_email: '',
+      bill_mdm_hp: '',
+      bill_mdm_fax: '',
+      rlnm_tp_cd: body.RLNM_TP_CD || 'N',
+      atrt_crr_id: body.ATRT_CRR_ID || body.SO_ID || '',
+      atrt_emp_id: body.ATRT_EMP_ID || userId
     };
 
-    const proxyReq = http.request(options, (proxyRes) => {
-      let chunks = [];
-      proxyRes.on('data', (chunk) => chunks.push(chunk));
-      proxyRes.on('end', () => {
-        const rawBuffer = Buffer.concat(chunks);
-        let responseText;
-        try {
-          responseText = iconv.decode(rawBuffer, 'euc-kr');
-        } catch (e) {
-          responseText = rawBuffer.toString('utf-8');
-        }
-        console.log('[PaymentMethodChange] Response status:', proxyRes.statusCode);
-        console.log('[PaymentMethodChange] Response body:', responseText.substring(0, 500));
+    console.log('[PaymentMethodChange] Mobile params:', JSON.stringify(mobileParams, null, 2));
+    console.log('[PaymentMethodChange] ACCESS_TICKET userId:', userId);
 
-        // Check for CONA error codes first
-        const errorCodeMatch = responseText.match(/ErrorCode[^>]*>([^<]+)/);
-        const errorReasonMatch = responseText.match(/ExceptionReason[^>]*>([^<]+)/);
-        const errorCode = errorCodeMatch ? errorCodeMatch[1].trim() : null;
-        const errorReason = errorReasonMatch ? errorReasonMatch[1].replace(/&#32;/g, ' ').replace(/&#10;/g, '\n') : null;
+    // 5. 순차 시도: savePymAtmtApplInfo → addCustomerPymChgInfo
+    const endpoints = [
+      { url: '/customer/customer/general/savePymAtmtApplInfo.req', params: mobileParams, name: 'savePymAtmtApplInfo' },
+      { url: '/customer/customer/general/customerPymChgAddManager.req', params: desktopParams, name: 'addCustomerPymChgInfo' }
+    ];
 
-        if (errorCode && errorCode !== '0') {
-          console.error('[PaymentMethodChange] CONA error: code=' + errorCode + ', reason=' + errorReason);
-          if (errorCode === '-200' || (errorReason && errorReason.includes('로그인'))) {
-            // 세션 만료 → 어댑터로 fallback
-            console.log('[PaymentMethodChange] Session expired, falling back to adapter');
-            return handleProxy(req, res);
-          }
-          return res.json({ success: false, code: 'CONA_ERROR', message: errorReason || 'CONA server error (code: ' + errorCode + ')', data: {} });
-        }
-
-        // Parse MiPlatform dataset response
-        const parsed = parseMiPlatformDatasetXMLtoJSON(responseText);
-        if (parsed) {
-          const data = Array.isArray(parsed) ? parsed[0] : parsed;
-          const msgCode = data.MSGCODE || data.MSG_CODE || '';
-          const message = data.MESSAGE || data.MSG || '';
-          console.log('[PaymentMethodChange] MSGCODE:', msgCode, 'MESSAGE:', message);
-          if (msgCode && msgCode !== '' && msgCode !== 'SUCCESS' && msgCode !== '0') {
-            return res.json({ success: false, code: msgCode, message: message || 'Payment change failed', data: data });
-          }
-          res.json({ success: true, code: msgCode || 'SUCCESS', message: message || 'Payment method changed', data: data });
-        } else if (responseText.includes('responseSuccess') || (errorCode === '0')) {
-          res.json({ success: true, code: 'SUCCESS', message: 'Payment method changed successfully', data: {} });
-        } else {
-          console.error('[PaymentMethodChange] Unexpected response:', responseText.substring(0, 300));
-          console.log('[PaymentMethodChange] Falling back to adapter');
-          return handleProxy(req, res);
-        }
-      });
-    });
-
-    proxyReq.on('error', (err) => {
-      console.error('[PaymentMethodChange] Request error:', err.message);
-      // Fallback: 어댑터 경유
-      handleProxy(req, res);
-    });
-
-    proxyReq.on('timeout', () => {
-      proxyReq.destroy();
-      console.error('[PaymentMethodChange] Request timeout');
-      handleProxy(req, res);
-    });
-
-    proxyReq.write(postData);
-    proxyReq.end();
+    callLegacyReqEndpoint(endpoints, 0, accessTicket, res);
 
   } catch (error) {
     console.error('[PaymentMethodChange] Error:', error.message);
-    // Fallback: 어댑터 경유
-    handleProxy(req, res);
+    res.json({ success: false, code: 'ERROR', message: error.message, data: {} });
   }
+}
+
+// .req 엔드포인트를 순차적으로 시도하는 함수
+function callLegacyReqEndpoint(endpoints, index, accessTicket, res) {
+  if (index >= endpoints.length) {
+    return res.json({ success: false, code: 'ALL_FAILED', message: '모든 납부변경 경로가 실패했습니다. CONA 서버 연결을 확인하세요.', data: {} });
+  }
+
+  const ep = endpoints[index];
+  const xmlBody = jsonToMiPlatformXML('DS_INPUT', ep.params);
+
+  // euc-kr 인코딩 (CONA PlatformRequest가 euc-kr로 읽음)
+  const postData = iconv.encode(xmlBody, 'euc-kr');
+
+  const targetUrl = DLIVE_API_BASE + ep.url + '?ACCESS_TICKET=' + accessTicket;
+  console.log('[PaymentMethodChange] [' + (index + 1) + '/' + endpoints.length + '] Calling: ' + ep.name);
+  console.log('[PaymentMethodChange] URL:', targetUrl);
+
+  const http = require('http');
+  const urlMod = require('url');
+  const parsedUrl = urlMod.parse(targetUrl);
+
+  const options = {
+    hostname: parsedUrl.hostname,
+    port: parsedUrl.port || 80,
+    path: parsedUrl.path,
+    method: 'POST',
+    headers: {
+      'Content-Type': 'text/xml; charset=euc-kr',
+      'Content-Length': postData.length,
+      'Cookie': storedJSessionId ? 'JSESSIONID=' + storedJSessionId : ''
+    },
+    timeout: 30000
+  };
+
+  const proxyReq = http.request(options, (proxyRes) => {
+    let chunks = [];
+    proxyRes.on('data', (chunk) => chunks.push(chunk));
+    proxyRes.on('end', () => {
+      const rawBuffer = Buffer.concat(chunks);
+      let responseText;
+      try {
+        responseText = iconv.decode(rawBuffer, 'euc-kr');
+      } catch (e) {
+        responseText = rawBuffer.toString('utf-8');
+      }
+      console.log('[PaymentMethodChange] [' + ep.name + '] Status:', proxyRes.statusCode);
+      console.log('[PaymentMethodChange] [' + ep.name + '] Response:', responseText.substring(0, 800));
+
+      // JSESSIONID 캡처 (새 세션이 생성될 수 있음)
+      const setCookies = proxyRes.headers['set-cookie'];
+      if (setCookies) {
+        const arr = Array.isArray(setCookies) ? setCookies : [setCookies];
+        arr.forEach(c => {
+          const match = c.match(/JSESSIONID=([^;]+)/);
+          if (match) {
+            storedJSessionId = match[1];
+            console.log('[PaymentMethodChange] Captured new JSESSIONID');
+          }
+        });
+      }
+
+      // CONA 에러 코드 확인
+      const errorCodeMatch = responseText.match(/ErrorCode[^>]*>([^<]+)/);
+      const errorReasonMatch = responseText.match(/ExceptionReason[^>]*>([^<]+)/);
+      const errorCode = errorCodeMatch ? errorCodeMatch[1].trim() : null;
+      const errorReason = errorReasonMatch ? errorReasonMatch[1].replace(/&#32;/g, ' ').replace(/&#10;/g, '\n') : null;
+
+      if (errorCode && errorCode !== '0') {
+        console.error('[PaymentMethodChange] [' + ep.name + '] CONA error: code=' + errorCode + ', reason=' + errorReason);
+        // 세션/인증 에러는 다음 엔드포인트로 시도
+        if (errorCode === '-200' || (errorReason && (errorReason.includes('로그인') || errorReason.includes('인증')))) {
+          console.log('[PaymentMethodChange] Auth error, trying next endpoint...');
+          return callLegacyReqEndpoint(endpoints, index + 1, accessTicket, res);
+        }
+        // 비즈니스 에러는 그대로 반환 (실제 처리가 되었다는 뜻)
+        return res.json({ success: false, code: 'CONA_ERROR', message: errorReason || 'CONA error (code: ' + errorCode + ')', data: {} });
+      }
+
+      // MiPlatform dataset 응답 파싱
+      const parsed = parseMiPlatformDatasetXMLtoJSON(responseText);
+      if (parsed) {
+        const data = Array.isArray(parsed) ? parsed[0] : parsed;
+        const msgCode = data.MSGCODE || data.MSG_CODE || '';
+        const message = data.MESSAGE || data.MSG || '';
+        console.log('[PaymentMethodChange] [' + ep.name + '] MSGCODE:', msgCode, 'MESSAGE:', message);
+        if (msgCode && msgCode !== '' && msgCode !== 'SUCCESS' && msgCode !== '0') {
+          return res.json({ success: false, code: msgCode, message: message || '납부변경 실패', data: data });
+        }
+        return res.json({ success: true, code: msgCode || 'SUCCESS', message: message || '납부방법이 변경되었습니다', data: data });
+      }
+
+      // responseSuccess 뷰 (ModelAndView("responseSuccess"))
+      if (responseText.includes('responseSuccess') || responseText.includes('ErrorCode>0<')) {
+        return res.json({ success: true, code: 'SUCCESS', message: '납부방법이 변경되었습니다', data: {} });
+      }
+
+      // MiPlatform <params> 형식 응답
+      const paramsData = parseMiPlatformParamsXMLtoJSON(responseText);
+      if (paramsData) {
+        const msgCode = paramsData.MSGCODE || paramsData.MSG_CODE || '';
+        const message = paramsData.MESSAGE || paramsData.MSG || '';
+        if (paramsData.ErrorCode === '-200' || msgCode === '') {
+          console.log('[PaymentMethodChange] [' + ep.name + '] Empty/error response, trying next...');
+          return callLegacyReqEndpoint(endpoints, index + 1, accessTicket, res);
+        }
+        return res.json({ success: true, code: msgCode || 'SUCCESS', message: message || '납부방법이 변경되었습니다', data: paramsData });
+      }
+
+      // 알 수 없는 응답 → 다음 엔드포인트 시도
+      console.log('[PaymentMethodChange] [' + ep.name + '] Unknown response format, trying next...');
+      callLegacyReqEndpoint(endpoints, index + 1, accessTicket, res);
+    });
+  });
+
+  proxyReq.on('error', (err) => {
+    console.error('[PaymentMethodChange] [' + ep.name + '] Request error:', err.message);
+    callLegacyReqEndpoint(endpoints, index + 1, accessTicket, res);
+  });
+
+  proxyReq.on('timeout', () => {
+    proxyReq.destroy();
+    console.error('[PaymentMethodChange] [' + ep.name + '] Timeout');
+    callLegacyReqEndpoint(endpoints, index + 1, accessTicket, res);
+  });
+
+  proxyReq.write(postData);
+  proxyReq.end();
 }
 
 async function handleProxy(req, res) {
@@ -771,6 +850,11 @@ async function handleProxy(req, res) {
           const jsonResponse = JSON.parse(responseBody);
           console.log('[PROXY] Response:');
           console.log(JSON.stringify(jsonResponse, null, 2));
+          // 로그인 응답에서 userId 캡처
+          if (jsonResponse.ok && jsonResponse.userId) {
+            storedUserId = jsonResponse.userId;
+            console.log('[PROXY] Captured userId: ' + storedUserId);
+          }
         } catch (e) {
           // Not JSON, show first 500 chars
           console.log('[PROXY] Response preview:', responseBody.substring(0, 500));
