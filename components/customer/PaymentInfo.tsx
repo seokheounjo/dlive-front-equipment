@@ -10,6 +10,7 @@ import {
   getBillingDetails,
   PaymentAccountInfo,
   BillingDetailInfo,
+  ContractInfo,
   formatCurrency,
   maskString
 } from '../../services/customerApi';
@@ -43,6 +44,7 @@ interface PaymentInfoProps {
   onCancelPaymentChange?: () => void;
   currentWorkingPymAcntId?: string;
   selectedPymAcntIdFromContract?: string;  // 계약 선택 시 해당 납부계정ID
+  contracts?: ContractInfo[];  // 계약 목록 (납부계정 → SO_ID 매핑용)
 }
 
 /**
@@ -62,7 +64,8 @@ const PaymentInfo: React.FC<PaymentInfoProps> = ({
   paymentChangeInProgress,
   onCancelPaymentChange,
   currentWorkingPymAcntId,
-  selectedPymAcntIdFromContract
+  selectedPymAcntIdFromContract,
+  contracts = []
 }) => {
   // 데이터 상태 (D'Live API 응답 기준)
   const [paymentAccounts, setPaymentAccounts] = useState<PaymentAccountInfo[]>([]);
@@ -474,6 +477,16 @@ const PaymentInfo: React.FC<PaymentInfoProps> = ({
           }
         }}
         soId={(() => {
+          // 선택된 납부계정(PYM_ACNT_ID)에 해당하는 계약의 SO_ID 사용
+          if (selectedPymAcntId && contracts.length > 0) {
+            const matchedAll = contracts.filter(c => c.PYM_ACNT_ID === selectedPymAcntId && c.SO_ID);
+            if (matchedAll.length > 0) {
+              // 사용중(10) 계약 우선, 없으면 첫 번째
+              const active = matchedAll.find(c => c.CTRT_STAT_CD === '10');
+              return (active || matchedAll[0]).SO_ID!;
+            }
+          }
+          // fallback: 세션 정보
           try {
             const u = JSON.parse(sessionStorage.getItem('userInfo') || localStorage.getItem('userInfo') || '{}');
             const list = u.authSoList || u.AUTH_SO_List || [];

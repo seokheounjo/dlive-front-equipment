@@ -432,6 +432,7 @@ const CustomerBasicInfo: React.FC<CustomerBasicInfoProps> = ({
               onCancelPaymentChange={onCancelPaymentChange}
               currentWorkingPymAcntId={currentWorkingPymAcntId}
               selectedPymAcntIdFromContract={selectedPymAcntIdFromContract}
+              contracts={contracts}
             />
 
             {/* 상담 이력 */}
