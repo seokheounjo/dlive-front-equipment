@@ -5,6 +5,7 @@ import CustomerInfoChange from './CustomerInfoChange';
 import CustomerSearch from './CustomerSearch';
 import ConsultationAS from './ConsultationAS';
 import CustomerCreate from './CustomerCreate';
+import ReContractRegistration from './ReContractRegistration';
 import { CustomerInfo, ContractInfo, ConsultationHistory, WorkHistory } from '../../services/customerApi';
 
 interface CustomerManagementMenuProps {
@@ -85,7 +86,8 @@ const CustomerManagementMenu: React.FC<CustomerManagementMenuProps> = ({ onNavig
     { id: 'basic-info', title: '기본조회', description: '고객 검색 및 정보 조회' },
     { id: 'info-change', title: '정보변경', description: '전화번호/주소 변경' },
     { id: 'consultation-as', title: '상담/AS등록', description: '상담등록 및 AS접수' },
-    { id: 'customer-create', title: '재약정 등록', description: '재약정 등록' }
+    { id: 're-contract', title: '재약정등록', description: '재약정 등록' },
+    { id: 'customer-create', title: '고객생성', description: '고객생성' }
   ];
 
   const handleTabChange = (tabId: string) => {
@@ -197,6 +199,21 @@ const CustomerManagementMenu: React.FC<CustomerManagementMenuProps> = ({ onNavig
             initialTab={consultationASInitialTab}
           />
         );
+      case 're-contract':
+        return (
+          <ReContractRegistration
+            onBack={onNavigateToMenu}
+            showToast={showToast}
+            selectedCustomer={selectedCustomer ? {
+              custId: selectedCustomer.CUST_ID,
+              custNm: selectedCustomer.CUST_NM,
+              telNo: selectedCustomer.TEL_NO || selectedCustomer.HP_NO || ''
+            } : null}
+            selectedContract={selectedContract}
+            contracts={cachedContracts}
+            onNavigateToBasicInfo={() => handleNavigateToTab('basic-info')}
+          />
+        );
       case 'customer-create':
         return (
           <CustomerCreate
@@ -264,6 +281,9 @@ const CustomerManagementMenu: React.FC<CustomerManagementMenuProps> = ({ onNavig
             onNavigateToAddressChange={() => {
               setInfoChangeInitialSection('address');
               setActiveTab('info-change');
+            }}
+            onNavigateToReContract={() => {
+              setActiveTab('re-contract');
             }}
             selectedCustomer={selectedCustomer}
             savedContract={selectedContract}

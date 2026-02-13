@@ -34,6 +34,7 @@ interface CustomerBasicInfoProps {
   onNavigateToPaymentChange?: (pymAcntId: string) => void;  // 납부정보 변경 탭으로 이동
   onNavigateToConsultationAS?: (initialTab: 'consultation' | 'as') => void;  // 상담/AS 탭으로 이동
   onNavigateToAddressChange?: () => void;  // 주소변경 탭으로 이동
+  onNavigateToReContract?: () => void;    // 재약정 탭으로 이동
   // 상위 컴포넌트에서 전달받은 선택된 고객 정보
   selectedCustomer?: CustomerInfo | null;
   savedContract?: { ctrtId: string; prodNm: string; instAddr: string; postId?: string } | null;
@@ -66,6 +67,7 @@ const CustomerBasicInfo: React.FC<CustomerBasicInfoProps> = ({
   onNavigateToPaymentChange,
   onNavigateToConsultationAS,
   onNavigateToAddressChange,
+  onNavigateToReContract,
   selectedCustomer,
   savedContract,
   cachedContracts = [],
@@ -418,6 +420,12 @@ const CustomerBasicInfo: React.FC<CustomerBasicInfoProps> = ({
                 handleContractSelect(contract);
                 if (onNavigateToAddressChange) {
                   onNavigateToAddressChange();
+                }
+              }}
+              onNavigateToReContract={(contract) => {
+                handleContractSelect(contract);
+                if (onNavigateToReContract) {
+                  onNavigateToReContract();
                 }
               }}
             />

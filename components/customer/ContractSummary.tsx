@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import {
   FileText, ChevronDown, ChevronUp, Loader2,
-  MapPin, Filter, MessageSquare, Wrench, Home
+  MapPin, Filter, MessageSquare, Wrench, Home, RefreshCw
 } from 'lucide-react';
 import { ContractInfo, formatCurrency, formatDate } from '../../services/customerApi';
 
@@ -25,6 +25,7 @@ interface ContractSummaryProps {
   onNavigateToConsultation?: (contract: ContractInfo) => void;  // 상담등록으로 이동
   onNavigateToAS?: (contract: ContractInfo) => void;            // AS접수로 이동
   onNavigateToAddressChange?: (contract: ContractInfo) => void; // 주소변경으로 이동
+  onNavigateToReContract?: (contract: ContractInfo) => void;   // 재약정으로 이동
   initialSearchKeyword?: string;  // S/N 검색 시 자동 입력될 검색어
 }
 
@@ -62,6 +63,7 @@ const ContractSummary: React.FC<ContractSummaryProps> = ({
   onNavigateToConsultation,
   onNavigateToAS,
   onNavigateToAddressChange,
+  onNavigateToReContract,
   initialSearchKeyword
 }) => {
   // 필터 상태 (기본값: 전체)
@@ -367,6 +369,32 @@ const ContractSummary: React.FC<ContractSummaryProps> = ({
                               주소변경
                             </button>
                           )}
+                          {/* 재약정 - 사용중(기간도래)만 활성화 */}
+                          {(() => {
+                            const statNm = contract.CTRT_STAT_NM || '';
+                            const isCloseDanger = contract.CLOSE_DANGER === 'Y' && statNm.includes('사용중');
+                            return (
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  if (!isCloseDanger) return;
+                                  handleSelect(contract);
+                                  if (onNavigateToReContract) {
+                                    onNavigateToReContract(contract);
+                                  }
+                                }}
+                                disabled={!isCloseDanger}
+                                className={`flex-1 flex items-center justify-center gap-1 px-2 py-2 text-xs font-medium rounded-lg transition-colors ${
+                                  isCloseDanger
+                                    ? 'bg-purple-500 hover:bg-purple-600 text-white'
+                                    : 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                                }`}
+                              >
+                                <RefreshCw className="w-3.5 h-3.5" />
+                                재약정
+                              </button>
+                            );
+                          })()}
                         </div>
 
                       </div>

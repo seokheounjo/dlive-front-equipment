@@ -2359,6 +2359,70 @@ export const getOrderDate = (): string => {
   return `${y}${m}${d}`;
 };
 
+// ============ Re-Contract (Promotion) APIs ============
+
+/**
+ * Get promotion info of contract
+ */
+export const getPromOfContract = async (ctrtId: string): Promise<ApiResponse<any[]>> => {
+  return apiCall<any[]>('/customer/receipt/getPromOfContract', { CTRT_ID: ctrtId });
+};
+
+/**
+ * Save promotion contract info (re-contract registration)
+ */
+export const savePromCtrtInfo = async (params: {
+  CTRT_ID: string;
+  PROM_CHG_CD: string;
+  PROM_CHGRSN_CD: string;
+  PROM_CNT: string;
+  CTRT_APLY_STRT_DT: string;
+  CTRT_APLY_END_DT: string;
+  REG_UID?: string;
+  CHG_UID?: string;
+  RCPT_ID?: string;
+  PROM_CTRT_ID?: string;
+  CHK_OPEN_DD?: string;
+  REPROM_CANCEL?: string;
+}): Promise<ApiResponse<any>> => {
+  // Get user info from session
+  const userInfoStr = sessionStorage.getItem('userInfo') || localStorage.getItem('userInfo');
+  let userId = 'SYSTEM';
+  if (userInfoStr) {
+    try {
+      const ui = JSON.parse(userInfoStr);
+      userId = ui.USR_ID || ui.userId || 'SYSTEM';
+    } catch (e) {}
+  }
+
+  return apiCall<any>('/customer/receipt/savePromCtrtInfo', {
+    ...params,
+    REG_UID: params.REG_UID || userId,
+    CHG_UID: params.CHG_UID || userId,
+  });
+};
+
+/**
+ * Get promotion month codes (CMCU064)
+ */
+export const getPromMonthCodes = async (): Promise<ApiResponse<any[]>> => {
+  return apiCall<any[]>('/common/getCommonCodes', { CODE_GROUP: 'CMCU064' });
+};
+
+/**
+ * Get promotion change reason codes (CMCU072)
+ */
+export const getPromChangeReasonCodes = async (): Promise<ApiResponse<any[]>> => {
+  return apiCall<any[]>('/common/getCommonCodes', { CODE_GROUP: 'CMCU072' });
+};
+
+/**
+ * Get promotion change codes (CMCU252)
+ */
+export const getPromChangeCodes = async (): Promise<ApiResponse<any[]>> => {
+  return apiCall<any[]>('/common/getCommonCodes', { CODE_GROUP: 'CMCU252' });
+};
+
 export default {
   // 기본조회
   searchCustomer,
@@ -2388,6 +2452,12 @@ export default {
   registerASRequest,
   // 고객생성
   createCustomer,
+  // 재약정
+  getPromOfContract,
+  savePromCtrtInfo,
+  getPromMonthCodes,
+  getPromChangeReasonCodes,
+  getPromChangeCodes,
   // 전자계약
   requestElectronicContract,
   getElectronicSignStatus,
