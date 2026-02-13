@@ -331,7 +331,7 @@ router.post('/customer/negociation/getCustWorkList', handleProxy);
 router.post('/customer/negociation/updateCustTelDetailInfo', handleProxy);
 router.post('/customer/etc/saveMargeAddrOrdInfo', handleProxy);
 router.post('/customer/etc/savePymAddrInfo', handleProxy);
-router.post('/customer/customer/general/customerPymChgAddManager', handleProxy);
+router.post('/customer/customer/general/customerPymChgAddManager', handlePaymentMethodChange);
 router.post('/customer/customer/general/addCustomerPymInfoChange', handleProxy);
 // 6. Consultation/AS
 router.post('/customer/negociation/saveCnslRcptInfo', handleProxy);
@@ -422,6 +422,142 @@ router.get('/customer/debug/customerManager/methods', handleProxy);
 router.get('/customer/debug/billingManagement/methods', handleProxy);
 router.get('/customer/debug/customerEtcManagement/methods', handleProxy);
 router.get('/customer/debug/sampleHistoryData', handleProxy);
+
+// === 납부방법 변경 특별 핸들러 ===
+// 어댑터의 addCustomerPymChgInfo (잘못된 메서드명) 대신
+// 레거시 savePymAtmtApplInfo.req (모바일용 프로시저) 직접 호출
+async function handlePaymentMethodChange(req, res) {
+  try {
+    const body = req.body || {};
+    console.log('\n========== [PaymentMethodChange] ==========');
+    console.log('Input params:', JSON.stringify(body, null, 2));
+
+    // 1. 파라미터 매핑 (프론트엔드 → 레거시 savePymAtmtApplInfo 프로시저)
+    const pymMthCd = body.PYM_MTH_CD || body.PYM_MTHD || '';
+    let pymMthd = pymMthCd;
+    // 코드 변환: 01(자동이체)→02, 02(카드)→04
+    if (pymMthCd === '01') pymMthd = '02';
+    else if (pymMthCd === '02') pymMthd = '04';
+
+    const bankCard = body.BANK_CD || body.CARD_CO_CD || body.BANK_CARD || '';
+    const acntNo = body.ACNT_NO || body.CARD_NO || body.ACNT_CARD_NO || '';
+    const ownerNm = body.ACNT_OWNER_NM || body.PYM_CUST_NM || '';
+    const cardValidYm = body.CARD_VALID_YM || body.CDTCD_EXP_DT || '';
+    const payDay = body.PAY_DAY_CD || body.PYM_CARD_DATE || body.PYM_HOPE_DD || '';
+    const birthDt = body.BIRTH_DT || body.PYM_CUST_CRRNO || body.RSDTNO || '';
+    const pyrRel = body.PAYER_REL_CD || body.PYR_REL || '';
+    const changeResn = body.CHG_RESN_M_CD || body.CHG_RESN_L_CD || body.PMC_RESN || '';
+
+    const legacyParams = {
+      PYM_ACNT_ID: body.PYM_ACNT_ID || '',
+      RCPT_ID: body.RCPT_ID || '',
+      PYM_MTHD: pymMthd,
+      ACNT_OWNER_NM: ownerNm,
+      BNK_CARD_CD: bankCard,
+      ACNT_NO: acntNo,
+      RSDTNO: birthDt,
+      CARD_CL: body.CARD_CL || body.partnerCardCd || '',
+      REQR_NM: body.REQR_NM || ownerNm,
+      PYR_REL: pyrRel,
+      CDTCD_EXP_DT: cardValidYm,
+      RLNM_TP_CD: body.RLNM_TP_CD || 'N',
+      CORP_CD: body.CORP_CD || '',
+      PYM_HOPE_DD: payDay,
+      ATRT_CRR_ID: body.ATRT_CRR_ID || body.SO_ID || '',
+      ATRT_EMP_ID: body.ATRT_EMP_ID || body.USR_ID || '',
+      REG_UID: body.USR_ID || body.REG_UID || ''
+    };
+
+    console.log('Mapped legacy params:', JSON.stringify(legacyParams, null, 2));
+
+    // 2. JSESSIONID 확인
+    if (!storedJSessionId) {
+      console.log('[PaymentMethodChange] No JSESSIONID, falling back to adapter');
+      return handleProxy(req, res);
+    }
+
+    // 3. MiPlatform XML 생성 (DS_INPUT 데이터셋)
+    const xmlBody = jsonToMiPlatformXML('DS_INPUT', legacyParams);
+    console.log('[PaymentMethodChange] XML request:', xmlBody.substring(0, 500));
+
+    // 4. savePymAtmtApplInfo.req 직접 호출
+    const targetUrl = DLIVE_API_BASE + '/customer/customer/general/savePymAtmtApplInfo.req';
+    console.log('[PaymentMethodChange] Calling:', targetUrl);
+
+    const http = require('http');
+    const url = require('url');
+    const parsedUrl = url.parse(targetUrl);
+    const postData = Buffer.from(xmlBody, 'utf-8');
+
+    const options = {
+      hostname: parsedUrl.hostname,
+      port: parsedUrl.port || 80,
+      path: parsedUrl.path,
+      method: 'POST',
+      headers: {
+        'Content-Type': 'text/xml; charset=utf-8',
+        'Content-Length': postData.length,
+        'Cookie': 'JSESSIONID=' + storedJSessionId
+      },
+      timeout: 30000
+    };
+
+    const proxyReq = http.request(options, (proxyRes) => {
+      let chunks = [];
+      proxyRes.on('data', (chunk) => chunks.push(chunk));
+      proxyRes.on('end', () => {
+        const rawBuffer = Buffer.concat(chunks);
+        let responseText;
+        try {
+          responseText = iconv.decode(rawBuffer, 'euc-kr');
+        } catch (e) {
+          responseText = rawBuffer.toString('utf-8');
+        }
+        console.log('[PaymentMethodChange] Response status:', proxyRes.statusCode);
+        console.log('[PaymentMethodChange] Response body:', responseText.substring(0, 500));
+
+        // Parse MiPlatform response
+        const parsed = parseMiPlatformDatasetXMLtoJSON(responseText);
+        if (parsed) {
+          // 성공: MSGCODE/MESSAGE 체크
+          const data = Array.isArray(parsed) ? parsed[0] : parsed;
+          const msgCode = data.MSGCODE || data.MSG_CODE || '';
+          const message = data.MESSAGE || data.MSG || '';
+          console.log('[PaymentMethodChange] MSGCODE:', msgCode, 'MESSAGE:', message);
+          res.json({ success: true, code: msgCode, message: message || 'Payment method changed', data: data });
+        } else if (responseText.includes('responseSuccess') || responseText.includes('ErrorCode="0"') || proxyRes.statusCode === 200) {
+          // MiPlatform responseSuccess view
+          res.json({ success: true, code: 'SUCCESS', message: 'Payment method changed successfully', data: {} });
+        } else {
+          console.error('[PaymentMethodChange] Unexpected response:', responseText.substring(0, 300));
+          // Fallback: 어댑터 경유
+          console.log('[PaymentMethodChange] Falling back to adapter');
+          handleProxy(req, res);
+        }
+      });
+    });
+
+    proxyReq.on('error', (err) => {
+      console.error('[PaymentMethodChange] Request error:', err.message);
+      // Fallback: 어댑터 경유
+      handleProxy(req, res);
+    });
+
+    proxyReq.on('timeout', () => {
+      proxyReq.destroy();
+      console.error('[PaymentMethodChange] Request timeout');
+      handleProxy(req, res);
+    });
+
+    proxyReq.write(postData);
+    proxyReq.end();
+
+  } catch (error) {
+    console.error('[PaymentMethodChange] Error:', error.message);
+    // Fallback: 어댑터 경유
+    handleProxy(req, res);
+  }
+}
 
 async function handleProxy(req, res) {
   try {
