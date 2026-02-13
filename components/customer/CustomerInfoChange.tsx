@@ -1039,45 +1039,110 @@ const CustomerInfoChange: React.FC<CustomerInfoChangeProps> = ({
     }
   };
 
-  // 도로명주소 검색
-  const handleSearchStreetAddress = async () => {
-    if (!streetSearchForm.streetNm || streetSearchForm.streetNm.length < 2) {
-      showAlert('도로명을 2자 이상 입력해주세요.', 'warning');
-      return;
-    }
-    if (!streetSearchForm.streetBunM) {
-      showAlert('건물본번을 입력해주세요.', 'warning');
-      return;
-    }
-    if (!streetSearchForm.streetBunS) {
-      showAlert('건물부번을 입력해주세요.', 'warning');
-      return;
-    }
+  // 도로명주소 검색 (Daum Postcode API 활용)
+  const loadDaumPostcodeScript = (): Promise<void> => {
+    return new Promise((resolve, reject) => {
+      if ((window as any).daum?.Postcode) {
+        resolve();
+        return;
+      }
+      const script = document.createElement('script');
+      script.src = '//t1.daumcdn.net/mapjsapi/bundle/postcode/prod/postcode.v2.js';
+      script.onload = () => resolve();
+      script.onerror = () => reject(new Error('Daum Postcode script load failed'));
+      document.head.appendChild(script);
+    });
+  };
 
+  const handleSearchStreetAddress = async () => {
     setIsSearchingAddress(true);
     try {
-      const response = await searchStreetAddress({
-        STREET_NM: streetSearchForm.streetNm,
-        STREET_BUN_M: streetSearchForm.streetBunM,
-        STREET_BUN_S: streetSearchForm.streetBunS
-      });
+      await loadDaumPostcodeScript();
+      new (window as any).daum.Postcode({
+        oncomplete: async (data: any) => {
+          console.log('[도로명주소] Daum Postcode 결과:', data);
+          const dongName = data.bname || data.bname2 || '';
+          const buildingName = data.buildingName || '';
+          const zipCode = data.zonecode || '';
+          const roadAddress = data.roadAddress || data.address || '';
+          const jibunAddress = data.jibunAddress || data.autoJibunAddress || '';
 
-      if (response.success && response.data) {
-        setStreetAddressResults(response.data);
-        if (response.data.length === 0) {
-          showAlert('검색 결과가 없습니다. 지번주소 검색을 이용해주세요.', 'info');
+          // D'Live getPostList로 POST_ID 매칭
+          if (dongName) {
+            const contractSoId = selectedContract?.soId || '';
+            try {
+              const response = await searchPostAddress({
+                DONGMYONG: dongName,
+                ...(contractSoId ? { SO_ID: contractSoId } : {})
+              });
+
+              if (response.success && response.data && response.data.length > 0) {
+                let results = response.data;
+                // 건물명 매칭
+                if (buildingName) {
+                  const bldMatch = results.filter(r => r.BLD_NM && r.BLD_NM.includes(buildingName));
+                  if (bldMatch.length > 0) results = bldMatch;
+                }
+                // 우편번호 매칭
+                if (zipCode && results.length > 5) {
+                  const zipMatch = results.filter(r => r.ZIP_CD === zipCode);
+                  if (zipMatch.length > 0) results = zipMatch;
+                }
+                // 결과가 1건이면 자동선택
+                if (results.length === 1) {
+                  handleSelectPostAddressFromDaum(results[0], roadAddress);
+                } else {
+                  // 여러 건이면 리스트 표시 (도로명주소 정보 저장)
+                  setDaumRoadAddress(roadAddress);
+                  setPostAddressResults(results);
+                  setAddressSearchType('post'); // 지번 결과 리스트로 전환
+                  showAlert(`"${dongName}" 지역 ${results.length}건 검색됨. 선택해주세요.`, 'info');
+                }
+                setIsSearchingAddress(false);
+                return;
+              }
+            } catch (err) {
+              console.error('[도로명주소] getPostList 매칭 실패:', err);
+            }
+          }
+
+          // POST_ID 매칭 실패 시 - 주소 정보만 입력 (POST_ID 없이)
+          showAlert('D\'Live 지역 주소와 매칭되지 않습니다. 지번주소 검색을 이용해주세요.', 'warning');
+          setIsSearchingAddress(false);
+        },
+        onclose: () => {
+          setIsSearchingAddress(false);
         }
-      } else {
-        showAlert('도로명주소 검색이 불가합니다. 지번주소 검색을 이용해주세요.', 'warning');
-        setStreetAddressResults([]);
-      }
+      }).open();
     } catch (error) {
-      console.error('Search street address error:', error);
-      showAlert('주소 검색 중 오류가 발생했습니다.', 'error');
-      setStreetAddressResults([]);
-    } finally {
+      console.error('Daum Postcode load error:', error);
+      showAlert('주소 검색 서비스를 불러올 수 없습니다. 지번주소 검색을 이용해주세요.', 'error');
       setIsSearchingAddress(false);
     }
+  };
+
+  // Daum Postcode 결과로부터 지번주소 선택 (도로명 주소 포함)
+  const [daumRoadAddress, setDaumRoadAddress] = useState('');
+  const handleSelectPostAddressFromDaum = (addr: PostAddressInfo, roadAddr?: string) => {
+    const bldCl = addr.BLD_NM
+      ? (addr.BLD_NM.includes('아파트') || addr.BLD_NM.includes('APT') ? '2' : '1')
+      : '0';
+    setAddressForm(prev => ({
+      ...prev,
+      zipCd: addr.ZIP_CD,
+      addr1: roadAddr || addr.ADDR_FULL || addr.ADDR,
+      addr2: '',
+      postId: addr.POST_ID,
+      streetId: '',
+      dongmyonNm: addr.DONGMYON_NM || '',
+      bldCl,
+      bldNm: addr.BLD_NM || '',
+      bunNo: addr.STRT_BUNGIHO || '',
+      hoNm: ''
+    }));
+    setSelectedPostId(addr.POST_ID);
+    handleCloseAddressModal();
+    showAlert('도로명주소가 입력되었습니다. 상세주소를 입력해주세요.', 'info');
   };
 
   // 지번주소 선택
@@ -1665,62 +1730,39 @@ const CustomerInfoChange: React.FC<CustomerInfoChangeProps> = ({
                     placeholder="읍/면/동 이름 입력 (예: 역삼동)"
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
                   />
+                  <button
+                    onClick={handleSearchPostAddress}
+                    disabled={isSearchingAddress}
+                    className="w-full flex items-center justify-center gap-2 py-2.5 bg-green-500 text-white rounded-lg hover:bg-green-600 disabled:bg-gray-400 transition-colors"
+                  >
+                    {isSearchingAddress ? (
+                      <><Loader2 className="w-4 h-4 animate-spin" />검색 중...</>
+                    ) : (
+                      <><Search className="w-4 h-4" />검색</>
+                    )}
+                  </button>
                 </div>
               ) : (
                 <div className="space-y-2">
-                  <div>
-                    <label className="block text-xs text-gray-500 mb-1">도로명 *</label>
-                    <input
-                      type="text"
-                      value={streetSearchForm.streetNm}
-                      onChange={(e) => setStreetSearchForm(prev => ({ ...prev, streetNm: e.target.value }))}
-                      onKeyPress={(e) => e.key === 'Enter' && handleSearchStreetAddress()}
-                      placeholder="예: 테헤란로"
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
-                    />
-                  </div>
-                  <div className="flex gap-2">
-                    <div className="flex-1">
-                      <label className="block text-xs text-gray-500 mb-1">건물본번 *</label>
-                      <input
-                        type="text"
-                        value={streetSearchForm.streetBunM}
-                        onChange={(e) => setStreetSearchForm(prev => ({ ...prev, streetBunM: e.target.value.replace(/[^0-9]/g, '') }))}
-                        placeholder="예: 123"
-                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
-                      />
-                    </div>
-                    <div className="flex-1">
-                      <label className="block text-xs text-gray-500 mb-1">건물부번 *</label>
-                      <input
-                        type="text"
-                        value={streetSearchForm.streetBunS}
-                        onChange={(e) => setStreetSearchForm(prev => ({ ...prev, streetBunS: e.target.value.replace(/[^0-9]/g, '') }))}
-                        placeholder="예: 0"
-                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
-                      />
-                    </div>
-                  </div>
+                  <p className="text-xs text-gray-500 mb-1">
+                    도로명, 건물명, 지번 등으로 검색할 수 있습니다.
+                  </p>
+                  <button
+                    onClick={handleSearchStreetAddress}
+                    disabled={isSearchingAddress}
+                    className="w-full flex items-center justify-center gap-2 py-2.5 bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:bg-gray-400 transition-colors"
+                  >
+                    {isSearchingAddress ? (
+                      <><Loader2 className="w-4 h-4 animate-spin" />검색 중...</>
+                    ) : (
+                      <><Search className="w-4 h-4" />도로명주소 검색</>
+                    )}
+                  </button>
+                  <p className="text-xs text-gray-400 text-center">
+                    카카오 주소검색 팝업이 열립니다
+                  </p>
                 </div>
               )}
-
-              <button
-                onClick={addressSearchType === 'post' ? handleSearchPostAddress : handleSearchStreetAddress}
-                disabled={isSearchingAddress}
-                className="w-full mt-3 flex items-center justify-center gap-2 py-2.5 bg-green-500 text-white rounded-lg hover:bg-green-600 disabled:bg-gray-400 transition-colors"
-              >
-                {isSearchingAddress ? (
-                  <>
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                    검색 중...
-                  </>
-                ) : (
-                  <>
-                    <Search className="w-4 h-4" />
-                    검색
-                  </>
-                )}
-              </button>
             </div>
 
             {/* 검색 결과 */}
@@ -1748,30 +1790,10 @@ const CustomerInfoChange: React.FC<CustomerInfoChangeProps> = ({
                   </div>
                 )
               ) : (
-                streetAddressResults.length > 0 ? (
-                  <div className="space-y-2">
-                    <div className="text-xs text-gray-500 mb-2">검색 결과: {streetAddressResults.length}건</div>
-                    {streetAddressResults.map((addr, idx) => (
-                      <button
-                        key={addr.STREET_ID || idx}
-                        onClick={() => handleSelectStreetAddress(addr)}
-                        className="w-full p-3 bg-gray-50 hover:bg-green-50 rounded-lg border border-gray-200 hover:border-green-300 text-left transition-colors"
-                      >
-                        <div className="text-sm font-medium text-gray-900">{addr.STREET_ADDR}</div>
-                        <div className="mt-1 text-xs text-gray-500">
-                          우편번호: {addr.ZIP_CD} | {addr.ADDR_FULL}
-                        </div>
-                        {addr.BLD_NM && (
-                          <div className="mt-0.5 text-xs text-green-600">건물명: {addr.BLD_NM}</div>
-                        )}
-                      </button>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="text-center py-8 text-gray-400 text-sm">
-                    도로명과 건물번호를 입력하고 검색하세요.
-                  </div>
-                )
+                <div className="text-center py-8 text-gray-400 text-sm">
+                  위 버튼을 눌러 도로명주소를 검색하세요.<br />
+                  <span className="text-xs">검색 결과는 D'Live 지역 주소와 자동 매칭됩니다.</span>
+                </div>
               )}
             </div>
 
