@@ -818,33 +818,58 @@ const ConsultationAS: React.FC<ConsultationASProps> = ({
               AS 접수
             </h3>
 
-            {/* 가입자/비가입자 선택 */}
-            <div className="p-3 bg-gray-50 rounded-lg border border-gray-200 flex items-center gap-4">
-              <label className="flex items-center gap-1.5 cursor-pointer">
-                <input
-                  type="radio"
-                  name="asSubscriberType"
-                  value="subscriber"
-                  checked={asSubscriberType === 'subscriber'}
-                  onChange={() => setAsSubscriberType('subscriber')}
-                  className="w-3.5 h-3.5 text-orange-600"
-                />
-                <span className="text-sm text-gray-700 font-medium">가입자AS</span>
-              </label>
-              <label className="flex items-center gap-1.5 cursor-pointer">
-                <input
-                  type="radio"
-                  name="asSubscriberType"
-                  value="nonSubscriber"
-                  checked={asSubscriberType === 'nonSubscriber'}
-                  onChange={() => setAsSubscriberType('nonSubscriber')}
-                  className="w-3.5 h-3.5 text-orange-600"
-                />
-                <span className="text-sm text-gray-700 font-medium">비가입자AS</span>
-              </label>
+            {/* 고객/계약 정보 + 가입자/비가입자 선택 (상담등록과 동일 형태) */}
+            <div className="p-3 bg-orange-50 rounded-lg border border-orange-200">
+              <div className="flex items-center justify-between mb-2">
+                <div className="text-sm text-orange-800">
+                  <span className="font-medium">{selectedCustomer.custNm}</span>
+                  <span className="ml-1 text-orange-600 text-xs">(고객ID: {formatId(selectedCustomer.custId)})</span>
+                </div>
+                <div className="flex gap-3">
+                  <label className="flex items-center gap-1 cursor-pointer">
+                    <input
+                      type="radio"
+                      name="asSubscriberType"
+                      value="subscriber"
+                      checked={asSubscriberType === 'subscriber'}
+                      onChange={() => setAsSubscriberType('subscriber')}
+                      className="w-3.5 h-3.5 text-orange-600"
+                    />
+                    <span className="text-xs text-gray-700">가입자</span>
+                  </label>
+                  <label className="flex items-center gap-1 cursor-pointer">
+                    <input
+                      type="radio"
+                      name="asSubscriberType"
+                      value="nonSubscriber"
+                      checked={asSubscriberType === 'nonSubscriber'}
+                      onChange={() => setAsSubscriberType('nonSubscriber')}
+                      className="w-3.5 h-3.5 text-orange-600"
+                    />
+                    <span className="text-xs text-gray-700">비가입자</span>
+                  </label>
+                </div>
+              </div>
+              {asSubscriberType === 'subscriber' && selectedContract && (
+                <div className="text-xs text-orange-700 pt-1 border-t border-orange-200 space-y-0.5">
+                  <div className="flex"><span className="text-orange-500 w-14 flex-shrink-0">상품명</span><span className="font-medium">{selectedContract.prodNm}</span></div>
+                  <div className="flex"><span className="text-orange-500 w-14 flex-shrink-0">계약ID</span><span>{formatId(selectedContract.ctrtId)}</span></div>
+                  {selectedContract.instAddr && (
+                    <div className="flex"><span className="text-orange-500 w-14 flex-shrink-0">설치주소</span><span>{selectedContract.instAddr}</span></div>
+                  )}
+                  {selectedContract.notrecev && (
+                    <div className="flex"><span className="text-orange-500 w-14 flex-shrink-0">장비</span><span>{selectedContract.notrecev}</span></div>
+                  )}
+                </div>
+              )}
+              {asSubscriberType === 'nonSubscriber' && (
+                <div className="text-xs text-orange-600 pt-1 border-t border-orange-200">
+                  비가입자 AS접수 - 계약 없이 접수합니다.
+                </div>
+              )}
             </div>
 
-            {/* 가입자 모드: 계약 선택 안내 */}
+            {/* 가입자 모드: 계약 미선택 안내 */}
             {asSubscriberType === 'subscriber' && !selectedContract ? (
               <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
                 <div className="flex items-start gap-2">
@@ -867,26 +892,6 @@ const ConsultationAS: React.FC<ConsultationASProps> = ({
               </div>
             ) : (
               <>
-                {/* 선택된 계약 정보 (가입자이고 계약이 있을 때만 표시) */}
-                {asSubscriberType === 'subscriber' && selectedContract && (
-                  <div className="p-3 bg-orange-50 rounded-lg text-xs text-orange-700 space-y-0.5">
-                    <div className="flex"><span className="text-orange-500 w-14 flex-shrink-0">상품명</span><span className="font-medium">{selectedContract.prodNm}</span></div>
-                    <div className="flex"><span className="text-orange-500 w-14 flex-shrink-0">계약ID</span><span>{formatId(selectedContract.ctrtId)}</span></div>
-                    {selectedContract.instAddr && (
-                      <div className="flex"><span className="text-orange-500 w-14 flex-shrink-0">설치주소</span><span>{selectedContract.instAddr}</span></div>
-                    )}
-                    {selectedContract.notrecev && (
-                      <div className="flex"><span className="text-orange-500 w-14 flex-shrink-0">장비</span><span>{selectedContract.notrecev}</span></div>
-                    )}
-                  </div>
-                )}
-
-                {/* 비가입자 모드 안내 */}
-                {asSubscriberType === 'nonSubscriber' && (
-                  <div className="p-2 bg-orange-50 rounded-lg text-xs text-orange-700">
-                    비가입자 AS접수 - 계약 없이 접수합니다.
-                  </div>
-                )}
 
                 {/* AS구분 */}
                 <div>
