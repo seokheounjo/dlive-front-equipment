@@ -68,11 +68,9 @@ const ContractSummary: React.FC<ContractSummaryProps> = ({
   const [filterStatus, setFilterStatus] = useState<'all' | 'active'>('all');
   const [searchKeyword, setSearchKeyword] = useState(initialSearchKeyword || '');
 
-  // S/N 검색어가 변경되면 자동 반영
+  // 초기 검색어가 변경되면 자동 반영 (계약ID, S/N 검색 시)
   useEffect(() => {
-    if (initialSearchKeyword) {
-      setSearchKeyword(initialSearchKeyword);
-    }
+    setSearchKeyword(initialSearchKeyword || '');
   }, [initialSearchKeyword]);
 
   // 선택된 계약

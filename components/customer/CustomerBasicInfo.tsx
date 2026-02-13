@@ -129,6 +129,8 @@ const CustomerBasicInfo: React.FC<CustomerBasicInfoProps> = ({
   useEffect(() => {
     if (selectedCustomer && selectedCustomer.CUST_ID !== prevCustomerId) {
       setPrevCustomerId(selectedCustomer.CUST_ID);
+      // 이전 고객의 S/N 매칭 결과 초기화
+      setMatchedCtrtIdFromSN('');
 
       // 캐시된 데이터가 있고 같은 고객이면 캐시 사용
       if (cachedDataCustId === selectedCustomer.CUST_ID && (cachedContracts.length > 0 || cachedConsultationHistory.length > 0 || cachedWorkHistory.length > 0)) {
