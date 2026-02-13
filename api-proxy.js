@@ -31,9 +31,6 @@ const LEGACY_REQ_ROUTES = [
   "/customer/equipment/getEqtTrnsList",  // 장비이동내역
   "/customer/work/getProd_Grp",  // AS접수 콤보상세 (상품그룹)
 
-  // Address Search - 어댑터가 도로명주소를 처리 못함, .req 직접 사용
-  "/customer/common/customercommon/getStreetAddrList",  // 도로명주소 검색
-
 ];
 
 // Parse MiPlatform XML response to JSON

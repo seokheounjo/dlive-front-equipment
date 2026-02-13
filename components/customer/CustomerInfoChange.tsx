@@ -1065,10 +1065,10 @@ const CustomerInfoChange: React.FC<CustomerInfoChangeProps> = ({
       if (response.success && response.data) {
         setStreetAddressResults(response.data);
         if (response.data.length === 0) {
-          showAlert('검색 결과가 없습니다.', 'info');
+          showAlert('검색 결과가 없습니다. 지번주소 검색을 이용해주세요.', 'info');
         }
       } else {
-        showAlert(response.message || '주소 검색에 실패했습니다.', 'error');
+        showAlert('도로명주소 검색이 불가합니다. 지번주소 검색을 이용해주세요.', 'warning');
         setStreetAddressResults([]);
       }
     } catch (error) {
