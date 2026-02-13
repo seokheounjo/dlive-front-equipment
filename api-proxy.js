@@ -31,6 +31,9 @@ const LEGACY_REQ_ROUTES = [
   "/customer/equipment/getEqtTrnsList",  // 장비이동내역
   "/customer/work/getProd_Grp",  // AS접수 콤보상세 (상품그룹)
 
+  // Address Search - 어댑터가 도로명주소를 처리 못함, .req 직접 사용
+  "/customer/common/customercommon/getStreetAddrList",  // 도로명주소 검색
+
 ];
 
 // Parse MiPlatform XML response to JSON
@@ -746,19 +749,17 @@ async function handleProxy(req, res) {
       }
     }
 
-    // 도로명주소 검색: D'Live .req 서버 버그 우회
-    // - .req 서블릿: STREET_NM 전달 시 무조건 0건 반환 (버그)
+    // 도로명주소 검색: D'Live 서버 버그 우회
+    // - STREET_NM 전달 시 무조건 0건 반환 (어댑터/.req 모두 동일 버그)
     // - BUILD_NM 전달 시 서버 크래시
-    // 어댑터(/api)는 STREET_NM 정상 처리 → 어댑터에는 STREET_NM 유지
-    // .req 폴백 시에만 STREET_NM 제거 후 서버사이드 필터링
+    // 해결: STREET_NM 제거 후 전체 조회, 응답에서 서버사이드 필터링
     let streetAddrFilter = null;
     if (apiPath.endsWith('/getStreetAddrList') && req.body) {
       streetAddrFilter = {};
       if (req.body.STREET_NM) {
         streetAddrFilter.STREET_NM = req.body.STREET_NM;
-        // 어댑터에는 STREET_NM 유지 (어댑터는 정상 처리)
-        // .req 폴백 시에만 제거됨 (아래 fallback 코드에서 처리)
-        console.log('[PROXY] 도로명주소: STREET_NM 유지:', streetAddrFilter.STREET_NM);
+        delete req.body.STREET_NM;
+        console.log('[PROXY] 도로명주소: STREET_NM 분리:', streetAddrFilter.STREET_NM);
       }
       if (req.body.BUILD_NM) {
         streetAddrFilter.BUILD_NM = req.body.BUILD_NM;
