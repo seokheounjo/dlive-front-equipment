@@ -25,13 +25,9 @@ import {
   formatDate
 } from '../../services/customerApi';
 
-// ID 포맷 (3-3-4 형식)
+// ID 표시 (숫자만)
 const formatId = (id: string): string => {
   if (!id) return '-';
-  const cleaned = id.replace(/[^0-9]/g, '');
-  if (cleaned.length === 10) {
-    return `${cleaned.slice(0, 3)}-${cleaned.slice(3, 6)}-${cleaned.slice(6, 10)}`;
-  }
   return id;
 };
 
@@ -1085,31 +1081,34 @@ const ConsultationAS: React.FC<ConsultationASProps> = ({
                 filteredConsultation.length > 0 ? (
                   <div className="space-y-3 max-h-[400px] overflow-y-auto">
                     {filteredConsultation.map((item, index) => (
-                      <div key={index} className="bg-gray-50 rounded-lg border border-gray-100">
+                      <div key={index} className="bg-gray-50 rounded-lg text-sm border border-gray-100">
                         {/* 상단 정보 (클릭으로 접기/펼치기) */}
                         <div
                           className="p-3 cursor-pointer flex items-center justify-between"
                           onClick={() => toggleConsultItem(index)}
                         >
-                          <div className="flex-1">
-                            <div className="flex items-center justify-between mb-1">
-                              <div className="flex items-center gap-2">
-                                <span className="text-sm font-medium text-gray-800">{item.START_DATE || '-'}</span>
-                                {item.CTRT_ID && (
-                                  <span className="text-xs text-gray-500 font-mono">{formatId(item.CTRT_ID)}</span>
-                                )}
-                                <span className="px-2 py-0.5 text-xs bg-blue-100 text-blue-700 rounded">
-                                  {item.CNSL_SLV_CL_NM || '-'}
-                                </span>
-                              </div>
-                              <span className={`px-2 py-0.5 text-xs rounded font-medium ${
-                                item.CNSL_RSLT?.includes('완료')
-                                  ? 'bg-green-100 text-green-700'
-                                  : 'bg-yellow-100 text-yellow-700'
+                          <div className="grid grid-cols-5 gap-2 text-xs flex-1">
+                            <div className="flex flex-col">
+                              <span className="text-gray-500 whitespace-nowrap">계약ID</span>
+                              <span className="text-gray-800 font-medium text-[10px]">{item.CTRT_ID || '-'}</span>
+                            </div>
+                            <div className="flex flex-col">
+                              <span className="text-gray-500 whitespace-nowrap">접수일</span>
+                              <span className="text-gray-800 font-medium">{item.START_DATE || '-'}</span>
+                            </div>
+                            <div className="flex flex-col">
+                              <span className="text-gray-500 whitespace-nowrap">상담소분류</span>
+                              <span className="text-gray-800 font-medium truncate">{item.CNSL_SLV_CL_NM || '-'}</span>
+                            </div>
+                            <div className="flex flex-col">
+                              <span className="text-gray-500 whitespace-nowrap">처리상태</span>
+                              <span className={`font-medium ${
+                                item.CNSL_RSLT?.includes('완료') ? 'text-green-600' : 'text-yellow-600'
                               }`}>{item.CNSL_RSLT || '처리중'}</span>
                             </div>
-                            <div className="text-xs text-gray-500">
-                              접수자: <span className="text-gray-700">{item.RCPT_NM || '-'}</span>
+                            <div className="flex flex-col">
+                              <span className="text-gray-500 whitespace-nowrap">접수자</span>
+                              <span className="text-gray-800 font-medium">{item.RCPT_NM || '-'}</span>
                             </div>
                           </div>
                           {expandedConsultItems.has(index) ? (
@@ -1124,18 +1123,16 @@ const ConsultationAS: React.FC<ConsultationASProps> = ({
                           <div className="px-3 pb-3">
                             <div>
                               <div className="text-xs text-gray-500 mb-1">요청사항</div>
-                              <div className="p-2 bg-white border border-gray-200 rounded min-h-[40px] text-gray-700 text-xs">
+                              <div className="p-2 bg-white border border-gray-200 rounded min-h-[48px] text-gray-700 text-xs">
                                 {item.REQ_CTX || '-'}
                               </div>
                             </div>
-                            {item.PROC_CT && (
-                              <div className="mt-2">
-                                <div className="text-xs text-gray-500 mb-1">응대내용</div>
-                                <div className="p-2 bg-white border border-gray-200 rounded min-h-[40px] text-gray-700 text-xs">
-                                  {item.PROC_CT}
-                                </div>
+                            <div className="mt-2">
+                              <div className="text-xs text-gray-500 mb-1">응대내용</div>
+                              <div className="p-2 bg-white border border-gray-200 rounded min-h-[48px] text-gray-700 text-xs">
+                                {item.PROC_CT || '-'}
                               </div>
-                            )}
+                            </div>
                           </div>
                         )}
                       </div>
@@ -1150,15 +1147,13 @@ const ConsultationAS: React.FC<ConsultationASProps> = ({
                 filteredWork.length > 0 ? (
                   <div className="space-y-3 max-h-[400px] overflow-y-auto">
                     {filteredWork.map((item, index) => (
-                      <div key={index} className="p-3 bg-gray-50 rounded-lg border border-gray-100">
-                        {/* 계약ID + 작업예정일 */}
-                        {item.CTRT_ID && (
-                          <div className="text-xs text-gray-500 mb-1">
-                            계약: <span className="font-mono text-gray-700">{formatId(item.CTRT_ID)}</span>
+                      <div key={index} className="p-3 bg-gray-50 rounded-lg text-sm border border-gray-100">
+                        {/* 상단: 계약ID | 작업예정일 | 작업구분 | 작업상태 */}
+                        <div className="grid grid-cols-4 gap-2 text-xs">
+                          <div className="flex flex-col">
+                            <span className="text-gray-500 whitespace-nowrap">계약ID</span>
+                            <span className="text-gray-800 font-medium text-[10px]">{item.CTRT_ID || '-'}</span>
                           </div>
-                        )}
-                        {/* 상단: 작업예정일 | 작업구분 | 작업상태 */}
-                        <div className="grid grid-cols-3 gap-2 text-xs">
                           <div className="flex flex-col">
                             <span className="text-gray-500 whitespace-nowrap">작업예정일</span>
                             <span className="text-gray-800 font-medium">{item.HOPE_DT || '-'}</span>
