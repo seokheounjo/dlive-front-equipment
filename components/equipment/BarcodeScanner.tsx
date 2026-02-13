@@ -164,25 +164,25 @@ const BarcodeScanner: React.FC<BarcodeScannerProps> = ({ isOpen, onClose, onScan
         }
       );
 
-      // Scanner started - now enhance camera quality (resolution + autofocus)
+      // Scanner started - enhance to device's max camera capability
       try {
         const videoEl = document.querySelector('#barcode-reader video') as HTMLVideoElement;
         if (videoEl && videoEl.srcObject) {
           const track = (videoEl.srcObject as MediaStream).getVideoTracks()[0];
           if (track) {
+            // ideal을 높게 잡으면 카메라가 지원하는 최대 해상도로 자동 선택
             await track.applyConstraints({
-              advanced: [{
-                width: 1920,
-                height: 1080,
-                // @ts-ignore - focusMode is valid but not in TS types
-                focusMode: 'continuous',
-              }],
-            } as any);
+              width: { ideal: 4096 },
+              height: { ideal: 2160 },
+            });
+            // 연속 오토포커스 (별도 try - 미지원 기기 대비)
+            try {
+              await track.applyConstraints({ advanced: [{ focusMode: 'continuous' } as any] });
+            } catch {}
           }
         }
       } catch (e) {
-        // Enhancement failed - scanner still works at default quality
-        console.log('Camera quality enhancement not supported:', e);
+        console.log('Camera enhancement not supported:', e);
       }
 
       setIsScanning(true);
