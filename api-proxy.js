@@ -332,7 +332,7 @@ router.post('/customer/negociation/getCustWorkList', handleProxy);
 router.post('/customer/negociation/updateCustTelDetailInfo', handleProxy);
 router.post('/customer/etc/saveMargeAddrOrdInfo', handleProxy);
 router.post('/customer/etc/savePymAddrInfo', handleProxy);
-router.post('/customer/customer/general/customerPymChgAddManager', handlePaymentMethodChange);
+router.post('/customer/customer/general/customerPymChgAddManager', handleProxy);  // Now goes through adapter (backend fix deployed)
 router.post('/customer/customer/general/addCustomerPymInfoChange', handleProxy);
 // 6. Consultation/AS
 router.post('/customer/negociation/saveCnslRcptInfo', handleProxy);
