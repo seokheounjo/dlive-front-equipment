@@ -746,17 +746,19 @@ async function handleProxy(req, res) {
       }
     }
 
-    // 도로명주소 검색: D'Live 서버 버그 우회
-    // - STREET_NM 전달 시 무조건 0건 반환 (서버 버그)
+    // 도로명주소 검색: D'Live .req 서버 버그 우회
+    // - .req 서블릿: STREET_NM 전달 시 무조건 0건 반환 (버그)
     // - BUILD_NM 전달 시 서버 크래시
-    // 해결: 요청에서 제거 후 D'Live 전달, 응답에서 서버사이드 필터링
+    // 어댑터(/api)는 STREET_NM 정상 처리 → 어댑터에는 STREET_NM 유지
+    // .req 폴백 시에만 STREET_NM 제거 후 서버사이드 필터링
     let streetAddrFilter = null;
     if (apiPath.endsWith('/getStreetAddrList') && req.body) {
       streetAddrFilter = {};
       if (req.body.STREET_NM) {
         streetAddrFilter.STREET_NM = req.body.STREET_NM;
-        delete req.body.STREET_NM;
-        console.log('[PROXY] 도로명주소: STREET_NM 분리:', streetAddrFilter.STREET_NM);
+        // 어댑터에는 STREET_NM 유지 (어댑터는 정상 처리)
+        // .req 폴백 시에만 제거됨 (아래 fallback 코드에서 처리)
+        console.log('[PROXY] 도로명주소: STREET_NM 유지:', streetAddrFilter.STREET_NM);
       }
       if (req.body.BUILD_NM) {
         streetAddrFilter.BUILD_NM = req.body.BUILD_NM;
@@ -907,7 +909,13 @@ async function handleProxy(req, res) {
           console.log('[PROXY] ⚠ Adapter servlet error, falling back to .req endpoint');
           const reqPath = apiPath + '.req';
           const reqUrl = DLIVE_API_BASE + reqPath;
-          const xmlData = jsonToMiPlatformXML('DS_INPUT', req.body || {});
+          // .req 폴백: STREET_NM 제거 (D'Live .req 버그 - 전달 시 0건 반환)
+          const fallbackBody = Object.assign({}, req.body || {});
+          if (streetAddrFilter && streetAddrFilter.STREET_NM && fallbackBody.STREET_NM) {
+            delete fallbackBody.STREET_NM;
+            console.log('[PROXY] .req fallback: STREET_NM 제거 (서버 버그 우회)');
+          }
+          const xmlData = jsonToMiPlatformXML('DS_INPUT', fallbackBody);
           console.log('[PROXY] Fallback .req:', reqUrl);
           console.log('[PROXY] Fallback XML:', xmlData.substring(0, 300));
 
