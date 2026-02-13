@@ -2035,90 +2035,20 @@ export const searchPostAddress = async (params: PostAddressSearchRequest): Promi
  * 전략: 프론트 → EC2 프록시(STREET_NM 분리+필터링) → D'Live(SO_ID+BUN_M+BUN_S)
  */
 
-// 도로명주소 캐시 (SO_ID별)
-const streetAddressCache: { [soId: string]: StreetAddressInfo[] } = {};
+export const searchStreetAddress = async (params: StreetAddressSearchRequest): Promise<ApiResponse<StreetAddressInfo[]>> => {
+  const callParams: Record<string, string> = {};
+  if (params.STREET_NM) callParams.STREET_NM = params.STREET_NM;
+  if (params.STREET_BUN_M) callParams.STREET_BUN_M = params.STREET_BUN_M;
+  if (params.STREET_BUN_S) callParams.STREET_BUN_S = params.STREET_BUN_S;
+  if (params.SO_ID) callParams.SO_ID = params.SO_ID;
 
-const loadStreetAddressCache = async (soId: string, searchParams?: Record<string, string>): Promise<StreetAddressInfo[]> => {
-  // 모든 검색 파라미터를 EC2 프록시에 전달
-  // EC2 프록시가 STREET_NM을 분리하여 D'Live 전달 후 서버사이드 필터링 처리
-  const callParams: Record<string, string> = { SO_ID: soId };
-  if (searchParams) {
-    if (searchParams.STREET_NM) callParams.STREET_NM = searchParams.STREET_NM;
-    if (searchParams.STREET_BUN_M) callParams.STREET_BUN_M = searchParams.STREET_BUN_M;
-    if (searchParams.STREET_BUN_S) callParams.STREET_BUN_S = searchParams.STREET_BUN_S;
-  }
-
-  console.log(`[CustomerAPI] getStreetAddrList 호출:`, callParams);
   const result = await apiCall<StreetAddressInfo[]>(
     '/customer/common/customercommon/getStreetAddrList', callParams
   );
   if (result.success && result.data) {
-    return result.data;
+    return { success: true, data: result.data, message: '' };
   }
-  return [];
-};
-
-export const searchStreetAddress = async (params: StreetAddressSearchRequest): Promise<ApiResponse<StreetAddressInfo[]>> => {
-  // 세션에서 authSoList 가져오기
-  let soList: string[] = [];
-  try {
-    const userInfoStr = sessionStorage.getItem('userInfo') || localStorage.getItem('userInfo');
-    if (userInfoStr) {
-      const userInfo = JSON.parse(userInfoStr);
-      const authSoList = userInfo.authSoList || userInfo.AUTH_SO_List || [];
-      if (authSoList.length > 0) {
-        soList = authSoList
-          .map((so: any) => so.SO_ID || so.soId || '')
-          .filter((id: string) => id);
-      }
-      if (soList.length === 0) {
-        const fallbackSoId = userInfo.soId || userInfo.SO_ID || '';
-        if (fallbackSoId) soList = [fallbackSoId];
-      }
-    }
-  } catch (e) {
-    console.log('[CustomerAPI] Failed to get SO_ID from session');
-  }
-
-  // SO_ID가 명시적으로 전달된 경우
-  if (params.SO_ID) soList = [params.SO_ID];
-
-  if (soList.length === 0) {
-    return { success: false, data: [], message: 'SO_ID를 찾을 수 없습니다.' };
-  }
-
-  // 검색 파라미터 구성 (EC2 프록시가 STREET_NM을 D'Live 전달 전 분리하여 서버사이드 필터링)
-  const serverSearchParams: Record<string, string> = {};
-  if (params.STREET_NM) serverSearchParams.STREET_NM = params.STREET_NM;
-  if (params.STREET_BUN_M) serverSearchParams.STREET_BUN_M = params.STREET_BUN_M;
-  if (params.STREET_BUN_S) serverSearchParams.STREET_BUN_S = params.STREET_BUN_S;
-
-  // 전체 지점 로드 (단일 API 호출, 캐시 활용)
-  const hasSearchParams = Object.keys(serverSearchParams).length > 0;
-  const cacheResults = await Promise.all(
-    soList.map(soId =>
-      loadStreetAddressCache(soId, hasSearchParams ? serverSearchParams : undefined)
-        .catch(() => [] as StreetAddressInfo[])
-    )
-  );
-
-  // 합치기 (STREET_ID 중복 제거)
-  const seen = new Set<string>();
-  let allData: StreetAddressInfo[] = [];
-  for (const items of cacheResults) {
-    for (const item of items) {
-      const key = item.STREET_ID || `${item.SO_ID}_${item.STREET_ADDR}`;
-      if (!seen.has(key)) {
-        seen.add(key);
-        allData.push(item);
-      }
-    }
-  }
-
-  // EC2 프록시에서 STREET_NM + BUN_M + BUN_S 필터링 완료
-  // 클라이언트 추가 필터는 불필요 (프록시가 처리)
-  console.log(`[CustomerAPI] searchStreetAddress: ${allData.length}건`);
-  return { success: true, data: allData, message: '' };
+  return { success: false, data: [], message: result.message || '도로명주소 검색 실패' };
 };
 
 // ============ 유틸리티 함수 ============

@@ -747,20 +747,10 @@ async function handleProxy(req, res) {
       }
     }
 
-    // 도로명주소 검색: D'Live 서버 버그 우회
-    // - STREET_NM 전달 시 무조건 0건 반환 (어댑터/.req 모두 동일 버그)
-    // - BUILD_NM 전달 시 서버 크래시
-    // 해결: STREET_NM 제거 후 전체 조회, 응답에서 서버사이드 필터링
+    // 도로명주소: BUILD_NM만 제거 (서버 크래시 방지), STREET_NM은 서버에 그대로 전달
     let streetAddrFilter = null;
     if (apiPath.endsWith('/getStreetAddrList') && req.body) {
-      streetAddrFilter = {};
-      if (req.body.STREET_NM) {
-        streetAddrFilter.STREET_NM = req.body.STREET_NM;
-        delete req.body.STREET_NM;
-        console.log('[PROXY] 도로명주소: STREET_NM 분리:', streetAddrFilter.STREET_NM);
-      }
       if (req.body.BUILD_NM) {
-        streetAddrFilter.BUILD_NM = req.body.BUILD_NM;
         delete req.body.BUILD_NM;
         console.log('[PROXY] 도로명주소: BUILD_NM 제거 (크래시 방지)');
       }

@@ -1072,7 +1072,8 @@ const CustomerInfoChange: React.FC<CustomerInfoChangeProps> = ({
       const response = await searchStreetAddress({
         STREET_NM: streetSearchForm.streetNm,
         STREET_BUN_M: streetSearchForm.streetBunM || '',
-        STREET_BUN_S: streetSearchForm.streetBunS || ''
+        STREET_BUN_S: streetSearchForm.streetBunS || '',
+        SO_ID: selectedContract?.soId || ''
       });
 
       if (response.success && response.data) {
