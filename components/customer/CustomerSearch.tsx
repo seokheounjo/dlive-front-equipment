@@ -264,18 +264,6 @@ const CustomerSearch: React.FC<CustomerSearchProps> = ({ onCustomerSelect, onCus
                 value={selectedCustomer ? formatId(selectedCustomer.CUST_ID) : ''}
               />
             </div>
-            {/* 리셋 버튼 - 고객 선택 시에만 표시 */}
-            {selectedCustomer && (
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  handleReset();
-                }}
-                className="flex-shrink-0 px-3 py-2 text-xs font-medium text-white bg-red-500 hover:bg-red-600 rounded-lg transition-colors"
-              >
-                리셋
-              </button>
-            )}
           </div>
 
         </div>
