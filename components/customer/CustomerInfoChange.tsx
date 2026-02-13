@@ -177,7 +177,6 @@ const CustomerInfoChange: React.FC<CustomerInfoChangeProps> = ({
   const [hpPayList, setHpPayList] = useState<HPPayInfo[]>([]);
   const [isLoadingHpPay, setIsLoadingHpPay] = useState(false);
   const [hpPayLoaded, setHpPayLoaded] = useState(false);
-  const [hpPaySelectedItems, setHpPaySelectedItems] = useState<Set<string>>(new Set());
 
   // 납부방법 변경
   const [paymentInfoList, setPaymentInfoList] = useState<PaymentAccountInfo[]>([]);
@@ -704,74 +703,67 @@ const CustomerInfoChange: React.FC<CustomerInfoChangeProps> = ({
     }
   };
 
-  // 휴대폰결제 전체 선택/해제
+  // 휴대폰결제: 신청/해지 그룹 분리
   const filteredHpPayList = hpPayList.filter(item => item.CTRT_STAT_NM === '사용중');
-  const handleHpPaySelectAll = (checked: boolean) => {
-    if (checked) {
-      setHpPaySelectedItems(new Set(filteredHpPayList.map(item => item.CTRT_ID)));
+  const hpPayApplyList = filteredHpPayList.filter(item => item.HP_STAT !== '신청');  // 해제 상태 → 신청 대상
+  const hpPayCancelList = filteredHpPayList.filter(item => item.HP_STAT === '신청'); // 신청 상태 → 해지 대상
+  const [hpPayApplySelected, setHpPayApplySelected] = useState<Set<string>>(new Set());
+  const [hpPayCancelSelected, setHpPayCancelSelected] = useState<Set<string>>(new Set());
+
+  const handleHpPayGroupSelect = (group: 'apply' | 'cancel', checked: boolean) => {
+    if (group === 'apply') {
+      setHpPayApplySelected(checked ? new Set(hpPayApplyList.map(i => i.CTRT_ID)) : new Set());
     } else {
-      setHpPaySelectedItems(new Set());
+      setHpPayCancelSelected(checked ? new Set(hpPayCancelList.map(i => i.CTRT_ID)) : new Set());
     }
   };
-  const handleHpPaySelectItem = (ctrtId: string, checked: boolean) => {
-    setHpPaySelectedItems(prev => {
+  const handleHpPayItemSelect = (group: 'apply' | 'cancel', ctrtId: string, checked: boolean) => {
+    const setter = group === 'apply' ? setHpPayApplySelected : setHpPayCancelSelected;
+    setter(prev => {
       const next = new Set(prev);
-      if (checked) next.add(ctrtId);
-      else next.delete(ctrtId);
+      if (checked) next.add(ctrtId); else next.delete(ctrtId);
       return next;
     });
   };
 
-  // 휴대폰결제 일괄 신청 (해지 상태인 것만 신청, 이미 신청된 건 스킵)
+  // 휴대폰결제 일괄 신청
   const handleHpPayBulkApply = async () => {
-    if (hpPaySelectedItems.size === 0) {
-      showAlert('항목을 선택해주세요.', 'warning');
+    if (hpPayApplySelected.size === 0) {
+      showAlert('신청할 항목을 선택해주세요.', 'warning');
       return;
     }
-    const targets = filteredHpPayList.filter(
-      item => hpPaySelectedItems.has(item.CTRT_ID) && item.HP_STAT !== '신청'
-    );
-    if (targets.length === 0) {
-      showAlert('신청 대상이 없습니다. (이미 모두 신청 상태)', 'info');
-      return;
-    }
+    const targets = hpPayApplyList.filter(item => hpPayApplySelected.has(item.CTRT_ID));
     setConfirmModal({
       isOpen: true,
       title: '휴대폰결제 일괄 신청',
-      message: `${targets.length}건을 신청하시겠습니까?\n(이미 신청된 건은 스킵)`,
+      message: `${targets.length}건을 신청하시겠습니까?`,
       type: 'confirm',
       onConfirm: async () => {
         for (const item of targets) {
           await executeHpPayChange(item, '신청');
         }
-        setHpPaySelectedItems(new Set());
+        setHpPayApplySelected(new Set());
       }
     });
   };
 
-  // 휴대폰결제 일괄 해지 (신청 상태인 것만 해지, 이미 해지된 건 스킵)
+  // 휴대폰결제 일괄 해지
   const handleHpPayBulkCancel = async () => {
-    if (hpPaySelectedItems.size === 0) {
-      showAlert('항목을 선택해주세요.', 'warning');
+    if (hpPayCancelSelected.size === 0) {
+      showAlert('해지할 항목을 선택해주세요.', 'warning');
       return;
     }
-    const targets = filteredHpPayList.filter(
-      item => hpPaySelectedItems.has(item.CTRT_ID) && item.HP_STAT === '신청'
-    );
-    if (targets.length === 0) {
-      showAlert('해지 대상이 없습니다. (이미 모두 해지 상태)', 'info');
-      return;
-    }
+    const targets = hpPayCancelList.filter(item => hpPayCancelSelected.has(item.CTRT_ID));
     setConfirmModal({
       isOpen: true,
       title: '휴대폰결제 일괄 해지',
-      message: `${targets.length}건을 해지하시겠습니까?\n(이미 해지된 건은 스킵)`,
+      message: `${targets.length}건을 해지하시겠습니까?`,
       type: 'confirm',
       onConfirm: async () => {
         for (const item of targets) {
           await executeHpPayChange(item, '해지');
         }
-        setHpPaySelectedItems(new Set());
+        setHpPayCancelSelected(new Set());
       }
     });
   };
@@ -1499,40 +1491,15 @@ const CustomerInfoChange: React.FC<CustomerInfoChangeProps> = ({
 
           {expandedSections.hpPay && (
             <div className="px-4 pb-4 space-y-3">
-              {/* 새로고침 + 전체선택 + 일괄 버튼 */}
-              <div className="flex items-center justify-between">
-                <label className="flex items-center gap-2 text-sm text-gray-700">
-                  <input
-                    type="checkbox"
-                    checked={filteredHpPayList.length > 0 && hpPaySelectedItems.size === filteredHpPayList.length}
-                    onChange={(e) => handleHpPaySelectAll(e.target.checked)}
-                    className="w-4 h-4 text-purple-600 rounded"
-                  />
-                  전체선택
-                </label>
-                <div className="flex items-center gap-2">
-                  <button
-                    onClick={handleHpPayBulkApply}
-                    disabled={hpPaySelectedItems.size === 0}
-                    className="px-3 py-1 text-xs font-medium bg-purple-500 text-white rounded-lg hover:bg-purple-600 disabled:bg-gray-300 transition-colors"
-                  >
-                    신청하기
-                  </button>
-                  <button
-                    onClick={handleHpPayBulkCancel}
-                    disabled={hpPaySelectedItems.size === 0}
-                    className="px-3 py-1 text-xs font-medium bg-red-500 text-white rounded-lg hover:bg-red-600 disabled:bg-gray-300 transition-colors"
-                  >
-                    해지하기
-                  </button>
-                  <button
-                    onClick={loadHpPayList}
-                    disabled={isLoadingHpPay}
-                    className="flex items-center gap-1 px-3 py-1 text-sm text-purple-600 hover:bg-purple-50 rounded-lg transition-colors"
-                  >
-                    <RefreshCw className={`w-4 h-4 ${isLoadingHpPay ? 'animate-spin' : ''}`} />
-                  </button>
-                </div>
+              {/* 새로고침 버튼 */}
+              <div className="flex justify-end">
+                <button
+                  onClick={loadHpPayList}
+                  disabled={isLoadingHpPay}
+                  className="flex items-center gap-1 px-3 py-1 text-sm text-purple-600 hover:bg-purple-50 rounded-lg transition-colors"
+                >
+                  <RefreshCw className={`w-4 h-4 ${isLoadingHpPay ? 'animate-spin' : ''}`} />
+                </button>
               </div>
 
               {/* 로딩 상태 */}
@@ -1551,14 +1518,32 @@ const CustomerInfoChange: React.FC<CustomerInfoChangeProps> = ({
                 </div>
               )}
 
-              {/* 계약별 목록 (사용중만 표시) */}
-              {!isLoadingHpPay && filteredHpPayList.length > 0 && (
+              {/* 신청 그룹 (현재 해제 상태 → 신청 가능) */}
+              {!isLoadingHpPay && hpPayApplyList.length > 0 && (
                 <div className="space-y-2">
-                  {filteredHpPayList.map((item, index) => (
+                  <div className="flex items-center justify-between">
+                    <label className="flex items-center gap-2 text-sm font-medium text-purple-700">
+                      <input
+                        type="checkbox"
+                        checked={hpPayApplyList.length > 0 && hpPayApplySelected.size === hpPayApplyList.length}
+                        onChange={(e) => handleHpPayGroupSelect('apply', e.target.checked)}
+                        className="w-4 h-4 text-purple-600 rounded"
+                      />
+                      신청 대상 ({hpPayApplyList.length}건)
+                    </label>
+                    <button
+                      onClick={handleHpPayBulkApply}
+                      disabled={hpPayApplySelected.size === 0}
+                      className="px-3 py-1 text-xs font-medium bg-purple-500 text-white rounded-lg hover:bg-purple-600 disabled:bg-gray-300 transition-colors"
+                    >
+                      선택 신청 ({hpPayApplySelected.size})
+                    </button>
+                  </div>
+                  {hpPayApplyList.map((item, index) => (
                     <div
-                      key={item.CTRT_ID || index}
+                      key={item.CTRT_ID || `apply-${index}`}
                       className={`p-3 rounded-lg border ${
-                        hpPaySelectedItems.has(item.CTRT_ID)
+                        hpPayApplySelected.has(item.CTRT_ID)
                           ? 'bg-purple-50 border-purple-300'
                           : 'bg-gray-50 border-gray-100'
                       }`}
@@ -1566,21 +1551,76 @@ const CustomerInfoChange: React.FC<CustomerInfoChangeProps> = ({
                       <div className="flex items-center gap-2 mb-2">
                         <input
                           type="checkbox"
-                          checked={hpPaySelectedItems.has(item.CTRT_ID)}
-                          onChange={(e) => handleHpPaySelectItem(item.CTRT_ID, e.target.checked)}
+                          checked={hpPayApplySelected.has(item.CTRT_ID)}
+                          onChange={(e) => handleHpPayItemSelect('apply', item.CTRT_ID, e.target.checked)}
                           className="w-4 h-4 text-purple-600 rounded flex-shrink-0"
                         />
                         <span className="font-medium text-gray-800 text-sm flex-1">
                           {item.PROD_NM || '상품명 없음'}
                         </span>
-                        <span
-                          className={`px-2 py-0.5 text-xs rounded-full flex-shrink-0 ${
-                            item.HP_STAT === '신청'
-                              ? 'bg-green-100 text-green-700'
-                              : 'bg-orange-100 text-orange-700'
-                          }`}
-                        >
-                          {item.HP_STAT === '신청' ? '신청' : '해제'}
+                        <span className="px-2 py-0.5 text-xs rounded-full flex-shrink-0 bg-orange-100 text-orange-700">
+                          해제
+                        </span>
+                      </div>
+                      <div className="text-xs text-gray-500 space-y-1 ml-6">
+                        <div className="flex justify-between">
+                          <span>계약ID:</span>
+                          <span className="text-gray-700">{item.CTRT_ID}</span>
+                        </div>
+                        {item.ADDR && (
+                          <div>
+                            <span className="text-gray-400">설치주소: </span>
+                            <span className="text-gray-700 break-all">{item.ADDR}</span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* 해지 그룹 (현재 신청 상태 → 해지 가능) */}
+              {!isLoadingHpPay && hpPayCancelList.length > 0 && (
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <label className="flex items-center gap-2 text-sm font-medium text-green-700">
+                      <input
+                        type="checkbox"
+                        checked={hpPayCancelList.length > 0 && hpPayCancelSelected.size === hpPayCancelList.length}
+                        onChange={(e) => handleHpPayGroupSelect('cancel', e.target.checked)}
+                        className="w-4 h-4 text-green-600 rounded"
+                      />
+                      해지 대상 ({hpPayCancelList.length}건)
+                    </label>
+                    <button
+                      onClick={handleHpPayBulkCancel}
+                      disabled={hpPayCancelSelected.size === 0}
+                      className="px-3 py-1 text-xs font-medium bg-red-500 text-white rounded-lg hover:bg-red-600 disabled:bg-gray-300 transition-colors"
+                    >
+                      선택 해지 ({hpPayCancelSelected.size})
+                    </button>
+                  </div>
+                  {hpPayCancelList.map((item, index) => (
+                    <div
+                      key={item.CTRT_ID || `cancel-${index}`}
+                      className={`p-3 rounded-lg border ${
+                        hpPayCancelSelected.has(item.CTRT_ID)
+                          ? 'bg-green-50 border-green-300'
+                          : 'bg-gray-50 border-gray-100'
+                      }`}
+                    >
+                      <div className="flex items-center gap-2 mb-2">
+                        <input
+                          type="checkbox"
+                          checked={hpPayCancelSelected.has(item.CTRT_ID)}
+                          onChange={(e) => handleHpPayItemSelect('cancel', item.CTRT_ID, e.target.checked)}
+                          className="w-4 h-4 text-green-600 rounded flex-shrink-0"
+                        />
+                        <span className="font-medium text-gray-800 text-sm flex-1">
+                          {item.PROD_NM || '상품명 없음'}
+                        </span>
+                        <span className="px-2 py-0.5 text-xs rounded-full flex-shrink-0 bg-green-100 text-green-700">
+                          신청
                         </span>
                       </div>
                       <div className="text-xs text-gray-500 space-y-1 ml-6">
