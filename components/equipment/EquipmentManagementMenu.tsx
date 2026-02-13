@@ -35,23 +35,6 @@ const EquipmentManagementMenu: React.FC<EquipmentManagementMenuProps> = ({ onNav
     setActiveTab(tabId);
   };
 
-  const renderContent = () => {
-    switch (activeTab) {
-      case 'equipment-assignment':
-        return <EquipmentAssignment onBack={onNavigateToMenu} showToast={showToast} />;
-      case 'equipment-inquiry':
-        return <EquipmentInquiry onBack={onNavigateToMenu} showToast={showToast} />;
-      case 'equipment-list':
-        return <EquipmentList onBack={onNavigateToMenu} showToast={showToast} />;
-      case 'equipment-movement':
-        return <EquipmentMovement onBack={onNavigateToMenu} showToast={showToast} />;
-      case 'equipment-recovery':
-        return <EquipmentRecovery onBack={onNavigateToMenu} showToast={showToast} />;
-      default:
-        return null;
-    }
-  };
-
   return (
     <div className="h-[calc(100vh-64px)] flex flex-col bg-gray-50 overflow-hidden">
       {/* 탭 메뉴 - Dashboard와 동일한 패턴 */}
@@ -62,9 +45,23 @@ const EquipmentManagementMenu: React.FC<EquipmentManagementMenuProps> = ({ onNav
           onTabChange={handleTabChange}
         />
       </div>
-      {/* 콘텐츠 영역 - flex-1로 남은 공간 채움, 내부 스크롤 */}
+      {/* 콘텐츠 영역 - 모든 탭 항상 마운트, display로 전환 (상태 유지) */}
       <div className="flex-1 overflow-hidden">
-        {renderContent()}
+        <div style={{ display: activeTab === 'equipment-assignment' ? 'contents' : 'none' }}>
+          <EquipmentAssignment onBack={onNavigateToMenu} showToast={showToast} />
+        </div>
+        <div style={{ display: activeTab === 'equipment-inquiry' ? 'contents' : 'none' }}>
+          <EquipmentInquiry onBack={onNavigateToMenu} showToast={showToast} />
+        </div>
+        <div style={{ display: activeTab === 'equipment-list' ? 'contents' : 'none' }}>
+          <EquipmentList onBack={onNavigateToMenu} showToast={showToast} />
+        </div>
+        <div style={{ display: activeTab === 'equipment-movement' ? 'contents' : 'none' }}>
+          <EquipmentMovement onBack={onNavigateToMenu} showToast={showToast} />
+        </div>
+        <div style={{ display: activeTab === 'equipment-recovery' ? 'contents' : 'none' }}>
+          <EquipmentRecovery onBack={onNavigateToMenu} showToast={showToast} />
+        </div>
       </div>
     </div>
   );
