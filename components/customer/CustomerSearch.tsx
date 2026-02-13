@@ -3,33 +3,7 @@ import { Loader2, X, User, AlertCircle } from 'lucide-react';
 import { searchCustomerAll, getContractList, CustomerInfo, maskPhoneNumber } from '../../services/customerApi';
 import BarcodeScanner from '../equipment/BarcodeScanner';
 
-// ID 포맷 (3-3-4 형식) - 표시용
-const formatId = (id: string): string => {
-  if (!id) return '-';
-  const cleaned = id.replace(/[^0-9]/g, '');
-  if (cleaned.length === 10) {
-    return `${cleaned.slice(0, 3)}-${cleaned.slice(3, 6)}-${cleaned.slice(6, 10)}`;
-  }
-  return id;
-};
-
-// ID 입력 시 자동 포맷팅 (3-3-4)
-const formatIdInput = (value: string): string => {
-  const cleaned = value.replace(/[^0-9]/g, '');
-  if (cleaned.length <= 3) return cleaned;
-  if (cleaned.length <= 6) return `${cleaned.slice(0, 3)}-${cleaned.slice(3)}`;
-  return `${cleaned.slice(0, 3)}-${cleaned.slice(3, 6)}-${cleaned.slice(6, 10)}`;
-};
-
-// 전화번호 입력 시 자동 포맷팅
-const formatPhoneInput = (value: string): string => {
-  const cleaned = value.replace(/[^0-9]/g, '');
-  if (cleaned.length <= 3) return cleaned;
-  if (cleaned.length <= 7) return `${cleaned.slice(0, 3)}-${cleaned.slice(3)}`;
-  return `${cleaned.slice(0, 3)}-${cleaned.slice(3, 7)}-${cleaned.slice(7, 11)}`;
-};
-
-// 포맷된 값에서 숫자만 추출
+// 숫자만 추출
 const extractDigits = (value: string): string => value.replace(/[^0-9]/g, '');
 
 interface CustomerSearchProps {
@@ -219,12 +193,12 @@ const CustomerSearch: React.FC<CustomerSearchProps> = ({ onCustomerSelect, onCus
   // 고객 선택
   const handleSelectCustomer = (customer: CustomerInfo) => {
     // 폼 필드에 선택된 고객 정보 채우기 (포맷팅 적용)
-    setCustomerId(formatIdInput(customer.CUST_ID || ''));
-    setPhoneNumber(formatPhoneInput(customer.TEL_NO || customer.HP_NO || ''));
+    setCustomerId(customer.CUST_ID || '');
+    setPhoneNumber(customer.TEL_NO || customer.HP_NO || '');
     setCustomerName(customer.CUST_NM || '');
     // 계약ID: 결과에 CTRT_ID가 있으면 유지, 없으면 기존 입력값 보존
     if (customer.CTRT_ID) {
-      setContractId(formatIdInput(customer.CTRT_ID));
+      setContractId(customer.CTRT_ID);
     }
     // S/N 입력값은 보존 (초기화하지 않음)
 
@@ -261,7 +235,7 @@ const CustomerSearch: React.FC<CustomerSearchProps> = ({ onCustomerSelect, onCus
                 className="flex-1 min-w-0 px-2 py-2 text-sm border border-gray-200 rounded-lg bg-gray-50 cursor-pointer"
                 placeholder="고객ID"
                 type="text"
-                value={selectedCustomer ? formatId(selectedCustomer.CUST_ID) : ''}
+                value={selectedCustomer?.CUST_ID || ''}
               />
             </div>
           </div>
@@ -297,10 +271,10 @@ const CustomerSearch: React.FC<CustomerSearchProps> = ({ onCustomerSelect, onCus
                 <input
                   type="text"
                   value={customerId}
-                  onChange={(e) => setCustomerId(formatIdInput(e.target.value))}
+                  onChange={(e) => setCustomerId(extractDigits(e.target.value))}
                   onKeyPress={handleKeyPress}
-                  placeholder="000-000-0000"
-                  maxLength={12}
+                  placeholder="0000000000"
+                  maxLength={10}
                   className="flex-1 px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500"
                 />
               </div>
@@ -311,10 +285,10 @@ const CustomerSearch: React.FC<CustomerSearchProps> = ({ onCustomerSelect, onCus
                 <input
                   type="text"
                   value={contractId}
-                  onChange={(e) => setContractId(formatIdInput(e.target.value))}
+                  onChange={(e) => setContractId(extractDigits(e.target.value))}
                   onKeyPress={handleKeyPress}
-                  placeholder="000-000-0000"
-                  maxLength={12}
+                  placeholder="0000000000"
+                  maxLength={10}
                   className="flex-1 px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500"
                 />
               </div>
@@ -326,10 +300,10 @@ const CustomerSearch: React.FC<CustomerSearchProps> = ({ onCustomerSelect, onCus
                   <input
                     type="tel"
                     value={phoneNumber}
-                    onChange={(e) => setPhoneNumber(formatPhoneInput(e.target.value))}
+                    onChange={(e) => setPhoneNumber(extractDigits(e.target.value))}
                     onKeyPress={handleKeyPress}
-                    placeholder="010-0000-0000"
-                    maxLength={13}
+                    placeholder="01000000000"
+                    maxLength={11}
                     className="flex-1 min-w-0 px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500"
                   />
                   <input
@@ -406,12 +380,12 @@ const CustomerSearch: React.FC<CustomerSearchProps> = ({ onCustomerSelect, onCus
                         className="w-full p-3 bg-white hover:bg-blue-50 rounded-lg border border-gray-200 hover:border-blue-300 text-left transition-colors"
                       >
                         <div className="flex items-center gap-3">
-                          <span className="text-blue-600 font-mono text-sm">{formatId(customer.CUST_ID)}</span>
+                          <span className="text-blue-600 font-mono text-sm">{customer.CUST_ID}</span>
                           <span className="font-semibold text-gray-900">{customer.CUST_NM}</span>
                         </div>
                         {customer.CTRT_ID && (
                           <div className="mt-1 text-xs text-gray-600">
-                            <span className="text-gray-400">계약ID:</span> <span className="font-mono">{formatId(customer.CTRT_ID)}</span>
+                            <span className="text-gray-400">계약ID:</span> <span className="font-mono">{customer.CTRT_ID}</span>
                           </div>
                         )}
                         <div className="mt-1 text-xs text-gray-500 truncate">
