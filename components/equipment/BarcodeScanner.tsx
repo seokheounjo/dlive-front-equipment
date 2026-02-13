@@ -138,13 +138,19 @@ const BarcodeScanner: React.FC<BarcodeScannerProps> = ({ isOpen, onClose, onScan
       scannerRef.current = new Html5QrcodeClass('barcode-reader');
 
       const config = {
-        fps: 10,
-        qrbox: { width: 250, height: 150 },
+        fps: 15,
+        qrbox: { width: 300, height: 180 },
         aspectRatio: 1.777778, // 16:9
+        disableFlip: false,
       };
 
       await scannerRef.current.start(
-        { facingMode: 'environment' }, // Back camera only
+        {
+          facingMode: 'environment',
+          advanced: [{ focusMode: 'continuous' }],
+          width: { ideal: 1920, min: 1280 },
+          height: { ideal: 1080, min: 720 },
+        } as any,
         config,
         (decodedText: string) => {
           console.log('Barcode scanned:', decodedText);
@@ -240,7 +246,7 @@ const BarcodeScanner: React.FC<BarcodeScannerProps> = ({ isOpen, onClose, onScan
       {/* Scan overlay */}
       {isScanning && (
         <div className="absolute inset-0 pointer-events-none flex items-center justify-center">
-          <div className="w-64 h-40 relative">
+          <div className="w-[300px] h-[180px] relative">
             {/* Corner markers */}
             <div className="absolute top-0 left-0 w-8 h-8 border-t-4 border-l-4 border-green-400 rounded-tl-lg"></div>
             <div className="absolute top-0 right-0 w-8 h-8 border-t-4 border-r-4 border-green-400 rounded-tr-lg"></div>
