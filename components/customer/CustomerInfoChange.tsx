@@ -904,7 +904,7 @@ const CustomerInfoChange: React.FC<CustomerInfoChangeProps> = ({
         ADDR_DTL: fullAddr,
         STREET_ID: addressForm.streetId || undefined,
         INSTL_LOC: currentInstallInfo.instlLoc || undefined,
-        CUST_FLAG: '1',
+        CUST_FLAG: '0',
         PYM_FLAG: addressForm.changeBillAddr ? '1' : '0'
       };
 
