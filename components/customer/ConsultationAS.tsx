@@ -697,10 +697,14 @@ const ConsultationAS: React.FC<ConsultationASProps> = ({
                 </div>
               </div>
               {targetUnit === 'contract' && selectedContract && (
-                <div className="text-xs text-blue-700 pt-1 border-t border-blue-200">
-                  {selectedContract.prodNm} ({formatId(selectedContract.ctrtId)})
+                <div className="text-xs text-blue-700 pt-1 border-t border-blue-200 space-y-0.5">
+                  <div className="flex"><span className="text-blue-500 w-14 flex-shrink-0">상품명</span><span className="font-medium">{selectedContract.prodNm}</span></div>
+                  <div className="flex"><span className="text-blue-500 w-14 flex-shrink-0">계약ID</span><span>{formatId(selectedContract.ctrtId)}</span></div>
+                  {selectedContract.instAddr && (
+                    <div className="flex"><span className="text-blue-500 w-14 flex-shrink-0">설치주소</span><span>{selectedContract.instAddr}</span></div>
+                  )}
                   {selectedContract.notrecev && (
-                    <span className="ml-2 text-blue-500">장비: {selectedContract.notrecev}</span>
+                    <div className="flex"><span className="text-blue-500 w-14 flex-shrink-0">장비</span><span>{selectedContract.notrecev}</span></div>
                   )}
                 </div>
               )}
@@ -865,18 +869,14 @@ const ConsultationAS: React.FC<ConsultationASProps> = ({
               <>
                 {/* 선택된 계약 정보 (가입자이고 계약이 있을 때만 표시) */}
                 {asSubscriberType === 'subscriber' && selectedContract && (
-                  <div className="p-3 bg-orange-50 rounded-lg">
-                    <div className="text-sm text-orange-800">
-                      <span className="font-medium">{selectedContract.prodNm}</span>
-                      <span className="ml-2 text-orange-600">({formatId(selectedContract.ctrtId)})</span>
-                    </div>
-                    <div className="text-xs text-orange-600 mt-1">
-                      {selectedContract.instAddr}
-                    </div>
+                  <div className="p-3 bg-orange-50 rounded-lg text-xs text-orange-700 space-y-0.5">
+                    <div className="flex"><span className="text-orange-500 w-14 flex-shrink-0">상품명</span><span className="font-medium">{selectedContract.prodNm}</span></div>
+                    <div className="flex"><span className="text-orange-500 w-14 flex-shrink-0">계약ID</span><span>{formatId(selectedContract.ctrtId)}</span></div>
+                    {selectedContract.instAddr && (
+                      <div className="flex"><span className="text-orange-500 w-14 flex-shrink-0">설치주소</span><span>{selectedContract.instAddr}</span></div>
+                    )}
                     {selectedContract.notrecev && (
-                      <div className="text-xs text-orange-600 mt-1">
-                        장비: {selectedContract.notrecev}
-                      </div>
+                      <div className="flex"><span className="text-orange-500 w-14 flex-shrink-0">장비</span><span>{selectedContract.notrecev}</span></div>
                     )}
                   </div>
                 )}
