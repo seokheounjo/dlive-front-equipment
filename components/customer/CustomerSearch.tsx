@@ -271,10 +271,9 @@ const CustomerSearch: React.FC<CustomerSearchProps> = ({ onCustomerSelect, onCus
                   e.stopPropagation();
                   handleReset();
                 }}
-                className="flex-shrink-0 w-8 h-8 flex items-center justify-center rounded-full bg-gray-200 hover:bg-red-100 text-gray-500 hover:text-red-500 transition-colors"
-                title="리셋"
+                className="flex-shrink-0 px-3 py-2 text-xs font-medium text-white bg-red-500 hover:bg-red-600 rounded-lg transition-colors"
               >
-                <X className="w-4 h-4" />
+                리셋
               </button>
             )}
           </div>
