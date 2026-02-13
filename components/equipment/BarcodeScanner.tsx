@@ -145,12 +145,7 @@ const BarcodeScanner: React.FC<BarcodeScannerProps> = ({ isOpen, onClose, onScan
       };
 
       await scannerRef.current.start(
-        {
-          facingMode: 'environment',
-          advanced: [{ focusMode: 'continuous' }],
-          width: { ideal: 1920, min: 1280 },
-          height: { ideal: 1080, min: 720 },
-        } as any,
+        { facingMode: 'environment' },
         config,
         (decodedText: string) => {
           console.log('Barcode scanned:', decodedText);
@@ -168,6 +163,27 @@ const BarcodeScanner: React.FC<BarcodeScannerProps> = ({ isOpen, onClose, onScan
           // Ignore scan errors (continuous scanning)
         }
       );
+
+      // Scanner started - now enhance camera quality (resolution + autofocus)
+      try {
+        const videoEl = document.querySelector('#barcode-reader video') as HTMLVideoElement;
+        if (videoEl && videoEl.srcObject) {
+          const track = (videoEl.srcObject as MediaStream).getVideoTracks()[0];
+          if (track) {
+            await track.applyConstraints({
+              advanced: [{
+                width: 1920,
+                height: 1080,
+                // @ts-ignore - focusMode is valid but not in TS types
+                focusMode: 'continuous',
+              }],
+            } as any);
+          }
+        }
+      } catch (e) {
+        // Enhancement failed - scanner still works at default quality
+        console.log('Camera quality enhancement not supported:', e);
+      }
 
       setIsScanning(true);
       setError(null);
