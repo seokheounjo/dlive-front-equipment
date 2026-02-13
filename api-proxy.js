@@ -516,23 +516,39 @@ async function handlePaymentMethodChange(req, res) {
         console.log('[PaymentMethodChange] Response status:', proxyRes.statusCode);
         console.log('[PaymentMethodChange] Response body:', responseText.substring(0, 500));
 
-        // Parse MiPlatform response
+        // Check for CONA error codes first
+        const errorCodeMatch = responseText.match(/ErrorCode[^>]*>([^<]+)/);
+        const errorReasonMatch = responseText.match(/ExceptionReason[^>]*>([^<]+)/);
+        const errorCode = errorCodeMatch ? errorCodeMatch[1].trim() : null;
+        const errorReason = errorReasonMatch ? errorReasonMatch[1].replace(/&#32;/g, ' ').replace(/&#10;/g, '\n') : null;
+
+        if (errorCode && errorCode !== '0') {
+          console.error('[PaymentMethodChange] CONA error: code=' + errorCode + ', reason=' + errorReason);
+          if (errorCode === '-200' || (errorReason && errorReason.includes('로그인'))) {
+            // 세션 만료 → 어댑터로 fallback
+            console.log('[PaymentMethodChange] Session expired, falling back to adapter');
+            return handleProxy(req, res);
+          }
+          return res.json({ success: false, code: 'CONA_ERROR', message: errorReason || 'CONA server error (code: ' + errorCode + ')', data: {} });
+        }
+
+        // Parse MiPlatform dataset response
         const parsed = parseMiPlatformDatasetXMLtoJSON(responseText);
         if (parsed) {
-          // 성공: MSGCODE/MESSAGE 체크
           const data = Array.isArray(parsed) ? parsed[0] : parsed;
           const msgCode = data.MSGCODE || data.MSG_CODE || '';
           const message = data.MESSAGE || data.MSG || '';
           console.log('[PaymentMethodChange] MSGCODE:', msgCode, 'MESSAGE:', message);
-          res.json({ success: true, code: msgCode, message: message || 'Payment method changed', data: data });
-        } else if (responseText.includes('responseSuccess') || responseText.includes('ErrorCode="0"') || proxyRes.statusCode === 200) {
-          // MiPlatform responseSuccess view
+          if (msgCode && msgCode !== '' && msgCode !== 'SUCCESS' && msgCode !== '0') {
+            return res.json({ success: false, code: msgCode, message: message || 'Payment change failed', data: data });
+          }
+          res.json({ success: true, code: msgCode || 'SUCCESS', message: message || 'Payment method changed', data: data });
+        } else if (responseText.includes('responseSuccess') || (errorCode === '0')) {
           res.json({ success: true, code: 'SUCCESS', message: 'Payment method changed successfully', data: {} });
         } else {
           console.error('[PaymentMethodChange] Unexpected response:', responseText.substring(0, 300));
-          // Fallback: 어댑터 경유
           console.log('[PaymentMethodChange] Falling back to adapter');
-          handleProxy(req, res);
+          return handleProxy(req, res);
         }
       });
     });
