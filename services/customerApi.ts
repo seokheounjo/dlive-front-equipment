@@ -2365,7 +2365,7 @@ export const getOrderDate = (): string => {
  * Get promotion info of contract
  */
 export const getPromOfContract = async (ctrtId: string): Promise<ApiResponse<any[]>> => {
-  return apiCall<any[]>('/customer/receipt/getPromOfContract', { CTRT_ID: ctrtId });
+  return apiCall<any[]>('/customer/etc/getPromOfContract', { CTRT_ID: ctrtId });
 };
 
 /**
@@ -2395,7 +2395,7 @@ export const savePromCtrtInfo = async (params: {
     } catch (e) {}
   }
 
-  return apiCall<any>('/customer/receipt/savePromCtrtInfo', {
+  return apiCall<any>('/customer/etc/savePromCtrtInfo', {
     ...params,
     REG_UID: params.REG_UID || userId,
     CHG_UID: params.CHG_UID || userId,
