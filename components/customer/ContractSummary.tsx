@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import {
   FileText, ChevronDown, ChevronUp, Loader2,
-  MapPin, Filter, MessageSquare, Wrench, Home, RefreshCw
+  MapPin, Filter
 } from 'lucide-react';
 import { ContractInfo, formatCurrency, formatDate } from '../../services/customerApi';
 
@@ -335,7 +335,6 @@ const ContractSummary: React.FC<ContractSummaryProps> = ({
                               }}
                               className="flex-1 flex items-center justify-center gap-1 px-2 py-2 bg-blue-500 hover:bg-blue-600 text-white text-xs font-medium rounded-lg transition-colors"
                             >
-                              <MessageSquare className="w-3.5 h-3.5" />
                               상담
                             </button>
                           )}
@@ -350,7 +349,6 @@ const ContractSummary: React.FC<ContractSummaryProps> = ({
                             }}
                             className="flex-1 flex items-center justify-center gap-1 px-2 py-2 bg-orange-500 hover:bg-orange-600 text-white text-xs font-medium rounded-lg transition-colors"
                           >
-                            <Wrench className="w-3.5 h-3.5" />
                             AS
                           </button>
                           {/* 주소변경 - 사용계약만 */}
@@ -365,7 +363,6 @@ const ContractSummary: React.FC<ContractSummaryProps> = ({
                               }}
                               className="flex-1 flex items-center justify-center gap-1 px-2 py-2 bg-green-500 hover:bg-green-600 text-white text-xs font-medium rounded-lg transition-colors"
                             >
-                              <Home className="w-3.5 h-3.5" />
                               주소변경
                             </button>
                           )}
@@ -390,7 +387,6 @@ const ContractSummary: React.FC<ContractSummaryProps> = ({
                                     : 'bg-gray-200 text-gray-400 cursor-not-allowed'
                                 }`}
                               >
-                                <RefreshCw className="w-3.5 h-3.5" />
                                 재약정
                               </button>
                             );
