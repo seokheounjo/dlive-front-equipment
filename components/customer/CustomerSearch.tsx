@@ -77,21 +77,13 @@ const CustomerSearch: React.FC<CustomerSearchProps> = ({ onCustomerSelect, onCus
     setShowModal(false);
   };
 
-  // 리셋 (입력필드만 비움, 저장된 값은 유지 → 닫았다 열면 다시 복원)
+  // 리셋 (입력필드만 비움, 검색결과/고객선택은 유지)
   const handleReset = () => {
-    // 입력필드만 화면에서 비움
     setCustomerId('');
     setContractId('');
     setPhoneNumber('');
     setCustomerName('');
     setEquipmentNo('');
-    // 검색 결과 초기화
-    setSearchResults([]);
-    setHasSearched(false);
-    // 선택된 고객 해제 (기본조회 데이터도 초기화)
-    if (onCustomerClear) {
-      onCustomerClear();
-    }
   };
 
   // 검색 실행 - 모든 파라미터를 한 번에 전송 (getConditionalCustList3 사용)
