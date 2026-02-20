@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { Loader2, X, User, AlertCircle } from 'lucide-react';
 import { searchCustomerAll, getContractList, CustomerInfo, maskPhoneNumber } from '../../services/customerApi';
 import BarcodeScanner from '../equipment/BarcodeScanner';
@@ -46,6 +46,15 @@ const CustomerSearch: React.FC<CustomerSearchProps> = ({ onCustomerSelect, onCus
   const [hasSearched, setHasSearched] = useState(false);
   const [showScanner, setShowScanner] = useState(false);
 
+  // 마지막 검색/선택 시점의 저장된 값 (닫기 후 다시 열면 이 값으로 복원)
+  const savedFields = useRef({
+    customerId: '',
+    contractId: '',
+    phoneNumber: '',
+    customerName: '',
+    equipmentNo: '',
+  });
+
   // 경고 팝업 상태
   const [warningPopup, setWarningPopup] = useState<{
     show: boolean;
@@ -53,19 +62,24 @@ const CustomerSearch: React.FC<CustomerSearchProps> = ({ onCustomerSelect, onCus
     message: string;
   }>({ show: false, title: '', message: '' });
 
-  // 팝업 열기 - 이전 입력값/검색결과 유지
+  // 팝업 열기 - 저장된 값으로 입력필드 복원
   const openModal = () => {
+    setCustomerId(savedFields.current.customerId);
+    setContractId(savedFields.current.contractId);
+    setPhoneNumber(savedFields.current.phoneNumber);
+    setCustomerName(savedFields.current.customerName);
+    setEquipmentNo(savedFields.current.equipmentNo);
     setShowModal(true);
   };
 
-  // 팝업 닫기 - 입력값 유지 (리셋하지 않는 한 보존)
+  // 팝업 닫기 - 입력필드 변경사항 버리고 저장된 값 유지
   const closeModal = () => {
     setShowModal(false);
   };
 
-  // 전체 리셋 (모든 필드 초기화 + 선택된 고객 해제)
+  // 리셋 (입력필드만 비움, 저장된 값은 유지 → 닫았다 열면 다시 복원)
   const handleReset = () => {
-    // 검색 필드 초기화
+    // 입력필드만 화면에서 비움
     setCustomerId('');
     setContractId('');
     setPhoneNumber('');
@@ -123,6 +137,15 @@ const CustomerSearch: React.FC<CustomerSearchProps> = ({ onCustomerSelect, onCus
       });
       return;
     }
+
+    // 검색 실행 시 현재 입력값을 저장 (닫았다 열면 이 값으로 복원)
+    savedFields.current = {
+      customerId: customerIdDigits,
+      contractId: contractIdDigits,
+      phoneNumber,
+      customerName,
+      equipmentNo,
+    };
 
     setIsSearching(true);
     setHasSearched(true);
@@ -209,14 +232,26 @@ const CustomerSearch: React.FC<CustomerSearchProps> = ({ onCustomerSelect, onCus
   // 고객 선택
   const handleSelectCustomer = (customer: CustomerInfo) => {
     // 폼 필드에 선택된 고객 정보 채우기 (포맷팅 적용)
-    setCustomerId(customer.CUST_ID || '');
-    setPhoneNumber(extractDigits(customer.TEL_NO || customer.HP_NO || ''));
-    setCustomerName(customer.CUST_NM || '');
-    // 계약ID: 결과에 CTRT_ID가 있으면 유지, 없으면 기존 입력값 보존
+    const newCustId = customer.CUST_ID || '';
+    const newPhone = extractDigits(customer.TEL_NO || customer.HP_NO || '');
+    const newName = customer.CUST_NM || '';
+    const newCtrtId = customer.CTRT_ID || contractId;
+
+    setCustomerId(newCustId);
+    setPhoneNumber(newPhone);
+    setCustomerName(newName);
     if (customer.CTRT_ID) {
       setContractId(customer.CTRT_ID);
     }
-    // S/N 입력값은 보존 (초기화하지 않음)
+
+    // 선택한 고객 정보를 저장 (닫았다 열면 이 값으로 복원)
+    savedFields.current = {
+      customerId: newCustId,
+      contractId: newCtrtId,
+      phoneNumber: newPhone,
+      customerName: newName,
+      equipmentNo,
+    };
 
     // S/N으로 검색한 경우 장비번호를 customer 객체에 첨부 (계약현황 검색필드 연동)
     const enrichedCustomer = {
