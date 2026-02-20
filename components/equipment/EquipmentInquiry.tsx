@@ -1774,7 +1774,7 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
                         </div>
                         {/* Line 2: S/N + [EQT_USE_ARR_YN] 뱃지 */}
                         <div className="flex items-center justify-between mt-1">
-                          <span className="text-sm text-gray-600">{item.EQT_SERNO || '-'}</span>
+                          <span className="text-sm text-gray-600"><span className="text-gray-500">S/N : </span>{item.EQT_SERNO || '-'}</span>
                           <div className="flex-shrink-0 ml-2">
                             {item.EQT_USE_ARR_YN === 'Y' && (
                               <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-700">사용가능</span>
@@ -1792,7 +1792,7 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
                         </div>
                         {/* Line 3: MAC + 날짜 (YYYY-MM-DD) */}
                         <div className="flex items-center justify-between mt-0.5">
-                          <span className="text-sm text-gray-600">{formatMac(item.MAC_ADDRESS)}</span>
+                          <span className="text-sm text-gray-600"><span className="text-gray-500">MAC : </span>{formatMac(item.MAC_ADDRESS)}</span>
                           <span className="text-sm text-gray-600">{formatDateDash(item.EQT_USE_END_DT || item.USE_END_DT || '')}</span>
                         </div>
                       </div>
@@ -1800,7 +1800,7 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
                     {/* 자세히 보기: 추가 정보 */}
                     {viewMode === 'detail' && (
                       <div className="bg-gray-100 rounded-lg p-2 mt-2 text-xs space-y-1 ml-6">
-                        <div className="flex items-center justify-between"><span className="text-gray-800">{item.ITEM_MODEL || item.MODEL_NM || '-'}</span><span className="font-medium text-gray-800">{item.SO_NM || '-'}</span></div>
+                        <div className="flex items-center justify-between"><span><span className="text-gray-500">모델 : </span><span className="text-gray-800">{item.ITEM_MODEL || item.MODEL_NM || '-'}</span></span><span className="font-medium text-gray-800">{item.SO_NM || '-'}</span></div>
                         <div className="flex items-center justify-between"><span><span className="text-gray-500">장비상태  : </span><span className="text-gray-800">{item.EQT_STAT_NM || item.EQT_STAT_CD_NM || getEqtStatName(item.EQT_STAT_CD || '') || '-'}</span></span><span className="text-gray-400 text-xs">{item.EQT_NO || '-'}</span></div>
                         <div><span className="text-gray-500">변경종류  : </span><span className="text-gray-800">{item.CHG_KND_NM || '-'}</span></div>
                         <div><span className="text-gray-500">현재위치  : </span><span className="text-gray-800">{item.EQT_LOC_NM || item.EQT_LOC_TP_NM || getEqtLocTpName(item.EQT_LOC_TP_CD || '') || '-'}</span></div>

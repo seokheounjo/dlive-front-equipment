@@ -814,7 +814,7 @@ const EquipmentAssignment: React.FC<EquipmentAssignmentProps> = ({ onBack, showT
                                 </div>
                                 {/* Line 2: S/N + [EQT_USE_ARR_YN] 뱃지 */}
                                 <div className="flex items-center justify-between mt-1">
-                                  <span className={`text-sm ${hasSerial ? 'text-gray-600' : 'text-gray-400 italic'}`}>{item.EQT_SERNO || '(시리얼 미할당)'}</span>
+                                  <span className={`text-sm ${hasSerial ? 'text-gray-600' : 'text-gray-400 italic'}`}><span className="text-gray-500">S/N : </span>{item.EQT_SERNO || '(시리얼 미할당)'}</span>
                                   <span className={`px-2 py-0.5 rounded-full text-xs font-medium flex-shrink-0 ml-2 ${
                                     item.EQT_USE_ARR_YN === 'Y' ? 'bg-green-100 text-green-700' :
                                     item.EQT_USE_ARR_YN === 'A' ? 'bg-purple-100 text-purple-700' :
@@ -828,7 +828,7 @@ const EquipmentAssignment: React.FC<EquipmentAssignmentProps> = ({ onBack, showT
                                 </div>
                                 {/* Line 3: MAC + 날짜 (YYYY-MM-DD) */}
                                 <div className="flex items-center justify-between mt-0.5">
-                                  <span className="text-sm text-gray-600">{formatMac(item.MAC_ADDRESS || '')}</span>
+                                  <span className="text-sm text-gray-600"><span className="text-gray-500">MAC : </span>{formatMac(item.MAC_ADDRESS || '')}</span>
                                   <span className="text-sm text-gray-600">{formatDateDash(item.EQT_USE_END_DT || '')}</span>
                                 </div>
                               </div>
@@ -836,7 +836,7 @@ const EquipmentAssignment: React.FC<EquipmentAssignmentProps> = ({ onBack, showT
                             {/* 자세히 보기: 추가 정보 */}
                             {viewMode === 'detail' && (
                               <div className="bg-gray-100 rounded-lg p-2 mt-2 text-xs space-y-1 ml-6">
-                                <div className="flex items-center justify-between"><span className="text-gray-800">{item.ITEM_MODEL || item.MODEL_NM || '-'}</span><span className="font-medium text-gray-800">{selectedEqtOut?.SO_NM || '-'}</span></div>
+                                <div className="flex items-center justify-between"><span><span className="text-gray-500">모델 : </span><span className="text-gray-800">{item.ITEM_MODEL || item.MODEL_NM || '-'}</span></span><span className="font-medium text-gray-800">{selectedEqtOut?.SO_NM || '-'}</span></div>
                                 <div className="flex items-center justify-between"><span><span className="text-gray-500">장비상태  : </span><span className="text-gray-800">{item.EQT_STAT_CD_NM || (hasSerial ? '-' : '수령불가')}</span></span><span className="text-gray-400 text-xs">{item.EQT_NO || (hasSerial ? '-' : '-')}</span></div>
                                 <div><span className="text-gray-500">변경종류  : </span><span className="text-gray-800">{item.CHG_KND_NM || '-'}</span></div>
                                 <div><span className="text-gray-500">현재위치  : </span><span className="text-gray-800">{item.EQT_LOC_NM || item.EQT_LOC_TP_NM || (hasSerial ? '-' : '창고(대기)')}</span></div>

@@ -1060,7 +1060,7 @@ const EquipmentRecovery: React.FC<EquipmentRecoveryProps> = ({ onBack, showToast
             </div>
             {/* Line 2: S/N + [EQT_USE_ARR_YN] 뱃지 */}
             <div className="flex items-center justify-between mt-1">
-              <span className="text-sm text-gray-600">{item.EQT_SERNO || '-'}</span>
+              <span className="text-sm text-gray-600"><span className="text-gray-500">S/N : </span>{item.EQT_SERNO || '-'}</span>
               {(() => {
                 const arrYn = item.EQT_USE_ARR_YN;
                 if (!arrYn) return null; // 값 없으면 뱃지 숨김
@@ -1081,7 +1081,7 @@ const EquipmentRecovery: React.FC<EquipmentRecoveryProps> = ({ onBack, showToast
             </div>
             {/* Line 3: MAC + 날짜 (YYYY-MM-DD) */}
             <div className="flex items-center justify-between mt-0.5">
-              <span className="text-sm text-gray-600">{formatMac(item.MAC_ADDRESS) || '-'}</span>
+              <span className="text-sm text-gray-600"><span className="text-gray-500">MAC : </span>{formatMac(item.MAC_ADDRESS) || '-'}</span>
               <span className="text-sm text-gray-600">{formatDateDash(item.EQT_USE_END_DT || '')}</span>
             </div>
           </div>
@@ -1089,7 +1089,7 @@ const EquipmentRecovery: React.FC<EquipmentRecoveryProps> = ({ onBack, showToast
         {/* 자세히 보기: 추가 정보 */}
         {viewMode === 'detail' && (
           <div className="bg-gray-100 rounded-lg p-2 mt-2 text-xs space-y-1 ml-6">
-            <div className="flex items-center justify-between"><span className="text-gray-800">{item.ITEM_MODEL || '-'}</span><span className="font-medium text-gray-800">{getSoName(item.SO_NM || item.SO_ID) || '-'}</span></div>
+            <div className="flex items-center justify-between"><span><span className="text-gray-500">모델 : </span><span className="text-gray-800">{item.ITEM_MODEL || '-'}</span></span><span className="font-medium text-gray-800">{getSoName(item.SO_NM || item.SO_ID) || '-'}</span></div>
             <div className="flex items-center justify-between"><span><span className="text-gray-500">장비상태  : </span><span className="text-gray-800">{item.EQT_STAT_CD_NM || '-'}</span></span><span className="text-gray-400 text-xs">{item.EQT_NO || '-'}</span></div>
             <div><span className="text-gray-500">변경종류  : </span><span className="text-gray-800">{item.CHG_KND_NM || '-'}</span></div>
             <div><span className="text-gray-500">현재위치  : </span><span className="text-gray-800">{item.EQT_LOC_NM || item.EQT_LOC_TP_NM || '-'}</span></div>
