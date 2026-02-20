@@ -348,29 +348,29 @@ const CustomerBasicInfo: React.FC<CustomerBasicInfoProps> = ({
                 <div className="px-3 pb-3 space-y-2">
                   {/* 기본 정보 */}
                   <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-sm">
-                    <div className="flex justify-between">
-                      <span className="text-gray-500">고객번호</span>
-                      <span className="font-medium text-gray-800">{formatId(selectedCustomer.CUST_ID)}</span>
+                    <div className="flex">
+                      <span className="text-gray-500 flex-shrink-0 w-14">고객번호</span>
+                      <span className="font-medium text-gray-800 text-right flex-1 break-all">{formatId(selectedCustomer.CUST_ID)}</span>
                     </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-500">고객명</span>
-                      <span className="font-medium text-gray-800">{selectedCustomer.CUST_NM}</span>
+                    <div className="flex">
+                      <span className="text-gray-500 flex-shrink-0 w-14">고객명</span>
+                      <span className="font-medium text-gray-800 text-right flex-1 break-all">{selectedCustomer.CUST_NM}</span>
                     </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-500">전화번호</span>
-                      <span className="text-gray-800">{maskPhoneNumber(selectedCustomer.TEL_NO) || '-'}</span>
+                    <div className="flex">
+                      <span className="text-gray-500 flex-shrink-0 w-14">전화번호</span>
+                      <span className="text-gray-800 text-right flex-1">{maskPhoneNumber(selectedCustomer.TEL_NO) || '-'}</span>
                     </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-500">휴대폰</span>
-                      <span className="text-gray-800">{maskPhoneNumber(selectedCustomer.HP_NO) || '-'}</span>
+                    <div className="flex">
+                      <span className="text-gray-500 flex-shrink-0 w-14">휴대폰</span>
+                      <span className="text-gray-800 text-right flex-1">{maskPhoneNumber(selectedCustomer.HP_NO) || '-'}</span>
                     </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-500">고객구분</span>
-                      <span className="text-gray-800">{selectedCustomer.CUST_TP_NM || '-'}</span>
+                    <div className="flex">
+                      <span className="text-gray-500 flex-shrink-0 w-14">고객구분</span>
+                      <span className="text-gray-800 text-right flex-1">{selectedCustomer.CUST_TP_NM || '-'}</span>
                     </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-500">단체 이름</span>
-                      <span className="text-gray-800">{selectedCustomer.GRP_NM || '-'}</span>
+                    <div className="flex">
+                      <span className="text-gray-500 flex-shrink-0 w-14">단체명</span>
+                      <span className="text-gray-800 text-right flex-1 break-all">{selectedCustomer.GRP_NM || '-'}</span>
                     </div>
                   </div>
 
