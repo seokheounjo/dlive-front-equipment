@@ -967,12 +967,12 @@ const CustomerInfoChange: React.FC<CustomerInfoChangeProps> = ({
       try {
         const ctrtRes = await getContractList(selectedCustomer!.custId);
         if (ctrtRes.success && ctrtRes.data) {
-          const found = ctrtRes.data.find((c: any) => c.CTRT_ID === selectedContract.ctrtId);
+          const found = ctrtRes.data.find(c => c.CTRT_ID === selectedContract.ctrtId);
           if (found) {
-            existingAddrDtl = (found as any).ADDR_DTL || '';
-            existingBldCl = (found as any).BLD_CL || '0';
-            existingBldNm = (found as any).BLD_NM || '';
-            existingStreetId = (found as any).STREET_ID || '';
+            existingAddrDtl = found.ADDR_DTL || '';
+            existingBldCl = found.BLD_CL || '0';
+            existingBldNm = found.BLD_NM || '';
+            existingStreetId = found.STREET_ID || '';
           }
         }
       } catch (e) {

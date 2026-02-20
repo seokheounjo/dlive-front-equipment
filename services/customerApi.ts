@@ -84,6 +84,10 @@ export interface ContractInfo {
   PROD_GRP?: string;         // 상품그룹 코드 (AS사유 필터링: A/D/I/V/C)
   NOTRECEV?: string;         // 미수신 정보
   CLOSE_DANGER?: string;     // 기간도래 여부 (Y/N)
+  ADDR_DTL?: string;         // 상세주소
+  BLD_CL?: string;           // 건물구분
+  BLD_NM?: string;           // 건물명
+  STREET_ID?: string;        // 도로명주소ID
   // 장비 정보
   EQT_NM: string;            // 장비명
   EQT_MDL_NM: string;        // 모델명
@@ -767,7 +771,11 @@ const mapContractFields = (data: any): ContractInfo => {
     CTRT_APLY_STRT_DT: v(data.CTRT_APLY_STRT_DT),
     CTRT_APLY_END_DT: v(data.CTRT_APLY_END_DT),
     NOTRECEV: v(data.NOTRECEV) || v(data.NOT_RECV),
-    CLOSE_DANGER: v(data.CLOSE_DANGER)
+    CLOSE_DANGER: v(data.CLOSE_DANGER),
+    ADDR_DTL: v(data.ADDR_DTL),
+    BLD_CL: v(data.BLD_CL) || '0',
+    BLD_NM: v(data.BLD_NM),
+    STREET_ID: v(data.STREET_ID)
   };
 };
 
