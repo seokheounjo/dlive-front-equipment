@@ -288,8 +288,8 @@ router.post('/customer/work/modEquipLoss', handleProxy);
 // Customer/Receipt/Contract API
 router.post('/customer/receipt/contract/getEquipmentNmListOfProd', handleProxy);
 router.post('/customer/receipt/contract/getContractEqtList', handleProxy);
-router.post('/customer/etc/getPromOfContract', handleProxy);
-router.post('/customer/etc/saveCtrtAgreeInfo', handleProxy);
+router.post('/customer/etc/getPromOfContract', handleReContractReq);
+router.post('/customer/etc/saveCtrtAgreeInfo', handleReContractReq);
 router.post('/customer/work/checkStbServerConnection', handleProxy);
 
 // Common API
@@ -710,6 +710,137 @@ function callLegacyReqEndpoint(endpoints, index, accessTicket, res) {
 
   proxyReq.write(postData);
   proxyReq.end();
+}
+
+// === 재약정 .req 직접 호출 핸들러 ===
+// 어댑터에 우리 코드가 배포 안 될 수 있으므로 .req 서블릿 직접 호출
+// ACCESS_TICKET으로 CONA 인증 우회
+async function handleReContractReq(req, res) {
+  try {
+    const body = req.body || {};
+    const apiPath = req.path; // e.g. /customer/etc/getPromOfContract
+    const reqPath = apiPath + '.req';
+
+    const userId = body.WRKR_ID || body.CHG_UID || storedUserId || '';
+    if (!userId) {
+      return res.json({ success: false, code: 'NO_USER', message: 'Login required', data: [] });
+    }
+    const accessTicket = encodeURIComponent(userId + '###re-contract###2099/01/01_00:00:00:0000');
+
+    // JSON to MiPlatform XML
+    const xmlBody = jsonToMiPlatformXML('DS_INPUT', body);
+    const targetUrl = DLIVE_API_BASE + reqPath + '?ACCESS_TICKET=' + accessTicket;
+
+    console.log('\n========== [ReContract .req] ==========');
+    console.log('Path:', reqPath);
+    console.log('Params:', JSON.stringify(body));
+    console.log('URL:', targetUrl);
+
+    const http = require('http');
+    const url = require('url');
+    const parsedUrl = url.parse(targetUrl);
+
+    // euc-kr encoding (CONA uses euc-kr)
+    const postData = iconv.encode(xmlBody, 'euc-kr');
+
+    const options = {
+      hostname: parsedUrl.hostname,
+      port: parsedUrl.port || 80,
+      path: parsedUrl.path,
+      method: 'POST',
+      headers: {
+        'Content-Type': 'text/xml; charset=euc-kr',
+        'Content-Length': postData.length,
+        'Host': parsedUrl.host
+      },
+      timeout: 30000
+    };
+
+    // JSESSIONID injection
+    if (storedJSessionId) {
+      options.headers['Cookie'] = 'JSESSIONID=' + storedJSessionId;
+    }
+
+    const proxyReq = http.request(options, (proxyRes) => {
+      let chunks = [];
+      proxyRes.on('data', (chunk) => chunks.push(chunk));
+      proxyRes.on('end', () => {
+        const rawBuffer = Buffer.concat(chunks);
+        let responseText;
+        try { responseText = iconv.decode(rawBuffer, 'euc-kr'); } catch (e) { responseText = rawBuffer.toString('utf-8'); }
+        console.log('[ReContract .req] Status:', proxyRes.statusCode);
+        console.log('[ReContract .req] Response:', responseText.substring(0, 500));
+
+        // JSESSIONID capture
+        const setCookies = proxyRes.headers['set-cookie'];
+        if (setCookies) {
+          (Array.isArray(setCookies) ? setCookies : [setCookies]).forEach(c => {
+            const m = c.match(/JSESSIONID=([^;]+)/);
+            if (m) { storedJSessionId = m[1]; }
+          });
+        }
+
+        res.setHeader('Content-Type', 'application/json; charset=utf-8');
+        res.setHeader('Access-Control-Allow-Origin', req.headers.origin || '*');
+        res.setHeader('Access-Control-Allow-Credentials', 'true');
+
+        // Check CONA error
+        const errorCodeMatch = responseText.match(/ErrorCode[^>]*>([^<]+)/);
+        const errorCode = errorCodeMatch ? errorCodeMatch[1].trim() : null;
+        if (errorCode && errorCode !== '0') {
+          const errorReasonMatch = responseText.match(/ExceptionReason[^>]*>([^<]+)/);
+          const errorReason = errorReasonMatch ? errorReasonMatch[1].replace(/&#32;/g, ' ').replace(/&#10;/g, '\n') : 'CONA Error';
+          console.log('[ReContract .req] CONA error:', errorCode, errorReason);
+          return res.json({ success: false, code: 'CONA_ERROR', message: errorReason, data: [] });
+        }
+
+        // Parse Dataset XML (<Col> format)
+        const datasetData = parseMiPlatformDatasetXMLtoJSON(responseText);
+        if (datasetData) {
+          const dataArr = Array.isArray(datasetData) ? datasetData : [datasetData];
+          return res.json({ success: true, code: 'SUCCESS', message: 'OK', data: dataArr });
+        }
+
+        // Parse <record> format
+        const recordData = parseMiPlatformXMLtoJSON(responseText);
+        if (recordData) {
+          const dataArr = Array.isArray(recordData) ? recordData : [recordData];
+          return res.json({ success: true, code: 'SUCCESS', message: 'OK', data: dataArr });
+        }
+
+        // Parse <params> format (saveCtrtAgreeInfo result: MSGCODE, MESSAGE)
+        const paramsData = parseMiPlatformParamsXMLtoJSON(responseText);
+        if (paramsData) {
+          const msgCode = paramsData.MSGCODE || paramsData.MSG_CODE || '';
+          const message = paramsData.MESSAGE || paramsData.MSG || '';
+          const isSuccess = (msgCode === '0' || msgCode === 'SUCCESS' || msgCode === '');
+          return res.json({ success: isSuccess, code: msgCode || 'SUCCESS', message: message || 'OK', data: paramsData });
+        }
+
+        // responseSuccess view
+        if (responseText.includes('responseSuccess') || responseText.includes('ErrorCode>0<')) {
+          return res.json({ success: true, code: 'SUCCESS', message: 'OK', data: {} });
+        }
+
+        // Fallback
+        return res.json({ success: true, code: 'SUCCESS', message: 'OK', data: [] });
+      });
+    });
+
+    proxyReq.on('error', (err) => {
+      console.error('[ReContract .req] Error:', err.message);
+      res.json({ success: false, code: 'ERROR', message: err.message, data: [] });
+    });
+    proxyReq.on('timeout', () => {
+      proxyReq.destroy();
+      res.json({ success: false, code: 'TIMEOUT', message: 'Request timeout', data: [] });
+    });
+    proxyReq.write(postData);
+    proxyReq.end();
+  } catch (error) {
+    console.error('[ReContract .req] Error:', error.message);
+    res.json({ success: false, code: 'ERROR', message: error.message, data: [] });
+  }
 }
 
 async function handleProxy(req, res) {
