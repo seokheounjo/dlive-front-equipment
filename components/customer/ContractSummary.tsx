@@ -84,12 +84,12 @@ const ContractSummary: React.FC<ContractSummaryProps> = ({
   // 상세 펼침 상태
   const [expandedContractId, setExpandedContractId] = useState<string | null>(null);
 
-  // 해지 여부 판별
+  // 해지 여부 판별 (90:해지, 50:직권해지 등 해지 계열)
   const isTerminated = (contract: ContractInfo) => {
     const statNm = contract.CTRT_STAT_NM || '';
     const statCd = contract.CTRT_STAT_CD || '';
     if (statNm.includes('해지')) return true;
-    if (['90', '30'].includes(statCd)) return true;
+    if (['90', '50'].includes(statCd)) return true;
     return false;
   };
 
@@ -100,24 +100,14 @@ const ContractSummary: React.FC<ContractSummaryProps> = ({
 
   // 계약 상태별 버튼 활성화
   const getButtonStates = (contract: ContractInfo) => {
-    const statCd = contract.CTRT_STAT_CD || '';
     const statNm = contract.CTRT_STAT_NM || '';
-    const terminated = isTerminated(contract);
     const isCloseDanger = contract.CLOSE_DANGER === 'Y' && statNm.includes('사용중');
 
-    // 해지(30, 90): 모든 버튼 비활성화 (AS 포함)
-    if (terminated) {
+    // 해지: 모든 버튼 비활성화 (AS 포함)
+    if (isTerminated(contract)) {
       return { consultation: false, as: false, addressChange: false, reContract: false };
     }
-    // 일시정지(20): 상담/AS만 가능
-    if (statCd === '20') {
-      return { consultation: true, as: true, addressChange: false, reContract: false };
-    }
-    // 82: 상담/AS만 가능
-    if (statCd === '82') {
-      return { consultation: true, as: true, addressChange: false, reContract: false };
-    }
-    // 사용중(10 등): 모두 가능, 재약정은 기간도래만
+    // 해지 외: 상담/AS/주소변경 가능, 재약정은 사용중(기간도래)만
     return { consultation: true, as: true, addressChange: true, reContract: isCloseDanger };
   };
 
