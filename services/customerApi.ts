@@ -2369,21 +2369,20 @@ export const getPromOfContract = async (ctrtId: string): Promise<ApiResponse<any
 };
 
 /**
- * Save promotion contract info (re-contract registration)
+ * Save re-contract agreement info (work-based flow)
+ * Procedure: pcmcu_cust_agree_yn_work
+ * Table: TCMCT_CUST_AGREE_INFO
  */
-export const savePromCtrtInfo = async (params: {
+export const saveCtrtAgreeInfo = async (params: {
+  CUST_ID: string;
   CTRT_ID: string;
-  PROM_CHG_CD: string;
-  PROM_CHGRSN_CD: string;
-  PROM_CNT: string;
-  CTRT_APLY_STRT_DT: string;
-  CTRT_APLY_END_DT: string;
-  REG_UID?: string;
-  CHG_UID?: string;
   RCPT_ID?: string;
-  PROM_CTRT_ID?: string;
-  CHK_OPEN_DD?: string;
-  REPROM_CANCEL?: string;
+  WRK_ID?: string;
+  AGREE_YN?: string;
+  AGREE_GB?: string;
+  AGREE_SIGN?: string;
+  WRKR_ID?: string;
+  WRK_CD?: string;
 }): Promise<ApiResponse<any>> => {
   // Get user info from session
   const userInfoStr = sessionStorage.getItem('userInfo') || localStorage.getItem('userInfo');
@@ -2395,10 +2394,10 @@ export const savePromCtrtInfo = async (params: {
     } catch (e) {}
   }
 
-  return apiCall<any>('/customer/etc/savePromCtrtInfo', {
+  return apiCall<any>('/customer/etc/saveCtrtAgreeInfo', {
     ...params,
-    REG_UID: params.REG_UID || userId,
-    CHG_UID: params.CHG_UID || userId,
+    AGREE_YN: params.AGREE_YN || 'Y',
+    WRKR_ID: params.WRKR_ID || userId,
   });
 };
 
@@ -2454,7 +2453,7 @@ export default {
   createCustomer,
   // 재약정
   getPromOfContract,
-  savePromCtrtInfo,
+  saveCtrtAgreeInfo,
   getPromMonthCodes,
   getPromChangeReasonCodes,
   getPromChangeCodes,

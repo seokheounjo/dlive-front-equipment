@@ -289,7 +289,7 @@ router.post('/customer/work/modEquipLoss', handleProxy);
 router.post('/customer/receipt/contract/getEquipmentNmListOfProd', handleProxy);
 router.post('/customer/receipt/contract/getContractEqtList', handleProxy);
 router.post('/customer/etc/getPromOfContract', handleProxy);
-router.post('/customer/etc/savePromCtrtInfo', handleProxy);
+router.post('/customer/etc/saveCtrtAgreeInfo', handleProxy);
 router.post('/customer/work/checkStbServerConnection', handleProxy);
 
 // Common API

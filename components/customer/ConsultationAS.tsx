@@ -18,7 +18,7 @@ import {
   getASReasonDetailCodes,
   getProductGroups,
   getPromOfContract,
-  savePromCtrtInfo,
+  saveCtrtAgreeInfo,
   getPromMonthCodes,
   getPromChangeReasonCodes,
   getPromChangeCodes,

@@ -5,7 +5,7 @@ import {
 } from 'lucide-react';
 import {
   getPromOfContract,
-  savePromCtrtInfo,
+  saveCtrtAgreeInfo,
   getPromMonthCodes,
   getPromChangeReasonCodes,
   getPromChangeCodes,
@@ -326,19 +326,17 @@ const ReContractRegistration: React.FC<ReContractRegistrationProps> = ({
     setIsSubmitting(true);
     try {
       const params = {
+        CUST_ID: selectedCustomer.custId,
         CTRT_ID: selectedContract.ctrtId,
-        PROM_CHG_CD: form.promChgCd,
-        PROM_CHGRSN_CD: form.promChgrsnCd,
-        PROM_CNT: form.promCnt,
-        CTRT_APLY_STRT_DT: form.startDate.replace(/[^0-9]/g, ''),
-        CTRT_APLY_END_DT: form.endDate ? form.endDate.replace(/[^0-9]/g, '') : '',
-        PROM_CTRT_ID: promInfo?.PROM_CTRT_ID || '',
         RCPT_ID: promInfo?.RCPT_ID || '',
-        CHK_OPEN_DD: 'N',
-        REPROM_CANCEL: 'N',
+        WRK_ID: '',
+        AGREE_YN: 'Y',
+        AGREE_GB: form.promChgrsnCd,   // agreement type = change reason
+        AGREE_SIGN: '',
+        WRK_CD: form.promChgCd,        // work code = change code
       };
 
-      const res = await savePromCtrtInfo(params);
+      const res = await saveCtrtAgreeInfo(params);
       if (res.success) {
         setResultPopup({ show: true, success: true, message: '재약정이 등록되었습니다.' });
         // Refresh promotion info
