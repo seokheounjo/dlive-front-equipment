@@ -124,7 +124,7 @@ const CustomerInfoChange: React.FC<CustomerInfoChangeProps> = ({
 }) => {
   // 섹션 펼침 상태 (initialSection prop에 따라 초기값 설정)
   const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({
-    phone: initialSection === 'phone',
+    phone: false,
     address: initialSection === 'address',
     payment: initialSection === 'payment',
     hpPay: initialSection === 'hpPay'
@@ -1034,7 +1034,7 @@ const CustomerInfoChange: React.FC<CustomerInfoChangeProps> = ({
 
         setPostAddressResults(results);
         if (results.length === 0) {
-          showAlert('검색 결과가 없습니다.', 'info');
+          showAlert('해당지점이 아니거나 검색결과가 없습니다.', 'info');
         }
         // 검색 결과가 있으면 목록이 바로 보이므로 Toast 불필요
       } else {
@@ -1069,7 +1069,7 @@ const CustomerInfoChange: React.FC<CustomerInfoChangeProps> = ({
       if (response.success && response.data) {
         setStreetAddressResults(response.data);
         if (response.data.length === 0) {
-          showAlert('검색 결과가 없습니다.', 'info');
+          showAlert('해당지점이 아니거나 검색결과가 없습니다.', 'info');
         }
       } else {
         showAlert(response.message || '도로명주소 검색에 실패했습니다.', 'warning');
