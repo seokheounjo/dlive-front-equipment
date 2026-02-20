@@ -67,7 +67,7 @@ const ContractSummary: React.FC<ContractSummaryProps> = ({
   initialSearchKeyword
 }) => {
   // 필터 상태 (기본값: 전체)
-  const [filterStatus, setFilterStatus] = useState<'all' | 'active'>('all');
+  const [filterStatus, setFilterStatus] = useState<'all' | 'active' | 'recommit'>('all');
   const [searchKeyword, setSearchKeyword] = useState(initialSearchKeyword || '');
 
   // 초기 검색어가 변경되면 자동 반영 (계약ID, S/N 검색 시)
@@ -100,6 +100,10 @@ const ContractSummary: React.FC<ContractSummaryProps> = ({
   const filteredContracts = contracts.filter(contract => {
     // 상태 필터 (사용계약 선택 시 해지 제외)
     if (filterStatus === 'active' && !isActiveContract(contract)) return false;
+    if (filterStatus === 'recommit') {
+      if (!isActiveContract(contract)) return false;
+      if (contract.CLOSE_DANGER !== 'Y' || !(contract.CTRT_STAT_NM || '').includes('사용중')) return false;
+    }
 
     // 키워드 검색 (계약ID, 상품명, 장비시리얼, NOTRECEV 장비정보)
     if (searchKeyword) {
@@ -117,7 +121,8 @@ const ContractSummary: React.FC<ContractSummaryProps> = ({
   // 계약 상태별 카운트
   const statusCount = {
     all: contracts.length,
-    active: contracts.filter(c => isActiveContract(c)).length
+    active: contracts.filter(c => isActiveContract(c)).length,
+    recommit: contracts.filter(c => isActiveContract(c) && c.CLOSE_DANGER === 'Y' && (c.CTRT_STAT_NM || '').includes('사용중')).length
   };
 
   // 계약 선택 핸들러
@@ -188,6 +193,16 @@ const ContractSummary: React.FC<ContractSummaryProps> = ({
                     }`}
                   >
                     사용계약 ({statusCount.active})
+                  </button>
+                  <button
+                    onClick={() => setFilterStatus('recommit')}
+                    className={`px-3 py-1.5 text-sm rounded-full transition-colors ${
+                      filterStatus === 'recommit'
+                        ? 'bg-purple-500 text-white'
+                        : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                    }`}
+                  >
+                    재약정 ({statusCount.recommit})
                   </button>
                 </div>
 
