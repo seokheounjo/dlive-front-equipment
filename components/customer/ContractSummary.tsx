@@ -38,8 +38,11 @@ const getContractStatusStyle = (statCd: string): string => {
     case '20': // 일시정지
       return 'bg-yellow-100 text-yellow-700';
     case '30': // 해지
+    case '90':
     case 'N':
       return 'bg-gray-100 text-gray-600';
+    case '82': // 가개통
+      return 'bg-sky-100 text-sky-700';
     default:
       return 'bg-blue-100 text-blue-700';
   }
@@ -81,11 +84,10 @@ const ContractSummary: React.FC<ContractSummaryProps> = ({
   // 상세 펼침 상태
   const [expandedContractId, setExpandedContractId] = useState<string | null>(null);
 
-  // 해지 여부 판별 (해지된 계약은 상담/AS 버튼 비활성화)
+  // 해지 여부 판별
   const isTerminated = (contract: ContractInfo) => {
     const statNm = contract.CTRT_STAT_NM || '';
     const statCd = contract.CTRT_STAT_CD || '';
-    // 해지 상태인 경우
     if (statNm.includes('해지')) return true;
     if (['90', '30'].includes(statCd)) return true;
     return false;
@@ -94,6 +96,29 @@ const ContractSummary: React.FC<ContractSummaryProps> = ({
   // 사용계약 여부 판별 (해지가 아닌 모든 계약 = 사용계약)
   const isActiveContract = (contract: ContractInfo) => {
     return !isTerminated(contract);
+  };
+
+  // 계약 상태별 버튼 활성화
+  const getButtonStates = (contract: ContractInfo) => {
+    const statCd = contract.CTRT_STAT_CD || '';
+    const statNm = contract.CTRT_STAT_NM || '';
+    const terminated = isTerminated(contract);
+    const isCloseDanger = contract.CLOSE_DANGER === 'Y' && statNm.includes('사용중');
+
+    // 해지(30, 90): 모든 버튼 비활성화 (AS 포함)
+    if (terminated) {
+      return { consultation: false, as: false, addressChange: false, reContract: false };
+    }
+    // 일시정지(20): 상담/AS만 가능
+    if (statCd === '20') {
+      return { consultation: true, as: true, addressChange: false, reContract: false };
+    }
+    // 82: 상담/AS만 가능
+    if (statCd === '82') {
+      return { consultation: true, as: true, addressChange: false, reContract: false };
+    }
+    // 사용중(10 등): 모두 가능, 재약정은 기간도래만
+    return { consultation: true, as: true, addressChange: true, reContract: isCloseDanger };
   };
 
   // 필터링된 계약 목록
@@ -336,23 +361,21 @@ const ContractSummary: React.FC<ContractSummaryProps> = ({
                           </div>
                         )}
 
-                        {/* 상담/AS/주소변경/재약정 버튼 - 해지 시 AS만 활성화 */}
+                        {/* 상담/AS/주소변경/재약정 버튼 - 상태별 활성화 */}
                         {(() => {
-                          const active = isActiveContract(contract);
-                          const statNm = contract.CTRT_STAT_NM || '';
-                          const isCloseDanger = contract.CLOSE_DANGER === 'Y' && statNm.includes('사용중');
+                          const btn = getButtonStates(contract);
                           return (
                             <div className="flex gap-2 mt-3 pt-3 border-t border-gray-200">
                               <button
                                 onClick={(e) => {
                                   e.stopPropagation();
-                                  if (!active) return;
+                                  if (!btn.consultation) return;
                                   handleSelect(contract);
                                   if (onNavigateToConsultation) onNavigateToConsultation(contract);
                                 }}
-                                disabled={!active}
+                                disabled={!btn.consultation}
                                 className={`flex-1 flex items-center justify-center gap-1 px-2 py-2 text-xs font-medium rounded-lg transition-colors ${
-                                  active ? 'bg-blue-500 hover:bg-blue-600 text-white' : 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                                  btn.consultation ? 'bg-blue-500 hover:bg-blue-600 text-white' : 'bg-gray-200 text-gray-400 cursor-not-allowed'
                                 }`}
                               >
                                 상담
@@ -360,23 +383,27 @@ const ContractSummary: React.FC<ContractSummaryProps> = ({
                               <button
                                 onClick={(e) => {
                                   e.stopPropagation();
+                                  if (!btn.as) return;
                                   handleSelect(contract);
                                   if (onNavigateToAS) onNavigateToAS(contract);
                                 }}
-                                className="flex-1 flex items-center justify-center gap-1 px-2 py-2 bg-orange-500 hover:bg-orange-600 text-white text-xs font-medium rounded-lg transition-colors"
+                                disabled={!btn.as}
+                                className={`flex-1 flex items-center justify-center gap-1 px-2 py-2 text-xs font-medium rounded-lg transition-colors ${
+                                  btn.as ? 'bg-orange-500 hover:bg-orange-600 text-white' : 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                                }`}
                               >
                                 AS
                               </button>
                               <button
                                 onClick={(e) => {
                                   e.stopPropagation();
-                                  if (!active) return;
+                                  if (!btn.addressChange) return;
                                   handleSelect(contract);
                                   if (onNavigateToAddressChange) onNavigateToAddressChange(contract);
                                 }}
-                                disabled={!active}
+                                disabled={!btn.addressChange}
                                 className={`flex-1 flex items-center justify-center gap-1 px-2 py-2 text-xs font-medium rounded-lg transition-colors ${
-                                  active ? 'bg-green-500 hover:bg-green-600 text-white' : 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                                  btn.addressChange ? 'bg-green-500 hover:bg-green-600 text-white' : 'bg-gray-200 text-gray-400 cursor-not-allowed'
                                 }`}
                               >
                                 주소변경
@@ -384,13 +411,13 @@ const ContractSummary: React.FC<ContractSummaryProps> = ({
                               <button
                                 onClick={(e) => {
                                   e.stopPropagation();
-                                  if (!isCloseDanger) return;
+                                  if (!btn.reContract) return;
                                   handleSelect(contract);
                                   if (onNavigateToReContract) onNavigateToReContract(contract);
                                 }}
-                                disabled={!isCloseDanger}
+                                disabled={!btn.reContract}
                                 className={`flex-1 flex items-center justify-center gap-1 px-2 py-2 text-xs font-medium rounded-lg transition-colors ${
-                                  isCloseDanger ? 'bg-purple-500 hover:bg-purple-600 text-white' : 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                                  btn.reContract ? 'bg-purple-500 hover:bg-purple-600 text-white' : 'bg-gray-200 text-gray-400 cursor-not-allowed'
                                 }`}
                               >
                                 재약정
