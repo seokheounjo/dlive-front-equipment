@@ -34,7 +34,8 @@ import {
   getBankCodesDLive,
   getCardCompanyCodes,
   getPayerRelationCodes,
-  getIdTypeCodes
+  getIdTypeCodes,
+  getContractList
 } from '../../services/customerApi';
 
 // 납부폼 타입 정의
@@ -91,6 +92,7 @@ interface CustomerInfoChangeProps {
   savedPymAcntId?: string;
   savedIsVerified?: boolean;
   onPaymentFormChange?: (form: PaymentFormData, pymAcntId: string, isVerified: boolean) => void;
+  onAddressChanged?: () => void;  // 주소/설치위치 변경 후 계약 재조회 트리거
 }
 
 interface TelecomCode {
@@ -120,7 +122,8 @@ const CustomerInfoChange: React.FC<CustomerInfoChangeProps> = ({
   savedPaymentForm,
   savedPymAcntId = '',
   savedIsVerified = false,
-  onPaymentFormChange
+  onPaymentFormChange,
+  onAddressChanged
 }) => {
   // 섹션 펼침 상태 (initialSection prop에 따라 초기값 설정)
   const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({
@@ -928,6 +931,7 @@ const CustomerInfoChange: React.FC<CustomerInfoChangeProps> = ({
           hoNm: ''
         });
         setSelectedPostId('');
+        onAddressChanged?.();
       } else {
         showAlert(response.message || '주소 변경에 실패했습니다.', 'error');
       }
@@ -955,10 +959,33 @@ const CustomerInfoChange: React.FC<CustomerInfoChangeProps> = ({
 
     setIsSavingLocation(true);
     try {
+      // 설치위치만 변경: 기존 주소 정보를 먼저 조회해서 그대로 유지
+      let existingAddrDtl = '';
+      let existingBldCl = '0';
+      let existingBldNm = '';
+      let existingStreetId = '';
+      try {
+        const ctrtRes = await getContractList(selectedCustomer!.custId);
+        if (ctrtRes.success && ctrtRes.data) {
+          const found = ctrtRes.data.find((c: any) => c.CTRT_ID === selectedContract.ctrtId);
+          if (found) {
+            existingAddrDtl = (found as any).ADDR_DTL || '';
+            existingBldCl = (found as any).BLD_CL || '0';
+            existingBldNm = (found as any).BLD_NM || '';
+            existingStreetId = (found as any).STREET_ID || '';
+          }
+        }
+      } catch (e) {
+        console.log('[설치위치변경] 기존 주소 조회 실패, 빈값 사용:', e);
+      }
+
       const installParams: InstallAddressChangeRequest = {
         CTRT_ID: selectedContract.ctrtId,
         POST_ID: selectedContract.postId || '',
-        ADDR_DTL: '',
+        ADDR_DTL: existingAddrDtl,
+        BLD_CL: existingBldCl,
+        BLD_NM: existingBldNm,
+        STREET_ID: existingStreetId,
         INSTL_LOC: locationForm,
         CUST_FLAG: '0',
         PYM_FLAG: '0'
@@ -970,6 +997,7 @@ const CustomerInfoChange: React.FC<CustomerInfoChangeProps> = ({
         showAlert('설치위치가 변경되었습니다.', 'success');
         setCurrentInstallInfo(prev => ({ ...prev, instlLoc: locationForm }));
         setLocationForm('');
+        onAddressChanged?.();
       } else {
         showAlert(response.message || '설치위치 변경에 실패했습니다.', 'error');
       }

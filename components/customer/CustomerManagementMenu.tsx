@@ -5,7 +5,7 @@ import CustomerInfoChange from './CustomerInfoChange';
 import CustomerSearch from './CustomerSearch';
 import ConsultationAS from './ConsultationAS';
 import CustomerCreate from './CustomerCreate';
-import { CustomerInfo, ContractInfo, ConsultationHistory, WorkHistory } from '../../services/customerApi';
+import { CustomerInfo, ContractInfo, ConsultationHistory, WorkHistory, getContractList } from '../../services/customerApi';
 
 interface CustomerManagementMenuProps {
   onNavigateToMenu: () => void;
@@ -134,6 +134,37 @@ const CustomerManagementMenu: React.FC<CustomerManagementMenuProps> = ({ onNavig
     setSelectedContract(contract);
   };
 
+  // 주소/설치위치 변경 후 계약 데이터 리프레시
+  const handleAddressChanged = async () => {
+    if (!selectedCustomer) return;
+    try {
+      const res = await getContractList(selectedCustomer.CUST_ID);
+      if (res.success && res.data) {
+        setCachedContracts(res.data);
+        setCachedDataCustId(selectedCustomer.CUST_ID);
+        // selectedContract가 있으면 최신 데이터로 갱신
+        if (selectedContract) {
+          const updated = res.data.find((c: ContractInfo) => c.CTRT_ID === selectedContract.ctrtId);
+          if (updated) {
+            setSelectedContract({
+              ctrtId: updated.CTRT_ID,
+              prodNm: updated.PROD_NM,
+              instAddr: updated.INST_ADDR,
+              streetAddr: updated.STREET_ADDR_FULL,
+              instlLoc: updated.INSTL_LOC,
+              postId: updated.POST_ID,
+              notrecev: updated.NOTRECEV,
+              soId: updated.SO_ID,
+              prodGrp: updated.PROD_GRP,
+            });
+          }
+        }
+      }
+    } catch (e) {
+      console.error('Failed to refresh contracts after address change:', e);
+    }
+  };
+
   // 탭 이동 핸들러
   const handleNavigateToTab = (tabId: string) => {
     setActiveTab(tabId);
@@ -178,6 +209,7 @@ const CustomerManagementMenu: React.FC<CustomerManagementMenuProps> = ({ onNavig
               setPaymentSelectedPymAcntId(pymAcntId);
               setPaymentIsVerified(isVerified);
             }}
+            onAddressChanged={handleAddressChanged}
           />
         );
       case 'consultation-as':
