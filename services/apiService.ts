@@ -3681,12 +3681,12 @@ export const processEquipmentRecovery = async (params: {
   EQT_SERNO?: string;
   CHG_UID?: string;
 }): Promise<any> => {
-  console.log('✅ [fn:processEquipmentRecovery → req:modEquipLoss] API 호출:', params);
+  console.log('✅ [fn:processEquipmentRecovery → req:modEquipLoss_ForM] API 호출:', params);
 
   try {
     const origin = typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000';
 
-    const response = await fetchWithRetry(`${API_BASE}/customer/work/modEquipLoss`, {
+    const response = await fetchWithRetry(`${API_BASE}/customer/work/modEquipLoss_ForM`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

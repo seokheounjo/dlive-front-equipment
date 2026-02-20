@@ -211,7 +211,8 @@ const CustomerSearchModal: React.FC<{
   isOpen: boolean;
   onClose: () => void;
   onSelect: (customer: { CUST_ID: string; CUST_NM: string }) => void;
-}> = ({ isOpen, onClose, onSelect }) => {
+  onSerialSearch?: (serialNo: string) => void;
+}> = ({ isOpen, onClose, onSelect, onSerialSearch }) => {
   const [customerId, setCustomerId] = useState('');
   const [contractId, setContractId] = useState('');
   const [phoneNumber, setPhoneNumber] = useState('');
@@ -272,13 +273,22 @@ const CustomerSearchModal: React.FC<{
         equipmentNo: hasEquipmentNo ? equipmentNo : undefined,
       });
 
-      if (response.success && response.data) {
+      if (response.success && response.data && response.data.length > 0) {
         setSearchResults(response.data);
+      } else if (hasEquipmentNo && onSerialSearch) {
+        onSerialSearch(equipmentNo);
+        onClose();
+        return;
       } else {
         setSearchResults([]);
       }
     } catch (error) {
       console.error('Customer search error:', error);
+      if (hasEquipmentNo && onSerialSearch) {
+        onSerialSearch(equipmentNo);
+        onClose();
+        return;
+      }
       setSearchResults([]);
     } finally {
       setIsSearching(false);
@@ -1402,6 +1412,48 @@ const EquipmentRecovery: React.FC<EquipmentRecoveryProps> = ({ onBack, showToast
         isOpen={customerModalOpen}
         onClose={() => setCustomerModalOpen(false)}
         onSelect={handleCustomerSelect}
+        onSerialSearch={(serialNo) => {
+          setSearchParams({...searchParams, EQT_SERNO: serialNo});
+          setCustomerModalOpen(false);
+          setTimeout(() => {
+            const params: any = { EQT_SERNO: serialNo };
+            setIsLoading(true);
+            getUnreturnedEquipmentList(params).then((result) => {
+              if (result && result.length > 0) {
+                const firstItem = result[0];
+                if (firstItem.CUST_ID && firstItem.CUST_NM) {
+                  setSelectedCustomer({ CUST_ID: firstItem.CUST_ID, CUST_NM: firstItem.CUST_NM });
+                }
+                setUnreturnedList(result.map((item: any) => ({
+                  CHK: false, CUST_ID: item.CUST_ID || '', CUST_NM: item.CUST_NM || '',
+                  CTRT_ID: item.CTRT_ID || '', EQT_NO: item.EQT_NO || '', EQT_SERNO: item.EQT_SERNO || '',
+                  EQT_CL_CD: item.EQT_CL_CD || item.EQT_CL || '', EQT_CL_NM: item.EQT_CL_NM || item.EQT_NM || '',
+                  ITEM_NM: item.ITEM_NM || item.EQT_NM || '',
+                  TRML_DT: item.TRML_DT || item.CMPL_DATE?.split(' ')[0]?.replace(/-/g, '') || '',
+                  WRK_ID: item.WRK_ID || '', WRKR_ID: item.WRKR_ID || '', WRKR_NM: item.WRKR_NM || '',
+                  SO_ID: item.SO_ID || '', SO_NM: item.SO_NM || getSoName(item.SO_ID) || '',
+                  PHONE_NO: item.PHONE_NO || item.TEL_NO || item.TEL_NO_1 || '',
+                  ADDRESS: item.ADDRESS || item.WORK_ADDR || item.CTRT_ADDR || '',
+                  RETN_REQ_YN: item.RETN_REQ_YN || '', LOSS_AMT: item.LOSS_AMT || '',
+                  CRR_ID: item.CRR_ID || '', CMPL_DATE: item.CMPL_DATE || '',
+                  EQT_STAT_CD_NM: item.EQT_STAT_NM || item.EQT_STAT_CD_NM || '재고',
+                  isScanned: false, MAC_ADDRESS: item.MAC_ADDRESS || item.MAC_ADDR || '',
+                  EQT_USE_END_DT: item.EQT_USE_END_DT || '', CHG_KND_NM: item.CHG_KND_NM || '',
+                  EQT_LOC_NM: item.EQT_LOC_NM || '', EQT_LOC_TP_NM: item.EQT_LOC_TP_NM || '',
+                  OLD_EQT_LOC_NM: item.OLD_EQT_LOC_NM || '', ITEM_MODEL: item.ITEM_MODEL || item.MODEL_NM || '',
+                  EQT_USE_ARR_YN: item.EQT_USE_ARR_YN || '', BIZ_CL_NM: item.BIZ_CL_NM || '',
+                  MST_SO_ID: item.MST_SO_ID || '', MST_SO_NM: item.MST_SO_NM || '',
+                })));
+                showToast?.(`${result.length}건의 미회수 장비를 조회했습니다.`, 'success');
+              } else {
+                showToast?.(`장비 (${serialNo})를 찾을 수 없습니다.`, 'error');
+                setUnreturnedList([]);
+              }
+            }).catch(() => {
+              showToast?.('미회수장비 조회에 실패했습니다.', 'error');
+            }).finally(() => setIsLoading(false));
+          }, 100);
+        }}
       />
     </div>
   );
