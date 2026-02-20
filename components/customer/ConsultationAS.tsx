@@ -580,11 +580,15 @@ const ConsultationAS: React.FC<ConsultationASProps> = ({
       const userInfo = JSON.parse(localStorage.getItem('userInfo') || '{}');
 
       const isSubscriber = asSubscriberType === 'subscriber';
+      // non-subscriber: use first active contract for POST_ID/CTRT_ID (CONA needs these for work direction)
+      const fallbackContract = !isSubscriber && contracts.length > 0
+        ? (contracts.find(c => (c.CTRT_STAT_NM || '').includes('사용')) || contracts[0])
+        : null;
       const params = {
         CUST_ID: selectedCustomer.custId,
-        CTRT_ID: isSubscriber ? (selectedContract?.ctrtId || '') : '',
-        POST_ID: isSubscriber ? (selectedContract?.postId || '') : '',
-        INST_ADDR: isSubscriber ? (selectedContract?.instAddr || '') : '',
+        CTRT_ID: isSubscriber ? (selectedContract?.ctrtId || '') : (fallbackContract?.CTRT_ID || ''),
+        POST_ID: isSubscriber ? (selectedContract?.postId || '') : (fallbackContract?.POST_ID || ''),
+        INST_ADDR: isSubscriber ? (selectedContract?.instAddr || '') : (fallbackContract?.INST_ADDR || ''),
         AS_CL_CD: asForm.asClCd,
         AS_RESN_L_CD: asForm.asResnLCd,
         AS_RESN_M_CD: asForm.asResnMCd,
@@ -592,12 +596,10 @@ const ConsultationAS: React.FC<ConsultationASProps> = ({
         SCHD_DT: asForm.schdDt.replace(/-/g, ''),
         SCHD_TM: asForm.schdHour + asForm.schdMin,
         WRKR_ID: userInfo.userId || '',
-        // PG_GUBUN: 항상 0 (1이면 CONA에서 "접수"로만 처리됨, 0이어야 "처리중")
         PG_GUBUN: '0',
-        // SO_ID: 가입자=계약SO_ID, 비가입자=로그인사용자SO_ID (없으면 처리중 안됨)
         SO_ID: isSubscriber
           ? (selectedContract?.soId || '')
-          : (userInfo.authSoList?.[0]?.SO_ID || userInfo.authSoList?.[0]?.soId || userInfo.soId || userInfo.SO_ID || ''),
+          : (fallbackContract?.SO_ID || userInfo.authSoList?.[0]?.SO_ID || userInfo.authSoList?.[0]?.soId || userInfo.soId || userInfo.SO_ID || ''),
         MST_SO_ID: ''
       };
 
