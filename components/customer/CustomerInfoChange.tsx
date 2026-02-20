@@ -310,6 +310,13 @@ const CustomerInfoChange: React.FC<CustomerInfoChangeProps> = ({
   }, []);
 
 
+  // 고객 선택 시 납부계정 수 미리 로드 (주소변경 청구지 체크용)
+  useEffect(() => {
+    if (selectedCustomer && !paymentLoaded) {
+      loadPaymentInfo();
+    }
+  }, [selectedCustomer]);
+
   // 선택된 계약 변경 시 기존 설치정보 초기화
   useEffect(() => {
     if (selectedContract) {
