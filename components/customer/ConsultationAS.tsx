@@ -592,8 +592,8 @@ const ConsultationAS: React.FC<ConsultationASProps> = ({
         SCHD_DT: asForm.schdDt.replace(/-/g, ''),
         SCHD_TM: asForm.schdHour + asForm.schdMin,
         WRKR_ID: userInfo.userId || '',
-        // PG_GUBUN: 가입자=0, 비가입자=1 (D'Live CONA modAsPdaReceipt 기준)
-        PG_GUBUN: isSubscriber ? '0' : '1',
+        // PG_GUBUN: 항상 0 (1이면 CONA에서 "접수"로만 처리됨, 0이어야 "처리중")
+        PG_GUBUN: '0',
         // SO_ID: 가입자=계약SO_ID, 비가입자=로그인사용자SO_ID (없으면 처리중 안됨)
         SO_ID: isSubscriber
           ? (selectedContract?.soId || '')
