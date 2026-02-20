@@ -594,8 +594,10 @@ const ConsultationAS: React.FC<ConsultationASProps> = ({
         WRKR_ID: userInfo.userId || '',
         // PG_GUBUN: 가입자=0, 비가입자=1 (D'Live CONA modAsPdaReceipt 기준)
         PG_GUBUN: isSubscriber ? '0' : '1',
-        // SO_ID, MST_SO_ID: 가입자인 경우 계약의 SO_ID 사용
-        SO_ID: isSubscriber ? (selectedContract?.soId || '') : '',
+        // SO_ID: 가입자=계약SO_ID, 비가입자=로그인사용자SO_ID (없으면 처리중 안됨)
+        SO_ID: isSubscriber
+          ? (selectedContract?.soId || '')
+          : (userInfo.authSoList?.[0]?.SO_ID || userInfo.authSoList?.[0]?.soId || userInfo.soId || userInfo.SO_ID || ''),
         MST_SO_ID: ''
       };
 
