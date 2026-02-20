@@ -336,77 +336,68 @@ const ContractSummary: React.FC<ContractSummaryProps> = ({
                           </div>
                         )}
 
-                        {/* 상담/AS/주소변경 버튼 - AS는 해지계약도 가능 */}
-                        <div className="flex gap-2 mt-3 pt-3 border-t border-gray-200">
-                          {/* 상담 - 사용계약만 */}
-                          {isActiveContract(contract) && (
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleSelect(contract);
-                                if (onNavigateToConsultation) {
-                                  onNavigateToConsultation(contract);
-                                }
-                              }}
-                              className="flex-1 flex items-center justify-center gap-1 px-2 py-2 bg-blue-500 hover:bg-blue-600 text-white text-xs font-medium rounded-lg transition-colors"
-                            >
-                              상담
-                            </button>
-                          )}
-                          {/* AS - 모든 계약 (해지 포함) */}
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleSelect(contract);
-                              if (onNavigateToAS) {
-                                onNavigateToAS(contract);
-                              }
-                            }}
-                            className="flex-1 flex items-center justify-center gap-1 px-2 py-2 bg-orange-500 hover:bg-orange-600 text-white text-xs font-medium rounded-lg transition-colors"
-                          >
-                            AS
-                          </button>
-                          {/* 주소변경 - 사용계약만 */}
-                          {isActiveContract(contract) && (
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleSelect(contract);
-                                if (onNavigateToAddressChange) {
-                                  onNavigateToAddressChange(contract);
-                                }
-                              }}
-                              className="flex-1 flex items-center justify-center gap-1 px-2 py-2 bg-green-500 hover:bg-green-600 text-white text-xs font-medium rounded-lg transition-colors"
-                            >
-                              주소변경
-                            </button>
-                          )}
-                          {/* 재약정 - 사용중(기간도래)만 활성화 */}
-                          {(() => {
-                            const statNm = contract.CTRT_STAT_NM || '';
-                            const isCloseDanger = contract.CLOSE_DANGER === 'Y' && statNm.includes('사용중');
-                            return (
+                        {/* 상담/AS/주소변경/재약정 버튼 - 해지 시 AS만 활성화 */}
+                        {(() => {
+                          const active = isActiveContract(contract);
+                          const statNm = contract.CTRT_STAT_NM || '';
+                          const isCloseDanger = contract.CLOSE_DANGER === 'Y' && statNm.includes('사용중');
+                          return (
+                            <div className="flex gap-2 mt-3 pt-3 border-t border-gray-200">
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  if (!active) return;
+                                  handleSelect(contract);
+                                  if (onNavigateToConsultation) onNavigateToConsultation(contract);
+                                }}
+                                disabled={!active}
+                                className={`flex-1 flex items-center justify-center gap-1 px-2 py-2 text-xs font-medium rounded-lg transition-colors ${
+                                  active ? 'bg-blue-500 hover:bg-blue-600 text-white' : 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                                }`}
+                              >
+                                상담
+                              </button>
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleSelect(contract);
+                                  if (onNavigateToAS) onNavigateToAS(contract);
+                                }}
+                                className="flex-1 flex items-center justify-center gap-1 px-2 py-2 bg-orange-500 hover:bg-orange-600 text-white text-xs font-medium rounded-lg transition-colors"
+                              >
+                                AS
+                              </button>
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  if (!active) return;
+                                  handleSelect(contract);
+                                  if (onNavigateToAddressChange) onNavigateToAddressChange(contract);
+                                }}
+                                disabled={!active}
+                                className={`flex-1 flex items-center justify-center gap-1 px-2 py-2 text-xs font-medium rounded-lg transition-colors ${
+                                  active ? 'bg-green-500 hover:bg-green-600 text-white' : 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                                }`}
+                              >
+                                주소변경
+                              </button>
                               <button
                                 onClick={(e) => {
                                   e.stopPropagation();
                                   if (!isCloseDanger) return;
                                   handleSelect(contract);
-                                  if (onNavigateToReContract) {
-                                    onNavigateToReContract(contract);
-                                  }
+                                  if (onNavigateToReContract) onNavigateToReContract(contract);
                                 }}
                                 disabled={!isCloseDanger}
                                 className={`flex-1 flex items-center justify-center gap-1 px-2 py-2 text-xs font-medium rounded-lg transition-colors ${
-                                  isCloseDanger
-                                    ? 'bg-purple-500 hover:bg-purple-600 text-white'
-                                    : 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                                  isCloseDanger ? 'bg-purple-500 hover:bg-purple-600 text-white' : 'bg-gray-200 text-gray-400 cursor-not-allowed'
                                 }`}
                               >
                                 재약정
                               </button>
-                            );
-                          })()}
-                        </div>
+                            </div>
+                          );
+                        })()}
 
                       </div>
                     )}
