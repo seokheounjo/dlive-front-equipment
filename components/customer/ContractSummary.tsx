@@ -69,8 +69,8 @@ const ContractSummary: React.FC<ContractSummaryProps> = ({
   onNavigateToReContract,
   initialSearchKeyword
 }) => {
-  // 필터 상태 (기본값: 전체)
-  const [filterStatus, setFilterStatus] = useState<'all' | 'active' | 'recommit'>('all');
+  // 필터 상태 (기본값: 사용중)
+  const [filterStatus, setFilterStatus] = useState<'all' | 'active' | 'recommit'>('active');
   const [searchKeyword, setSearchKeyword] = useState(initialSearchKeyword || '');
 
   // 초기 검색어가 변경되면 자동 반영 (계약ID, S/N 검색 시)

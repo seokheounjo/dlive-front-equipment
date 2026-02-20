@@ -359,190 +359,176 @@ const ReContractRegistration: React.FC<ReContractRegistrationProps> = ({
   };
 
   return (
-    <div className="h-full overflow-y-auto">
-      <div className="p-4 space-y-4 pb-8">
+    <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 space-y-4">
+      <h3 className="font-medium text-gray-800 flex items-center gap-2">
+        <FileText className="w-5 h-5 text-purple-500" />
+        재약정 등록
+      </h3>
 
-        {/* 헤더 */}
-        <div className="flex items-center justify-between">
-          <h2 className="text-lg font-bold text-gray-800 flex items-center gap-2">
-            <FileText className="w-5 h-5 text-purple-500" />
-            재약정 등록
-          </h2>
-          {selectedContract && (
-            <button
-              onClick={() => loadPromInfo()}
-              className="p-2 text-gray-500 hover:text-gray-700 rounded-lg hover:bg-gray-100"
-              title="새로고침"
-            >
-              <RefreshCw className="w-4 h-4" />
-            </button>
-          )}
+      {/* 고객/계약 미선택 안내 */}
+      {!selectedCustomer ? (
+        <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+          <div className="flex items-start gap-2">
+            <AlertCircle className="w-5 h-5 text-yellow-500 flex-shrink-0 mt-0.5" />
+            <div>
+              <p className="text-sm font-medium text-yellow-700">고객을 먼저 선택해주세요.</p>
+              <p className="text-xs text-yellow-600 mt-1">
+                기본조회에서 고객을 검색하고, 계약현황에서 재약정 버튼을 클릭하세요.
+              </p>
+              <button
+                onClick={onNavigateToBasicInfo}
+                className="mt-2 text-xs text-blue-600 hover:text-blue-800 underline"
+              >
+                기본조회로 이동
+              </button>
+            </div>
+          </div>
         </div>
+      ) : !selectedContract ? (
+        <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+          <div className="flex items-start gap-2">
+            <AlertCircle className="w-5 h-5 text-yellow-500 flex-shrink-0 mt-0.5" />
+            <div>
+              <p className="text-sm font-medium text-yellow-700">계약을 선택해주세요.</p>
+              <p className="text-xs text-yellow-600 mt-1">
+                계약현황에서 사용중(기간도래) 계약의 재약정 버튼을 클릭하세요.
+              </p>
+              <button
+                onClick={onNavigateToBasicInfo}
+                className="mt-2 text-xs text-blue-600 hover:text-blue-800 underline"
+              >
+                기본조회로 이동
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : (
+        <>
+          {/* 고객/계약 정보 - 상담/AS와 동일 스타일 */}
+          <div className="p-3 bg-orange-50 rounded-lg border border-orange-200">
+            <div className="flex items-center justify-between mb-2">
+              <div className="text-sm text-orange-800">
+                <span className="font-medium">{selectedCustomer.custNm}</span>
+                <span className="ml-1 text-orange-600 text-xs">(고객ID: {formatId(selectedCustomer.custId)})</span>
+              </div>
+            </div>
+            <div className="text-xs text-orange-700 pt-1 border-t border-orange-200 space-y-0.5">
+              <div className="flex"><span className="text-orange-500 w-14 flex-shrink-0">상품명</span><span className="font-medium">{selectedContract.prodNm || '-'}</span></div>
+              <div className="flex"><span className="text-orange-500 w-14 flex-shrink-0">계약ID</span><span>{formatId(selectedContract.ctrtId)}</span></div>
+              {selectedContract.instAddr && (
+                <div className="flex"><span className="text-orange-500 w-14 flex-shrink-0">설치주소</span><span>{selectedContract.instAddr}</span></div>
+              )}
+              <div className="flex"><span className="text-orange-500 w-14 flex-shrink-0">약정기간</span><span>
+                {(() => {
+                  const ctrt = contracts.find(c => c.CTRT_ID === selectedContract.ctrtId);
+                  const start = ctrt?.CTRT_APLY_STRT_DT || ctrt?.AGMT_ST_DT;
+                  const end = ctrt?.CTRT_APLY_END_DT || ctrt?.AGMT_END_DT;
+                  if (start || end) {
+                    return `${formatDateStr(start || '')} ~ ${formatDateStr(end || '')}`;
+                  }
+                  return '-';
+                })()}
+              </span></div>
+            </div>
+          </div>
 
-        {/* 고객/계약 미선택 안내 */}
-        {!selectedCustomer ? (
-          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-            <div className="flex items-start gap-2">
-              <AlertCircle className="w-5 h-5 text-yellow-500 flex-shrink-0 mt-0.5" />
-              <div>
-                <p className="text-sm font-medium text-yellow-700">고객을 먼저 선택해주세요.</p>
-                <p className="text-xs text-yellow-600 mt-1">
-                  기본조회에서 고객을 검색하고, 계약현황에서 재약정 버튼을 클릭하세요.
-                </p>
-                <button
-                  onClick={onNavigateToBasicInfo}
-                  className="mt-2 text-xs text-blue-600 hover:text-blue-800 underline"
-                >
-                  기본조회로 이동
-                </button>
-              </div>
+          {/* 현재 약정 정보 */}
+          <div className="bg-gray-50 border border-gray-200 rounded-lg p-3">
+            <div className="text-xs text-gray-600 font-medium mb-2 flex items-center gap-1">
+              <Calendar className="w-3.5 h-3.5" />
+              현재 약정정보
             </div>
-          </div>
-        ) : !selectedContract ? (
-          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-            <div className="flex items-start gap-2">
-              <AlertCircle className="w-5 h-5 text-yellow-500 flex-shrink-0 mt-0.5" />
-              <div>
-                <p className="text-sm font-medium text-yellow-700">계약을 선택해주세요.</p>
-                <p className="text-xs text-yellow-600 mt-1">
-                  계약현황에서 사용중(기간도래) 계약의 재약정 버튼을 클릭하세요.
-                </p>
-                <button
-                  onClick={onNavigateToBasicInfo}
-                  className="mt-2 text-xs text-blue-600 hover:text-blue-800 underline"
-                >
-                  기본조회로 이동
-                </button>
+            {promLoading ? (
+              <div className="flex items-center justify-center py-4">
+                <Loader2 className="w-5 h-5 animate-spin text-gray-400" />
               </div>
-            </div>
-          </div>
-        ) : (
-          <>
-            {/* 선택된 계약 정보 */}
-            <div className="bg-purple-50 border border-purple-200 rounded-lg p-3">
-              <div className="text-xs text-purple-600 font-medium mb-2">선택된 계약</div>
+            ) : promInfo ? (
               <div className="grid grid-cols-2 gap-2 text-sm">
                 <div>
-                  <span className="text-gray-500">고객명:</span>{' '}
-                  <span className="font-medium">{selectedCustomer.custNm}</span>
+                  <span className="text-gray-500">약정여부:</span>{' '}
+                  <span className={`font-medium ${promInfo.PROM_YN === 'Y' ? 'text-green-600' : 'text-gray-600'}`}>
+                    {promInfo.PROM_YN === 'Y' ? '약정중' : '약정없음'}
+                  </span>
                 </div>
                 <div>
-                  <span className="text-gray-500">고객ID:</span>{' '}
-                  <span className="font-medium">{formatId(selectedCustomer.custId)}</span>
+                  <span className="text-gray-500">약정개월:</span>{' '}
+                  <span className="font-medium">{promInfo.PROM_CNT_NM || promInfo.PROM_CNT || '-'}</span>
                 </div>
                 <div>
-                  <span className="text-gray-500">계약ID:</span>{' '}
-                  <span className="font-medium">{formatId(selectedContract.ctrtId)}</span>
+                  <span className="text-gray-500">약정시작:</span>{' '}
+                  <span className="font-medium">{formatDateStr(promInfo.CTRT_APLY_STRT_DT)}</span>
                 </div>
                 <div>
-                  <span className="text-gray-500">상품:</span>{' '}
-                  <span className="font-medium">{selectedContract.prodNm || '-'}</span>
+                  <span className="text-gray-500">약정종료:</span>{' '}
+                  <span className="font-medium">{formatDateStr(promInfo.CTRT_APLY_END_DT)}</span>
                 </div>
-                <div className="col-span-2">
-                  <span className="text-gray-500">설치주소:</span>{' '}
-                  <span className="font-medium">{selectedContract.instAddr || '-'}</span>
+                <div>
+                  <span className="text-gray-500">변경유형:</span>{' '}
+                  <span className="font-medium">{promInfo.PROM_CHG_CD_NM || '-'}</span>
+                </div>
+                <div>
+                  <span className="text-gray-500">변경사유:</span>{' '}
+                  <span className="font-medium">{promInfo.PROM_CHGRSN_CD_NM || '-'}</span>
                 </div>
               </div>
+            ) : (
+              <div className="text-sm text-gray-500 text-center py-2">
+                약정정보가 없습니다.
+              </div>
+            )}
+          </div>
+
+          {/* 재약정 등록 폼 */}
+          <div className="space-y-3">
+            {/* 약정변경코드 */}
+            <div>
+              <label className="block text-sm text-gray-600 mb-1">약정변경코드 *</label>
+              <select
+                value={form.promChgCd}
+                onChange={(e) => setForm(prev => ({ ...prev, promChgCd: e.target.value }))}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+              >
+                <option value="">선택</option>
+                {promChangeCodes.map(c => (
+                  <option key={c.CODE} value={c.CODE}>{c.CODE_NM}</option>
+                ))}
+              </select>
             </div>
 
-            {/* 현재 약정 정보 */}
-            <div className="bg-white border border-gray-200 rounded-lg p-3">
-              <div className="text-xs text-gray-600 font-medium mb-2 flex items-center gap-1">
-                <Calendar className="w-3.5 h-3.5" />
-                현재 약정정보
-              </div>
-              {promLoading ? (
-                <div className="flex items-center justify-center py-4">
-                  <Loader2 className="w-5 h-5 animate-spin text-gray-400" />
-                </div>
-              ) : promInfo ? (
-                <div className="grid grid-cols-2 gap-2 text-sm">
-                  <div>
-                    <span className="text-gray-500">약정여부:</span>{' '}
-                    <span className={`font-medium ${promInfo.PROM_YN === 'Y' ? 'text-green-600' : 'text-gray-600'}`}>
-                      {promInfo.PROM_YN === 'Y' ? '약정중' : '약정없음'}
-                    </span>
-                  </div>
-                  <div>
-                    <span className="text-gray-500">약정개월:</span>{' '}
-                    <span className="font-medium">{promInfo.PROM_CNT_NM || promInfo.PROM_CNT || '-'}</span>
-                  </div>
-                  <div>
-                    <span className="text-gray-500">약정시작:</span>{' '}
-                    <span className="font-medium">{formatDateStr(promInfo.CTRT_APLY_STRT_DT)}</span>
-                  </div>
-                  <div>
-                    <span className="text-gray-500">약정종료:</span>{' '}
-                    <span className="font-medium">{formatDateStr(promInfo.CTRT_APLY_END_DT)}</span>
-                  </div>
-                  <div>
-                    <span className="text-gray-500">변경유형:</span>{' '}
-                    <span className="font-medium">{promInfo.PROM_CHG_CD_NM || '-'}</span>
-                  </div>
-                  <div>
-                    <span className="text-gray-500">변경사유:</span>{' '}
-                    <span className="font-medium">{promInfo.PROM_CHGRSN_CD_NM || '-'}</span>
-                  </div>
-                </div>
-              ) : (
-                <div className="text-sm text-gray-500 text-center py-2">
-                  약정정보가 없습니다.
-                </div>
-              )}
+            {/* 약정변경사유 */}
+            <div>
+              <label className="block text-sm text-gray-600 mb-1">약정변경사유 *</label>
+              <select
+                value={form.promChgrsnCd}
+                onChange={(e) => setForm(prev => ({ ...prev, promChgrsnCd: e.target.value }))}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+              >
+                <option value="">선택</option>
+                {promChangeReasonCodes.map(c => (
+                  <option key={c.CODE} value={c.CODE}>{c.CODE_NM}</option>
+                ))}
+              </select>
             </div>
 
-            {/* 재약정 등록 폼 */}
-            <div className="bg-white border border-gray-200 rounded-lg p-4 space-y-4">
-              <div className="text-sm font-bold text-gray-800 border-b pb-2">재약정 등록</div>
+            {/* 약정개월수 */}
+            <div>
+              <label className="block text-sm text-gray-600 mb-1">약정개월수 *</label>
+              <select
+                value={form.promCnt}
+                onChange={(e) => setForm(prev => ({ ...prev, promCnt: e.target.value }))}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+              >
+                <option value="">선택</option>
+                {promMonthCodes.map(c => (
+                  <option key={c.CODE} value={c.CODE}>{c.CODE_NM}</option>
+                ))}
+              </select>
+            </div>
 
-              {/* 약정변경코드 */}
+            {/* 약정시작일 / 종료일 */}
+            <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="block text-xs font-medium text-gray-600 mb-1">약정변경코드</label>
-                <select
-                  value={form.promChgCd}
-                  onChange={(e) => setForm(prev => ({ ...prev, promChgCd: e.target.value }))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                >
-                  <option value="">선택</option>
-                  {promChangeCodes.map(c => (
-                    <option key={c.CODE} value={c.CODE}>{c.CODE_NM}</option>
-                  ))}
-                </select>
-              </div>
-
-              {/* 약정변경사유 */}
-              <div>
-                <label className="block text-xs font-medium text-gray-600 mb-1">약정변경사유</label>
-                <select
-                  value={form.promChgrsnCd}
-                  onChange={(e) => setForm(prev => ({ ...prev, promChgrsnCd: e.target.value }))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                >
-                  <option value="">선택</option>
-                  {promChangeReasonCodes.map(c => (
-                    <option key={c.CODE} value={c.CODE}>{c.CODE_NM}</option>
-                  ))}
-                </select>
-              </div>
-
-              {/* 약정개월수 */}
-              <div>
-                <label className="block text-xs font-medium text-gray-600 mb-1">약정개월수</label>
-                <select
-                  value={form.promCnt}
-                  onChange={(e) => setForm(prev => ({ ...prev, promCnt: e.target.value }))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                >
-                  <option value="">선택</option>
-                  {promMonthCodes.map(c => (
-                    <option key={c.CODE} value={c.CODE}>{c.CODE_NM}</option>
-                  ))}
-                </select>
-              </div>
-
-              {/* 약정시작일 */}
-              <div>
-                <label className="block text-xs font-medium text-gray-600 mb-1">약정시작일</label>
+                <label className="block text-sm text-gray-600 mb-1">약정시작일 *</label>
                 <input
                   type="date"
                   value={form.startDate ? formatDateStr(form.startDate) : ''}
@@ -550,13 +536,11 @@ const ReContractRegistration: React.FC<ReContractRegistrationProps> = ({
                     const val = e.target.value.replace(/-/g, '');
                     setForm(prev => ({ ...prev, startDate: val }));
                   }}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
                 />
               </div>
-
-              {/* 약정종료일 (자동 계산) */}
               <div>
-                <label className="block text-xs font-medium text-gray-600 mb-1">약정종료일 (자동 계산)</label>
+                <label className="block text-sm text-gray-600 mb-1">약정종료일</label>
                 <input
                   type="text"
                   value={form.endDate ? formatDateStr(form.endDate) : '-'}
@@ -564,61 +548,60 @@ const ReContractRegistration: React.FC<ReContractRegistrationProps> = ({
                   className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-gray-50 text-gray-600"
                 />
               </div>
-
-              {/* 등록 버튼 */}
-              <button
-                onClick={handleSubmit}
-                disabled={isSubmitting || !form.promChgCd || !form.promCnt || !form.promChgrsnCd || !form.startDate}
-                className={`w-full flex items-center justify-center gap-2 py-3 rounded-lg text-sm font-bold transition-colors ${
-                  isSubmitting || !form.promChgCd || !form.promCnt || !form.promChgrsnCd || !form.startDate
-                    ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                    : 'bg-purple-500 hover:bg-purple-600 text-white'
-                }`}
-              >
-                {isSubmitting ? (
-                  <>
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                    등록 중...
-                  </>
-                ) : (
-                  <>
-                    <Send className="w-4 h-4" />
-                    재약정 등록
-                  </>
-                )}
-              </button>
-            </div>
-          </>
-        )}
-
-        {/* 결과 팝업 */}
-        {resultPopup.show && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-xl shadow-xl max-w-sm w-full p-6">
-              <div className="flex flex-col items-center text-center">
-                {resultPopup.success ? (
-                  <CheckCircle className="w-12 h-12 text-green-500 mb-3" />
-                ) : (
-                  <XCircle className="w-12 h-12 text-red-500 mb-3" />
-                )}
-                <h3 className="text-lg font-bold text-gray-800 mb-2">
-                  {resultPopup.success ? '등록 완료' : '등록 실패'}
-                </h3>
-                <p className="text-sm text-gray-600 mb-4">{resultPopup.message}</p>
-                <button
-                  onClick={() => setResultPopup({ show: false, success: false, message: '' })}
-                  className={`w-full py-2.5 rounded-lg text-sm font-bold text-white ${
-                    resultPopup.success ? 'bg-green-500 hover:bg-green-600' : 'bg-red-500 hover:bg-red-600'
-                  }`}
-                >
-                  확인
-                </button>
-              </div>
             </div>
           </div>
-        )}
 
-      </div>
+          {/* 등록 버튼 */}
+          <button
+            onClick={handleSubmit}
+            disabled={isSubmitting || !form.promChgCd || !form.promCnt || !form.promChgrsnCd || !form.startDate}
+            className={`w-full flex items-center justify-center gap-2 py-3 rounded-lg text-sm font-bold transition-colors ${
+              isSubmitting || !form.promChgCd || !form.promCnt || !form.promChgrsnCd || !form.startDate
+                ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                : 'bg-purple-500 hover:bg-purple-600 text-white'
+            }`}
+          >
+            {isSubmitting ? (
+              <>
+                <Loader2 className="w-4 h-4 animate-spin" />
+                등록 중...
+              </>
+            ) : (
+              <>
+                <Send className="w-4 h-4" />
+                재약정 등록
+              </>
+            )}
+          </button>
+        </>
+      )}
+
+      {/* 결과 팝업 */}
+      {resultPopup.show && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-xl max-w-sm w-full p-6">
+            <div className="flex flex-col items-center text-center">
+              {resultPopup.success ? (
+                <CheckCircle className="w-12 h-12 text-green-500 mb-3" />
+              ) : (
+                <XCircle className="w-12 h-12 text-red-500 mb-3" />
+              )}
+              <h3 className="text-lg font-bold text-gray-800 mb-2">
+                {resultPopup.success ? '등록 완료' : '등록 실패'}
+              </h3>
+              <p className="text-sm text-gray-600 mb-4">{resultPopup.message}</p>
+              <button
+                onClick={() => setResultPopup({ show: false, success: false, message: '' })}
+                className={`w-full py-2.5 rounded-lg text-sm font-bold text-white ${
+                  resultPopup.success ? 'bg-green-500 hover:bg-green-600' : 'bg-red-500 hover:bg-red-600'
+                }`}
+              >
+                확인
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
