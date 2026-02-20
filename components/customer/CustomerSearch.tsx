@@ -53,18 +53,14 @@ const CustomerSearch: React.FC<CustomerSearchProps> = ({ onCustomerSelect, onCus
     message: string;
   }>({ show: false, title: '', message: '' });
 
-  // 팝업 열기
+  // 팝업 열기 - 이전 입력값/검색결과 유지
   const openModal = () => {
     setShowModal(true);
-    setSearchResults([]);
-    setHasSearched(false);
   };
 
-  // 팝업 닫기
+  // 팝업 닫기 - 입력값 유지 (리셋하지 않는 한 보존)
   const closeModal = () => {
     setShowModal(false);
-    setSearchResults([]);
-    setHasSearched(false);
   };
 
   // 전체 리셋 (모든 필드 초기화 + 선택된 고객 해제)
@@ -87,9 +83,19 @@ const CustomerSearch: React.FC<CustomerSearchProps> = ({ onCustomerSelect, onCus
   // 검색 실행 - 모든 파라미터를 한 번에 전송 (getConditionalCustList3 사용)
   const handleSearch = async () => {
     // 입력된 필드에서 숫자만 추출 (포맷팅 제거)
-    const customerIdDigits = extractDigits(customerId);
-    const contractIdDigits = extractDigits(contractId);
+    let customerIdDigits = extractDigits(customerId);
+    let contractIdDigits = extractDigits(contractId);
     const phoneNumberDigits = extractDigits(phoneNumber);
+
+    // 고객ID, 계약ID 앞쪽 0 자동 채움 (10자리 미만이면 앞에 0 추가)
+    if (customerIdDigits.length > 0 && customerIdDigits.length < 10) {
+      customerIdDigits = customerIdDigits.padStart(10, '0');
+      setCustomerId(customerIdDigits);
+    }
+    if (contractIdDigits.length > 0 && contractIdDigits.length < 10) {
+      contractIdDigits = contractIdDigits.padStart(10, '0');
+      setContractId(contractIdDigits);
+    }
 
     // 입력된 필드 확인
     const hasCustomerId = customerIdDigits.length >= 4;
