@@ -299,14 +299,14 @@ const PaymentChangeModal: React.FC<PaymentChangeModalProps> = ({
     }
   };
 
-  // 서명 버튼 클릭 → 서명 모달 표시
+  // 서명 버튼 클릭 → 서명 모달 표시 (자동이체만)
   const handleOpenSignature = () => {
     if (!selectedPymAcntId) {
       showAlert('납부계정을 선택해주세요.', 'warning');
       return;
     }
     if (!isVerified) {
-      showAlert('계좌/카드 인증을 먼저 완료해주세요.', 'warning');
+      showAlert('계좌 인증을 먼저 완료해주세요.', 'warning');
       return;
     }
     if (!paymentForm.changeReasonL || !paymentForm.changeReasonM) {
@@ -327,9 +327,9 @@ const PaymentChangeModal: React.FC<PaymentChangeModalProps> = ({
     setSignatureData('');
   };
 
-  // 저장 (서명 완료 후 활성화)
+  // 저장 (자동이체: 서명 필수 / 카드: 서명 불필요)
   const handleSave = async () => {
-    if (!signatureData) {
+    if (paymentForm.pymMthCd === '01' && !signatureData) {
       showAlert('서명을 먼저 완료해주세요.', 'warning');
       return;
     }
@@ -629,64 +629,52 @@ const PaymentChangeModal: React.FC<PaymentChangeModalProps> = ({
                   </select>
                 </div>
 
-                {/* 결제일 */}
-                <div className="flex items-center">
-                  <label className="w-20 flex-shrink-0 text-xs text-gray-500">결제일</label>
-                  <select
-                    value={paymentForm.pymDay}
-                    onChange={(e) => setPaymentForm(prev => ({ ...prev, pymDay: e.target.value }))}
-                    className="flex-1 px-2 py-1.5 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-orange-500"
-                  >
-                    <option value="">선택</option>
-                    {paymentDays.map(day => (
-                      <option key={day.CODE} value={day.CODE}>{day.CODE_NM}</option>
-                    ))}
-                  </select>
-                </div>
               </div>
 
-              {/* 서명 영역 */}
-              <div className="border border-gray-200 rounded-lg p-3">
-                <div className="flex items-center justify-between mb-2">
-                  <label className="text-xs font-medium text-gray-700">고객 서명</label>
-                  {signatureData && (
+              {/* 서명 영역 - 자동이체만 */}
+              {paymentForm.pymMthCd === '01' && (
+                <div className="border border-gray-200 rounded-lg p-3">
+                  <div className="flex items-center justify-between mb-2">
+                    <label className="text-xs font-medium text-gray-700">고객 서명</label>
+                    {signatureData && (
+                      <button
+                        onClick={handleResetSignature}
+                        className="text-xs text-red-500 hover:text-red-600"
+                      >
+                        다시 서명
+                      </button>
+                    )}
+                  </div>
+                  {signatureData ? (
+                    <div className="border border-green-300 rounded-lg bg-green-50 p-2 flex flex-col items-center">
+                      <img
+                        src={signatureData}
+                        alt="서명"
+                        className="max-h-24 rounded border border-gray-200 bg-white"
+                      />
+                      <div className="flex items-center gap-1 mt-1.5">
+                        <Check className="w-3.5 h-3.5 text-green-600" />
+                        <span className="text-xs text-green-600 font-medium">서명 완료</span>
+                      </div>
+                    </div>
+                  ) : (
                     <button
-                      onClick={handleResetSignature}
-                      className="text-xs text-red-500 hover:text-red-600"
+                      onClick={handleOpenSignature}
+                      disabled={!isVerified}
+                      className={`w-full py-4 border-2 border-dashed rounded-lg flex flex-col items-center gap-1.5 transition-colors ${
+                        isVerified
+                          ? 'border-blue-300 bg-blue-50 hover:bg-blue-100 text-blue-600 cursor-pointer'
+                          : 'border-gray-200 bg-gray-50 text-gray-400 cursor-not-allowed'
+                      }`}
                     >
-                      다시 서명
+                      <PenTool className="w-5 h-5" />
+                      <span className="text-sm font-medium">
+                        {isVerified ? '여기를 눌러 서명하세요' : '인증 완료 후 서명 가능'}
+                      </span>
                     </button>
                   )}
                 </div>
-                {signatureData ? (
-                  <div className="border border-green-300 rounded-lg bg-green-50 p-2 flex flex-col items-center">
-                    <img
-                      src={signatureData}
-                      alt="서명"
-                      className="max-h-24 rounded border border-gray-200 bg-white"
-                    />
-                    <div className="flex items-center gap-1 mt-1.5">
-                      <Check className="w-3.5 h-3.5 text-green-600" />
-                      <span className="text-xs text-green-600 font-medium">서명 완료</span>
-                    </div>
-                  </div>
-                ) : (
-                  <button
-                    onClick={handleOpenSignature}
-                    disabled={!isVerified}
-                    className={`w-full py-4 border-2 border-dashed rounded-lg flex flex-col items-center gap-1.5 transition-colors ${
-                      isVerified
-                        ? 'border-blue-300 bg-blue-50 hover:bg-blue-100 text-blue-600 cursor-pointer'
-                        : 'border-gray-200 bg-gray-50 text-gray-400 cursor-not-allowed'
-                    }`}
-                  >
-                    <PenTool className="w-5 h-5" />
-                    <span className="text-sm font-medium">
-                      {isVerified ? '여기를 눌러 서명하세요' : '인증 완료 후 서명 가능'}
-                    </span>
-                  </button>
-                )}
-              </div>
+              )}
 
               {/* 안내 메시지 */}
               <div className="p-3 bg-orange-50 border border-orange-200 rounded-lg">
@@ -708,9 +696,9 @@ const PaymentChangeModal: React.FC<PaymentChangeModalProps> = ({
             <div className="flex gap-2">
               <button
                 onClick={handleSave}
-                disabled={isSaving || !signatureData}
+                disabled={isSaving || !isVerified || (paymentForm.pymMthCd === '01' && !signatureData)}
                 className={`flex-1 py-2.5 rounded-lg transition-colors text-sm font-medium flex items-center justify-center gap-2 ${
-                  signatureData
+                  isVerified && (paymentForm.pymMthCd === '02' || signatureData)
                     ? 'bg-orange-500 text-white hover:bg-orange-600'
                     : 'bg-gray-300 text-gray-500 cursor-not-allowed'
                 }`}
