@@ -284,6 +284,7 @@ router.post('/customer/work/modAsPdaReceipt', handleProxy);
 router.post('/customer/work/getProd_Grp', handleProxy);
 router.post('/customer/work/getEquipLossInfo', handleProxy);
 router.post('/customer/work/modEquipLoss', handleProxy);
+router.post('/customer/work/modEquipLoss_ForM', handleProxy);
 
 // Customer/Receipt/Contract API
 router.post('/customer/receipt/contract/getEquipmentNmListOfProd', handleProxy);
