@@ -186,6 +186,22 @@ const CustomerSearch: React.FC<CustomerSearchProps> = ({ onCustomerSelect, onCus
           }
         }
 
+        // 이름이 입력된 경우: 결과에서 이름 불일치 검증
+        if (hasCustomerName && (hasCustomerId || hasContractId || hasPhoneNumber || hasEquipmentNo)) {
+          const nameMatched = enrichedResults.some(c =>
+            (c.CUST_NM || '').includes(customerName)
+          );
+          if (!nameMatched) {
+            setSearchResults(enrichedResults);
+            setWarningPopup({
+              show: true,
+              title: '이름 불일치',
+              message: `조회된 고객의 이름이 입력한 "${customerName}"과(와) 일치하지 않습니다.\n조회된 고객: ${enrichedResults[0].CUST_NM || '-'}`
+            });
+            return;
+          }
+        }
+
         setSearchResults(enrichedResults);
       } else {
         setSearchResults([]);
