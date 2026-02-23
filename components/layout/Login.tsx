@@ -176,21 +176,11 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
         </form>
         
         <div className="mt-8 text-center">
-          <div className="w-full h-20 bg-gray-200 rounded-lg mb-4 overflow-hidden">
-            <img 
-              src="https://images.unsplash.com/photo-1558002038-1055907df827?w=400&auto=format&fit=crop" 
-              alt="Server room background" 
-              className="w-full h-full object-cover opacity-70"
-            />
-          </div>
-          
-          {/* 슬로건 - 카피라이트 위에 */}
           <div className="mb-3">
             <p className="text-sm font-medium tracking-wide text-blue-600">
               Smart Life Coordinator
             </p>
           </div>
-
           <p className="text-xs font-semibold text-blue-600">COPYRIGHT 2025. D'LIVE CO. LTD</p>
         </div>
 
