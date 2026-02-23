@@ -636,7 +636,7 @@ const EquipmentRecovery: React.FC<EquipmentRecoveryProps> = ({ onBack, showToast
               }
             });
             mstSoIds.forEach(mstId => {
-              mappedList.push({ SO_ID: mstId, SO_NM: `본부(${mstId})` });
+              mappedList.push({ SO_ID: mstId, SO_NM: '본부' });
             });
             setSoList(mappedList);
             return;
@@ -663,7 +663,7 @@ const EquipmentRecovery: React.FC<EquipmentRecoveryProps> = ({ onBack, showToast
               }
             });
             mstSoIds.forEach(mstId => {
-              mappedList.push({ SO_ID: mstId, SO_NM: `본부(${mstId})` });
+              mappedList.push({ SO_ID: mstId, SO_NM: '본부' });
             });
             setSoList(mappedList);
             return;
@@ -689,7 +689,7 @@ const EquipmentRecovery: React.FC<EquipmentRecoveryProps> = ({ onBack, showToast
               }
             });
             mstSoIds.forEach(mstId => {
-              mappedList.push({ SO_ID: mstId, SO_NM: `본부(${mstId})` });
+              mappedList.push({ SO_ID: mstId, SO_NM: '본부' });
             });
             setSoList(mappedList);
             return;
