@@ -186,23 +186,7 @@ const CustomerSearch: React.FC<CustomerSearchProps> = ({ onCustomerSelect, onCus
           }
         }
 
-        // 이름이 다른 조건과 함께 입력된 경우: 이름으로 결과 필터링
-        if (hasCustomerName && (hasCustomerId || hasContractId || hasPhoneNumber || hasEquipmentNo)) {
-          enrichedResults = enrichedResults.filter(c =>
-            (c.CUST_NM || '').includes(customerName)
-          );
-        }
-
-        if (enrichedResults.length > 0) {
-          setSearchResults(enrichedResults);
-        } else {
-          setSearchResults([]);
-          setWarningPopup({
-            show: true,
-            title: '조회 실패',
-            message: '조회대상이 없습니다.\n값을 정확히 입력해주세요.'
-          });
-        }
+        setSearchResults(enrichedResults);
       } else {
         setSearchResults([]);
         setWarningPopup({

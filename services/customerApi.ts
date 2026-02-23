@@ -1030,9 +1030,7 @@ export const searchCustomerAll = async (params: {
     console.log('[CustomerAPI] Failed to get session info');
   }
 
-  // 요청 파라미터 구성 - SERCH_GB=3으로 getConditionalCustList3 SQL 사용
-  // D'Live API AND 조건: CUST_NM이 포함되면 결과가 0건이 되는 문제 있음
-  // → CUST_ID/CTRT_ID/TEL_NO가 있으면 CUST_NM 제외, CUST_NM만 단독 전송
+  // 요청 파라미터 구성 - 입력된 값 전부 전송
   const reqParams: Record<string, any> = {
     SERCH_GB: '3',
     LOGIN_ID: loginId
@@ -1042,11 +1040,7 @@ export const searchCustomerAll = async (params: {
   if (params.contractId) reqParams.CTRT_ID = params.contractId;
   if (params.phoneNumber) reqParams.TEL_NO = params.phoneNumber;
   if (params.equipmentNo) reqParams.EQT_SERNO = params.equipmentNo;
-  // CUST_NM은 다른 검색조건이 없을 때만 전송 (D'Live SQL AND 조건 충돌 방지)
-  // 주의: D'Live SQL의 USR_SO_MATRIX 권한체크로 SO 미할당 사용자는 이름검색 0건
-  if (params.customerName && !params.custId && !params.contractId && !params.phoneNumber && !params.equipmentNo) {
-    reqParams.CUST_NM = params.customerName;
-  }
+  if (params.customerName) reqParams.CUST_NM = params.customerName;
 
   console.log('[CustomerAPI] searchCustomerAll 요청 파라미터:\n' + JSON.stringify(reqParams, null, 2));
 
