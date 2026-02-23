@@ -3498,7 +3498,9 @@ export const getEquipmentHistoryInfo = async (params: {
     const result = await response.json();
     console.log('장비 조회 성공:', result);
 
-    return Array.isArray(result) ? result[0] : result;
+    // 응답 구조: {success, data: [...], count} 또는 직접 배열
+    const data = result?.data || result;
+    return Array.isArray(data) ? data : [data];
   } catch (error: any) {
     console.error('장비 조회 실패:', error);
     if (error instanceof NetworkError) {
