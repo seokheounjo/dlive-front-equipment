@@ -23,6 +23,7 @@
     "dayjs": "^1.11.19",
     "express": "^5.1.0",
     "lucide-react": "^0.544.0",
+    "ol": "^10.8.0",
     "react": "^19.2.3",
     "react-dom": "^19.2.3",
     "tailwind-merge": "^3.3.1",

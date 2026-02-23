@@ -1,7 +1,23 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
-import { ArrowLeft, Navigation, List, MapPin, Phone, MessageSquare } from 'lucide-react';
-import { WorkOrder, WorkOrderStatus, MapMarkerData } from '../../types';
+import { ArrowLeft, Navigation, List, X } from 'lucide-react';
+import { WorkOrder, WorkOrderStatus } from '../../types';
 import { useUIStore } from '../../stores/uiStore';
+import { openNavigation, NavApp } from '../../services/navigationService';
+
+// OpenLayers imports
+import Map from 'ol/Map';
+import View from 'ol/View';
+import TileLayer from 'ol/layer/Tile';
+import VectorLayer from 'ol/layer/Vector';
+import VectorSource from 'ol/source/Vector';
+import XYZ from 'ol/source/XYZ';
+import Feature from 'ol/Feature';
+import Point from 'ol/geom/Point';
+import Overlay from 'ol/Overlay';
+import { fromLonLat } from 'ol/proj';
+import { Style, Icon } from 'ol/style';
+import { boundingExtent } from 'ol/extent';
+import 'ol/ol.css';
 
 interface WorkMapViewProps {
   workOrders: WorkOrder[];
@@ -9,331 +25,284 @@ interface WorkMapViewProps {
   onSelectWork: (work: WorkOrder) => void;
 }
 
-// 상태별 마커 색상 (빨간색 계열로 눈에 잘 띄게)
+// 상태별 마커 색상
 const STATUS_COLORS: Record<string, string> = {
-  '진행중': '#DC2626', // 빨간색
-  '완료': '#16A34A',   // 초록색
-  '취소': '#9CA3AF',   // 회색
-  'default': '#EF4444' // 밝은 빨간색 (대기/기본)
+  '진행중': '#DC2626',
+  '완료': '#16A34A',
+  '취소': '#9CA3AF',
+  'default': '#EF4444'
 };
 
+// V-World API Key (환경변수 또는 기본 테스트키)
+const VWORLD_API_KEY = (import.meta as any).env?.VITE_VWORLD_API_KEY || 'A4EED0C3-BED4-315A-AF7B-B47F94357975';
+
+// 마커 SVG 생성 (data URL)
+function createMarkerDataUrl(color: string, index: number): string {
+  const displayNumber = index + 1;
+  const fontSize = displayNumber >= 100 ? 9 : displayNumber >= 10 ? 11 : 13;
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="36" height="48" viewBox="0 0 36 48">
+    <path fill="${color}" stroke="#fff" stroke-width="2" d="M18 2C9.163 2 2 9.163 2 18c0 12 16 28 16 28s16-16 16-28c0-8.837-7.163-16-16-16z"/>
+    <circle fill="#fff" cx="18" cy="18" r="10"/>
+    <text x="18" y="22" text-anchor="middle" font-size="${fontSize}" font-weight="bold" fill="${color}" font-family="Arial,sans-serif">${displayNumber}</text>
+  </svg>`;
+  return 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg);
+}
+
+// Geocoding (카카오 Geocoder 활용 - index.html에 SDK 로드됨)
+function geocodeAddress(address: string): Promise<{ lat: number; lng: number } | null> {
+  return new Promise((resolve) => {
+    if (!window.kakao?.maps?.services) {
+      resolve(null);
+      return;
+    }
+    const geocoder = new window.kakao.maps.services.Geocoder();
+    geocoder.addressSearch(address, (result: any, status: any) => {
+      if (status === window.kakao.maps.services.Status.OK && result[0]) {
+        resolve({
+          lat: parseFloat(result[0].y),
+          lng: parseFloat(result[0].x)
+        });
+      } else {
+        resolve(null);
+      }
+    });
+  });
+}
+
+// 카카오맵 SDK 로드 확인/대기
+function ensureKakaoLoaded(): Promise<boolean> {
+  return new Promise((resolve) => {
+    if (window.kakao?.maps?.services) {
+      resolve(true);
+      return;
+    }
+    if (window.kakao?.maps) {
+      window.kakao.maps.load(() => resolve(true));
+      return;
+    }
+    // index.html에서 로드 중일 수 있으므로 대기
+    let attempts = 0;
+    const check = setInterval(() => {
+      attempts++;
+      if (window.kakao?.maps) {
+        clearInterval(check);
+        if (window.kakao.maps.services) {
+          resolve(true);
+        } else {
+          window.kakao.maps.load(() => resolve(true));
+        }
+      } else if (attempts > 50) {
+        clearInterval(check);
+        resolve(false);
+      }
+    }, 200);
+  });
+}
+
+interface MarkerInfo {
+  work: WorkOrder;
+  coords: { lat: number; lng: number };
+}
+
 const WorkMapView: React.FC<WorkMapViewProps> = ({ workOrders, onBack, onSelectWork }) => {
-  const mapRef = useRef<HTMLDivElement>(null);
-  const mapInstanceRef = useRef<kakao.maps.Map | null>(null);
-  const markersRef = useRef<kakao.maps.Marker[]>([]);
-  const overlaysRef = useRef<kakao.maps.CustomOverlay[]>([]);
-  const buttonClickedRef = useRef(false); // 버튼 클릭 플래그
+  const mapContainerRef = useRef<HTMLDivElement>(null);
+  const mapRef = useRef<Map | null>(null);
+  const overlayRef = useRef<Overlay | null>(null);
+  const overlayElRef = useRef<HTMLDivElement>(null);
+  const markerInfosRef = useRef<MarkerInfo[]>([]);
+
   const [isLoading, setIsLoading] = useState(true);
-  const [sdkLoaded, setSdkLoaded] = useState(false);
-  const [sdkError, setSdkError] = useState<string | null>(null);
-  const [selectedWork, setSelectedWork] = useState<WorkOrder | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [geocodedCount, setGeocodedCount] = useState(0);
+  const [selectedWork, setSelectedWork] = useState<WorkOrder | null>(null);
+  const [selectedCoords, setSelectedCoords] = useState<{ lat: number; lng: number } | null>(null);
+  const [showNavModal, setShowNavModal] = useState(false);
   const { setCurrentView, setSelectedWorkDirection } = useUIStore();
 
-  // 카카오맵 SDK 동적 로드
+  // 지도 초기화
   useEffect(() => {
-    const KAKAO_MAP_KEY = import.meta.env.VITE_KAKAO_MAP_KEY;
+    if (!mapContainerRef.current) return;
 
-    if (!KAKAO_MAP_KEY) {
-      console.error('VITE_KAKAO_MAP_KEY 환경변수가 설정되지 않았습니다.');
-      setSdkError('카카오맵 API 키가 설정되지 않았습니다.');
-      setIsLoading(false);
-      return;
-    }
+    // V-World 타일 레이어
+    const tileLayer = new TileLayer({
+      source: new XYZ({
+        url: `https://api.vworld.kr/req/wmts/1.0.0/${VWORLD_API_KEY}/Base/{z}/{y}/{x}.png`,
+        maxZoom: 19,
+        attributions: '© VWorld'
+      })
+    });
 
-    const loadKakaoSDK = () => {
-      // 이미 로드되어 있는지 확인
-      if (window.kakao?.maps) {
-        window.kakao.maps.load(() => {
-          console.log('카카오맵 SDK 이미 로드됨');
-          setSdkLoaded(true);
-        });
-        return;
-      }
+    // 마커 벡터 레이어
+    const vectorSource = new VectorSource();
+    const vectorLayer = new VectorLayer({ source: vectorSource });
 
-      // 스크립트 동적 로드
-      const script = document.createElement('script');
-      script.src = `https://dapi.kakao.com/v2/maps/sdk.js?appkey=${KAKAO_MAP_KEY}&libraries=services&autoload=false`;
-      script.async = true;
+    // 인포윈도우 오버레이
+    const overlay = new Overlay({
+      element: overlayElRef.current!,
+      positioning: 'bottom-center',
+      offset: [0, -52],
+      stopEvent: true
+    });
+    overlayRef.current = overlay;
 
-      script.onload = () => {
-        console.log('카카오맵 스크립트 로드 완료');
-        if (window.kakao?.maps) {
-          window.kakao.maps.load(() => {
-            console.log('카카오맵 SDK 초기화 완료');
-            setSdkLoaded(true);
+    // 맵 생성
+    const map = new Map({
+      target: mapContainerRef.current,
+      layers: [tileLayer, vectorLayer],
+      overlays: [overlay],
+      view: new View({
+        center: fromLonLat([126.9780, 37.5665]), // 서울 중심
+        zoom: 8,
+        maxZoom: 19,
+        minZoom: 6
+      })
+    });
+    mapRef.current = map;
+
+    // 마커 클릭 이벤트
+    map.on('click', (evt) => {
+      const feature = map.forEachFeatureAtPixel(evt.pixel, (f) => f);
+      if (feature) {
+        const workId = feature.get('workId');
+        const info = markerInfosRef.current.find(m => m.work.id === workId);
+        if (info) {
+          setSelectedWork(info.work);
+          setSelectedCoords(info.coords);
+          overlay.setPosition(fromLonLat([info.coords.lng, info.coords.lat]));
+          map.getView().animate({
+            center: fromLonLat([info.coords.lng, info.coords.lat]),
+            zoom: Math.max(map.getView().getZoom() || 14, 14),
+            duration: 300
           });
         }
-      };
+      } else {
+        // 빈 곳 클릭 시 인포윈도우 닫기
+        overlay.setPosition(undefined);
+        setSelectedWork(null);
+        setSelectedCoords(null);
+        setShowNavModal(false);
+      }
+    });
 
-      script.onerror = () => {
-        console.error('카카오맵 SDK 로드 실패');
-        setSdkError('카카오맵 SDK를 불러오지 못했습니다. 앱키 또는 도메인 설정을 확인해주세요.');
+    // 커서 변경 (마커 위 hover)
+    map.on('pointermove', (evt) => {
+      const hit = map.forEachFeatureAtPixel(evt.pixel, () => true);
+      map.getTargetElement().style.cursor = hit ? 'pointer' : '';
+    });
+
+    // Geocoding 후 마커 추가
+    (async () => {
+      const kakaoReady = await ensureKakaoLoaded();
+      if (!kakaoReady) {
+        setLoadError('카카오 Geocoder를 불러올 수 없습니다.');
         setIsLoading(false);
-      };
-
-      document.head.appendChild(script);
-    };
-
-    loadKakaoSDK();
-  }, []);
-
-  // 마커 이미지 생성 (SVG) - 인덱스 번호 포함
-  const createMarkerImage = useCallback((color: string, index: number) => {
-    const displayNumber = index + 1; // 1부터 시작
-    const svg = `
-      <svg xmlns="http://www.w3.org/2000/svg" width="36" height="48" viewBox="0 0 36 48">
-        <path fill="${color}" stroke="#fff" stroke-width="2" d="M18 2C9.163 2 2 9.163 2 18c0 12 16 28 16 28s16-16 16-28c0-8.837-7.163-16-16-16z"/>
-        <circle fill="#fff" cx="18" cy="18" r="10"/>
-        <text x="18" y="22" text-anchor="middle" font-size="${displayNumber >= 100 ? '9' : displayNumber >= 10 ? '11' : '13'}" font-weight="bold" fill="${color}" font-family="Arial, sans-serif">${displayNumber}</text>
-      </svg>
-    `;
-    const blob = new Blob([svg], { type: 'image/svg+xml' });
-    const url = URL.createObjectURL(blob);
-
-    return new window.kakao.maps.MarkerImage(
-      url,
-      new window.kakao.maps.Size(36, 48),
-      { offset: new window.kakao.maps.Point(18, 48) }
-    );
-  }, []);
-
-  // 인포윈도우 컨텐츠 생성
-  const createInfoContent = useCallback((work: WorkOrder) => {
-    const statusColor = STATUS_COLORS[work.status] || STATUS_COLORS.default;
-    return `
-      <div style="
-        padding: 12px 16px;
-        min-width: 200px;
-        max-width: 280px;
-        border-radius: 12px;
-        background: white;
-        box-shadow: 0 4px 20px rgba(0,0,0,0.15);
-        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-      ">
-        <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
-          <span style="
-            padding: 2px 8px;
-            border-radius: 4px;
-            background: ${statusColor}20;
-            color: ${statusColor};
-            font-size: 12px;
-            font-weight: 600;
-          ">${work.typeDisplay || work.type}</span>
-          <span style="
-            padding: 2px 8px;
-            border-radius: 4px;
-            background: #f3f4f6;
-            color: #6b7280;
-            font-size: 12px;
-          ">${work.status}</span>
-        </div>
-        <div style="font-weight: 600; font-size: 15px; color: #1f2937; margin-bottom: 4px;">
-          ${work.customer?.name || '고객명 없음'}
-        </div>
-        <div style="font-size: 13px; color: #6b7280; margin-bottom: 12px; line-height: 1.4;">
-          ${work.customer?.address || '주소 없음'}
-        </div>
-        <div style="display: flex; gap: 8px;">
-          <button id="call-btn-${work.id}" style="
-            flex: 1;
-            padding: 8px;
-            border: none;
-            border-radius: 8px;
-            background: #3B82F6;
-            color: white;
-            font-size: 13px;
-            font-weight: 500;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 4px;
-          ">
-            📞 전화
-          </button>
-          <button id="detail-btn-${work.id}" style="
-            flex: 1;
-            padding: 8px;
-            border: none;
-            border-radius: 8px;
-            background: #10B981;
-            color: white;
-            font-size: 13px;
-            font-weight: 500;
-            cursor: pointer;
-          ">
-            상세보기
-          </button>
-        </div>
-      </div>
-    `;
-  }, []);
-
-  // 지도 초기화 및 마커 표시
-  useEffect(() => {
-    if (!sdkLoaded || !mapRef.current) {
-      return;
-    }
-
-    const container = mapRef.current;
-    const options = {
-      center: new window.kakao.maps.LatLng(37.5665, 126.9780), // 서울 중심
-      level: 8
-    };
-
-    const map = new window.kakao.maps.Map(container, options);
-    mapInstanceRef.current = map;
-
-    // Geocoder로 주소 → 좌표 변환
-    const geocoder = new window.kakao.maps.services.Geocoder();
-    const bounds = new window.kakao.maps.LatLngBounds();
-    let validMarkers = 0;
-
-    // 기존 마커 제거
-    markersRef.current.forEach(marker => marker.setMap(null));
-    overlaysRef.current.forEach(overlay => overlay.setMap(null));
-    markersRef.current = [];
-    overlaysRef.current = [];
-
-    const processWork = (work: WorkOrder, index: number) => {
-      const address = work.customer?.address;
-      if (!address) {
-        setGeocodedCount(prev => prev + 1);
         return;
       }
 
-      geocoder.addressSearch(address, (result, status) => {
-        setGeocodedCount(prev => prev + 1);
+      const markerInfos: MarkerInfo[] = [];
+      const coords: [number, number][] = [];
 
-        if (status === window.kakao.maps.services.Status.OK && result[0]) {
-          const coords = new window.kakao.maps.LatLng(
-            parseFloat(result[0].y),
-            parseFloat(result[0].x)
-          );
+      for (let i = 0; i < workOrders.length; i++) {
+        const work = workOrders[i];
+        const address = work.customer?.address;
 
-          // 상태별 마커 색상 + 인덱스 번호
-          const statusColor = STATUS_COLORS[work.status] || STATUS_COLORS.default;
-          const markerImage = createMarkerImage(statusColor, index);
+        if (address) {
+          // 딜레이를 두어 API 호출 속도 제한
+          if (i > 0) await new Promise(r => setTimeout(r, 80));
 
-          const marker = new window.kakao.maps.Marker({
-            position: coords,
-            map: map,
-            image: markerImage
-          });
+          const result = await geocodeAddress(address);
+          if (result) {
+            const statusColor = STATUS_COLORS[work.status] || STATUS_COLORS.default;
+            const iconUrl = createMarkerDataUrl(statusColor, i);
 
-          // 커스텀 오버레이 (인포윈도우)
-          const overlay = new window.kakao.maps.CustomOverlay({
-            position: coords,
-            content: createInfoContent(work),
-            yAnchor: 1.3
-          });
+            const feature = new Feature({
+              geometry: new Point(fromLonLat([result.lng, result.lat]))
+            });
+            feature.set('workId', work.id);
+            feature.setStyle(new Style({
+              image: new Icon({
+                src: iconUrl,
+                anchor: [0.5, 1],
+                scale: 1
+              })
+            }));
 
-          // 마커 클릭 이벤트
-          window.kakao.maps.event.addListener(marker, 'click', () => {
-            // 다른 오버레이 닫기
-            overlaysRef.current.forEach(o => o.setMap(null));
-            // 현재 오버레이 열기
-            overlay.setMap(map);
-            setSelectedWork(work);
-            // 마커 위치로 지도 이동
-            map.setCenter(coords);
-            map.setLevel(4);
-
-            // 버튼 이벤트 바인딩 (DOM이 렌더링된 후)
-            setTimeout(() => {
-              const callBtn = document.getElementById(`call-btn-${work.id}`);
-              const detailBtn = document.getElementById(`detail-btn-${work.id}`);
-
-              if (callBtn) {
-                callBtn.onclick = (e) => {
-                  e.stopPropagation();
-                  if (work.customer?.phone) {
-                    window.location.href = `tel:${work.customer.phone}`;
-                  }
-                };
-              }
-
-              if (detailBtn) {
-                detailBtn.onclick = (e) => {
-                  e.stopPropagation();
-                  e.preventDefault();
-                  buttonClickedRef.current = true;
-                  console.log('상세보기 클릭:', work.id);
-                  onSelectWork(work);
-                };
-              }
-            }, 50);
-          });
-
-          markersRef.current.push(marker);
-          overlaysRef.current.push(overlay);
-          bounds.extend(coords);
-          validMarkers++;
-
-          // 모든 마커가 추가되면 bounds 조정
-          if (validMarkers > 0 && index === workOrders.length - 1) {
-            setTimeout(() => {
-              map.setBounds(bounds);
-              setIsLoading(false);
-            }, 100);
+            vectorSource.addFeature(feature);
+            markerInfos.push({ work, coords: result });
+            coords.push(fromLonLat([result.lng, result.lat]) as [number, number]);
           }
         }
 
-        // 마지막 작업이면 로딩 완료
-        if (index === workOrders.length - 1) {
-          setTimeout(() => setIsLoading(false), 500);
-        }
-      });
-    };
+        setGeocodedCount(i + 1);
+      }
 
-    // 작업 목록 처리 (딜레이를 두어 API 제한 방지)
-    workOrders.forEach((work, index) => {
-      setTimeout(() => processWork(work, index), index * 100);
-    });
+      markerInfosRef.current = markerInfos;
 
-    // 지도 클릭 시 오버레이 닫기 (인포윈도우 외부 클릭 시에만)
-    window.kakao.maps.event.addListener(map, 'click', () => {
-      // 버튼 클릭 시에는 오버레이 닫지 않음
-      setTimeout(() => {
-        if (buttonClickedRef.current) {
-          buttonClickedRef.current = false;
-          return;
+      // 모든 마커가 보이도록 bounds 조정
+      if (coords.length > 0) {
+        if (coords.length === 1) {
+          map.getView().animate({
+            center: coords[0],
+            zoom: 15,
+            duration: 300
+          });
+        } else {
+          const extent = boundingExtent(coords);
+          map.getView().fit(extent, {
+            padding: [60, 60, 60, 60],
+            maxZoom: 16,
+            duration: 300
+          });
         }
-        overlaysRef.current.forEach(o => o.setMap(null));
-        setSelectedWork(null);
-      }, 100);
-    });
+      }
+
+      setIsLoading(false);
+    })();
 
     return () => {
-      // Cleanup
-      markersRef.current.forEach(marker => marker.setMap(null));
-      overlaysRef.current.forEach(overlay => overlay.setMap(null));
+      map.setTarget(undefined);
+      mapRef.current = null;
     };
-  }, [sdkLoaded, workOrders, createMarkerImage, createInfoContent, onSelectWork]);
+  }, [workOrders]);
 
   // 현재 위치로 이동
-  const handleMyLocation = () => {
-    if (!mapInstanceRef.current) return;
-
+  const handleMyLocation = useCallback(() => {
+    if (!mapRef.current) return;
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
         (position) => {
-          const lat = position.coords.latitude;
-          const lng = position.coords.longitude;
-          const locPosition = new window.kakao.maps.LatLng(lat, lng);
-          mapInstanceRef.current?.setCenter(locPosition);
-          mapInstanceRef.current?.setLevel(3);
+          const { latitude, longitude } = position.coords;
+          mapRef.current?.getView().animate({
+            center: fromLonLat([longitude, latitude]),
+            zoom: 15,
+            duration: 500
+          });
         },
-        (error) => {
-          console.error('위치 정보를 가져올 수 없습니다:', error);
-          alert('위치 정보를 가져올 수 없습니다.');
-        }
+        () => alert('위치 정보를 가져올 수 없습니다.')
       );
     } else {
       alert('이 브라우저에서는 위치 정보를 지원하지 않습니다.');
     }
-  };
+  }, []);
+
+  // 길찾기 앱 열기
+  const handleNavigation = useCallback((app: NavApp) => {
+    if (!selectedCoords || !selectedWork) return;
+    openNavigation(app, {
+      lat: selectedCoords.lat,
+      lng: selectedCoords.lng,
+      name: selectedWork.customer?.name || '목적지'
+    });
+    setShowNavModal(false);
+  }, [selectedCoords, selectedWork]);
+
+  // 인포윈도우 닫기
+  const closeOverlay = useCallback(() => {
+    overlayRef.current?.setPosition(undefined);
+    setSelectedWork(null);
+    setSelectedCoords(null);
+    setShowNavModal(false);
+  }, []);
 
   return (
     <div className="fixed inset-0 bg-white z-50 flex flex-col">
@@ -347,32 +316,153 @@ const WorkMapView: React.FC<WorkMapViewProps> = ({ workOrders, onBack, onSelectW
           <span className="font-medium">목록</span>
         </button>
         <h1 className="text-lg font-semibold text-gray-900">작업 위치</h1>
-        <div className="w-16" /> {/* 균형용 */}
+        <div className="w-16" />
       </div>
 
       {/* 지도 영역 */}
       <div className="flex-1 relative">
-        <div ref={mapRef} className="w-full h-full" />
+        <div ref={mapContainerRef} className="w-full h-full" />
+
+        {/* 인포윈도우 오버레이 (OpenLayers Overlay용 DOM) */}
+        <div ref={overlayElRef} style={{ position: 'absolute' }}>
+          {selectedWork && (
+            <div style={{
+              padding: '12px 16px',
+              minWidth: 220,
+              maxWidth: 300,
+              borderRadius: 12,
+              background: 'white',
+              boxShadow: '0 4px 20px rgba(0,0,0,0.18)',
+              fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
+              transform: 'translateX(-50%)',
+              marginLeft: '50%'
+            }}>
+              {/* 상태 태그 */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+                <span style={{
+                  padding: '2px 8px', borderRadius: 4,
+                  background: `${STATUS_COLORS[selectedWork.status] || STATUS_COLORS.default}20`,
+                  color: STATUS_COLORS[selectedWork.status] || STATUS_COLORS.default,
+                  fontSize: 12, fontWeight: 600
+                }}>{selectedWork.typeDisplay || selectedWork.type}</span>
+                <span style={{
+                  padding: '2px 8px', borderRadius: 4,
+                  background: '#f3f4f6', color: '#6b7280',
+                  fontSize: 12
+                }}>{selectedWork.status}</span>
+                <button onClick={closeOverlay} style={{
+                  marginLeft: 'auto', background: 'none', border: 'none',
+                  cursor: 'pointer', padding: 2, lineHeight: 0
+                }}>
+                  <X size={14} color="#9ca3af" />
+                </button>
+              </div>
+
+              {/* 고객 정보 */}
+              <div style={{ fontWeight: 600, fontSize: 15, color: '#1f2937', marginBottom: 4 }}>
+                {selectedWork.customer?.name || '고객명 없음'}
+              </div>
+              <div style={{ fontSize: 13, color: '#6b7280', marginBottom: 12, lineHeight: 1.4 }}>
+                {selectedWork.customer?.address || '주소 없음'}
+              </div>
+
+              {/* 버튼 그룹 */}
+              <div style={{ display: 'flex', gap: 6 }}>
+                <button
+                  onClick={() => {
+                    if (selectedWork.customer?.phone) {
+                      window.location.href = `tel:${selectedWork.customer.phone}`;
+                    }
+                  }}
+                  style={{
+                    flex: 1, padding: '8px 4px', border: 'none', borderRadius: 8,
+                    background: '#3B82F6', color: 'white', fontSize: 12,
+                    fontWeight: 500, cursor: 'pointer',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 3
+                  }}
+                >
+                  전화
+                </button>
+                <button
+                  onClick={() => setShowNavModal(true)}
+                  style={{
+                    flex: 1, padding: '8px 4px', border: 'none', borderRadius: 8,
+                    background: '#8B5CF6', color: 'white', fontSize: 12,
+                    fontWeight: 500, cursor: 'pointer'
+                  }}
+                >
+                  길찾기
+                </button>
+                <button
+                  onClick={() => onSelectWork(selectedWork)}
+                  style={{
+                    flex: 1, padding: '8px 4px', border: 'none', borderRadius: 8,
+                    background: '#10B981', color: 'white', fontSize: 12,
+                    fontWeight: 500, cursor: 'pointer'
+                  }}
+                >
+                  상세보기
+                </button>
+              </div>
+
+              {/* 길찾기 네비 선택 */}
+              {showNavModal && (
+                <div style={{ marginTop: 8, display: 'flex', gap: 6 }}>
+                  <button
+                    onClick={() => handleNavigation('kakao')}
+                    style={{
+                      flex: 1, padding: '10px 4px', border: '1px solid #FEE500',
+                      borderRadius: 8, background: '#FEE500', color: '#3C1E1E',
+                      fontSize: 11, fontWeight: 600, cursor: 'pointer'
+                    }}
+                  >
+                    카카오맵
+                  </button>
+                  <button
+                    onClick={() => handleNavigation('tmap')}
+                    style={{
+                      flex: 1, padding: '10px 4px', border: '1px solid #1C6EF2',
+                      borderRadius: 8, background: '#1C6EF2', color: 'white',
+                      fontSize: 11, fontWeight: 600, cursor: 'pointer'
+                    }}
+                  >
+                    T맵
+                  </button>
+                  <button
+                    onClick={() => handleNavigation('naver')}
+                    style={{
+                      flex: 1, padding: '10px 4px', border: '1px solid #1EC800',
+                      borderRadius: 8, background: '#1EC800', color: 'white',
+                      fontSize: 11, fontWeight: 600, cursor: 'pointer'
+                    }}
+                  >
+                    네이버
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
 
         {/* 로딩 오버레이 */}
-        {(isLoading || !sdkLoaded) && !sdkError && (
+        {isLoading && !loadError && (
           <div className="absolute inset-0 bg-white/80 flex flex-col items-center justify-center z-10">
             <div className="w-10 h-10 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mb-4" />
             <p className="text-gray-600">
-              {!sdkLoaded ? '카카오맵 로딩 중...' : `지도 로딩 중... (${geocodedCount}/${workOrders.length})`}
+              지도 로딩 중... ({geocodedCount}/{workOrders.length})
             </p>
           </div>
         )}
 
-        {/* SDK 에러 */}
-        {sdkError && (
+        {/* 에러 */}
+        {loadError && (
           <div className="absolute inset-0 bg-white flex flex-col items-center justify-center z-10 p-6">
             <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mb-4">
               <svg className="w-8 h-8 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
               </svg>
             </div>
-            <p className="text-gray-700 text-center mb-4">{sdkError}</p>
+            <p className="text-gray-700 text-center mb-4">{loadError}</p>
             <button
               onClick={() => window.location.reload()}
               className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600"
@@ -383,7 +473,7 @@ const WorkMapView: React.FC<WorkMapViewProps> = ({ workOrders, onBack, onSelectW
         )}
 
         {/* 왼쪽 상단 범례 */}
-        {!isLoading && sdkLoaded && !sdkError && (
+        {!isLoading && !loadError && (
           <div className="absolute top-4 left-4 bg-white rounded-lg shadow-lg p-3 z-20">
             <div className="text-xs font-semibold text-gray-700 mb-2">상태 구분</div>
             <div className="space-y-1.5">
