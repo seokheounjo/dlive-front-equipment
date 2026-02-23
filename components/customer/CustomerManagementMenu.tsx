@@ -93,16 +93,17 @@ const CustomerManagementMenu: React.FC<CustomerManagementMenuProps> = ({ onNavig
 
   // 고객 선택 핸들러 (CustomerSearch에서 고객 선택 시 호출)
   const handleCustomerSelect = (customer: CustomerInfo) => {
-    // 새로운 고객 선택 시 캐시된 데이터 초기화
-    if (customer.CUST_ID !== cachedDataCustId) {
-      setCachedContracts([]);
-      setCachedConsultationHistory([]);
-      setCachedWorkHistory([]);
-      setCachedDataCustId('');
-    }
-    setSelectedCustomer(customer);
-    // 계약 정보 초기화
-    setSelectedContract(null);
+    // 항상 캐시 초기화 (같은 고객 재선택 시에도 리프레시)
+    setCachedContracts([]);
+    setCachedConsultationHistory([]);
+    setCachedWorkHistory([]);
+    setCachedDataCustId('');
+    // 같은 고객 재선택 시 React 변화 감지를 위해 null 후 재설정
+    setSelectedCustomer(null);
+    setTimeout(() => {
+      setSelectedCustomer(customer);
+      setSelectedContract(null);
+    }, 0);
   };
 
   // 고객 선택 해제
