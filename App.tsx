@@ -424,7 +424,7 @@ const App: React.FC = () => {
             </div>
             {/* 장비관리 - 상태 유지를 위해 항상 렌더링, display로 숨김 */}
             <div style={{ display: currentView === 'equipment-management' ? 'contents' : 'none' }}>
-              <EquipmentManagementMenu onNavigateToMenu={navigateToMenu} />
+              <EquipmentManagementMenu onNavigateToMenu={navigateToMenu} showToast={showToast} />
             </div>
           </main>
           <BottomNavigation currentView={currentView} onSelectMenu={navigateToView} />
