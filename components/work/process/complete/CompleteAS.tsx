@@ -12,14 +12,19 @@
  */
 import React, { useState, useEffect, useMemo } from 'react';
 import { WorkOrder, WorkCompleteData } from '../../../../types';
-import { getCommonCodeList, CommonCode, getWorkReceiptDetail, getCustomerContractInfo, checkStbServerConnection, getCodeDetail, CommonCodeDetail, custEqtInfoDel } from '../../../../services/apiService';
+import { isFtthProduct } from '../../../../utils/workValidation';
+import { getCommonCodeList, CommonCode, getWorkReceiptDetail, getCustomerContractInfo, sendSignal, getLghvProdMap, getCodeDetail, CommonCodeDetail, getProdPromotionInfo } from '../../../../services/apiService';
+import { executeCL04Registration } from '../../../../hooks/useCertifyComplete';
+import { checkCertifySignalBlocked } from '../../../../hooks/useCertifySignal';
 import Select from '../../../ui/Select';
 import InstallInfoModal, { InstallInfoData } from '../../../modal/InstallInfoModal';
 import IntegrationHistoryModal from '../../../modal/IntegrationHistoryModal';
 import InstallLocationModal, { InstallLocationData } from '../../../modal/InstallLocationModal';
+import PoleCheckModal from '../../../modal/PoleCheckModal';
 import ConfirmModal from '../../../common/ConfirmModal';
 import WorkCompleteSummary from '../WorkCompleteSummary';
 import { useWorkProcessStore } from '../../../../stores/workProcessStore';
+import { useCertifyStore } from '../../../../stores/certifyStore';
 import { useWorkEquipment } from '../../../../stores/workEquipmentStore';
 import { useCompleteWork } from '../../../../hooks/mutations/useCompleteWork';
 import '../../../../styles/buttons.css';
@@ -31,6 +36,7 @@ interface CompleteASProps {
   showToast?: (message: string, type: 'success' | 'error' | 'warning' | 'info') => void;
   equipmentData?: any;
   readOnly?: boolean;
+  certifyMode?: boolean;    // LGU+ certify: forces certify path regardless of isFtthProduct
 }
 
 const CompleteAS: React.FC<CompleteASProps> = ({
@@ -39,7 +45,8 @@ const CompleteAS: React.FC<CompleteASProps> = ({
   onSuccess,
   showToast,
   equipmentData: legacyEquipmentData,
-  readOnly = false
+  readOnly = false,
+  certifyMode = false,
 }) => {
   const isWorkCompleted = readOnly
     || order.WRK_STAT_CD === '3'
@@ -50,6 +57,7 @@ const CompleteAS: React.FC<CompleteASProps> = ({
 
   const [isDataLoaded, setIsDataLoaded] = useState(false);
   const { equipmentData: storeEquipmentData, filteringData } = useWorkProcessStore();
+  const { certifyRegconfInfo } = useCertifyStore();
 
   // Zustand Equipment Store - 장비 컴포넌트에서 등록한 장비 정보
   const workId = order.id || '';
@@ -112,12 +120,20 @@ const CompleteAS: React.FC<CompleteASProps> = ({
   // 작업완료 확인 모달
   const [showConfirmModal, setShowConfirmModal] = useState(false);
 
+  // LGHV STB 상품 판단 (레거시: bLghvStb, ds_lghv_prod)
+  const [isLghvStb, setIsLghvStb] = useState(false);
+  const [lghvProdList, setLghvProdList] = useState<any[]>([]);
+
+  // 전주승주 조사 (레거시: mowoa01p33.xml)
+  const [showPoleCheckModal, setShowPoleCheckModal] = useState(false);
+  const [poleCheckResult, setPoleCheckResult] = useState<{ POLE_YN: string; LAN_GB: string } | null>(null);
+
   // 공통코드
   const [custRelOptions, setCustRelOptions] = useState<{ value: string; label: string }[]>([]);
+  const [upCtrlClOptions, setUpCtrlClOptions] = useState<{ value: string; label: string }[]>([]); // 상향제어 (CMCT015)
   const [internetOptions, setInternetOptions] = useState<{ value: string; label: string }[]>([]);
   const [voipOptions, setVoipOptions] = useState<{ value: string; label: string }[]>([]);
   const [dtvOptions, setDtvOptions] = useState<{ value: string; label: string }[]>([]);
-  const [upCtrlClOptions, setUpCtrlClOptions] = useState<{ value: string; label: string }[]>([]); // 상향제어 (CMCT015)
 
   // A/S 전용 공통코드 (레거시: PP00933, CMOB000, CMOB001)
   // 전체 코드 데이터 저장 (필터링용 REF_CODE 포함)
@@ -153,7 +169,7 @@ const CompleteAS: React.FC<CompleteASProps> = ({
           });
           if (detail) {
             setCustRel(detail.CUST_REL || '');
-            setMemo((detail.MEMO || '').replace(/\\n/g, '\n'));
+            setMemo((detail.WRK_PROC_CT || '').replace(/\\n/g, '\n'));
             setKpiProdGrp(detail.KPI_PROD_GRP || '');
             setObsRcptCd(detail.OBS_RCPT_CD || '');
             setObsRcptDtlCd(detail.OBS_RCPT_DTL_CD || '');
@@ -165,7 +181,6 @@ const CompleteAS: React.FC<CompleteASProps> = ({
             setInstallLocationText(detail.INSTL_LOC || '');
             // 상향제어: API 응답에 없으면 장비 데이터(output1)에서 가져옴
             const upCtrlClValue = detail.UP_CTRL_CL || equipmentData?.upCtrlCl || '';
-            console.log('[CompleteAS] 상향제어 값:', { API: detail.UP_CTRL_CL, 장비데이터: equipmentData?.upCtrlCl, 최종: upCtrlClValue });
             setUpCtrlCl(upCtrlClValue);
             setTvType(detail.TV_TYPE || '');
             setInstallInfoData({
@@ -282,25 +297,18 @@ const CompleteAS: React.FC<CompleteASProps> = ({
           })));
         }
         if (codes['CMCT015']) {
-          console.log('[CompleteAS] 공통코드 CMCT015 옵션:', codes['CMCT015']);
           setUpCtrlClOptions(codes['CMCT015'].map((code: CommonCode) => ({
             value: code.COMMON_CD, label: code.COMMON_CD_NM
           })));
         }
 
         // A/S 전용 공통코드 (레거시: PP00933, CMOB000, CMOB001)
-        // REF_CODE 필드가 필요하므로 getCodeDetail 사용
-        const [kpiCodes, obsRcptCodes, obsRcptDtlCodes] = await Promise.all([
-          getCodeDetail({ COMMON_GRP: 'PP00933' }),   // KPI상품군/서비스그룹
-          getCodeDetail({ COMMON_GRP: 'CMOB000' }),   // 처리유형 (망장애유형)
-          getCodeDetail({ COMMON_GRP: 'CMOB001' }),   // 처리유형상세 (망장애유형상세)
-        ]);
-
-        console.log('[CompleteAS] A/S 공통코드 로드:', {
-          PP00933: kpiCodes.length,
-          CMOB000: obsRcptCodes.length,
-          CMOB001: obsRcptDtlCodes.length,
-        });
+        // getCommonCodeList 사용 - 레거시와 동일하게 USE_YN='Y' 필터 적용됨
+        // getCodeDetail은 USE_YN 필터가 없어서 비활성 코드까지 가져옴
+        const asCodes = await getCommonCodeList(['PP00933', 'CMOB000', 'CMOB001']);
+        const kpiCodes = (asCodes['PP00933'] || []) as CommonCodeDetail[];
+        const obsRcptCodes = (asCodes['CMOB000'] || []) as CommonCodeDetail[];
+        const obsRcptDtlCodes = (asCodes['CMOB001'] || []) as CommonCodeDetail[];
 
         // 전체 코드 저장 (필터링용)
         setAllKpiProdGrpCodes(kpiCodes);
@@ -319,14 +327,30 @@ const CompleteAS: React.FC<CompleteASProps> = ({
     loadCodes();
   }, []);
 
+  // LGHV 상품맵 조회 및 판단 (레거시: fn_getLghvProdMap)
+  useEffect(() => {
+    const fetchLghvProdMap = async () => {
+      try {
+        const result = await getLghvProdMap();
+        const prodList = result?.output || result || [];
+        setLghvProdList(prodList);
+
+        const currentProdCd = order.PROD_CD || (order as any).PROD_CD || '';
+        const isLghv = prodList.some((item: any) => item.PROD_CD === currentProdCd);
+        setIsLghvStb(isLghv);
+      } catch (error) {
+        console.error('[CompleteAS] LGHV 상품맵 조회 실패:', error);
+      }
+    };
+    fetchLghvProdMap();
+  }, [order.PROD_CD]);
+
   // 상향제어: equipmentData가 나중에 로드되면 업데이트, 없으면 기본값 '01'(쌍방향) 설정
   useEffect(() => {
     if (equipmentData?.upCtrlCl && !upCtrlCl) {
-      console.log('[CompleteAS] equipmentData에서 상향제어 업데이트:', equipmentData.upCtrlCl);
       setUpCtrlCl(equipmentData.upCtrlCl);
     } else if (!upCtrlCl && isDataLoaded && !isWorkCompleted) {
       // 데이터 로드 완료 후에도 상향제어 값이 없으면 기본값 '01'(쌍방향) 설정
-      console.log('[CompleteAS] 상향제어 기본값 설정: 01 (쌍방향)');
       setUpCtrlCl('01');
     }
   }, [equipmentData?.upCtrlCl, isDataLoaded, isWorkCompleted, upCtrlCl]);
@@ -342,8 +366,6 @@ const CompleteAS: React.FC<CompleteASProps> = ({
 
     const kpiProdGrpCd = (order as any).KPI_PROD_GRP_CD || equipmentData?.kpiProdGrpCd || '';
     const prodGrp = (order as any).PROD_GRP || equipmentData?.prodGrp || '';
-
-    console.log('[CompleteAS] 서비스그룹 필터링:', { kpiProdGrpCd, prodGrp });
 
     let filtered = allKpiProdGrpCodes;
 
@@ -378,14 +400,15 @@ const CompleteAS: React.FC<CompleteASProps> = ({
 
   // 처리유형(OBS_RCPT_CD) 필터링 - 레거시: cmb_kpi_prod_grp_OnChanged
   // REF_CODE2에 선택된 KPI_PROD_GRP 포함, WRK_STAT_CD='2'이면 'KA' 제외
+  // REF_CODE16 필터: WRK_DTL_TCD='0350'이면 A/Y만, 그 외는 빈값 또는 A
   useEffect(() => {
     if (allObsRcptCdCodes.length === 0) return;
 
     const wrkStatCd = order.WRK_STAT_CD || '';
-    const wrkRcptCl = (order as any).WRK_RCPT_CL || '';
-    const wrkRcptClDtl = (order as any).WRK_RCPT_CL_DTL || '';
-
-    console.log('[CompleteAS] 처리유형 필터링:', { kpiProdGrp, wrkStatCd, wrkRcptCl, wrkRcptClDtl });
+    const wrkDtlTcd = order.WRK_DTL_TCD || '';
+    // WRK_RCPT_CL, WRK_RCPT_CL_DTL은 WorkItemList에서 asReasonCode, asDetailCode로 매핑됨
+    const wrkRcptCl = order.asReasonCode || (order as any).WRK_RCPT_CL || '';
+    const wrkRcptClDtl = order.asDetailCode || (order as any).WRK_RCPT_CL_DTL || '';
 
     // 처리유형상세 초기화
     setObsRcptDtlCdOptions([{ value: '', label: '선택' }]);
@@ -395,10 +418,40 @@ const CompleteAS: React.FC<CompleteASProps> = ({
       return;
     }
 
+    // REF_CODE12 필터 조건 결정 (레거시: mowouDivE03.xml cmb_kpi_prod_grp_OnChanged)
+    // 1. 먼저 데이터셋에 REF_CODE12=wrkRcptClDtl인 항목이 있는지 체크
+    // 2. 있으면 해당 값으로만 필터, 없으면 wrkRcptCl 체크
+    // 3. 둘 다 없으면 REF_CODE12가 비어있는 것만 표시
+    const hasRefCode12ClDtl = wrkRcptClDtl && allObsRcptCdCodes.some(c => c.REF_CODE12 === wrkRcptClDtl);
+    const hasRefCode12Cl = wrkRcptCl && allObsRcptCdCodes.some(c => c.REF_CODE12 === wrkRcptCl);
+
+    let refCode12Filter: 'clDtl' | 'cl' | 'empty';
+    if (hasRefCode12ClDtl) {
+      refCode12Filter = 'clDtl';
+    } else if (hasRefCode12Cl) {
+      refCode12Filter = 'cl';
+    } else {
+      refCode12Filter = 'empty';
+    }
+
+    // 디버깅 로그
+    console.log('[CompleteAS] 처리유형 필터 조건:', {
+      kpiProdGrp,
+      wrkStatCd,
+      wrkDtlTcd,
+      wrkRcptCl,
+      wrkRcptClDtl,
+      hasRefCode12ClDtl,
+      hasRefCode12Cl,
+      refCode12Filter,
+      totalCodes: allObsRcptCdCodes.length,
+    });
+
     const filtered = allObsRcptCdCodes.filter(code => {
       const cd = code.COMMON_CD || '';
       const refCode2 = code.REF_CODE2 || '';
       const refCode12 = code.REF_CODE12 || '';
+      const refCode16 = code.REF_CODE16 || '';
 
       // REF_CODE2에 선택된 KPI_PROD_GRP 포함되어야 함
       if (!refCode2.includes(kpiProdGrp)) return false;
@@ -406,16 +459,32 @@ const CompleteAS: React.FC<CompleteASProps> = ({
       // WRK_STAT_CD='2'(작업중)이면 'KA'(전송망이관) 제외
       if (wrkStatCd === '2' && cd === 'KA') return false;
 
-      // 접수분류코드 필터링 (REF_CODE12)
-      if (refCode12) {
-        if (refCode12 === wrkRcptClDtl || refCode12 === wrkRcptCl) {
-          return true;
-        }
-        return false;
+      // REF_CODE16 필터 (레거시: mowouDivE03.xml cmb_kpi_prod_grp_OnChanged)
+      // WRK_DTL_TCD='0350'(유료AS)이면 REF_CODE16='A' 또는 'Y'만 표시
+      // 그 외는 REF_CODE16이 비어있거나 'A'인 것만 표시
+      if (wrkDtlTcd === '0350') {
+        if (refCode16 !== 'A' && refCode16 !== 'Y') return false;
+      } else {
+        if (refCode16 && refCode16 !== 'A') return false;
+      }
+
+      // REF_CODE12 필터 (레거시 동일: 세 가지 조건 중 하나만 적용)
+      if (refCode12Filter === 'clDtl') {
+        // 데이터셋에 wrkRcptClDtl이 있으면 해당 값만 표시
+        if (refCode12 !== wrkRcptClDtl) return false;
+      } else if (refCode12Filter === 'cl') {
+        // 데이터셋에 wrkRcptCl이 있으면 해당 값만 표시
+        if (refCode12 !== wrkRcptCl) return false;
+      } else {
+        // 둘 다 없으면 REF_CODE12가 비어있는 것만 표시
+        if (refCode12) return false;
       }
 
       return true;
     });
+
+    // 필터링 결과 로그
+    console.log('[CompleteAS] 처리유형 필터 결과:', filtered.map(c => ({ code: c.COMMON_CD, name: c.COMMON_CD_NM, REF_CODE12: c.REF_CODE12, REF_CODE16: c.REF_CODE16 })));
 
     const options = [
       { value: '', label: '선택' },
@@ -432,7 +501,7 @@ const CompleteAS: React.FC<CompleteASProps> = ({
       setObsRcptCd('');
       setObsRcptDtlCd('');
     }
-  }, [kpiProdGrp, allObsRcptCdCodes, order.WRK_STAT_CD, (order as any).WRK_RCPT_CL, (order as any).WRK_RCPT_CL_DTL]);
+  }, [kpiProdGrp, allObsRcptCdCodes, order.WRK_STAT_CD, order.WRK_DTL_TCD, order.asReasonCode, order.asDetailCode]);
 
   // 처리유형상세(OBS_RCPT_DTL_CD) 필터링 - 레거시: cmb_obs_rcpt_cd_OnChanged
   // REF_CODE에 OBS_RCPT_CD 포함, REF_CODE2에 KPI_PROD_GRP 포함
@@ -440,14 +509,27 @@ const CompleteAS: React.FC<CompleteASProps> = ({
     if (allObsRcptDtlCdCodes.length === 0) return;
 
     const wrkDtlTcd = order.WRK_DTL_TCD || '';
-    const wrkRcptCl = (order as any).WRK_RCPT_CL || '';
-    const wrkRcptClDtl = (order as any).WRK_RCPT_CL_DTL || '';
-
-    console.log('[CompleteAS] 처리유형상세 필터링:', { obsRcptCd, kpiProdGrp, wrkDtlTcd, wrkRcptClDtl });
+    // WRK_RCPT_CL, WRK_RCPT_CL_DTL은 WorkItemList에서 asReasonCode, asDetailCode로 매핑됨
+    const wrkRcptCl = order.asReasonCode || (order as any).WRK_RCPT_CL || '';
+    const wrkRcptClDtl = order.asDetailCode || (order as any).WRK_RCPT_CL_DTL || '';
 
     if (!obsRcptCd || !kpiProdGrp) {
       setObsRcptDtlCdOptions([{ value: '', label: '처리유형을 먼저 선택하세요' }]);
       return;
+    }
+
+    // REF_CODE12 필터 조건 결정 (레거시: mowouDivE03.xml cmb_obs_rcpt_cd_OnChanged)
+    // 처리유형상세도 처리유형과 동일한 로직 적용
+    const hasRefCode12DtlClDtl = wrkRcptClDtl && allObsRcptDtlCdCodes.some(c => c.REF_CODE12 === wrkRcptClDtl);
+    const hasRefCode12DtlCl = wrkRcptCl && allObsRcptDtlCdCodes.some(c => c.REF_CODE12 === wrkRcptCl);
+
+    let refCode12DtlFilter: 'clDtl' | 'cl' | 'empty';
+    if (hasRefCode12DtlClDtl) {
+      refCode12DtlFilter = 'clDtl';
+    } else if (hasRefCode12DtlCl) {
+      refCode12DtlFilter = 'cl';
+    } else {
+      refCode12DtlFilter = 'empty';
     }
 
     const filtered = allObsRcptDtlCdCodes.filter(code => {
@@ -471,12 +553,13 @@ const CompleteAS: React.FC<CompleteASProps> = ({
         if (refCode16 && refCode16 !== 'A') return false;
       }
 
-      // 접수분류코드 필터링 (REF_CODE12)
-      if (refCode12) {
-        if (refCode12 === wrkRcptClDtl || refCode12 === wrkRcptCl) {
-          return true;
-        }
-        return false;
+      // REF_CODE12 필터 (레거시 동일: 세 가지 조건 중 하나만 적용)
+      if (refCode12DtlFilter === 'clDtl') {
+        if (refCode12 !== wrkRcptClDtl) return false;
+      } else if (refCode12DtlFilter === 'cl') {
+        if (refCode12 !== wrkRcptCl) return false;
+      } else {
+        if (refCode12) return false;
       }
 
       // 접수분류코드 JJO(장애감시서버)면 OOI(장비상태개선)만 표시
@@ -501,7 +584,7 @@ const CompleteAS: React.FC<CompleteASProps> = ({
     if (obsRcptDtlCd && !filtered.some(c => c.COMMON_CD === obsRcptDtlCd)) {
       setObsRcptDtlCd('');
     }
-  }, [obsRcptCd, kpiProdGrp, allObsRcptDtlCdCodes, order.WRK_DTL_TCD, (order as any).WRK_RCPT_CL, (order as any).WRK_RCPT_CL_DTL]);
+  }, [obsRcptCd, kpiProdGrp, allObsRcptDtlCdCodes, order.WRK_DTL_TCD, order.asReasonCode, order.asDetailCode]);
 
   // 고객 계약 목록 로드 (결합계약 선택용)
   useEffect(() => {
@@ -512,12 +595,9 @@ const CompleteAS: React.FC<CompleteASProps> = ({
 
     const loadCustomerContracts = async () => {
       try {
-        console.log('[WorkCompleteAS] 고객 계약 목록 조회 시작:', custId);
         const contracts = await getCustomerContractInfo({ CUST_ID: custId });
-        console.log('[WorkCompleteAS] 고객 계약 목록:', contracts);
         setCustomerCtrtList(contracts || []);
       } catch (error) {
-        console.error('[WorkCompleteAS] 고객 계약 목록 조회 실패:', error);
         setCustomerCtrtList([]);
       }
     };
@@ -528,21 +608,13 @@ const CompleteAS: React.FC<CompleteASProps> = ({
   // VoIP/ISP 결합 계약 처리 (레거시: mowoa03m03.xml)
   useEffect(() => {
     if (isWorkCompleted) return;
-    if (customerCtrtList.length === 0) {
-      console.log('[WorkCompleteAS] 고객 계약 목록 대기 중...');
-      return;
-    }
+    if (customerCtrtList.length === 0) return;
 
     const prodGrp = (order as any).PROD_GRP || '';
     const voipProdCd = (order as any).VOIP_PROD_CD || '';
     const ispProdCd = (order as any).ISP_PROD_CD || '';
     const wrkStatCd = order.WRK_STAT_CD || '';
     const addrOrd = (order as any).ADDR_ORD || '';
-
-    console.log('[WorkCompleteAS] 결합계약 필터링 시작:', {
-      prodGrp, voipProdCd, ispProdCd, wrkStatCd, addrOrd,
-      customerCtrtListCount: customerCtrtList.length
-    });
 
     if (prodGrp === 'V' && !voipProdCd) {
       const filteredContracts = customerCtrtList.filter((ctrt: any) => {
@@ -553,8 +625,6 @@ const CompleteAS: React.FC<CompleteASProps> = ({
           && ctrtStat === '20'
           && (!addrOrd || ctrtAddrOrd === addrOrd);
       });
-
-      console.log('[WorkCompleteAS] VoIP 결합계약 필터링 결과:', filteredContracts);
 
       if (filteredContracts.length < 1 && wrkStatCd === '2') {
         showToast?.('VOIP와 결합될 DTV, ISP 계약이 없습니다. ISP나 DTV 설치완료 후 작업하여 주십시오.', 'warning');
@@ -585,8 +655,6 @@ const CompleteAS: React.FC<CompleteASProps> = ({
           && kpiProdGrpCd === 'D'
           && (!addrOrd || ctrtAddrOrd === addrOrd);
       });
-
-      console.log('[WorkCompleteAS] ISP 결합계약 필터링 결과:', filteredContracts);
 
       if (filteredContracts.length < 1 && wrkStatCd === '2') {
         showToast?.('ISP와 결합될 DTV 계약이 없습니다. DTV 설치완료 후 작업하여 주십시오.', 'warning');
@@ -662,6 +730,19 @@ const CompleteAS: React.FC<CompleteASProps> = ({
       return;
     }
 
+    // 전주승주 조사 (레거시: PROD_GRP != 'V' 일 때 팝업)
+    const prodGrpForPole = (order as any).PROD_GRP || '';
+    if (prodGrpForPole !== 'V') {
+      setShowPoleCheckModal(true);
+    } else {
+      setShowConfirmModal(true);
+    }
+  };
+
+  // 전주승주 조사 저장 콜백
+  const handlePoleCheckSave = (data: { POLE_YN: string; LAN_GB: string }) => {
+    setPoleCheckResult(data);
+    setShowPoleCheckModal(false);
     setShowConfirmModal(true);
   };
 
@@ -673,17 +754,31 @@ const CompleteAS: React.FC<CompleteASProps> = ({
     const workerId = user.userId || 'A20130708';
     const removalStatus = equipmentData?.removalStatus || {};
 
+    // '1' 또는 'Y' → 'Y', 그 외 → 'N' 변환 (레거시 호환)
+    // 레거시 호환: '0' = 회수, '1' = 분실
+    const getYN = (eqVal: any, statusVal: any) =>
+      (eqVal === '1' || eqVal === 'Y' || statusVal === '1' || statusVal === 'Y') ? '1' : '0';
+
     return equipments.map((eq: any) => {
       const eqtNo = eq.EQT_NO || eq.id || (eq.actualEquipment?.id) || '';
-      const status = removalStatus[eqtNo] || {};
+      // 여러 키로 removalStatus 조회 시도 (키 불일치 문제 해결)
+      const status = removalStatus[eqtNo]
+        || removalStatus[eq.id]
+        || removalStatus[eq.EQT_NO]
+        || removalStatus[eq.actualEquipment?.id]
+        || removalStatus[eq.serialNumber]
+        || {};
+      // 회수 장비 필수 필드 - 5개 분실/파손 필드 모두 포함
       const removalFields = isRemoval ? {
         CRR_TSK_CL: order.WRK_CD || '03',
         RCPT_ID: order.RCPT_ID || '',
         CRR_ID: order.CRR_ID || user.crrId || '01',
         WRKR_ID: workerId,
-        EQT_LOSS_YN: status.isLost ? 'Y' : 'N',
-        EQT_BRK_YN: status.isDamaged ? 'Y' : 'N',
-        REUSE_YN: status.isReusable ? '1' : '0',
+        EQT_LOSS_YN: getYN(eq.EQT_LOSS_YN, status.EQT_LOSS_YN),
+        PART_LOSS_BRK_YN: getYN(eq.PART_LOSS_BRK_YN, status.PART_LOSS_BRK_YN),
+        EQT_BRK_YN: getYN(eq.EQT_BRK_YN, status.EQT_BRK_YN),
+        EQT_CABL_LOSS_YN: getYN(eq.EQT_CABL_LOSS_YN, status.EQT_CABL_LOSS_YN),
+        EQT_CRDL_LOSS_YN: getYN(eq.EQT_CRDL_LOSS_YN, status.EQT_CRDL_LOSS_YN),
       } : {};
 
       if (eq.actualEquipment) {
@@ -760,122 +855,200 @@ const CompleteAS: React.FC<CompleteASProps> = ({
     const user = userInfo ? JSON.parse(userInfo) : {};
     const workerId = user.userId || 'A20130708';
 
-    // 회수 장비가 있으면 철거 신호(SMR05) 호출 (레거시: mowoa03m03.xml fn_delsignal_trans)
-    const removedEquipments = equipmentData?.removedEquipments || [];
-    if (removedEquipments.length > 0) {
-      try {
-        const regUid = user.userId || user.id || 'UNKNOWN';
-        // 첫 번째 회수 장비에 대해 철거 신호 호출 (레거시 동일)
-        const firstEquip = removedEquipments[0];
-        console.log('[CompleteAS] 철거 신호(SMR05) 호출:', { eqtNo: firstEquip.EQT_NO || firstEquip.id });
-        await checkStbServerConnection(
-          regUid,
-          order.CTRT_ID || '',
-          order.id,
-          'SMR05',  // 철거 신호
-          firstEquip.EQT_NO || firstEquip.id || '',
-          ''
-        );
-        console.log('[CompleteAS] 철거 신호(SMR05) 호출 완료');
-      } catch (error) {
-        console.log('[CompleteAS] 철거 신호 처리 중 오류 (무시하고 계속 진행):', error);
-        // 레거시와 동일하게 에러 발생해도 작업완료 계속 진행
-      }
+    // FTTH 상품일 경우 CL-04 서비스 개통 등록 호출 (레거시: mowoa03m03.xml)
+    // 레거시: OpLnkdCd가 F/FG/Z/ZG면 FTTH (cm_lib.js fn_get_eqipDivs)
+    const isCertifyProd = certifyMode || isFtthProduct((order as any).OP_LNKD_CD);
 
-      // 분실 상태가 있는 회수 장비에 대해 분실처리 API 호출
-      const lossEquipments = removedEquipments.filter(hasLossStatus);
-      if (lossEquipments.length > 0) {
-        console.log('[CompleteAS] 분실처리 대상 장비:', lossEquipments.length, '개');
-        for (const eq of lossEquipments) {
-          try {
-            const result = await custEqtInfoDel({
-              WRK_ID: order.id,
-              CUST_ID: order.customer?.id || '',
-              CTRT_ID: order.CTRT_ID || '',
-              MST_SO_ID: order.MST_SO_ID || order.SO_ID || '',
-              SO_ID: order.SO_ID || '',
-              EQT_NO: eq.EQT_NO || eq.id || '',
-              ITEM_MID_CD: eq.ITEM_MID_CD || eq.itemMidCd || '',
-              EQT_CL_CD: eq.EQT_CL_CD || eq.eqtClCd || '',
-              EQT_CL: eq.EQT_CL || eq.eqtClCd || '',
-              EQT_CL_NM: eq.EQT_CL_NM || eq.model || '',
-              REG_UID: workerId,
-              WRK_CD: order.WRK_CD || '03',
-              CRR_ID: order.CRR_ID || '',
-              WRKR_ID: workerId,
-              RCPT_ID: order.RCPT_ID || '',
-              SVC_CMPS_ID: eq.SVC_CMPS_ID || '',
-              BASIC_PROD_CMPS_ID: eq.BASIC_PROD_CMPS_ID || '',
-              OLD_LENT_YN: eq.LENT_YN || eq.OLD_LENT_YN || '',
-              EQT_CHG_GB: '02',
-              REUSE_YN: '0',
-              EQT_LOSS_YN: eq.EQT_LOSS_YN || '0',
-              PART_LOSS_BRK_YN: eq.PART_LOSS_BRK_YN || '0',
-              EQT_BRK_YN: eq.EQT_BRK_YN || '0',
-              EQT_CABL_LOSS_YN: eq.EQT_CABL_LOSS_YN || '0',
-              EQT_CRDL_LOSS_YN: eq.EQT_CRDL_LOSS_YN || '0',
-            });
-            console.log('[CompleteAS] 분실처리 완료:', eq.EQT_NO || eq.id, result);
-          } catch (error) {
-            console.log('[CompleteAS] 분실처리 실패 (무시하고 계속 진행):', error);
-          }
-        }
-      }
-    }
+    // 신호 차단 조건 (useCertifySignal 훅)
+    const isCertifyProdForSignal = await checkCertifySignalBlocked(
+      order.SO_ID || (order as any).SO_ID || '',
+      (order as any).IS_CERTIFY_PROD,
+    );
 
-    // 분실처리 모달에서 저장한 pendingLossStatusList 처리 (deferLossProcessing 용)
-    const pendingLossStatusList = equipmentData?.pendingLossStatusList || [];
-    if (pendingLossStatusList.length > 0) {
-      console.log('[CompleteAS] 분실처리 모달에서 저장된 대기 목록:', pendingLossStatusList.length, '개');
-      for (const lossItem of pendingLossStatusList) {
+    // ADD_ON 파라미터 생성 (레거시: mowoa03m03.xml fn_certify_cl04 + modWorkComplete ds_where)
+    // CL-04 호출과 workComplete 양쪽에 전달해야 하므로 상위 스코프에서 계산
+    let addOnParam = '';
+    if (isCertifyProd) {
+      let prodPromoInfoForAddOn = equipmentData?.prodPromoInfo || [];
+      if (prodPromoInfoForAddOn.length === 0) {
         try {
-          const result = await custEqtInfoDel({
-            WRK_ID: order.id,
-            CUST_ID: order.customer?.id || '',
+          prodPromoInfoForAddOn = await getProdPromotionInfo({
             CTRT_ID: order.CTRT_ID || '',
-            MST_SO_ID: order.MST_SO_ID || order.SO_ID || '',
-            SO_ID: order.SO_ID || '',
-            EQT_NO: lossItem.EQT_NO || '',
-            ITEM_MID_CD: lossItem.ITEM_MID_CD || '',
-            EQT_CL_CD: lossItem.EQT_CL_CD || '',
-            EQT_CL: lossItem.EQT_CL || '',
-            EQT_CL_NM: lossItem.EQT_CL_NM || '',
-            REG_UID: workerId,
-            WRK_CD: order.WRK_CD || '03',
-            CRR_ID: order.CRR_ID || '',
-            WRKR_ID: workerId,
             RCPT_ID: order.RCPT_ID || '',
-            SVC_CMPS_ID: lossItem.SVC_CMPS_ID || '',
-            BASIC_PROD_CMPS_ID: lossItem.BASIC_PROD_CMPS_ID || '',
-            OLD_LENT_YN: lossItem.LENT_YN || '',
-            EQT_CHG_GB: '02',
-            REUSE_YN: '0',
-            EQT_LOSS_YN: lossItem.EQT_LOSS_YN || '0',
-            PART_LOSS_BRK_YN: lossItem.PART_LOSS_BRK_YN || '0',
-            EQT_BRK_YN: lossItem.EQT_BRK_YN || '0',
-            EQT_CABL_LOSS_YN: lossItem.EQT_CABL_LOSS_YN || '0',
-            EQT_CRDL_LOSS_YN: lossItem.EQT_CRDL_LOSS_YN || '0',
+            WRK_CD: order.WRK_CD || '03',
           });
-          console.log('[CompleteAS] 대기 분실처리 완료:', lossItem.EQT_SERNO, result);
+        } catch (e) { console.log('[CompleteAS] getProdPromotionInfo fallback 실패:', e); }
+      }
+      const addOnProdCodes = prodPromoInfoForAddOn
+        .filter((item: any) =>
+          (item.PROD_CMPS_CL === '21' || item.PROD_CMPS_CL === '22') &&
+          (item.PROD_STAT_CD === '10' || item.PROD_STAT_CD === '20')
+        )
+        .map((item: any) => item.PROD_CD)
+        .filter((code: string) => code);
+      addOnParam = addOnProdCodes.length > 0 ? addOnProdCodes.join(',') + ',' : '';
+      console.log('[CompleteAS] ADD_ON 파라미터:', addOnParam);
+    }
 
-          // 철거 신호(SMR05) 호출
-          try {
-            await checkStbServerConnection(
-              workerId,
-              order.CTRT_ID || '',
-              order.id,
-              'SMR05',
-              lossItem.EQT_NO || '',
-              ''
-            );
-          } catch (signalError) {
-            console.log('[CompleteAS] 철거 신호 실패 (무시):', signalError);
-          }
-        } catch (error) {
-          console.log('[CompleteAS] 대기 분실처리 실패 (무시하고 계속 진행):', error);
+    // 레거시: FTTH 상품이고 장비가 있으면 집선등록 필수
+    const installedEquipments = equipmentData?.installedEquipments || [];
+    if (isCertifyProd && installedEquipments.length > 0 && !certifyRegconfInfo) {
+      showToast?.('집선등록 관련정보가 등록되어있지않습니다.', 'error');
+      return;
+    }
+
+    if (isCertifyProd && certifyRegconfInfo) {
+      try {
+        // CL-04 서비스 개통 등록 (useCertifyComplete 훅)
+        const cl04Result = await executeCL04Registration({
+          order, workerId, certifyRegconfInfo, addOnParam,
+          reason: 'AS',
+        });
+        if (!cl04Result.success) {
+          showToast?.(`집선등록 실패: ${cl04Result.message}`, 'error');
+          return;
         }
+      } catch (error: any) {
+        console.error('[CompleteAS] CL-04 호출 에러:', error);
+        showToast?.(`집선등록 중 오류: ${error.message || '알 수 없는 오류'}`, 'error');
+        return;
       }
     }
+
+    // IF_DTL_ID from removal signal result (passed to installation signal, legacy chain)
+    let removalIfDtlId = '';
+
+    // 철거/IPC 신호 처리 (레거시: mowoa03m03.xml btn_save_OnClick lines 1524-1581)
+    const removedEquipments = equipmentData?.removedEquipments || [];
+    const isVoipComp = (order as any).VOIP_CTX === '1'; // 복합VoIP 여부
+    const isVoipIpc = isVoipComp && (order.PROD_CD || (order as any).PROD_CD) === 'PD10004499'; // VoIP IPC 여부
+
+    // HANDY/AP 제외 실제 회수장비 존재 여부 (레거시 lines 1527-1534, 1565-1572)
+    const skipEqtClCodes = ['090901', '091001', '091002', '091005'];
+    const hasRealRemoval = removedEquipments.some((eq: any) => {
+      const eqtClCd = eq.EQT_CL_CD || eq.eqtClCd || eq.actualEquipment?.EQT_CL_CD || eq.actualEquipment?.eqtClCd || '';
+      return !skipEqtClCodes.includes(eqtClCd);
+    });
+
+    // 1) fn_delsignal_trans (SMR05) — 레거시 lines 1524-1553
+    // 조건: VOIP_COMP_FLAG == false (복합VoIP면 SMR05 안 보냄)
+    if (isLghvStb) {
+      // LGHV 상품: 철거신호 skip (레거시 fn_delsignal_trans lines 1918-1920)
+      console.log('[CompleteAS] LGHV 상품: 철거 신호 skip (레거시 동일)');
+    } else if (!isCertifyProdForSignal && !isVoipComp && removedEquipments.length > 0) {
+      // 일반 상품 (비VoIP, 비FTTH인증): SMR05 전송 (레거시 line 1524: CERTIFY_TG!="Y")
+      try {
+        // EQT_PROD_CMPS_ID: getProdPromotionInfo API에서 PROD_CMPS_CL="23"인 행의 PROD_CMPS_ID
+        let eqtProdCmpsId = '';
+        try {
+          const rmvProdInfo = await getProdPromotionInfo({
+            CTRT_ID: order.CTRT_ID || '',
+            RCPT_ID: order.RCPT_ID || '',
+            PROC_CL: 'TERM',
+            WRK_CD: '03',
+          });
+          const prodCmpsRow = rmvProdInfo.find((row: any) => row.PROD_CMPS_CL === '23');
+          if (prodCmpsRow) {
+            eqtProdCmpsId = prodCmpsRow.PROD_CMPS_ID || '';
+          }
+          console.log('[CompleteAS] EQT_PROD_CMPS_ID:', eqtProdCmpsId);
+        } catch (prodInfoError) {
+          console.log('[CompleteAS] getProdPromotionInfo 조회 실패 (무시):', prodInfoError);
+        }
+
+        const voipProdCd = (order as any).VOIP_PROD_CD || '';
+        const rmvVoipJoinCtrtId = voipProdCd ? (order.CTRT_ID || '') : '';
+
+        const smr05Result = await sendSignal({
+          MSG_ID: 'SMR05',
+          CUST_ID: order.customer?.id || order.CUST_ID || '',
+          CTRT_ID: order.CTRT_ID || '',
+          SO_ID: order.SO_ID || '',
+          EQT_NO: '',
+          EQT_PROD_CMPS_ID: eqtProdCmpsId,
+          PROD_CD: '',
+          ITV_USR_ID: '',
+          IP_CNT: '',
+          ETC_1: '',
+          ETC_2: '',
+          ETC_3: '',
+          ETC_4: '',
+          SUB_PROD_CD: '',
+          IF_DTL_ID: '',
+          WRK_ID: order.id || '',
+          REG_UID: workerId,
+          VOIP_JOIN_CTRT_ID: rmvVoipJoinCtrtId,
+          WTIME: '3',
+        });
+        // Check signal result - adapter returns {code, message, IF_DTL_ID}
+        if (smr05Result?.code === 'SUCCESS' || smr05Result?.code === 'PARTIAL') {
+          removalIfDtlId = smr05Result?.IF_DTL_ID || '';
+          console.log('[CompleteAS] SMR05 SUCCESS, IF_DTL_ID:', removalIfDtlId);
+        } else {
+          // Legacy blocks work completion on signal failure (return false)
+          const errMsg = smr05Result?.message || smr05Result?.rawResult || '';
+          console.error('[CompleteAS] SMR05 FAILED:', errMsg);
+          showToast?.(`철거 신호 전송 실패: ${errMsg}`, 'error');
+          return;
+        }
+      } catch (error) {
+        console.error('[CompleteAS] SMR05 error:', error);
+        showToast?.('철거 신호 전송 중 오류가 발생했습니다.', 'error');
+        return;
+      }
+    }
+
+    // 2) fn_signal_trans_ipc (SMR65) — 레거시 lines 1562-1581, 2763-2845
+    // 조건: VOIP_IPC_FLAG == true (VOIP_CTX=="1" && PROD_CD=="PD10004499")
+    // 복합VoIP에서 SMR05 대신 IPC 전용 신호 전송
+    if (isVoipIpc && removedEquipments.length > 0 && hasRealRemoval) {
+      try {
+        // IPC 장비(ITEM_MID_CD='08') EQT_NO 추출 (레거시 line 2793-2794)
+        const installedEquipments = equipmentData?.installedEquipments || [];
+        const ipcEquip = installedEquipments.find((eq: any) =>
+          (eq.ITEM_MID_CD || eq.itemMidCd || eq.actualEquipment?.ITEM_MID_CD || eq.actualEquipment?.itemMidCd) === '08'
+        );
+        const ipcEqtNo = ipcEquip?.EQT_NO || ipcEquip?.id || ipcEquip?.actualEquipment?.EQT_NO || ipcEquip?.actualEquipment?.id || '';
+
+        console.log('[CompleteAS] VoIP IPC 신호(SMR65) 전송:', { eqtNo: ipcEqtNo });
+        const smr65Result = await sendSignal({
+          MSG_ID: 'SMR65',
+          CUST_ID: order.customer?.id || (order as any).CUST_ID || '',
+          CTRT_ID: order.CTRT_ID || '',
+          SO_ID: order.SO_ID || '',
+          EQT_NO: ipcEqtNo,
+          EQT_PROD_CMPS_ID: '',
+          PROD_CD: order.PROD_CD || (order as any).PROD_CD || '',
+          ITV_USR_ID: '',
+          IP_CNT: '',
+          ETC_1: '',
+          ETC_2: '',
+          ETC_3: '',
+          ETC_4: '',
+          SUB_PROD_CD: '',
+          IF_DTL_ID: '',
+          WRK_ID: order.id || '',
+          REG_UID: workerId,
+          WTIME: '3',
+        });
+        // Check signal result - adapter returns {code, message, IF_DTL_ID}
+        if (smr65Result?.code === 'SUCCESS' || smr65Result?.code === 'PARTIAL') {
+          removalIfDtlId = smr65Result?.IF_DTL_ID || '';
+          console.log('[CompleteAS] SMR65 SUCCESS, IF_DTL_ID:', removalIfDtlId);
+        } else {
+          const errMsg = smr65Result?.message || smr65Result?.rawResult || '';
+          console.error('[CompleteAS] SMR65 FAILED:', errMsg);
+          showToast?.(`IPC 신호 전송 실패: ${errMsg}`, 'error');
+          return;
+        }
+      } catch (error) {
+        console.error('[CompleteAS] SMR65 error:', error);
+        showToast?.('IPC 신호 전송 중 오류가 발생했습니다.', 'error');
+        return;
+      }
+    }
+
+    // 분실처리는 modWorkComplete에서 rmvEqtList로 일괄 처리됨 (별도 custEqtInfoDel 호출 불필요)
 
     const completeData: WorkCompleteData = {
       workInfo: {
@@ -914,32 +1087,227 @@ const CompleteAS: React.FC<CompleteASProps> = ({
         TV_TYPE: tvType || '',
         // 결합계약 ID
         VOIP_JOIN_CTRT_ID: voipJoinCtrtId || '',
+        ADD_ON: addOnParam || '',
       },
       equipmentList: processEquipmentList(equipmentData?.installedEquipments || [], false),
       removeEquipmentList: processEquipmentList(equipmentData?.removedEquipments || [], true),
       spendItemList: equipmentData?.spendItems || [],
       agreementList: equipmentData?.agreements || [],
-      poleList: equipmentData?.poleResults || []
+      poleList: poleCheckResult ? [{
+        WRK_ID: order.id,
+        POLE_YN: poleCheckResult.POLE_YN,
+        LAN_GB: poleCheckResult.LAN_GB || '',
+        REG_UID: workerId,
+      }] : []
+    };
+
+    // fn_signal_trans equivalent: modWorkComplete 성공 후 설치신호 전송
+    // (레거시: mowoa03m03.xml fn_signal_trans lines 2189-2424, 호출: fn_tr_result line 1158)
+    const sendInstallationSignal = async () => {
+      try {
+        // CERTIFY_TG == "Y" 이면 설치신호 안 보냄 (레거시 line 1120)
+        const certifyTg = (order as any).CERTIFY_TG || '';
+        if (certifyTg === 'Y') {
+          console.log('[CompleteAS] FTTH 인증상품: 설치신호 skip (레거시 동일)');
+          return;
+        }
+
+        const installedEquipments = equipmentData?.installedEquipments || [];
+
+        // signal_flag: WRKER 장비 존재 여부 — HANDY/AP 제외 (레거시 lines 1125-1136)
+        const skipEqtClCodes = ['090901', '091001', '091002', '091005'];
+        let signalFlag = false;
+        for (const eq of installedEquipments) {
+          const eqtClCd = eq.EQT_CL_CD || eq.eqtClCd || eq.actualEquipment?.EQT_CL_CD || eq.actualEquipment?.eqtClCd || '';
+          if (skipEqtClCodes.includes(eqtClCd)) continue;
+          // 설치장비는 작업자 장비(WRKER)로 간주
+          const eqtKnd = eq.EQT_KND || eq.actualEquipment?.EQT_KND || 'WRKER';
+          if (eqtKnd === 'WRKER') signalFlag = true;
+        }
+
+        // 복합VoIP → 설치신호 안 보냄 (레거시 line 1148)
+        if ((order as any).VOIP_CTX === '1') signalFlag = false;
+        // VoIP 컬러링 → 설치신호 안 보냄 (레거시 line 1153)
+        if ((order as any).COLOR_RING_YN === 'Y') signalFlag = false;
+
+        if (!signalFlag) {
+          console.log('[CompleteAS] 설치신호 조건 미충족: skip');
+          return;
+        }
+
+        // 신호 유형 결정 (레거시 lines 2348-2371)
+        const prodGrp = (order as any).PROD_GRP || '';
+        const voipProdCd = (order as any).VOIP_PROD_CD || '';
+        let msgId = 'SMR03';
+        if (prodGrp === 'V') {
+          msgId = 'SMR60';
+        } else if (isLghvStb) {
+          msgId = 'STB_CHG';
+        }
+
+        // prodPromoInfo에서 값 추출 (레거시: ds_prod_promo_info)
+        // 레거시: prod_grp = prodPromoInfo(PROD_CMPS_CL=11).PROD_GRP → eqt_no/etc_3에 사용
+        // v_Prod_Grp(=order.PROD_GRP) → msg_id SMR60, VoIP JOIN에만 사용
+        let instEqtProdCmpsId = '';
+        let instProdCd = order.PROD_CD || '';
+        let subProdCd = '';
+        let prodGrpFromPromo = prodGrp;
+        try {
+          const prodPromoInfo = await getProdPromotionInfo({
+            CTRT_ID: order.CTRT_ID || '',
+            RCPT_ID: order.RCPT_ID || '',
+            PROC_CL: '',
+            WRK_CD: '03',
+          });
+          const cmps23 = prodPromoInfo.find((row: any) => row.PROD_CMPS_CL === '23');
+          if (cmps23) instEqtProdCmpsId = cmps23.PROD_CMPS_ID || '';
+          const cmps11 = prodPromoInfo.find((row: any) => row.PROD_CMPS_CL === '11');
+          if (cmps11) {
+            instProdCd = cmps11.PROD_CD || instProdCd;
+            prodGrpFromPromo = cmps11.PROD_GRP || prodGrp;
+          }
+          const subProds = prodPromoInfo
+            .filter((row: any) => row.BASIC_PROD_FL === 'V')
+            .map((row: any) => row.PROD_CD);
+          if (subProds.length > 0) subProdCd = subProds.join(',');
+        } catch (e) {
+          console.log('[CompleteAS] getProdPromotionInfo for install signal failed:', e);
+        }
+
+        // 장비 파라미터 추출 helper
+        const findEquip = (midCd: string) =>
+          installedEquipments.find((eq: any) =>
+            (eq.ITEM_MID_CD || eq.itemMidCd || eq.actualEquipment?.ITEM_MID_CD || eq.actualEquipment?.itemMidCd) === midCd
+          );
+        const getNo = (eq: any) => eq?.EQT_NO || eq?.id || eq?.actualEquipment?.EQT_NO || eq?.actualEquipment?.id || '';
+
+        // eqt_no: 장비번호 우선순위 (레거시 lines 2265-2292)
+        let eqtNo = '';
+        if (!voipProdCd) {
+          for (const midCd of ['05', '01', '03']) {
+            const eq = findEquip(midCd);
+            if (eq) { eqtNo = getNo(eq); break; }
+          }
+          if (!eqtNo && prodGrpFromPromo === 'I') {
+            const eq = findEquip('02');
+            if (eq) eqtNo = getNo(eq);
+          }
+          if (!eqtNo) {
+            const eq = findEquip('08');
+            if (eq) eqtNo = getNo(eq);
+          }
+        } else {
+          const eq = findEquip('08');
+          if (eq) eqtNo = getNo(eq);
+        }
+
+        // etc_1 (레거시 lines 2297-2307)
+        let etc1 = '';
+        if (!voipProdCd) {
+          const stbEq = findEquip('04');
+          if (stbEq) etc1 = getNo(stbEq);
+        } else {
+          const modemEq = findEquip('02');
+          if (modemEq) etc1 = getNo(modemEq);
+        }
+
+        // etc_2: ITEM_MID_CD=07 (레거시 line 2309)
+        const etc2 = getNo(findEquip('07'));
+        // etc_3: ITEM_MID_CD=02 if PROD_GRP=C (레거시 lines 2311-2313) - prodGrpFromPromo 사용
+        const etc3 = prodGrpFromPromo === 'C' ? getNo(findEquip('02')) : '';
+        // etc_4: ITEM_MID_CD=10 (레거시 lines 2318-2319)
+        const etc4 = getNo(findEquip('10'));
+
+        // wrk_id: 특수장비 EQT_NO 또는 WRK_ID (레거시 lines 2321-2327)
+        let wrkIdForSignal = order.id || '';
+        const specEq1 = installedEquipments.find((eq: any) =>
+          (eq.EQT_CL_CD || eq.eqtClCd || eq.actualEquipment?.EQT_CL_CD || eq.actualEquipment?.eqtClCd) === '091003'
+        );
+        if (specEq1) {
+          wrkIdForSignal = getNo(specEq1);
+        } else {
+          const specEq2 = installedEquipments.find((eq: any) =>
+            (eq.EQT_CL_CD || eq.eqtClCd || eq.actualEquipment?.EQT_CL_CD || eq.actualEquipment?.eqtClCd) === '092201'
+          );
+          if (specEq2) wrkIdForSignal = specEq2?.MAC_ADDRESS || specEq2?.macAddress || specEq2?.actualEquipment?.MAC_ADDRESS || specEq2?.actualEquipment?.macAddress || '';
+        }
+
+        // VOIP_JOIN_CTRT_ID (레거시 lines 2346-2377)
+        let joinCtrtId = '';
+        if (prodGrp === 'V') {
+          joinCtrtId = voipProdCd ? (order.CTRT_ID || '') : (voipJoinCtrtId || '');
+        } else if ((order as any).ISP_PROD_CD) {
+          joinCtrtId = voipJoinCtrtId || '';
+        }
+
+        // IF_DTL_ID: from removal signal result or order (legacy line 2328)
+        const ifDtlId = removalIfDtlId || (order as any).IF_DTL_ID || '';
+        // VoIP: if_dtl_id = '' (legacy lines 2351, 2373)
+        const finalIfDtlId = (prodGrp === 'V' || msgId === 'SMR03') ? '' : ifDtlId;
+
+        console.log('[CompleteAS] 설치신호 전송:', { msgId, eqtNo, instProdCd, instEqtProdCmpsId, subProdCd });
+        await sendSignal({
+          MSG_ID: msgId,
+          CUST_ID: order.customer?.id || (order as any).CUST_ID || '',
+          CTRT_ID: order.CTRT_ID || '',
+          SO_ID: order.SO_ID || '',
+          EQT_NO: eqtNo,
+          EQT_PROD_CMPS_ID: instEqtProdCmpsId,
+          PROD_CD: instProdCd,
+          ITV_USR_ID: '',
+          IP_CNT: '',
+          ETC_1: etc1,
+          ETC_2: etc2,
+          ETC_3: etc3,
+          ETC_4: etc4,
+          SUB_PROD_CD: subProdCd,
+          IF_DTL_ID: finalIfDtlId,
+          WRK_ID: wrkIdForSignal,
+          REG_UID: workerId,
+          VOIP_JOIN_CTRT_ID: joinCtrtId,
+          WTIME: '3',
+        });
+        console.log('[CompleteAS] 설치신호 전송 완료');
+      } catch (error) {
+        console.log('[CompleteAS] 설치신호 처리 중 오류 (무시하고 계속 진행):', error);
+      }
     };
 
     submitWork(completeData, {
       onSuccess: (result) => {
         if (result.code === 'SUCCESS' || result.code === 'OK') {
           localStorage.removeItem(getStorageKey());
+          (order as any).WRK_STAT_CD = '3';
+
+          // modWorkComplete 성공 후 설치신호 전송 (레거시 fn_tr_result line 1158)
+          sendInstallationSignal();
+
           showToast?.('작업이 성공적으로 완료되었습니다.', 'success');
           onSuccess();
         } else {
-          showToast?.(result.message || '작업 완료 처리에 실패했습니다.', 'error');
+          showToast?.(result.message || '작업 완료 처리에 실패했습니다.', 'error', true);
         }
       },
       onError: (error: any) => {
-        showToast?.(error.message || '작업 완료 중 오류가 발생했습니다.', 'error');
+        showToast?.(error.message || '작업 완료 중 오류가 발생했습니다.', 'error', true);
       },
     });
   };
 
   return (
-    <div className="px-2 sm:px-4 py-4 sm:py-6 bg-gray-50 min-h-0">
+    <div className="px-2 sm:px-4 py-4 sm:py-6 bg-gray-50 min-h-0 relative">
+      {/* 전체 화면 로딩 오버레이 */}
+      {isLoading && (
+        <div className="fixed inset-0 bg-black/50 z-[9999] flex items-center justify-center">
+          <div className="bg-white rounded-xl p-6 flex flex-col items-center gap-3 shadow-xl">
+            <svg className="animate-spin h-10 w-10 text-blue-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
+            <span className="text-gray-700 font-medium">작업완료 처리중...</span>
+          </div>
+        </div>
+      )}
       <div className="max-w-2xl mx-auto">
         <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-3 sm:p-5">
           <div className="space-y-3 sm:space-y-5">
@@ -1053,11 +1421,15 @@ const CompleteAS: React.FC<CompleteASProps> = ({
                 value={memo}
                 onChange={(e) => setMemo(e.target.value)}
                 placeholder="작업 내용을 입력하세요..."
+                maxLength={500}
                 className={`w-full px-3 sm:px-4 py-2 sm:py-3 border border-gray-300 rounded-lg text-sm sm:text-base resize-none ${isWorkCompleted ? 'bg-gray-100 text-gray-600 cursor-not-allowed' : ''}`}
                 rows={3}
                 readOnly={isWorkCompleted}
                 disabled={isWorkCompleted}
               />
+              {!isWorkCompleted && (
+                <p className={`text-xs text-right mt-1 ${memo.length >= 500 ? 'text-red-500' : 'text-gray-400'}`}>{memo.length}/500</p>
+              )}
             </div>
 
             {/* 작업처리일 */}
@@ -1070,6 +1442,7 @@ const CompleteAS: React.FC<CompleteASProps> = ({
                 className="w-full min-h-10 sm:min-h-12 px-3 sm:px-4 py-2 sm:py-3 bg-gray-50 border border-gray-300 rounded-lg text-sm sm:text-base text-gray-500 cursor-not-allowed"
               />
             </div>
+
 
             {/* 타사이용여부 (접기/펼치기) */}
             <div className="border border-gray-200 rounded-lg overflow-hidden">
@@ -1116,7 +1489,11 @@ const CompleteAS: React.FC<CompleteASProps> = ({
                 <button
                   onClick={handleSubmit}
                   disabled={isLoading}
-                  className="flex-1 btn btn-lg btn-primary flex items-center justify-center gap-2"
+                  className={`flex-1 min-h-12 py-3 px-4 rounded-lg font-bold text-sm sm:text-base flex items-center justify-center gap-2 transition-colors ${
+                    isLoading
+                      ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                      : 'bg-blue-600 hover:bg-blue-700 text-white'
+                  }`}
                 >
                   {isLoading ? (
                     <>
@@ -1131,7 +1508,7 @@ const CompleteAS: React.FC<CompleteASProps> = ({
                       <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
                         <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
                       </svg>
-                      <span>작업 완료</span>
+                      <span>작업완료</span>
                     </>
                   )}
                 </button>
@@ -1197,6 +1574,14 @@ const CompleteAS: React.FC<CompleteASProps> = ({
         initialViewModNm={viewModNm}
         showToast={showToast}
         readOnly={isWorkCompleted}
+      />
+
+      {/* 전주승주 조사 모달 */}
+      <PoleCheckModal
+        isOpen={showPoleCheckModal}
+        onClose={() => setShowPoleCheckModal(false)}
+        onSave={handlePoleCheckSave}
+        soId={order.SO_ID || ''}
       />
 
       {/* 작업완료 확인 모달 */}

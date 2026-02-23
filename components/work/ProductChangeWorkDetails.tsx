@@ -134,7 +134,7 @@ const ProductChangeWorkDetails: React.FC<ProductChangeWorkDetailsProps> = ({ ord
 
       {/* 작업 진행 가이드 */}
       <div className="bg-white border border-gray-200 rounded-lg p-4">
-        <h4 className="text-sm font-semibold text-gray-800 mb-2">🔍 작업 진행 가이드</h4>
+        <h4 className="text-sm font-semibold text-gray-800 mb-2">작업 진행 가이드</h4>
         <ul className="text-xs text-gray-600 space-y-2">
           <li className="flex items-start">
             <span className="mr-2">1.</span>

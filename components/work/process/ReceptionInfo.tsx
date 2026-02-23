@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { WorkItem } from '../../../types';
-import { getSmsHistory, SmsHistoryItem } from '../../../services/apiService';
+import { getSmsHistory, SmsHistoryItem, getConsultationHistory, ConsultationHistoryItem } from '../../../services/apiService';
 import { formatId } from '../../../utils/dateFormatter';
 
 interface ReceptionInfoProps {
@@ -16,6 +16,12 @@ const ReceptionInfo: React.FC<ReceptionInfoProps> = ({ workItem, onNext, onBack,
   const [smsHistory, setSmsHistory] = useState<SmsHistoryItem[]>([]);
   const [smsLoading, setSmsLoading] = useState(false);
   const [smsLoaded, setSmsLoaded] = useState(false);
+
+  // 상담이력 상태
+  const [consultHistoryOpen, setConsultHistoryOpen] = useState(false);
+  const [consultHistory, setConsultHistory] = useState<ConsultationHistoryItem[]>([]);
+  const [consultLoading, setConsultLoading] = useState(false);
+  const [consultLoaded, setConsultLoaded] = useState(false);
 
   // 컴포넌트 마운트 시 문자발송이력 조회 (건수 표시용)
   useEffect(() => {
@@ -38,18 +44,42 @@ const ReceptionInfo: React.FC<ReceptionInfoProps> = ({ workItem, onNext, onBack,
     fetchSmsHistory();
   }, [workItem.customer?.id]);
 
+  // 컴포넌트 마운트 시 상담이력 조회 (건수 표시용)
+  useEffect(() => {
+    const fetchConsultHistory = async () => {
+      if (workItem.customer?.id && !consultLoaded) {
+        setConsultLoading(true);
+        try {
+          const history = await getConsultationHistory(workItem.customer.id);
+          setConsultHistory(history);
+          setConsultLoaded(true);
+        } catch (error) {
+          console.error('상담이력 조회 실패:', error);
+          setConsultHistory([]);
+          setConsultLoaded(true);
+        } finally {
+          setConsultLoading(false);
+        }
+      }
+    };
+    fetchConsultHistory();
+  }, [workItem.customer?.id]);
+
   // 문자발송이력 토글
   const handleSmsHistoryToggle = () => {
     setSmsHistoryOpen(!smsHistoryOpen);
   };
 
-  // 상담이력 버튼 클릭 (미구현)
-  const handleConsultHistoryClick = () => {
-    // TODO: 고객메뉴 > 상담이력 화면으로 이동 (고객ID, 계약ID 전달)
-    // const custId = workItem.customer?.id;
-    // const ctrtId = workItem.CTRT_ID;
+  // 상담이력 토글
+  const handleConsultHistoryToggle = () => {
+    setConsultHistoryOpen(!consultHistoryOpen);
+  };
+
+  // 주소변경 버튼 클릭 (미구현 - 고객관리 탭으로 이동 예정)
+  const handleAddressChangeClick = () => {
+    // TODO: 고객관리 탭 > 주소변경 화면으로 이동
     if (showToast) {
-      showToast('상담이력 기능은 준비 중입니다.', 'info');
+      showToast('주소변경 기능은 준비 중입니다.', 'info');
     }
   };
 
@@ -60,23 +90,23 @@ const ReceptionInfo: React.FC<ReceptionInfoProps> = ({ workItem, onNext, onBack,
         <h4 className="text-sm sm:text-base font-bold text-gray-900 mb-3 sm:mb-4">접수 기본 정보</h4>
         <div className="space-y-1.5 sm:space-y-2">
           <div className="flex items-center justify-between">
-            <span className="text-[10px] sm:text-xs text-gray-500">접수ID</span>
+            <span className="text-[0.625rem] sm:text-xs text-gray-500">접수ID</span>
             <span className="text-xs sm:text-sm font-medium text-gray-900 whitespace-nowrap">{formatId(workItem.RCPT_ID)}</span>
           </div>
           <div className="flex items-center justify-between">
-            <span className="text-[10px] sm:text-xs text-gray-500">작업ID</span>
+            <span className="text-[0.625rem] sm:text-xs text-gray-500">작업ID</span>
             <span className="text-xs sm:text-sm font-medium text-gray-900 whitespace-nowrap">{formatId(workItem.id)}</span>
           </div>
           <div className="flex items-center justify-between">
-            <span className="text-[10px] sm:text-xs text-gray-500">작업유형</span>
+            <span className="text-[0.625rem] sm:text-xs text-gray-500">작업유형</span>
             <span className="text-xs sm:text-sm font-medium text-blue-600 whitespace-nowrap">{workItem.typeDisplay}</span>
           </div>
           <div className="flex items-center justify-between">
-            <span className="text-[10px] sm:text-xs text-gray-500">작업상태</span>
+            <span className="text-[0.625rem] sm:text-xs text-gray-500">작업상태</span>
             <span className="text-xs sm:text-sm font-medium text-gray-900 whitespace-nowrap">{getStatusText(workItem.WRK_STAT_CD)}</span>
           </div>
           <div className="flex items-center justify-between pt-1.5 sm:pt-2 mt-1.5 sm:mt-2 border-t border-gray-100">
-            <span className="text-[10px] sm:text-xs text-gray-500">예정일시</span>
+            <span className="text-[0.625rem] sm:text-xs text-gray-500">예정일시</span>
             <span className="text-xs sm:text-sm font-semibold text-blue-600 whitespace-nowrap">{formatDateTime(workItem.scheduledAt)}</span>
           </div>
         </div>
@@ -88,8 +118,8 @@ const ReceptionInfo: React.FC<ReceptionInfoProps> = ({ workItem, onNext, onBack,
       {/* 작업 요청 상세 */}
       <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-3 sm:p-5">
         <h4 className="text-sm sm:text-base font-bold text-gray-900 mb-2.5 sm:mb-3">작업 요청 상세</h4>
-        <div className="p-3 sm:p-4 bg-gray-50 rounded-lg text-xs sm:text-sm text-gray-700 leading-relaxed min-h-20 whitespace-pre-wrap">
-          {workItem.details?.replace(/\\n/g, '\n').replace(/◈/g, '\n◈') || '작업 상세 내용이 없습니다.'}
+        <div className="p-3 sm:p-4 bg-gray-50 rounded-lg text-xs sm:text-sm text-gray-700 leading-relaxed min-h-20 whitespace-pre-line">
+          {workItem.details?.replace(/  /g, '\n')}
         </div>
       </div>
 
@@ -135,11 +165,11 @@ const ReceptionInfo: React.FC<ReceptionInfoProps> = ({ workItem, onNext, onBack,
             </svg>
             <h4 className="text-sm sm:text-base font-bold text-gray-900">문자발송이력</h4>
             {smsLoading ? (
-              <span className="px-1.5 sm:px-2 py-0.5 bg-gray-100 text-gray-500 text-[10px] sm:text-xs font-medium rounded-full whitespace-nowrap">
+              <span className="px-1.5 sm:px-2 py-0.5 bg-gray-100 text-gray-500 text-[0.625rem] sm:text-xs font-medium rounded-full whitespace-nowrap">
                 조회중...
               </span>
             ) : smsLoaded && (
-              <span className="px-1.5 sm:px-2 py-0.5 bg-blue-100 text-blue-700 text-[10px] sm:text-xs font-medium rounded-full whitespace-nowrap">
+              <span className="px-1.5 sm:px-2 py-0.5 bg-blue-100 text-blue-700 text-[0.625rem] sm:text-xs font-medium rounded-full whitespace-nowrap">
                 {smsHistory.length}건
               </span>
             )}
@@ -171,7 +201,7 @@ const ReceptionInfo: React.FC<ReceptionInfoProps> = ({ workItem, onNext, onBack,
                   <div key={index} className="p-3 sm:p-4 bg-gray-50 rounded-lg border border-gray-100">
                     <div className="flex items-center justify-between mb-1.5 sm:mb-2 gap-2">
                       <div className="flex items-center gap-1.5 sm:gap-2 flex-1 min-w-0">
-                        <span className={`px-1.5 sm:px-2 py-0.5 text-[10px] sm:text-xs font-medium rounded whitespace-nowrap ${
+                        <span className={`px-1.5 sm:px-2 py-0.5 text-[0.625rem] sm:text-xs font-medium rounded whitespace-nowrap ${
                           item.MSG_TYP === 'KKO' ? 'bg-yellow-100 text-yellow-700' :
                           item.MSG_TYP === 'LMS' ? 'bg-purple-100 text-purple-700' :
                           'bg-blue-100 text-blue-700'
@@ -180,14 +210,14 @@ const ReceptionInfo: React.FC<ReceptionInfoProps> = ({ workItem, onNext, onBack,
                         </span>
                         <span className="text-xs sm:text-sm font-medium text-gray-900 truncate">{item.EML_SMS_SND_TP_NM || '-'}</span>
                       </div>
-                      <span className={`text-[10px] sm:text-xs font-medium whitespace-nowrap ${
+                      <span className={`text-[0.625rem] sm:text-xs font-medium whitespace-nowrap ${
                         item.RESULT === '성공' ? 'text-green-600' :
                         item.RESULT === '실패' ? 'text-red-600' : 'text-gray-500'
                       }`}>
                         {item.RESULT || '-'}
                       </span>
                     </div>
-                    <div className="grid grid-cols-2 gap-1.5 sm:gap-2 text-[10px] sm:text-xs text-gray-500 mb-1.5 sm:mb-2">
+                    <div className="grid grid-cols-2 gap-1.5 sm:gap-2 text-[0.625rem] sm:text-xs text-gray-500 mb-1.5 sm:mb-2">
                       <div className="truncate">수신: {item.CELL_PHN || '-'}</div>
                       <div className="truncate">발신: {item.SMS_RCV_NO || '-'}</div>
                       {item.SEND_TIME && <div className="col-span-2">전송시간: {item.SEND_TIME}</div>}
@@ -206,17 +236,18 @@ const ReceptionInfo: React.FC<ReceptionInfoProps> = ({ workItem, onNext, onBack,
         )}
       </div>
 
-      {/* 상담이력 버튼 */}
+      {/* 주소변경 버튼 */}
       <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
         <button
-          onClick={handleConsultHistoryClick}
+          onClick={handleAddressChangeClick}
           className="w-full p-3 sm:p-5 flex items-center justify-between hover:bg-gray-50 transition-colors"
         >
           <div className="flex items-center gap-2 sm:gap-3">
-            <svg className="w-4 h-4 sm:w-5 sm:h-5 text-green-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8h2a2 2 0 012 2v6a2 2 0 01-2 2h-2v4l-4-4H9a1.994 1.994 0 01-1.414-.586m0 0L11 14h4a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2v4l.586-.586z" />
+            <svg className="w-4 h-4 sm:w-5 sm:h-5 text-orange-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
             </svg>
-            <h4 className="text-sm sm:text-base font-bold text-gray-900">상담이력</h4>
+            <h4 className="text-sm sm:text-base font-bold text-gray-900">주소변경</h4>
           </div>
           <svg
             className="w-4 h-4 sm:w-5 sm:h-5 text-gray-400 flex-shrink-0"
@@ -228,6 +259,99 @@ const ReceptionInfo: React.FC<ReceptionInfoProps> = ({ workItem, onNext, onBack,
           </svg>
         </button>
       </div>
+
+      {/* 상담이력 (아코디언) */}
+      <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+        <button
+          onClick={handleConsultHistoryToggle}
+          className="w-full p-3 sm:p-5 flex items-center justify-between hover:bg-gray-50 transition-colors"
+        >
+          <div className="flex items-center gap-2 sm:gap-3">
+            <svg className="w-4 h-4 sm:w-5 sm:h-5 text-green-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8h2a2 2 0 012 2v6a2 2 0 01-2 2h-2v4l-4-4H9a1.994 1.994 0 01-1.414-.586m0 0L11 14h4a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2v4l.586-.586z" />
+            </svg>
+            <h4 className="text-sm sm:text-base font-bold text-gray-900">상담이력</h4>
+            {consultLoading ? (
+              <span className="px-1.5 sm:px-2 py-0.5 bg-gray-100 text-gray-500 text-[0.625rem] sm:text-xs font-medium rounded-full whitespace-nowrap">
+                조회중...
+              </span>
+            ) : consultLoaded && (
+              <span className="px-1.5 sm:px-2 py-0.5 bg-green-100 text-green-700 text-[0.625rem] sm:text-xs font-medium rounded-full whitespace-nowrap">
+                {consultHistory.length}건
+              </span>
+            )}
+          </div>
+          <svg
+            className={`w-4 h-4 sm:w-5 sm:h-5 text-gray-400 transition-transform flex-shrink-0 ${consultHistoryOpen ? 'rotate-180' : ''}`}
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+          </svg>
+        </button>
+
+        {consultHistoryOpen && (
+          <div className="border-t border-gray-100 p-3 sm:p-5">
+            {consultLoading ? (
+              <div className="flex items-center justify-center py-6 sm:py-8">
+                <div className="animate-spin rounded-full h-5 w-5 sm:h-6 sm:w-6 border-b-2 border-green-500"></div>
+                <span className="ml-2 sm:ml-3 text-xs sm:text-sm text-gray-500">조회 중...</span>
+              </div>
+            ) : consultHistory.length === 0 ? (
+              <div className="text-center py-6 sm:py-8 text-gray-500 text-xs sm:text-sm">
+                상담이력이 없습니다.
+              </div>
+            ) : (
+              <div className="space-y-2.5 sm:space-y-3 max-h-64 sm:max-h-80 overflow-y-auto">
+                {consultHistory.map((item, index) => (
+                  <div key={index} className="p-3 sm:p-4 bg-gray-50 rounded-lg border border-gray-100">
+                    <div className="flex items-center justify-between mb-1.5 sm:mb-2 gap-2">
+                      <div className="flex items-center gap-1.5 sm:gap-2 flex-1 min-w-0">
+                        <span className="px-1.5 sm:px-2 py-0.5 text-[0.625rem] sm:text-xs font-medium rounded whitespace-nowrap bg-green-100 text-green-700">
+                          {item.RCPT_TP_NM || '상담'}
+                        </span>
+                        <span className="text-xs sm:text-sm font-medium text-gray-900 truncate">
+                          {item.CNSL_MST_CL_NM || '-'}
+                        </span>
+                      </div>
+                      <span className="text-[0.625rem] sm:text-xs text-gray-500 whitespace-nowrap">
+                        {item.START_DD || '-'}
+                      </span>
+                    </div>
+                    <div className="grid grid-cols-2 gap-1.5 sm:gap-2 text-[0.625rem] sm:text-xs text-gray-500 mb-1.5 sm:mb-2">
+                      {item.CNSL_MID_CL_NM && (
+                        <div className="truncate">중분류: {item.CNSL_MID_CL_NM}</div>
+                      )}
+                      {item.CNSL_SLV_CL_NM && (
+                        <div className="truncate">세분류: {item.CNSL_SLV_CL_NM}</div>
+                      )}
+                      {item.CNSL_RSLT_NM && (
+                        <div className="truncate">결과: {item.CNSL_RSLT_NM}</div>
+                      )}
+                      {item.RCPT_PSN_NM && (
+                        <div className="truncate">담당: {item.RCPT_PSN_NM}</div>
+                      )}
+                    </div>
+                    {item.REQ_CTX && (
+                      <div className="mt-1.5 sm:mt-2 p-2 bg-white rounded border border-gray-200 text-xs sm:text-sm text-gray-700">
+                        <div className="text-[0.625rem] sm:text-xs text-gray-500 mb-1">요청내용</div>
+                        <div className="whitespace-pre-wrap">{item.REQ_CTX}</div>
+                      </div>
+                    )}
+                    {item.PROC_CT && (
+                      <div className="mt-1.5 sm:mt-2 p-2 bg-blue-50 rounded border border-blue-100 text-xs sm:text-sm text-gray-700">
+                        <div className="text-[0.625rem] sm:text-xs text-blue-600 mb-1">처리내용</div>
+                        <div className="whitespace-pre-wrap">{item.PROC_CT}</div>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+      </div>
     </div>
   );
 };
@@ -235,52 +359,6 @@ const ReceptionInfo: React.FC<ReceptionInfoProps> = ({ workItem, onNext, onBack,
 // 작업 유형별 세부 정보 렌더링
 const renderWorkTypeDetails = (workItem: WorkItem) => {
   const wrkCd = workItem.WRK_CD;
-
-  // A/S 작업
-  if (wrkCd === '03') {
-    return (
-      <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
-        <h4 className="text-base font-bold text-gray-900 mb-4">A/S 상세 정보</h4>
-        <div className="grid grid-cols-2 gap-3 mb-4">
-          {workItem.asReasonCode && (
-            <div className="space-y-1">
-              <span className="text-xs text-gray-500">A/S 사유 코드</span>
-              <p className="text-sm font-medium text-gray-900">{workItem.asReasonCode}</p>
-            </div>
-          )}
-          {workItem.asDetailCode && (
-            <div className="space-y-1">
-              <span className="text-xs text-gray-500">상세 코드</span>
-              <p className="text-sm font-medium text-gray-900">{workItem.asDetailCode}</p>
-            </div>
-          )}
-          {workItem.rcType && (
-            <div className="space-y-1 col-span-2">
-              <span className="text-xs text-gray-500">접수 유형</span>
-              <p className="text-sm font-medium text-gray-900">{workItem.rcType}</p>
-            </div>
-          )}
-        </div>
-        {workItem.asHistory && workItem.asHistory.length > 0 && (
-          <div className="pt-4 border-t border-gray-100">
-            <label className="text-sm font-semibold text-gray-700 mb-3 block">이전 A/S 이력</label>
-            <div className="space-y-2">
-              {workItem.asHistory.map((history, index) => (
-                <div key={index} className="p-3 bg-gray-50 rounded-lg">
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-xs font-semibold text-gray-600">{history.asDate}</span>
-                    <span className="text-xs text-gray-500">담당: {history.asWorker}</span>
-                  </div>
-                  <p className="text-sm text-gray-700 font-medium mb-1">{history.asReason}</p>
-                  <p className="text-sm text-gray-600">{history.asResult}</p>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-      </div>
-    );
-  }
 
   // 일시정지 작업
   if (wrkCd === '0410' || wrkCd === '06') {
@@ -336,13 +414,12 @@ const getStatusText = (status?: string): string => {
 const formatDateTime = (dateTime: string): string => {
   try {
     const date = new Date(dateTime);
-    return date.toLocaleString('ko-KR', {
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit',
-      hour: '2-digit',
-      minute: '2-digit',
-    });
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    const hours = String(date.getHours()).padStart(2, '0');
+    const minutes = String(date.getMinutes()).padStart(2, '0');
+    return `${year}-${month}-${day} ${hours}:${minutes}`;
   } catch {
     return dateTime;
   }

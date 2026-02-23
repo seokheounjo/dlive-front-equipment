@@ -10,7 +10,9 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import dayjs from 'dayjs';
 
-type View = 'today-work' | 'menu' | 'work-management' | 'work-order-detail' | 'work-process-flow' | 'work-complete-form' | 'work-complete-detail' | 'work-item-list' | 'customer-management' | 'equipment-management' | 'other-management' | 'coming-soon';
+type View = 'today-work' | 'menu' | 'work-management' | 'work-order-detail' | 'work-process-flow' | 'work-complete-form' | 'work-complete-detail' | 'work-item-list' | 'customer-management' | 'equipment-management' | 'other-management' | 'coming-soon' | 'settings';
+
+type FontScale = 'small' | 'medium' | 'large' | 'xlarge';
 // FilterType은 WorkOrderStatus enum 값과 일치해야 함 (진행중, 완료, 취소)
 type FilterType = '진행중' | '완료' | '취소' | '전체';
 
@@ -46,6 +48,10 @@ interface UIStore {
   // 선택된 작업 지시 (WorkItemList용)
   selectedWorkDirection: any | null;
   setSelectedWorkDirection: (direction: any | null) => void;
+
+  // 글자 크기 설정
+  fontScale: FontScale;
+  setFontScale: (scale: FontScale) => void;
 }
 
 // dayjs로 현재 월 기간 계산
@@ -62,11 +68,12 @@ export const useUIStore = create<UIStore>()(
       workFilters: {
         startDate: getCurrentMonthStart(),
         endDate: getCurrentMonthEnd(),
-        filter: '전체',
+        filter: '진행중',  // 기본값: 진행중
         workTypeFilter: '전체',
       },
       selectedWorkItem: null,
       selectedWorkDirection: null,
+      fontScale: 'medium' as FontScale,
 
       // Actions
       openDrawer: () => set({ isDrawerOpen: true }),
@@ -76,32 +83,37 @@ export const useUIStore = create<UIStore>()(
       setWorkFilters: (filters: WorkFilters) => set({ workFilters: filters }),
       setSelectedWorkItem: (item: any | null) => set({ selectedWorkItem: item }),
       setSelectedWorkDirection: (direction: any | null) => set({ selectedWorkDirection: direction }),
+      setFontScale: (scale: FontScale) => set({ fontScale: scale }),
     }),
     {
       name: 'dlive-ui-storage', // localStorage 키
       partialize: (state) => ({
         activeTab: state.activeTab,
         currentView: state.currentView,
-        workFilters: state.workFilters,
-        // selectedWorkItem과 selectedWorkDirection은 persist하지 않음 (세션 간 유지 불필요)
+        fontScale: state.fontScale,
+        // 날짜와 filter는 저장하지 않음 (매번 현재 월, '진행중'으로 시작)
+        workFilters: {
+          workTypeFilter: state.workFilters.workTypeFilter,
+        },
       }),
-      // localStorage에서 불러올 때 기본값 병합 (새 필드 추가 시 대응)
+      // localStorage에서 불러올 때 기본값 병합
       merge: (persistedState: any, currentState) => {
-        const persistedFilter = persistedState?.workFilters?.filter;
-        // 유효한 한글 필터값인지 확인 (이전 영어 값은 무효화)
         const validFilters = ['진행중', '완료', '취소', '전체'];
-        const filter = validFilters.includes(persistedFilter) ? persistedFilter : '전체';
-
+        const persistedWorkTypeFilter = persistedState?.workFilters?.workTypeFilter;
+        const validFontScales = ['small', 'medium', 'large', 'xlarge'];
+        const persistedFontScale = persistedState?.fontScale;
         return {
           ...currentState,
-          ...persistedState,
+          activeTab: persistedState?.activeTab ?? currentState.activeTab,
+          currentView: persistedState?.currentView ?? currentState.currentView,
+          fontScale: (persistedFontScale && validFontScales.includes(persistedFontScale))
+            ? persistedFontScale
+            : 'medium',
           workFilters: {
             ...currentState.workFilters,
-            ...(persistedState?.workFilters || {}),
-            // filter가 유효한 한글 값이 아니면 '전체'로 설정
-            filter,
-            // workTypeFilter가 없거나 빈 값이면 '전체'로 설정
-            workTypeFilter: persistedState?.workFilters?.workTypeFilter || '전체',
+            workTypeFilter: (persistedWorkTypeFilter && validFilters.includes(persistedWorkTypeFilter))
+              ? persistedWorkTypeFilter
+              : '전체',
           },
         };
       },

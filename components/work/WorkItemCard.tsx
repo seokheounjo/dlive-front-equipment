@@ -82,16 +82,16 @@ const WorkItemCard: React.FC<WorkItemCardProps> = ({ item, onSelect, onComplete,
             <div className="flex items-center gap-1.5">
               {/* 상품군 배지 (D/I/V/C) */}
               {prodGrp && (
-                <span className={`px-1.5 py-0.5 text-[10px] font-bold rounded border ${getProductGroupStyle(prodGrp)}`}>
+                <span className={`px-1.5 py-0.5 text-[0.625rem] font-bold rounded border ${getProductGroupStyle(prodGrp)}`}>
                   {prodGrp}
                 </span>
               )}
-              <span className="text-xs font-medium text-gray-900 truncate">{item.WRK_DTL_TCD_NM || '설치'}</span>
+              <span className="text-xs font-medium text-gray-900 truncate">{item.WRK_DTL_TCD_NM || item.WRK_CD_NM || item.typeDisplay || '-'}</span>
             </div>
           </div>
           <div className="flex items-center justify-between gap-2 pt-2 border-t border-gray-100">
             <span className="text-xs text-gray-500">상품명</span>
-            <span className="text-xs font-medium text-gray-900 truncate">{item.PROD_NM || 'ISP 서비스'}</span>
+            <span className="text-xs font-medium text-gray-900 truncate">{item.PROD_NM || '-'}</span>
           </div>
         </div>
 

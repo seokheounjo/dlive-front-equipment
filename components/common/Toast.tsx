@@ -7,17 +7,23 @@ interface ToastProps {
   message: string;
   type?: ToastType;
   duration?: number;
+  persistent?: boolean; // true면 확인 버튼 눌러야 닫힘
   onClose: () => void;
 }
 
-const Toast: React.FC<ToastProps> = ({ message, type = 'info', duration = 3000, onClose }) => {
+const Toast: React.FC<ToastProps> = ({ message, type = 'info', duration = 3000, persistent = false, onClose }) => {
+  // error 타입은 항상 persistent (사용자가 X 눌러야 닫힘)
+  const isPersistent = persistent || type === 'error';
+
   useEffect(() => {
+    if (isPersistent) return;
+
     const timer = setTimeout(() => {
       onClose();
     }, duration);
 
     return () => clearTimeout(timer);
-  }, [duration, onClose]);
+  }, [duration, onClose, isPersistent]);
 
   const getIcon = () => {
     switch (type) {
@@ -50,12 +56,21 @@ const Toast: React.FC<ToastProps> = ({ message, type = 'info', duration = 3000, 
       <div className={`flex items-center gap-3 px-4 py-3 rounded-lg shadow-lg border ${getBackgroundColor()} min-w-[300px] max-w-[90vw]`}>
         {getIcon()}
         <p className="text-sm font-medium text-gray-900 flex-1">{message}</p>
-        <button
-          onClick={onClose}
-          className="text-gray-400 hover:text-gray-600 transition-colors"
-        >
-          <XCircle className="w-4 h-4" />
-        </button>
+        {persistent && type !== 'error' ? (
+          <button
+            onClick={onClose}
+            className="px-3 py-1 bg-gray-800 text-white text-xs font-semibold rounded hover:bg-gray-700 transition-colors"
+          >
+            확인
+          </button>
+        ) : (
+          <button
+            onClick={onClose}
+            className="text-gray-400 hover:text-gray-600 transition-colors"
+          >
+            <XCircle className="w-4 h-4" />
+          </button>
+        )}
       </div>
     </div>
   );

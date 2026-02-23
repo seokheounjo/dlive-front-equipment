@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { WorkItem } from '../../../types';
-import { getFullContractInfo, getAllAlarmInfo, AllAlarmInfo, getCodeDetail } from '../../../services/apiService';
+import { getFullContractInfo, getAllAlarmInfo, AllAlarmInfo, getCodeDetail, getMoveWorkInfo, MoveWorkInfo, getCtrtDetailInfo, getAfterProcInfo } from '../../../services/apiService';
 import { formatId } from '../../../utils/dateFormatter';
 
 interface ContractInfoProps {
@@ -22,6 +22,8 @@ interface ContractDetailData {
   IP_CNT?: string | number;
   // 지사명
   SO_NM?: string;
+  // 상품명 (detailinfo 기준)
+  BASIC_PROD_CD_NM?: string;
 }
 
 const ContractInfo: React.FC<ContractInfoProps> = ({ workItem, onNext, onBack }) => {
@@ -33,13 +35,36 @@ const ContractInfo: React.FC<ContractInfoProps> = ({ workItem, onNext, onBack })
   const [alarmInfo, setAlarmInfo] = useState<AllAlarmInfo | null>(null);
   const [alarmLoading, setAlarmLoading] = useState(false);
 
+  // 계약 목록 (상품변경 시 변경 전 상품명 조회용)
+  const [contracts, setContracts] = useState<any[]>([]);
 
-  // 컴포넌트 마운트 시 계약 상세 정보 로드
+  // 상품변경 여부
+  const isProductChange = workItem.WRK_CD === '05';
+
+  // 이전설치/이전철거 여부
+  const isRelocateInstall = workItem.WRK_CD === '07';  // 이전설치
+  const isRelocateTerminate = workItem.WRK_CD === '08'; // 이전철거
+  const isRelocateWork = isRelocateInstall || isRelocateTerminate;
+
+  // 연계작업 정보 (이전설치/이전철거)
+  const [moveWorkInfo, setMoveWorkInfo] = useState<MoveWorkInfo | null>(null);
+  const [moveWorkLoading, setMoveWorkLoading] = useState(false);
+
+  // 후처리 정보 (재약정 대상 등)
+  const [afterProcInfo, setAfterProcInfo] = useState<{ CLOSE_DANGER?: string; WRK_DRCTN_PRNT_YN?: string; AUTO_PAYMENTS_YN?: string } | null>(null);
+
+  // 모든 작업에서 getCtrtDetailInfo 호출 (약정정보, 단체정보, IP수 등)
+  // 레거시: mowoDivB.xml에서 customer/negociation/getCtrtDetailInfo1.req 호출
   useEffect(() => {
     const loadContractDetail = async () => {
-      // CUST_ID가 없으면 API 호출 스킵
-      if (!workItem.CUST_ID) {
-        console.log('[ContractInfo] CUST_ID 없음 - API 호출 스킵');
+      // 상품변경(05)일 때는 DTL_CTRT_ID(변경후 계약ID) 사용
+      const ctrtIdToUse = isProductChange && (workItem as any).DTL_CTRT_ID
+        ? (workItem as any).DTL_CTRT_ID
+        : workItem.CTRT_ID;
+
+      // CTRT_ID가 없으면 API 호출 스킵
+      if (!ctrtIdToUse) {
+        console.log('[ContractInfo] CTRT_ID 없음 - getCtrtDetailInfo 스킵');
         return;
       }
 
@@ -47,35 +72,41 @@ const ContractInfo: React.FC<ContractInfoProps> = ({ workItem, onNext, onBack })
       setLoadError(null);
 
       try {
-        console.log('[ContractInfo] 계약 상세 정보 로드 시작:', {
+        console.log('[ContractInfo] getCtrtDetailInfo 호출 시작:', {
+          CTRT_ID: ctrtIdToUse,
           CUST_ID: workItem.CUST_ID,
-          CTRT_ID: workItem.CTRT_ID
+          isProductChange,
+          DTL_CTRT_ID: (workItem as any).DTL_CTRT_ID
         });
 
-        const result = await getFullContractInfo({
-          CUST_ID: workItem.CUST_ID,
-          CTRT_ID: workItem.CTRT_ID
-        });
+        // 1. 모든 작업에서 getCtrtDetailInfo 호출 (약정, 단체, IP수)
+        // 상품변경 시 DTL_CTRT_ID로 조회해야 변경후 상품이 정상 표시
+        const ctrtDetail = await getCtrtDetailInfo(ctrtIdToUse, workItem.CUST_ID);
 
-        console.log('[ContractInfo] API 응답:', result);
-        console.log('[ContractInfo] currentContract:', result.currentContract);
-        console.log('[ContractInfo] 약정정보 필드:', {
-          PROM_CNT: result.currentContract?.PROM_CNT,
-          CTRT_APLY_STRT_DT: result.currentContract?.CTRT_APLY_STRT_DT,
-          CTRT_APLY_END_DT: result.currentContract?.CTRT_APLY_END_DT,
-        });
-        console.log('[ContractInfo] 단체정보 필드:', {
-          GRP_ID: result.currentContract?.GRP_ID,
-          GRP_NM: result.currentContract?.GRP_NM,
-        });
+        if (ctrtDetail) {
+          console.log('[ContractInfo] getCtrtDetailInfo 응답:', ctrtDetail);
+          setContractDetail({
+            PROM_CNT: ctrtDetail.PROM_CNT,
+            CTRT_APLY_STRT_DT: ctrtDetail.CTRT_APLY_STRT_DT,
+            CTRT_APLY_END_DT: ctrtDetail.CTRT_APLY_END_DT,
+            GRP_ID: ctrtDetail.GRP_ID,
+            GRP_NM: ctrtDetail.GRP_NM,
+            IP_CNT: ctrtDetail.IP_CNT,
+            SO_NM: ctrtDetail.SO_NM,
+            BASIC_PROD_CD_NM: ctrtDetail.BASIC_PROD_CD_NM,
+          });
+        }
 
-        // currentContract 정보 설정
-        const mergedData: ContractDetailData = {
-          ...(result.currentContract || {})
-        };
-
-        setContractDetail(mergedData);
-        console.log('[ContractInfo] 계약 상세 정보 로드 완료:', mergedData);
+        // 2. 상품변경일 때만 getFullContractInfo 추가 호출 (변경 전/후 상품 비교용)
+        if (isProductChange && workItem.CUST_ID) {
+          console.log('[ContractInfo] 상품변경 - getFullContractInfo 추가 호출');
+          const fullResult = await getFullContractInfo({
+            CUST_ID: workItem.CUST_ID,
+            CTRT_ID: workItem.CTRT_ID
+          });
+          console.log('[ContractInfo] getFullContractInfo 응답:', fullResult);
+          setContracts(fullResult.contracts || []);
+        }
 
       } catch (error: any) {
         console.error('[ContractInfo] 계약 정보 로드 실패:', error);
@@ -86,7 +117,7 @@ const ContractInfo: React.FC<ContractInfoProps> = ({ workItem, onNext, onBack })
     };
 
     loadContractDetail();
-  }, [workItem.CUST_ID, workItem.CTRT_ID]);
+  }, [isProductChange, workItem.CUST_ID, workItem.CTRT_ID, (workItem as any).DTL_CTRT_ID]);
 
   // Load alarm info
   useEffect(() => {
@@ -119,6 +150,63 @@ const ContractInfo: React.FC<ContractInfoProps> = ({ workItem, onNext, onBack })
     loadAlarmInfo();
   }, [workItem.CUST_ID, workItem.WRK_DRCTN_ID]);
 
+  // 후처리 정보 로드 (재약정 대상 등)
+  useEffect(() => {
+    const loadAfterProcInfo = async () => {
+      if (!workItem.WRK_DRCTN_ID) return;
+
+      try {
+        const result = await getAfterProcInfo(workItem.WRK_DRCTN_ID);
+        if (result) {
+          console.log('[ContractInfo] getAfterProcInfo 결과:', result);
+          setAfterProcInfo(result);
+        }
+      } catch (error) {
+        console.error('[ContractInfo] getAfterProcInfo 실패:', error);
+      }
+    };
+
+    loadAfterProcInfo();
+  }, [workItem.WRK_DRCTN_ID]);
+
+  // 이전설치/이전철거 연계작업 정보 로드
+  useEffect(() => {
+    const loadMoveWorkInfo = async () => {
+      // WRK_ID 또는 id 필드 사용 (workItem 구조에 따라 다름)
+      const wrkId = workItem.WRK_ID || workItem.id;
+
+      if (!isRelocateWork || !wrkId) {
+        console.log('[ContractInfo] 연계작업 정보 조회 스킵 (WRK_CD:', workItem.WRK_CD, ', WRK_ID:', wrkId, ')');
+        return;
+      }
+
+      setMoveWorkLoading(true);
+
+      try {
+        console.log('[ContractInfo] 연계작업 정보 조회 시작:', {
+          WRK_CD: workItem.WRK_CD,
+          WRK_ID: wrkId,
+          RCPT_ID: workItem.RCPT_ID
+        });
+
+        const result = await getMoveWorkInfo({
+          WRK_CD: workItem.WRK_CD || '',
+          WRK_ID: wrkId,
+          RCPT_ID: workItem.RCPT_ID,
+        });
+
+        console.log('[ContractInfo] 연계작업 정보 조회 결과:', result);
+        setMoveWorkInfo(result);
+
+      } catch (error: any) {
+        console.error('[ContractInfo] 연계작업 정보 조회 실패:', error);
+      } finally {
+        setMoveWorkLoading(false);
+      }
+    };
+
+    loadMoveWorkInfo();
+  }, [isRelocateWork, workItem.WRK_CD, workItem.WRK_ID, workItem.id, workItem.RCPT_ID]);
 
   // 알림 항목 수집 (레이블-값 형태)
   interface AlarmItem {
@@ -193,6 +281,15 @@ const ContractInfo: React.FC<ContractInfoProps> = ({ workItem, onNext, onBack })
       return;
     }
 
+    // 재약정 대상 여부 (getAfterProcInfo에서 CLOSE_DANGER 값으로 판별)
+    if (afterProcInfo) {
+      if (afterProcInfo.CLOSE_DANGER === 'Y') {
+        items.push({ label: '재약정', value: '재약정 대상입니다' });
+      } else {
+        items.push({ label: '재약정', value: '재약정 대상이 아닙니다' });
+      }
+    }
+
     // workAlarm 확인
     if (alarmInfo.workAlarm) {
       // 레거시: OTT_SALE_DESC 표시
@@ -201,7 +298,7 @@ const ContractInfo: React.FC<ContractInfoProps> = ({ workItem, onNext, onBack })
       }
       // 레거시: BUNDLE_ISP_TG='Y' → "번들상품 사용"
       if (alarmInfo.workAlarm.BUNDLE_ISP_TG === 'Y') {
-        items.push({ label: '번들', value: '번들상품 사용' });
+        items.push({ label: '번들', value: '후번들 대상' });
       }
       // 레거시: WRK_CD IN (01,05,07) && PYM_MTHD='01' && ATMT_YN='Y' → "자동이체/Email승인요청안내"
       if (['01', '05', '07'].includes(wrkCd || '') &&
@@ -236,9 +333,9 @@ const ContractInfo: React.FC<ContractInfoProps> = ({ workItem, onNext, onBack })
     if (alarmInfo.custBasicInfo?.SMS_RCV_YN) {
       const smsYn = String(alarmInfo.custBasicInfo.SMS_RCV_YN);
       if (smsYn === 'Y') {
-        items.push({ label: '홍보문자', value: '홍보문자수신동의 : 동의' });
+        items.push({ label: '홍보문자', value: '동의' });
       } else if (smsYn === 'N') {
-        items.push({ label: '홍보문자', value: '홍보문자수신동의 : 거부' });
+        items.push({ label: '홍보문자', value: '비동의' });
       }
     }
 
@@ -254,7 +351,7 @@ const ContractInfo: React.FC<ContractInfoProps> = ({ workItem, onNext, onBack })
       console.log('[ContractInfo] 알림 항목:', items);
     }
     setAlarmItems(items);
-  }, [alarmInfo, alarmLoading, workItem.WRK_CD]);
+  }, [alarmInfo, alarmLoading, workItem.WRK_CD, afterProcInfo]);
 
   // workItem과 contractDetail을 병합하여 표시 데이터 결정
   const displayData = {
@@ -269,6 +366,8 @@ const ContractInfo: React.FC<ContractInfoProps> = ({ workItem, onNext, onBack })
     IP_CNT: contractDetail?.IP_CNT || workItem.IP_CNT,
     // 지사명 (API 우선)
     SO_NM: contractDetail?.SO_NM || workItem.SO_NM,
+    // 계약지점 (본부명)
+    MSO_NM: (workItem as any).MSO_NM,
   };
 
   return (
@@ -284,7 +383,7 @@ const ContractInfo: React.FC<ContractInfoProps> = ({ workItem, onNext, onBack })
       )}
 
       {/* 에러 표시 */}
-      {loadError && (
+      {loadError && !isLoading && (
         <div className="bg-yellow-50 border border-yellow-100 rounded-xl p-3 sm:p-4">
           <div className="flex items-center gap-2 sm:gap-3">
             <svg className="w-4 h-4 sm:w-5 sm:h-5 text-yellow-600 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
@@ -295,6 +394,9 @@ const ContractInfo: React.FC<ContractInfoProps> = ({ workItem, onNext, onBack })
         </div>
       )}
 
+      {/* 로딩 완료 후에만 내용 표시 */}
+      {!isLoading && (
+        <>
       {/* 고객 정보 */}
       <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-3 sm:p-5">
         <h4 className="text-sm sm:text-base font-bold text-gray-900 mb-3 sm:mb-4">고객 정보</h4>
@@ -302,10 +404,15 @@ const ContractInfo: React.FC<ContractInfoProps> = ({ workItem, onNext, onBack })
           <div className="flex items-start">
             <span className="text-xs sm:text-sm text-gray-500 w-16 sm:w-20 flex-shrink-0">고객명</span>
             <div className="flex items-center gap-1.5 sm:gap-2 flex-1 min-w-0">
-              <span className="text-xs sm:text-sm font-medium text-gray-900 truncate">{workItem.customer.name}</span>
+              <span className="text-xs sm:text-sm font-medium text-gray-900 truncate">
+                {workItem.customer.name}
+                {workItem.customer.id && (
+                  <span className="text-gray-400 font-normal ml-1">({workItem.customer.id.replace(/(\d{3})(\d{3})(\d{4})/, '$1-$2-$3')})</span>
+                )}
+              </span>
               {workItem.customer.isVip && (
                 <span className={`
-                  px-1.5 sm:px-2 py-0.5 rounded-full text-[10px] sm:text-xs font-semibold flex-shrink-0
+                  px-1.5 sm:px-2 py-0.5 rounded-full text-[0.625rem] sm:text-xs font-semibold flex-shrink-0
                   ${workItem.customer.vipLevel === 'VVIP'
                     ? 'bg-purple-100 text-purple-700'
                     : 'bg-yellow-100 text-yellow-700'}
@@ -332,7 +439,7 @@ const ContractInfo: React.FC<ContractInfoProps> = ({ workItem, onNext, onBack })
         <div className="space-y-2 sm:space-y-3">
           <div className="flex items-start">
             <span className="text-xs sm:text-sm text-gray-500 w-20 sm:w-24 flex-shrink-0">납부계정</span>
-            <span className="text-xs sm:text-sm font-medium text-gray-900 break-all">{workItem.PYM_ACNT_ID || '-'}</span>
+            <span className="text-xs sm:text-sm font-medium text-gray-900 break-all">{formatId(workItem.PYM_ACNT_ID) || '-'}</span>
           </div>
           <div className="flex items-start">
             <span className="text-xs sm:text-sm text-gray-500 w-20 sm:w-24 flex-shrink-0">납부방법</span>
@@ -437,36 +544,173 @@ const ContractInfo: React.FC<ContractInfoProps> = ({ workItem, onNext, onBack })
         </div>
       )}
 
-      {/* 상품 및 프로모션 정보 */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-3 sm:p-5">
-        <h4 className="text-sm sm:text-base font-bold text-gray-900 mb-3 sm:mb-4">상품 및 프로모션 정보</h4>
-        <div className="space-y-2 sm:space-y-3">
-          <div className="flex items-start">
-            <span className="text-xs sm:text-sm text-gray-500 w-20 sm:w-24 flex-shrink-0">계약ID</span>
-            <span className="text-xs sm:text-sm font-medium text-gray-900 whitespace-nowrap">{formatId(workItem.CTRT_ID)}</span>
-          </div>
-          <div className="flex items-start">
-            <span className="text-xs sm:text-sm text-gray-500 w-20 sm:w-24 flex-shrink-0">계약상태</span>
-            <span className="text-xs sm:text-sm font-medium text-gray-900">{workItem.CTRT_STAT_NM || getContractStatusText(workItem.CTRT_STAT)}</span>
-          </div>
-          <div className="flex items-start">
-            <span className="text-xs sm:text-sm text-gray-500 w-20 sm:w-24 flex-shrink-0">계약지점</span>
-            <span className="text-xs sm:text-sm font-medium text-gray-900">{displayData.SO_NM || '-'}</span>
-          </div>
-          <div className="flex items-start">
-            <span className="text-xs sm:text-sm text-gray-500 w-20 sm:w-24 flex-shrink-0">상품명</span>
-            <span className="text-xs sm:text-sm font-medium text-gray-900 break-words flex-1">{workItem.productName || '-'}</span>
-          </div>
-          <div className="flex items-start">
-            <span className="text-xs sm:text-sm text-gray-500 w-20 sm:w-24 flex-shrink-0">작업유형</span>
-            <span className="text-xs sm:text-sm font-medium text-blue-600">{workItem.typeDisplay}</span>
-          </div>
-          <div className="flex items-start">
-            <span className="text-xs sm:text-sm text-gray-500 w-20 sm:w-24 flex-shrink-0">IP수</span>
-            <span className="text-xs sm:text-sm font-medium text-gray-900">{displayData.IP_CNT || '-'}</span>
+      {/* 상품정보 - 상품변경/이전설치/이전철거일 때는 좌우 비교 형태 */}
+      {isProductChange ? (
+        // 상품변경: 변경 전 / 변경 후
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-3 sm:p-5">
+          <h4 className="text-sm sm:text-base font-bold text-gray-900 mb-3 sm:mb-4">상품정보</h4>
+          <div className="grid grid-cols-2 gap-3 sm:gap-4">
+            {/* 변경 전 */}
+            <div className="bg-gray-50 rounded-lg p-3">
+              <div className="text-xs font-semibold text-gray-500 mb-2 pb-2 border-b border-gray-200">변경 전</div>
+              <div className="space-y-2">
+                <>
+                  <div>
+                    <div className="text-[0.625rem] sm:text-xs text-gray-400">상품명</div>
+                    <div className="text-xs sm:text-sm font-medium text-gray-900 break-words">{workItem.OLD_PROD_NM || '-'}</div>
+                  </div>
+                  <div>
+                    <div className="text-[0.625rem] sm:text-xs text-gray-400">계약ID</div>
+                    <div className="text-xs sm:text-sm font-medium text-gray-700">{formatId(workItem.OLD_CTRT_ID || workItem.CTRT_ID)}</div>
+                  </div>
+                  <div>
+                    <div className="text-[0.625rem] sm:text-xs text-gray-400">계약상태</div>
+                    <div className="text-xs sm:text-sm font-medium text-gray-700">{workItem.OLD_CTRT_STAT_NM || '-'}</div>
+                  </div>
+                  <div>
+                    <div className="text-[0.625rem] sm:text-xs text-gray-400">약정</div>
+                    <div className="text-xs sm:text-sm font-medium text-gray-700">{workItem.OLD_PROM_CNT ? `${workItem.OLD_PROM_CNT}개월` : '-'}</div>
+                  </div>
+                </>
+              </div>
+            </div>
+            {/* 변경 후 */}
+            <div className="bg-blue-50 rounded-lg p-3 border border-blue-200">
+              <div className="text-xs font-semibold text-blue-600 mb-2 pb-2 border-b border-blue-200">변경 후</div>
+              <div className="space-y-2">
+                {(() => {
+                  const newContract = contracts.find(c => c.CTRT_ID === workItem.DTL_CTRT_ID);
+                  // detailinfo 조회 결과(BASIC_PROD_CD_NM) 우선 사용
+                  const newProductName = contractDetail?.BASIC_PROD_CD_NM || newContract?.BASIC_PROD_CD_NM;
+                  return (
+                    <>
+                      <div>
+                        <div className="text-[0.625rem] sm:text-xs text-blue-400">상품명</div>
+                        <div className="text-xs sm:text-sm font-medium text-blue-700 break-words">{newProductName || '-'}</div>
+                      </div>
+                      <div>
+                        <div className="text-[0.625rem] sm:text-xs text-blue-400">계약ID</div>
+                        <div className="text-xs sm:text-sm font-medium text-blue-600">{formatId(workItem.DTL_CTRT_ID || newContract?.CTRT_ID)}</div>
+                      </div>
+                      <div>
+                        <div className="text-[0.625rem] sm:text-xs text-blue-400">계약상태</div>
+                        <div className="text-xs sm:text-sm font-medium text-blue-600">{newContract?.CTRT_STAT_NM || '-'}</div>
+                      </div>
+                      <div>
+                        <div className="text-[0.625rem] sm:text-xs text-blue-400">약정</div>
+                        <div className="text-xs sm:text-sm font-medium text-blue-600">{newContract?.PROM_CNT ? `${newContract.PROM_CNT}개월` : '-'}</div>
+                      </div>
+                    </>
+                  );
+                })()}
+              </div>
+            </div>
           </div>
         </div>
-      </div>
+      ) : isRelocateWork ? (
+        // 이전설치/이전철거: 이전철거 / 이전설치 비교
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-3 sm:p-5">
+          <h4 className="text-sm sm:text-base font-bold text-gray-900 mb-3 sm:mb-4">상품정보</h4>
+          {moveWorkLoading ? (
+            <div className="flex items-center justify-center gap-2 py-4">
+              <div className="animate-spin w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full"></div>
+              <span className="text-xs sm:text-sm text-gray-600">연계작업 정보 조회 중...</span>
+            </div>
+          ) : (
+            <div className="grid grid-cols-2 gap-3 sm:gap-4">
+              {/* 이전철거 (왼쪽) */}
+              <div className={`rounded-lg p-3 ${isRelocateTerminate ? 'bg-blue-50 border border-blue-200' : 'bg-gray-50'}`}>
+                <div className={`text-xs font-semibold mb-2 pb-2 border-b ${isRelocateTerminate ? 'text-blue-600 border-blue-200' : 'text-gray-500 border-gray-200'}`}>
+                  이전철거
+                </div>
+                <div className="space-y-2">
+                  <div>
+                    <div className={`text-[0.625rem] sm:text-xs ${isRelocateTerminate ? 'text-blue-400' : 'text-gray-400'}`}>상품명</div>
+                    <div className={`text-xs sm:text-sm font-medium break-words ${isRelocateTerminate ? 'text-blue-700' : 'text-gray-900'}`}>
+                      {isRelocateTerminate ? (contractDetail?.BASIC_PROD_CD_NM || '-') : (moveWorkInfo?.PROD_NM || '-')}
+                    </div>
+                  </div>
+                  <div>
+                    <div className={`text-[0.625rem] sm:text-xs ${isRelocateTerminate ? 'text-blue-400' : 'text-gray-400'}`}>계약ID</div>
+                    <div className={`text-xs sm:text-sm font-medium ${isRelocateTerminate ? 'text-blue-600' : 'text-gray-700'}`}>
+                      {isRelocateTerminate ? formatId(workItem.CTRT_ID) : formatId(moveWorkInfo?.OLD_CTRT_ID || moveWorkInfo?.CTRT_ID)}
+                    </div>
+                  </div>
+                  <div>
+                    <div className={`text-[0.625rem] sm:text-xs ${isRelocateTerminate ? 'text-blue-400' : 'text-gray-400'}`}>작업주소</div>
+                    <div className={`text-xs sm:text-sm font-medium break-words ${isRelocateTerminate ? 'text-blue-600' : 'text-gray-700'}`}>
+                      {isRelocateTerminate ? (workItem.customer?.address || '-') : (moveWorkInfo?.ADDR_ORD || '-')}
+                    </div>
+                  </div>
+                  <div>
+                    <div className={`text-[0.625rem] sm:text-xs ${isRelocateTerminate ? 'text-blue-400' : 'text-gray-400'}`}>작업상태</div>
+                    <div className={`text-xs sm:text-sm font-medium ${isRelocateTerminate ? 'text-blue-600' : 'text-gray-700'}`}>
+                      {isRelocateTerminate ? (workItem.WRK_STAT_NM || '-') : (moveWorkInfo?.WRK_STAT_NM || '-')}
+                    </div>
+                  </div>
+                </div>
+              </div>
+              {/* 이전설치 (오른쪽) */}
+              <div className={`rounded-lg p-3 ${isRelocateInstall ? 'bg-blue-50 border border-blue-200' : 'bg-gray-50'}`}>
+                <div className={`text-xs font-semibold mb-2 pb-2 border-b ${isRelocateInstall ? 'text-blue-600 border-blue-200' : 'text-gray-500 border-gray-200'}`}>
+                  이전설치
+                </div>
+                <div className="space-y-2">
+                  <div>
+                    <div className={`text-[0.625rem] sm:text-xs ${isRelocateInstall ? 'text-blue-400' : 'text-gray-400'}`}>상품명</div>
+                    <div className={`text-xs sm:text-sm font-medium break-words ${isRelocateInstall ? 'text-blue-700' : 'text-gray-900'}`}>
+                      {isRelocateInstall ? (contractDetail?.BASIC_PROD_CD_NM || '-') : (moveWorkInfo?.PROD_NM || '-')}
+                    </div>
+                  </div>
+                  <div>
+                    <div className={`text-[0.625rem] sm:text-xs ${isRelocateInstall ? 'text-blue-400' : 'text-gray-400'}`}>계약ID</div>
+                    <div className={`text-xs sm:text-sm font-medium ${isRelocateInstall ? 'text-blue-600' : 'text-gray-700'}`}>
+                      {isRelocateInstall ? formatId(workItem.CTRT_ID) : formatId(moveWorkInfo?.CTRT_ID)}
+                    </div>
+                  </div>
+                  <div>
+                    <div className={`text-[0.625rem] sm:text-xs ${isRelocateInstall ? 'text-blue-400' : 'text-gray-400'}`}>작업주소</div>
+                    <div className={`text-xs sm:text-sm font-medium break-words ${isRelocateInstall ? 'text-blue-600' : 'text-gray-700'}`}>
+                      {isRelocateInstall ? (workItem.customer?.address || '-') : (moveWorkInfo?.ADDR_ORD || '-')}
+                    </div>
+                  </div>
+                  <div>
+                    <div className={`text-[0.625rem] sm:text-xs ${isRelocateInstall ? 'text-blue-400' : 'text-gray-400'}`}>작업상태</div>
+                    <div className={`text-xs sm:text-sm font-medium ${isRelocateInstall ? 'text-blue-600' : 'text-gray-700'}`}>
+                      {isRelocateInstall ? (workItem.WRK_STAT_NM || '-') : (moveWorkInfo?.WRK_STAT_NM || '-')}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      ) : (
+        // 일반 작업: 단일 상품정보
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-3 sm:p-5">
+          <h4 className="text-sm sm:text-base font-bold text-gray-900 mb-3 sm:mb-4">상품정보</h4>
+          <div className="space-y-2 sm:space-y-3">
+            <div className="flex items-start">
+              <span className="text-xs sm:text-sm text-gray-500 w-20 sm:w-24 flex-shrink-0">계약ID</span>
+              <span className="text-xs sm:text-sm font-medium text-gray-900 whitespace-nowrap">{formatId(workItem.CTRT_ID)}</span>
+            </div>
+            <div className="flex items-start">
+              <span className="text-xs sm:text-sm text-gray-500 w-20 sm:w-24 flex-shrink-0">계약상태</span>
+              <span className="text-xs sm:text-sm font-medium text-gray-900">{workItem.CTRT_STAT_NM || getContractStatusText(workItem.CTRT_STAT)}</span>
+            </div>
+            <div className="flex items-start">
+              <span className="text-xs sm:text-sm text-gray-500 w-20 sm:w-24 flex-shrink-0">상품명</span>
+              <span className="text-xs sm:text-sm font-medium text-gray-900 break-words flex-1">{contractDetail?.BASIC_PROD_CD_NM || workItem.productName || '-'}</span>
+            </div>
+            <div className="flex items-start">
+              <span className="text-xs sm:text-sm text-gray-500 w-20 sm:w-24 flex-shrink-0">IP수</span>
+              <span className="text-xs sm:text-sm font-medium text-gray-900">{displayData.IP_CNT || '-'}</span>
+            </div>
+          </div>
+        </div>
+      )}
+        </>
+      )}
 
     </div>
   );

@@ -30,38 +30,52 @@ const WorkMapView: React.FC<WorkMapViewProps> = ({ workOrders, onBack, onSelectW
   const [geocodedCount, setGeocodedCount] = useState(0);
   const { setCurrentView, setSelectedWorkDirection } = useUIStore();
 
-  // 카카오맵 SDK 로드 대기
+  // 카카오맵 SDK 동적 로드
   useEffect(() => {
-    const checkKakaoSDK = () => {
+    const KAKAO_MAP_KEY = import.meta.env.VITE_KAKAO_MAP_KEY;
+
+    if (!KAKAO_MAP_KEY) {
+      console.error('VITE_KAKAO_MAP_KEY 환경변수가 설정되지 않았습니다.');
+      setSdkError('카카오맵 API 키가 설정되지 않았습니다.');
+      setIsLoading(false);
+      return;
+    }
+
+    const loadKakaoSDK = () => {
+      // 이미 로드되어 있는지 확인
       if (window.kakao?.maps) {
-        // SDK가 로드되면 maps.load로 초기화
         window.kakao.maps.load(() => {
-          console.log('✅ 카카오맵 SDK 로드 완료');
+          console.log('카카오맵 SDK 이미 로드됨');
           setSdkLoaded(true);
         });
-        return true;
+        return;
       }
-      return false;
+
+      // 스크립트 동적 로드
+      const script = document.createElement('script');
+      script.src = `https://dapi.kakao.com/v2/maps/sdk.js?appkey=${KAKAO_MAP_KEY}&libraries=services&autoload=false`;
+      script.async = true;
+
+      script.onload = () => {
+        console.log('카카오맵 스크립트 로드 완료');
+        if (window.kakao?.maps) {
+          window.kakao.maps.load(() => {
+            console.log('카카오맵 SDK 초기화 완료');
+            setSdkLoaded(true);
+          });
+        }
+      };
+
+      script.onerror = () => {
+        console.error('카카오맵 SDK 로드 실패');
+        setSdkError('카카오맵 SDK를 불러오지 못했습니다. 앱키 또는 도메인 설정을 확인해주세요.');
+        setIsLoading(false);
+      };
+
+      document.head.appendChild(script);
     };
 
-    // 이미 로드되어 있는지 확인
-    if (checkKakaoSDK()) return;
-
-    // 로드될 때까지 대기 (최대 5초)
-    let attempts = 0;
-    const maxAttempts = 50;
-    const interval = setInterval(() => {
-      attempts++;
-      if (checkKakaoSDK()) {
-        clearInterval(interval);
-      } else if (attempts >= maxAttempts) {
-        clearInterval(interval);
-        setSdkError('카카오맵 SDK를 불러오지 못했습니다. 페이지를 새로고침 해주세요.');
-        setIsLoading(false);
-      }
-    }, 100);
-
-    return () => clearInterval(interval);
+    loadKakaoSDK();
   }, []);
 
   // 마커 이미지 생성 (SVG) - 인덱스 번호 포함

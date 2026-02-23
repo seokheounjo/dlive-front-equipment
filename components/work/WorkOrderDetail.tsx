@@ -78,7 +78,7 @@ const WorkOrderDetail: React.FC<WorkOrderDetailProps> = ({
 
         const user = JSON.parse(userInfo);
         const requestPayload = {
-          WRKR_ID: 'A20130708',
+          WRKR_ID: user.userId || user.workerId || '',
           SO_ID: order.SO_ID || user.soId,
           WORK_ID: order.id,
           CUST_ID: order.customer?.id,
@@ -110,7 +110,7 @@ const WorkOrderDetail: React.FC<WorkOrderDetailProps> = ({
       const contractValidation = validateContractStatus(order.WRK_CD, order.CTRT_STAT);
       if (!contractValidation.valid) {
         if (showToast) {
-          showToast(contractValidation.message || '계약 상태가 올바르지 않습니다.', 'error');
+          showToast(contractValidation.message || '계약 상태가 올바르지 않습니다.', 'error', true);
         }
         return;
       }
@@ -148,10 +148,10 @@ const WorkOrderDetail: React.FC<WorkOrderDetailProps> = ({
         if (showToast) showToast('작업이 성공적으로 취소되었습니다.', 'success');
         if (onUpdateStatus) onUpdateStatus(order.id, WorkOrderStatus.Cancelled);
       } else {
-        if (showToast) showToast(`작업취소 실패: ${result.message}`, 'error');
+        if (showToast) showToast(`작업취소 실패: ${result.message}`, 'error', true);
       }
     } catch (error: any) {
-      if (showToast) showToast(error.message || '작업취소 중 오류가 발생했습니다.', 'error');
+      if (showToast) showToast(error.message || '작업취소 중 오류가 발생했습니다.', 'error', true);
       console.error('작업취소 오류:', error);
     } finally {
       setIsLoading(false);
@@ -839,7 +839,7 @@ const WorkOrderDetail: React.FC<WorkOrderDetailProps> = ({
                 </svg>
                 <div className="flex flex-col items-start">
                   <span className="text-base leading-tight font-bold">작업진행</span>
-                  <span className="text-[10px] opacity-90 leading-tight">{order.typeDisplay}</span>
+                  <span className="text-[0.625rem] opacity-90 leading-tight">{order.typeDisplay}</span>
                 </div>
               </button>
             </div>

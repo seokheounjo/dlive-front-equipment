@@ -8,22 +8,24 @@
  * | 01 | 설치 | EquipmentInstall | CompleteInstall |
  * | 02 | 철거 | EquipmentTerminate | CompleteTerminate |
  * | 03 | A/S | EquipmentAS | CompleteAS |
- * | 04 | 정지 | EquipmentMove | CompleteMove |
+ * | 04 | 정지 | EquipmentSuspend | CompleteSuspend |
  * | 05 | 상품변경 | EquipmentChange | CompleteChange |
- * | 06 | 이전설치 | EquipmentMoveRemoval | CompleteMoveRemoval |
- * | 07 | 이전설치 | EquipmentMoveRemoval | CompleteMoveRemoval |
- * | 08 | 이전철거 | EquipmentTerminate | CompleteRemovalTerminate |
+ * | 06 | 댁내이전 | EquipmentInternalMove | CompleteInternalMove |
+ * | 07 | 이전설치 | EquipmentRelocate | CompleteRelocate |
+ * | 08 | 이전철거 | EquipmentRelocateTerminate | CompleteRelocateTerminate |
  * | 09 | 부가상품 | EquipmentRemoval | CompleteRemoval |
  */
 
 import React from 'react';
 import { EquipmentComponentProps } from './shared/types';
 import EquipmentInstall from './EquipmentInstall';       // 01: 설치
-import EquipmentTerminate from './EquipmentTerminate';   // 02, 08: 철거, 이전철거
+import EquipmentTerminate from './EquipmentTerminate';   // 02: 철거
 import EquipmentAS from './EquipmentAS';                 // 03: A/S
-import EquipmentMove from './EquipmentMove';             // 04: 정지
+import EquipmentSuspend from './EquipmentSuspend';       // 04: 정지
 import EquipmentChange from './EquipmentChange';         // 05: 상품변경
-import EquipmentMoveRemoval from './EquipmentMoveRemoval'; // 06, 07: 이전설치
+import EquipmentInternalMove from './EquipmentInternalMove'; // 06: 댁내이전
+import EquipmentRelocate from './EquipmentRelocate';     // 07: 이전설치
+import EquipmentRelocateTerminate from './EquipmentRelocateTerminate'; // 08: 이전철거
 import EquipmentRemoval from './EquipmentRemoval';       // 09: 부가상품
 
 interface EquipmentRouterProps extends EquipmentComponentProps {
@@ -53,20 +55,23 @@ const EquipmentRouter: React.FC<EquipmentRouterProps> = (props) => {
 
     case '04':
       // 정지
-      return <EquipmentMove {...props} />;
+      return <EquipmentSuspend {...props} />;
 
     case '05':
       // 상품변경
       return <EquipmentChange {...props} />;
 
     case '06':
+      // 댁내이전
+      return <EquipmentInternalMove {...props} />;
+
     case '07':
-      // 이전설치 (06, 07 공용)
-      return <EquipmentMoveRemoval {...props} />;
+      // 이전설치
+      return <EquipmentRelocate {...props} />;
 
     case '08':
-      // 이전철거 (철거와 동일한 컴포넌트 사용)
-      return <EquipmentTerminate {...props} />;
+      // 이전철거 (재사용 체크박스 있음)
+      return <EquipmentRelocateTerminate {...props} />;
 
     case '09':
       // 부가상품
@@ -87,7 +92,7 @@ export const getWorkTypeName = (wrkCd: string): string => {
     '03': 'A/S',
     '04': '정지',
     '05': '상품변경',
-    '06': '이전설치',
+    '06': '댁내이전',
     '07': '이전설치',
     '08': '이전철거',
     '09': '부가상품',

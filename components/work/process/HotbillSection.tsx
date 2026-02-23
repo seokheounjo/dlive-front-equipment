@@ -1,5 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { getHotbillSummary, HotbillSummary, runHotbillSimulation } from '../../../services/apiService';
+import {
+  getHotbillSummary,
+  HotbillSummary,
+  runHotbillSimulation,
+  getHotbillByContract,
+  getHotbillByCharge,
+  HotbillChargeItem
+} from '../../../services/apiService';
 
 interface HotbillSectionProps {
   custId: string;
@@ -51,6 +58,10 @@ const HotbillSection: React.FC<HotbillSectionProps> = ({
   const [simulating, setSimulating] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // 청구항목별 상세 (getHotbillDtlbyCharge_ForM)
+  const [chargeItems, setChargeItems] = useState<HotbillChargeItem[]>([]);
+  const [chargeTotal, setChargeTotal] = useState(0);
+
   // 핫빌 상태
   const [hasHotbillHistory, setHasHotbillHistory] = useState(false);  // 핫빌 이력 존재 여부
   const [needsRecalculation, setNeedsRecalculation] = useState(false);  // 재계산 필요 여부
@@ -89,6 +100,7 @@ const HotbillSection: React.FC<HotbillSectionProps> = ({
   };
 
   // 핫빌 이력 조회
+  // API 순서: getHotbillDtl -> getHotbillDtlbyCtrt -> getHotbillDtlbyCharge_ForM
   const fetchHotbillHistory = async () => {
     if (!custId || !rcptId) {
       setLoading(false);
@@ -99,11 +111,87 @@ const HotbillSection: React.FC<HotbillSectionProps> = ({
     setError(null);
 
     try {
+      // Step 1: 기본 핫빌 정보 조회 (getHotbillSummary = getHotbillDtl + getHotbillTotalRefundAmt)
       const result = await getHotbillSummary(custId, rcptId);
       setSummary(result);
 
       const hasData = result && result.details && result.details.length > 0;
       setHasHotbillHistory(hasData);
+
+      // Step 2: 계약별 상세 조회 (getHotbillDtlbyCtrt) - CLC_WRK_NO 획득
+      // Step 3: 청구항목별 상세 조회 (getHotbillDtlbyCharge_ForM)
+      if (hasData && result.details.length > 0) {
+        const detail = result.details[0];
+        const billSeqNo = detail.BILL_SEQ_NO || '';
+        const prodGrp = detail.PROD_GRP || '';
+        const detailSoId = detail.SO_ID || soId || '';
+        const detailCtrtId = detail.CTRT_ID || ctrtId || '';
+
+        // CLC_WRK_CL: summary에서 가져온 값 사용 (없으면 '4' = 해지)
+        const clcWrkCl = detail.CLC_WRK_CL || '4';
+        console.log('[HotbillSection] Step 2 - 계약별 조회 파라미터:', { billSeqNo, prodGrp, detailSoId, clcWrkCl, rcptId });
+
+        if (billSeqNo && prodGrp && detailSoId && rcptId) {
+          try {
+            // Step 2: getHotbillDtlbyCtrt 호출하여 CLC_WRK_NO 획득
+            const contractResult = await getHotbillByContract(billSeqNo, prodGrp, detailSoId, clcWrkCl, rcptId);
+            console.log('[HotbillSection] 계약별 조회 결과:', contractResult);
+
+            // CLC_WRK_NO 획득 (첫 번째 항목 또는 CTRT_ID 매칭)
+            let clcWrkNo = '';
+            let targetCtrtId = detailCtrtId;
+
+            if (contractResult.length > 0) {
+              // CTRT_ID가 일치하는 항목 찾기
+              const matchingContract = contractResult.find(c => c.CTRT_ID === detailCtrtId);
+              if (matchingContract) {
+                clcWrkNo = matchingContract.CLC_WRK_NO;
+                targetCtrtId = matchingContract.CTRT_ID;
+              } else {
+                // 없으면 첫 번째 항목 사용
+                clcWrkNo = contractResult[0].CLC_WRK_NO;
+                targetCtrtId = contractResult[0].CTRT_ID || detailCtrtId;
+              }
+            }
+
+            console.log('[HotbillSection] Step 3 - 청구항목 조회 파라미터:', { billSeqNo, clcWrkNo, targetCtrtId });
+
+            // Step 3: getHotbillDtlbyCharge_ForM 호출
+            if (billSeqNo && clcWrkNo && targetCtrtId) {
+              const chargeResult = await getHotbillByCharge(billSeqNo, clcWrkNo, targetCtrtId);
+
+              // 원본 데이터 로그
+              console.log('[HotbillSection] ========== 청구항목 원본 데이터 ==========');
+              console.log('[HotbillSection] 전체 건수:', chargeResult.length);
+              chargeResult.forEach((item, idx) => {
+                console.log(`[HotbillSection] [${idx}] CHRG_ITEM_NM: ${item.CHRG_ITEM_NM}, BILL_AMT: ${item.BILL_AMT}, REQ_YN: ${item.REQ_YN}, SORT_SEQ: ${item.SORT_SEQ}`);
+              });
+
+              // 필터링: BILL_AMT > 0 OR REQ_YN = 'Y'
+              const filteredItems = chargeResult
+                .filter(item => item.BILL_AMT > 0 || item.REQ_YN === 'Y')
+                .sort((a, b) => parseInt(a.SORT_SEQ || '0') - parseInt(b.SORT_SEQ || '0'));
+
+              // 필터링 후 데이터 로그
+              console.log('[HotbillSection] ========== 필터링 후 데이터 (BILL_AMT > 0 OR REQ_YN = Y) ==========');
+              console.log('[HotbillSection] 필터링 후 건수:', filteredItems.length);
+              filteredItems.forEach((item, idx) => {
+                console.log(`[HotbillSection] [${idx}] CHRG_ITEM_NM: ${item.CHRG_ITEM_NM}, BILL_AMT: ${item.BILL_AMT}, REQ_YN: ${item.REQ_YN}, SORT_SEQ: ${item.SORT_SEQ}`);
+              });
+
+              setChargeItems(filteredItems);
+
+              // 합계 계산
+              const total = filteredItems.reduce((sum, item) => sum + item.BILL_AMT, 0);
+              console.log('[HotbillSection] 합계:', total);
+              setChargeTotal(total);
+            }
+          } catch (chargeErr) {
+            console.warn('[HotbillSection] 청구항목 조회 실패 (무시):', chargeErr);
+            // 청구항목 조회 실패해도 기본 핫빌 정보는 유지
+          }
+        }
+      }
 
       // 재계산 필요 여부 판단
       const todayStr = getTodayStr();
@@ -159,15 +247,59 @@ const HotbillSection: React.FC<HotbillSectionProps> = ({
         const newRcptId = simResult.RCPT_ID || rcptId;
         const result = await getHotbillSummary(custId, newRcptId);
         setSummary(result);
-        setHasHotbillHistory(result && result.details && result.details.length > 0);
+        const hasData = result && result.details && result.details.length > 0;
+        setHasHotbillHistory(hasData);
+
+        // 청구항목별 상세 조회 (재계산 후)
+        if (hasData && result.details.length > 0) {
+          const detail = result.details[0];
+          const billSeqNo = detail.BILL_SEQ_NO || '';
+          const prodGrp = detail.PROD_GRP || '';
+          const detailSoId = detail.SO_ID || soId || '';
+          const detailCtrtId = detail.CTRT_ID || ctrtId || '';
+
+          if (billSeqNo && prodGrp && detailSoId && rcptId) {
+            try {
+              // Step 2: getHotbillDtlbyCtrt 호출 (CLC_WRK_CL='4' 해지)
+              const contractResult = await getHotbillByContract(billSeqNo, prodGrp, detailSoId, '4', rcptId);
+
+              let clcWrkNo = '';
+              let targetCtrtId = detailCtrtId;
+
+              if (contractResult.length > 0) {
+                const matchingContract = contractResult.find(c => c.CTRT_ID === detailCtrtId);
+                if (matchingContract) {
+                  clcWrkNo = matchingContract.CLC_WRK_NO;
+                  targetCtrtId = matchingContract.CTRT_ID;
+                } else {
+                  clcWrkNo = contractResult[0].CLC_WRK_NO;
+                  targetCtrtId = contractResult[0].CTRT_ID || detailCtrtId;
+                }
+              }
+
+              // Step 3: getHotbillDtlbyCharge_ForM 호출
+              if (billSeqNo && clcWrkNo && targetCtrtId) {
+                const chargeResult = await getHotbillByCharge(billSeqNo, clcWrkNo, targetCtrtId);
+                const filteredItems = chargeResult
+                  .filter(item => item.BILL_AMT > 0 || item.REQ_YN === 'Y')
+                  .sort((a, b) => parseInt(a.SORT_SEQ || '0') - parseInt(b.SORT_SEQ || '0'));
+                setChargeItems(filteredItems);
+                const total = filteredItems.reduce((sum, item) => sum + item.BILL_AMT, 0);
+                setChargeTotal(total);
+              }
+            } catch (chargeErr) {
+              console.warn('[HotbillSection] 청구항목 조회 실패 (무시):', chargeErr);
+            }
+          }
+        }
       } else {
         setError(simResult.message || '핫빌 재계산 실패');
-        showToast?.(simResult.message || '핫빌 재계산 실패', 'error');
+        showToast?.(simResult.message || '핫빌 재계산 실패', 'error', true);
       }
     } catch (err: any) {
       console.error('[HotbillSection] 재계산 오류:', err);
       setError(err.message || '핫빌 재계산 중 오류가 발생했습니다');
-      showToast?.(err.message || '핫빌 재계산 중 오류가 발생했습니다', 'error');
+      showToast?.(err.message || '핫빌 재계산 중 오류가 발생했습니다', 'error', true);
     } finally {
       setSimulating(false);
       onSimulatingChange?.(false);
@@ -228,7 +360,7 @@ const HotbillSection: React.FC<HotbillSectionProps> = ({
       <div className="p-2.5 sm:p-3 space-y-2.5 sm:space-y-3">
         {/* 해지희망일 */}
         <div className="bg-gray-50 rounded-lg p-2.5 sm:p-3">
-          <div className="text-[10px] sm:text-xs text-gray-500 mb-1">해지희망일</div>
+          <div className="text-[0.625rem] sm:text-xs text-gray-500 mb-1">해지희망일</div>
           <div className="text-xs sm:text-sm font-semibold text-gray-900">{formatDate(termHopeDt)}</div>
         </div>
 
@@ -236,14 +368,14 @@ const HotbillSection: React.FC<HotbillSectionProps> = ({
         {loading && (
           <div className="flex flex-col items-center justify-center py-5 sm:py-6 gap-1.5 sm:gap-2">
             <div className="animate-spin rounded-full h-5 w-5 sm:h-6 sm:w-6 border-b-2 border-blue-600"></div>
-            <div className="text-gray-500 text-[10px] sm:text-xs">핫빌 이력 조회 중...</div>
+            <div className="text-gray-500 text-[0.625rem] sm:text-xs">핫빌 이력 조회 중...</div>
           </div>
         )}
 
         {/* 에러 */}
         {!loading && error && (
           <div className="flex items-center justify-center py-3 sm:py-4 px-3 sm:px-4">
-            <div className="text-red-500 text-[10px] sm:text-xs text-center">{error}</div>
+            <div className="text-red-500 text-[0.625rem] sm:text-xs text-center">{error}</div>
           </div>
         )}
 
@@ -254,37 +386,48 @@ const HotbillSection: React.FC<HotbillSectionProps> = ({
             {hasHotbillData && (
               <div className="space-y-2.5 sm:space-y-3">
                 <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
-                  {/* 테이블 헤더 */}
+                  {/* 테이블 헤더 - 청구항목별 상세 */}
                   <div className="grid grid-cols-12 bg-gray-100 border-b border-gray-200">
-                    <div className="col-span-3 px-1.5 sm:px-2 py-1.5 sm:py-2 text-[10px] sm:text-xs font-semibold text-gray-700 text-center">서비스</div>
-                    <div className="col-span-6 px-1.5 sm:px-2 py-1.5 sm:py-2 text-[10px] sm:text-xs font-semibold text-gray-700 text-center">요금항목명</div>
-                    <div className="col-span-3 px-1.5 sm:px-2 py-1.5 sm:py-2 text-[10px] sm:text-xs font-semibold text-gray-700 text-center">청구금액</div>
+                    <div className="col-span-8 px-1.5 sm:px-2 py-1.5 sm:py-2 text-[0.625rem] sm:text-xs font-semibold text-gray-700 text-center">청구항목명</div>
+                    <div className="col-span-4 px-1.5 sm:px-2 py-1.5 sm:py-2 text-[0.625rem] sm:text-xs font-semibold text-gray-700 text-center">청구금액</div>
                   </div>
 
-                  {/* 테이블 바디 */}
+                  {/* 테이블 바디 - chargeItems 우선, 없으면 summary.details 사용 */}
                   <div className="divide-y divide-gray-100 max-h-40 sm:max-h-48 overflow-y-auto">
-                    {summary!.details.map((detail, index) => (
-                      <div key={index} className={`grid grid-cols-12 ${index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}`}>
-                        <div className="col-span-3 px-1.5 sm:px-2 py-1.5 sm:py-2 text-[10px] sm:text-xs text-gray-700 text-center">
-                          {detail.SVC_NM || detail.PROD_GRP || '-'}
+                    {chargeItems.length > 0 ? (
+                      // 청구항목별 상세 (getHotbillDtlbyCharge_ForM)
+                      chargeItems.map((item, index) => (
+                        <div key={index} className={`grid grid-cols-12 ${index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}`}>
+                          <div className="col-span-8 px-1.5 sm:px-2 py-1.5 sm:py-2 text-[0.625rem] sm:text-xs text-gray-900">
+                            {item.CHRG_ITEM_NM || '-'}
+                          </div>
+                          <div className="col-span-4 px-1.5 sm:px-2 py-1.5 sm:py-2 text-[0.625rem] sm:text-xs font-medium text-gray-900 text-right">
+                            {formatAmount(item.BILL_AMT)}
+                          </div>
                         </div>
-                        <div className="col-span-6 px-1.5 sm:px-2 py-1.5 sm:py-2 text-[10px] sm:text-xs text-gray-900">
-                          {detail.CHRG_ITM_NM || detail.CHG_NM || '-'}
+                      ))
+                    ) : (
+                      // 기본 핫빌 상세 (summary.details)
+                      summary!.details.map((detail, index) => (
+                        <div key={index} className={`grid grid-cols-12 ${index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}`}>
+                          <div className="col-span-8 px-1.5 sm:px-2 py-1.5 sm:py-2 text-[0.625rem] sm:text-xs text-gray-900">
+                            {detail.CHRG_ITM_NM || detail.CHG_NM || '-'}
+                          </div>
+                          <div className="col-span-4 px-1.5 sm:px-2 py-1.5 sm:py-2 text-[0.625rem] sm:text-xs font-medium text-gray-900 text-right">
+                            {formatAmount(detail.BILL_AMT)}
+                          </div>
                         </div>
-                        <div className="col-span-3 px-1.5 sm:px-2 py-1.5 sm:py-2 text-[10px] sm:text-xs font-medium text-gray-900 text-right">
-                          {formatAmount(detail.BILL_AMT)}
-                        </div>
-                      </div>
-                    ))}
+                      ))
+                    )}
                   </div>
                 </div>
 
-                {/* 반환금 합계 */}
+                {/* 청구금액 합계 */}
                 <div className="bg-blue-50 rounded-lg border border-blue-200 p-2.5 sm:p-3">
                   <div className="flex items-center justify-end gap-1.5 sm:gap-2">
-                    <span className="text-xs sm:text-sm font-semibold text-gray-800 whitespace-nowrap">반환금 합계:</span>
+                    <span className="text-xs sm:text-sm font-semibold text-gray-800 whitespace-nowrap">합계:</span>
                     <span className="text-base sm:text-lg font-bold text-blue-700">
-                      {formatAmount(summary!.refundAmount || summary!.totalAmount)}원
+                      {formatAmount(chargeTotal > 0 ? chargeTotal : (summary!.refundAmount || summary!.totalAmount))}원
                     </span>
                   </div>
                 </div>

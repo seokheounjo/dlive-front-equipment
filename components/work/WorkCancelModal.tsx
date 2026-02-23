@@ -1,10 +1,10 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { X } from 'lucide-react';
+import { X, AlertTriangle } from 'lucide-react';
 import { WorkOrder, WorkOrderType } from '../../types';
 import Select from '../ui/Select';
 import { validateWorkCancel, isCancellable } from '../../utils/workValidation';
 import { isValidMemo } from '../../utils/formValidation';
-import { getCommonCodes } from '../../services/apiService';
+import { getCommonCodes, getWorkCancelInfo, getOSTInfo, modOstWorkCancel, WorkCancelInfo, OSTInfo } from '../../services/apiService';
 
 interface WorkCancelModalProps {
   isOpen: boolean;
@@ -37,27 +37,97 @@ const WorkCancelModal: React.FC<WorkCancelModalProps> = ({
 }) => {
   const [cancelReason, setCancelReason] = useState('[]');
   const [callDate, setCallDate] = useState(new Date().toISOString().slice(0, 10));
+
+  // 작업ID 포맷팅 (100-840-8270 형식, 3-3-4 자리)
+  const formatWorkId = (id: string): string => {
+    if (!id) return '';
+    const digits = id.replace(/\D/g, ''); // 숫자만 추출
+    if (digits.length !== 10) return id; // 10자리가 아니면 원본 반환
+    return `${digits.slice(0, 3)}-${digits.slice(3, 6)}-${digits.slice(6)}`;
+  };
   const [procCt, setProcCt] = useState(''); // 비고
   const [errors, setErrors] = useState<{ [key: string]: string }>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [allCancelReasons, setAllCancelReasons] = useState<any[]>([]);
+
+  // OST (전자계약반환) 관련 state
+  const [ostWorkableStat, setOstWorkableStat] = useState<string>('X');
+  const [hotbillYn, setHotbillYn] = useState<string>('N');
+  const [isOstChecking, setIsOstChecking] = useState(false);
+  const [showHotbillWarning, setShowHotbillWarning] = useState(false);
 
   // 콜센터 지점 코드 목록 (레거시 _CALL_CENTER_SO 변수 + 하드코딩)
   // cm_lib.js: var _CALL_CENTER_SO = "600,700,701,710,800";
   // mowoa10m01.xml: indexOf("802,803,804", s_so_id)
   const CALL_CENTER_SO_LIST = ['600', '700', '701', '710', '800', '802', '803', '804'];
 
-  // 작업 취소 가능 여부 확인
+  // 작업 취소 가능 여부 확인 + OST 체크
   useEffect(() => {
-    if (isOpen && workOrder.WRK_STAT_CD) {
-      if (!isCancellable(workOrder.WRK_STAT_CD)) {
+    const checkAndFetchOst = async () => {
+      console.log('[WorkCancelModal] useEffect 실행 - isOpen:', isOpen, 'WRK_STAT_CD:', workOrder.WRK_STAT_CD, 'workOrder.id:', workOrder.id);
+
+      if (!isOpen) return;
+
+      if (workOrder.WRK_STAT_CD && !isCancellable(workOrder.WRK_STAT_CD)) {
         if (showToast) {
           showToast('접수 또는 할당 상태에서만 작업을 취소할 수 있습니다.', 'error');
         }
         onClose();
+        return;
       }
-    }
-  }, [isOpen, workOrder.WRK_STAT_CD, showToast, onClose]);
+
+      // OST (전자계약반환) 상태 체크
+      if (!workOrder.id) {
+        console.log('[OST체크] workOrder.id가 없음 - 스킵');
+        return;
+      }
+
+      setIsOstChecking(true);
+      try {
+        console.log('[OST체크] getWorkCancelInfo 호출:', workOrder.id);
+        const cancelInfo = await getWorkCancelInfo({
+          WRK_ID: workOrder.id,
+          RCPT_ID: workOrder.RCPT_ID,
+          CUST_ID: workOrder.customer?.id
+        });
+
+        if (cancelInfo) {
+          console.log('[OST체크] 응답:', cancelInfo);
+          setOstWorkableStat(cancelInfo.OST_WORKABLE_STAT || 'X');
+          setHotbillYn(cancelInfo.HOTBILL_YN || 'N');
+
+          const stat = cancelInfo.OST_WORKABLE_STAT;
+          const wrkCd = workOrder.WRK_CD;
+
+          // OST_WORKABLE_STAT: 0,3,4 -> 취소 불가
+          // 0: 취소x 완료x, 1: 취소o, 2: 취소o 완료o, 3: 완료o, 4: 화면취소x 배치취소o, X: OST대상아님
+          if (stat === '0' || stat === '3' || stat === '4') {
+            let msg = '';
+            if (wrkCd === '01') {
+              msg = '원스톱전환신청건으로 설치 작업취소는 불가능한 상태입니다.';
+            } else if (wrkCd === '02') {
+              msg = '원스톱전환해지건으로 철거 작업취소는 불가능한 상태입니다.';
+            } else {
+              msg = '원스톱전환 관련 건으로 작업취소가 불가능한 상태입니다.';
+            }
+            if (showToast) {
+              showToast(msg, 'error');
+            }
+            onClose();
+            return;
+          }
+        }
+      } catch (error) {
+        console.error('[OST체크] 에러:', error);
+        // 에러 시에도 진행 가능하도록 기본값 유지
+        setOstWorkableStat('X');
+      } finally {
+        setIsOstChecking(false);
+      }
+    };
+
+    checkAndFetchOst();
+  }, [isOpen, workOrder.id, workOrder.WRK_STAT_CD, workOrder.RCPT_ID, workOrder.customer?.id, workOrder.WRK_CD, showToast, onClose]);
 
   // 공통코드 로드 (모달 열릴 때마다)
   useEffect(() => {
@@ -91,10 +161,10 @@ const WorkCancelModal: React.FC<WorkCancelModalProps> = ({
       reasons.unshift({ value: '[]', label: '(선택 안함)', refCode: '', refCode2: '', refCode12: '' });
 
       setAllCancelReasons(reasons);
-      console.log('✅ [작업취소] 취소사유 로드 완료:', reasons.length, '개');
+      console.log('[작업취소] 취소사유 로드 완료:', reasons.length, '개');
       console.log('📋 [작업취소] 샘플 데이터:', reasons.slice(0, 3));
     } catch (error) {
-      console.error('❌ [작업취소] 취소사유 로드 실패:', error);
+      console.error('[작업취소] 취소사유 로드 실패:', error);
       // 에러 시 (선택 안함)만
       setAllCancelReasons([{ value: '[]', label: '(선택 안함)', refCode: '', refCode2: '', refCode12: '' }]);
     }
@@ -141,7 +211,7 @@ const WorkCancelModal: React.FC<WorkCancelModalProps> = ({
     const refCodeWithSuffix = refCode + '3'; // 예: '013', '023', '033'
 
     console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-    console.log('🔍 [취소사유 필터] 필터링 시작');
+    console.log('[취소사유 필터] 필터링 시작');
     console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
     console.log('📌 WRK_CD:', wrkCd, '→ refCode:', refCode, '→ refCodeWithSuffix:', refCodeWithSuffix);
     console.log('📌 WRK_RCPT_CL:', wrkRcptCl);
@@ -151,42 +221,42 @@ const WorkCancelModal: React.FC<WorkCancelModalProps> = ({
     let filtered = allCancelReasons.filter(reason => {
       // 빈 값은 항상 포함
       if (reason.value === '[]') {
-        console.log('  ✅ 빈 값 포함');
+        console.log('  빈 값 포함');
         return true;
       }
 
       // REF_CODE가 일치하는 것만
       if (reason.refCode !== refCodeWithSuffix) {
-        console.log(`  ❌ [${reason.value}] ${reason.label}: refCode="${reason.refCode}" != "${refCodeWithSuffix}"`);
+        console.log(`  [${reason.value}] ${reason.label}: refCode="${reason.refCode}" != "${refCodeWithSuffix}"`);
         return false;
       }
 
-      console.log(`  ✅ [${reason.value}] ${reason.label}: refCode="${reason.refCode}" 일치`);
+      console.log(`  [${reason.value}] ${reason.label}: refCode="${reason.refCode}" 일치`);
       return true;
     });
 
     // AS(03) 작업인 경우 추가 필터링
     if (refCode === '03') {
-      console.log('🔧 [AS 필터] AS 작업 추가 필터링 시작');
-      console.log('🔧 [AS 필터] WRK_RCPT_CL:', wrkRcptCl);
+      console.log('[AS 필터] AS 작업 추가 필터링 시작');
+      console.log('[AS 필터] WRK_RCPT_CL:', wrkRcptCl);
 
       // CS접수(JJ)건: 033G만 (레거시: sFilter = "COMMON_CD=='033G'")
       if (wrkRcptCl === 'JJ') {
-        console.log('🔧 [AS 필터] CS접수(JJ) - 033G만 허용');
+        console.log('[AS 필터] CS접수(JJ) - 033G만 허용');
         filtered = filtered.filter(r => r.value === '033G');
       }
       // 일반해지(JH)건: 033H만 (레거시: sFilter = "COMMON_CD=='033H'")
       else if (wrkRcptCl === 'JH') {
-        console.log('🔧 [AS 필터] 일반해지(JH) - 033H만 허용');
+        console.log('[AS 필터] 일반해지(JH) - 033H만 허용');
         filtered = filtered.filter(r => r.value === '033H');
       }
       // 그 외
       else {
-        console.log('🔧 [AS 필터] 일반 AS - 복잡한 필터링 적용');
+        console.log('[AS 필터] 일반 AS - 복잡한 필터링 적용');
         filtered = filtered.filter(r => {
           // 033G 제외
           if (r.value === '033G') {
-            console.log(`    ❌ [${r.value}] 033G 제외`);
+            console.log(`    [${r.value}] 033G 제외`);
             return false;
           }
 
@@ -195,25 +265,25 @@ const WorkCancelModal: React.FC<WorkCancelModalProps> = ({
             const isCallCenter = CALL_CENTER_SO_LIST.includes(soId || '');
             console.log(`    🏢 [${r.value}] refCode2='Y' (콜센터전용), isCallCenter=${isCallCenter}`);
             if (!isCallCenter) {
-              console.log(`    ❌ [${r.value}] 콜센터 아니므로 제외`);
+              console.log(`    [${r.value}] 콜센터 아니므로 제외`);
               return false;
             }
           }
 
           // REF_CODE12 = 'JH'인 것 제외 (033H)
           if (r.refCode12 === 'JH') {
-            console.log(`    ❌ [${r.value}] refCode12='JH' (033H) 제외`);
+            console.log(`    [${r.value}] refCode12='JH' (033H) 제외`);
             return false;
           }
 
-          console.log(`    ✅ [${r.value}] 통과`);
+          console.log(`    [${r.value}] 통과`);
           return true;
         });
       }
     }
 
     console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-    console.log('✅ [취소사유 필터] 최종 결과:', filtered.length, '개');
+    console.log('[취소사유 필터] 최종 결과:', filtered.length, '개');
     console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
 
     return filtered;
@@ -238,7 +308,89 @@ const WorkCancelModal: React.FC<WorkCancelModalProps> = ({
     }
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  // Hotbill 경고 확인 후 실제 취소 진행
+  const proceedWithCancel = async () => {
+    setShowHotbillWarning(false);
+    await executeCancel();
+  };
+
+  // 실제 취소 실행 함수
+  const executeCancel = async () => {
+    setIsSubmitting(true);
+    const wrkCd = workOrder.WRK_CD || '';
+
+    console.log('[작업취소] OST_WORKABLE_STAT:', ostWorkableStat, 'WRK_CD:', wrkCd);
+
+    // OST_WORKABLE_STAT가 1 또는 2이고 설치(01) 또는 철거(02)인 경우 OST 연동 취소
+    if ((ostWorkableStat === '1' || ostWorkableStat === '2') && (wrkCd === '01' || wrkCd === '02')) {
+      console.log('[작업취소] OST 연동 취소 진행');
+
+      try {
+        // getOSTInfo 호출하여 ost_busi 확인
+        const ostInfo = await getOSTInfo({
+          RCPT_ID: workOrder.RCPT_ID || '',
+          CUST_ID: workOrder.customer?.id || '',
+          AGENT_FL: '1'  // 파견업체(반환신규)
+        });
+
+        if (ostInfo) {
+          const ost_busi = (ostInfo.AGENT_FL || '') + (ostInfo.BUSI_TYPE || '') + (ostInfo.RES_CD || '');
+          console.log('[작업취소] OST_BUSI:', ost_busi);
+
+          // 전자계약반환시스템과 연동(0400,0420) 필요한 경우
+          if (ost_busi === '10310BS0000' || ost_busi === '10320BS0000') {
+            console.log('[작업취소] modOstWorkCancel API 호출');
+
+            const result = await modOstWorkCancel({
+              RCPT_ID: workOrder.RCPT_ID || '',
+              WRK_CD: wrkCd,
+              UNPROC_RESN_CD: cancelReason,
+              WRK_STAT_CD: '3',
+              PROC_CT: procCt || '',
+              REG_UID: userId || ''
+            });
+
+            if (result.code === 'SUCCESS' || result.message === 'SUCCESS') {
+              if (showToast) showToast('작업이 취소되었습니다.', 'success');
+              onClose();
+            } else {
+              if (showToast) showToast(result.message || '작업 취소에 실패했습니다.', 'error');
+            }
+            setIsSubmitting(false);
+            return;
+          }
+        }
+        // OST 연동이 필요 없으면 일반 취소로 진행
+      } catch (error) {
+        console.error('[작업취소] OST 연동 에러:', error);
+        if (showToast) showToast('OST 연동 중 오류가 발생했습니다.', 'error');
+        setIsSubmitting(false);
+        return;
+      }
+    }
+
+    // 일반 취소 진행
+    const wrkCode = getWorkTypeCode(workOrder);
+
+    const cancelData: CancelData = {
+      WRK_ID: workOrder.id,
+      WRK_STAT_CD: "3",
+      UNPROC_RESN_CD: cancelReason,
+      CALL_CNTN_DATE: callDate.replace(/-/g, ''),
+      CHG_UID: userId || "",
+      REG_UID: userId || "",
+      PROC_CT: procCt || "",
+      RCPT_ID: workOrder.RCPT_ID || "",
+      WRK_CD: wrkCode
+    };
+
+    console.log('작업취소 전송 데이터:', cancelData);
+
+    onConfirm(cancelData);
+    setIsSubmitting(false);
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
     // 중복 제출 방지
@@ -253,7 +405,7 @@ const WorkCancelModal: React.FC<WorkCancelModalProps> = ({
       // 검증 실패 시 에러 메시지 표시
       const errorMessage = validation.errors.join('\n');
       if (showToast) {
-        showToast(errorMessage, 'error');
+        showToast(errorMessage, 'error', true);
       }
       return;
     }
@@ -266,37 +418,20 @@ const WorkCancelModal: React.FC<WorkCancelModalProps> = ({
       return;
     }
 
-    setIsSubmitting(true);
-
-    const wrkCode = getWorkTypeCode(workOrder);
-
-    console.log('🔍 작업취소 - userId prop:', userId);
-    console.log('🔍 작업취소 - workOrder:', workOrder);
-
-    const cancelData: CancelData = {
-      WRK_ID: workOrder.id,
-      WRK_STAT_CD: "3",
-      UNPROC_RESN_CD: cancelReason,
-      CALL_CNTN_DATE: callDate.replace(/-/g, ''),
-      CHG_UID: userId || "",
-      REG_UID: userId || "",
-      PROC_CT: procCt || "",
-      RCPT_ID: "",
-      WRK_CD: wrkCode
-    };
-
-    console.log('🔍 작업취소 전송 데이터:', cancelData);
-    console.log('🔍 REG_UID:', cancelData.REG_UID);
-    console.log('🔍 CHG_UID:', cancelData.CHG_UID);
-
-    if (!cancelData.REG_UID || !cancelData.CHG_UID) {
+    if (!userId) {
       if (showToast) showToast('사용자 정보(사번)가 없습니다. 다시 로그인해주세요.', 'error');
-      setIsSubmitting(false);
       return;
     }
 
-    onConfirm(cancelData);
-    setIsSubmitting(false);
+    // 이전설치(07) + HOTBILL_YN='Y' 경고 표시
+    const wrkCd = workOrder.WRK_CD || '';
+    if (wrkCd === '07' && hotbillYn === 'Y') {
+      // TODO: 취소사유의 REF_CODE5가 'N'이 아닌 경우만 경고 (현재는 일단 모든 경우 경고)
+      setShowHotbillWarning(true);
+      return;
+    }
+
+    await executeCancel();
   };
 
   if (!isOpen) return null;
@@ -331,7 +466,7 @@ const WorkCancelModal: React.FC<WorkCancelModalProps> = ({
             </div>
             <div className="flex justify-between">
               <span className="text-sm text-gray-600">작업 ID:</span>
-              <span className="text-sm font-mono">{workOrder.id}</span>
+              <span className="text-sm font-mono">{formatWorkId(workOrder.id)}</span>
             </div>
           </div>
         </div>
@@ -353,18 +488,23 @@ const WorkCancelModal: React.FC<WorkCancelModalProps> = ({
               />
             </div>
 
-            {/* 호출 일자 */}
+            {/* 전화연결일 */}
             <div>
               <label className="block text-sm font-semibold text-gray-700 mb-2">
-                호출 일자 <span className="text-red-500">*</span>
+                전화연결일 <span className="text-red-500">*</span>
               </label>
-              <input
-                type="date"
-                value={callDate}
-                onChange={(e) => setCallDate(e.target.value)}
-                className="w-full p-3 border border-gray-300 rounded-lg focus:ring-cyan-500 focus:border-cyan-500"
-                required
-              />
+              <div className="relative">
+                <input
+                  type="date"
+                  value={callDate}
+                  onChange={(e) => setCallDate(e.target.value)}
+                  className="w-full p-3 border border-gray-300 rounded-lg focus:ring-cyan-500 focus:border-cyan-500 opacity-0 absolute inset-0 cursor-pointer"
+                  required
+                />
+                <div className="w-full p-3 border border-gray-300 rounded-lg bg-white text-gray-900">
+                  {callDate || 'YYYY-MM-DD'}
+                </div>
+              </div>
             </div>
 
             {/* 비고 */}
@@ -411,16 +551,50 @@ const WorkCancelModal: React.FC<WorkCancelModalProps> = ({
             </button>
             <button
               type="submit"
-              disabled={isSubmitting || (cancelReason && cancelReason.endsWith('Z') && procCt.trim().length < 10)}
+              disabled={isSubmitting || isOstChecking || (cancelReason && cancelReason.endsWith('Z') && procCt.trim().length < 10)}
               className={`flex-1 px-4 py-3 bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-white rounded-lg font-semibold transition-all duration-200 ${
-                (isSubmitting || (cancelReason && cancelReason.endsWith('Z') && procCt.trim().length < 10)) ? 'opacity-50 cursor-not-allowed' : ''
+                (isSubmitting || isOstChecking || (cancelReason && cancelReason.endsWith('Z') && procCt.trim().length < 10)) ? 'opacity-50 cursor-not-allowed' : ''
               }`}
             >
-              {isSubmitting ? '처리중...' : '작업 취소 확정'}
+              {isOstChecking ? '확인중...' : isSubmitting ? '처리중...' : '작업 취소 확정'}
             </button>
           </div>
         </form>
       </div>
+
+      {/* Hotbill (단말반환대금) 경고 모달 */}
+      {showHotbillWarning && (
+        <div className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center p-4 z-[10000]">
+          <div className="bg-white rounded-xl shadow-2xl max-w-sm w-full p-6 mx-4">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-12 h-12 bg-amber-100 rounded-full flex items-center justify-center">
+                <AlertTriangle className="w-6 h-6 text-amber-600" />
+              </div>
+              <h4 className="text-lg font-bold text-gray-800">단말반환대금 안내</h4>
+            </div>
+            <div className="text-sm text-gray-700 space-y-2 mb-6">
+              <p>이전철거 작업이 완료되어 <strong className="text-amber-700">단말반환대금이 청구</strong>됩니다.</p>
+              <p className="text-gray-600">단말반환대금은 고객센터에서 청구하지 않고 CONA 결재를 통해서 또는 작업지시 주변금액내역에서 확인이 가능합니다.</p>
+            </div>
+            <div className="flex gap-3">
+              <button
+                type="button"
+                onClick={() => setShowHotbillWarning(false)}
+                className="flex-1 px-4 py-2.5 bg-gray-200 hover:bg-gray-300 text-gray-700 rounded-lg font-medium transition-colors"
+              >
+                취소
+              </button>
+              <button
+                type="button"
+                onClick={proceedWithCancel}
+                className="flex-1 px-4 py-2.5 bg-amber-500 hover:bg-amber-600 text-white rounded-lg font-medium transition-colors"
+              >
+                확인 후 진행
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

@@ -106,6 +106,18 @@ const WRK_CD_NAMES: Record<string, string> = {
   '09': '부가상품',
 };
 
+// 설치유형(INSTL_TP) 코드 -> 이름 매핑 (CMOT004)
+const INSTL_TP_NAMES: Record<string, string> = {
+  '11': '신규',
+  '22': '단독',
+  '33': '연결',
+  '44': 'IF',
+  '55': 'FTTB',
+  '66': 'FTTH',
+  '77': '철거',
+  '88': '기타',
+};
+
 const WorkCompleteSummary: React.FC<WorkCompleteSummaryProps> = ({
   workType,
   workTypeName,
@@ -229,7 +241,7 @@ const WorkCompleteSummary: React.FC<WorkCompleteSummaryProps> = ({
             <Wrench className="w-3.5 h-3.5 text-gray-500 flex-shrink-0" />
             <span className="text-gray-600 w-16">설치유형</span>
             <span className="font-medium text-gray-900">
-              {_installTypeName || _installType}
+              {_installTypeName || INSTL_TP_NAMES[_installType] || _installType}
             </span>
           </div>
         )}
@@ -245,8 +257,8 @@ const WorkCompleteSummary: React.FC<WorkCompleteSummaryProps> = ({
           </div>
         )}
 
-        {/* 설치위치 */}
-        {(_installLocation || installLocationText) && (
+        {/* 설치위치 - 데이터 없으면 숨김 */}
+        {locationString && locationString !== '-' && (
           <div className="flex items-center gap-2">
             <MapPin className="w-3.5 h-3.5 text-gray-500 flex-shrink-0" />
             <span className="text-gray-600 w-16">설치위치</span>
@@ -282,33 +294,57 @@ const WorkCompleteSummary: React.FC<WorkCompleteSummaryProps> = ({
         {/* 장비 목록 */}
         {(_installedEquipments.length > 0 || _removedEquipments.length > 0) && (
           <div className="mt-2 pt-2 border-t border-blue-200">
-            <div className="flex items-center gap-2 mb-1">
+            <div className="flex items-center gap-2 mb-2">
               <Package className="w-3.5 h-3.5 text-gray-500" />
               <span className="text-gray-600 font-medium">장비</span>
             </div>
-            <div className="ml-5 space-y-1">
-              {_installedEquipments.map((eq, idx) => (
-                <div key={`install-${idx}`} className="flex items-center gap-1 text-green-700">
-                  <span className="text-green-500">+</span>
-                  <span className="truncate max-w-[200px]">
-                    {getEquipmentName(eq)}
-                    {getEquipmentSerial(eq) && (
-                      <span className="text-gray-500 ml-1">({getEquipmentSerial(eq).slice(-6)})</span>
-                    )}
-                  </span>
+            <div className="space-y-2">
+              {/* 설치장비 섹션 */}
+              {_installedEquipments.length > 0 && (
+                <div className="bg-green-50 border border-green-200 rounded-lg p-2">
+                  <div className="mb-1.5">
+                    <span className="text-green-600 font-semibold text-xs">설치장비</span>
+                  </div>
+                  <div className="space-y-1">
+                    {_installedEquipments.map((eq, idx) => (
+                      <div key={`install-${idx}`} className="text-green-700">
+                        <div className="flex items-center gap-1">
+                          <span className="text-green-500 font-bold">+</span>
+                          <span className="font-medium text-xs">{getEquipmentName(eq)}</span>
+                        </div>
+                        {getEquipmentSerial(eq) && (
+                          <div className="ml-4 text-green-600/70 text-[0.625rem] break-all">
+                            S/N: {getEquipmentSerial(eq)}
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
                 </div>
-              ))}
-              {_removedEquipments.map((eq, idx) => (
-                <div key={`remove-${idx}`} className="flex items-center gap-1 text-red-700">
-                  <span className="text-red-500">-</span>
-                  <span className="truncate max-w-[200px]">
-                    {getEquipmentName(eq)}
-                    {getEquipmentSerial(eq) && (
-                      <span className="text-gray-500 ml-1">({getEquipmentSerial(eq).slice(-6)})</span>
-                    )}
-                  </span>
+              )}
+              {/* 철거장비 섹션 */}
+              {_removedEquipments.length > 0 && (
+                <div className="bg-red-50 border border-red-200 rounded-lg p-2">
+                  <div className="mb-1.5">
+                    <span className="text-red-600 font-semibold text-xs">철거장비</span>
+                  </div>
+                  <div className="space-y-1">
+                    {_removedEquipments.map((eq, idx) => (
+                      <div key={`remove-${idx}`} className="text-red-700">
+                        <div className="flex items-center gap-1">
+                          <span className="text-red-500 font-bold">-</span>
+                          <span className="font-medium text-xs">{getEquipmentName(eq)}</span>
+                        </div>
+                        {getEquipmentSerial(eq) && (
+                          <div className="ml-4 text-red-600/70 text-[0.625rem] break-all">
+                            S/N: {getEquipmentSerial(eq)}
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
                 </div>
-              ))}
+              )}
             </div>
           </div>
         )}

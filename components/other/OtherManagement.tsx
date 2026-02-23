@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '../ui/tabs';
 import SignalHistoryList from '../equipment/SignalHistoryList';
+import SignalIntegration from './SignalIntegration';
 import LGUConstructionRequest from '../other/LGUConstructionRequest';
 import LGUNetworkFault from '../other/LGUNetworkFault';
 import ComingSoon from '../layout/ComingSoon';
@@ -114,7 +115,7 @@ const OtherManagement: React.FC<OtherManagementProps> = ({
 
         {/* 신호연동관리 탭 */}
         <TabsContent value="signal-interlock" className="px-3 pt-1">
-          <SignalHistoryList onBack={onNavigateToMenu} />
+          <SignalIntegration onBack={onNavigateToMenu} userInfo={userInfo} showToast={showToast} />
         </TabsContent>
 
         {/* LGU 공사요청진행정보 탭 */}

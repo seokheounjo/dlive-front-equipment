@@ -61,12 +61,45 @@ export const clearSession = (key: string): void => {
 
 /**
  * 모든 세션 데이터 삭제
+ * - SESSION_KEYS에 정의된 키들
+ * - Zustand persist 저장소 (dlive-*)
+ * - 작업완료 임시저장 (work_complete_draft_*)
  */
 export const clearAllSessions = (): void => {
   try {
     if (typeof window !== 'undefined') {
+      // 1. SESSION_KEYS에 정의된 키들 삭제
       Object.values(SESSION_KEYS).forEach(key => {
         localStorage.removeItem(key);
+      });
+
+      // 2. Zustand persist 저장소 삭제
+      const zustandKeys = [
+        'dlive-work-equipment-storage',  // 작업별 장비 상태
+        'dlive-work-process-storage',    // 작업 프로세스 상태
+        'dlive-equipment-storage',       // 장비 필터
+        'dlive-ui-storage',              // UI 상태
+      ];
+      zustandKeys.forEach(key => {
+        localStorage.removeItem(key);
+      });
+
+      // 3. 작업 관련 임시저장 삭제 (work_complete_draft_*, equipment_draft_*)
+      const keysToRemove: string[] = [];
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (key && (key.startsWith('work_complete_draft_') || key.startsWith('equipment_draft_'))) {
+          keysToRemove.push(key);
+        }
+      }
+      keysToRemove.forEach(key => {
+        localStorage.removeItem(key);
+      });
+
+      console.log('[clearAllSessions] 삭제 완료:', {
+        sessionKeys: Object.values(SESSION_KEYS).length,
+        zustandKeys: zustandKeys.length,
+        draftKeys: keysToRemove.length
       });
     }
   } catch (error) {

@@ -1,18 +1,20 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import dayjs from 'dayjs';
-import { WorkOrder, WorkOrderStatus, SmsSendData } from '../../types';
+import { WorkOrder, WorkDirection, WorkOrderStatus, SmsSendData } from '../../types';
 import WorkDirectionRow from './WorkDirectionRow';
 import WorkOrderDetail from './WorkOrderDetail';
 import WorkCompleteRouter from './process/complete';
 import WorkItemList from './WorkItemList';
 import WorkCancelModal from './WorkCancelModal';
 import VisitSmsModal from '../modal/VisitSmsModal';
+import WorkerAdjustmentModal from '../modal/WorkerAdjustmentModal';
 import SafetyCheckList from './safety/SafetyCheckList';
 import WorkResultSignalList from './signal/WorkResultSignalList';
+import SignalIntegration from '../other/SignalIntegration';
 import FloatingMapButton from '../common/FloatingMapButton';
 import WorkMapView from './WorkMapView';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '../ui/tabs';
-import { cancelWork, checkDemoMode, getWorkStatusCountsForDirection, WorkStatusCounts, NetworkError, getSafetyChecks } from '../../services/apiService';
+import { cancelWork, checkDemoMode, parseWorkStatusFromStrings, WorkStatusCounts, NetworkError, getSafetyCheckResultInfo } from '../../services/apiService';
 import LoadingSpinner from '../common/LoadingSpinner';
 import ErrorMessage from '../common/ErrorMessage';
 import { AlertTriangle, X, ChevronLeft, ChevronRight, ClipboardList } from 'lucide-react';
@@ -38,7 +40,6 @@ interface DashboardProps {
 }
 
 type FilterType = WorkOrderStatus | '전체';
-type DateFilterType = '예정일' | '접수일';
 
 const Dashboard: React.FC<DashboardProps> = ({
   onNavigateToMenu,
@@ -56,6 +57,8 @@ const Dashboard: React.FC<DashboardProps> = ({
   const [cancelTarget, setCancelTarget] = useState<WorkOrder | null>(null);
   const [showSmsModal, setShowSmsModal] = useState(false);
   const [smsData, setSmsData] = useState<SmsSendData | null>(null);
+  const [showWorkerAdjustModal, setShowWorkerAdjustModal] = useState(false);
+  const [workerAdjustTarget, setWorkerAdjustTarget] = useState<WorkOrder | null>(null);
   const [workStatusCounts, setWorkStatusCounts] = useState<Record<string, WorkStatusCounts>>({});
   const [isStatusCountsLoading, setIsStatusCountsLoading] = useState<boolean>(false);
 
@@ -63,11 +66,13 @@ const Dashboard: React.FC<DashboardProps> = ({
   const { activeTab, setActiveTab, workFilters, setWorkFilters } = useUIStore();
 
   const [isFilterExpanded, setIsFilterExpanded] = useState<boolean>(false);
-  const tabListRef = React.useRef<HTMLDivElement>(null);
-  const tabButtonRefs = React.useRef<(HTMLButtonElement | null)[]>([]);
+  const [isFilterVisible, setIsFilterVisible] = useState<boolean>(true);
+  const tabListRef = useRef<HTMLDivElement>(null);
+  const tabButtonRefs = useRef<(HTMLButtonElement | null)[]>([]);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const lastScrollY = useRef<number>(0);
 
   // 새로운 필터 상태들 (workTypeFilter는 uiStore에서 관리)
-  const [dateFilterType, setDateFilterType] = useState<DateFilterType>('예정일');
   const [safetyCheckWarning, setSafetyCheckWarning] = useState<boolean>(false);
   // 안전점검 경고 닫으면 오늘 하루 동안 안 보이게 (localStorage 저장)
   const [dismissedSafetyWarning, setDismissedSafetyWarning] = useState<boolean>(() => {
@@ -85,7 +90,8 @@ const Dashboard: React.FC<DashboardProps> = ({
   const workManagementTabs = [
     { id: 'safety-check', title: '안전점검' },
     { id: 'work-receipt', title: '작업처리' },
-    { id: 'work-result-signal', title: '작업결과신호현황' }
+    { id: 'work-result-signal', title: '작업신호' },
+    { id: 'signal-interlock', title: '신호연동' }
   ];
 
   // dayjs 날짜 포맷
@@ -94,8 +100,20 @@ const Dashboard: React.FC<DashboardProps> = ({
   // UI Store에서 필터 상태 가져오기
   const { startDate, endDate, filter, workTypeFilter = '전체' } = workFilters;
 
+  // 작업처리 탭 진입 시 상태 필터를 '진행중'으로 설정 (hydration 후 실행)
+  useEffect(() => {
+    // 약간의 지연을 줘서 zustand hydration이 완료된 후 실행
+    const timer = setTimeout(() => {
+      if (activeTab === 'work-receipt') {
+        const currentFilters = useUIStore.getState().workFilters;
+        useUIStore.getState().setWorkFilters({ ...currentFilters, filter: '진행중' as any });
+      }
+    }, 100);
+    return () => clearTimeout(timer);
+  }, [activeTab]);
+
   // React Query로 작업 목록 조회
-  const { data: workOrders = [], isLoading, error: queryError, refetch } = useWorkOrders({ startDate, endDate });
+  const { data: directions = [], isLoading, error: queryError, refetch } = useWorkOrders({ startDate, endDate });
   const error = queryError?.message || null;
 
   // 필터 업데이트 헬퍼 함수
@@ -139,38 +157,38 @@ const Dashboard: React.FC<DashboardProps> = ({
     });
   };
   
-  // 작업 상태별 개수 조회 (React Query 데이터 로드 후 실행) - 병렬 처리
+  // 작업 상태별 개수 조회 - PROD_GRPS/WRK_STATS 필드에서 파싱 (receipt API 호출 없음)
+  // 백엔드 getWorkdrctnList_ForM에서 PROD_GRPS, WRK_STATS 필드를 반환
   useEffect(() => {
-    const fetchWorkStatusCounts = async () => {
-      // 실제 데이터 모드에서만 각 지시서의 상태별 작업개수 조회
-      if (!checkDemoMode() && workOrders.length > 0) {
-        setIsStatusCountsLoading(true);
+    if (!checkDemoMode() && directions.length > 0) {
+      setIsStatusCountsLoading(true);
 
-        // 모든 작업지시서에 대해 병렬로 조회
-        const promises = workOrders.map(async (order) => {
-          try {
-            const statusCounts = await getWorkStatusCountsForDirection(order.id);
-            return { id: order.id, statusCounts };
-          } catch (error) {
-            return { id: order.id, statusCounts: { total: 1, pending: 1, completed: 0, cancelled: 0 } };
-          }
-        });
+      const counts: Record<string, WorkStatusCounts> = {};
 
-        const results = await Promise.all(promises);
-        const counts: Record<string, WorkStatusCounts> = {};
-        results.forEach(({ id, statusCounts }) => {
-          counts[id] = statusCounts;
-        });
+      // PROD_GRPS/WRK_STATS 필드에서 상태 카운트 파싱 (receipt API 호출 없음)
+      directions.forEach((order) => {
+        const parsedCounts = parseWorkStatusFromStrings(order.PROD_GRPS, order.WRK_STATS);
+        if (parsedCounts && parsedCounts.total > 0) {
+          counts[order.id] = parsedCounts;
+        } else {
+          // 파싱 결과가 없으면 기본값 사용 (진행중 1건으로 표시)
+          counts[order.id] = {
+            total: 1,
+            pending: 1,
+            completed: 0,
+            cancelled: 0,
+            pendingByProdGrp: {},
+            completedByProdGrp: {}
+          };
+        }
+      });
 
-        setWorkStatusCounts(counts);
-        setIsStatusCountsLoading(false);
-      } else if (workOrders.length === 0) {
-        setIsStatusCountsLoading(false);
-      }
-    };
-
-    fetchWorkStatusCounts();
-  }, [workOrders]);
+      setWorkStatusCounts(counts);
+      setIsStatusCountsLoading(false);
+    } else if (directions.length === 0) {
+      setIsStatusCountsLoading(false);
+    }
+  }, [directions]);
 
   // Zustand persist가 자동으로 workFilters를 localStorage에 저장
   // SESSION_KEYS.WORK_FILTERS 수동 저장 불필요
@@ -195,27 +213,22 @@ const Dashboard: React.FC<DashboardProps> = ({
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeTab]); // startDate, endDate 의존성 제외 (무한루프 방지)
 
-  // 안전점검 확인 (오늘 안전점검이 있는지 체크)
+  // 안전점검 확인 (오늘 안전점검 제출 여부 체크)
   useEffect(() => {
     const checkTodaySafetyCheck = async () => {
-      if (!userInfo?.soId || !userInfo?.crrId) return;
+      if (!userInfo?.userId) return;
 
       try {
-        const checks = await getSafetyChecks({
-          SO_ID: userInfo.soId,
-          CRR_ID: userInfo.crrId
-        });
+        // getSafetyCheckResultInfo: 오늘 제출된 체크리스트 답변 조회
+        const results = await getSafetyCheckResultInfo(userInfo.userId);
 
-        const today = new Date().toISOString().split('T')[0].replace(/-/g, '');
-        const hasTodayCheck = checks.some(check =>
-          check.INSP_END_DT && check.INSP_END_DT.startsWith(today)
-        );
+        // 결과가 있으면 오늘 안전점검 완료
+        const hasTodayCheck = results && results.length > 0;
 
         setSafetyCheckWarning(!hasTodayCheck);
       } catch (error) {
         console.error('안전점검 확인 실패:', error);
         // Gracefully handle API error - don't show warning banner if API fails
-        // Assume safety check is OK to allow work to proceed
         setSafetyCheckWarning(false);
       }
     };
@@ -224,6 +237,84 @@ const Dashboard: React.FC<DashboardProps> = ({
       checkTodaySafetyCheck();
     }
   }, [userInfo, activeTab]);
+
+  // 스크롤 방향에 따른 필터 영역 숨김/표시 (모바일 최적화)
+  useEffect(() => {
+    const container = scrollContainerRef.current;
+    if (!container) return;
+
+    let ticking = false;
+    let pendingVisible: boolean | null = null;
+    let debounceTimer: ReturnType<typeof setTimeout> | null = null;
+
+    const applyVisibility = (visible: boolean) => {
+      // 실제 상태 변경은 debounce 후 적용
+      if (debounceTimer) clearTimeout(debounceTimer);
+
+      debounceTimer = setTimeout(() => {
+        setIsFilterVisible(prev => {
+          // 이미 같은 상태면 변경 안 함
+          if (prev === visible) return prev;
+          return visible;
+        });
+      }, 50); // 50ms debounce
+    };
+
+    const updateFilterVisibility = () => {
+      const currentScrollY = container.scrollTop;
+      const scrollDelta = currentScrollY - lastScrollY.current;
+      const maxScroll = container.scrollHeight - container.clientHeight;
+
+      // 스크롤 가능 영역이 부족하면 필터 항상 표시 (컨텐츠 짧을 때 필터 사라짐 방지)
+      if (maxScroll <= 30) {
+        applyVisibility(true);
+        lastScrollY.current = currentScrollY;
+        ticking = false;
+        return;
+      }
+
+      // 스크롤 끝 영역에서는 상태 변경 안 함 (바운스 방지)
+      const isAtBottom = currentScrollY >= maxScroll - 10;
+      const isAtTop = currentScrollY <= 10;
+
+      if (isAtBottom || isAtTop) {
+        lastScrollY.current = currentScrollY;
+        ticking = false;
+        return;
+      }
+
+      // 임계값 (15px) - 민감도 낮춤
+      if (Math.abs(scrollDelta) < 15) {
+        ticking = false;
+        return;
+      }
+
+      if (scrollDelta > 0 && currentScrollY > 80) {
+        // 아래로 스크롤 & 최상단이 아닐 때 -> 숨김
+        applyVisibility(false);
+      } else if (scrollDelta < -5) {
+        // 위로 스크롤 (5px 이상) -> 표시
+        applyVisibility(true);
+      }
+
+      lastScrollY.current = currentScrollY;
+      ticking = false;
+    };
+
+    const handleScroll = () => {
+      // requestAnimationFrame으로 throttle (60fps 동기화)
+      if (!ticking) {
+        requestAnimationFrame(updateFilterVisibility);
+        ticking = true;
+      }
+    };
+
+    container.addEventListener('scroll', handleScroll, { passive: true });
+    return () => {
+      container.removeEventListener('scroll', handleScroll);
+      if (debounceTimer) clearTimeout(debounceTimer);
+    };
+  }, []);
 
   // React Query가 자동으로 데이터 fetch (startDate, endDate 변경 시 자동 리페칭)
 
@@ -235,7 +326,7 @@ const Dashboard: React.FC<DashboardProps> = ({
     }
   };
   
-  const handleSelectOrder = (order: WorkOrder) => {
+  const handleSelectDirection = (order: WorkOrder) => {
     // 작업지시서 카드 클릭 시 작업 목록으로 이동
     setStoreWorkDirection(order);
     if (onNavigateToView) {
@@ -246,7 +337,7 @@ const Dashboard: React.FC<DashboardProps> = ({
   };
 
   // SMS 버튼 핸들러
-  const handleSmsOrder = (order: WorkOrder) => {
+  const handleSmsDirection = (order: WorkOrder) => {
     // scheduledAt ISO 형식(2025-01-15T14:30:00)을 YYYYMMDDHHmm으로 변환
     const convertToWrkHopeDttm = (isoDate: string | undefined): string => {
       if (!isoDate) return '';
@@ -276,9 +367,20 @@ const Dashboard: React.FC<DashboardProps> = ({
     setShowSmsModal(true);
   };
 
-  const handleCancelOrder = (order: WorkOrder) => {
+  const handleCancelDirection = (order: WorkOrder) => {
     setCancelTarget(order);
     setShowCancelModal(true);
+  };
+
+  // Worker adjustment handler
+  const handleWorkerAdjust = (order: WorkOrder) => {
+    setWorkerAdjustTarget(order);
+    setShowWorkerAdjustModal(true);
+  };
+
+  const handleWorkerAdjustSuccess = () => {
+    // Refresh the list after successful adjustment
+    refetch();
   };
 
   const handleCancelConfirm = async (cancelData: any) => {
@@ -294,17 +396,17 @@ const Dashboard: React.FC<DashboardProps> = ({
         if (showToast) showToast('작업이 성공적으로 취소되었습니다.', 'success');
         await handleUpdateOrderStatus(cancelTarget.id, WorkOrderStatus.Cancelled);
       } else {
-        if (showToast) showToast(`작업취소 실패: ${result.message}`, 'error');
+        if (showToast) showToast(`작업취소 실패: ${result.message}`, 'error', true);
       }
     } catch (error: any) {
-      console.error('❌ 작업취소 오류:', error);
+      console.error('작업취소 오류:', error);
 
       // NetworkError인 경우 사용자 친화적인 메시지 사용
       const errorMessage = error instanceof NetworkError
         ? error.message
         : (error.message || '작업취소 중 오류가 발생했습니다.');
 
-      if (showToast) showToast(errorMessage, 'error');
+      if (showToast) showToast(errorMessage, 'error', true);
     } finally {
       setIsLoading(false);
       setCancelTarget(null);
@@ -362,9 +464,22 @@ const Dashboard: React.FC<DashboardProps> = ({
     }
   }
   
-  const filteredOrders = workOrders.filter(order => {
+  const filteredDirections = directions.filter(order => {
     // 상태 필터
-    if (filter !== '전체' && order.status !== filter) return false;
+    if (filter !== '전체') {
+      // receipts가 빈 배열이면 취소로 간주 (isEmpty 플래그)
+      const counts = workStatusCounts[order.id];
+      const isEmptyReceipts = counts?.isEmpty === true;
+
+      if (filter === WorkOrderStatus.Cancelled) {
+        // 취소 필터: order.status가 취소이거나 receipts가 비어있으면 포함
+        if (order.status !== WorkOrderStatus.Cancelled && !isEmptyReceipts) return false;
+      } else {
+        // 다른 필터: receipts가 비어있으면 취소로 간주하므로 제외
+        if (isEmptyReceipts) return false;
+        if (order.status !== filter) return false;
+      }
+    }
 
     // 작업유형 필터 (WRK_CD_NM으로 필터링: "설치", "철거", "A/S" 등 - CMWT000 코드 테이블 값)
     // workTypeFilter가 undefined이거나 '전체'면 필터링 안함
@@ -387,13 +502,25 @@ const Dashboard: React.FC<DashboardProps> = ({
   };
 
   // 모든 데이터 표시
-  const currentOrders = filteredOrders;
+  const currentDirections = filteredDirections;
 
   const getFilterCount = (filterType: FilterType) => {
     if (filterType === '전체') {
-      return workOrders.length;
+      return directions.length;
     }
-    return workOrders.filter(order => order.status === filterType).length;
+    return directions.filter(order => {
+      const counts = workStatusCounts[order.id];
+      const isEmptyReceipts = counts?.isEmpty === true;
+
+      if (filterType === WorkOrderStatus.Cancelled) {
+        // 취소 필터: order.status가 취소이거나 receipts가 비어있으면 포함
+        return order.status === WorkOrderStatus.Cancelled || isEmptyReceipts;
+      } else {
+        // 다른 필터: receipts가 비어있으면 취소로 간주하므로 제외
+        if (isEmptyReceipts) return false;
+        return order.status === filterType;
+      }
+    }).length;
   };
 
   const handleTabChange = (tabId: string) => {
@@ -445,7 +572,7 @@ const Dashboard: React.FC<DashboardProps> = ({
 
   const workTypeOptions = useMemo(() => {
     const workTypes = new Set<string>();
-    workOrders.forEach(order => {
+    directions.forEach(order => {
       if (order.WRK_CD_NM) {
         workTypes.add(order.WRK_CD_NM);
       }
@@ -465,7 +592,7 @@ const Dashboard: React.FC<DashboardProps> = ({
         label: typeName
       }))
     ];
-  }, [workOrders]);
+  }, [directions]);
 
   // workTypeFilter가 options에 없으면 '전체'로 리셋
   useEffect(() => {
@@ -481,13 +608,8 @@ const Dashboard: React.FC<DashboardProps> = ({
     { value: WorkOrderStatus.Pending, label: `진행중 (${getFilterCount(WorkOrderStatus.Pending)})`, shortLabel: '진행중' },
     { value: WorkOrderStatus.Completed, label: `완료 (${getFilterCount(WorkOrderStatus.Completed)})`, shortLabel: '완료' },
     { value: WorkOrderStatus.Cancelled, label: `취소 (${getFilterCount(WorkOrderStatus.Cancelled)})`, shortLabel: '취소' },
-  ], [workOrders]);
+  ], [directions]);
 
-  // 날짜 기준 옵션
-  const dateFilterOptions = [
-    { value: '예정일', label: '예정일' },
-    { value: '접수일', label: '접수일' },
-  ];
 
   return (
     <div className="h-[calc(100vh-64px)] flex flex-col overflow-hidden">
@@ -508,9 +630,20 @@ const Dashboard: React.FC<DashboardProps> = ({
           </TabsList>
         </div>
         
-        <TabsContent value="work-receipt" className="flex-1 flex flex-col overflow-hidden">
-          {/* 고정 헤더 영역 */}
-          <div className="flex-shrink-0 px-3 pt-1 bg-gray-50">
+        <TabsContent value="work-receipt" className="flex-1 data-[state=active]:flex flex-col overflow-hidden">
+          {/* 필터 영역 - 스크롤 시 숨김/표시 (GPU 가속 transform 방식) */}
+          <div
+            className={`flex-shrink-0 bg-gray-50 grid transition-[grid-template-rows] duration-300 ease-out ${
+              isFilterVisible
+                ? 'grid-rows-[1fr]'
+                : 'grid-rows-[0fr]'
+            }`}
+            style={{ willChange: 'grid-template-rows' }}
+          >
+            <div className={`min-h-0 overflow-hidden px-3 pt-1 transition-opacity duration-200 ${
+              isFilterVisible ? 'opacity-100' : 'opacity-0'
+            }`}
+          >
             {/* 안전점검 경고 배너 */}
             {safetyCheckWarning && !dismissedSafetyWarning && (
               <div className="mb-3 bg-yellow-50 border-l-4 border-yellow-400 p-3 rounded-lg shadow-sm">
@@ -616,7 +749,7 @@ const Dashboard: React.FC<DashboardProps> = ({
         {/* 확장 필터 - 컴팩트 */}
         {isFilterExpanded && (
           <div className="px-4 py-3 bg-gray-50 border-t border-gray-100">
-            {/* 상태 & 작업유형 & 날짜기준 - 한 줄에 3개 + 초기화 아이콘 */}
+            {/* 상태 & 작업유형 - 한 줄에 2개 + 초기화 아이콘 */}
             <div className="flex items-end gap-2">
               <div className="flex-1 min-w-0">
                 <label className="block text-xs font-medium text-gray-500 mb-1">상태</label>
@@ -632,14 +765,6 @@ const Dashboard: React.FC<DashboardProps> = ({
                   value={workTypeFilter}
                   onValueChange={(val) => updateFilters({ workTypeFilter: val })}
                   options={workTypeOptions}
-                />
-              </div>
-              <div className="flex-1 min-w-0">
-                <label className="block text-xs font-medium text-gray-500 mb-1">날짜기준</label>
-                <Select
-                  value={dateFilterType}
-                  onValueChange={(val) => setDateFilterType(val as DateFilterType)}
-                  options={dateFilterOptions}
                 />
               </div>
               <button
@@ -659,10 +784,11 @@ const Dashboard: React.FC<DashboardProps> = ({
           </div>
         )}
             </div>
+            </div>
           </div>
 
           {/* 스크롤 가능한 작업 목록 영역 */}
-          <div className="flex-1 overflow-y-auto px-3 pb-4">
+          <div ref={scrollContainerRef} className="flex-1 overflow-y-auto px-3 pb-4">
             {isLoading || isStatusCountsLoading ? (
               <LoadingSpinner size="medium" message={isLoading ? "작업 목록을 불러오는 중..." : "작업 상태를 불러오는 중..."} />
             ) : error ? (
@@ -673,16 +799,17 @@ const Dashboard: React.FC<DashboardProps> = ({
               />
             ) : (
               <div>
-                {filteredOrders.length > 0 ? (
+                {filteredDirections.length > 0 ? (
                   <div className="space-y-3">
                     {/* 카드 형식으로 작업지시서 표시 */}
-                    {currentOrders.map((order, index) => (
+                    {currentDirections.map((order, index) => (
                       <WorkDirectionRow
                         key={order.id}
                         direction={order}
                         index={index + 1}
-                        onSelect={handleSelectOrder}
-                        onSms={handleSmsOrder}
+                        onSelect={handleSelectDirection}
+                        onSms={handleSmsDirection}
+                        onWorkerAdjust={handleWorkerAdjust}
                         workStatusCounts={workStatusCounts[order.id]}
                       />
                     ))}
@@ -720,6 +847,21 @@ const Dashboard: React.FC<DashboardProps> = ({
               smsData={smsData}
               userId={userInfo?.userId || ''}
             />
+
+            {/* Worker Adjustment Modal */}
+            {workerAdjustTarget && (
+              <WorkerAdjustmentModal
+                isOpen={showWorkerAdjustModal}
+                onClose={() => {
+                  setShowWorkerAdjustModal(false);
+                  setWorkerAdjustTarget(null);
+                }}
+                direction={workerAdjustTarget}
+                onSuccess={handleWorkerAdjustSuccess}
+                showToast={showToast}
+                userInfo={userInfo}
+              />
+            )}
           </div>
         </TabsContent>
 
@@ -728,29 +870,34 @@ const Dashboard: React.FC<DashboardProps> = ({
           <SafetyCheckList onBack={onNavigateToMenu} userInfo={userInfo} showToast={showToast} />
         </TabsContent>
 
-        {/* 작업결과신호현황 탭 */}
+        {/* 작업신호 탭 */}
         <TabsContent value="work-result-signal" className="px-3 pt-1 overflow-y-auto">
           <WorkResultSignalList onBack={onNavigateToMenu} />
+        </TabsContent>
+
+        {/* 신호연동 탭 */}
+        <TabsContent value="signal-interlock" className="mt-0 flex-1 data-[state=active]:flex flex-col overflow-hidden">
+          <SignalIntegration onBack={onNavigateToMenu} userInfo={userInfo} showToast={showToast} />
         </TabsContent>
 
       </Tabs>
 
       {/* 플로팅 지도 버튼 - 작업처리 탭에서만 표시 */}
-      {activeTab === 'work-receipt' && !isLoading && !error && filteredOrders.length > 0 && (
+      {activeTab === 'work-receipt' && !isLoading && !error && filteredDirections.length > 0 && (
         <FloatingMapButton
           onClick={() => setShowMapView(true)}
-          workCount={filteredOrders.length}
+          workCount={filteredDirections.length}
         />
       )}
 
       {/* 지도 뷰 */}
       {showMapView && (
         <WorkMapView
-          workOrders={filteredOrders}
+          directions={filteredDirections}
           onBack={() => setShowMapView(false)}
           onSelectWork={(work) => {
             setShowMapView(false);
-            handleSelectOrder(work);
+            handleSelectDirection(work);
           }}
         />
       )}

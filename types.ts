@@ -70,20 +70,7 @@ export interface EquipmentChangeRequest {
   CTRT_KEEP_YN?: string;     // 계약 유지 여부
 }
 
-// 작업지시서 (기존 WorkOrder를 변경)
-export interface WorkDirection {
-  id: string;              // WRK_DRCTN_ID
-  type: WorkOrderType;
-  typeDisplay: string;
-  status: WorkOrderStatus;
-  scheduledAt: string;
-  customer: Customer;
-  details: string;
-  totalWorks: number;      // 총 작업 개수
-  completedWorks: number;  // 완료된 작업 개수
-}
-
-// 개별 작업 (새로 추가)
+// 개별 작업 (WorkItem)
 export interface WorkItem {
   id: string;              // WRK_ID
   directionId: string;     // WRK_DRCTN_ID (부모)
@@ -103,7 +90,9 @@ export interface WorkItem {
   WRK_CD_NM?: string;      // 작업코드명 (설치, 철거, A/S, 정지, 상품변경 등 - 백엔드 CMWT000 코드 테이블 값)
   WRK_DTL_TCD?: string;    // 작업 세부 유형 코드
   WRK_STAT_CD?: string;    // 작업 상태 코드 (1:접수, 2:할당, 3:취소, 4:완료, 7:부분완료, 9:삭제)
+  WRK_STAT_NM?: string;    // 작업 상태명
   WRK_DRCTN_ID?: string;   // 작업지시 ID (directionId와 동일하지만 API 호출 시 필요)
+  OST_WORKABLE_STAT?: string; // 원스톱 작업 가능 상태 (0:불가, 1:철거만가능, 2:철거완료, 3:완료, 4:화면접수불가/설치불가, X:OST아님)
 
   // 계약 정보
   CUST_ID?: string;        // 고객 ID (계약정보 API 호출에 필요)
@@ -112,11 +101,16 @@ export interface WorkItem {
   CTRT_STAT_NM?: string;   // 계약 상태명
   RCPT_ID?: string;        // 접수 ID
   SO_NM?: string;          // 지사명
+  MSO_NM?: string;         // 계약지점명 (본부명)
 
   // 상품 정보
   PROD_NM?: string;        // 상품명
   OLD_PROD_CD?: string;    // 이전 상품코드 (상품변경 시)
   OLD_PROD_NM?: string;    // 이전 상품명 (상품변경 시)
+  OLD_CTRT_ID?: string;    // 이전 계약ID (상품변경 시)
+  OLD_CTRT_STAT?: string;  // 이전 계약상태코드 (상품변경 시)
+  OLD_CTRT_STAT_NM?: string; // 이전 계약상태명 (상품변경 시)
+  OLD_PROM_CNT?: string;   // 이전 약정기간 (상품변경 시)
   currentProduct?: string; // 현재(이전) 상품 - 상품변경 상세정보용
   newProduct?: string;     // 변경(새) 상품 - 상품변경 상세정보용
   PROD_GRP?: string;       // 상품 그룹 (D:DTV, V:VoIP, I:Internet, C:Cable)
@@ -125,6 +119,12 @@ export interface WorkItem {
   CHG_KPI_PROD_GRP_CD?: string; // 변경 KPI 상품그룹코드 - 상품변경 시 설치유형 필터링에 사용
   VOIP_CTX?: string;       // VoIP 컨텍스트 (T/R인 경우 인입선로 모달 제외)
   VIP_GB?: string;         // VIP 구분 (VIP_TOP, VIP_VVIP 등)
+  IS_CERTIFY_PROD?: string | number; // FTTH 단말인증 대상 상품 여부 (1이면 FTTH 집선등록 필요)
+  OP_LNKD_CD?: string; // 통신방식 코드 (F/FG/Z/ZG=FTTH, N/NG=광통신, V/VG=VDSL) - 레거시 OpLnkdCd (CMCT133.REF_CODE8)
+
+  // 작업지시서 조회 시 반환되는 집계 정보 (getWorkdrctnList_ForM)
+  PROD_GRPS?: string;      // 상품그룹 목록 (DTV/ISP/VoIP 등, "/" 구분)
+  WRK_STATS?: string;      // 작업상태 목록 (진행중/완료/취소 등, "/" 구분)
 
   // 납부방법/약정정보
   PYM_MTHD?: string;       // 납부방법
@@ -242,6 +242,10 @@ export interface ASHistory {
   asResult: string;        // AS 처리 결과
 }
 
+// 작업지시서 (WorkDirection) - WorkItem과 동일한 구조 사용
+// directions API와 receipts API 모두 비슷한 필드를 반환하므로 같은 타입 사용
+export type WorkDirection = WorkItem;
+
 // 호환성을 위해 기존 WorkOrder도 유지
 export interface WorkOrder extends WorkItem {
   // 기존 코드 호환성을 위해 유지
@@ -313,12 +317,19 @@ export interface WorkCompleteInfo {
   CVT_LBL?: string;         // 컨버터 라벨
   STB_LBL?: string;         // STB 라벨
 
+  // 이전설치(WRK_CD=07) 전용
+  OLD_CTRT_ID?: string;     // 이전 계약ID (상품변경으로 계약번호 변경 시)
+  CTRT_ID?: string;         // 현재 계약ID
+
   // 주소 확인 체크박스
   CHK_CUST_ADDR?: string;   // 고객 주소 변경 (Y/N)
   CHK_PYM_ADDR?: string;    // 청구지 주소 변경 (Y/N)
 
   // 작업 행위 구분
   WRK_ACT_CL?: string;      // 작업 행위 구분 코드
+
+  // 부가서비스 정보 (FTTH CL-04 인증 시 ADD_ON)
+  ADD_ON?: string;           // 부가서비스 상품코드 (콤마 구분)
 }
 
 // 작업 완료 - 설치 장비 정보
@@ -367,11 +378,12 @@ export interface AgreementInfo {
   AGREE_TYPE?: string;      // 약관 유형
 }
 
-// 작업 완료 - 전주 작업 결과
+// 작업 완료 - 전주승주 조사 결과
 export interface PoleResultInfo {
-  POLE_ID: string;          // 전주 ID
-  POLE_STAT_CD?: string;    // 전주 상태 코드
-  MEMO?: string;            // 메모
+  WRK_ID: string;           // 작업 ID
+  POLE_YN: string;          // 전주 승주 여부 (Y/N)
+  LAN_GB?: string;          // 망구분 (D: 자가망, L: 임대망) - SO_ID 206/210만
+  REG_UID?: string;         // 등록자 ID
 }
 
 // 작업 완료 - 전체 요청 데이터
@@ -424,6 +436,8 @@ export interface CommonCodeItem {
   ref_code?: string;        // 참조코드 (상품그룹코드 등)
   ref_code2?: string;       // 참조코드2 (설치유형 등)
   ref_code3?: string;       // 참조코드3 (날짜 등)
+  ref_code8?: string;       // 참조코드8 (LGCT001: OP_LNKD_CD 통신방식 F/FG/Z/ZG=FTTH)
+  ref_code12?: string;      // 참조코드12 (LGCT001: Wide 여부)
 }
 
 // ============ 카카오맵 관련 타입 정의 ============

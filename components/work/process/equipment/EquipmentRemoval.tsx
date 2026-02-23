@@ -14,10 +14,12 @@
  */
 
 import React, { useState, useEffect, useMemo } from 'react';
-import { ArrowUp, ArrowDown, CheckCircle2, XCircle, Loader2, ScanBarcode, History } from 'lucide-react';
+import { createPortal } from 'react-dom';
+import { ArrowUp, ArrowDown, CheckCircle2, XCircle, Loader2, ScanBarcode, History, RotateCcw } from 'lucide-react';
 import { getTechnicianEquipments, updateEquipmentComposition, checkStbServerConnection } from '../../../../services/apiService';
-import EquipmentModelChangeModal from '../../../equipment/EquipmentModelChangeModal';
+import EquipmentModelChangeModal from './EquipmentModelChangeModal';
 import IntegrationHistoryModal from '../../../modal/IntegrationHistoryModal';
+import LdapQueryModal from '../../../modal/LdapQueryModal';
 import { useWorkProcessStore } from '../../../../stores/workProcessStore';
 import { useWorkEquipmentStore, useWorkEquipment } from '../../../../stores/workEquipmentStore';
 import {
@@ -40,7 +42,14 @@ const EquipmentRemoval: React.FC<EquipmentComponentProps> = ({
   preloadedApiData,
   onPreloadedDataUpdate,
   readOnly = false,
+  isCertifyProd = false,
+  certifyOpLnkdCd = '',
+  onLdapConnect,
+  isLdapDone = false,
+  ldapLoading = false,
+  ldapBlocked = false,
 }) => {
+  const isFtthProd = ['F', 'FG', 'Z', 'ZG'].includes(certifyOpLnkdCd);
   // Work completion status
   const isWorkCompleted = readOnly || workItem.WRK_STAT_CD === '4' || workItem.status === '완료';
 
@@ -55,11 +64,14 @@ const EquipmentRemoval: React.FC<EquipmentComponentProps> = ({
     setDataLoaded: storeSetDataLoaded,
     setInstalledEquipments: storeSetInstalledEquipments,
     addMarkedForRemoval,
+    setMarkedForRemoval: storeSetMarkedForRemoval,
     toggleRemovalStatus,
+    setFullRemovalStatus,
     setSelectedContract: storeSetSelectedContract,
     setSelectedStock: storeSetSelectedStock,
     setSignalStatus: storeSetSignalStatus,
     setSignalResult: storeSetSignalResult,
+    clearSelection,
   } = useWorkEquipmentStore();
 
   // Zustand store state
@@ -84,6 +96,7 @@ const EquipmentRemoval: React.FC<EquipmentComponentProps> = ({
   // Modal states
   const [isModelChangeModalOpen, setIsModelChangeModalOpen] = useState(false);
   const [isIntegrationHistoryModalOpen, setIsIntegrationHistoryModalOpen] = useState(false);
+  const [isLdapQueryModalOpen, setIsLdapQueryModalOpen] = useState(false);
 
   // Signal processing state
   const [isSignalPopupOpen, setIsSignalPopupOpen] = useState(false);
@@ -91,6 +104,10 @@ const EquipmentRemoval: React.FC<EquipmentComponentProps> = ({
 
   // Barcode scanning state
   const [isBarcodeScanning, setIsBarcodeScanning] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+
+  // 하단 탭 상태: 'removal' = 철거장비, 'stock' = 기사재고장비
+  const [bottomTab, setBottomTab] = useState<'removal' | 'stock'>('stock');
 
   // Load initial data
   useEffect(() => {
@@ -135,9 +152,9 @@ const EquipmentRemoval: React.FC<EquipmentComponentProps> = ({
         const crrTskCl = mapWrkCdToCrrTskCl(workItem.WRK_CD);
 
         const requestPayload = {
-          WRKR_ID: user.workerId || 'A20130708',
+          WRKR_ID: workItem.WRKR_ID || user.userId || user.workerId || '',
           SO_ID: workItem.SO_ID || user.soId,
-          WORK_ID: workItem.id,
+          WRK_ID: workItem.id,
           CUST_ID: workItem.customer?.id || workItem.CUST_ID,
           RCPT_ID: workItem.RCPT_ID || null,
           CTRT_ID: workItem.CTRT_ID || null,
@@ -161,12 +178,29 @@ const EquipmentRemoval: React.FC<EquipmentComponentProps> = ({
         }
       }
 
-      console.log('[장비관리-부가상품] API 응답:', {
-        contractEquipments: apiResponse.contractEquipments?.length || 0,
-        technicianEquipments: apiResponse.technicianEquipments?.length || 0,
-        customerEquipments: apiResponse.customerEquipments?.length || 0,
-        removedEquipments: apiResponse.removedEquipments?.length || 0,
-      });
+      // 상세 API 응답 로그
+      console.log('=== [장비관리-부가상품] API Output 상세 ===');
+      console.log('  output1 (상품정보):', apiResponse.productInfo || 'N/A');
+      console.log('  output2 (계약장비):', apiResponse.contractEquipments?.length || 0, '개');
+      if (apiResponse.contractEquipments?.length > 0) {
+        apiResponse.contractEquipments.forEach((eq: any, i: number) => {
+          console.log(`    [${i}] ${eq.ITEM_MID_NM} / ${eq.EQT_CL_NM} / SVC_CMPS_ID: ${eq.SVC_CMPS_ID}`);
+        });
+      }
+      console.log('  output3 (기사재고):', apiResponse.technicianEquipments?.length || 0, '개');
+      console.log('  output4 (고객장비):', apiResponse.customerEquipments?.length || 0, '개');
+      if (apiResponse.customerEquipments?.length > 0) {
+        apiResponse.customerEquipments.forEach((eq: any, i: number) => {
+          console.log(`    [${i}] ${eq.ITEM_MID_NM} / ${eq.EQT_CL_NM} / EQT_NO: ${eq.EQT_NO} / S/N: ${eq.EQT_SERNO}`);
+        });
+      }
+      console.log('  output5 (철거장비):', apiResponse.removedEquipments?.length || 0, '개');
+      if (apiResponse.removedEquipments?.length > 0) {
+        apiResponse.removedEquipments.forEach((eq: any, i: number) => {
+          console.log(`    [${i}] ${eq.ITEM_MID_NM} / ${eq.EQT_CL_NM} / EQT_NO: ${eq.EQT_NO} / S/N: ${eq.EQT_SERNO}`);
+        });
+      }
+      console.log('==========================================');
 
       // Store filtering data in Zustand Store
       const filterData = {
@@ -217,8 +251,12 @@ const EquipmentRemoval: React.FC<EquipmentComponentProps> = ({
       }));
 
       // output4: Customer installed equipments
+      const matchedContractIds = new Set<string>();
       const installed: InstalledEquipment[] = (apiResponse.customerEquipments || []).map((eq: any) => {
-        const matchedContract = contracts.find(c => c.itemMidCd === eq.ITEM_MID_CD);
+        const matchedContract = contracts.find(c =>
+          c.itemMidCd === eq.ITEM_MID_CD && !matchedContractIds.has(c.id)
+        );
+        if (matchedContract) matchedContractIds.add(matchedContract.id);
         return {
           contractEquipment: matchedContract || {
             id: 'unknown',
@@ -271,21 +309,44 @@ const EquipmentRemoval: React.FC<EquipmentComponentProps> = ({
 
       // Zustand persist에서 이미 복원된 상태가 있는지 확인
       const existingMarkedForRemoval = markedForRemoval || [];
+      const existingInstalledEquipments = installedEquipments || [];
 
-      if (installed.length > 0) {
-        console.log('[장비관리-부가상품] API에서 받은 고객 설치 장비 사용:', installed.length, '개');
+      console.log('[장비관리-부가상품] 기존 상태 확인:', {
+        existingMarkedForRemoval: existingMarkedForRemoval.length,
+        existingInstalledEquipments: existingInstalledEquipments.length,
+        apiInstalled: installed.length,
+        apiRemoved: removed.length,
+      });
 
-        // 기존에 철거 등록된 장비가 있으면 설치 장비에서 제외
-        if (existingMarkedForRemoval.length > 0) {
+      // 첫 로드인지 확인 (기존 데이터가 없는 경우)
+      const isFirstLoad = existingMarkedForRemoval.length === 0 && existingInstalledEquipments.length === 0;
+
+      if (isFirstLoad) {
+        // 첫 로드: API 데이터로 초기화
+        console.log('[장비관리-부가상품] 첫 로드 - API 데이터로 초기화');
+
+        // output4 (고객장비) -> installedEquipments
+        if (installed.length > 0) {
+          console.log('[장비관리-부가상품] 고객 설치 장비:', installed.length, '개');
+          storeSetInstalledEquipments(workId, installed);
+        }
+
+        // output5 (철거장비) -> markedForRemoval (중요!)
+        if (removed.length > 0) {
+          console.log('[장비관리-부가상품] 철거장비를 markedForRemoval에 추가:', removed.length, '개');
+          storeSetMarkedForRemoval(workId, removed);
+        }
+      } else {
+        // 재방문: 기존 Zustand 상태 유지, API 고객장비만 업데이트
+        console.log('[장비관리-부가상품] 재방문 - 기존 상태 유지');
+
+        if (installed.length > 0) {
+          // 기존에 철거 등록된 장비가 있으면 설치 장비에서 제외
           const markedForRemovalIds = new Set(existingMarkedForRemoval.map(eq => eq.id));
           const filteredInstalled = installed.filter(eq => !markedForRemovalIds.has(eq.actualEquipment.id));
           storeSetInstalledEquipments(workId, filteredInstalled);
-        } else {
-          storeSetInstalledEquipments(workId, installed);
         }
-        // Zustand persist에서 자동으로 신호처리 상태, 분실처리 상태 복원됨
       }
-      // else: Zustand persist에서 이미 복원된 installedEquipments, markedForRemoval 사용
 
       // Use requestAnimationFrame to ensure state updates are applied before marking data as loaded
       requestAnimationFrame(() => storeSetDataLoaded(workId, true));
@@ -300,6 +361,7 @@ const EquipmentRemoval: React.FC<EquipmentComponentProps> = ({
     const installed = installedEquipments.find(eq => eq.contractEquipment.id === contract.id);
 
     if (selectedContract?.id === contract.id) {
+      // 토글: 같은 장비 두 번 클릭 시 선택 완전 해제
       storeSetSelectedContract(workId, null);
       storeSetSelectedStock(workId, null);
     } else {
@@ -325,6 +387,12 @@ const EquipmentRemoval: React.FC<EquipmentComponentProps> = ({
   const handleRegisterEquipment = () => {
     if (!selectedContract || !selectedStock) return;
 
+    // 모델명 검증: itemMidCd + model이 일치해야 함
+    if (selectedContract.itemMidCd !== selectedStock.itemMidCd || selectedContract.model !== selectedStock.model) {
+      showToast?.('계약장비 모델과 일치하지 않아 등록할 수 없습니다.', 'warning');
+      return;
+    }
+
     const existingIndex = installedEquipments.findIndex(eq => eq.contractEquipment.id === selectedContract.id);
 
     if (existingIndex >= 0) {
@@ -348,8 +416,7 @@ const EquipmentRemoval: React.FC<EquipmentComponentProps> = ({
 
     storeSetSignalStatus(workId, 'idle');
     storeSetSelectedStock(workId, null);
-    storeSetSelectedContract(workId, null);
-  };
+      };
 
   // Remove button - mark equipment for removal
   const handleMarkForRemoval = () => {
@@ -370,8 +437,7 @@ const EquipmentRemoval: React.FC<EquipmentComponentProps> = ({
 
       storeSetSignalStatus(workId, 'idle');
       storeSetSelectedStock(workId, null);
-      storeSetSelectedContract(workId, null);
-      return;
+            return;
     }
 
     const isAlreadyMarked = markedForRemoval.some(eq => eq.id === selectedStock.id);
@@ -407,7 +473,7 @@ const EquipmentRemoval: React.FC<EquipmentComponentProps> = ({
           CTRT_ID: workItem.CTRT_ID || '',
           RCPT_ID: workItem.RCPT_ID || '',
           CRR_ID: workItem.CRR_ID || user.crrId || '',
-          WRKR_ID: user.workerId || 'A20130708',
+          WRKR_ID: workItem.WRKR_ID || user.userId || user.workerId || '',
           REG_UID: user.userId || user.workerId || 'A20130708',
           ITEM_MID_CD: itemMidCd,
           EQT_CL: modelCode,
@@ -445,7 +511,7 @@ const EquipmentRemoval: React.FC<EquipmentComponentProps> = ({
       }
     } catch (error: any) {
       console.error('[장비모델변경] 실패:', error);
-      showToast?.(error.message || '장비 모델 변경 중 오류가 발생했습니다.', 'error');
+      showToast?.(error.message || '장비 모델 변경 중 오류가 발생했습니다.', 'error', true);
       throw error;
     }
   };
@@ -454,7 +520,7 @@ const EquipmentRemoval: React.FC<EquipmentComponentProps> = ({
   const handleSignalProcess = async () => {
 
     if (installedEquipments.length === 0) {
-      showToast?.('신호처리를 하려면 먼저 장비를 등록해주세요.', 'warning');
+      showToast?.('임시개통을 하려면 먼저 장비를 등록해주세요.', 'warning');
       storeSetSignalStatus(workId, 'fail');
       return;
     }
@@ -462,7 +528,7 @@ const EquipmentRemoval: React.FC<EquipmentComponentProps> = ({
     try {
       setIsSignalProcessing(true);
       setIsSignalPopupOpen(true);
-      storeSetSignalResult(workId, '신호처리 중...');
+      storeSetSignalResult(workId, '임시개통 중...');
 
       const userInfo = localStorage.getItem('userInfo');
       if (!userInfo) {
@@ -475,24 +541,51 @@ const EquipmentRemoval: React.FC<EquipmentComponentProps> = ({
       const user = JSON.parse(userInfo);
       const regUid = user.userId || user.id || 'UNKNOWN';
 
+      // 장비 타입 판단 함수 (콤보 상품 신호처리용)
+      const isStb = (eq: any): boolean => {
+        const eqtClCd = eq.actualEquipment?.eqtClCd || eq.eqtClCd || eq.actualEquipment?.EQT_CL_CD || '';
+        const itemMidCd = eq.actualEquipment?.itemMidCd || eq.itemMidCd || eq.actualEquipment?.ITEM_MID_CD || '';
+        const type = (eq.actualEquipment?.type || eq.type || '').toLowerCase();
+        if (eqtClCd.startsWith('0904')) return true;
+        if (itemMidCd === '02') return true;
+        if (type.includes('stb') || type.includes('셋톱')) return true;
+        return false;
+      };
+
+      const isModem = (eq: any): boolean => {
+        const eqtClCd = eq.actualEquipment?.eqtClCd || eq.eqtClCd || eq.actualEquipment?.EQT_CL_CD || '';
+        const itemMidCd = eq.actualEquipment?.itemMidCd || eq.itemMidCd || eq.actualEquipment?.ITEM_MID_CD || '';
+        const type = (eq.actualEquipment?.type || eq.type || '').toLowerCase();
+        if (eqtClCd.startsWith('0902')) return true;
+        if (itemMidCd === '03') return true;
+        if (type.includes('modem') || type.includes('모뎀')) return true;
+        return false;
+      };
+
+      // STB, Modem 장비 찾기
+      const stbEquipment = installedEquipments.find(isStb);
+      const modemEquipment = installedEquipments.find(isModem);
+      const stbEqtNo = stbEquipment?.actualEquipment?.id || '';
+      const modemEqtNo = modemEquipment?.actualEquipment?.id || '';
+
       const result = await checkStbServerConnection(
         regUid,
         workItem.CTRT_ID || '',
         workItem.id,
         'SMR03',
-        installedEquipments[0]?.actualEquipment?.id || '',
-        ''
+        stbEqtNo || installedEquipments[0]?.actualEquipment?.id || '',
+        modemEqtNo || ''
       );
 
       if (result.O_IFSVC_RESULT && result.O_IFSVC_RESULT.startsWith('TRUE')) {
-        storeSetSignalResult(workId, `신호처리 완료\n\n결과: ${result.O_IFSVC_RESULT || '성공'}`);
+        storeSetSignalResult(workId, `임시개통 완료\n\n결과: ${result.O_IFSVC_RESULT || '성공'}`);
         storeSetSignalStatus(workId, 'success');
       } else {
-        storeSetSignalResult(workId, `신호처리 실패\n\n${result.MESSAGE || '알 수 없는 오류'}`);
+        storeSetSignalResult(workId, `임시개통 실패\n\n${result.MESSAGE || '알 수 없는 오류'}`);
         storeSetSignalStatus(workId, 'fail');
       }
     } catch (error: any) {
-      storeSetSignalResult(workId, `신호처리 실패\n\n${error.message || '알 수 없는 오류'}`);
+      storeSetSignalResult(workId, `임시개통 실패\n\n${error.message || '알 수 없는 오류'}`);
       storeSetSignalStatus(workId, 'fail');
     } finally {
       setIsSignalProcessing(false);
@@ -585,9 +678,81 @@ const EquipmentRemoval: React.FC<EquipmentComponentProps> = ({
     onSave(data);
   };
 
-  // Toggle removal status (loss/damage checkboxes)
-  const handleRemovalStatusChange = (eqtNo: string, field: string) => {
-    toggleRemovalStatus(workId, eqtNo, field);
+  // 철거 장비 분실/파손 상태 토글 (A/S와 동일한 방식)
+  const handleRemovalStatusChange = (eqtNo: string, field: string, currentValue: string) => {
+    const newStatus = {
+      ...removalStatus,
+      [eqtNo]: {
+        ...(removalStatus[eqtNo] || {}),
+        [field]: currentValue === '1' ? '0' : '1'
+      }
+    };
+    setFullRemovalStatus(workId, newStatus);
+  };
+
+  // 철거장비에서 재사용 (고객 설치로 복원)
+  const handleReuseEquipment = () => {
+    if (!selectedStock) return;
+
+    // 철거장비에서 선택한 경우에만 재사용 가능
+    const isFromMarkedForRemoval = markedForRemoval.some(eq => eq.id === selectedStock.id);
+    if (!isFromMarkedForRemoval) return;
+
+    // 선택된 계약장비가 있으면 모델명 검증 먼저!
+    if (selectedContract) {
+      if (selectedContract.itemMidCd !== selectedStock.itemMidCd || selectedContract.model !== selectedStock.model) {
+        showToast?.('계약장비 모델과 일치하지 않아 등록할 수 없습니다.', 'warning');
+        return;
+      }
+    }
+
+    // 매칭되는 계약장비 찾기 (선택된 계약장비 또는 동일 종류의 계약장비)
+    const matchedContract = selectedContract ||
+      contractEquipments.find(c =>
+        c.itemMidCd === selectedStock.itemMidCd &&
+        c.model === selectedStock.model
+      );
+
+    if (!matchedContract) {
+      showToast?.('계약장비 모델과 일치하지 않아 등록할 수 없습니다.', 'warning');
+      return;
+    }
+
+    // 해당 계약 슬롯에 이미 장비가 설치되어 있는지 확인
+    const existingEquipment = installedEquipments.find(eq =>
+      eq.contractEquipment.id === matchedContract.id
+    );
+    if (existingEquipment) {
+      showToast?.('먼저 기존 장비를 회수해주세요.', 'warning');
+      return;
+    }
+
+    // 고객 설치 장비로 복원
+    const newInstalled = {
+      contractEquipment: matchedContract,
+      actualEquipment: selectedStock,
+      macAddress: selectedStock.macAddress || '',
+      installLocation: '',
+    };
+    const updatedInstalled = [...installedEquipments, newInstalled];
+    const updatedMarkedForRemoval = markedForRemoval.filter(eq => eq.id !== selectedStock.id);
+
+    storeSetInstalledEquipments(workId, updatedInstalled);
+    storeSetMarkedForRemoval(workId, updatedMarkedForRemoval);
+
+    // 분실 상태도 초기화
+    const newRemovalStatus = { ...removalStatus };
+    delete newRemovalStatus[selectedStock.id];
+    setFullRemovalStatus(workId, newRemovalStatus);
+
+    storeSetSelectedStock(workId, null);
+    
+    console.log('[장비관리-부가상품] 철거장비 재사용:', {
+      설치장비: updatedInstalled.length,
+      철거장비: updatedMarkedForRemoval.length,
+    });
+
+    showToast?.('장비가 고객 설치로 복원되었습니다.', 'success');
   };
 
   // Filter available stock
@@ -614,66 +779,131 @@ const EquipmentRemoval: React.FC<EquipmentComponentProps> = ({
     }, 500);
   };
 
+  // 장비 정보 새로고침
+  const handleRefresh = async () => {
+    if (isRefreshing || isWorkCompleted) return;
+
+    setIsRefreshing(true);
+    try {
+      await loadEquipmentData(true);
+      showToast?.('장비 정보를 새로고침했습니다.', 'success');
+    } catch (error) {
+      console.error('[장비관리-부가상품] 새로고침 실패:', error);
+      showToast?.('장비 정보 새로고침에 실패했습니다.', 'error');
+    } finally {
+      setIsRefreshing(false);
+    }
+  };
+
   return (
     <div className="px-2 sm:px-4 py-4 sm:py-6 space-y-3 sm:space-y-4 bg-gray-50 pb-4">
       {/* Customer installed equipment section */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-100">
+      <div className="bg-white rounded-xl shadow-sm border border-gray-100 relative">
+        {/* 리프레시 로딩 오버레이 */}
+        {isRefreshing && (
+          <div className="absolute inset-0 bg-white/80 backdrop-blur-sm z-10 flex items-center justify-center rounded-xl">
+            <div className="flex flex-col items-center gap-2">
+              <RotateCcw className="w-8 h-8 text-blue-500 animate-spin" />
+              <span className="text-sm text-gray-600 font-medium">장비 정보 로딩 중...</span>
+            </div>
+          </div>
+        )}
         <div className="p-3 sm:p-4 border-b border-gray-100">
           <div className="flex items-center justify-between mb-3">
-            <h4 className="text-sm sm:text-base font-bold text-gray-900">고객 설치 장비</h4>
+            <div className="flex items-center gap-2">
+              <h4 className="text-sm sm:text-base font-bold text-gray-900">
+                고객 설치 장비
+                {(workItem.productName || workItem.PROD_NM) && (
+                  <span className="font-normal text-blue-600 ml-1">({workItem.productName || workItem.PROD_NM})</span>
+                )}
+              </h4>
+              <button
+                onClick={handleRefresh}
+                disabled={isRefreshing || isWorkCompleted}
+                className={`flex items-center gap-1 px-2 py-1 rounded-lg transition-all text-xs font-medium ${
+                  isRefreshing || isWorkCompleted
+                    ? 'text-gray-300 cursor-not-allowed'
+                    : 'text-blue-500 hover:text-blue-600 hover:bg-blue-50 active:scale-95'
+                }`}
+                title="장비 정보 새로고침"
+              >
+                <RotateCcw className={`w-3.5 h-3.5 ${isRefreshing ? 'animate-spin' : ''}`} />
+                <span>장비 리프레시</span>
+              </button>
+            </div>
             <span className="px-2.5 sm:px-3 py-1 sm:py-1.5 bg-gray-100 text-gray-700 text-xs sm:text-sm font-semibold rounded-full">{contractEquipments.length}개</span>
           </div>
           {/* 버튼 그룹 - 모바일에서 그리드 레이아웃 */}
           <div className="grid grid-cols-3 gap-2">
+            {/* 장비변경 버튼 - 체크 로직은 모달 내부에서 처리 */}
             <button
               className={`flex flex-col items-center justify-center py-2.5 px-1 rounded-lg border-2 transition-all active:scale-95 min-h-[56px] ${
-                isWorkCompleted || installedEquipments.length > 0 || customerEquipmentCount > 0
+                isWorkCompleted
                   ? 'border-gray-200 bg-gray-50 text-gray-400 cursor-not-allowed'
                   : 'border-blue-200 bg-blue-50 text-blue-600 hover:bg-blue-100 hover:border-blue-300'
               }`}
               onClick={() => {
                 if (isWorkCompleted) return;
-                if (customerEquipmentCount > 0) {
-                  showToast?.('이미 고객에게 설치된 장비가 있어 장비정보를 변경할 수 없습니다.', 'warning');
-                  return;
-                }
-                if (installedEquipments.length > 0) {
-                  showToast?.('등록된 장비를 먼저 회수한 후 장비정보를 변경할 수 있습니다.', 'warning');
-                  return;
-                }
                 setIsModelChangeModalOpen(true);
               }}
-              disabled={isWorkCompleted || installedEquipments.length > 0 || customerEquipmentCount > 0}
+              disabled={isWorkCompleted}
             >
               <svg className="w-5 h-5 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
               </svg>
               <span className="text-xs font-semibold">장비변경</span>
             </button>
-            <button
-              className={`flex flex-col items-center justify-center py-2.5 px-1 rounded-lg border-2 transition-all active:scale-95 min-h-[56px] ${
-                isWorkCompleted
-                  ? 'border-gray-200 bg-gray-50 text-gray-400 cursor-not-allowed'
-                  : lastSignalStatus === 'success'
-                    ? 'border-green-300 bg-green-100 text-green-700 hover:bg-green-200 hover:border-green-400'
-                    : lastSignalStatus === 'fail'
-                      ? 'border-red-500 bg-red-200 text-red-800 hover:bg-red-300 hover:border-red-600'
-                      : 'border-red-300 bg-red-100 text-red-700 hover:bg-red-200 hover:border-red-400'
-              }`}
-              onClick={() => !isWorkCompleted && !isSignalProcessing && handleSignalProcess()}
-              disabled={isWorkCompleted || isSignalProcessing}
-            >
-              <svg className="w-5 h-5 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
-              </svg>
-              <span className="text-xs font-semibold">신호처리</span>
-            </button>
+            {/* 신호처리 / LDAP연동 버튼 */}
+            {isCertifyProd ? (
+              <button
+                className={`flex flex-col items-center justify-center py-2.5 px-1 rounded-lg border-2 transition-all active:scale-95 min-h-[56px] ${
+                  isLdapDone
+                    ? 'border-green-300 bg-green-100 text-green-700'
+                    : ldapLoading
+                      ? 'border-yellow-300 bg-yellow-100 text-yellow-700'
+                      : ldapBlocked
+                        ? 'border-gray-300 bg-gray-100 text-gray-400'
+                        : 'border-blue-300 bg-blue-100 text-blue-700 hover:bg-blue-200 hover:border-blue-400'
+                }`}
+                onClick={() => onLdapConnect?.()}
+                disabled={ldapLoading || isWorkCompleted}
+              >
+                {ldapLoading ? (
+                  <Loader2 className="w-5 h-5 mb-1 animate-spin" />
+                ) : (
+                  <svg className="w-5 h-5 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.111 16.404a5.5 5.5 0 017.778 0M12 20h.01m-7.08-7.071c3.904-3.905 10.236-3.905 14.141 0M1.394 9.393c5.857-5.858 15.355-5.858 21.213 0" />
+                  </svg>
+                )}
+                <span className="text-xs font-semibold">{isLdapDone ? 'LDAP완료' : 'LDAP연동'}</span>
+              </button>
+            ) : (
+              <button
+                className={`flex flex-col items-center justify-center py-2.5 px-1 rounded-lg border-2 transition-all active:scale-95 min-h-[56px] ${
+                  isWorkCompleted
+                    ? 'border-gray-200 bg-gray-50 text-gray-400 cursor-not-allowed'
+                    : lastSignalStatus === 'success'
+                      ? 'border-green-300 bg-green-100 text-green-700 hover:bg-green-200 hover:border-green-400'
+                      : lastSignalStatus === 'fail'
+                        ? 'border-red-500 bg-red-200 text-red-800 hover:bg-red-300 hover:border-red-600'
+                        : 'border-red-300 bg-red-100 text-red-700 hover:bg-red-200 hover:border-red-400'
+                }`}
+                onClick={() => !isWorkCompleted && !isSignalProcessing && handleSignalProcess()}
+                disabled={isWorkCompleted || isSignalProcessing}
+              >
+                <svg className="w-5 h-5 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+                </svg>
+                <span className="text-xs font-semibold">임시개통</span>
+              </button>
+            )}
+            {/* 연동이력 / LDAP조회 버튼 */}
             <button
               className="flex flex-col items-center justify-center py-2.5 px-1 rounded-lg border-2 transition-all active:scale-95 min-h-[56px] border-purple-200 bg-purple-50 text-purple-600 hover:bg-purple-100 hover:border-purple-300"
-              onClick={() => setIsIntegrationHistoryModalOpen(true)}
+              onClick={() => isCertifyProd ? setIsLdapQueryModalOpen(true) : setIsIntegrationHistoryModalOpen(true)}
             >
               <History className="w-5 h-5 mb-1" />
-              <span className="text-xs font-semibold">연동이력</span>
+              <span className="text-xs font-semibold">{isCertifyProd ? 'LDAP조회' : '연동이력'}</span>
             </button>
           </div>
         </div>
@@ -686,8 +916,9 @@ const EquipmentRemoval: React.FC<EquipmentComponentProps> = ({
             </div>
           </div>
         ) : contractEquipments.length === 0 ? (
-          <div className="py-12 text-center">
-            <div className="text-sm text-gray-500">계약 장비가 없습니다</div>
+          <div className="py-8 text-center">
+            <div className="text-sm text-gray-500 mb-2">계약 장비가 없습니다</div>
+            <div className="text-xs text-gray-400">장비 추가가 필요하면 위의 [장비변경] 버튼을 눌러주세요</div>
           </div>
         ) : (
           <div className="p-4 space-y-2">
@@ -734,195 +965,278 @@ const EquipmentRemoval: React.FC<EquipmentComponentProps> = ({
         )}
       </div>
 
-      {/* Register/Remove buttons */}
+      {/* 회수/등록 버튼 */}
       {!isWorkCompleted && (
         <div className="flex items-center justify-center gap-3 sm:gap-4">
+          {/* 회수 버튼 (↓) */}
           <button
             className={`flex flex-col items-center justify-center w-16 h-16 sm:w-20 sm:h-20 rounded-xl border-2 transition-all ${
-              !selectedContract || !selectedStock || installedEquipments.some(eq => eq.actualEquipment.id === selectedStock.id)
+              !selectedStock || !installedEquipments.some(eq => eq.actualEquipment.id === selectedStock?.id)
                 ? 'border-gray-200 bg-gray-50 text-gray-400 cursor-not-allowed'
-                : 'border-blue-500 bg-blue-50 text-blue-600 hover:bg-blue-100 cursor-pointer active:scale-95'
+                : 'border-orange-500 bg-orange-50 text-orange-600 hover:bg-orange-100 cursor-pointer active:scale-95'
             }`}
-            onClick={handleRegisterEquipment}
-            disabled={!selectedContract || !selectedStock || installedEquipments.some(eq => eq.actualEquipment.id === selectedStock.id)}
-          >
-            <ArrowUp size={32} className="sm:w-10 sm:h-10" strokeWidth={2.5} />
-          </button>
-          <button
-            className={`flex flex-col items-center justify-center w-16 h-16 sm:w-20 sm:h-20 rounded-xl border-2 transition-all ${
-              !selectedStock || !(
-                installedEquipments.some(eq => eq.actualEquipment.id === selectedStock.id) ||
-                removeEquipments.some(eq => eq.id === selectedStock.id)
-              )
-                ? 'border-gray-200 bg-gray-50 text-gray-400 cursor-not-allowed'
-                : 'border-red-500 bg-red-50 text-red-600 hover:bg-red-100 cursor-pointer active:scale-95'
-            }`}
-            onClick={handleMarkForRemoval}
-            disabled={!selectedStock || !(
-              installedEquipments.some(eq => eq.actualEquipment.id === selectedStock.id) ||
-              removeEquipments.some(eq => eq.id === selectedStock.id)
-            )}
+            onClick={() => {
+              if (!selectedStock) return;
+
+              // 기사재고에서 등록한 장비인지 체크
+              const isFromTechStock = technicianEquipments.some(eq => eq.id === selectedStock.id);
+
+              if (isFromTechStock) {
+                // 기사장비 → 기사재고장비 탭에서만 회수 가능
+                if (bottomTab !== 'stock') {
+                  showToast?.('설치 준비중인 장비입니다. 기사재고장비 탭에서 회수해주세요.', 'warning');
+                  return;
+                }
+                // 등록 취소: installedEquipments에서만 제거 (markedForRemoval에 추가 안함)
+                const installedIndex = installedEquipments.findIndex(eq => eq.actualEquipment.id === selectedStock.id);
+                if (installedIndex >= 0) {
+                  const updated = [...installedEquipments];
+                  updated.splice(installedIndex, 1);
+                  storeSetInstalledEquipments(workId, updated);
+                  storeSetSelectedStock(workId, null);
+                                    showToast?.('장비 등록이 취소되었습니다.', 'success');
+                }
+                return;
+              }
+
+              // 고객 장비 회수
+              handleMarkForRemoval();
+              setBottomTab('removal'); // 철거장비 탭으로 전환
+            }}
+            disabled={!selectedStock || !installedEquipments.some(eq => eq.actualEquipment.id === selectedStock?.id)}
           >
             <ArrowDown size={32} className="sm:w-10 sm:h-10" strokeWidth={2.5} />
           </button>
+          {/* 등록 버튼 (↑) */}
+          <button
+            className={`flex flex-col items-center justify-center w-16 h-16 sm:w-20 sm:h-20 rounded-xl border-2 transition-all ${
+              !selectedStock || installedEquipments.some(eq => eq.actualEquipment.id === selectedStock?.id)
+                ? 'border-gray-200 bg-gray-50 text-gray-400 cursor-not-allowed'
+                : 'border-blue-500 bg-blue-50 text-blue-600 hover:bg-blue-100 cursor-pointer active:scale-95'
+            }`}
+            onClick={() => {
+              if (!selectedStock) return;
+
+              // 철거장비에서 선택한 경우 -> 재사용
+              const isFromMarkedForRemoval = markedForRemoval.some(eq => eq.id === selectedStock.id);
+              if (isFromMarkedForRemoval) {
+                handleReuseEquipment();
+                return;
+              }
+
+              // 기사재고에서 선택한 경우 -> 새 장비 등록
+              if (!selectedContract) {
+                showToast?.('상단에서 계약장비를 먼저 선택해주세요.', 'warning');
+                return;
+              }
+
+              // 해당 계약 슬롯에 이미 고객장비가 설치되어 있는지 확인 (기사장비는 제외)
+              const matchingCustomerEquipment = installedEquipments.find(eq =>
+                eq.contractEquipment.id === selectedContract.id &&
+                !technicianEquipments.some(tech => tech.id === eq.actualEquipment.id)
+              );
+              const isMatchingEquipmentRemoved = matchingCustomerEquipment &&
+                markedForRemoval.some(m => m.id === matchingCustomerEquipment.actualEquipment.id);
+
+              if (matchingCustomerEquipment && !isMatchingEquipmentRemoved) {
+                showToast?.('먼저 기존 장비를 회수해주세요.', 'warning');
+                return;
+              }
+
+              handleRegisterEquipment();
+            }}
+            disabled={!selectedStock || installedEquipments.some(eq => eq.actualEquipment.id === selectedStock?.id)}
+          >
+            <ArrowUp size={32} className="sm:w-10 sm:h-10" strokeWidth={2.5} />
+          </button>
         </div>
       )}
 
-      {/* Technician stock section */}
+      {/* 철거장비/기사재고장비 탭 섹션 */}
       {!isWorkCompleted && (
         <div className="bg-white rounded-xl shadow-sm border border-gray-100">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between p-3 sm:p-4 border-b border-gray-100 gap-2">
-            <h4 className="text-sm sm:text-base font-bold text-gray-900">
-              기사 재고 장비
-              {selectedContract && <span className="text-blue-600"> ({selectedContract.type})</span>}
-            </h4>
-            <span className="px-2.5 sm:px-3 py-1 sm:py-1.5 bg-gray-100 text-gray-700 text-xs sm:text-sm font-semibold rounded-full">
-              {selectedContract ? availableStock.length : 0}개
-            </span>
+          {/* 탭 헤더 */}
+          <div className="flex border-b-2 border-gray-200">
+            <button
+              className={`flex-1 py-3 px-4 text-sm font-semibold transition-all border-b-2 -mb-[2px] ${
+                bottomTab === 'removal'
+                  ? 'border-orange-500 text-orange-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700'
+              }`}
+              onClick={() => setBottomTab('removal')}
+            >
+              <div className="flex items-center justify-center gap-2">
+                <span>철거장비</span>
+                {markedForRemoval.length > 0 && (
+                  <span className={`px-2 py-0.5 text-xs font-bold rounded-full ${
+                    bottomTab === 'removal' ? 'bg-orange-500 text-white' : 'bg-gray-300 text-gray-600'
+                  }`}>
+                    {markedForRemoval.length}
+                  </span>
+                )}
+              </div>
+            </button>
+            <button
+              className={`flex-1 py-3 px-4 text-sm font-semibold transition-all border-b-2 -mb-[2px] ${
+                bottomTab === 'stock'
+                  ? 'border-blue-500 text-blue-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700'
+              }`}
+              onClick={() => setBottomTab('stock')}
+            >
+              <div className="flex items-center justify-center gap-2">
+                <span>기사재고장비</span>
+                {selectedContract && availableStock.length > 0 && (
+                  <span className={`px-2 py-0.5 text-xs font-bold rounded-full ${
+                    bottomTab === 'stock' ? 'bg-blue-500 text-white' : 'bg-gray-300 text-gray-600'
+                  }`}>
+                    {availableStock.length}
+                  </span>
+                )}
+              </div>
+            </button>
           </div>
 
-          {!selectedContract ? (
-            <div className="py-8 sm:py-12 text-center">
-              <div className="text-xs sm:text-sm text-gray-500">상단에서 고객 설치 장비를 먼저 선택해주세요</div>
-            </div>
-          ) : availableStock.length === 0 ? (
-            <div className="py-8 sm:py-12 text-center">
-              <div className="text-xs sm:text-sm text-gray-500">해당 종류의 사용 가능한 재고가 없습니다</div>
-            </div>
+          {/* 탭 콘텐츠 */}
+          {bottomTab === 'removal' ? (
+            /* 철거장비 탭 - 회수된 장비 목록 (인라인 분실처리) */
+            <>
+              {markedForRemoval.length === 0 ? (
+                <div className="py-8 sm:py-12 text-center">
+                  <div className="text-xs sm:text-sm text-gray-500">회수된 장비가 없습니다</div>
+                  <div className="text-xs text-gray-400 mt-1">상단 고객 설치 장비에서 선택 후 ↓ 버튼을 눌러주세요</div>
+                </div>
+              ) : (
+                <div className="p-3 sm:p-4 space-y-3">
+                  {markedForRemoval.map((equipment, idx) => {
+                    const eqtNo = equipment.id;
+                    const status = removalStatus[eqtNo] || {};
+                    const hasLoss = status.EQT_LOSS_YN === '1' || status.PART_LOSS_BRK_YN === '1' ||
+                                    status.EQT_BRK_YN === '1' || status.EQT_CABL_LOSS_YN === '1' ||
+                                    status.EQT_CRDL_LOSS_YN === '1';
+                    const isSelected = selectedStock?.id === equipment.id;
+                    const isCustomerOwned = isCustomerOwnedEquipment(equipment);
+
+                    return (
+                      <div
+                        key={eqtNo || idx}
+                        className={`p-4 rounded-xl border-2 transition-all cursor-pointer ${
+                          isSelected
+                            ? 'border-blue-500 bg-blue-50'
+                            : 'border-orange-200 bg-orange-50 hover:border-orange-300'
+                        }`}
+                        onClick={() => handleStockClick(equipment)}
+                      >
+                        {/* 장비 정보 + 뱃지 */}
+                        <div className="flex items-start justify-between mb-3">
+                          <div className="flex items-center gap-3">
+                            <div className="w-6 h-6 rounded-full bg-orange-500 text-white flex items-center justify-center text-sm font-bold">
+                              ✓
+                            </div>
+                            <div>
+                              <div className="text-sm font-semibold text-gray-900">{equipment.type}</div>
+                              <div className="text-xs text-gray-600">{equipment.model}</div>
+                              <div className="text-xs text-gray-500">S/N: {equipment.serialNumber}</div>
+                            </div>
+                          </div>
+                          <span className={`px-2.5 py-1 text-xs font-bold rounded-full ${
+                            hasLoss ? 'bg-red-500 text-white' : 'bg-green-500 text-white'
+                          }`}>
+                            {hasLoss ? '분실' : '회수'}
+                          </span>
+                        </div>
+
+                        {/* 분실/파손 체크박스 */}
+                        {!isCustomerOwned && (
+                          <div className="grid grid-cols-3 gap-2 mt-2">
+                            {[
+                              { key: 'EQT_LOSS_YN', label: '장비분실' },
+                              { key: 'PART_LOSS_BRK_YN', label: '아답터' },
+                              { key: 'EQT_BRK_YN', label: '리모콘' },
+                              { key: 'EQT_CABL_LOSS_YN', label: '케이블' },
+                              { key: 'EQT_CRDL_LOSS_YN', label: '크래들' },
+                            ].map(item => (
+                              <label
+                                key={item.key}
+                                className={`flex items-center gap-1.5 px-2 py-1.5 rounded-lg border cursor-pointer transition-all ${
+                                  status[item.key] === '1'
+                                    ? 'border-red-300 bg-red-50 text-red-700'
+                                    : 'border-gray-200 bg-white text-gray-600 hover:border-gray-300'
+                                }`}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleRemovalStatusChange(eqtNo, item.key, status[item.key] || '0');
+                                }}
+                              >
+                                <input
+                                  type="checkbox"
+                                  checked={status[item.key] === '1'}
+                                  onChange={() => {}}
+                                  className="w-3.5 h-3.5 rounded border-gray-300 text-red-500 focus:ring-red-500"
+                                />
+                                <span className="text-xs font-medium">{item.label}</span>
+                              </label>
+                            ))}
+                          </div>
+                        )}
+
+                        {isCustomerOwned && (
+                          <div className="mt-2 text-xs text-orange-600 bg-orange-100 p-2 rounded">
+                            고객소유 장비로 분실처리 불가
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </>
           ) : (
-            <div className="p-3 sm:p-4 space-y-2.5 max-h-72 overflow-y-auto">
-              {availableStock.map(stock => (
-                <div
-                  key={stock.id}
-                  className={`p-4 sm:p-5 rounded-xl border-2 transition-all cursor-pointer relative active:scale-[0.98] ${
-                    selectedStock?.id === stock.id
-                      ? 'border-blue-500 bg-blue-50'
-                      : 'border-gray-200 bg-white hover:border-gray-300'
-                  }`}
-                  onClick={() => handleStockClick(stock)}
-                >
-                  <div className="space-y-2 sm:space-y-2.5">
-                    <div className="flex flex-col">
-                      <span className="text-sm sm:text-base font-semibold text-gray-900">{stock.type}</span>
-                      <span className="text-sm sm:text-base font-medium text-gray-600">{stock.model}</span>
-                    </div>
-                    <div className="space-y-1 sm:space-y-1.5">
-                      <div className="text-xs sm:text-sm text-gray-600">S/N: {stock.serialNumber}</div>
-                      {stock.macAddress && (
-                        <div className="text-xs sm:text-sm text-gray-600">MAC: {stock.macAddress}</div>
+            /* 기사재고장비 탭 */
+            <>
+              {!selectedContract ? (
+                <div className="py-8 sm:py-12 text-center">
+                  <div className="text-xs sm:text-sm text-gray-500">상단에서 고객 설치 장비를 먼저 선택해주세요</div>
+                </div>
+              ) : availableStock.length === 0 ? (
+                <div className="py-8 sm:py-12 text-center">
+                  <div className="text-xs sm:text-sm text-gray-500">해당 종류의 사용 가능한 재고가 없습니다</div>
+                </div>
+              ) : (
+                <div className="p-3 sm:p-4 space-y-2.5 max-h-72 overflow-y-auto">
+                  {availableStock.map(stock => (
+                    <div
+                      key={stock.id}
+                      className={`p-4 sm:p-5 rounded-xl border-2 transition-all cursor-pointer relative active:scale-[0.98] ${
+                        selectedStock?.id === stock.id
+                          ? 'border-blue-500 bg-blue-50'
+                          : 'border-gray-200 bg-white hover:border-gray-300'
+                      }`}
+                      onClick={() => handleStockClick(stock)}
+                    >
+                      <div className="space-y-2 sm:space-y-2.5">
+                        <div className="flex flex-col">
+                          <span className="text-sm sm:text-base font-semibold text-gray-900">{stock.type}</span>
+                          <span className="text-sm sm:text-base font-medium text-gray-600">{stock.model}</span>
+                        </div>
+                        <div className="space-y-1 sm:space-y-1.5">
+                          <div className="text-xs sm:text-sm text-gray-600">S/N: {stock.serialNumber}</div>
+                          {stock.macAddress && (
+                            <div className="text-xs sm:text-sm text-gray-600">MAC: {stock.macAddress}</div>
+                          )}
+                        </div>
+                      </div>
+                      {selectedStock?.id === stock.id && (
+                        <div className="absolute top-3 sm:top-4 right-3 sm:right-4 w-6 h-6 sm:w-7 sm:h-7 rounded-full bg-blue-500 text-white flex items-center justify-center text-sm sm:text-base font-bold">
+                          ✓
+                        </div>
                       )}
                     </div>
-                  </div>
-                  {selectedStock?.id === stock.id && (
-                    <div className="absolute top-3 sm:top-4 right-3 sm:right-4 w-6 h-6 sm:w-7 sm:h-7 rounded-full bg-blue-500 text-white flex items-center justify-center text-sm sm:text-base font-bold">
-                      ✓
-                    </div>
-                  )}
+                  ))}
                 </div>
-              ))}
-            </div>
+              )}
+            </>
           )}
-        </div>
-      )}
-
-      {/* Removed equipment section */}
-      {markedForRemoval.length > 0 && (
-        <div className="bg-white rounded-xl shadow-sm border border-gray-100">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between p-3 sm:p-4 border-b border-gray-100 gap-2">
-            <h4 className="text-sm sm:text-base font-bold text-gray-900">회수 장비</h4>
-            <span className="px-2 sm:px-2.5 py-0.5 sm:py-1 bg-orange-100 text-orange-700 text-[10px] sm:text-xs font-semibold rounded-full">
-              {markedForRemoval.length}개
-            </span>
-          </div>
-
-          <div className="p-3 sm:p-4 space-y-3">
-            {markedForRemoval.map(equipment => {
-              const eqtNo = equipment.id;
-              const status = removalStatus[eqtNo] || {};
-              const isCustomerOwned = isCustomerOwnedEquipment(equipment);
-
-              return (
-                <div
-                  key={equipment.id}
-                  className="p-3 sm:p-4 rounded-lg border border-orange-500 bg-orange-50"
-                >
-                  <div className="flex items-start justify-between mb-3">
-                    <div className="space-y-1 flex-1">
-                      <div className="text-sm font-semibold text-gray-900">{equipment.model || equipment.type}</div>
-                      <div className="text-xs text-gray-600">S/N: {equipment.serialNumber}</div>
-                      {equipment.macAddress && (
-                        <div className="text-xs text-gray-500">MAC: {equipment.macAddress}</div>
-                      )}
-                    </div>
-                    <div className="w-5 h-5 sm:w-6 sm:h-6 rounded-full bg-orange-500 text-white flex items-center justify-center text-xs sm:text-sm font-bold">
-                      ✓
-                    </div>
-                  </div>
-
-                  {!isWorkCompleted && !readOnly && (
-                    <div className="flex flex-wrap gap-2 pt-3 border-t border-orange-200">
-                      <label className={`flex items-center gap-1.5 px-2 py-1.5 rounded-lg active:bg-orange-100 whitespace-nowrap ${isCustomerOwned ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}>
-                        <input
-                          type="checkbox"
-                          checked={status.EQT_LOSS_YN === '1'}
-                          onChange={() => !isCustomerOwned && handleRemovalStatusChange(eqtNo, 'EQT_LOSS_YN')}
-                          disabled={isCustomerOwned}
-                          className="w-4 h-4 rounded border-gray-300 text-orange-500 focus:ring-orange-500"
-                        />
-                        <span className="text-xs text-gray-700 font-medium">장비분실</span>
-                      </label>
-                      <label className={`flex items-center gap-1.5 px-2 py-1.5 rounded-lg active:bg-orange-100 whitespace-nowrap ${isCustomerOwned ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}>
-                        <input
-                          type="checkbox"
-                          checked={status.PART_LOSS_BRK_YN === '1'}
-                          onChange={() => !isCustomerOwned && handleRemovalStatusChange(eqtNo, 'PART_LOSS_BRK_YN')}
-                          disabled={isCustomerOwned}
-                          className="w-4 h-4 rounded border-gray-300 text-orange-500 focus:ring-orange-500"
-                        />
-                        <span className="text-xs text-gray-700 font-medium">아답터분실</span>
-                      </label>
-                      <label className={`flex items-center gap-1.5 px-2 py-1.5 rounded-lg active:bg-orange-100 whitespace-nowrap ${isCustomerOwned ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}>
-                        <input
-                          type="checkbox"
-                          checked={status.EQT_BRK_YN === '1'}
-                          onChange={() => !isCustomerOwned && handleRemovalStatusChange(eqtNo, 'EQT_BRK_YN')}
-                          disabled={isCustomerOwned}
-                          className="w-4 h-4 rounded border-gray-300 text-orange-500 focus:ring-orange-500"
-                        />
-                        <span className="text-xs text-gray-700 font-medium">리모콘분실</span>
-                      </label>
-                      <label className={`flex items-center gap-1.5 px-2 py-1.5 rounded-lg active:bg-orange-100 whitespace-nowrap ${isCustomerOwned ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}>
-                        <input
-                          type="checkbox"
-                          checked={status.EQT_CABL_LOSS_YN === '1'}
-                          onChange={() => !isCustomerOwned && handleRemovalStatusChange(eqtNo, 'EQT_CABL_LOSS_YN')}
-                          disabled={isCustomerOwned}
-                          className="w-4 h-4 rounded border-gray-300 text-orange-500 focus:ring-orange-500"
-                        />
-                        <span className="text-xs text-gray-700 font-medium">케이블분실</span>
-                      </label>
-                      <label className={`flex items-center gap-1.5 px-2 py-1.5 rounded-lg active:bg-orange-100 whitespace-nowrap ${isCustomerOwned ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}>
-                        <input
-                          type="checkbox"
-                          checked={status.EQT_CRDL_LOSS_YN === '1'}
-                          onChange={() => !isCustomerOwned && handleRemovalStatusChange(eqtNo, 'EQT_CRDL_LOSS_YN')}
-                          disabled={isCustomerOwned}
-                          className="w-4 h-4 rounded border-gray-300 text-orange-500 focus:ring-orange-500"
-                        />
-                        <span className="text-xs text-gray-700 font-medium">크래들분실</span>
-                      </label>
-                    </div>
-                  )}
-
-                  {isCustomerOwned && !isWorkCompleted && (
-                    <div className="mt-2 text-xs text-orange-600 bg-orange-100 p-2 rounded">
-                      고객소유 장비로 분실처리 불가
-                    </div>
-                  )}
-                </div>
-              );
-            })}
-          </div>
         </div>
       )}
 
@@ -943,6 +1257,8 @@ const EquipmentRemoval: React.FC<EquipmentComponentProps> = ({
             wrkCdNm={displayWrkCdNm}
             onSave={handleModelChange}
             showToast={showToast}
+            installedEquipmentCount={installedEquipments.length}
+            customerEquipmentCount={customerEquipmentCount}
           />
         );
       })()}
@@ -971,10 +1287,16 @@ const EquipmentRemoval: React.FC<EquipmentComponentProps> = ({
         custId={workItem.CUST_ID || workItem.customer?.id}
       />
 
+      <LdapQueryModal
+        isOpen={isLdapQueryModalOpen}
+        onClose={() => setIsLdapQueryModalOpen(false)}
+        ctrtId={workItem.DTL_CTRT_ID || workItem.CTRT_ID}
+      />
+
       {/* Signal processing popup */}
-      {isSignalPopupOpen && (
+      {isSignalPopupOpen && createPortal(
         <div
-          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
+          className="fixed inset-0 bg-black/60 flex items-center justify-center z-[9999] p-4"
           onClick={() => !isSignalProcessing && setIsSignalPopupOpen(false)}
         >
           <div
@@ -982,7 +1304,7 @@ const EquipmentRemoval: React.FC<EquipmentComponentProps> = ({
             onClick={(e) => e.stopPropagation()}
           >
             <div className="px-6 py-4 border-b border-gray-100">
-              <h3 className="text-lg font-bold text-gray-900">신호처리</h3>
+              <h3 className="text-lg font-bold text-gray-900">임시개통</h3>
             </div>
 
             <div className="px-6 py-8">
@@ -991,7 +1313,7 @@ const EquipmentRemoval: React.FC<EquipmentComponentProps> = ({
                   <div className="text-blue-500">
                     <Loader2 className="animate-spin" size={64} />
                   </div>
-                  <p className="text-base font-semibold text-gray-900">신호처리 중...</p>
+                  <p className="text-base font-semibold text-gray-900">임시개통 중...</p>
                   <p className="text-sm text-gray-500">잠시만 기다려주세요</p>
                 </div>
               ) : lastSignalStatus === 'success' ? (
@@ -999,7 +1321,7 @@ const EquipmentRemoval: React.FC<EquipmentComponentProps> = ({
                   <div className="text-green-500">
                     <CheckCircle2 size={64} />
                   </div>
-                  <p className="text-base font-semibold text-gray-900">신호처리 완료!</p>
+                  <p className="text-base font-semibold text-gray-900">임시개통 완료!</p>
                   <div className="w-full p-4 bg-gray-50 rounded-lg border border-gray-200">
                     <pre className="text-xs text-gray-700 whitespace-pre-wrap font-mono">{signalResult}</pre>
                   </div>
@@ -1009,7 +1331,7 @@ const EquipmentRemoval: React.FC<EquipmentComponentProps> = ({
                   <div className="text-red-500">
                     <XCircle size={64} />
                   </div>
-                  <p className="text-base font-semibold text-gray-900">신호처리 실패</p>
+                  <p className="text-base font-semibold text-gray-900">임시개통 실패</p>
                   <div className="w-full p-4 bg-red-50 rounded-lg border border-red-200">
                     <pre className="text-xs text-red-700 whitespace-pre-wrap font-mono">{signalResult}</pre>
                   </div>
@@ -1032,7 +1354,7 @@ const EquipmentRemoval: React.FC<EquipmentComponentProps> = ({
             </div>
           </div>
         </div>
-      )}
+      , document.body)}
     </div>
   );
 };

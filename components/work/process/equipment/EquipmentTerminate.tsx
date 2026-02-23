@@ -1,7 +1,7 @@
 /**
- * 철거/이전철거 작업 (WRK_CD=02,08) 전용 장비정보 컴포넌트
+ * 철거 작업 (WRK_CD=02) 전용 장비정보 컴포넌트
  *
- * 레거시 참조: mowoa03m02.xml, mowoa03m08.xml
+ * 레거시 참조: mowoa03m02.xml
  *
  * 상태 관리:
  * - Zustand (useWorkEquipmentStore): 클라이언트 상태 (철거 장비, 분실/파손 체크박스)
@@ -11,10 +11,12 @@
  * - 철거 대상 장비 목록 표시 (API output5)
  * - 분실/파손 체크박스 (장비분실, 아답터분실, 리모콘분실, 케이블분실, 크래들분실)
  * - 고객소유 장비는 분실처리 불가
+ *
+ * 주의: 이전철거(WRK_CD=08)는 EquipmentRemovalTerminate.tsx 사용
  */
 
-import React, { useEffect } from 'react';
-import { RotateCcw } from 'lucide-react';
+import React, { useEffect, useState } from 'react';
+import { RotateCcw, RefreshCw } from 'lucide-react';
 import { getTechnicianEquipments } from '../../../../services/apiService';
 import { useWorkEquipmentStore, useWorkEquipment } from '../../../../stores/workEquipmentStore';
 import {
@@ -53,6 +55,9 @@ const EquipmentTerminate: React.FC<EquipmentComponentProps> = ({
     isReady: isDataLoaded,
   } = useWorkEquipment(workId);
 
+  // 새로고침 상태
+  const [isRefreshing, setIsRefreshing] = useState(false);
+
   // 초기화 및 데이터 로드
   useEffect(() => {
     // 이미 데이터가 로드된 상태면 건너뜀 (탭 이동 시 기존 데이터 유지)
@@ -67,13 +72,13 @@ const EquipmentTerminate: React.FC<EquipmentComponentProps> = ({
   // Zustand store가 자동으로 localStorage에 persist하므로 별도 저장 로직 불필요
 
   // 장비 데이터 로드
-  const loadEquipmentData = async () => {
+  const loadEquipmentData = async (forceRefresh = false) => {
     try {
       console.log('[장비관리-철거] 데이터 로드 시작 - isWorkCompleted:', isWorkCompleted, 'WRK_STAT_CD:', workItem.WRK_STAT_CD);
       let apiResponse;
 
-      // Pre-loaded 데이터가 있으면 API 호출 건너뛰기
-      if (preloadedApiData) {
+      // Pre-loaded 데이터가 있으면 API 호출 건너뛰기 (forceRefresh가 아닐 때만)
+      if (preloadedApiData && !forceRefresh) {
         console.log('[장비관리-철거] Pre-loaded 데이터 사용 - API 호출 건너뜀');
         apiResponse = preloadedApiData;
       } else {
@@ -86,15 +91,15 @@ const EquipmentTerminate: React.FC<EquipmentComponentProps> = ({
         const user = JSON.parse(userInfo);
 
         const requestPayload = {
-          WRKR_ID: user.workerId || 'A20130708',
+          WRKR_ID: workItem.WRKR_ID || user.userId || user.workerId || '',
           SO_ID: workItem.SO_ID || user.soId,
-          WORK_ID: workItem.id,
+          WRK_ID: workItem.id,  // WORK_ID가 아닌 WRK_ID (WorkProcessFlow와 동일)
           CUST_ID: workItem.customer?.id || workItem.CUST_ID,
           RCPT_ID: workItem.RCPT_ID || null,
           CTRT_ID: workItem.CTRT_ID || null,
           CRR_ID: workItem.CRR_ID || null,
           ADDR_ORD: workItem.ADDR_ORD || null,
-          CRR_TSK_CL: '02', // 철거 작업
+          CRR_TSK_CL: workItem.WRK_CD || '02',  // 작업코드 사용
           WRK_DTL_TCD: workItem.WRK_DTL_TCD || '',
           WRK_CD: workItem.WRK_CD || null,
           WRK_STAT_CD: workItem.WRK_STAT_CD || null,
@@ -147,7 +152,7 @@ const EquipmentTerminate: React.FC<EquipmentComponentProps> = ({
       requestAnimationFrame(() => storeSetDataLoaded(workId, true));
     } catch (error) {
       console.error('[장비관리-철거] 장비 데이터 로드 실패:', error);
-      showToast?.('장비 정보를 불러오는데 실패했습니다.', 'error');
+      showToast?.('장비 정보를 불러오는데 실패했습니다.', 'error', true);
       setApiData(workId, { removeEquipments: [] });
       requestAnimationFrame(() => storeSetDataLoaded(workId, true));
     }
@@ -190,7 +195,7 @@ const EquipmentTerminate: React.FC<EquipmentComponentProps> = ({
         CRR_TSK_CL: '02',  // 철거 작업
         RCPT_ID: workItem.RCPT_ID || '',
         CRR_ID: workItem.CRR_ID || '',
-        WRKR_ID: user.workerId || 'A20130708',
+        WRKR_ID: workItem.WRKR_ID || user.userId || user.workerId || '',
         // EQT_CL 필드 (장비분실처리에서 필수 - TCMCT_EQT_LOSS_INFO 테이블)
         EQT_CL: eq.eqtClCd || (eq as any).EQT_CL_CD || (eq as any).EQT_CL || '',
 
@@ -213,6 +218,7 @@ const EquipmentTerminate: React.FC<EquipmentComponentProps> = ({
     const data = {
       installedEquipments: [], // 철거 작업에서는 설치 장비 없음
       removedEquipments: removals,
+      removalStatus: removalStatus,  // 분실/파손 상태 전달 (Complete 단계에서 사용)
     };
 
     console.log('[장비관리-철거] 철거 장비 수:', removals.length);
@@ -230,16 +236,56 @@ const EquipmentTerminate: React.FC<EquipmentComponentProps> = ({
     onSave(data);
   };
 
+  // 장비 정보 새로고침
+  const handleRefresh = async () => {
+    if (isRefreshing || isWorkCompleted) return;
+
+    setIsRefreshing(true);
+    try {
+      await loadEquipmentData(true);
+      showToast?.('장비 정보를 새로고침했습니다.', 'success');
+    } catch (error) {
+      console.error('[장비관리-철거] 새로고침 실패:', error);
+      showToast?.('장비 정보 새로고침에 실패했습니다.', 'error');
+    } finally {
+      setIsRefreshing(false);
+    }
+  };
+
   return (
     <div className="px-2 sm:px-4 py-4 sm:py-6 space-y-3 sm:space-y-4 bg-gray-50 pb-4">
       {/* 철거장비 섹션 */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-100">
+      <div className="bg-white rounded-xl shadow-sm border border-gray-100 relative">
+        {/* 리프레시 로딩 오버레이 */}
+        {isRefreshing && (
+          <div className="absolute inset-0 bg-white/80 backdrop-blur-sm z-10 flex items-center justify-center rounded-xl">
+            <div className="flex flex-col items-center gap-2">
+              <RefreshCw className="w-8 h-8 text-blue-500 animate-spin" />
+              <span className="text-sm text-gray-600 font-medium">장비 정보 로딩 중...</span>
+            </div>
+          </div>
+        )}
         <div className="flex items-center justify-between p-3 sm:p-4 border-b border-gray-100">
-          <h4 className="text-sm sm:text-base font-bold text-gray-900 flex items-center gap-2">
-            <RotateCcw className="w-4 h-4 sm:w-5 sm:h-5 text-orange-500" />
-            철거장비
-          </h4>
-          <span className="px-2 sm:px-2.5 py-0.5 sm:py-1 bg-orange-100 text-orange-700 text-[10px] sm:text-xs font-semibold rounded-full">
+          <div className="flex items-center gap-2">
+            <h4 className="text-sm sm:text-base font-bold text-gray-900 flex items-center gap-2">
+              <RotateCcw className="w-4 h-4 sm:w-5 sm:h-5 text-orange-500" />
+              철거장비
+            </h4>
+            <button
+              onClick={handleRefresh}
+              disabled={isRefreshing || isWorkCompleted}
+              className={`flex items-center gap-1 px-2 py-1 rounded-lg transition-all text-xs font-medium ${
+                isRefreshing || isWorkCompleted
+                  ? 'text-gray-300 cursor-not-allowed'
+                  : 'text-blue-500 hover:text-blue-600 hover:bg-blue-50 active:scale-95'
+              }`}
+              title="장비 정보 새로고침"
+            >
+              <RefreshCw className={`w-3.5 h-3.5 ${isRefreshing ? 'animate-spin' : ''}`} />
+              <span>장비 리프레시</span>
+            </button>
+          </div>
+          <span className="px-2 sm:px-2.5 py-0.5 sm:py-1 bg-orange-100 text-orange-700 text-[0.625rem] sm:text-xs font-semibold rounded-full">
             {removeEquipments.length}개
           </span>
         </div>
@@ -276,27 +322,8 @@ const EquipmentTerminate: React.FC<EquipmentComponentProps> = ({
 
                   {/* 분실/파손 체크박스 - 읽기 전용일 때는 숨김 */}
                   {!isWorkCompleted && !readOnly && (() => {
-                    // 분실/파손 체크 여부에 따라 재사용 상태 자동 계산 (UI 표시용)
-                    const hasAnyLoss = status.EQT_LOSS_YN === '1' ||
-                      status.PART_LOSS_BRK_YN === '1' ||
-                      status.EQT_BRK_YN === '1' ||
-                      status.EQT_CABL_LOSS_YN === '1' ||
-                      status.EQT_CRDL_LOSS_YN === '1';
-                    const isReusable = !hasAnyLoss;
-
                     return (
                     <div className="flex flex-wrap gap-2 pt-3 border-t border-gray-100">
-                      {/* 재사용 체크박스 (표시용 - 분실 체크 시 자동 해제) */}
-                      <label className="flex items-center gap-1.5 px-2 py-1.5 rounded-lg whitespace-nowrap opacity-70 cursor-not-allowed">
-                        <input
-                          type="checkbox"
-                          checked={isReusable}
-                          disabled={true}
-                          className={`w-4 h-4 rounded border-gray-300 ${isReusable ? 'text-green-500' : 'text-gray-300'} focus:ring-green-500`}
-                        />
-                        <span className={`text-xs font-medium ${isReusable ? 'text-green-700' : 'text-gray-400'}`}>재사용</span>
-                      </label>
-                      <div className="w-px h-5 bg-gray-300 self-center mx-1" />
                       <label className={`flex items-center gap-1.5 px-2 py-1.5 rounded-lg active:bg-gray-100 whitespace-nowrap ${isCustomerOwned ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}>
                         <input
                           type="checkbox"

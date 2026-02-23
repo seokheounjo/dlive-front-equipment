@@ -38,6 +38,7 @@ interface WorkEquipmentState {
   removalStatus: RemovalStatus;                  // 분실/파손 체크박스 상태 (철거/AS/정지)
   markedForRemoval: ExtendedEquipment[];         // 회수 등록할 장비 목록 (AS/상품변경)
   pendingLossStatusList: LossStatusData[];       // 분실 상태 목록 (작업완료 시 API 호출용)
+  reuseAll: boolean;                             // 전체 재사용 체크 (이전철거 - 레거시 chk_reuse_yn)
 
   // 선택 상태 (UI 상태)
   selectedContract: ContractEquipment | null;
@@ -107,6 +108,9 @@ interface WorkEquipmentStore {
   setPendingLossStatusList: (workId: string, list: LossStatusData[]) => void;
   clearPendingLossStatusList: (workId: string) => void;
 
+  // Actions - 전체 재사용 체크 (이전철거)
+  setReuseAll: (workId: string, value: boolean) => void;
+
   // Actions - 선택 상태 관리
   setSelectedContract: (workId: string, contract: ContractEquipment | null) => void;
   setSelectedStock: (workId: string, stock: ExtendedEquipment | null) => void;
@@ -134,6 +138,7 @@ const createDefaultState = (): WorkEquipmentState => ({
   removalStatus: {},
   markedForRemoval: [],
   pendingLossStatusList: [],
+  reuseAll: false,
   selectedContract: null,
   selectedStock: null,
   signalStatus: 'idle',
@@ -195,6 +200,19 @@ export const useWorkEquipmentStore = create<WorkEquipmentStore>()(
 
       // API 데이터 설정
       setApiData: (workId, data) => {
+        // Debug log - API에서 받은 초기 장비 데이터
+        console.log('[Equipment Store] API 데이터 수신', {
+          workId,
+          계약장비: data.contractEquipments?.length ?? 0,
+          기사재고: data.technicianEquipments?.length ?? 0,
+          고객장비: data.customerEquipments?.length ?? 0,
+          철거장비: data.removeEquipments?.length ?? 0,
+          상세: {
+            contractEquipments: data.contractEquipments?.map(eq => ({ id: eq.id, model: eq.model, type: eq.type })),
+            removeEquipments: data.removeEquipments?.map((eq: any) => ({ id: eq.id, model: eq.model, EQT_NO: eq.EQT_NO })),
+          }
+        });
+
         set((state) => {
           const currentWs = state.workStates[workId] || createDefaultState();
           const updatedWs: WorkEquipmentState = {
@@ -244,6 +262,20 @@ export const useWorkEquipmentStore = create<WorkEquipmentStore>()(
             newInstalled = [...currentWs.installedEquipments, item];
           }
 
+          // Debug log
+          console.log('[Equipment Store] 장비 등록', {
+            workId,
+            action: existingIndex >= 0 ? '교체' : '추가',
+            equipment: {
+              contractId: item.contractEquipment.id,
+              contractModel: item.contractEquipment.model,
+              actualId: item.actualEquipment.id,
+              actualModel: item.actualEquipment.model,
+              EQT_CHG_GB: item.actualEquipment.EQT_CHG_GB,
+            },
+            총등록수: newInstalled.length,
+          });
+
           return {
             ...state,
             workStates: {
@@ -263,15 +295,27 @@ export const useWorkEquipmentStore = create<WorkEquipmentStore>()(
           const currentWs = state.workStates[workId];
           if (!currentWs) return state;
 
+          const removed = currentWs.installedEquipments.find(eq => eq.contractEquipment.id === contractId);
+          const newInstalled = currentWs.installedEquipments.filter(eq => eq.contractEquipment.id !== contractId);
+
+          // Debug log
+          console.log('[Equipment Store] 장비 등록 취소', {
+            workId,
+            removed: removed ? {
+              contractId: removed.contractEquipment.id,
+              actualId: removed.actualEquipment.id,
+              model: removed.actualEquipment.model,
+            } : null,
+            남은등록수: newInstalled.length,
+          });
+
           return {
             ...state,
             workStates: {
               ...state.workStates,
               [workId]: {
                 ...currentWs,
-                installedEquipments: currentWs.installedEquipments.filter(
-                  eq => eq.contractEquipment.id !== contractId
-                ),
+                installedEquipments: newInstalled,
                 lastUpdated: new Date().toISOString(),
               },
             },
@@ -373,6 +417,23 @@ export const useWorkEquipmentStore = create<WorkEquipmentStore>()(
           const currentWs = state.workStates[workId] || createDefaultState();
           const currentStatus = currentWs.removalStatus[eqtNo] || {};
           const currentValue = currentStatus[field] || '0';
+          const newValue = currentValue === '1' ? '0' : '1';
+
+          // Debug log
+          const fieldNames: Record<string, string> = {
+            EQT_LOSS_YN: '장비분실',
+            PART_LOSS_BRK_YN: '부품분실/파손',
+            EQT_BRK_YN: '장비파손',
+            EQT_CABL_LOSS_YN: '케이블분실',
+            EQT_CRDL_LOSS_YN: '크래들분실',
+          };
+          console.log('[Equipment Store] 분실/파손 체크', {
+            workId,
+            eqtNo,
+            field: fieldNames[field] || field,
+            값: newValue === '1' ? 'Y' : 'N',
+            전체상태: { ...currentStatus, [field]: newValue },
+          });
 
           return {
             ...state,
@@ -384,7 +445,7 @@ export const useWorkEquipmentStore = create<WorkEquipmentStore>()(
                   ...currentWs.removalStatus,
                   [eqtNo]: {
                     ...currentStatus,
-                    [field]: currentValue === '1' ? '0' : '1',
+                    [field]: newValue,
                   },
                 },
                 lastUpdated: new Date().toISOString(),
@@ -437,13 +498,27 @@ export const useWorkEquipmentStore = create<WorkEquipmentStore>()(
           const isAlreadyMarked = currentWs.markedForRemoval.some(eq => eq.id === equipment.id);
           if (isAlreadyMarked) return state;
 
+          const newMarked = [...currentWs.markedForRemoval, equipment];
+
+          // Debug log
+          console.log('[Equipment Store] 회수 등록', {
+            workId,
+            equipment: {
+              id: equipment.id,
+              model: equipment.model,
+              serialNumber: equipment.serialNumber,
+              itemMidCd: equipment.itemMidCd,
+            },
+            총회수수: newMarked.length,
+          });
+
           return {
             ...state,
             workStates: {
               ...state.workStates,
               [workId]: {
                 ...currentWs,
-                markedForRemoval: [...currentWs.markedForRemoval, equipment],
+                markedForRemoval: newMarked,
                 lastUpdated: new Date().toISOString(),
               },
             },
@@ -456,13 +531,26 @@ export const useWorkEquipmentStore = create<WorkEquipmentStore>()(
           const currentWs = state.workStates[workId];
           if (!currentWs) return state;
 
+          const removed = currentWs.markedForRemoval.find(eq => eq.id === eqtNo);
+          const newMarked = currentWs.markedForRemoval.filter(eq => eq.id !== eqtNo);
+
+          // Debug log
+          console.log('[Equipment Store] 회수 취소', {
+            workId,
+            removed: removed ? {
+              id: removed.id,
+              model: removed.model,
+            } : null,
+            남은회수수: newMarked.length,
+          });
+
           return {
             ...state,
             workStates: {
               ...state.workStates,
               [workId]: {
                 ...currentWs,
-                markedForRemoval: currentWs.markedForRemoval.filter(eq => eq.id !== eqtNo),
+                markedForRemoval: newMarked,
                 lastUpdated: new Date().toISOString(),
               },
             },
@@ -473,6 +561,14 @@ export const useWorkEquipmentStore = create<WorkEquipmentStore>()(
       setMarkedForRemoval: (workId, equipments) => {
         set((state) => {
           const currentWs = state.workStates[workId] || createDefaultState();
+
+          // Debug log
+          console.log('[Equipment Store] 회수 목록 설정', {
+            workId,
+            총회수수: equipments.length,
+            장비목록: equipments.map(eq => ({ id: eq.id, model: eq.model })),
+          });
+
           return {
             ...state,
             workStates: {
@@ -558,6 +654,30 @@ export const useWorkEquipmentStore = create<WorkEquipmentStore>()(
               [workId]: {
                 ...currentWs,
                 pendingLossStatusList: [],
+                lastUpdated: new Date().toISOString(),
+              },
+            },
+          };
+        });
+      },
+
+      // 전체 재사용 체크 (이전철거)
+      setReuseAll: (workId, value) => {
+        set((state) => {
+          const currentWs = state.workStates[workId] || createDefaultState();
+
+          console.log('[Equipment Store] 전체 재사용 설정', {
+            workId,
+            value: value ? 'Y' : 'N',
+          });
+
+          return {
+            ...state,
+            workStates: {
+              ...state.workStates,
+              [workId]: {
+                ...currentWs,
+                reuseAll: value,
                 lastUpdated: new Date().toISOString(),
               },
             },
@@ -691,6 +811,7 @@ export const useWorkEquipmentStore = create<WorkEquipmentStore>()(
               removalStatus: ws.removalStatus,
               markedForRemoval: ws.markedForRemoval,
               pendingLossStatusList: ws.pendingLossStatusList,
+              reuseAll: ws.reuseAll,
               signalStatus: ws.signalStatus,
               signalResult: ws.signalResult,
               filteringData: ws.filteringData,

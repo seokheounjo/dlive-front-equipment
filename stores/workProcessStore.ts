@@ -1,6 +1,7 @@
 /**
  * 작업 프로세스 상태 관리 Store
  * - 4단계 프로세스 (계약정보 → 접수정보 → 장비정보 → 작업완료)
+ * - FTTH 5단계 프로세스 (계약정보 → 접수정보 → 장비정보 → 집선등록 → 작업완료)
  * - 작업 항목 데이터
  * - 장비 데이터
  * - 작업 ID별 step 분리 저장
@@ -17,10 +18,11 @@ interface WorkItem {
 interface EquipmentData {
   installedEquipments?: any[];
   removedEquipments?: any[];
+  prodPromoInfo?: any[];  // 프로모션 상품 정보 (CL-04 ADD_ON 파라미터용)
   [key: string]: any;
 }
 
-type ProcessStep = 1 | 2 | 3 | 4;
+type ProcessStep = 1 | 2 | 3 | 4 | 5;
 
 // 작업 ID별 step 저장
 interface WorkStepMap {
@@ -135,7 +137,7 @@ export const useWorkProcessStore = create<WorkProcessStore>()(
 
         // 이전 작업과 새 작업이 다른 경우에만 삭제
         if (currentWorkId && currentWorkId !== newWorkId) {
-          console.log(`🗑️ [WorkProcessStore] 이전 작업(${currentWorkId}) draft 삭제`);
+          console.log(`[WorkProcessStore] 이전 작업(${currentWorkId}) draft 삭제`);
 
           // 1. localStorage에서 이전 작업의 draft 삭제
           try {
@@ -143,7 +145,7 @@ export const useWorkProcessStore = create<WorkProcessStore>()(
             localStorage.removeItem(`work_complete_draft_${currentWorkId}`);
             // Equipment*.tsx에서 저장하는 키
             localStorage.removeItem(`equipment_draft_${currentWorkId}`);
-            console.log(`✅ localStorage draft 삭제 완료`);
+            console.log(`localStorage draft 삭제 완료`);
           } catch (e) {
             console.error('localStorage 삭제 실패:', e);
           }

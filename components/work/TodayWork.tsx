@@ -7,6 +7,7 @@ import ErrorMessage from '../common/ErrorMessage';
 import FloatingMapButton from '../common/FloatingMapButton';
 import WorkMapView from './WorkMapView';
 import VisitSmsModal from '../modal/VisitSmsModal';
+import WorkerAdjustmentModal from '../modal/WorkerAdjustmentModal';
 import { Calendar, Clock, Phone, MapPin, ChevronRight } from 'lucide-react';
 import { useWorkOrders } from '../../hooks/queries/useWorkOrders';
 import { useUIStore } from '../../stores/uiStore';
@@ -38,19 +39,30 @@ const TodayWork: React.FC<TodayWorkProps> = ({
   // SMS 모달 상태
   const [showSmsModal, setShowSmsModal] = useState(false);
   const [smsData, setSmsData] = useState<SmsSendData | null>(null);
-  // Get today's date in YYYY-MM-DD format
-  const getTodayString = () => {
-    const today = new Date();
-    return today.toISOString().split('T')[0];
-  };
+  // 작업자보정 모달 상태
+  const [showWorkerAdjustModal, setShowWorkerAdjustModal] = useState(false);
+  const [workerAdjustTarget, setWorkerAdjustTarget] = useState<WorkOrder | null>(null);
+  // uiStore에서 workFilters 가져오기 (Dashboard와 동일한 날짜 범위 사용)
+  const { workFilters } = useUIStore();
+  const { startDate, endDate } = workFilters;
 
-  const todayStr = getTodayString();
+  // 오늘 날짜 (필터링용)
+  const today = new Date();
+  const todayStr = today.toISOString().split('T')[0];
 
-  // React Query로 오늘 작업 목록 조회
-  const { data: workOrders = [], isLoading, error: queryError } = useWorkOrders({
-    startDate: todayStr,
-    endDate: todayStr
+  // React Query로 월 단위 작업 목록 조회 (Dashboard와 캐시 공유)
+  const { data: allWorkOrders = [], isLoading, error: queryError, refetch } = useWorkOrders({
+    startDate,
+    endDate
   });
+
+  // 오늘 날짜 작업만 필터링
+  const workOrders = allWorkOrders.filter(order => {
+    if (!order.scheduledAt) return false;
+    const orderDate = order.scheduledAt.split('T')[0];
+    return orderDate === todayStr;
+  });
+
   const error = queryError?.message || null;
 
   // Format date for display
@@ -67,7 +79,6 @@ const TodayWork: React.FC<TodayWorkProps> = ({
     };
   };
 
-  const today = new Date();
   const todayDisplay = formatDateDisplay(today);
 
   // Group orders by status
@@ -102,6 +113,13 @@ const TodayWork: React.FC<TodayWorkProps> = ({
       const encodedAddress = encodeURIComponent(address);
       window.open(`https://map.kakao.com/link/search/${encodedAddress}`, '_blank');
     }
+  };
+
+  // Handle worker adjustment
+  const handleWorkerAdjust = (e: React.MouseEvent, order: WorkOrder) => {
+    e.stopPropagation();
+    setWorkerAdjustTarget(order);
+    setShowWorkerAdjustModal(true);
   };
 
   // Handle SMS modal open
@@ -174,6 +192,9 @@ const TodayWork: React.FC<TodayWorkProps> = ({
               )}
               <h3 className="font-bold text-gray-900 text-base truncate">
                 {order.customer.name}
+                {order.customer.id && (
+                  <span className="text-gray-400 font-normal ml-1">({order.customer.id.replace(/(\d{3})(\d{3})(\d{4})/, '$1-$2-$3')})</span>
+                )}
               </h3>
               <VipBadge customer={order.customer} />
             </div>
@@ -186,9 +207,17 @@ const TodayWork: React.FC<TodayWorkProps> = ({
 
           {/* 작업 유형 + 날짜 */}
           <div className="flex items-center gap-3 mb-3">
-            <span className="inline-flex items-center px-3 py-1.5 rounded-lg text-sm font-medium bg-blue-50 text-blue-700 border border-blue-200">
-              {order.typeDisplay}
-            </span>
+            <div className="flex items-center gap-1.5">
+              <span className="inline-flex items-center px-3 py-1.5 rounded-lg text-sm font-medium bg-blue-50 text-blue-700 border border-blue-200">
+                {order.typeDisplay}
+              </span>
+              {/* 정지작업 중 일시철거복구(0440) 구분 뱃지 */}
+              {(order as any).WRK_CD === '04' && (order as any).WRK_DTL_TCD === '0440' && (
+                <span className="inline-flex items-center px-2 py-1 rounded-lg text-xs font-medium bg-cyan-50 text-cyan-700 border border-cyan-200">
+                  일시철거복구
+                </span>
+              )}
+            </div>
             <div className="flex items-center gap-1.5 text-sm text-gray-600">
               <svg className="w-4 h-4 text-gray-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -238,10 +267,7 @@ const TodayWork: React.FC<TodayWorkProps> = ({
             </button>
 
             <button
-              onClick={(e) => {
-                e.stopPropagation();
-                // TODO: 작업자보정 기능 구현
-              }}
+              onClick={(e) => handleWorkerAdjust(e, order)}
               className="flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg bg-gray-100 text-gray-700 hover:bg-gray-200 transition-colors text-sm font-medium flex-1"
             >
               <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -422,6 +448,24 @@ const TodayWork: React.FC<TodayWorkProps> = ({
         smsData={smsData}
         userId={userInfo?.userId || ''}
       />
+
+      {/* 작업자보정 모달 */}
+      {workerAdjustTarget && (
+        <WorkerAdjustmentModal
+          isOpen={showWorkerAdjustModal}
+          onClose={() => {
+            setShowWorkerAdjustModal(false);
+            setWorkerAdjustTarget(null);
+          }}
+          direction={workerAdjustTarget}
+          onSuccess={() => {
+            // 작업지시서 목록 리프레시
+            refetch();
+          }}
+          showToast={showToast}
+          userInfo={userInfo}
+        />
+      )}
     </div>
   );
 };

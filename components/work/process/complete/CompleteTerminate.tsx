@@ -12,7 +12,8 @@
 import React, { useState, useEffect } from 'react';
 import { History } from 'lucide-react';
 import { WorkOrder, WorkCompleteData } from '../../../../types';
-import { getCommonCodeList, CommonCode, getWorkReceiptDetail, checkStbServerConnection } from '../../../../services/apiService';
+import { getCommonCodeList, CommonCode, getWorkReceiptDetail, sendSignal, getLghvProdMap, getWorkCancelInfo } from '../../../../services/apiService';
+import { executeCL08CL06Termination } from '../../../../hooks/useCertifyComplete';
 import Select from '../../../ui/Select';
 import InstallInfoModal, { InstallInfoData } from '../../../modal/InstallInfoModal';
 import IntegrationHistoryModal from '../../../modal/IntegrationHistoryModal';
@@ -23,8 +24,10 @@ import ConfirmModal from '../../../common/ConfirmModal';
 import WorkCompleteSummary from '../WorkCompleteSummary';
 import { insertWorkRemoveStat, modAsPdaReceipt } from '../../../../services/apiService';
 import { useWorkProcessStore } from '../../../../stores/workProcessStore';
+import { useCertifyStore } from '../../../../stores/certifyStore';
 import { useWorkEquipment } from '../../../../stores/workEquipmentStore';
 import { useCompleteWork } from '../../../../hooks/mutations/useCompleteWork';
+import { isFtthProduct } from '../../../../utils/workValidation';
 import '../../../../styles/buttons.css';
 
 interface CompleteTerminateProps {
@@ -34,6 +37,7 @@ interface CompleteTerminateProps {
   showToast?: (message: string, type: 'success' | 'error' | 'warning' | 'info') => void;
   equipmentData?: any;
   readOnly?: boolean;
+  certifyMode?: boolean;    // LGU+ certify: forces certify path regardless of isFtthProduct
 }
 
 const CompleteTerminate: React.FC<CompleteTerminateProps> = ({
@@ -42,7 +46,8 @@ const CompleteTerminate: React.FC<CompleteTerminateProps> = ({
   onSuccess,
   showToast,
   equipmentData: legacyEquipmentData,
-  readOnly = false
+  readOnly = false,
+  certifyMode = false,
 }) => {
   // 완료/취소된 작업 여부 확인
   const isWorkCompleted = readOnly
@@ -54,8 +59,13 @@ const CompleteTerminate: React.FC<CompleteTerminateProps> = ({
 
   const [isDataLoaded, setIsDataLoaded] = useState(false);
 
+  // OST (원스톱) 상태 - 별도 API로 조회 (order 객체에 값이 안 올 수 있음)
+  const [ostWorkableStat, setOstWorkableStat] = useState<string>('');
+  const [isOstChecking, setIsOstChecking] = useState(false);
+
   // Store에서 장비 데이터 + 인입선로 철거관리 데이터
   const { equipmentData: storeEquipmentData, filteringData, removalLineData: storeRemovalLineData, setRemovalLineData: setStoreRemovalLineData } = useWorkProcessStore();
+  const { certifyRegconfInfo } = useCertifyStore();
 
   // Zustand Equipment Store - 장비 컴포넌트에서 등록한 장비 정보
   const workId = order.id || '';
@@ -114,6 +124,10 @@ const CompleteTerminate: React.FC<CompleteTerminateProps> = ({
   // 핫빌 확인 상태 (작업완료 전 필수 체크)
   const [isHotbillConfirmed, setIsHotbillConfirmed] = useState(false);
 
+  // LGHV STB 상품 판단 (레거시: bLghvStb, ds_lghv_prod)
+  const [isLghvStb, setIsLghvStb] = useState(false);
+  const [lghvProdList, setLghvProdList] = useState<any[]>([]);
+
   // 공통코드
   const [custRelOptions, setCustRelOptions] = useState<{ value: string; label: string }[]>([]);
 
@@ -134,9 +148,11 @@ const CompleteTerminate: React.FC<CompleteTerminateProps> = ({
 
   // 레거시 조건값들
   const voipCtx = (order as any).VOIP_CTX || '';
-  const ostWorkableStat = (order as any).OST_WORKABLE_STAT || '';
   const wrkStatCd = order.WRK_STAT_CD || '';
   const kpiProdGrp = (order as any).KPI_PROD_GRP_CD || '';
+
+  // OST 차단 여부 (0: 불가, 1: 철거만가능, 4: 화면접수불가/설치불가)
+  const isOstBlocked = ostWorkableStat === '0' || ostWorkableStat === '1' || ostWorkableStat === '4';
 
   // 장비철거 버튼 활성화 여부 (레거시: mowoa03m02.xml fn_chg_button_state)
   // - WRK_STAT_CD = 1(접수) 또는 2(할당)일 때 활성화
@@ -144,24 +160,11 @@ const CompleteTerminate: React.FC<CompleteTerminateProps> = ({
   // - VOIP_CTX가 있으면 비활성화 (Line 509-510)
   // - OST_WORKABLE_STAT = 0, 1, 4이면 비활성화 (Line 523-534)
   const isEquipmentRemovalEnabled = (() => {
-    // 완료된 작업이면 비활성화
     if (isWorkCompleted) return false;
-
-    // OST 체크 (레거시 Line 523-534)
-    if (ostWorkableStat === '0' || ostWorkableStat === '1' || ostWorkableStat === '4') {
-      return false;
-    }
-
-    // VOIP_CTX가 있으면 비활성화 (레거시 Line 509-510)
+    if (isOstChecking) return false; // OST 체크 중에는 비활성화
+    if (isOstBlocked) return false;
     if (voipCtx) return false;
-
-    // WRK_STAT_CD 체크 (레거시 Line 470-503)
-    // 1(접수), 2(할당)일 때만 활성화
-    // 7(취소요청)이나 그 외는 비활성화
-    if (wrkStatCd === '1' || wrkStatCd === '2') {
-      return true;
-    }
-
+    if (wrkStatCd === '1' || wrkStatCd === '2') return true;
     return false;
   })();
 
@@ -171,20 +174,45 @@ const CompleteTerminate: React.FC<CompleteTerminateProps> = ({
   // 작업완료 버튼 활성화 여부 (레거시: mowoa03m02.xml fn_chg_button_state)
   const isSaveButtonEnabled = (() => {
     if (isWorkCompleted) return false;
-
-    // OST 체크 (레거시 Line 523-534)
-    if (ostWorkableStat === '0' || ostWorkableStat === '1' || ostWorkableStat === '4') {
-      return false;
-    }
-
-    // WRK_STAT_CD 체크 (레거시 Line 470-503)
-    // 1(접수), 2(할당), 7(취소요청)일 때 활성화
-    if (wrkStatCd === '1' || wrkStatCd === '2' || wrkStatCd === '7') {
-      return true;
-    }
-
+    if (isOstChecking) return false; // OST 체크 중에는 비활성화
+    if (isOstBlocked) return false;
+    if (wrkStatCd === '1' || wrkStatCd === '2' || wrkStatCd === '7') return true;
     return false;
   })();
+
+  // OST 상태 조회 (별도 API 호출 - 작업지시서 목록에서 값이 안 올 수 있음)
+  useEffect(() => {
+    const checkOstStatus = async () => {
+      if (!order.id || isWorkCompleted) return;
+
+      setIsOstChecking(true);
+      try {
+        console.log('[CompleteTerminate] OST 상태 조회:', order.id);
+        const cancelInfo = await getWorkCancelInfo({
+          WRK_ID: order.id,
+          RCPT_ID: order.RCPT_ID,
+          CUST_ID: order.customer?.id
+        });
+
+        if (cancelInfo) {
+          const stat = cancelInfo.OST_WORKABLE_STAT || '';
+          console.log('[CompleteTerminate] OST 상태 응답:', stat);
+          setOstWorkableStat(stat);
+
+          // OST 차단 시 토스트 메시지 (persistent: X 버튼으로만 닫힘)
+          if (stat === '0' || stat === '1' || stat === '4') {
+            showToast?.('원스톱전환해지건으로 철거완료 작업은 불가능한 상태입니다.', 'warning', true);
+          }
+        }
+      } catch (error) {
+        console.error('[CompleteTerminate] OST 상태 조회 실패:', error);
+      } finally {
+        setIsOstChecking(false);
+      }
+    };
+
+    checkOstStatus();
+  }, [order.id, order.RCPT_ID, order.customer?.id, isWorkCompleted]);
 
   // 데이터 복원 - 기존 설치정보 API에서 가져오기 (정지 작업과 동일)
   useEffect(() => {
@@ -201,14 +229,14 @@ const CompleteTerminate: React.FC<CompleteTerminateProps> = ({
           console.log('[WorkCompleteTerminate] API 응답 전체:', detail);
           console.log('[WorkCompleteTerminate] 망구분:', { NET_CL: detail.NET_CL, NET_CL_NM: detail.NET_CL_NM });
           console.log('[WorkCompleteTerminate] 설치정보:', { INSTL_TP: detail.INSTL_TP, WRNG_TP: detail.WRNG_TP });
-          console.log('[WorkCompleteTerminate] 고객관계/메모:', { CUST_REL: detail.CUST_REL, MEMO: detail.MEMO });
+          console.log('[WorkCompleteTerminate] 고객관계/메모:', { CUST_REL: detail.CUST_REL, WRK_PROC_CT: detail.WRK_PROC_CT });
           console.log('[WorkCompleteTerminate] isWorkCompleted:', isWorkCompleted);
 
           // 완료된 작업이면 모든 값 복원
           if (isWorkCompleted) {
             console.log('[WorkCompleteTerminate] 완료된 작업 - 데이터 복원 시작');
             setCustRel(detail.CUST_REL || '');
-            setMemo((detail.MEMO || '').replace(/\\n/g, '\n'));
+            setMemo((detail.WRK_PROC_CT || '').replace(/\\n/g, '\n'));
             if (detail.WRKR_CMPL_DT && detail.WRKR_CMPL_DT.length >= 8) {
               setWorkCompleteDate(`${detail.WRKR_CMPL_DT.slice(0,4)}-${detail.WRKR_CMPL_DT.slice(4,6)}-${detail.WRKR_CMPL_DT.slice(6,8)}`);
             }
@@ -297,6 +325,46 @@ const CompleteTerminate: React.FC<CompleteTerminateProps> = ({
     loadCodes();
   }, []);
 
+  // LGHV 상품맵 조회 및 판단 (레거시: fn_getLghvProdMap)
+  useEffect(() => {
+    const fetchLghvProdMap = async () => {
+      try {
+        const result = await getLghvProdMap();
+        const prodList = result?.output || result || [];
+        setLghvProdList(prodList);
+
+        // 현재 상품이 LGHV STB인지 판단
+        const currentProdCd = order.PROD_CD || (order as any).PROD_CD || '';
+        const isLghv = prodList.some((item: any) => item.PROD_CD === currentProdCd);
+        setIsLghvStb(isLghv);
+        console.log('[CompleteTerminate] LGHV 판단:', { currentProdCd, isLghv, prodListCount: prodList.length });
+      } catch (error) {
+        console.error('[CompleteTerminate] LGHV 상품맵 조회 실패:', error);
+      }
+    };
+    fetchLghvProdMap();
+  }, [order.PROD_CD]);
+
+  // 원스톱 작업 불가 안내 로그 (레거시: mowoa03m02.xml Line 408-410)
+  useEffect(() => {
+    console.log('[CompleteTerminate] OST 상태 체크:', {
+      OST_WORKABLE_STAT: ostWorkableStat,
+      isOstBlocked,
+      isOstChecking,
+      isWorkCompleted,
+      WRK_CD: order.WRK_CD,
+      WRK_DTL_TCD: order.WRK_DTL_TCD,
+      '설명': ostWorkableStat === '0' ? '불가'
+           : ostWorkableStat === '1' ? '철거만가능'
+           : ostWorkableStat === '2' ? '철거완료'
+           : ostWorkableStat === '3' ? '완료'
+           : ostWorkableStat === '4' ? '화면접수불가/설치불가'
+           : ostWorkableStat === 'X' ? 'OST아님'
+           : ostWorkableStat === '' ? '조회중 또는 일반작업'
+           : '알수없음'
+    });
+  }, [ostWorkableStat, isOstBlocked, isOstChecking, isWorkCompleted]);
+
   // 검증
   const validate = (): string[] => {
     const errors: string[] = [];
@@ -317,6 +385,11 @@ const CompleteTerminate: React.FC<CompleteTerminateProps> = ({
     const removedEquipments = equipmentData?.removedEquipments || [];
     if (prodGrp !== 'V' && removedEquipments.length < 1) {
       errors.push('철거할 장비가 없습니다. 장비 정보를 확인해주세요.');
+    }
+
+    // 인입선로 철거관리 필수 체크
+    if (needsRemovalLineManagement() && !removalLineData) {
+      errors.push('인입선로 철거관리를 먼저 완료해주세요.');
     }
 
     return errors;
@@ -340,13 +413,19 @@ const CompleteTerminate: React.FC<CompleteTerminateProps> = ({
   const handleSubmit = (isEquipmentRemoval = false) => {
     if (isLoading) return;
 
+    // 원스톱 작업 차단 체크
+    if (isOstBlocked) {
+      showToast?.('원스톱전환해지건으로 철거완료 작업은 불가능한 상태입니다.', 'warning');
+      return;
+    }
+
     // 방송상품 작업완료 불가 체크 (레거시: mowoa03m02 btn_save_OnClick)
     // KPI_PROD_GRP_CD가 'C'(케이블) 또는 'D'(DTV)인 경우 작업완료 불가
     // 단, 장비철거(btn_eqt_rmv)는 방송상품 체크 없이 진행 가능 (레거시: btn_eqt_rmv_OnClick → fn_save 직접 호출)
     if (!isEquipmentRemoval) {
       const kpiProdGrp = (order as any).KPI_PROD_GRP_CD || '';
       if (kpiProdGrp === 'C' || kpiProdGrp === 'D') {
-        showToast?.('방송 상품은 작업완료 처리하실 수 없습니다.', 'error');
+        showToast?.('방송 상품은 작업완료 처리하실수 없습니다.', 'error');
         return;
       }
     }
@@ -354,6 +433,17 @@ const CompleteTerminate: React.FC<CompleteTerminateProps> = ({
     const errors = validate();
     if (errors.length > 0) {
       errors.forEach(error => showToast?.(error, 'error'));
+      // 인입선로 미완료 에러 시 해당 섹션으로 스크롤
+      if (errors.some(e => e.includes('인입선로'))) {
+        const section = document.getElementById('removal-line-section');
+        if (section) {
+          section.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          section.classList.add('ring-2', 'ring-red-500', 'ring-offset-2');
+          setTimeout(() => {
+            section.classList.remove('ring-2', 'ring-red-500', 'ring-offset-2');
+          }, 2000);
+        }
+      }
       return;
     }
 
@@ -416,6 +506,18 @@ const CompleteTerminate: React.FC<CompleteTerminateProps> = ({
     const user = userInfo ? JSON.parse(userInfo) : {};
     const workerId = user.userId || 'A20130708';
 
+    // FTTH CL-08 + CL-06 서비스 해지 (useCertifyComplete 훅)
+    let certifyTg = 'N';
+    const isFtth = certifyMode || isFtthProduct((order as any).OP_LNKD_CD);
+    if (isFtth) {
+      const termResult = await executeCL08CL06Termination(order, workerId);
+      certifyTg = termResult.certifyTg;
+      if (!termResult.success) {
+        showToast?.(`단말인증 해지요청 실패: ${termResult.error}`, 'error');
+        return;
+      }
+    }
+
     // 인입선로 완전철거 데이터가 있으면 먼저 API 호출
     if (removalLineData && removalLineData.REMOVE_GB === '4') {
       try {
@@ -429,34 +531,104 @@ const CompleteTerminate: React.FC<CompleteTerminateProps> = ({
         });
 
         if (removeStatResult.code !== 'SUCCESS' && removeStatResult.code !== 'OK') {
-          showToast?.(removeStatResult.message || '인입선로 철거상태 저장에 실패했습니다.', 'error');
+          showToast?.(removeStatResult.message || '인입선로 철거상태 저장에 실패했습니다.', 'error', true);
           return;
         }
         console.log('[WorkCompleteTerminate] 인입선로 완전철거 저장 성공');
       } catch (error: any) {
-        showToast?.(error.message || '인입선로 철거상태 저장 중 오류가 발생했습니다.', 'error');
+        showToast?.(error.message || '인입선로 철거상태 저장 중 오류가 발생했습니다.', 'error', true);
         return;
       }
     }
 
-    // 회수 장비가 있으면 철거 신호(SMR05) 호출 (레거시: mowoa03m02.xml fn_signal_trans)
+    // 철거 신호 호출 (레거시: mowoa03m02.xml btn_save line 1005-1024)
+    // 레거시 조건: IFSVC_CHK==false(CERTIFY_TG!='Y') && (rmv_eqt.rowcount>0 || ISP_PROD_CD)
     const removedEquipments = equipmentData?.removedEquipments || [];
-    if (removedEquipments.length > 0) {
+    const hasIspProdForDel = !!(order as any).ISP_PROD_CD;
+    if (certifyTg !== 'Y' && (removedEquipments.length > 0 || hasIspProdForDel)) {
       try {
-        const regUid = user.userId || user.id || 'UNKNOWN';
+        let msgId = 'SMR05';
+        let etc1 = '';
+
+        if (isLghvStb) {
+          msgId = 'STB_DEL';
+          const stbEquipment = removedEquipments.find(
+            (eq: any) => (eq.ITEM_MID_CD || eq.itemMidCd || eq.actualEquipment?.ITEM_MID_CD || eq.actualEquipment?.itemMidCd) === '04'
+          );
+          if (stbEquipment) {
+            etc1 = stbEquipment.EQT_NO || stbEquipment.id || stbEquipment.actualEquipment?.EQT_NO || stbEquipment.actualEquipment?.id || '';
+          }
+        }
+
         const firstEquip = removedEquipments[0];
-        console.log('[CompleteTerminate] 철거 신호(SMR05) 호출:', { eqtNo: firstEquip.EQT_NO || firstEquip.id });
-        await checkStbServerConnection(
-          regUid,
-          order.CTRT_ID || '',
-          order.id,
-          'SMR05',
-          firstEquip.EQT_NO || firstEquip.id || '',
-          ''
-        );
-        console.log('[CompleteTerminate] 철거 신호(SMR05) 호출 완료');
+        const actual = firstEquip ? (firstEquip.actualEquipment || firstEquip) : {};
+        const eqtProdCmpsId = actual.PROD_CMPS_ID
+          || firstEquip?.PROD_CMPS_ID
+          || actual.EQT_PROD_CMPS_ID
+          || firstEquip?.EQT_PROD_CMPS_ID
+          || '';
+
+        const voipProdCd = (order as any).VOIP_PROD_CD || '';
+        const voipJoinCtrtId = voipProdCd ? (order.CTRT_ID || '') : '';
+
+        console.log('[CompleteTerminate] 철거 신호 호출:', {
+          msgId, isLghvStb, etc1, eqtProdCmpsId, voipJoinCtrtId
+        });
+
+        const result = await sendSignal({
+          MSG_ID: msgId,
+          CUST_ID: order.customer?.id || order.CUST_ID || '',
+          CTRT_ID: order.CTRT_ID || '',
+          SO_ID: order.SO_ID || '',
+          EQT_NO: '',
+          EQT_PROD_CMPS_ID: eqtProdCmpsId,
+          PROD_CD: '',
+          WRK_ID: order.id || '',
+          REG_UID: workerId,
+          ETC_1: etc1,
+          VOIP_JOIN_CTRT_ID: voipJoinCtrtId,
+          WTIME: '3',
+        });
+
+        // 결과 처리 (레거시 mowoa03m02.xml btn_save line 1022-1034)
+        // 1) VoIP(PROD_GRP='V') + 특정 에러(PROC_VOIP_KCT-029 제외) → 무조건 차단
+        // 2) MSO_OUT_YN='Y' → 차단
+        // 3) 그 외 실패 → "신호전달에 실패하였습니다. 그럼에도 작업을 완료하시겠습니까?" 팝업
+        if (result.code !== 'SUCCESS' && result.code !== 'OK') {
+          const prodGrp = (order as any).PROD_GRP || '';
+          const isVoipSpecificError = prodGrp === 'V' &&
+            result.message?.indexOf('PROC_VOIP_KCT-029') === -1;
+
+          if (isVoipSpecificError) {
+            console.warn('[CompleteTerminate] VoIP 철거 신호 실패 - 작업완료 차단:', result.message);
+            showToast?.('철거 신호 전송에 실패했습니다.', 'error', true);
+            return;
+          }
+
+          // 비-VoIP 또는 VoIP-029 에러: MSO 체크 후 사용자 확인
+          const msoOutYn = (order as any).MSO_OUT_YN || '';
+          if (msoOutYn === 'Y') {
+            showToast?.('MSO 처리 오류로 신호 전달에 작업완료가 불가능합니다. 담당자에게 문의하세요.', 'error', true);
+            return;
+          }
+
+          // 레거시: cfn_SetMsg("I", "Y", "신호전달에 실패하였습니다. 그럼에도 작업을 완료하시겠습니까?")
+          const userConfirmed = window.confirm('신호전달에 실패하였습니다.\n그럼에도 작업을 완료하시겠습니까?');
+          if (!userConfirmed) {
+            console.log('[CompleteTerminate] 사용자가 신호 실패 후 작업완료 취소');
+            return;
+          }
+          console.log('[CompleteTerminate] 사용자가 신호 실패에도 작업완료 진행 선택');
+        } else {
+          console.log('[CompleteTerminate] 철거 신호 호출 완료');
+        }
       } catch (error) {
-        console.log('[CompleteTerminate] 철거 신호 처리 중 오류 (무시하고 계속 진행):', error);
+        // 네트워크 에러 등 예외 발생 시에도 사용자에게 확인
+        console.warn('[CompleteTerminate] 철거 신호 처리 중 오류:', error);
+        const userConfirmed = window.confirm('신호전달에 실패하였습니다.\n그럼에도 작업을 완료하시겠습니까?');
+        if (!userConfirmed) {
+          return;
+        }
       }
     }
 
@@ -468,12 +640,20 @@ const CompleteTerminate: React.FC<CompleteTerminateProps> = ({
       const actual = eq.actualEquipment || eq;
       const contract = eq.contractEquipment || {};
       const eqtNo = actual.id || eq.EQT_NO || eq.id || '';
-      const status = removalStatus[eqtNo] || {};
+
+      // 여러 키로 removalStatus 조회 시도 (키 불일치 문제 해결)
+      const status = removalStatus[eqtNo]
+        || removalStatus[eq.id]
+        || removalStatus[eq.EQT_NO]
+        || removalStatus[actual.id]
+        || removalStatus[eq.serialNumber]
+        || removalStatus[actual.serialNumber]
+        || {};
 
       // 장비 객체에 이미 값이 있으면 사용, 없으면 removalStatus에서 가져옴
-      // '1' → 'Y', '0' 또는 없음 → 'N' 변환
+      // 레거시 호환: '0' = 회수, '1' = 분실
       const getYN = (eqVal: any, statusVal: any) =>
-        (eqVal === '1' || eqVal === 'Y' || statusVal === '1') ? 'Y' : 'N';
+        (eqVal === '1' || eqVal === 'Y' || statusVal === '1' || statusVal === 'Y') ? '1' : '0';
 
       return {
         ...actual,
@@ -505,6 +685,14 @@ const CompleteTerminate: React.FC<CompleteTerminateProps> = ({
         OLD_LENT_YN: eq.OLD_LENT_YN || 'N',
         LENT_YN: eq.lentYn || eq.LENT_YN || contract.LENT_YN || '10',
         // 분실/파손 상태 (EquipmentTerminate에서 저장한 필드명 사용)
+        // 디버그: 분실 상태 확인
+        ...(console.log('[CompleteTerminate] 분실상태 매핑:', {
+          eqtNo,
+          'eq.EQT_LOSS_YN': eq.EQT_LOSS_YN,
+          'status.EQT_LOSS_YN': status.EQT_LOSS_YN,
+          'status 전체': status,
+          'removalStatus 키들': Object.keys(removalStatus),
+        }), {}),
         EQT_LOSS_YN: getYN(eq.EQT_LOSS_YN, status.EQT_LOSS_YN),
         PART_LOSS_BRK_YN: getYN(eq.PART_LOSS_BRK_YN, status.PART_LOSS_BRK_YN),
         EQT_BRK_YN: getYN(eq.EQT_BRK_YN, status.EQT_BRK_YN),
@@ -547,7 +735,7 @@ const CompleteTerminate: React.FC<CompleteTerminateProps> = ({
     };
 
     // 디버깅: 전송 데이터 확인
-    console.log('🔧 [CompleteTerminate] 작업완료 요청 데이터:');
+    console.log('[CompleteTerminate] 작업완료 요청 데이터:');
     console.log('  - workInfo:', completeData.workInfo);
     console.log('  - 🔑 modNetInfo 호출 조건 확인:');
     console.log('    - NET_CL:', completeData.workInfo.NET_CL, '(빈값이면 modNetInfo 미호출)');
@@ -566,6 +754,7 @@ const CompleteTerminate: React.FC<CompleteTerminateProps> = ({
       onSuccess: async (result) => {
         if (result.code === 'SUCCESS' || result.code === 'OK') {
           localStorage.removeItem(getStorageKey());
+          (order as any).WRK_STAT_CD = '3';  // 완료 상태로 변경 (재완료 방지)
 
           // 인입선로 미철거 AS할당 데이터가 있으면 API 호출
           if (pendingASData) {
@@ -624,11 +813,11 @@ const CompleteTerminate: React.FC<CompleteTerminateProps> = ({
           showToast?.('작업이 성공적으로 완료되었습니다.', 'success');
           onSuccess();
         } else {
-          showToast?.(result.message || '작업 완료 처리에 실패했습니다.', 'error');
+          showToast?.(result.message || '작업 완료 처리에 실패했습니다.', 'error', true);
         }
       },
       onError: (error: any) => {
-        showToast?.(error.message || '작업 완료 중 오류가 발생했습니다.', 'error');
+        showToast?.(error.message || '작업 완료 중 오류가 발생했습니다.', 'error', true);
       },
     });
   };
@@ -646,6 +835,18 @@ const CompleteTerminate: React.FC<CompleteTerminateProps> = ({
             <div className="w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full animate-spin" />
             <p className="text-gray-700 font-medium">핫빌 계산 중...</p>
             <p className="text-gray-500 text-sm">잠시만 기다려주세요</p>
+          </div>
+        </div>
+      )}
+      {/* 작업완료 처리 중 전체 화면 스피너 */}
+      {isLoading && (
+        <div className="fixed inset-0 bg-black/50 z-[9999] flex items-center justify-center">
+          <div className="bg-white rounded-xl p-6 flex flex-col items-center gap-3 shadow-xl">
+            <svg className="animate-spin h-10 w-10 text-blue-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
+            <span className="text-gray-700 font-medium">작업완료 처리중...</span>
           </div>
         </div>
       )}
@@ -716,6 +917,7 @@ const CompleteTerminate: React.FC<CompleteTerminateProps> = ({
                 value={memo}
                 onChange={(e) => setMemo(e.target.value)}
                 placeholder="작업 내용을 입력하세요..."
+                maxLength={500}
                 className={`w-full px-3 sm:px-4 py-2 sm:py-3 border border-gray-300 rounded-lg text-sm sm:text-base resize-none ${
                   isWorkCompleted ? 'bg-gray-100 text-gray-600 cursor-not-allowed' : 'focus:ring-2 focus:ring-blue-500 focus:border-blue-500'
                 }`}
@@ -723,6 +925,9 @@ const CompleteTerminate: React.FC<CompleteTerminateProps> = ({
                 readOnly={isWorkCompleted}
                 disabled={isWorkCompleted}
               />
+              {!isWorkCompleted && (
+                <p className={`text-xs text-right mt-1 ${memo.length >= 500 ? 'text-red-500' : 'text-gray-400'}`}>{memo.length}/500</p>
+              )}
             </div>
 
             {/* 작업처리일 */}
@@ -761,6 +966,8 @@ const CompleteTerminate: React.FC<CompleteTerminateProps> = ({
                 onAssignAS={handleRemovalLineAssignAS}
                 showToast={showToast}
                 disabled={isWorkCompleted}
+                savedData={removalLineData}
+                onReset={() => setRemovalLineData(null)}
               />
             )}
 
@@ -771,7 +978,7 @@ const CompleteTerminate: React.FC<CompleteTerminateProps> = ({
                 <button
                   onClick={() => handleEquipmentRemoval()}
                   disabled={isLoading || !isEquipmentRemovalEnabled}
-                  className={`flex-1 btn btn-lg flex items-center justify-center gap-2 ${
+                  className={`flex-1 min-h-12 py-3 px-4 rounded-lg font-bold text-sm sm:text-base flex items-center justify-center gap-2 transition-colors ${
                     isEquipmentRemovalEnabled
                       ? 'bg-orange-500 hover:bg-orange-600 text-white'
                       : 'bg-gray-300 text-gray-500 cursor-not-allowed'
@@ -789,9 +996,9 @@ const CompleteTerminate: React.FC<CompleteTerminateProps> = ({
                 <button
                   onClick={() => handleSubmit(false)}
                   disabled={isLoading || !isSaveButtonEnabled}
-                  className={`flex-1 btn btn-lg flex items-center justify-center gap-2 ${
+                  className={`flex-1 min-h-12 py-3 px-4 rounded-lg font-bold text-sm sm:text-base flex items-center justify-center gap-2 transition-colors ${
                     isSaveButtonEnabled
-                      ? 'btn-primary'
+                      ? 'bg-blue-600 hover:bg-blue-700 text-white'
                       : 'bg-gray-300 text-gray-500 cursor-not-allowed'
                   }`}
                 >
@@ -808,7 +1015,7 @@ const CompleteTerminate: React.FC<CompleteTerminateProps> = ({
                       <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
                         <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
                       </svg>
-                      <span>작업 완료</span>
+                      <span>작업완료</span>
                     </>
                   )}
                 </button>
@@ -885,20 +1092,18 @@ const CompleteTerminate: React.FC<CompleteTerminateProps> = ({
         confirmText={pendingIsEquipmentRemoval ? '철거' : '완료'}
         cancelText="취소"
       >
-        {!pendingIsEquipmentRemoval && (
-          <WorkCompleteSummary
-            workType="02"
-            workTypeName="철거"
-            custRel={custRel}
-            custRelName={custRelOptions.find(o => o.value === custRel)?.label}
-            networkType={networkType}
-            networkTypeName={networkTypeName}
-            installType={installInfoData?.INSTL_TP}
-            installTypeName={installInfoData?.INSTL_TP_NM}
-            removedEquipments={equipmentData?.removedEquipments || []}
-            memo={memo}
-          />
-        )}
+        <WorkCompleteSummary
+          workType="02"
+          workTypeName={pendingIsEquipmentRemoval ? '장비철거' : '철거'}
+          custRel={custRel}
+          custRelName={custRelOptions.find(o => o.value === custRel)?.label}
+          networkType={networkType}
+          networkTypeName={networkTypeName}
+          installType={installInfoData?.INSTL_TP}
+          installTypeName={installInfoData?.INSTL_TP_NM}
+          removedEquipments={equipmentData?.removedEquipments || []}
+          memo={memo}
+        />
       </ConfirmModal>
 
       {/* 연동이력 모달 */}

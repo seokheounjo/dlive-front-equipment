@@ -1,5 +1,6 @@
 import React from 'react';
-import { User, FileText, Settings, LogOut, X, ClipboardList, Users, Package, MoreHorizontal, Calendar } from 'lucide-react';
+import { User, FileText, LogOut, X, ClipboardList, Users, Package, MoreHorizontal, Calendar } from 'lucide-react';
+import { useUIStore } from '../../stores/uiStore';
 
 interface SideDrawerProps {
   isOpen: boolean;
@@ -30,6 +31,15 @@ const SideDrawer: React.FC<SideDrawerProps> = ({
   onLogout,
   onNavigate
 }) => {
+  const { fontScale, setFontScale } = useUIStore();
+
+  const fontScaleOptions = [
+    { key: 'small' as const, label: '작게', size: '14px' },
+    { key: 'medium' as const, label: '보통', size: '16px' },
+    { key: 'large' as const, label: '크게', size: '18px' },
+    { key: 'xlarge' as const, label: '매우 크게', size: '20px' },
+  ];
+
   const handleLogout = () => {
     if (onLogout) {
       onLogout();
@@ -173,16 +183,37 @@ const SideDrawer: React.FC<SideDrawerProps> = ({
                   <span className="font-medium text-sm sm:text-base">기타관리</span>
                 </button>
               </li>
-              <li>
-                <button
-                  className="w-full flex items-center gap-2 sm:gap-3 px-3 sm:px-4 py-2.5 sm:py-3 text-gray-700 hover:bg-blue-50 rounded-lg transition-colors"
-                  onClick={() => handleMenuClick('settings')}
-                >
-                  <Settings className="w-5 h-5 text-blue-600" />
-                  <span className="font-medium text-sm sm:text-base">설정</span>
-                </button>
-              </li>
             </ul>
+
+            {/* 글자 크기 설정 */}
+            <div className="mt-4 px-3">
+              <h3 className="text-xs font-semibold text-gray-500 mb-2">글자 크기</h3>
+              <div className="grid grid-cols-4 gap-1.5">
+                {fontScaleOptions.map((opt) => (
+                  <button
+                    key={opt.key}
+                    onClick={() => setFontScale(opt.key)}
+                    className={`flex flex-col items-center py-2 rounded-lg border-2 transition-all ${
+                      fontScale === opt.key
+                        ? 'border-blue-500 bg-blue-50'
+                        : 'border-gray-200 bg-white'
+                    }`}
+                  >
+                    <span
+                      className={`font-bold ${fontScale === opt.key ? 'text-blue-600' : 'text-gray-700'}`}
+                      style={{ fontSize: opt.size }}
+                    >
+                      가
+                    </span>
+                    <span className={`text-[0.625rem] mt-0.5 ${
+                      fontScale === opt.key ? 'text-blue-600 font-semibold' : 'text-gray-500'
+                    }`}>
+                      {opt.label}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            </div>
           </nav>
 
           {/* 하단 로그아웃 버튼 */}

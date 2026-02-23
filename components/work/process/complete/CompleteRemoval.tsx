@@ -1,12 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { WorkOrder, WorkCompleteData } from '../../../../types';
-import { getCommonCodeList, CommonCode, getWorkReceiptDetail, checkStbServerConnection } from '../../../../services/apiService';
+import { getCommonCodeList, CommonCode, getWorkReceiptDetail, sendSignal, getLghvProdMap, getProdPromotionInfo } from '../../../../services/apiService';
 import Select from '../../../ui/Select';
 import InstallInfoModal, { InstallInfoData } from '../../../modal/InstallInfoModal';
 import HotbillSection from '../HotbillSection';
 import ConfirmModal from '../../../common/ConfirmModal';
 import WorkCompleteSummary from '../WorkCompleteSummary';
 import { useWorkProcessStore } from '../../../../stores/workProcessStore';
+import { useCertifyStore } from '../../../../stores/certifyStore';
 import { useWorkEquipment } from '../../../../stores/workEquipmentStore';
 import { useCompleteWork } from '../../../../hooks/mutations/useCompleteWork';
 import '../../../../styles/buttons.css';
@@ -52,6 +53,7 @@ const CompleteRemoval: React.FC<CompleteRemovalProps> = ({
 
   // Zustand Store
   const { equipmentData: storeEquipmentData, filteringData } = useWorkProcessStore();
+  const { certifyRegconfInfo } = useCertifyStore();
 
   // Zustand Equipment Store - 장비 컴포넌트에서 등록한 장비 정보
   const workId = order.id || '';
@@ -106,6 +108,10 @@ const CompleteRemoval: React.FC<CompleteRemovalProps> = ({
   // 공통코드 옵션
   const [custRelOptions, setCustRelOptions] = useState<{ value: string; label: string }[]>([]);
 
+  // LGHV STB 상품 판단 (레거시: bLghvStb, ds_lghv_prod)
+  const [isLghvStb, setIsLghvStb] = useState(false);
+  const [lghvProdList, setLghvProdList] = useState<any[]>([]);
+
   // 작업처리일
   const [workCompleteDate, setWorkCompleteDate] = useState(() => {
     const cmplDt = (order as any).WRKR_CMPL_DT || (order as any).WRK_END_DTTM;
@@ -135,7 +141,7 @@ const CompleteRemoval: React.FC<CompleteRemovalProps> = ({
           // 완료된 작업: API 데이터로 모든 필드 복원
           if (isWorkCompleted) {
             setCustRel(detail.CUST_REL || '');
-            setMemo((detail.MEMO || '').replace(/\\n/g, '\n'));
+            setMemo((detail.WRK_PROC_CT || '').replace(/\\n/g, '\n'));
             setNetworkType(detail.NET_CL || '');
             setNetworkTypeName(detail.NET_CL_NM || '');
             setInstallInfoData({
@@ -159,7 +165,7 @@ const CompleteRemoval: React.FC<CompleteRemovalProps> = ({
               CVT_LBL: detail.CVT_LBL || '',
               STB_LBL: detail.STB_LBL || '',
             });
-            setMemo((detail.MEMO || '').replace(/\\n/g, '\n'));
+            setMemo((detail.WRK_PROC_CT || '').replace(/\\n/g, '\n'));
             if (detail.WRKR_CMPL_DT && detail.WRKR_CMPL_DT.length >= 8) {
               setWorkCompleteDate(`${detail.WRKR_CMPL_DT.slice(0,4)}-${detail.WRKR_CMPL_DT.slice(4,6)}-${detail.WRKR_CMPL_DT.slice(6,8)}`);
             }
@@ -312,6 +318,26 @@ const CompleteRemoval: React.FC<CompleteRemovalProps> = ({
     loadInitialData();
   }, []);
 
+  // LGHV 상품맵 조회 및 판단 (레거시: fn_getLghvProdMap)
+  useEffect(() => {
+    const fetchLghvProdMap = async () => {
+      try {
+        const result = await getLghvProdMap();
+        const prodList = result?.output || result || [];
+        setLghvProdList(prodList);
+
+        // 현재 상품이 LGHV STB인지 판단
+        const currentProdCd = order.PROD_CD || (order as any).PROD_CD || '';
+        const isLghv = prodList.some((item: any) => item.PROD_CD === currentProdCd);
+        setIsLghvStb(isLghv);
+        console.log('[CompleteRemoval] LGHV 판단:', { currentProdCd, isLghv, prodListCount: prodList.length });
+      } catch (error) {
+        console.error('[CompleteRemoval] LGHV 상품맵 조회 실패:', error);
+      }
+    };
+    fetchLghvProdMap();
+  }, [order.PROD_CD]);
+
   // 검증 - 레거시 mowoa03m09 동일
   const validate = (): string[] => {
     const errors: string[] = [];
@@ -412,6 +438,9 @@ const CompleteRemoval: React.FC<CompleteRemovalProps> = ({
     const user = userInfo ? JSON.parse(userInfo) : {};
     const workerId = user.userId || 'A20130708';
 
+    // 레거시(mowoa03m09.xml)에는 부가상품 작업에 대한 certify(집선등록) 로직이 없음
+    // CL-04/CL-06 호출 없이 바로 작업완료 처리
+
     // 부가상품 전용 신호 호출 (레거시 fn_signal_buga_trans - mowoa03m09.xml Line 1032-1076)
     // WRK_DTL_TCD='0910' (부가상품 설치) → SMR06
     // WRK_DTL_TCD='0920' (부가상품 철거) → SMR08
@@ -419,45 +448,170 @@ const CompleteRemoval: React.FC<CompleteRemovalProps> = ({
     if (wrkDtlTcd === '0910' || wrkDtlTcd === '0920') {
       const bugaMsgId = wrkDtlTcd === '0910' ? 'SMR06' : 'SMR08';
       try {
-        const regUid = user.userId || user.id || 'UNKNOWN';
-        // 고객장비에서 첫 번째 장비 번호 가져오기
-        const customerEquipments = equipmentData?.customerEquipments || [];
-        const firstEquip = customerEquipments[0] || equipmentData?.installedEquipments?.[0];
-        const eqtNo = firstEquip?.EQT_NO || firstEquip?.id || '';
+        // VoIP 단독 상품인 경우 VOIP_JOIN_CTRT_ID 설정
+        const prodGrp = (order as any).PROD_GRP || '';
+        const voipProdCd = (order as any).VOIP_PROD_CD || '';
+        const voipJoinCtrtId = (prodGrp === 'V' && voipProdCd) ? (order.CTRT_ID || '') : '';
 
-        console.log(`[CompleteRemoval] 부가상품 신호(${bugaMsgId}) 호출:`, { eqtNo, wrkDtlTcd });
-        await checkStbServerConnection(
-          regUid,
-          order.CTRT_ID || '',
-          order.id,
-          bugaMsgId,
-          eqtNo,
-          ''
-        );
-        console.log(`[CompleteRemoval] 부가상품 신호(${bugaMsgId}) 호출 완료`);
+        // prodPromoInfo에서 PROD_CD, SUB_PROD_CD 추출 (레거시 mowoa03m09 line 1048-1068)
+        let bugaProdCd = order.PROD_CD || '';
+        let subProdCd = '';
+        try {
+          const prodPromoInfo = await getProdPromotionInfo({
+            CTRT_ID: order.CTRT_ID || '',
+            RCPT_ID: order.RCPT_ID || '',
+            PROC_CL: '',
+            WRK_CD: '09',
+          });
+          // PROD_CD from PROD_CMPS_CL=11 (레거시 line 1048)
+          const cmps11 = prodPromoInfo.find((row: any) => row.PROD_CMPS_CL === '11');
+          if (cmps11) bugaProdCd = cmps11.PROD_CD || bugaProdCd;
+          // SUB_PROD_CD: BASIC_PROD_FL='V' + PROD_STAT_CD 조건 (레거시 line 1050-1068)
+          // 0910(설치): PROD_STAT_CD='10', 0920(철거): PROD_STAT_CD='80'
+          const targetStatCd = wrkDtlTcd === '0910' ? '10' : '80';
+          const subProds = prodPromoInfo
+            .filter((row: any) => row.BASIC_PROD_FL === 'V' && row.PROD_STAT_CD === targetStatCd)
+            .map((row: any) => row.PROD_CD);
+          if (subProds.length > 0) subProdCd = subProds.join(',');
+        } catch (e) {
+          console.log('[CompleteRemoval] getProdPromotionInfo for buga signal failed:', e);
+        }
+
+        console.log(`[CompleteRemoval] 부가상품 신호(${bugaMsgId}) 호출:`, { wrkDtlTcd, bugaProdCd, subProdCd, voipJoinCtrtId });
+
+        const result = await sendSignal({
+          MSG_ID: bugaMsgId,
+          CUST_ID: order.customer?.id || order.CUST_ID || '',
+          CTRT_ID: order.CTRT_ID || '',
+          SO_ID: order.SO_ID || '',
+          EQT_NO: '',
+          EQT_PROD_CMPS_ID: '',
+          PROD_CD: bugaProdCd,
+          WRK_ID: order.id || '',
+          REG_UID: workerId,
+          SUB_PROD_CD: subProdCd,
+          VOIP_JOIN_CTRT_ID: voipJoinCtrtId,
+          WTIME: '99',
+        });
+
+        // 결과 처리 - VoIP 에러는 무시
+        if (result.code !== 'SUCCESS' && result.code !== 'OK') {
+          console.log(`[CompleteRemoval] 부가상품 신호(${bugaMsgId}) 처리 실패 (무시):`, result.message);
+        } else {
+          console.log(`[CompleteRemoval] 부가상품 신호(${bugaMsgId}) 호출 완료`);
+        }
       } catch (error) {
         console.log('[CompleteRemoval] 부가상품 신호 처리 중 오류 (무시하고 계속 진행):', error);
       }
     }
 
-    // 회수 장비가 있으면 철거 신호(SMR05) 호출 (레거시 fn_delsignal_trans 동일)
+    // 철거 신호(SMR05) 호출 (레거시 mowoa03m09 btn_save line 1268-1300)
     const removedEquipments = equipmentData?.removedEquipments || [];
+    let delSignalFlag = false;
+    let smr05Sent = false;
+
     if (removedEquipments.length > 0) {
-      try {
-        const regUid = user.userId || user.id || 'UNKNOWN';
-        const firstEquip = removedEquipments[0];
-        console.log('[CompleteRemoval] 철거 신호(SMR05) 호출:', { eqtNo: firstEquip.EQT_NO || firstEquip.id });
-        await checkStbServerConnection(
-          regUid,
-          order.CTRT_ID || '',
-          order.id,
-          'SMR05',
-          firstEquip.EQT_NO || firstEquip.id || '',
-          ''
-        );
-        console.log('[CompleteRemoval] 철거 신호(SMR05) 호출 완료');
-      } catch (error) {
-        console.log('[CompleteRemoval] 철거 신호 처리 중 오류 (무시하고 계속 진행):', error);
+      // 레거시 del_signal_flag: HANDY/AP만 있으면 철거신호 skip
+      for (const eq of removedEquipments) {
+        const actualEq = eq.actualEquipment || eq;
+        const eqtClCd = actualEq.eqtClCd || actualEq.EQT_CL_CD || '';
+        if (eqtClCd === '090901' || eqtClCd === '091001' || eqtClCd === '091005') continue;
+        delSignalFlag = true;
+      }
+
+      if (delSignalFlag) {
+        try {
+          const firstEquip = removedEquipments[0];
+          const actual = firstEquip.actualEquipment || firstEquip;
+          const eqtProdCmpsId = actual.PROD_CMPS_ID
+            || firstEquip.PROD_CMPS_ID
+            || actual.EQT_PROD_CMPS_ID
+            || firstEquip.EQT_PROD_CMPS_ID
+            || '';
+
+          const prodGrp = (order as any).PROD_GRP || '';
+          const voipProdCd = (order as any).VOIP_PROD_CD || '';
+          const voipJoinCtrtId = (prodGrp === 'V' && voipProdCd) ? (order.CTRT_ID || '') : '';
+
+          console.log('[CompleteRemoval] 철거 신호(SMR05) 호출:', { eqtProdCmpsId, voipJoinCtrtId });
+
+          const result = await sendSignal({
+            MSG_ID: 'SMR05',
+            CUST_ID: order.customer?.id || order.CUST_ID || '',
+            CTRT_ID: order.CTRT_ID || '',
+            SO_ID: order.SO_ID || '',
+            EQT_NO: '',
+            EQT_PROD_CMPS_ID: eqtProdCmpsId,
+            PROD_CD: '',
+            WRK_ID: order.id || '',
+            REG_UID: workerId,
+            VOIP_JOIN_CTRT_ID: voipJoinCtrtId,
+            WTIME: '3',
+          });
+
+          if (result.code !== 'SUCCESS' && result.code !== 'OK') {
+            const errCode = result.O_IFSVC_RESULT?.substring(14, 20) || '';
+            if (errCode !== '029' && result.message?.indexOf('PROC_VOIP_KCT-029') === -1) {
+              console.warn('[CompleteRemoval] 철거 신호 실패 - 작업완료 중단:', result.message);
+              showToast?.('철거 신호 전송에 실패했습니다.', 'error', true);
+              return;
+            }
+          } else {
+            console.log('[CompleteRemoval] 철거 신호(SMR05) 호출 완료');
+          }
+          smr05Sent = true;
+        } catch (error) {
+          console.error('[CompleteRemoval] 철거 신호 처리 중 오류:', error);
+          showToast?.('철거 신호 전송에 실패했습니다.', 'error', true);
+          return;
+        }
+      }
+    }
+
+    // Legacy m09 line 1294-1300: del_signal_flag==false fallback
+    // Even without non-HANDY/AP removal equipment, if customer equipment or ISP exists, still send SMR05
+    if (!delSignalFlag) {
+      const custEquipsForDel = equipmentData?.customerEquipments || [];
+      const instEquipsForDel = equipmentData?.installedEquipments || [];
+      const hasIspProdForDel = !!(order as any).ISP_PROD_CD;
+      if (custEquipsForDel.length > 0 || instEquipsForDel.length > 0 || hasIspProdForDel) {
+        try {
+          const prodGrp = (order as any).PROD_GRP || '';
+          const voipProdCd = (order as any).VOIP_PROD_CD || '';
+          const voipJoinCtrtId = (prodGrp === 'V' && voipProdCd) ? (order.CTRT_ID || '') : '';
+
+          console.log('[CompleteRemoval] 철거 신호(SMR05) fallback - del_signal_flag=false, eqt/ISP exists');
+
+          const result = await sendSignal({
+            MSG_ID: 'SMR05',
+            CUST_ID: order.customer?.id || order.CUST_ID || '',
+            CTRT_ID: order.CTRT_ID || '',
+            SO_ID: order.SO_ID || '',
+            EQT_NO: '',
+            EQT_PROD_CMPS_ID: '',
+            PROD_CD: '',
+            WRK_ID: order.id || '',
+            REG_UID: workerId,
+            VOIP_JOIN_CTRT_ID: voipJoinCtrtId,
+            WTIME: '3',
+          });
+
+          if (result.code !== 'SUCCESS' && result.code !== 'OK') {
+            const errCode = result.O_IFSVC_RESULT?.substring(14, 20) || '';
+            if (errCode !== '029' && result.message?.indexOf('PROC_VOIP_KCT-029') === -1) {
+              console.warn('[CompleteRemoval] 철거 신호 fallback 실패 - 작업완료 중단:', result.message);
+              showToast?.('철거 신호 전송에 실패했습니다.', 'error', true);
+              return;
+            }
+          } else {
+            console.log('[CompleteRemoval] 철거 신호(SMR05) fallback 완료');
+          }
+          smr05Sent = true;
+        } catch (error) {
+          console.error('[CompleteRemoval] 철거 신호 fallback 오류:', error);
+          showToast?.('철거 신호 전송에 실패했습니다.', 'error', true);
+          return;
+        }
       }
     }
 
@@ -465,18 +619,32 @@ const CompleteRemoval: React.FC<CompleteRemovalProps> = ({
     const processEquipmentList = (equipments: any[], isRemoval = false) => {
       if (!equipments || equipments.length === 0) return [];
       const removalStatus = equipmentData?.removalStatus || {};
+
+      // 레거시 호환: '0' = 회수, '1' = 분실
+      const getYN = (eqVal: any, statusVal: any) =>
+        (eqVal === '1' || eqVal === 'Y' || statusVal === '1' || statusVal === 'Y') ? '1' : '0';
+
       return equipments.map((eq: any) => {
         const eqtNo = eq.EQT_NO || eq.id || (eq.actualEquipment?.id) || '';
-        const status = removalStatus[eqtNo] || {};
-        // 회수 장비 필수 필드 (레거시 기준)
+        // 여러 키로 removalStatus 조회 시도 (키 불일치 문제 해결)
+        const status = removalStatus[eqtNo]
+          || removalStatus[eq.id]
+          || removalStatus[eq.EQT_NO]
+          || removalStatus[eq.actualEquipment?.id]
+          || removalStatus[eq.serialNumber]
+          || {};
+        // 회수 장비 필수 필드 (레거시 기준) - 5개 분실/파손 필드 모두 포함
         const removalFields = isRemoval ? {
           CRR_TSK_CL: order.WRK_CD || '09',
           RCPT_ID: order.RCPT_ID || '',
           CRR_ID: order.CRR_ID || user.crrId || '01',
           WRKR_ID: workerId,
-          EQT_LOSS_YN: status.isLost ? 'Y' : 'N',
-          EQT_BRK_YN: status.isDamaged ? 'Y' : 'N',
-          REUSE_YN: status.isReusable ? '1' : '0',
+          EQT_LOSS_YN: getYN(eq.EQT_LOSS_YN, status.EQT_LOSS_YN),
+          PART_LOSS_BRK_YN: getYN(eq.PART_LOSS_BRK_YN, status.PART_LOSS_BRK_YN),
+          EQT_BRK_YN: getYN(eq.EQT_BRK_YN, status.EQT_BRK_YN),
+          EQT_CABL_LOSS_YN: getYN(eq.EQT_CABL_LOSS_YN, status.EQT_CABL_LOSS_YN),
+          EQT_CRDL_LOSS_YN: getYN(eq.EQT_CRDL_LOSS_YN, status.EQT_CRDL_LOSS_YN),
+          REUSE_YN: (eq.REUSE_YN === '1' || status.REUSE_YN === '1') ? '1' : '0',
         } : {};
 
         if (eq.actualEquipment) {
@@ -597,24 +765,170 @@ const CompleteRemoval: React.FC<CompleteRemovalProps> = ({
       poleList: equipmentData?.poleResults || []
     };
 
+    // SMR03 installation signal after modWorkComplete success (legacy m09 fn_tr_result line 754-785)
+    // Fire-and-forget: no return check, no CERTIFY_TG check
+    const sendInstallationSignal = async () => {
+      try {
+        const custEquips = equipmentData?.customerEquipments || [];
+        const instEquips = equipmentData?.installedEquipments || [];
+        const allEquips = [...custEquips, ...instEquips];
+
+        // signal_flag: WRKER equipment exists (HANDY/AP skip) - legacy line 766-776
+        const skipCodes = ['090901', '091001', '091005'];
+        let signalFlag = false;
+        for (const eq of allEquips) {
+          const a = eq.actualEquipment || eq;
+          const eqtClCd = a.eqtClCd || a.EQT_CL_CD || '';
+          if (skipCodes.includes(eqtClCd)) continue;
+          const eqtKnd = a.EQT_KND || a.eqtKnd || 'WRKER';
+          if (eqtKnd === 'WRKER') signalFlag = true;
+        }
+
+        // Legacy line 778-781: if SMR05 was sent successfully, also send SMR03
+        if (!signalFlag && smr05Sent) {
+          signalFlag = true;
+        }
+
+        if (!signalFlag) {
+          console.log('[CompleteRemoval] SMR03 skip - no WRKER equipment and no SMR05 sent');
+          return;
+        }
+
+        const prodGrp = (order as any).PROD_GRP || '';
+        const voipProdCd = (order as any).VOIP_PROD_CD || '';
+        let msgId = prodGrp === 'V' ? 'SMR60' : 'SMR03';
+        if (isLghvStb && prodGrp !== 'V') msgId = 'STB_CHG';
+
+        // Get prodPromoInfo for parameters
+        let prodPromoInfo: any[] = [];
+        try {
+          prodPromoInfo = await getProdPromotionInfo({
+            CTRT_ID: order.CTRT_ID || '',
+            RCPT_ID: order.RCPT_ID || '',
+            PROC_CL: '',
+            WRK_CD: '09',
+          });
+        } catch (e) {
+          console.log('[CompleteRemoval] getProdPromotionInfo failed:', e);
+        }
+
+        const cmps23 = prodPromoInfo.find((r: any) => r.PROD_CMPS_CL === '23');
+        const eqtProdCmpsId = cmps23?.PROD_CMPS_ID || '';
+        const cmps11 = prodPromoInfo.find((r: any) => r.PROD_CMPS_CL === '11');
+        const prodCd = cmps11?.PROD_CD || '';
+        const prodGrpFromPromo = cmps11?.PROD_GRP || prodGrp;
+        const subProds = prodPromoInfo
+          .filter((r: any) => r.BASIC_PROD_FL === 'V')
+          .map((r: any) => r.PROD_CD);
+        const subProdCd = subProds.length > 0 ? subProds.join(',') : '';
+
+        // Equipment number priority: 05>01>03>02(I)>08 (legacy line 869-897)
+        const findEqtNo = (midCd: string) => {
+          const eq = allEquips.find((e: any) =>
+            (e.ITEM_MID_CD || e.itemMidCd || e.actualEquipment?.ITEM_MID_CD || e.actualEquipment?.itemMidCd) === midCd
+          );
+          return eq?.EQT_NO || eq?.id || eq?.actualEquipment?.EQT_NO || eq?.actualEquipment?.id || '';
+        };
+
+        let eqtNo = '';
+        if (!voipProdCd) {
+          eqtNo = findEqtNo('05') || findEqtNo('01') || findEqtNo('03')
+            || (prodGrpFromPromo === 'I' ? findEqtNo('02') : '') || findEqtNo('08') || '';
+        } else {
+          eqtNo = findEqtNo('08');
+        }
+
+        // etc_1: STB(04) or NET_CL for non-VoIP, modem(02) for VoIP (legacy line 902-912)
+        let etc1 = '';
+        if (!voipProdCd) {
+          etc1 = findEqtNo('04');
+        } else {
+          etc1 = findEqtNo('02');
+        }
+
+        // etc_2: EMT(07) (legacy line 914)
+        const etc2 = findEqtNo('07');
+
+        // etc_3: modem(02) for CATV prod_grp='C' (legacy line 916-918)
+        const etc3 = prodGrpFromPromo === 'C' ? findEqtNo('02') : '';
+
+        // etc_4: AP(10) for VoIP or ISP modem(21) (legacy line 924-932)
+        let etc4 = '';
+        if (findEqtNo('10') && prodGrpFromPromo === 'V') {
+          etc4 = findEqtNo('10');
+        }
+        if ((order as any).ISP_PROD_CD) {
+          etc4 = findEqtNo('21');
+        }
+
+        // VoIP join CTRT_ID (legacy line 961-968)
+        let voipJoinCtrtId = '';
+        if (prodGrp === 'V' && voipProdCd) {
+          voipJoinCtrtId = order.CTRT_ID || '';
+        }
+
+        console.log('[CompleteRemoval] SMR03 installation signal:', { msgId, eqtNo, eqtProdCmpsId });
+
+        await sendSignal({
+          MSG_ID: msgId,
+          CUST_ID: order.customer?.id || order.CUST_ID || '',
+          CTRT_ID: order.CTRT_ID || '',
+          SO_ID: order.SO_ID || '',
+          EQT_NO: eqtNo,
+          EQT_PROD_CMPS_ID: eqtProdCmpsId,
+          PROD_CD: prodCd,
+          WRK_ID: order.id || '',
+          REG_UID: workerId,
+          ETC_1: etc1,
+          ETC_2: etc2,
+          ETC_3: etc3,
+          ETC_4: etc4,
+          SUB_PROD_CD: subProdCd,
+          VOIP_JOIN_CTRT_ID: voipJoinCtrtId,
+          WTIME: '3',
+        });
+        console.log('[CompleteRemoval] SMR03 installation signal sent');
+      } catch (error) {
+        // Fire-and-forget: log only, do not block
+        console.warn('[CompleteRemoval] SMR03 installation signal error (ignored):', error);
+      }
+    };
+
     submitWork(completeData, {
       onSuccess: (result) => {
         if (result.code === 'SUCCESS' || result.code === 'OK') {
           localStorage.removeItem(getStorageKey());
+          (order as any).WRK_STAT_CD = '3';
+
+          // SMR03 after work complete success (legacy fn_tr_result line 783-784)
+          sendInstallationSignal();
+
           showToast?.('작업이 성공적으로 완료되었습니다.', 'success');
           onSuccess();
         } else {
-          showToast?.(result.message || '작업 완료 처리에 실패했습니다.', 'error');
+          showToast?.(result.message || '작업 완료 처리에 실패했습니다.', 'error', true);
         }
       },
       onError: (error: any) => {
-        showToast?.(error.message || '작업 완료 중 오류가 발생했습니다.', 'error');
+        showToast?.(error.message || '작업 완료 중 오류가 발생했습니다.', 'error', true);
       },
     });
   };
 
   return (
-    <div className="px-2 sm:px-4 py-4 sm:py-6 bg-gray-50 min-h-0">
+    <div className="px-2 sm:px-4 py-4 sm:py-6 bg-gray-50 min-h-0 relative">
+      {/* 전체 화면 로딩 오버레이 */}
+      {isLoading && (
+        <div className="fixed inset-0 bg-black/50 z-[9999] flex items-center justify-center">
+          <div className="bg-white rounded-xl p-6 flex flex-col items-center gap-3 shadow-xl">
+            <svg className="animate-spin h-10 w-10 text-blue-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
+            <span className="text-gray-700 font-medium">작업완료 처리중...</span>
+          </div>
+        </div>
+      )}
       <div className="max-w-2xl mx-auto">
         <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-3 sm:p-5">
           <div className="space-y-3 sm:space-y-5">
@@ -714,11 +1028,15 @@ const CompleteRemoval: React.FC<CompleteRemovalProps> = ({
                 value={memo}
                 onChange={(e) => setMemo(e.target.value)}
                 placeholder="작업 내용을 입력하세요..."
+                maxLength={500}
                 className={`w-full px-3 sm:px-4 py-2 sm:py-3 border border-gray-300 rounded-lg text-sm sm:text-base resize-none ${isWorkCompleted ? 'bg-gray-100 text-gray-600 cursor-not-allowed' : 'focus:ring-2 focus:ring-blue-500 focus:border-blue-500'}`}
                 rows={4}
                 readOnly={isWorkCompleted}
                 disabled={isWorkCompleted}
               />
+              {!isWorkCompleted && (
+                <p className={`text-xs text-right mt-1 ${memo.length >= 500 ? 'text-red-500' : 'text-gray-400'}`}>{memo.length}/500</p>
+              )}
             </div>
 
             {/* 작업처리일 */}
@@ -752,7 +1070,11 @@ const CompleteRemoval: React.FC<CompleteRemovalProps> = ({
                 <button
                   onClick={handleSubmit}
                   disabled={isLoading}
-                  className="flex-1 btn btn-lg btn-primary flex items-center justify-center gap-2"
+                  className={`flex-1 min-h-12 py-3 px-4 rounded-lg font-bold text-sm sm:text-base flex items-center justify-center gap-2 transition-colors ${
+                    isLoading
+                      ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                      : 'bg-blue-600 hover:bg-blue-700 text-white'
+                  }`}
                 >
                   {isLoading ? (
                     <>
@@ -767,7 +1089,7 @@ const CompleteRemoval: React.FC<CompleteRemovalProps> = ({
                       <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
                         <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
                       </svg>
-                      <span>작업 완료</span>
+                      <span>작업완료</span>
                     </>
                   )}
                 </button>

@@ -126,7 +126,7 @@ const Header: React.FC<HeaderProps> = ({ onLogout, onNavigateHome, onNavigateBac
               aria-label="사용자 메뉴"
             >
               <User className="w-4 h-4" />
-              <span className="text-[9px] mt-0.5 truncate max-w-[60px]">
+              <span className="text-[0.5625rem] mt-0.5 truncate max-w-[60px]">
                 {userInfo ? `${userInfo.userName || '작업자'}` : '작업자'}
               </span>
             </button>

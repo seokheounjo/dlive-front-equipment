@@ -27,9 +27,9 @@ const WorkResultSignalList: React.FC<WorkResultSignalListProps> = ({ onBack }) =
 
       const data = await getWorkResultSignals(params);
       setSignals(data);
-      console.log('✅ 작업결과신호 조회 성공:', data.length);
+      console.log('작업결과신호 조회 성공:', data.length);
     } catch (err) {
-      console.error('❌ 작업결과신호 조회 실패:', err);
+      console.error('작업결과신호 조회 실패:', err);
       setError('작업결과신호현황을 불러오는데 실패했습니다.');
     } finally {
       setIsLoading(false);

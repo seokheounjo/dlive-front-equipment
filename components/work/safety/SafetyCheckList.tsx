@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Shield, AlertCircle, CheckCircle, Camera, Check, X } from 'lucide-react';
-import { saveSafetyCheck, getSafetyChecks, getSafetyChecklistItems, SafetyCheck, SafetyChecklistItem } from '../../../services/apiService';
+import { Shield, AlertCircle, CheckCircle, Camera, X } from 'lucide-react';
+import { getSafetyChecks, getSafetyChecklistItems, saveSafetyChecklist, getSafetyCheckResultInfo, SafetyCheck, SafetyChecklistItem } from '../../../services/apiService';
 
 interface SafetyCheckListProps {
   onBack: () => void;
@@ -14,73 +14,24 @@ interface SafetyCheckListProps {
   showToast?: (message: string, type: 'success' | 'error' | 'warning' | 'info') => void;
 }
 
-interface ChecklistItem {
-  id: string;
-  category: string;
+interface ChecklistItemState {
+  id: number;
   label: string;
   required: boolean;
+  imageRequired: boolean;
   checked: boolean;
+  photo?: string;
 }
-
-interface SafetyInspection {
-  personalSafety: ChecklistItem[];
-  vehicleSafety: ChecklistItem[];
-  equipmentSafety: ChecklistItem[];
-  workSiteSafety: ChecklistItem[];
-}
-
-// Default checklist items (fallback if API returns empty)
-const DEFAULT_CHECKLIST: SafetyInspection = {
-  personalSafety: [
-    { id: 'ps1', category: 'personal', label: '안전모 착용', required: true, checked: false },
-    { id: 'ps2', category: 'personal', label: '안전화 착용', required: true, checked: false },
-    { id: 'ps3', category: 'personal', label: '안전조끼 착용', required: true, checked: false },
-    { id: 'ps4', category: 'personal', label: '안전장갑 착용', required: false, checked: false },
-    { id: 'ps5', category: 'personal', label: '보호안경 착용', required: false, checked: false },
-  ],
-  vehicleSafety: [
-    { id: 'vs1', category: 'vehicle', label: '차량 외관 상태 확인', required: true, checked: false },
-    { id: 'vs2', category: 'vehicle', label: '타이어 공기압 확인', required: true, checked: false },
-    { id: 'vs3', category: 'vehicle', label: '엔진오일 점검', required: false, checked: false },
-    { id: 'vs4', category: 'vehicle', label: '브레이크 작동 확인', required: true, checked: false },
-    { id: 'vs5', category: 'vehicle', label: '라이트 및 방향지시등 점검', required: true, checked: false },
-  ],
-  equipmentSafety: [
-    { id: 'es1', category: 'equipment', label: '공구함 점검 완료', required: true, checked: false },
-    { id: 'es2', category: 'equipment', label: '측정장비 정상 작동 확인', required: true, checked: false },
-    { id: 'es3', category: 'equipment', label: '사다리/발판 안전 확인', required: true, checked: false },
-    { id: 'es4', category: 'equipment', label: '전기 작업 도구 절연 상태', required: true, checked: false },
-    { id: 'es5', category: 'equipment', label: '응급처치 키트 구비', required: false, checked: false },
-  ],
-  workSiteSafety: [
-    { id: 'ws1', category: 'worksite', label: '작업 현장 위험요소 파악', required: true, checked: false },
-    { id: 'ws2', category: 'worksite', label: '날씨 및 환경 조건 확인', required: true, checked: false },
-    { id: 'ws3', category: 'worksite', label: '고객 안전 주의사항 숙지', required: true, checked: false },
-    { id: 'ws4', category: 'worksite', label: '비상연락망 확인', required: true, checked: false },
-    { id: 'ws5', category: 'worksite', label: '작업 동선 계획 수립', required: false, checked: false },
-  ],
-};
-
-// Map API category to our category names
-const categoryMap: Record<string, keyof SafetyInspection> = {
-  'personal': 'personalSafety',
-  'vehicle': 'vehicleSafety',
-  'equipment': 'equipmentSafety',
-  'worksite': 'workSiteSafety',
-};
 
 const SafetyCheckList: React.FC<SafetyCheckListProps> = ({ onBack, userInfo, showToast }) => {
   const [lastInspection, setLastInspection] = useState<SafetyCheck | null>(null);
   const [inspectionExpired, setInspectionExpired] = useState<boolean>(false);
-  const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [isLoading, setIsLoading] = useState<boolean>(true);
   const [isSaving, setIsSaving] = useState<boolean>(false);
-  const [checklistLoaded, setChecklistLoaded] = useState<boolean>(false);
+  const [alreadySubmittedToday, setAlreadySubmittedToday] = useState<boolean>(false);
 
-  // Safety inspection checklist state - initialized with default items
-  const [inspection, setInspection] = useState<SafetyInspection>(DEFAULT_CHECKLIST);
-
-  const [photos, setPhotos] = useState<string[]>([]);
-  const [signature, setSignature] = useState<boolean>(false);
+  // Checklist items from DB
+  const [checklistItems, setChecklistItems] = useState<ChecklistItemState[]>([]);
 
   useEffect(() => {
     loadChecklistItems();
@@ -89,8 +40,7 @@ const SafetyCheckList: React.FC<SafetyCheckListProps> = ({ onBack, userInfo, sho
 
   // Load checklist items from API
   const loadChecklistItems = async () => {
-    if (checklistLoaded) return;
-
+    setIsLoading(true);
     try {
       const items = await getSafetyChecklistItems({
         SO_ID: userInfo?.soId,
@@ -98,58 +48,49 @@ const SafetyCheckList: React.FC<SafetyCheckListProps> = ({ onBack, userInfo, sho
         WRKR_ID: userInfo?.userId,
       });
 
+      console.log('[SafetyCheckList] Raw API items:', items);
+
       if (items && items.length > 0) {
-        console.log('[SafetyCheckList] Loaded checklist items from API:', items.length);
-
-        // Group items by category
-        const newInspection: SafetyInspection = {
-          personalSafety: [],
-          vehicleSafety: [],
-          equipmentSafety: [],
-          workSiteSafety: [],
-        };
-
-        items
-          .sort((a, b) => (a.DISPLAY_ORDER || 0) - (b.DISPLAY_ORDER || 0))
-          .forEach((item) => {
-            const category = categoryMap[item.CATEGORY?.toLowerCase()] || 'workSiteSafety';
-            const checklistItem: ChecklistItem = {
-              id: item.ITEM_CD,
-              category: item.CATEGORY,
-              label: item.ITEM_NM,
-              required: item.REQUIRED_YN === 'Y',
-              checked: false,
-            };
-            newInspection[category].push(checklistItem);
-          });
-
-        // Only use API data if we have items in at least one category
-        const hasItems = Object.values(newInspection).some(arr => arr.length > 0);
-        if (hasItems) {
-          // Fill in any missing categories with defaults
-          if (newInspection.personalSafety.length === 0) {
-            newInspection.personalSafety = DEFAULT_CHECKLIST.personalSafety;
+        // Also load today's submitted results to pre-populate
+        let todayResults: { ITEM_ID?: string; ANSWER_VALUE?: string }[] = [];
+        if (userInfo?.userId) {
+          todayResults = await getSafetyCheckResultInfo(userInfo.userId);
+          console.log('[SafetyCheckList] Today results:', todayResults);
+          if (todayResults.length > 0) {
+            setAlreadySubmittedToday(true);
           }
-          if (newInspection.vehicleSafety.length === 0) {
-            newInspection.vehicleSafety = DEFAULT_CHECKLIST.vehicleSafety;
-          }
-          if (newInspection.equipmentSafety.length === 0) {
-            newInspection.equipmentSafety = DEFAULT_CHECKLIST.equipmentSafety;
-          }
-          if (newInspection.workSiteSafety.length === 0) {
-            newInspection.workSiteSafety = DEFAULT_CHECKLIST.workSiteSafety;
-          }
-          setInspection(newInspection);
-        } else {
-          console.log('[SafetyCheckList] No items in API response, using defaults');
         }
+
+        // Create a map of item answers for quick lookup
+        const answerMap = new Map<string, string>();
+        todayResults.forEach(r => {
+          if (r.ITEM_ID) {
+            answerMap.set(r.ITEM_ID, r.ANSWER_VALUE || 'N');
+          }
+        });
+
+        const mappedItems: ChecklistItemState[] = items
+          .sort((a, b) => (a.DISPLAY_ORDER || 0) - (b.DISPLAY_ORDER || 0))
+          .map((item) => ({
+            id: item.ITEM_ID,
+            label: item.QUESTION_TEXT,
+            required: item.IS_REQUIRED === 'Y',
+            imageRequired: item.IMAGE_REQUIRED_YN === 'Y',
+            checked: answerMap.get(String(item.ITEM_ID)) === 'Y',
+            photo: undefined,
+          }));
+
+        console.log('[SafetyCheckList] Mapped items:', mappedItems);
+        setChecklistItems(mappedItems);
       } else {
-        console.log('[SafetyCheckList] API returned empty, using default checklist');
+        console.log('[SafetyCheckList] No items from API');
+        if (showToast) showToast('안전점검 항목을 불러올 수 없습니다.', 'warning');
       }
     } catch (error) {
-      console.warn('[SafetyCheckList] Failed to load checklist from API, using defaults:', error);
+      console.error('[SafetyCheckList] Failed to load checklist:', error);
+      if (showToast) showToast('안전점검 항목 로딩 실패', 'error', true);
     } finally {
-      setChecklistLoaded(true);
+      setIsLoading(false);
     }
   };
 
@@ -158,23 +99,19 @@ const SafetyCheckList: React.FC<SafetyCheckListProps> = ({ onBack, userInfo, sho
     const crrId = userInfo?.crrId || '';
 
     if (!soId || !crrId) {
-      console.log('⚠️ SO_ID 또는 CRR_ID가 없어 조회를 건너뜁니다');
       return;
     }
 
     try {
-      setIsLoading(true);
       const checks = await getSafetyChecks({ SO_ID: soId, CRR_ID: crrId });
 
       if (checks && checks.length > 0) {
-        // Get the most recent inspection
         const latest = checks.sort((a, b) =>
           b.INSP_END_DT.localeCompare(a.INSP_END_DT)
         )[0];
 
         setLastInspection(latest);
 
-        // Check if inspection is expired (older than today)
         const today = new Date().toISOString().slice(0, 10).replace(/-/g, '');
         if (latest.INSP_END_DT < today) {
           setInspectionExpired(true);
@@ -184,57 +121,125 @@ const SafetyCheckList: React.FC<SafetyCheckListProps> = ({ onBack, userInfo, sho
         }
       }
     } catch (err) {
-      console.error('❌ 안전점검 조회 실패:', err);
-      // Silently fail - allow user to continue work even if API fails
-      // Set inspection as not expired to allow work to proceed
-      setInspectionExpired(false);
-      setLastInspection(null);
-    } finally {
-      setIsLoading(false);
+      console.error('안전점검 조회 실패:', err);
     }
   };
 
-  const handleCheckboxChange = (category: keyof SafetyInspection, itemId: string) => {
-    setInspection(prev => ({
-      ...prev,
-      [category]: prev[category].map(item =>
+  const handleCheckboxChange = (itemId: number) => {
+    setChecklistItems(prev =>
+      prev.map(item =>
         item.id === itemId ? { ...item, checked: !item.checked } : item
       )
-    }));
+    );
   };
 
-  const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  // 이미지에 타임스탬프 삽입 후 Base64로 변환
+  const processImageWithTimestamp = (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      img.onload = () => {
+        try {
+          const canvas = document.createElement('canvas');
+
+          // 이미지 리사이즈 (최대 1920px)
+          const maxSize = 1920;
+          let width = img.width;
+          let height = img.height;
+          if (width > maxSize || height > maxSize) {
+            if (width > height) {
+              height = (height / width) * maxSize;
+              width = maxSize;
+            } else {
+              width = (width / height) * maxSize;
+              height = maxSize;
+            }
+          }
+
+          canvas.width = width;
+          canvas.height = height;
+
+          const ctx = canvas.getContext('2d');
+          if (!ctx) {
+            reject(new Error('Canvas context not available'));
+            return;
+          }
+
+          // 이미지 그리기
+          ctx.drawImage(img, 0, 0, width, height);
+
+          // 타임스탬프 생성
+          const now = new Date();
+          const timestamp = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')} ${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}:${String(now.getSeconds()).padStart(2, '0')}`;
+
+          // 타임스탬프 스타일 (우측 하단)
+          const fontSize = Math.max(16, Math.floor(width / 25));
+          ctx.font = `bold ${fontSize}px Arial`;
+          const textWidth = ctx.measureText(timestamp).width;
+          const padding = 10;
+          const boxHeight = fontSize + padding * 2;
+          const boxWidth = textWidth + padding * 2;
+
+          // 반투명 배경
+          ctx.fillStyle = 'rgba(0, 0, 0, 0.6)';
+          ctx.fillRect(width - boxWidth - 10, height - boxHeight - 10, boxWidth, boxHeight);
+
+          // 흰색 텍스트
+          ctx.fillStyle = '#FFFFFF';
+          ctx.fillText(timestamp, width - textWidth - padding - 10, height - padding - 15);
+
+          // Base64로 변환 (JPEG, 85% 품질)
+          const base64 = canvas.toDataURL('image/jpeg', 0.85);
+          resolve(base64);
+        } catch (err) {
+          reject(err);
+        }
+      };
+      img.onerror = () => reject(new Error('Image load failed'));
+      img.src = URL.createObjectURL(file);
+    });
+  };
+
+  const handlePhotoUpload = async (itemId: number, e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
-    if (files) {
-      const newPhotos = Array.from(files).map(file => URL.createObjectURL(file));
-      setPhotos(prev => [...prev, ...newPhotos].slice(0, 3)); // Max 3 photos
+    if (files && files.length > 0) {
+      try {
+        // 타임스탬프 삽입 + Base64 변환
+        const base64Image = await processImageWithTimestamp(files[0]);
+
+        setChecklistItems(prev =>
+          prev.map(item =>
+            item.id === itemId ? { ...item, photo: base64Image, checked: true } : item
+          )
+        );
+
+        console.log('[SafetyCheckList] 사진 촬영 완료 (타임스탬프 삽입, Base64 변환)');
+      } catch (error) {
+        console.error('[SafetyCheckList] 사진 처리 실패:', error);
+        if (showToast) showToast('사진 처리에 실패했습니다.', 'error');
+      }
     }
   };
 
-  const removePhoto = (index: number) => {
-    setPhotos(prev => prev.filter((_, i) => i !== index));
+  const removePhoto = (itemId: number) => {
+    setChecklistItems(prev =>
+      prev.map(item =>
+        item.id === itemId ? { ...item, photo: undefined } : item
+      )
+    );
   };
 
   const validateInspection = (): boolean => {
-    // Check all required items
-    const allCategories = [
-      ...inspection.personalSafety,
-      ...inspection.vehicleSafety,
-      ...inspection.equipmentSafety,
-      ...inspection.workSiteSafety
-    ];
-
-    const allRequiredChecked = allCategories
-      .filter(item => item.required)
-      .every(item => item.checked);
-
-    if (!allRequiredChecked) {
+    // Check all required items are checked
+    const uncheckedRequired = checklistItems.filter(item => item.required && !item.checked);
+    if (uncheckedRequired.length > 0) {
       if (showToast) showToast('필수 안전점검 항목을 모두 체크해주세요.', 'warning');
       return false;
     }
 
-    if (!signature) {
-      if (showToast) showToast('안전점검 확인 서명을 완료해주세요.', 'warning');
+    // Check all image-required items have photos
+    const missingPhotos = checklistItems.filter(item => item.imageRequired && !item.photo);
+    if (missingPhotos.length > 0) {
+      if (showToast) showToast('필수 사진을 모두 업로드해주세요.', 'warning');
       return false;
     }
 
@@ -246,11 +251,9 @@ const SafetyCheckList: React.FC<SafetyCheckListProps> = ({ onBack, userInfo, sho
       return;
     }
 
-    const soId = userInfo?.soId || '';
-    const crrId = userInfo?.crrId || '';
     const userId = userInfo?.userId || 'mobile_user';
 
-    if (!soId || !crrId) {
+    if (!userId) {
       if (showToast) showToast('사용자 정보가 없습니다.', 'error');
       return;
     }
@@ -258,102 +261,62 @@ const SafetyCheckList: React.FC<SafetyCheckListProps> = ({ onBack, userInfo, sho
     setIsSaving(true);
 
     try {
-      const today = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+      // Build comma-separated item IDs and values
+      const ansItemIds = checklistItems.map(item => String(item.id)).join(',');
+      const ansValues = checklistItems.map(item => item.checked ? 'Y' : 'N').join(',');
 
-      const result = await saveSafetyCheck({
-        SO_ID: soId,
-        CRR_ID: crrId,
-        INSP_END_DT: today,
-        REG_UID: userId
+      // IMG_PATHS: 이미지 없으면 'N'으로 저장 (백엔드 요구사항)
+      const imgPaths = 'N';
+
+      console.log('📋 안전점검 저장 요청:', {
+        USR_ID: userId,
+        ANS_ITEM_IDS: ansItemIds,
+        ANS_VALUES: ansValues,
+        IMG_PATHS: '(empty - image upload not implemented)'
       });
 
-      console.log('✅ 안전점검 등록 성공:', result);
+      const result = await saveSafetyChecklist({
+        USR_ID: userId,
+        IMG_PATHS: imgPaths,
+        ANS_ITEM_IDS: ansItemIds,
+        ANS_VALUES: ansValues
+      });
+
+      console.log('안전점검 등록 성공:', result);
 
       if (result.code === 'SUCCESS' || result.code === 'OK') {
         if (showToast) showToast('안전점검이 완료되었습니다.', 'success');
-
-        // Reset form
-        resetForm();
-
-        // Refresh inspection data
-        checkLastInspection();
+        // 완료 후 전체 데이터 재로딩 (체크 상태 + 점검이력 + 제출여부 반영)
+        await loadChecklistItems();
+        await checkLastInspection();
       } else {
-        if (showToast) showToast(`안전점검 등록 실패: ${result.message || '알 수 없는 오류'}`, 'error');
+        if (showToast) showToast(`안전점검 등록 실패: ${result.message || '알 수 없는 오류'}`, 'error', true);
       }
     } catch (error: any) {
-      console.error('❌ 안전점검 등록 오류:', error);
-      // Gracefully handle API error - show optional warning but allow user to proceed
+      console.error('안전점검 등록 오류:', error);
       if (showToast) {
-        showToast('안전점검 등록 API가 응답하지 않습니다. 작업을 계속 진행할 수 있습니다.', 'warning');
+        showToast('안전점검 등록 API가 응답하지 않습니다.', 'warning');
       }
-      // Reset form and allow user to continue
-      resetForm();
     } finally {
       setIsSaving(false);
     }
   };
 
   const resetForm = () => {
-    setInspection({
-      personalSafety: inspection.personalSafety.map(item => ({ ...item, checked: false })),
-      vehicleSafety: inspection.vehicleSafety.map(item => ({ ...item, checked: false })),
-      equipmentSafety: inspection.equipmentSafety.map(item => ({ ...item, checked: false })),
-      workSiteSafety: inspection.workSiteSafety.map(item => ({ ...item, checked: false })),
-    });
-    setPhotos([]);
-    setSignature(false);
+    setChecklistItems(prev => prev.map(item => ({ ...item, checked: false, photo: undefined })));
   };
 
   const getCompletionPercentage = (): number => {
-    const allItems = [
-      ...inspection.personalSafety,
-      ...inspection.vehicleSafety,
-      ...inspection.equipmentSafety,
-      ...inspection.workSiteSafety
-    ];
-    const checked = allItems.filter(item => item.checked).length;
-    return Math.round((checked / allItems.length) * 100);
+    if (checklistItems.length === 0) return 0;
+    const checked = checklistItems.filter(item => item.checked).length;
+    return Math.round((checked / checklistItems.length) * 100);
   };
 
-  const renderChecklistSection = (
-    title: string,
-    icon: React.ReactNode,
-    items: ChecklistItem[],
-    category: keyof SafetyInspection,
-    color: string
-  ) => {
-    return (
-      <div className="bg-white rounded-xl shadow-md border border-gray-200 overflow-hidden mb-3 sm:mb-4">
-        <div className={`${color} p-3 sm:p-4 flex items-center gap-2 sm:gap-3`}>
-          {icon}
-          <h3 className="text-base sm:text-lg font-bold text-white">{title}</h3>
-        </div>
-        <div className="p-3 sm:p-4 space-y-2 sm:space-y-3">
-          {items.map(item => (
-            <label
-              key={item.id}
-              className="flex items-start gap-2 sm:gap-3 p-2 sm:p-3 rounded-lg hover:bg-gray-50 cursor-pointer transition-colors"
-            >
-              <input
-                type="checkbox"
-                checked={item.checked}
-                onChange={() => handleCheckboxChange(category, item.id)}
-                className="mt-1 w-5 h-5 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
-              />
-              <div className="flex-1">
-                <span className="text-sm font-medium text-gray-900">
-                  {item.label}
-                  {item.required && <span className="text-red-500 ml-1">*</span>}
-                </span>
-              </div>
-              {item.checked && (
-                <CheckCircle className="w-5 h-5 text-green-500 flex-shrink-0" />
-              )}
-            </label>
-          ))}
-        </div>
-      </div>
-    );
+  const getRequiredCompletionPercentage = (): number => {
+    const requiredItems = checklistItems.filter(item => item.required);
+    if (requiredItems.length === 0) return 100;
+    const checked = requiredItems.filter(item => item.checked).length;
+    return Math.round((checked / requiredItems.length) * 100);
   };
 
   if (isLoading) {
@@ -365,30 +328,50 @@ const SafetyCheckList: React.FC<SafetyCheckListProps> = ({ onBack, userInfo, sho
     );
   }
 
-  return (
-    <div className="max-w-4xl mx-auto pb-6">
-      {/* Header */}
-      <div className="bg-gradient-to-r from-blue-600 to-cyan-500 text-white p-5 rounded-xl shadow-lg mb-6">
-        <div className="flex items-center gap-4">
-          <div className="p-3 bg-white/20 rounded-xl">
-            <Shield className="w-8 h-8" />
-          </div>
-          <div className="flex-1">
-            <h2 className="text-xl font-bold mb-1">작업 전 안전점검</h2>
-            <p className="text-sm text-white/90">작업 처리 전 필수 안전점검을 진행해주세요</p>
+  if (checklistItems.length === 0) {
+    return (
+      <div className="max-w-4xl mx-auto pb-6">
+        <div className="bg-yellow-50 border-l-4 border-yellow-500 p-4 rounded-lg">
+          <div className="flex items-start gap-3">
+            <AlertCircle className="w-6 h-6 text-yellow-500 flex-shrink-0 mt-0.5" />
+            <div>
+              <h4 className="text-yellow-800 font-bold mb-1">안전점검 항목 없음</h4>
+              <p className="text-sm text-yellow-700">
+                DB에 안전점검 항목이 설정되어 있지 않습니다. 관리자에게 문의하세요.
+              </p>
+            </div>
           </div>
         </div>
+      </div>
+    );
+  }
 
-        {/* Completion Progress */}
-        <div className="bg-white/10 backdrop-blur-sm rounded-lg p-4 mt-4">
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-sm font-medium">점검 진행률</span>
-            <span className="text-sm font-bold">{getCompletionPercentage()}%</span>
+  return (
+    <div className="max-w-4xl mx-auto pb-6">
+      {/* Header with Safety Character */}
+      <div className="bg-gradient-to-r from-blue-600 to-cyan-500 text-white p-4 sm:p-5 rounded-xl shadow-lg mb-6 relative">
+        <div className="flex items-start gap-2 sm:gap-4">
+          <div className="flex-1 z-10 min-w-0 flex flex-col justify-between h-36 sm:h-44">
+            <div className="flex items-center gap-2 sm:gap-3">
+              <div className="p-1.5 sm:p-2 bg-white/20 rounded-lg flex-shrink-0">
+                <Shield className="w-5 h-5 sm:w-6 sm:h-6" />
+              </div>
+              <h2 className="text-lg sm:text-xl font-bold">안전점검</h2>
+            </div>
+            <p className="text-xs sm:text-sm text-white/90">필수 점검을 진행해주세요</p>
+            <div className="flex flex-wrap gap-1.5 sm:gap-2 text-xs">
+              <span className="px-1.5 sm:px-2 py-0.5 sm:py-1 bg-white/20 rounded-full">안전모</span>
+              <span className="px-1.5 sm:px-2 py-0.5 sm:py-1 bg-white/20 rounded-full">안전벨트</span>
+              <span className="px-1.5 sm:px-2 py-0.5 sm:py-1 bg-white/20 rounded-full">장갑</span>
+              <span className="px-1.5 sm:px-2 py-0.5 sm:py-1 bg-white/20 rounded-full">안전화</span>
+            </div>
           </div>
-          <div className="w-full bg-white/20 rounded-full h-3 overflow-hidden">
-            <div
-              className="bg-white h-full transition-all duration-300 rounded-full"
-              style={{ width: `${getCompletionPercentage()}%` }}
+          {/* Safety Character Image */}
+          <div className="flex-shrink-0 w-28 h-28 sm:w-36 sm:h-36 relative">
+            <img
+              src="/safeimage1-Photoroom.png"
+              alt="안전점검 캐릭터"
+              className="absolute -right-4 -bottom-10 drop-shadow-xl !w-[170px] !h-auto !max-w-none"
             />
           </div>
         </div>
@@ -418,128 +401,107 @@ const SafetyCheckList: React.FC<SafetyCheckListProps> = ({ onBack, userInfo, sho
               <h4 className="text-green-800 font-bold mb-1">최근 안전점검 완료</h4>
               <p className="text-sm text-green-700">
                 점검일: {lastInspection.INSP_END_DT.slice(0,4)}-{lastInspection.INSP_END_DT.slice(4,6)}-{lastInspection.INSP_END_DT.slice(6,8)}
-                {lastInspection.PASS_YN === 'Y' && ' | 결과: 적합'}
               </p>
             </div>
           </div>
         </div>
       )}
 
-      {/* Checklist Sections */}
-      <div className="space-y-4">
-        {renderChecklistSection(
-          '개인 안전장구',
-          <Shield className="w-6 h-6" />,
-          inspection.personalSafety,
-          'personalSafety',
-          'bg-gradient-to-r from-blue-600 to-blue-500'
-        )}
-
-        {renderChecklistSection(
-          '차량 안전점검',
-          <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
-          </svg>,
-          inspection.vehicleSafety,
-          'vehicleSafety',
-          'bg-gradient-to-r from-cyan-600 to-cyan-500'
-        )}
-
-        {renderChecklistSection(
-          '장비 안전점검',
-          <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-          </svg>,
-          inspection.equipmentSafety,
-          'equipmentSafety',
-          'bg-gradient-to-r from-indigo-600 to-indigo-500'
-        )}
-
-        {renderChecklistSection(
-          '작업 현장 안전',
-          <AlertCircle className="w-6 h-6" />,
-          inspection.workSiteSafety,
-          'workSiteSafety',
-          'bg-gradient-to-r from-purple-600 to-purple-500'
-        )}
-      </div>
-
-      {/* Photo Upload Section */}
-      <div className="bg-white rounded-xl shadow-md border border-gray-200 overflow-hidden mt-3 sm:mt-4">
-        <div className="bg-gradient-to-r from-orange-600 to-orange-500 p-3 sm:p-4 flex items-center gap-2 sm:gap-3">
-          <Camera className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
-          <h3 className="text-base sm:text-lg font-bold text-white">안전장구 착용 사진</h3>
-        </div>
-        <div className="p-3 sm:p-4">
-          <p className="text-xs sm:text-sm text-gray-600 mb-3 sm:mb-4">안전장구 착용 상태를 사진으로 등록해주세요 (최대 3장)</p>
-
-          <div className="grid grid-cols-3 gap-2 sm:gap-3 mb-3 sm:mb-4">
-            {photos.map((photo, index) => (
-              <div key={index} className="relative aspect-square rounded-lg overflow-hidden border-2 border-gray-200">
-                <img src={photo} alt={`안전장구 ${index + 1}`} className="w-full h-full object-cover" />
-                <button
-                  onClick={() => removePhoto(index)}
-                  className="absolute top-1 right-1 p-1 bg-red-500 text-white rounded-full hover:bg-red-600 transition-colors"
-                >
-                  <X className="w-4 h-4" />
-                </button>
-              </div>
-            ))}
-          </div>
-
-          {photos.length < 3 && (
-            <label className="flex items-center justify-center gap-2 w-full p-4 border-2 border-dashed border-gray-300 rounded-lg hover:border-blue-500 hover:bg-blue-50 cursor-pointer transition-all">
-              <Camera className="w-5 h-5 text-gray-400" />
-              <span className="text-sm font-medium text-gray-600">사진 추가</span>
-              <input
-                type="file"
-                accept="image/*"
-                multiple
-                onChange={handlePhotoUpload}
-                className="hidden"
-              />
-            </label>
-          )}
-        </div>
-      </div>
-
-      {/* Signature Section */}
-      <div className="bg-white rounded-xl shadow-md border border-gray-200 overflow-hidden mt-3 sm:mt-4">
-        <div className="bg-gradient-to-r from-green-600 to-green-500 p-3 sm:p-4 flex items-center gap-2 sm:gap-3">
-          <Check className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
-          <h3 className="text-base sm:text-lg font-bold text-white">안전점검 확인 서명</h3>
-        </div>
-        <div className="p-3 sm:p-4">
-          <p className="text-xs sm:text-sm text-gray-600 mb-3 sm:mb-4">
-            상기 안전점검을 완료하였으며, 안전수칙을 준수하여 작업을 진행하겠습니다.
-          </p>
-
-          <label className="flex items-center gap-2 sm:gap-3 p-3 sm:p-4 bg-gray-50 rounded-lg cursor-pointer hover:bg-gray-100 transition-colors">
-            <input
-              type="checkbox"
-              checked={signature}
-              onChange={(e) => setSignature(e.target.checked)}
-              className="w-5 h-5 text-green-600 border-gray-300 rounded focus:ring-green-500"
-            />
-            <div className="flex-1">
-              <span className="text-sm font-bold text-gray-900">안전점검 확인</span>
-              <p className="text-xs text-gray-600 mt-1">
-                작업자: {userInfo?.userName || '미확인'}
+      {/* Already submitted today notice */}
+      {alreadySubmittedToday && (
+        <div className="bg-blue-50 border-l-4 border-blue-500 p-4 mb-6 rounded-lg">
+          <div className="flex items-start gap-3">
+            <CheckCircle className="w-6 h-6 text-blue-500 flex-shrink-0 mt-0.5" />
+            <div>
+              <h4 className="text-blue-800 font-bold mb-1">오늘 안전점검 제출 완료</h4>
+              <p className="text-sm text-blue-700">
+                이미 오늘 안전점검을 제출하셨습니다. 수정이 필요한 경우 다시 제출해주세요.
               </p>
             </div>
-            {signature && (
-              <CheckCircle className="w-6 h-6 text-green-500" />
-            )}
-          </label>
+          </div>
+        </div>
+      )}
+
+      {/* Checklist Items */}
+      <div className="bg-white rounded-xl shadow-md border border-gray-200 overflow-hidden mb-4">
+        <div className="bg-gradient-to-r from-blue-600 to-blue-500 p-3 sm:p-4 flex items-center gap-2 sm:gap-3">
+          <Shield className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
+          <h3 className="text-base sm:text-lg font-bold text-white">안전점검 항목</h3>
+          <span className="ml-auto text-white/80 text-sm">{checklistItems.length}개 항목</span>
+        </div>
+        <div className="p-3 sm:p-4 space-y-3">
+          {checklistItems.map((item, index) => (
+            <div
+              key={item.id}
+              className={`p-3 rounded-lg border ${item.checked ? 'bg-green-50 border-green-200' : 'bg-gray-50 border-gray-200'}`}
+            >
+              {/* Checkbox row */}
+              <label className="flex items-start gap-3 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={item.checked}
+                  onChange={() => handleCheckboxChange(item.id)}
+                  className="mt-1 w-5 h-5 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                />
+                <div className="flex-1">
+                  <span className="text-sm font-medium text-gray-900 whitespace-pre-line">
+                    {index + 1}. {item.label?.replace(/\r\n/g, '\n').replace(/  - /g, '\n- ')}
+                    {item.required && <span className="text-red-500 ml-1">*</span>}
+                  </span>
+                  {item.imageRequired && (
+                    <span className="ml-2 inline-flex items-center gap-1 px-2 py-0.5 rounded bg-orange-100 text-orange-700 text-xs">
+                      <Camera className="w-3 h-3" />
+                      사진필수
+                    </span>
+                  )}
+                </div>
+                {item.checked && (
+                  <CheckCircle className="w-5 h-5 text-green-500 flex-shrink-0" />
+                )}
+              </label>
+
+              {/* Photo upload for image-required items */}
+              {item.imageRequired && (
+                <div className="mt-3 ml-8">
+                  {item.photo ? (
+                    <div className="relative inline-block">
+                      <img
+                        src={item.photo}
+                        alt="업로드된 사진"
+                        className="w-24 h-24 object-cover rounded-lg border-2 border-green-300"
+                      />
+                      <button
+                        onClick={() => removePhoto(item.id)}
+                        className="absolute -top-2 -right-2 p-1 bg-red-500 text-white rounded-full hover:bg-red-600"
+                      >
+                        <X className="w-3 h-3" />
+                      </button>
+                    </div>
+                  ) : (
+                    <label className="inline-flex items-center gap-2 px-4 py-2 border-2 border-dashed border-orange-300 rounded-lg hover:border-orange-500 hover:bg-orange-50 cursor-pointer transition-all">
+                      <Camera className="w-4 h-4 text-orange-500" />
+                      <span className="text-sm font-medium text-orange-600">사진 촬영</span>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        capture="environment"
+                        onChange={(e) => handlePhotoUpload(item.id, e)}
+                        className="hidden"
+                      />
+                    </label>
+                  )}
+                </div>
+              )}
+            </div>
+          ))}
         </div>
       </div>
 
       {/* Submit Button */}
-      <div className="mt-4 sm:mt-6">
+      <div className="mt-4">
         <button
           onClick={handleSubmit}
-          disabled={isSaving || getCompletionPercentage() < 100 || !signature}
+          disabled={isSaving || getRequiredCompletionPercentage() < 100}
           className="w-full py-3 sm:py-4 bg-gradient-to-r from-blue-600 to-cyan-500 text-white rounded-xl font-bold text-base sm:text-lg shadow-lg hover:from-blue-700 hover:to-cyan-600 active:scale-[0.98] transition-all disabled:opacity-50 disabled:cursor-not-allowed"
         >
           {isSaving ? (
@@ -548,20 +510,20 @@ const SafetyCheckList: React.FC<SafetyCheckListProps> = ({ onBack, userInfo, sho
               저장 중...
             </span>
           ) : (
-            '안전점검 완료 및 저장'
+            '안전점검 완료'
           )}
         </button>
 
-        {(!signature || getCompletionPercentage() < 100) && (
+        {getRequiredCompletionPercentage() < 100 && (
           <p className="text-center text-sm text-red-600 mt-2">
-            {!signature ? '서명 확인을 완료해주세요' : '모든 필수 항목을 체크해주세요'}
+            필수 항목을 모두 체크해주세요
           </p>
         )}
       </div>
 
       {/* Required Items Legend */}
-      <div className="mt-3 sm:mt-4 p-2.5 sm:p-3 bg-blue-50 rounded-lg">
-        <p className="text-[10px] sm:text-xs text-blue-800">
+      <div className="mt-3 p-2.5 bg-blue-50 rounded-lg">
+        <p className="text-xs text-blue-800">
           <span className="text-red-500 font-bold">*</span> 표시된 항목은 필수 점검 항목입니다
         </p>
       </div>

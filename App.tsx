@@ -21,21 +21,22 @@ import CustomerManagementMenu from './components/customer/CustomerManagementMenu
 import EquipmentManagementMenu from './components/equipment/EquipmentManagementMenu';
 import ApiExplorer from './components/equipment/ApiExplorer';
 import OtherManagement from './components/other/OtherManagement';
+import Settings from './components/layout/Settings';
 import { clearAllSessions } from './utils/sessionStorage';
-import { getWorkOrders } from './services/apiService';
-import { WorkOrderStatus } from './types';
 import { useUIStore } from './stores/uiStore';
 import NoticePopup, { shouldShowNoticePopup } from './components/common/NoticePopup';
 
-export type View = 'today-work' | 'menu' | 'work-management' | 'work-order-detail' | 'work-process-flow' | 'work-complete-form' | 'work-complete-detail' | 'work-item-list' | 'customer-management' | 'equipment-management' | 'other-management' | 'api-explorer' | 'coming-soon';
+export type View = 'today-work' | 'menu' | 'work-management' | 'work-order-detail' | 'work-process-flow' | 'work-complete-form' | 'work-complete-detail' | 'work-item-list' | 'customer-management' | 'equipment-management' | 'other-management' | 'api-explorer' | 'coming-soon' | 'settings';
 
 interface UserInfo {
   userId: string;
   userName: string;
+  userNameEn?: string;
   userRole: string;
   crrId?: string;
   soId?: string;
   mstSoId?: string;
+  authSoList?: Array<{SO_ID: string; SO_NM: string; MST_SO_ID: string}>;
 }
 
 // 계층 구조 정의 - 새로운 페이지 추가 시 여기만 수정하면 됨
@@ -47,20 +48,27 @@ const NAVIGATION_HIERARCHY: Record<View, View | null> = {
   'work-order-detail': 'work-item-list', // 사용하지 않지만 유지
   'work-process-flow': 'work-item-list', // 작업 목록에서 바로 진입
   'work-complete-form': 'work-order-detail',
-  'work-complete-detail': 'work-management',
+  'work-complete-detail': 'work-item-list',
   'customer-management': 'today-work',
   'equipment-management': 'today-work',
   'other-management': 'today-work',
   'api-explorer': 'today-work',
-  'coming-soon': 'today-work'
+  'coming-soon': 'today-work',
+  'settings': 'today-work'
 };
 
 const App: React.FC = () => {
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
   const [userInfo, setUserInfo] = useState<UserInfo | null>(null);
-  const [toast, setToast] = useState<{ message: string; type: ToastType } | null>(null);
+  const [toast, setToast] = useState<{ message: string; type: ToastType; persistent?: boolean } | null>(null);
   const [comingSoonTitle, setComingSoonTitle] = useState<string>('');
   const [showNoticePopup, setShowNoticePopup] = useState<boolean>(false);
+  const [workStats, setWorkStats] = useState({
+    todayInProgress: 0,
+    todayCompleted: 0,
+    weekTotal: 0,
+    monthTotal: 0
+  });
 
   // UI Store 사용 (Zustand) - Props Drilling 제거
   const {
@@ -73,14 +81,15 @@ const App: React.FC = () => {
     selectedWorkItem,
     setSelectedWorkItem,
     selectedWorkDirection,
-    setSelectedWorkDirection
+    setSelectedWorkDirection,
+    fontScale
   } = useUIStore();
-  const [workStats, setWorkStats] = useState({
-    todayInProgress: 0,
-    todayCompleted: 0,
-    weekTotal: 0,
-    monthTotal: 0
-  });
+
+  // 글자 크기 설정 적용
+  useEffect(() => {
+    const sizeMap: Record<string, string> = { small: '14px', medium: '16px', large: '18px', xlarge: '20px' };
+    document.documentElement.style.fontSize = sizeMap[fontScale] || '16px';
+  }, [fontScale]);
 
   // 전역 에러 핸들러 설정
   useEffect(() => {
@@ -112,19 +121,22 @@ const App: React.FC = () => {
   // Zustand persist가 자동으로 currentView를 localStorage에 저장
   // SESSION_KEYS.ACTIVE_VIEW 수동 저장 불필요
 
-  const handleLogin = (userId?: string, userName?: string, userRole?: string, crrId?: string, soId?: string, mstSoId?: string, telNo2?: string, authSoList?: Array<{SO_ID: string; SO_NM: string; MST_SO_ID: string}>) => {
+  // 작업 통계 - 폴링 제거 (작업관리 진입/퇴장 시 자연스럽게 갱신됨)
+
+  const handleLogin = (userId?: string, userName?: string, userNameEn?: string, userRole?: string, crrId?: string, soId?: string, mstSoId?: string, telNo2?: string, authSoList?: Array<{SO_ID: string; SO_NM: string; MST_SO_ID: string}>) => {
     setIsAuthenticated(true);
     setCurrentView('today-work');
     if (userId) {
       const userInfoData = {
         userId,
         userName: userName || '작업자',
+        userNameEn: userNameEn || userName || '작업자',  // 영문 이름 (SMS 방문안내문자용)
         userRole: userRole || '전산작업자',
         crrId,
         soId,
         mstSoId,
         telNo2,  // SMS 발신번호
-        authSoList: authSoList || []  // 지점 목록 (타사 직원용)
+        authSoList: authSoList || []  // 지점 목록
       };
       setUserInfo(userInfoData);
       // localStorage에도 저장 (EquipmentManagement에서 사용)
@@ -143,7 +155,6 @@ const App: React.FC = () => {
       // branchList도 별도로 저장 (EquipmentInquiry에서 사용)
       if (authSoList && authSoList.length > 0) {
         localStorage.setItem('branchList', JSON.stringify(authSoList));
-        console.log('[App] AUTH_SO_List 저장:', authSoList.length, '개 지점');
       }
     }
 
@@ -168,6 +179,14 @@ const App: React.FC = () => {
     localStorage.removeItem('user');
     localStorage.removeItem('branchList');
     clearAllSessions();
+
+    // Zustand 메모리 상태 초기화 (선택된 작업 정보)
+    setSelectedWorkItem(null);
+    setSelectedWorkDirection(null);
+    setCurrentView('today-work');
+
+    // React Query 캐시 초기화
+    queryClient.clear();
   };
 
   const navigateToMenu = () => {
@@ -179,75 +198,10 @@ const App: React.FC = () => {
     setCurrentView('coming-soon');
   };
 
-  const showToast = useCallback((message: string, type: ToastType = 'info') => {
-    setToast({ message, type });
+  const showToast = useCallback((message: string, type: ToastType = 'info', persistent: boolean = false) => {
+    setToast({ message, type, persistent });
   }, []);
 
-  // 작업 통계 계산 (무한루프 방지)
-  const [statsCalculationRetries, setStatsCalculationRetries] = useState<number>(0);
-  const [lastStatsCalculationError, setLastStatsCalculationError] = useState<number>(0);
-
-  const calculateWorkStats = async () => {
-    // 최근 1분 이내에 3번 이상 실패했으면 계산 중단
-    const now = Date.now();
-    if (statsCalculationRetries >= 3 && now - lastStatsCalculationError < 60000) {
-      console.warn('⚠️ 작업 통계 계산 중단: 반복 실패 감지 (1분 후 재시도)');
-      return;
-    }
-
-    try {
-      const today = new Date();
-      const todayStr = today.toISOString().split('T')[0];
-
-      // 이번 주 시작일 (일요일)
-      const weekStart = new Date(today);
-      weekStart.setDate(today.getDate() - today.getDay());
-      const weekStartStr = weekStart.toISOString().split('T')[0];
-
-      // 이번 달 시작일
-      const monthStart = new Date(today.getFullYear(), today.getMonth(), 1);
-      const monthStartStr = monthStart.toISOString().split('T')[0];
-
-      // 오늘 작업 조회
-      const todayOrders = await getWorkOrders({ startDate: todayStr, endDate: todayStr });
-      const todayInProgress = todayOrders.filter(order => order.status === WorkOrderStatus.Pending).length;
-      const todayCompleted = todayOrders.filter(order => order.status === WorkOrderStatus.Completed).length;
-
-      // 이번 주 작업 조회
-      const weekOrders = await getWorkOrders({ startDate: weekStartStr, endDate: todayStr });
-      const weekTotal = weekOrders.length;
-
-      // 이번 달 작업 조회
-      const monthOrders = await getWorkOrders({ startDate: monthStartStr, endDate: todayStr });
-      const monthTotal = monthOrders.length;
-
-      setWorkStats({
-        todayInProgress,
-        todayCompleted,
-        weekTotal,
-        monthTotal
-      });
-
-      // 성공 시 재시도 카운터 초기화
-      setStatsCalculationRetries(0);
-    } catch (error) {
-      console.error('Failed to calculate work stats:', error);
-      // 에러 발생 시 재시도 카운터 증가
-      setStatsCalculationRetries(prev => prev + 1);
-      setLastStatsCalculationError(Date.now());
-    }
-  };
-
-  // 로그인 후 작업 통계 계산 (today-work 화면이 아닐 때만)
-  useEffect(() => {
-    if (isAuthenticated && currentView !== 'today-work') {
-      // today-work 화면은 자체적으로 데이터를 불러오므로 중복 호출 방지
-      calculateWorkStats();
-      // 5분마다 통계 업데이트
-      const interval = setInterval(calculateWorkStats, 5 * 60 * 1000);
-      return () => clearInterval(interval);
-    }
-  }, [isAuthenticated, currentView]);
 
   const navigateToView = (view: View, data?: any) => {
     setCurrentView(view);
@@ -322,7 +276,8 @@ const App: React.FC = () => {
             workItem={selectedWorkItem}
             onComplete={() => {
               showToast('작업이 성공적으로 완료되었습니다.', 'success');
-              setCurrentView('work-complete-detail');
+              // 작업완료 후 바로 작업목록으로 이동 (WorkCompletionResult 페이지 제거)
+              setCurrentView('work-item-list');
             }}
             onBack={navigateBack}
             showToast={showToast}
@@ -335,7 +290,8 @@ const App: React.FC = () => {
             onBack={navigateBack}
             onSuccess={() => {
               showToast('작업이 성공적으로 완료되었습니다.', 'success');
-              setCurrentView('work-complete-detail');
+              // 작업완료 후 바로 작업목록으로 이동 (WorkCompletionResult 페이지 제거)
+              setCurrentView('work-item-list');
             }}
             showToast={showToast}
           />
@@ -353,15 +309,15 @@ const App: React.FC = () => {
       case 'work-item-list':
         return selectedWorkDirection ? <WorkItemList direction={selectedWorkDirection} onBack={navigateBack} onNavigateToView={navigateToView} userId={userInfo?.userId} showToast={showToast} /> : <div>작업 목록을 찾을 수 없습니다.</div>;
       case 'customer-management':
-        // 고객관리는 별도 렌더링 (상태 유지)
         return null;
       case 'equipment-management':
-        // 장비관리도 별도 렌더링 (상태 유지)
         return null;
       case 'api-explorer':
         return <ApiExplorer />;
       case 'other-management':
         return <OtherManagement onNavigateToMenu={navigateToMenu} userInfo={userInfo} showToast={showToast} />;
+      case 'settings':
+        return <Settings onBack={navigateBack} />;
       case 'coming-soon':
         return <ComingSoon onNavigateToMenu={navigateToMenu} title={comingSoonTitle} />;
       default:
@@ -385,9 +341,6 @@ const App: React.FC = () => {
         break;
       case 'other-management':
         navigateToView('other-management');
-        break;
-      case 'settings':
-        navigateToComingSoon('설정');
         break;
       default:
         navigateToView('today-work');
@@ -432,6 +385,7 @@ const App: React.FC = () => {
             <Toast
               message={toast.message}
               type={toast.type}
+              persistent={toast.persistent}
               onClose={() => setToast(null)}
             />
           )}

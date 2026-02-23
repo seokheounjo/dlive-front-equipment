@@ -102,6 +102,13 @@ export interface EquipmentComponentProps {
   preloadedApiData?: any;
   onPreloadedDataUpdate?: (newData: any) => void;
   readOnly?: boolean;
+  // LGU+ props (Phase D/E)
+  isCertifyProd?: boolean;
+  certifyOpLnkdCd?: string;
+  onLdapConnect?: () => void;
+  isLdapDone?: boolean;
+  ldapLoading?: boolean;
+  ldapBlocked?: boolean;
 }
 
 // 작업코드 → 한글 변환 (레거시 CMWT000 코드 테이블)

@@ -21,6 +21,7 @@ interface ConfirmModalProps {
   confirmText?: string;
   cancelText?: string;
   showCancel?: boolean;
+  children?: React.ReactNode;  // 커스텀 콘텐츠 (message 위에 표시)
 }
 
 const ConfirmModal: React.FC<ConfirmModalProps> = ({
@@ -32,7 +33,8 @@ const ConfirmModal: React.FC<ConfirmModalProps> = ({
   type = 'confirm',
   confirmText = '확인',
   cancelText = '취소',
-  showCancel = true
+  showCancel = true,
+  children
 }) => {
   if (!isOpen) return null;
 
@@ -84,7 +86,7 @@ const ConfirmModal: React.FC<ConfirmModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center">
+    <div className="fixed inset-0 z-[300] flex items-center justify-center">
       {/* Backdrop */}
       <div
         className="absolute inset-0 bg-black/50"
@@ -104,7 +106,10 @@ const ConfirmModal: React.FC<ConfirmModalProps> = ({
         </div>
 
         {/* Message */}
-        <div className="px-4 sm:px-6 py-4 sm:py-5">
+        <div className="px-4 sm:px-6 py-4 sm:py-5 max-h-[60vh] overflow-y-auto">
+          {/* 커스텀 콘텐츠 (요약 정보 등) */}
+          {children}
+
           <p className="text-center text-gray-700 whitespace-pre-line text-sm sm:text-base">
             {message}
           </p>

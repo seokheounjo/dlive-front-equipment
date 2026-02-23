@@ -562,3 +562,39 @@ export const getWorkTypeGuideMessage = (wrkCd?: string): string => {
       return '작업을 진행해주세요.';
   }
 };
+
+/**
+ * FTTH 상품 여부 판별 (레거시 OpLnkdCd 기반)
+ *
+ * 레거시 로직: cm_lib.js fn_get_eqipDivs()
+ * - F, FG, Z, ZG → OLT (FTTH) → CL-04 집선등록 필요
+ * - N, NG → L2 (광통신)
+ * - V, VG → L2 (VDSL)
+ * - A, AG → 일반
+ *
+ * @param opLnkdCd 통신방식 코드 (OP_LNKD_CD, LGCT001.REF_CODE8)
+ * @returns FTTH 상품 여부
+ */
+export const isFtthProduct = (opLnkdCd?: string): boolean => {
+  if (!opLnkdCd) return false;
+  const ftthCodes = ['F', 'FG', 'Z', 'ZG'];
+  return ftthCodes.includes(opLnkdCd);
+};
+
+/**
+ * 장비 구분 반환 (레거시 fn_get_eqipDivs)
+ *
+ * @param opLnkdCd 통신방식 코드
+ * @returns 장비 구분 ('OLT'=FTTH, 'L2'=광통신/VDSL, ''=일반)
+ */
+export const getEquipmentDivision = (opLnkdCd?: string): string => {
+  if (!opLnkdCd) return '';
+
+  if (opLnkdCd === 'N' || opLnkdCd === 'NG') return 'L2';      // 광통신
+  if (opLnkdCd === 'V' || opLnkdCd === 'VG') return 'L2';      // VDSL
+  if (opLnkdCd === 'F' || opLnkdCd === 'FG' ||
+      opLnkdCd === 'Z' || opLnkdCd === 'ZG') return 'OLT';     // FTTH
+  if (opLnkdCd === 'A' || opLnkdCd === 'AG') return '';        // 일반
+
+  return '';
+};

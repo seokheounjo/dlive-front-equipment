@@ -258,12 +258,19 @@ const WorkCompleteForm: React.FC<WorkCompleteFormProps> = ({ order, onBack, onSu
         // 공통코드 로드: CMCU005(고객관계), CMCT015(상향제어), CMCU057(인터넷), CMCU110(VoIP), CMCU148(디지털)
         const codes = await getCommonCodeList(['CMCU005', 'CMCT015', 'CMCU057', 'CMCU110', 'CMCU148']);
 
-        // 고객관계
+        // 고객관계 - "선택" 또는 빈 값 옵션 제외
         if (codes['CMCU005']) {
-          const options = codes['CMCU005'].map((code: CommonCode) => ({
-            value: code.COMMON_CD,
-            label: code.COMMON_CD_NM
-          }));
+          const options = codes['CMCU005']
+            .filter((code: CommonCode) =>
+              code.COMMON_CD &&
+              code.COMMON_CD.trim() !== '' &&
+              code.COMMON_CD_NM &&
+              !code.COMMON_CD_NM.includes('선택')
+            )
+            .map((code: CommonCode) => ({
+              value: code.COMMON_CD,
+              label: code.COMMON_CD_NM
+            }));
           setCustRelOptions(options);
         }
 
@@ -383,15 +390,15 @@ const WorkCompleteForm: React.FC<WorkCompleteFormProps> = ({ order, onBack, onSu
         }
         onSuccess();
       } else {
-        console.error('[WorkCompleteForm] ❌ insertWorkRemoveStat 실패:', result.message);
+        console.error('[WorkCompleteForm] insertWorkRemoveStat 실패:', result.message);
         if (showToast) {
-          showToast(result.message || '인입선로 철거상태 저장에 실패했습니다.', 'error');
+          showToast(result.message || '인입선로 철거상태 저장에 실패했습니다.', 'error', true);
         }
       }
     } catch (error: any) {
-      console.error('[WorkCompleteForm] ❌ insertWorkRemoveStat 오류:', error);
+      console.error('[WorkCompleteForm] insertWorkRemoveStat 오류:', error);
       if (showToast) {
-        showToast(error.message || '인입선로 철거상태 저장 중 오류가 발생했습니다.', 'error');
+        showToast(error.message || '인입선로 철거상태 저장 중 오류가 발생했습니다.', 'error', true);
       }
     }
   };
@@ -457,9 +464,9 @@ const WorkCompleteForm: React.FC<WorkCompleteFormProps> = ({ order, onBack, onSu
         throw new Error(asResult.message || 'AS할당에 실패했습니다.');
       }
     } catch (error: any) {
-      console.error('[WorkCompleteForm] ❌ AS할당 오류:', error);
+      console.error('[WorkCompleteForm] AS할당 오류:', error);
       if (showToast) {
-        showToast(error.message || 'AS할당 중 오류가 발생했습니다.', 'error');
+        showToast(error.message || 'AS할당 중 오류가 발생했습니다.', 'error', true);
       }
     } finally {
       setIsASProcessing(false);
@@ -485,9 +492,7 @@ const WorkCompleteForm: React.FC<WorkCompleteFormProps> = ({ order, onBack, onSu
 
   // 작업완료 확인 메시지 생성
   const getCompleteConfirmMessage = () => {
-    return (equipmentData?.removedEquipments?.length > 0 || order.ISP_PROD_CD)
-      ? '작업을 완료하시겠습니까? (신호번호 처리업무도 동시에 처리됩니다.)'
-      : '작업을 완료하시겠습니까?';
+    return '작업을 완료하시겠습니까?';
   };
 
   // 실제 작업 완료 처리 로직
@@ -507,8 +512,8 @@ const WorkCompleteForm: React.FC<WorkCompleteFormProps> = ({ order, onBack, onSu
       const userInfo = localStorage.getItem('userInfo');
       const user = userInfo ? JSON.parse(userInfo) : {};
 
-      // 🔧 테스트 환경: 작업자 ID 고정 (A20130708)
-      const workerId = 'A20130708';
+      // 작업자 ID - 로그인한 사용자 정보 사용
+      const workerId = user.userId || user.workerId || '';
 
       console.log('[WorkCompleteForm] 작업완료 요청 준비');
 
@@ -724,12 +729,12 @@ const WorkCompleteForm: React.FC<WorkCompleteFormProps> = ({ order, onBack, onSu
           onSuccess();
         } else {
           const errorMessage = result.message || '작업 완료 처리에 실패했습니다.';
-          showToast?.(errorMessage, 'error');
+          showToast?.(errorMessage, 'error', true);
         }
       },
       onError: (error: any) => {
         const errorMessage = error.message || '작업 완료 중 오류가 발생했습니다.';
-        showToast?.(errorMessage, 'error');
+        showToast?.(errorMessage, 'error', true);
       },
     });
   };
@@ -802,7 +807,7 @@ const WorkCompleteForm: React.FC<WorkCompleteFormProps> = ({ order, onBack, onSu
                 <div className="flex gap-1.5 sm:gap-2">
                   <div className="flex-1 flex items-center min-w-0 min-h-[40px] sm:min-h-[48px] px-3 sm:px-4 border border-gray-300 rounded-lg bg-gray-50 text-gray-700 text-xs sm:text-sm">
                     <span className="truncate">{installLocationText || order.installLocation || '미설정'}</span>
-                    {viewModNm && <span className="ml-1 sm:ml-2 text-[10px] sm:text-sm text-gray-500 flex-shrink-0">(시청: {viewModNm})</span>}
+                    {viewModNm && <span className="ml-1 sm:ml-2 text-[0.625rem] sm:text-sm text-gray-500 flex-shrink-0">(시청: {viewModNm})</span>}
                   </div>
                   <button
                     type="button"

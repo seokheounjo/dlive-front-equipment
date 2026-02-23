@@ -7,31 +7,41 @@ import { TestTube } from 'lucide-react';
 import { login } from '../../services/apiService';
 
 interface LoginProps {
-  onLogin: (userId?: string, userName?: string, userRole?: string, crrId?: string, soId?: string, mstSoId?: string, telNo2?: string, authSoList?: Array<{SO_ID: string; SO_NM: string; MST_SO_ID: string}>) => void;
+  onLogin: (userId?: string, userName?: string, userNameEn?: string, userRole?: string, crrId?: string, soId?: string, mstSoId?: string, telNo2?: string, authSoList?: Array<{SO_ID: string; SO_NM: string; MST_SO_ID: string}>) => void;
 }
 
 const Login: React.FC<LoginProps> = ({ onLogin }) => {
-  const [username, setUsername] = useState('A20117965');
-  const [password, setPassword] = useState('dlive12!@#$');
+  const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [showDupConfirm, setShowDupConfirm] = useState(false);
 
-  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>, forceDisconnect: boolean = false) => {
     e.preventDefault();
     if (!username || !password) return;
-    
+
     setIsLoading(true);
     setError(null);
-    
+    setShowDupConfirm(false);
+
     try {
-      const result = await login(username, password);
+      const result = await login(username, password, forceDisconnect ? 'Y' : 'N');
       console.log('[Login] API 응답:', result);
       console.log('[Login] telNo2:', result.telNo2);
+
+      // 동시접속 감지
+      if (result.LOGIN_DUP_YN === 'Y' || result.code === 'LOGIN_DUP') {
+        setShowDupConfirm(true);
+        setIsLoading(false);
+        return;
+      }
+
       if (result.ok) {
         // 실제 로그인 시 더미 모드 해제
         localStorage.removeItem('demoMode');
-        onLogin(result.userId, result.userName, result.userRole, result.crrId, result.soId, result.mstSoId, result.telNo2, result.AUTH_SO_List);
+        onLogin(result.userId, result.userName, result.userNameEn, result.userRole, result.crrId, result.soId, result.mstSoId, result.telNo2, result.AUTH_SO_List);
       } else {
         setError('로그인에 실패했습니다.');
       }
@@ -45,6 +55,27 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
         setError('아이디 또는 비밀번호가 잘못되었습니다.');
       }
       console.error('로그인 오류:', err);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // 강제 로그인 (기존 세션 종료)
+  const handleForceLogin = async () => {
+    setIsLoading(true);
+    setShowDupConfirm(false);
+    try {
+      const result = await login(username, password, 'Y');
+      console.log('[Login] 강제 로그인 응답:', result);
+      if (result.ok) {
+        localStorage.removeItem('demoMode');
+        onLogin(result.userId, result.userName, result.userNameEn, result.userRole, result.crrId, result.soId, result.mstSoId, result.telNo2, result.AUTH_SO_List);
+      } else {
+        setError('로그인에 실패했습니다.');
+      }
+    } catch (err: any) {
+      setError('로그인 중 오류가 발생했습니다.');
+      console.error('강제 로그인 오류:', err);
     } finally {
       setIsLoading(false);
     }
@@ -134,7 +165,7 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
               onClick={() => {
                 // 더미 로그인 (API 호출 없이 바로 성공)
                 localStorage.setItem('demoMode', 'true');
-                onLogin('demo', 'demo');
+                onLogin('demo', 'demo', 'demo');
               }}
               className="w-full flex items-center justify-center gap-2 py-2 px-4 border border-gray-300 text-sm font-medium rounded-lg text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500 transition-colors shadow-sm"
             >
@@ -164,6 +195,41 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
         </div>
 
       </div>
+
+      {/* 동시접속 확인 모달 */}
+      {showDupConfirm && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-2xl max-w-sm w-full p-6 space-y-4">
+            <div className="text-center">
+              <div className="mx-auto w-12 h-12 bg-amber-100 rounded-full flex items-center justify-center mb-4">
+                <svg className="w-6 h-6 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                </svg>
+              </div>
+              <h3 className="text-lg font-bold text-gray-900 mb-2">다른 기기에서 접속 중</h3>
+              <p className="text-sm text-gray-600">
+                현재 다른 기기에서 이미 로그인되어 있습니다.<br />
+                강제 로그인 시 기존 접속이 종료됩니다.
+              </p>
+            </div>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setShowDupConfirm(false)}
+                className="flex-1 py-2.5 px-4 border border-gray-300 text-gray-700 font-medium rounded-lg hover:bg-gray-50 transition"
+              >
+                취소
+              </button>
+              <button
+                onClick={handleForceLogin}
+                disabled={isLoading}
+                className="flex-1 py-2.5 px-4 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 transition disabled:opacity-50"
+              >
+                {isLoading ? '처리 중...' : '강제 로그인'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

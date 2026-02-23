@@ -6,10 +6,12 @@
  * - localStorage persist: Zustand middleware로 자동 저장
  */
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { ArrowUp, ArrowDown, CheckCircle2, XCircle, Loader2, ScanBarcode, History } from 'lucide-react';
+import { createPortal } from 'react-dom';
+import { ArrowUp, ArrowDown, CheckCircle2, XCircle, Loader2, ScanBarcode, History, RotateCcw } from 'lucide-react';
 import { getTechnicianEquipments, updateEquipmentComposition, checkStbServerConnection } from '../../../../services/apiService';
-import EquipmentModelChangeModal from '../../../equipment/EquipmentModelChangeModal';
+import EquipmentModelChangeModal from './EquipmentModelChangeModal';
 import IntegrationHistoryModal from '../../../modal/IntegrationHistoryModal';
+import LdapQueryModal from '../../../modal/LdapQueryModal';
 import { useWorkProcessStore } from '../../../../stores/workProcessStore';
 import { useWorkEquipmentStore, useWorkEquipment } from '../../../../stores/workEquipmentStore';
 import {
@@ -29,8 +31,15 @@ const EquipmentInstall: React.FC<EquipmentComponentProps> = ({
   showToast,
   preloadedApiData,
   onPreloadedDataUpdate,
-  readOnly = false
+  readOnly = false,
+  isCertifyProd = false,
+  certifyOpLnkdCd = '',
+  onLdapConnect,
+  isLdapDone = false,
+  ldapLoading = false,
+  ldapBlocked = false,
 }) => {
+  const isFtthProd = ['F', 'FG', 'Z', 'ZG'].includes(certifyOpLnkdCd);
   const workId = workItem.id;
 
   // 작업 완료 여부 확인
@@ -50,7 +59,6 @@ const EquipmentInstall: React.FC<EquipmentComponentProps> = ({
     clearInstalledEquipments,
     setSelectedContract: storeSetSelectedContract,
     setSelectedStock: storeSetSelectedStock,
-    clearSelection,
     setSignalStatus,
     setSignalResult: storeSetSignalResult,
   } = useWorkEquipmentStore();
@@ -71,9 +79,11 @@ const EquipmentInstall: React.FC<EquipmentComponentProps> = ({
   // 모달 상태 (로컬 UI 상태)
   const [isModelChangeModalOpen, setIsModelChangeModalOpen] = useState(false);
   const [isIntegrationHistoryModalOpen, setIsIntegrationHistoryModalOpen] = useState(false);
+  const [isLdapQueryModalOpen, setIsLdapQueryModalOpen] = useState(false);
   const [isSignalPopupOpen, setIsSignalPopupOpen] = useState(false);
   const [isSignalProcessing, setIsSignalProcessing] = useState(false);
   const [isBarcodeScanning, setIsBarcodeScanning] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
   // 고객장비 수 (API output4) - 레거시 호환용
   const [customerEquipmentCount, setCustomerEquipmentCount] = useState<number>(0);
@@ -122,9 +132,9 @@ const EquipmentInstall: React.FC<EquipmentComponentProps> = ({
         const wrkDtlTcd = workItem.WRK_DTL_TCD || '';
 
         const requestPayload = {
-          WRKR_ID: 'A20130708',
+          WRKR_ID: workItem.WRKR_ID || user.userId || user.workerId || '',
           SO_ID: workItem.SO_ID || user.soId,
-          WORK_ID: workItem.id,
+          WRK_ID: workItem.id,
           CUST_ID: workItem.customer?.id,
           RCPT_ID: workItem.RCPT_ID || null,
           CTRT_ID: workItem.CTRT_ID || null,
@@ -204,8 +214,12 @@ const EquipmentInstall: React.FC<EquipmentComponentProps> = ({
       }));
 
       // output4: 고객 설치 장비 (이미 등록된 경우)
+      const matchedContractIds = new Set<string>();
       const installed: InstalledEquipment[] = (apiResponse.customerEquipments || []).map((eq: any) => {
-        const matchedContract = contracts.find(c => c.itemMidCd === eq.ITEM_MID_CD);
+        const matchedContract = contracts.find(c =>
+          c.itemMidCd === eq.ITEM_MID_CD && !matchedContractIds.has(c.id)
+        );
+        if (matchedContract) matchedContractIds.add(matchedContract.id);
         return {
           contractEquipment: matchedContract || {
             id: 'unknown',
@@ -221,6 +235,8 @@ const EquipmentInstall: React.FC<EquipmentComponentProps> = ({
             serialNumber: eq.EQT_SERNO,
             itemMidCd: eq.ITEM_MID_CD,
             macAddress: eq.MAC_ADDRESS || eq.MAC_ADDR,
+            EQT_KND: eq.EQT_KND,
+            EQT_CL_CD: eq.EQT_CL_CD,
           },
           macAddress: eq.MAC_ADDRESS || eq.MAC_ADDR,
           installLocation: eq.INSTL_LCTN,
@@ -272,7 +288,9 @@ const EquipmentInstall: React.FC<EquipmentComponentProps> = ({
     );
 
     if (selectedContract?.id === contract.id) {
-      clearSelection(workId);
+      // 토글: 같은 장비 두 번 클릭 시 선택 완전 해제
+      storeSetSelectedContract(workId, null);
+      storeSetSelectedStock(workId, null);
     } else {
       storeSetSelectedContract(workId, contract);
       if (installed) {
@@ -298,6 +316,12 @@ const EquipmentInstall: React.FC<EquipmentComponentProps> = ({
       return;
     }
 
+    // 모델명 검증: itemMidCd + model이 일치해야 함
+    if (selectedContract.itemMidCd !== selectedStock.itemMidCd || selectedContract.model !== selectedStock.model) {
+      showToast?.('계약장비 모델과 일치하지 않아 등록할 수 없습니다.', 'warning');
+      return;
+    }
+
     console.log('[장비관리-설치] 장비 등록:', {
       계약장비: selectedContract.type,
       재고장비: `${selectedStock.type} (S/N: ${selectedStock.serialNumber})`
@@ -316,7 +340,7 @@ const EquipmentInstall: React.FC<EquipmentComponentProps> = ({
     // 신호처리 상태 초기화
     setSignalStatus(workId, 'idle');
 
-    clearSelection(workId);
+    storeSetSelectedStock(workId, null);
   }, [workId, selectedContract, selectedStock]);
 
   // 장비 모델 변경 처리
@@ -343,7 +367,7 @@ const EquipmentInstall: React.FC<EquipmentComponentProps> = ({
           CTRT_ID: workItem.CTRT_ID || '',
           RCPT_ID: workItem.RCPT_ID || '',
           CRR_ID: workItem.CRR_ID || user.crrId || '',
-          WRKR_ID: user.workerId || 'A20130708',
+          WRKR_ID: workItem.WRKR_ID || user.userId || user.workerId || '',
           REG_UID: user.userId || user.workerId || 'A20130708',
           ITEM_MID_CD: itemMidCd,
           EQT_CL: modelCode,
@@ -378,7 +402,7 @@ const EquipmentInstall: React.FC<EquipmentComponentProps> = ({
 
         // 장비변경 성공 시 기존 등록 장비 초기화 (새 모델로 재등록 필요)
         clearInstalledEquipments(workId);
-        clearSelection(workId);
+        storeSetSelectedStock(workId, null);
 
         // API 재호출하여 최신 데이터 반영
         await loadEquipmentData(true);
@@ -387,7 +411,7 @@ const EquipmentInstall: React.FC<EquipmentComponentProps> = ({
       }
     } catch (error: any) {
       console.error('[장비관리-설치] 장비 모델 변경 실패:', error);
-      showToast?.(error.message || '장비 모델 변경 중 오류가 발생했습니다.', 'error');
+      showToast?.(error.message || '장비 모델 변경 중 오류가 발생했습니다.', 'error', true);
       throw error;
     }
   };
@@ -539,7 +563,7 @@ const EquipmentInstall: React.FC<EquipmentComponentProps> = ({
     };
 
     if (installedEquipments.length === 0) {
-      showToast?.('신호처리를 하려면 먼저 장비를 등록해주세요. STB 또는 모뎀 장비가 필요합니다.', 'warning');
+      showToast?.('임시개통을 하려면 먼저 장비를 등록해주세요. STB 또는 모뎀 장비가 필요합니다.', 'warning');
       setSignalStatus(workId, 'fail');
       return;
     }
@@ -569,7 +593,7 @@ const EquipmentInstall: React.FC<EquipmentComponentProps> = ({
     const hasModem = installedEquipments.some(isModem);
 
     if (!hasStb && !hasModem && !mainEquipment) {
-      showToast?.('신호처리를 위해 STB 또는 모뎀 장비를 등록해주세요.', 'warning');
+      showToast?.('임시개통을 위해 STB 또는 모뎀 장비를 등록해주세요.', 'warning');
       setSignalStatus(workId, 'fail');
       return;
     }
@@ -577,7 +601,7 @@ const EquipmentInstall: React.FC<EquipmentComponentProps> = ({
     try {
       setIsSignalProcessing(true);
       setIsSignalPopupOpen(true);
-      storeSetSignalResult(workId, '신호처리 중...');
+      storeSetSignalResult(workId, '임시개통 중...');
 
       const userInfo = localStorage.getItem('userInfo');
       if (!userInfo) {
@@ -608,14 +632,14 @@ const EquipmentInstall: React.FC<EquipmentComponentProps> = ({
       );
 
       if (result.O_IFSVC_RESULT && result.O_IFSVC_RESULT.startsWith('TRUE')) {
-        storeSetSignalResult(workId, `신호처리 완료\n\n결과: ${result.O_IFSVC_RESULT || '성공'}`);
+        storeSetSignalResult(workId, `임시개통 완료\n\n결과: ${result.O_IFSVC_RESULT || '성공'}`);
         setSignalStatus(workId, 'success');
       } else {
-        storeSetSignalResult(workId, `신호처리 실패\n\n${result.MESSAGE || '알 수 없는 오류'}`);
+        storeSetSignalResult(workId, `임시개통 실패\n\n${result.MESSAGE || '알 수 없는 오류'}`);
         setSignalStatus(workId, 'fail');
       }
     } catch (error: any) {
-      storeSetSignalResult(workId, `신호처리 실패\n\n${error.message || '알 수 없는 오류'}`);
+      storeSetSignalResult(workId, `임시개통 실패\n\n${error.message || '알 수 없는 오류'}`);
       setSignalStatus(workId, 'fail');
     } finally {
       setIsSignalProcessing(false);
@@ -874,13 +898,58 @@ const EquipmentInstall: React.FC<EquipmentComponentProps> = ({
     }, 500);
   };
 
+  // 장비 정보 새로고침
+  const handleRefresh = async () => {
+    if (isRefreshing || isWorkCompleted) return;
+
+    setIsRefreshing(true);
+    try {
+      await loadEquipmentData(true);
+      showToast?.('장비 정보를 새로고침했습니다.', 'success');
+    } catch (error) {
+      console.error('[장비관리-설치] 새로고침 실패:', error);
+      showToast?.('장비 정보 새로고침에 실패했습니다.', 'error');
+    } finally {
+      setIsRefreshing(false);
+    }
+  };
+
   return (
-    <div className="px-2 sm:px-4 py-4 sm:py-6 space-y-3 sm:space-y-4 bg-gray-50 pb-4">
+    <div className="px-2 sm:px-4 py-4 sm:py-6 space-y-3 sm:space-y-4 bg-gray-50 pb-4 relative">
+      {/* 전체 리프레시 로딩 오버레이 */}
+      {isRefreshing && (
+        <div className="absolute inset-0 bg-white/80 backdrop-blur-sm z-20 flex items-center justify-center rounded-xl">
+          <div className="flex flex-col items-center gap-2">
+            <RotateCcw className="w-8 h-8 text-blue-500 animate-spin" />
+            <span className="text-sm text-gray-600 font-medium">장비 정보 로딩 중...</span>
+          </div>
+        </div>
+      )}
+
       {/* 상단: 고객 설치 장비 */}
       <div className="bg-white rounded-xl shadow-sm border border-gray-100">
         <div className="p-3 sm:p-4 border-b border-gray-100">
           <div className="flex items-center justify-between mb-3">
-            <h4 className="text-sm sm:text-base font-bold text-gray-900">고객 설치 장비</h4>
+            <div className="flex items-center gap-2">
+              <h4 className="text-sm sm:text-base font-bold text-gray-900">
+                고객 설치 장비
+                {(workItem.productName || workItem.PROD_NM) && (
+                  <span className="font-normal text-blue-600 ml-1">({workItem.productName || workItem.PROD_NM})</span>
+                )}
+              </h4>
+              <button
+                onClick={handleRefresh}
+                disabled={isRefreshing || isWorkCompleted}
+                className={`p-1.5 rounded-lg transition-all ${
+                  isRefreshing || isWorkCompleted
+                    ? 'text-gray-300 cursor-not-allowed'
+                    : 'text-blue-500 hover:text-blue-600 hover:bg-blue-50 active:scale-95'
+                }`}
+                title="장비 정보 새로고침"
+              >
+                <RotateCcw className={`w-4 h-4 ${isRefreshing ? 'animate-spin' : ''}`} />
+              </button>
+            </div>
             <span className="px-2.5 sm:px-3 py-1 sm:py-1.5 bg-gray-100 text-gray-700 text-xs sm:text-sm font-semibold rounded-full">{contractEquipments.length}개</span>
           </div>
           {/* 버튼 그룹 - 모바일에서 가로 스크롤 또는 그리드 */}
@@ -902,24 +971,55 @@ const EquipmentInstall: React.FC<EquipmentComponentProps> = ({
               </svg>
               <span className="text-xs font-semibold">장비변경</span>
             </button>
-            <button
-              className={`flex flex-col items-center justify-center py-2.5 px-1 rounded-lg border-2 transition-all active:scale-95 min-h-[56px] ${
-                isWorkCompleted
-                  ? 'border-gray-200 bg-gray-50 text-gray-400 cursor-not-allowed'
-                  : lastSignalStatus === 'success'
-                    ? 'border-green-300 bg-green-100 text-green-700 hover:bg-green-200 hover:border-green-400'
-                    : lastSignalStatus === 'fail'
-                      ? 'border-red-500 bg-red-200 text-red-800 hover:bg-red-300 hover:border-red-600'
-                      : 'border-red-300 bg-red-100 text-red-700 hover:bg-red-200 hover:border-red-400'
-              }`}
-              onClick={() => !isWorkCompleted && !isSignalProcessing && handleSignalProcess()}
-              disabled={isWorkCompleted || isSignalProcessing}
-            >
-              <svg className="w-5 h-5 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
-              </svg>
-              <span className="text-xs font-semibold">신호처리</span>
-            </button>
+            {/* 신호처리 / LDAP연동 버튼 */}
+            {isCertifyProd ? (
+              <button
+                className={`flex flex-col items-center justify-center py-2.5 px-1 rounded-lg border-2 transition-all active:scale-95 min-h-[56px] ${
+                  isLdapDone
+                    ? 'border-green-300 bg-green-100 text-green-700'
+                    : ldapLoading
+                      ? 'border-yellow-300 bg-yellow-100 text-yellow-700'
+                      : ldapBlocked
+                        ? 'border-gray-300 bg-gray-100 text-gray-400'
+                        : 'border-blue-300 bg-blue-100 text-blue-700 hover:bg-blue-200 hover:border-blue-400'
+                }`}
+                onClick={() => onLdapConnect?.()}
+                disabled={ldapLoading || isWorkCompleted}
+              >
+                {ldapLoading ? (
+                  <Loader2 className="w-5 h-5 mb-1 animate-spin" />
+                ) : (
+                  <svg className="w-5 h-5 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.111 16.404a5.5 5.5 0 017.778 0M12 20h.01m-7.08-7.071c3.904-3.905 10.236-3.905 14.141 0M1.394 9.393c5.857-5.858 15.355-5.858 21.213 0" />
+                  </svg>
+                )}
+                <span className="text-xs font-semibold">{isLdapDone ? 'LDAP완료' : 'LDAP연동'}</span>
+              </button>
+            ) : (
+              <button
+                className={`flex flex-col items-center justify-center py-2.5 px-1 rounded-lg border-2 transition-all active:scale-95 min-h-[56px] ${
+                  isWorkCompleted || workItem.PROD_GRP === 'V'
+                    ? 'border-gray-200 bg-gray-50 text-gray-400 cursor-not-allowed opacity-50'
+                    : lastSignalStatus === 'success'
+                      ? 'border-green-300 bg-green-100 text-green-700 hover:bg-green-200 hover:border-green-400'
+                      : lastSignalStatus === 'fail'
+                        ? 'border-red-500 bg-red-200 text-red-800 hover:bg-red-300 hover:border-red-600'
+                        : 'border-red-300 bg-red-100 text-red-700 hover:bg-red-200 hover:border-red-400'
+                }`}
+                onClick={() => {
+                  if (workItem.PROD_GRP === 'V') {
+                    showToast?.('VOIP 설치는 임시개통을 지원하지 않습니다.', 'info');
+                    return;
+                  }
+                  if (!isWorkCompleted && !isSignalProcessing) handleSignalProcess();
+                }}
+              >
+                <svg className="w-5 h-5 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+                </svg>
+                <span className="text-xs font-semibold">임시개통</span>
+              </button>
+            )}
             <button
               className="flex flex-col items-center justify-center py-2.5 px-1 rounded-lg border-2 border-orange-200 bg-orange-50 text-orange-600 hover:bg-orange-100 hover:border-orange-300 transition-all active:scale-95 min-h-[56px] opacity-50 cursor-not-allowed"
               disabled
@@ -930,13 +1030,34 @@ const EquipmentInstall: React.FC<EquipmentComponentProps> = ({
               </svg>
               <span className="text-xs font-semibold">분실처리</span>
             </button>
-            <button
-              className="flex flex-col items-center justify-center py-2.5 px-1 rounded-lg border-2 border-purple-200 bg-purple-50 text-purple-600 hover:bg-purple-100 hover:border-purple-300 transition-all active:scale-95 min-h-[56px]"
-              onClick={() => setIsIntegrationHistoryModalOpen(true)}
-            >
-              <History className="w-5 h-5 mb-1" />
-              <span className="text-xs font-semibold">연동이력</span>
-            </button>
+            {/* 연동이력 / LDAP조회 버튼 */}
+            {isCertifyProd ? (
+              <button
+                className="flex flex-col items-center justify-center py-2.5 px-1 rounded-lg border-2 border-purple-200 bg-purple-50 text-purple-600 hover:bg-purple-100 hover:border-purple-300 transition-all active:scale-95 min-h-[56px]"
+                onClick={() => setIsLdapQueryModalOpen(true)}
+              >
+                <History className="w-5 h-5 mb-1" />
+                <span className="text-xs font-semibold">LDAP조회</span>
+              </button>
+            ) : (
+              <button
+                className={`flex flex-col items-center justify-center py-2.5 px-1 rounded-lg border-2 transition-all active:scale-95 min-h-[56px] ${
+                  workItem.PROD_GRP === 'V'
+                    ? 'border-gray-200 bg-gray-50 text-gray-400 cursor-not-allowed opacity-50'
+                    : 'border-purple-200 bg-purple-50 text-purple-600 hover:bg-purple-100 hover:border-purple-300'
+                }`}
+                onClick={() => {
+                  if (workItem.PROD_GRP === 'V') {
+                    showToast?.('VOIP 설치는 연동이력을 지원하지 않습니다.', 'info');
+                    return;
+                  }
+                  setIsIntegrationHistoryModalOpen(true);
+                }}
+              >
+                <History className="w-5 h-5 mb-1" />
+                <span className="text-xs font-semibold">연동이력</span>
+              </button>
+            )}
           </div>
         </div>
 
@@ -948,8 +1069,9 @@ const EquipmentInstall: React.FC<EquipmentComponentProps> = ({
             </div>
           </div>
         ) : contractEquipments.length === 0 ? (
-          <div className="py-12 text-center">
-            <div className="text-sm text-gray-500">계약 장비가 없습니다</div>
+          <div className="py-8 text-center">
+            <div className="text-sm text-gray-500 mb-2">계약 장비가 없습니다</div>
+            <div className="text-xs text-gray-400">장비 추가가 필요하면 위의 [장비변경] 버튼을 눌러주세요</div>
           </div>
         ) : (
           <div className="p-4 space-y-2">
@@ -1000,9 +1122,29 @@ const EquipmentInstall: React.FC<EquipmentComponentProps> = ({
         )}
       </div>
 
-      {/* 중간: 등록/취소 버튼 */}
+      {/* 중간: 회수/등록 버튼 */}
       {!isWorkCompleted && (
         <div className="flex items-center justify-center gap-3 sm:gap-4">
+          {/* 회수 버튼 (아래 화살표) */}
+          <button
+            className={`flex flex-col items-center justify-center w-16 h-16 sm:w-20 sm:h-20 rounded-xl border-2 transition-all ${
+              !selectedContract || !installedEquipments.some(eq => eq.contractEquipment.id === selectedContract?.id)
+                ? 'border-gray-200 bg-gray-50 text-gray-400 cursor-not-allowed'
+                : 'border-red-500 bg-red-50 text-red-600 hover:bg-red-100 cursor-pointer active:scale-95'
+            }`}
+            onClick={() => {
+              if (!selectedContract) return;
+              removeInstalledEquipment(workId, selectedContract.id);
+              setSignalStatus(workId, 'idle');
+              storeSetSelectedStock(workId, null);
+              showToast?.('장비 등록이 취소되었습니다.', 'info');
+            }}
+            disabled={!selectedContract || !installedEquipments.some(eq => eq.contractEquipment.id === selectedContract?.id)}
+            title="고객에서 → 재고로 되돌리기"
+          >
+            <ArrowDown size={32} className="sm:w-10 sm:h-10" strokeWidth={2.5} />
+          </button>
+
           {/* 등록 버튼 (위 화살표) */}
           <button
             className={`flex flex-col items-center justify-center w-16 h-16 sm:w-20 sm:h-20 rounded-xl border-2 transition-all ${
@@ -1019,26 +1161,6 @@ const EquipmentInstall: React.FC<EquipmentComponentProps> = ({
             title="재고 → 고객에게 등록"
           >
             <ArrowUp size={32} className="sm:w-10 sm:h-10" strokeWidth={2.5} />
-          </button>
-
-          {/* 취소 버튼 (아래 화살표) */}
-          <button
-            className={`flex flex-col items-center justify-center w-16 h-16 sm:w-20 sm:h-20 rounded-xl border-2 transition-all ${
-              !selectedContract || !installedEquipments.some(eq => eq.contractEquipment.id === selectedContract?.id)
-                ? 'border-gray-200 bg-gray-50 text-gray-400 cursor-not-allowed'
-                : 'border-red-500 bg-red-50 text-red-600 hover:bg-red-100 cursor-pointer active:scale-95'
-            }`}
-            onClick={() => {
-              if (!selectedContract) return;
-              removeInstalledEquipment(workId, selectedContract.id);
-              setSignalStatus(workId, 'idle');
-              clearSelection(workId);
-              showToast?.('장비 등록이 취소되었습니다.', 'info');
-            }}
-            disabled={!selectedContract || !installedEquipments.some(eq => eq.contractEquipment.id === selectedContract?.id)}
-            title="고객에서 → 재고로 되돌리기"
-          >
-            <ArrowDown size={32} className="sm:w-10 sm:h-10" strokeWidth={2.5} />
           </button>
         </div>
       )}
@@ -1128,6 +1250,7 @@ const EquipmentInstall: React.FC<EquipmentComponentProps> = ({
         wrkCdNm={displayWrkCdNm}
         onSave={handleModelChange}
         showToast={showToast}
+        installedEquipmentCount={installedEquipments.length}
       />
         );
       })()}
@@ -1156,10 +1279,16 @@ const EquipmentInstall: React.FC<EquipmentComponentProps> = ({
         custId={workItem.CUST_ID || workItem.customer?.id}
       />
 
+      <LdapQueryModal
+        isOpen={isLdapQueryModalOpen}
+        onClose={() => setIsLdapQueryModalOpen(false)}
+        ctrtId={workItem.DTL_CTRT_ID || workItem.CTRT_ID}
+      />
+
       {/* 신호처리 팝업 */}
-      {isSignalPopupOpen && (
+      {isSignalPopupOpen && createPortal(
         <div
-          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
+          className="fixed inset-0 bg-black/60 flex items-center justify-center z-[9999] p-4"
           onClick={() => !isSignalProcessing && setIsSignalPopupOpen(false)}
         >
           <div
@@ -1167,7 +1296,7 @@ const EquipmentInstall: React.FC<EquipmentComponentProps> = ({
             onClick={(e) => e.stopPropagation()}
           >
             <div className="px-6 py-4 border-b border-gray-100">
-              <h3 className="text-lg font-bold text-gray-900">신호처리</h3>
+              <h3 className="text-lg font-bold text-gray-900">임시개통</h3>
             </div>
 
             <div className="px-6 py-8">
@@ -1176,7 +1305,7 @@ const EquipmentInstall: React.FC<EquipmentComponentProps> = ({
                   <div className="text-blue-500">
                     <Loader2 className="animate-spin" size={64} />
                   </div>
-                  <p className="text-base font-semibold text-gray-900">신호처리 중...</p>
+                  <p className="text-base font-semibold text-gray-900">임시개통 중...</p>
                   <p className="text-sm text-gray-500">잠시만 기다려주세요</p>
                 </div>
               ) : lastSignalStatus === 'success' ? (
@@ -1184,7 +1313,7 @@ const EquipmentInstall: React.FC<EquipmentComponentProps> = ({
                   <div className="text-green-500">
                     <CheckCircle2 size={64} />
                   </div>
-                  <p className="text-base font-semibold text-gray-900">신호처리 완료!</p>
+                  <p className="text-base font-semibold text-gray-900">임시개통 완료!</p>
                   <div className="w-full p-4 bg-gray-50 rounded-lg border border-gray-200">
                     <pre className="text-xs text-gray-700 whitespace-pre-wrap font-mono">{signalResult}</pre>
                   </div>
@@ -1194,7 +1323,7 @@ const EquipmentInstall: React.FC<EquipmentComponentProps> = ({
                   <div className="text-red-500">
                     <XCircle size={64} />
                   </div>
-                  <p className="text-base font-semibold text-gray-900">신호처리 실패</p>
+                  <p className="text-base font-semibold text-gray-900">임시개통 실패</p>
                   <div className="w-full p-4 bg-red-50 rounded-lg border border-red-200">
                     <pre className="text-xs text-red-700 whitespace-pre-wrap font-mono">{signalResult}</pre>
                   </div>
@@ -1217,7 +1346,7 @@ const EquipmentInstall: React.FC<EquipmentComponentProps> = ({
             </div>
           </div>
         </div>
-      )}
+      , document.body)}
     </div>
   );
 };

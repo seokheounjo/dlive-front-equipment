@@ -1,14 +1,19 @@
 import React, { useState, useEffect } from 'react';
 import { WorkOrder, WorkCompleteData } from '../../../../types';
-import { getCompleteButtonText } from '../../../../utils/workValidation';
-import { getCommonCodeList, CommonCode, getWorkReceiptDetail, getCustomerContractInfo, checkStbServerConnection } from '../../../../services/apiService';
+import { getCompleteButtonText, isFtthProduct } from '../../../../utils/workValidation';
+import { getCommonCodeList, CommonCode, getWorkReceiptDetail, getCustomerContractInfo, sendSignal, getLghvProdMap, getOttSale, getWorkCancelInfo, getProdPromotionInfo } from '../../../../services/apiService';
+import { executeCL04Registration } from '../../../../hooks/useCertifyComplete';
+import { checkCertifySignalBlocked } from '../../../../hooks/useCertifySignal';
 import Select from '../../../ui/Select';
 import InstallInfoModal, { InstallInfoData } from '../../../modal/InstallInfoModal';
 import IntegrationHistoryModal from '../../../modal/IntegrationHistoryModal';
 import InstallLocationModal, { InstallLocationData } from '../../../modal/InstallLocationModal';
+import OttSerialModal from '../../../modal/OttSerialModal';
+import PoleCheckModal from '../../../modal/PoleCheckModal';
 import ConfirmModal from '../../../common/ConfirmModal';
 import WorkCompleteSummary from '../WorkCompleteSummary';
 import { useWorkProcessStore } from '../../../../stores/workProcessStore';
+import { useCertifyStore } from '../../../../stores/certifyStore';
 import { useWorkEquipment } from '../../../../stores/workEquipmentStore';
 import { useCompleteWork } from '../../../../hooks/mutations/useCompleteWork';
 import '../../../../styles/buttons.css';
@@ -32,6 +37,8 @@ interface CompleteInstallProps {
   showToast?: (message: string, type: 'success' | 'error' | 'warning' | 'info') => void;
   equipmentData?: any;
   readOnly?: boolean;
+  certifyMode?: boolean;    // LGU+ certify: forces certify path regardless of isFtthProduct
+  certifyReason?: string;   // LGU+ certify: LDAP-based REASON for CL-04 ('신규' | '변경')
 }
 
 const CompleteInstall: React.FC<CompleteInstallProps> = ({
@@ -40,7 +47,9 @@ const CompleteInstall: React.FC<CompleteInstallProps> = ({
   onSuccess,
   showToast,
   equipmentData: legacyEquipmentData,
-  readOnly = false
+  readOnly = false,
+  certifyMode = false,
+  certifyReason,
 }) => {
   // 완료/취소된 작업 여부 확인
   const isWorkCompleted = readOnly
@@ -50,10 +59,17 @@ const CompleteInstall: React.FC<CompleteInstallProps> = ({
     || order.status === '완료'
     || order.status === '취소';
 
+  // 원스톱 작업 가능 상태 (레거시: mowoa03m01.xml OST_WORKABLE_STAT)
+  // 0: 불가, 1: 철거만가능, 4: 화면접수불가/설치불가 → 설치완료 불가
+  const [ostWorkableStat, setOstWorkableStat] = useState<string>('');
+  const [isOstChecking, setIsOstChecking] = useState(false);
+  const isOstBlocked = ostWorkableStat === '0' || ostWorkableStat === '1' || ostWorkableStat === '4';
+
   const [isDataLoaded, setIsDataLoaded] = useState(false);
 
   // Zustand Store
   const { equipmentData: storeEquipmentData, filteringData } = useWorkProcessStore();
+  const { certifyRegconfInfo } = useCertifyStore();
 
   // Zustand Equipment Store - 장비 컴포넌트에서 등록한 장비 정보
   const workId = order.id || '';
@@ -116,6 +132,21 @@ const CompleteInstall: React.FC<CompleteInstallProps> = ({
   // 작업완료 확인 모달
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [confirmMessage, setConfirmMessage] = useState('');
+
+  // LGHV STB 상품 판단 (레거시: bLghvStb, ds_lghv_prod)
+  const [isLghvStb, setIsLghvStb] = useState(false);
+  const [lghvProdList, setLghvProdList] = useState<any[]>([]);
+
+  // OTT 시리얼번호 입력 (레거시: mowoa03m01.xml OTT_EQT_INPUT, mowoDivE01 btn_ott_serno)
+  // 조건: PROD_CD == "PD10018480" (OTT판매/할당) OR prod_promo_info에 "PD10018160" (편채널_Netflix OTT STB) 포함
+  const [showOttModal, setShowOttModal] = useState(false);
+  const [ottEqtSerno, setOttEqtSerno] = useState('');
+  const [isOttRequired, setIsOttRequired] = useState(false);
+  const [ottDataType, setOttDataType] = useState<'B' | 'C'>('B');  // B=일반, C=판매용
+
+  // 전주승주 조사 (레거시: mowoa01p33.xml)
+  const [showPoleCheckModal, setShowPoleCheckModal] = useState(false);
+  const [poleCheckResult, setPoleCheckResult] = useState<{ POLE_YN: string; LAN_GB: string } | null>(null);
 
   // 공통코드 옵션
   const [custRelOptions, setCustRelOptions] = useState<{ value: string; label: string }[]>([]);
@@ -196,7 +227,7 @@ const CompleteInstall: React.FC<CompleteInstallProps> = ({
             });
 
             setCustRel(detail.CUST_REL || '');
-            setMemo((detail.MEMO || '').replace(/\\n/g, '\n'));
+            setMemo((detail.WRK_PROC_CT || '').replace(/\\n/g, '\n'));
 
             // 결합계약 ID 복원
             if (detail.VOIP_JOIN_CTRT_ID) {
@@ -311,6 +342,126 @@ const CompleteInstall: React.FC<CompleteInstallProps> = ({
 
     loadInitialData();
   }, []);
+
+  // OST 상태 조회 (별도 API 호출 - 작업지시서 목록에서 값이 안 올 수 있음)
+  useEffect(() => {
+    const checkOstStatus = async () => {
+      if (!order.id || isWorkCompleted) return;
+
+      setIsOstChecking(true);
+      try {
+        console.log('[CompleteInstall] OST 상태 조회:', order.id);
+        const cancelInfo = await getWorkCancelInfo({
+          WRK_ID: order.id,
+          RCPT_ID: order.RCPT_ID,
+          CUST_ID: order.customer?.id
+        });
+
+        if (cancelInfo) {
+          const stat = cancelInfo.OST_WORKABLE_STAT || '';
+          console.log('[CompleteInstall] OST 상태 응답:', stat);
+          setOstWorkableStat(stat);
+
+          // OST 차단 시 토스트 메시지 (persistent: X 버튼으로만 닫힘)
+          if (stat === '0' || stat === '1' || stat === '4') {
+            showToast?.('원스톱전환신청건으로 설치완료 작업은 불가능한 상태입니다.', 'warning', true);
+          }
+        }
+      } catch (error) {
+        console.error('[CompleteInstall] OST 상태 조회 실패:', error);
+      } finally {
+        setIsOstChecking(false);
+      }
+    };
+
+    checkOstStatus();
+  }, [order.id, order.RCPT_ID, order.customer?.id, isWorkCompleted]);
+
+  // OST 상태 로그 (디버깅용)
+  useEffect(() => {
+    console.log('[CompleteInstall] OST 상태 체크:', {
+      OST_WORKABLE_STAT: ostWorkableStat,
+      isOstBlocked,
+      isOstChecking,
+      isWorkCompleted,
+      WRK_CD: order.WRK_CD,
+      WRK_DTL_TCD: order.WRK_DTL_TCD,
+      '설명': ostWorkableStat === '0' ? '불가'
+           : ostWorkableStat === '1' ? '철거만가능'
+           : ostWorkableStat === '2' ? '철거완료'
+           : ostWorkableStat === '3' ? '완료'
+           : ostWorkableStat === '4' ? '화면접수불가/설치불가'
+           : ostWorkableStat === 'X' ? 'OST아님'
+           : ostWorkableStat === '' ? '조회중 또는 일반작업'
+           : '알수없음'
+    });
+  }, [ostWorkableStat, isOstBlocked, isOstChecking, isWorkCompleted]);
+
+  // LGHV 상품맵 조회 및 판단 (레거시: fn_getLghvProdMap)
+  useEffect(() => {
+    const fetchLghvProdMap = async () => {
+      try {
+        const result = await getLghvProdMap();
+        const prodList = result?.output || result || [];
+        setLghvProdList(prodList);
+
+        const currentProdCd = order.PROD_CD || (order as any).PROD_CD || '';
+        const isLghv = prodList.some((item: any) => item.PROD_CD === currentProdCd);
+        setIsLghvStb(isLghv);
+        console.log('[CompleteInstall] LGHV 판단:', { currentProdCd, isLghv, prodListCount: prodList.length });
+      } catch (error) {
+        console.error('[CompleteInstall] LGHV 상품맵 조회 실패:', error);
+      }
+    };
+    fetchLghvProdMap();
+  }, [order.PROD_CD]);
+
+  // OTT 상품 판단 및 기존 시리얼 조회 (레거시: mowoa03m01.xml OTT_EQT_INPUT)
+  // 조건: PROD_CD == "PD10018480" OR prod_promo_info에 "PD10018160" 포함
+  useEffect(() => {
+    const checkOttProduct = async () => {
+      const currentProdCd = order.PROD_CD || (order as any).PROD_CD || '';
+      const prodPromoInfo = equipmentData?.prodPromoInfo || [];
+
+      // OTT 판매/할당 상품 (PD10018480) - 판매용 OTT
+      if (currentProdCd === 'PD10018480') {
+        console.log('[CompleteInstall] OTT 판매용 상품 감지:', currentProdCd);
+        setIsOttRequired(true);
+        setOttDataType('C');  // 판매용
+      }
+      // 프로모션에 Netflix OTT STB (PD10018160) 포함 - 일반 OTT
+      else if (prodPromoInfo.some((item: any) => item.PROD_CD === 'PD10018160')) {
+        console.log('[CompleteInstall] OTT 프로모션 상품 감지: PD10018160');
+        setIsOttRequired(true);
+        setOttDataType('B');  // 일반
+      }
+      else {
+        setIsOttRequired(false);
+        return;
+      }
+
+      // 기존 OTT 시리얼 조회
+      const wrkId = order.id || '';
+      const wrkDrctnId = order.directionId || order.WRK_DRCTN_ID || '';
+      if (wrkId && wrkDrctnId) {
+        try {
+          const existingOtt = await getOttSale({
+            WRK_ID: wrkId,
+            WRK_DRCTN_ID: wrkDrctnId,
+            DATA_TYPE: currentProdCd === 'PD10018480' ? 'C' : 'B',
+          });
+          if (existingOtt?.EQT_SERNO) {
+            console.log('[CompleteInstall] 기존 OTT 시리얼:', existingOtt.EQT_SERNO);
+            setOttEqtSerno(existingOtt.EQT_SERNO);
+          }
+        } catch (error) {
+          console.error('[CompleteInstall] OTT 시리얼 조회 실패:', error);
+        }
+      }
+    };
+
+    checkOttProduct();
+  }, [order.PROD_CD, order.id, order.directionId, equipmentData?.prodPromoInfo]);
 
   // 상향제어: equipmentData가 나중에 로드되면 업데이트, 없으면 기본값 '01'(쌍방향) 설정
   useEffect(() => {
@@ -487,6 +638,12 @@ const CompleteInstall: React.FC<CompleteInstallProps> = ({
       errors.push('신호처리(장비등록)를 먼저 진행해주세요.');
     }
 
+    // OTT 시리얼번호 검증 (레거시: mowoa03m01.xml 1709-1717)
+    // OTT 상품인 경우 시리얼번호 필수 입력
+    if (isOttRequired && !ottEqtSerno) {
+      errors.push('OTT 판매용 상품은 OTT BOX 시리얼을 입력하셔야 합니다.');
+    }
+
     return errors;
   };
 
@@ -502,17 +659,33 @@ const CompleteInstall: React.FC<CompleteInstallProps> = ({
   const handleSubmit = () => {
     if (isLoading) return;
 
+    // 원스톱 작업 차단 체크
+    if (isOstBlocked) {
+      showToast?.('원스톱전환신청건으로 설치완료 작업은 불가능한 상태입니다.', 'warning');
+      return;
+    }
+
     const errors = validate();
     if (errors.length > 0) {
       errors.forEach(error => showToast?.(error, 'error'));
       return;
     }
 
-    const message = equipmentData?.installedEquipments?.length > 0
-      ? '작업을 완료하시겠습니까?\n(신호번호 처리업무도 동시에 처리됩니다.)'
-      : '작업을 완료하시겠습니까?';
+    // 전주승주 조사 (레거시: PROD_GRP != 'V' 일 때 팝업)
+    const prodGrpForPole = (order as any).PROD_GRP || '';
+    if (prodGrpForPole !== 'V') {
+      setShowPoleCheckModal(true);
+    } else {
+      setConfirmMessage('작업을 완료하시겠습니까?');
+      setShowConfirmModal(true);
+    }
+  };
 
-    setConfirmMessage(message);
+  // 전주승주 조사 저장 콜백
+  const handlePoleCheckSave = (data: { POLE_YN: string; LAN_GB: string }) => {
+    setPoleCheckResult(data);
+    setShowPoleCheckModal(false);
+    setConfirmMessage('작업을 완료하시겠습니까?');
     setShowConfirmModal(true);
   };
 
@@ -525,26 +698,224 @@ const CompleteInstall: React.FC<CompleteInstallProps> = ({
     const user = userInfo ? JSON.parse(userInfo) : {};
     const workerId = user.userId || 'A20130708';
 
-    // 회수 장비가 있으면 철거 신호(SMR05) 호출 (레거시 fn_delsignal_trans 동일)
-    const removedEquipments = equipmentData?.removedEquipments || [];
-    if (removedEquipments.length > 0) {
+    // FTTH 상품일 경우 CL-04 서비스 개통 등록 호출 (레거시: mowoa03m01.xml fn_certify_cl04)
+    // 레거시: OpLnkdCd가 F/FG/Z/ZG면 FTTH (cm_lib.js fn_get_eqipDivs)
+    const isCertifyProd = certifyMode || isFtthProduct((order as any).OP_LNKD_CD);
+
+    // ADD_ON 파라미터 생성 (레거시: mowoa03m01.xml fn_certify_cl04 + modWorkComplete ds_where)
+    // ds_prod_promo_info에서 PROD_CMPS_CL='21' 또는 '22'이고 PROD_STAT_CD='10'인 항목의 PROD_CD
+    // CL-04 호출과 workComplete 양쪽에 전달해야 하므로 상위 스코프에서 계산
+    let addOnParam = '';
+    if (isCertifyProd) {
+      let prodPromoInfoForAddOn = equipmentData?.prodPromoInfo || [];
+      if (prodPromoInfoForAddOn.length === 0) {
+        try {
+          console.log('[CompleteInstall] prodPromoInfo 비어있음, getProdPromotionInfo fallback 호출 (ADD_ON용)');
+          prodPromoInfoForAddOn = await getProdPromotionInfo({
+            CTRT_ID: order.CTRT_ID || '',
+            RCPT_ID: order.RCPT_ID || '',
+            WRK_CD: order.WRK_CD || '01',
+          });
+          console.log('[CompleteInstall] getProdPromotionInfo fallback 결과:', prodPromoInfoForAddOn.length, '개');
+        } catch (e) { console.log('[CompleteInstall] getProdPromotionInfo fallback 실패:', e); }
+      }
+      const addOnProdCodes = prodPromoInfoForAddOn
+        .filter((item: any) =>
+          (item.PROD_CMPS_CL === '21' || item.PROD_CMPS_CL === '22') &&
+          item.PROD_STAT_CD === '10'
+        )
+        .map((item: any) => item.PROD_CD)
+        .filter((code: string) => code);
+      addOnParam = addOnProdCodes.join(',');
+      console.log('[CompleteInstall] ADD_ON 파라미터:', addOnParam, '(', addOnProdCodes.length, '개 상품)');
+    }
+
+    // 레거시: FTTH 상품이고 장비가 있으면 집선등록 필수 (mowoa03m01.xml 1800-1810)
+    const installedEquipments = equipmentData?.installedEquipments || [];
+    if (isCertifyProd && installedEquipments.length > 0 && !certifyRegconfInfo) {
+      showToast?.('집선등록 관련정보가 등록되어있지않습니다.', 'error');
+      return;
+    }
+
+    if (isCertifyProd && certifyRegconfInfo) {
       try {
-        const regUid = user.userId || user.id || 'UNKNOWN';
-        const firstEquip = removedEquipments[0];
-        console.log('[CompleteInstall] 철거 신호(SMR05) 호출:', { eqtNo: firstEquip.EQT_NO || firstEquip.id });
-        await checkStbServerConnection(
-          regUid,
-          order.CTRT_ID || '',
-          order.id,
-          'SMR05',
-          firstEquip.EQT_NO || firstEquip.id || '',
-          ''
-        );
-        console.log('[CompleteInstall] 철거 신호(SMR05) 호출 완료');
-      } catch (error) {
-        console.log('[CompleteInstall] 철거 신호 처리 중 오류 (무시하고 계속 진행):', error);
+        // CL-04 서비스 개통 등록 (useCertifyComplete 훅)
+        const cl04Result = await executeCL04Registration({
+          order, workerId, certifyRegconfInfo, addOnParam,
+          reason: certifyReason || '신규',
+        });
+        if (!cl04Result.success) {
+          showToast?.(`집선등록 실패: ${cl04Result.message}`, 'error');
+          return;
+        }
+        console.log('[CompleteInstall] CL-04 서비스 개통 등록 완료');
+      } catch (error: any) {
+        console.error('[CompleteInstall] CL-04 호출 에러:', error);
+        showToast?.(`집선등록 중 오류: ${error.message || '알 수 없는 오류'}`, 'error');
+        return;
       }
     }
+
+    // 개통 신호 전송 함수 (레거시: modWorkComplete SUCCESS 콜백에서 호출)
+    const sendInstallationSignal = async () => {
+    const installedEqList = equipmentData?.installedEquipments || [];
+    const hasIspProd = !!(order as any).ISP_PROD_CD;
+
+    // signal_flag 판별 (레거시 mowoa03m01.xml lines 1169-1194)
+    let signalFlag = false;
+    const customerEquipments = equipmentData?.customerEquipments || installedEqList;
+    for (const eq of customerEquipments) {
+      const actual = eq.actualEquipment || eq;
+      const eqtClCd = actual.eqtClCd || actual.EQT_CL_CD || '';
+      // HANDY(090901), AP(091001, 091005) 제외
+      if (eqtClCd === '090901' || eqtClCd === '091001' || eqtClCd === '091005') continue;
+      // 설치작업에서 등록된 장비는 기사장비(WRKER)로 간주
+      // 백엔드 output4는 EQT_KND='CUST' 하드코딩이므로 기본값 'WRKER' 사용
+      const eqtKnd = actual.EQT_KND || actual.eqtKnd || 'WRKER';
+      if (eqtKnd === 'WRKER') signalFlag = true;
+    }
+    // OTT 장비(ITEM_MID_CD=23) 있으면 신호 전송 안 함
+    if (customerEquipments.some((eq: any) => {
+      const actual = eq.actualEquipment || eq;
+      return (actual.itemMidCd || actual.ITEM_MID_CD) === '23';
+    })) {
+      signalFlag = false;
+    }
+    // ISP_PROD_CD 있으면 신호 전송
+    if (hasIspProd) signalFlag = true;
+    // FTTH(IS_CERTIFY_PROD=1) + SO가 인증대상(CMIF006)이면 신호 전송 안 함 (useCertifySignal 훅)
+    const certifyBlocked = await checkCertifySignalBlocked(
+      order.SO_ID || (order as any).SO_ID || '',
+      (order as any).IS_CERTIFY_PROD,
+    );
+    if (certifyBlocked) signalFlag = false;
+
+    if (signalFlag && (installedEqList.length > 0 || hasIspProd)) {
+      try {
+        const prodGrp = (order as any).PROD_GRP || '';
+        let msgId = 'SMR03';
+        let eqtNo = '';
+        let etc1 = '';
+        let etc2 = '';
+        let etc3 = '';
+        let etc4 = '';
+        let voipJoinCtrtIdForSignal = '';
+
+        // LGHV STB -> STB_CRT
+        if (isLghvStb) msgId = 'STB_CRT';
+        // VoIP 단독 -> SMR60
+        if (prodGrp === 'V') msgId = 'SMR60';
+
+        // prodPromoInfo에서 파라미터 추출
+        let prodPromoInfo = equipmentData?.prodPromoInfo || [];
+        if (prodPromoInfo.length === 0) {
+          try {
+            prodPromoInfo = await getProdPromotionInfo({
+              RCPT_ID: order.RCPT_ID || '',
+              CTRT_ID: order.CTRT_ID || '',
+              CRR_ID: order.CRR_ID || '',
+              WRKR_ID: workerId,
+              PROD_CD: order.PROD_CD || '',
+              CRR_TSK_CL: '01',
+              WRK_ID: order.id || '',
+              ADDR_ORD: (order as any).ADDR_ORD || '',
+              WRK_CD: order.WRK_CD || '01',
+              WRK_STAT_CD: order.WRK_STAT_CD || '',
+            });
+          } catch (e) { console.log('[CompleteInstall] prodPromoInfo 조회 실패:', e); }
+        }
+
+        const eqtProdCmpsId = prodPromoInfo.find((item: any) => item.PROD_CMPS_CL === '23')?.PROD_CMPS_ID || '';
+        const cmps11 = prodPromoInfo.find((item: any) => item.PROD_CMPS_CL === '11');
+        const prodCd = cmps11?.PROD_CD || '';
+        const prodGrpFromPromo = cmps11?.PROD_GRP || prodGrp;
+        const subProds = prodPromoInfo
+          .filter((item: any) => item.BASIC_PROD_FL === 'V')
+          .map((item: any) => item.PROD_CD);
+        const subProdCd = subProds.length > 0 ? subProds.join(',') : '';
+
+        // 장비번호(eqt_no) 결정 - 레거시 우선순위: 05>01>03>02(I)>08
+        const findEqtNo = (itemMidCd: string) => {
+          const eq = installedEqList.find((e: any) => {
+            const a = e.actualEquipment || e;
+            return (a.itemMidCd || a.ITEM_MID_CD) === itemMidCd;
+          });
+          if (!eq) return '';
+          const a = eq.actualEquipment || eq;
+          return a.id || a.EQT_NO || '';
+        };
+
+        if (!(order as any).VOIP_PROD_CD) {
+          eqtNo = findEqtNo('05') || findEqtNo('01') || findEqtNo('03') ||
+                  (prodGrpFromPromo === 'I' ? findEqtNo('02') : '') || findEqtNo('08') || '';
+          etc1 = findEqtNo('04');
+          // 레거시: STB(04) 없고 PROD_GRP='A'이면 망구분(NET_CL)
+          if (!etc1 && prodGrpFromPromo === 'A') {
+            etc1 = installInfoData?.NET_CL || '';
+          }
+        } else {
+          eqtNo = findEqtNo('08');
+          etc1 = findEqtNo('02');
+        }
+        etc2 = findEqtNo('07');
+        if (prodGrpFromPromo === 'C') etc3 = findEqtNo('02');
+        if (prodGrpFromPromo === 'V') etc4 = findEqtNo('10');
+        if (hasIspProd) etc4 = findEqtNo('21');
+
+        // VoIP/ISP 결합계약 ID
+        if (prodGrp === 'V' || hasIspProd) {
+          voipJoinCtrtIdForSignal = voipJoinCtrtId || order.CTRT_ID || '';
+        }
+
+        // wrk_id 결정 - AP(091003/091004)→EQT_NO, OTT-STB(092201)→MAC_ADDRESS, else→WRK_ID
+        let signalWrkId = order.id || '';
+        for (const e of installedEqList) {
+          const a = e.actualEquipment || e;
+          const eqtClCd = a.eqtClCd || a.EQT_CL_CD || '';
+          if (eqtClCd === '091003' || eqtClCd === '091004') {
+            signalWrkId = a.id || a.EQT_NO || order.id || '';
+            break;
+          }
+          if (eqtClCd === '092201') {
+            signalWrkId = a.macAddress || a.MAC_ADDRESS || a.id || a.EQT_NO || order.id || '';
+            break;
+          }
+        }
+
+        console.log('[CompleteInstall] 개통 신호 호출:', { msgId, eqtNo, prodCd, subProdCd, etc1, etc2, etc3, etc4 });
+
+        const result = await sendSignal({
+          MSG_ID: msgId,
+          CUST_ID: order.customer?.id || order.CUST_ID || '',
+          CTRT_ID: order.CTRT_ID || '',
+          SO_ID: order.SO_ID || '',
+          EQT_NO: eqtNo,
+          EQT_PROD_CMPS_ID: eqtProdCmpsId,
+          PROD_CD: prodCd,
+          ITV_USR_ID: '',
+          IP_CNT: '',
+          ETC_1: etc1,
+          ETC_2: etc2,
+          ETC_3: etc3,
+          ETC_4: etc4,
+          SUB_PROD_CD: subProdCd,
+          IF_DTL_ID: '',
+          WRK_ID: signalWrkId,
+          REG_UID: workerId,
+          VOIP_JOIN_CTRT_ID: voipJoinCtrtIdForSignal,
+          WTIME: '3',
+        });
+
+        if (result.code !== 'SUCCESS' && result.code !== 'OK') {
+          console.warn('[CompleteInstall] 개통 신호 전송 실패:', result.message);
+        } else {
+          console.log('[CompleteInstall] 개통 신호 전송 성공');
+        }
+      } catch (error) {
+        console.log('[CompleteInstall] 개통 신호 처리 중 오류 (무시하고 계속 진행):', error);
+      }
+    }
+    };
 
     // 장비 데이터 처리
     const processEquipmentList = (equipments: any[], isRemoval = false) => {
@@ -559,8 +930,8 @@ const CompleteInstall: React.FC<CompleteInstallProps> = ({
           RCPT_ID: order.RCPT_ID || '',
           CRR_ID: order.CRR_ID || user.crrId || '01',
           WRKR_ID: workerId,
-          EQT_LOSS_YN: status.isLost ? 'Y' : 'N',
-          EQT_BRK_YN: status.isDamaged ? 'Y' : 'N',
+          EQT_LOSS_YN: status.isLost ? '1' : '0',  // 레거시 호환: '0' = 회수, '1' = 분실
+          EQT_BRK_YN: status.isDamaged ? '1' : '0',
           REUSE_YN: status.isReusable ? '1' : '0',
         } : {};
 
@@ -673,33 +1044,53 @@ const CompleteInstall: React.FC<CompleteInstallProps> = ({
         AGREE_GB: '',
         CUST_CLEAN_YN: '',
         EQT_RMV_FLAG: '',
-        TV_TYPE: ''
+        TV_TYPE: '',
+        ADD_ON: addOnParam || '',
       },
       equipmentList: processEquipmentList(equipmentData?.installedEquipments || [], false),
       removeEquipmentList: processEquipmentList(equipmentData?.removedEquipments || [], true),
       spendItemList: equipmentData?.spendItems || [],
       agreementList: equipmentData?.agreements || [],
-      poleList: equipmentData?.poleResults || []
+      poleList: poleCheckResult ? [{
+        WRK_ID: order.id,
+        POLE_YN: poleCheckResult.POLE_YN,
+        LAN_GB: poleCheckResult.LAN_GB || '',
+        REG_UID: workerId,
+      }] : []
     };
 
     submitWork(completeData, {
       onSuccess: (result) => {
         if (result.code === 'SUCCESS' || result.code === 'OK') {
           localStorage.removeItem(getStorageKey());
+          (order as any).WRK_STAT_CD = '3';
+          sendInstallationSignal();
           showToast?.('작업이 성공적으로 완료되었습니다.', 'success');
           onSuccess();
         } else {
-          showToast?.(result.message || '작업 완료 처리에 실패했습니다.', 'error');
+          showToast?.(result.message || '작업 완료 처리에 실패했습니다.', 'error', true);
         }
       },
       onError: (error: any) => {
-        showToast?.(error.message || '작업 완료 중 오류가 발생했습니다.', 'error');
+        showToast?.(error.message || '작업 완료 중 오류가 발생했습니다.', 'error', true);
       },
     });
   };
 
   return (
-    <div className="px-2 sm:px-4 py-4 sm:py-6 bg-gray-50 min-h-0">
+    <div className="px-2 sm:px-4 py-4 sm:py-6 bg-gray-50 min-h-0 relative">
+      {/* 전체 화면 로딩 오버레이 */}
+      {isLoading && (
+        <div className="fixed inset-0 bg-black/50 z-[9999] flex items-center justify-center">
+          <div className="bg-white rounded-xl p-6 flex flex-col items-center gap-3 shadow-xl">
+            <svg className="animate-spin h-10 w-10 text-blue-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
+            <span className="text-gray-700 font-medium">작업완료 처리중...</span>
+          </div>
+        </div>
+      )}
       <div className="max-w-2xl mx-auto">
         <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-3 sm:p-5">
           <div className="space-y-3 sm:space-y-5">
@@ -796,7 +1187,9 @@ const CompleteInstall: React.FC<CompleteInstallProps> = ({
             </div>
 
             {/* 상향제어 - DTV(KPI_PROD_GRP_CD='D')일 때만 표시 */}
-            {(equipmentData?.kpiProdGrpCd === 'D' || equipmentData?.prodGrp === 'D' || (order as any).PROD_GRP === 'D') && (
+            {(equipmentData?.kpiProdGrpCd === 'D' || equipmentData?.prodGrp === 'D' || (order as any).PROD_GRP === 'D' ||
+              // Fallback: PROD_NM에 'DTV' 포함 시에도 표시 (완료된 작업 조회 시 PROD_GRP 누락 대응)
+              ((order as any).PROD_NM || '').includes('DTV')) && (
               <div>
                 <label className="block text-xs sm:text-sm font-semibold text-gray-900 mb-1.5 sm:mb-2">
                   상향제어
@@ -820,11 +1213,15 @@ const CompleteInstall: React.FC<CompleteInstallProps> = ({
                 value={memo}
                 onChange={(e) => setMemo(e.target.value)}
                 placeholder="작업 내용을 입력하세요..."
+                maxLength={500}
                 className={`w-full px-3 sm:px-4 py-2 sm:py-3 border border-gray-300 rounded-lg text-sm sm:text-base resize-none ${isWorkCompleted ? 'bg-gray-100 text-gray-600 cursor-not-allowed' : 'focus:ring-2 focus:ring-blue-500 focus:border-blue-500'}`}
                 rows={4}
                 readOnly={isWorkCompleted}
                 disabled={isWorkCompleted}
               />
+              {!isWorkCompleted && (
+                <p className={`text-xs text-right mt-1 ${memo.length >= 500 ? 'text-red-500' : 'text-gray-400'}`}>{memo.length}/500</p>
+              )}
             </div>
 
             {/* 작업처리일 */}
@@ -905,14 +1302,53 @@ const CompleteInstall: React.FC<CompleteInstallProps> = ({
               )}
             </div>
 
+            {/* OTT 시리얼 입력 (OTT 상품일 때만 표시) */}
+            {isOttRequired && (
+              <div>
+                <label className="block text-xs sm:text-sm font-semibold text-gray-700 mb-1.5 sm:mb-2">
+                  OTT BOX 시리얼 {!isWorkCompleted && <span className="text-red-500">*</span>}
+                </label>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={ottEqtSerno}
+                    readOnly
+                    placeholder="SER_NO 버튼을 눌러 입력"
+                    className="flex-1 px-3 py-2 bg-gray-100 border border-gray-300 rounded-lg text-sm text-gray-600"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowOttModal(true)}
+                    disabled={isWorkCompleted}
+                    className={`px-4 py-2 rounded-lg font-semibold text-sm flex items-center gap-2 ${
+                      isWorkCompleted
+                        ? 'bg-gray-400 text-white cursor-not-allowed'
+                        : ottEqtSerno
+                          ? 'bg-green-500 hover:bg-green-600 text-white'
+                          : 'bg-orange-500 hover:bg-orange-600 text-white'
+                    }`}
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z" />
+                    </svg>
+                    SER_NO
+                  </button>
+                </div>
+              </div>
+            )}
+
             {/* 하단 버튼 영역 */}
             <div className="flex gap-1.5 sm:gap-2 pt-3 sm:pt-4 mt-3 sm:mt-4 border-t border-gray-200">
               {/* 작업완료 버튼 */}
               {!isWorkCompleted && (
                 <button
                   onClick={handleSubmit}
-                  disabled={isLoading}
-                  className="flex-1 btn btn-lg btn-primary flex items-center justify-center gap-2"
+                  disabled={isLoading || isOstChecking || isOstBlocked}
+                  className={`flex-1 min-h-12 py-3 px-4 rounded-lg font-bold text-sm sm:text-base flex items-center justify-center gap-2 transition-colors ${
+                    isLoading || isOstChecking || isOstBlocked
+                      ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                      : 'bg-blue-600 hover:bg-blue-700 text-white'
+                  }`}
                 >
                   {isLoading ? (
                     <>
@@ -927,7 +1363,7 @@ const CompleteInstall: React.FC<CompleteInstallProps> = ({
                       <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
                         <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
                       </svg>
-                      <span>작업 완료</span>
+                      <span>작업완료</span>
                     </>
                   )}
                 </button>
@@ -1025,6 +1461,31 @@ const CompleteInstall: React.FC<CompleteInstallProps> = ({
           memo={memo}
         />
       </ConfirmModal>
+
+      {/* 전주승주 조사 모달 */}
+      <PoleCheckModal
+        isOpen={showPoleCheckModal}
+        onClose={() => setShowPoleCheckModal(false)}
+        onSave={handlePoleCheckSave}
+        soId={order.SO_ID || ''}
+      />
+
+      {/* OTT 시리얼번호 입력 모달 */}
+      <OttSerialModal
+        isOpen={showOttModal}
+        onClose={() => setShowOttModal(false)}
+        onSave={(serialNo) => {
+          setOttEqtSerno(serialNo);
+          showToast?.('OTT 시리얼번호가 저장되었습니다.', 'success');
+        }}
+        wrkId={order.id || ''}
+        wrkDrctnId={order.directionId || order.WRK_DRCTN_ID || ''}
+        crrId={order.CRR_ID || ''}
+        wrkrId={(order as any).WRKR_ID || ''}
+        dataType={ottDataType}
+        showToast={showToast}
+        readOnly={isWorkCompleted}
+      />
     </div>
   );
 };
