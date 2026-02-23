@@ -17,7 +17,8 @@ const PATH_MAPPING = {
   "/work/directions": "/api/work/directions",
   "/work/receipts": "/api/work/receipts",
   "/work/cancel": "/api/work/cancel",
-  "/work/complete": "/api/work/complete"
+  "/work/complete": "/api/work/complete",
+  "/customer/work/getEquipLossInfo_ForM": "/api/customer/work/getEquipLossInfo",  // 어댑터 경유 (레거시 .req는 CONA 세션 필요)
 };
 
 // Routes that should go directly to legacy .req servlet (bypass our adapter)
@@ -30,7 +31,7 @@ const LEGACY_REQ_ROUTES = [
   "/customer/equipment/getAuthSoList",  // SO 권한 목록
   "/customer/equipment/getEqtTrnsList",  // 장비이동내역
   "/customer/work/getProd_Grp",  // AS접수 콤보상세 (상품그룹)
-  "/customer/work/getEquipLossInfo_ForM",  // 미회수장비 조회
+  // getEquipLossInfo_ForM → PATH_MAPPING으로 어댑터 경유 (레거시 .req CONA 세션 인증 실패)
 ];
 
 // Parse MiPlatform XML response to JSON
