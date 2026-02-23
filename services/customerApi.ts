@@ -1748,8 +1748,10 @@ export const registerASRequest = async (params: ASRequestParams): Promise<ApiRes
   const isUIParams = 'AS_CL_CD' in params;
 
   const backendParams: Record<string, any> = {
-    // PG_GUBUN: 가입자=0, 비가입자=1 (D'Live CONA modAsPdaReceipt 기준)
-    PG_GUBUN: isUIParams ? (uiParams.PG_GUBUN || '0') : '0',
+    // PG_GUBUN: 가입자=0, 비가입자=1 (D'Live CONA modAsPdaReceipt - mowoe03m03.xml)
+    PG_GUBUN: isUIParams ? (uiParams.PG_GUBUN || '1') : '1',
+    // PROC_CL: legacy sends empty string (mowoe03m03.xml line 696)
+    PROC_CL: '',
     POST_ID: (params as ASRequestParams).POST_ID || '',
     CUST_ID: params.CUST_ID,
     CTRT_ID: (params as ASRequestParams).CTRT_ID || '',
