@@ -186,7 +186,32 @@ const CustomerSearch: React.FC<CustomerSearchProps> = ({ onCustomerSelect, onCus
           }
         }
 
-        setSearchResults(enrichedResults);
+        // 백엔드 SQL이 CUST_NM AND 조건을 처리 못하므로 클라이언트에서 필터링
+        // 입력된 모든 조건과 결과를 대조하여 불일치 제거
+        if (hasCustomerName) {
+          enrichedResults = enrichedResults.filter(c =>
+            (c.CUST_NM || '').includes(customerName)
+          );
+        }
+        if (hasPhoneNumber) {
+          enrichedResults = enrichedResults.filter(c => {
+            const allPhones = [c.TEL_NO, c.HP_NO, ...(c.PHONE_LIST || []).map((p: any) => p.TEL_NO || p.HP_NO)]
+              .filter(Boolean)
+              .map((p: string) => p.replace(/[^0-9]/g, ''));
+            return allPhones.some(p => p.includes(phoneNumberDigits) || phoneNumberDigits.includes(p));
+          });
+        }
+
+        if (enrichedResults.length > 0) {
+          setSearchResults(enrichedResults);
+        } else {
+          setSearchResults([]);
+          setWarningPopup({
+            show: true,
+            title: '조회 실패',
+            message: '조회대상이 없습니다.\n값을 정확히 입력해주세요.'
+          });
+        }
       } else {
         setSearchResults([]);
         setWarningPopup({

@@ -1030,7 +1030,8 @@ export const searchCustomerAll = async (params: {
     console.log('[CustomerAPI] Failed to get session info');
   }
 
-  // 요청 파라미터 구성 - 입력된 값 전부 전송
+  // 요청 파라미터 구성
+  // CUST_NM은 백엔드 SQL AND 조건에서 정상 조합도 0건 반환하므로 단독 검색 시만 전송
   const reqParams: Record<string, any> = {
     SERCH_GB: '3',
     LOGIN_ID: loginId
@@ -1040,7 +1041,9 @@ export const searchCustomerAll = async (params: {
   if (params.contractId) reqParams.CTRT_ID = params.contractId;
   if (params.phoneNumber) reqParams.TEL_NO = params.phoneNumber;
   if (params.equipmentNo) reqParams.EQT_SERNO = params.equipmentNo;
-  if (params.customerName) reqParams.CUST_NM = params.customerName;
+  if (params.customerName && !params.custId && !params.contractId && !params.phoneNumber && !params.equipmentNo) {
+    reqParams.CUST_NM = params.customerName;
+  }
 
   console.log('[CustomerAPI] searchCustomerAll 요청 파라미터:\n' + JSON.stringify(reqParams, null, 2));
 
