@@ -122,9 +122,13 @@ const PaymentInfo: React.FC<PaymentInfoProps> = ({
 
       if (paymentRes.success && paymentRes.data) {
         setPaymentAccounts(paymentRes.data);
-        // 첫 번째 납부계정 자동 선택
-        if (paymentRes.data.length > 0 && !selectedPymAcntId) {
-          setSelectedPymAcntId(paymentRes.data[0].PYM_ACNT_ID);
+        // 납부계정 자동 선택: 계약에서 지정된 계정이 목록에 있으면 우선, 없으면 첫 번째
+        if (paymentRes.data.length > 0) {
+          if (selectedPymAcntIdFromContract && paymentRes.data.some(p => p.PYM_ACNT_ID === selectedPymAcntIdFromContract)) {
+            setSelectedPymAcntId(selectedPymAcntIdFromContract);
+          } else {
+            setSelectedPymAcntId(paymentRes.data[0].PYM_ACNT_ID);
+          }
         }
       }
     } catch (error) {
