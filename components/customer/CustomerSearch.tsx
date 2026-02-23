@@ -186,8 +186,17 @@ const CustomerSearch: React.FC<CustomerSearchProps> = ({ onCustomerSelect, onCus
           }
         }
 
-        // 백엔드 SQL이 CUST_NM AND 조건을 처리 못하므로 클라이언트에서 필터링
-        // 입력된 모든 조건과 결과를 대조하여 불일치 제거
+        // 입력된 모든 조건으로 결과 필터링 (백엔드가 처리 못하는 조합 대비)
+        if (hasCustomerId) {
+          enrichedResults = enrichedResults.filter(c =>
+            (c.CUST_ID || '').includes(customerIdDigits)
+          );
+        }
+        if (hasContractId) {
+          enrichedResults = enrichedResults.filter(c =>
+            (c.CTRT_ID || '').includes(contractIdDigits)
+          );
+        }
         if (hasCustomerName) {
           enrichedResults = enrichedResults.filter(c =>
             (c.CUST_NM || '').includes(customerName)
@@ -200,6 +209,12 @@ const CustomerSearch: React.FC<CustomerSearchProps> = ({ onCustomerSelect, onCus
               .map((p: string) => p.replace(/[^0-9]/g, ''));
             return allPhones.some(p => p.includes(phoneNumberDigits) || phoneNumberDigits.includes(p));
           });
+        }
+        if (hasEquipmentNo) {
+          enrichedResults = enrichedResults.filter(c =>
+            (c.EQT_SERNO || '').toLowerCase().includes(equipmentNo.toLowerCase()) ||
+            (c.NOTRECEV || '').toLowerCase().includes(equipmentNo.toLowerCase())
+          );
         }
 
         if (enrichedResults.length > 0) {
