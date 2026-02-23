@@ -30,6 +30,7 @@ const LEGACY_REQ_ROUTES = [
   "/customer/equipment/getAuthSoList",  // SO 권한 목록
   "/customer/equipment/getEqtTrnsList",  // 장비이동내역
   "/customer/work/getProd_Grp",  // AS접수 콤보상세 (상품그룹)
+  "/customer/work/getEquipLossInfo_ForM",  // 미회수장비 조회
 ];
 
 // Parse MiPlatform XML response to JSON
@@ -283,6 +284,7 @@ router.post('/customer/work/insertWorkRemoveStat', handleProxy);
 router.post('/customer/work/modAsPdaReceipt', handleProxy);
 router.post('/customer/work/getProd_Grp', handleProxy);
 router.post('/customer/work/getEquipLossInfo', handleProxy);
+router.post('/customer/work/getEquipLossInfo_ForM', handleProxy);
 router.post('/customer/work/modEquipLoss', handleProxy);
 router.post('/customer/work/modEquipLoss_ForM', handleProxy);
 
