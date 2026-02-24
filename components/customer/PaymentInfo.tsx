@@ -509,6 +509,21 @@ const PaymentInfo: React.FC<PaymentInfoProps> = ({
         onClose={() => setShowPaymentChangeModal(false)}
         custId={custId}
         custNm={custNm}
+        soId={(() => {
+          if (selectedPymAcntId) {
+            const account = paymentAccounts.find(a => a.PYM_ACNT_ID === selectedPymAcntId);
+            if (account?.SO_ID) return account.SO_ID;
+          }
+          if (selectedPymAcntId && contracts.length > 0) {
+            const matched = contracts.filter(c => c.PYM_ACNT_ID === selectedPymAcntId && c.SO_ID);
+            if (matched.length > 0) return (matched.find(c => c.CTRT_STAT_CD === '10') || matched[0]).SO_ID!;
+          }
+          try {
+            const u = JSON.parse(sessionStorage.getItem('userInfo') || localStorage.getItem('userInfo') || '{}');
+            const list = u.authSoList || u.AUTH_SO_List || [];
+            return list[0]?.SO_ID || list[0]?.soId || u.soId || u.SO_ID || '';
+          } catch { return ''; }
+        })()}
         initialPymAcntId={selectedPymAcntId || ''}
         showToast={showToast}
         onSuccess={() => {

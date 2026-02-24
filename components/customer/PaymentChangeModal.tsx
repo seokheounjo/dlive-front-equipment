@@ -25,6 +25,7 @@ interface PaymentChangeModalProps {
   onClose: () => void;
   custId: string;
   custNm?: string;
+  soId?: string;
   initialPymAcntId?: string;
   showToast?: (message: string, type: 'success' | 'error' | 'warning' | 'info') => void;
   onSuccess?: () => void;
@@ -71,6 +72,7 @@ const PaymentChangeModal: React.FC<PaymentChangeModalProps> = ({
   onClose,
   custId,
   custNm,
+  soId,
   initialPymAcntId,
   showToast,
   onSuccess
@@ -278,11 +280,16 @@ const PaymentChangeModal: React.FC<PaymentChangeModalProps> = ({
           setIsVerifying(false);
           return;
         }
-        const cardValidYm = paymentForm.cardExpYy + paymentForm.cardExpMm;
         const response = await verifyCard({
           CARD_NO: paymentForm.acntNo,
-          CARD_VALID_YM: cardValidYm,
-          CARD_OWNER_NM: paymentForm.acntHolderNm
+          CARD_EXPYEAR: paymentForm.cardExpYy,
+          CARD_EXPMON: paymentForm.cardExpMm,
+          CARD_OWNER_NM: paymentForm.acntHolderNm,
+          KOR_ID: paymentForm.birthDt,
+          SO_ID: soId || '',
+          PYM_ACNT_ID: initialPymAcntId || '',
+          CUST_ID: custId,
+          CUST_NM: custNm || ''
         });
         if (response.success) {
           setIsVerified(true);

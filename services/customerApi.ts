@@ -466,8 +466,15 @@ export interface AccountVerifyRequest {
 // 카드 인증 요청
 export interface CardVerifyRequest {
   CARD_NO: string;           // 카드번호
-  CARD_VALID_YM: string;     // 유효기간 YYMM
+  CARD_EXPYEAR?: string;     // 유효기간 년 YY
+  CARD_EXPMON?: string;      // 유효기간 월 MM
+  CARD_VALID_YM?: string;    // 유효기간 YYMM (legacy)
   CARD_OWNER_NM?: string;    // 카드소유자명
+  KOR_ID?: string;           // 생년월일 6자리
+  SO_ID?: string;
+  PYM_ACNT_ID?: string;
+  CUST_ID?: string;
+  CUST_NM?: string;
 }
 
 // 지번주소 검색 요청 (statistics/customer/getPostList)
@@ -1525,28 +1532,31 @@ export const verifyBankAccount = async (params: AccountVerifyRequest): Promise<A
  * 실제 카드 인증 API가 있으면 연동, 없으면 시뮬레이션
  */
 export const verifyCard = async (params: CardVerifyRequest): Promise<ApiResponse<any>> => {
-  // TODO: 실제 카드 인증 API 연동
-  // D'Live 카드 인증 API가 있는 경우 아래 주석 해제
-  // return apiCall<any>('/customer/payment/verifyCard', params);
+  try {
+    const response = await apiCall<any>('/customer/payment/verifyCreditCard', {
+      SO_ID: params.SO_ID || '',
+      PYM_ACNT_ID: params.PYM_ACNT_ID || '',
+      CUST_ID: params.CUST_ID || '',
+      CUST_NM: params.CUST_NM || params.CARD_OWNER_NM || '',
+      CARD_NO: params.CARD_NO,
+      CARD_EXPYEAR: params.CARD_EXPYEAR || (params.CARD_VALID_YM ? params.CARD_VALID_YM.substring(0, 2) : ''),
+      CARD_EXPMON: params.CARD_EXPMON || (params.CARD_VALID_YM ? params.CARD_VALID_YM.substring(2, 4) : ''),
+      KOR_ID: params.KOR_ID || ''
+    });
 
-  // 현재는 시뮬레이션 (API 연동 전까지)
-  return new Promise((resolve) => {
-    setTimeout(() => {
-      // 시뮬레이션: 카드번호가 16자리면 성공
-      if (params.CARD_NO && params.CARD_NO.length === 16) {
-        resolve({
-          success: true,
-          data: { verified: true },
-          message: '카드 인증이 완료되었습니다.'
-        });
+    if (response.success && response.data) {
+      const data = response.data;
+      if (data.success === 'true' || data.RESP_CD === '0000') {
+        return { success: true, data: { verified: true, RESP_CD: data.RESP_CD }, message: '카드 인증이 완료되었습니다.' };
       } else {
-        resolve({
-          success: false,
-          message: '카드번호 16자리를 정확히 입력해주세요.'
-        });
+        return { success: false, data, message: data.RESP_MSG || '카드 인증에 실패했습니다.' };
       }
-    }, 1000);
-  });
+    }
+    return { success: false, message: response.message || '카드 인증에 실패했습니다.' };
+  } catch (error: any) {
+    console.error('[CardVerify] Error:', error);
+    return { success: false, message: error?.message || '카드 인증 중 오류가 발생했습니다.' };
+  }
 };
 
 // ============ 납부방법 변경 - 서명 저장 API (Stub) ============
