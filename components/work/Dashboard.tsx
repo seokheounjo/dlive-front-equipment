@@ -893,7 +893,7 @@ const Dashboard: React.FC<DashboardProps> = ({
       {/* 지도 뷰 */}
       {showMapView && (
         <WorkMapView
-          directions={filteredDirections}
+          workOrders={filteredDirections}
           onBack={() => setShowMapView(false)}
           onSelectWork={(work) => {
             setShowMapView(false);
