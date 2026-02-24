@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Loader2, AlertCircle, CheckCircle, CreditCard, ChevronDown } from 'lucide-react';
+import { X, Loader2, AlertCircle, CheckCircle, CreditCard, ChevronDown, Clock } from 'lucide-react';
 import {
   UnpaymentInfo,
   formatCurrency,
@@ -11,6 +11,47 @@ import {
   CardDpstParams,
   CardDpstDtlItem
 } from '../../services/customerApi';
+
+// 진행중 결제 정보 타입
+export interface PendingPaymentInfo {
+  cardNo: string;
+  expMonth: string;
+  expYear: string;
+  installment: string;
+  korId: string;
+  mid: string;
+  orderNo: string;
+  orderDt: string;
+  selectedTotal: number;
+  timestamp: number;
+}
+
+// 진행중 결제 저장/조회/삭제 (sessionStorage)
+const PENDING_KEY_PREFIX = 'pendingPayment_';
+
+export function savePendingPayment(pymAcntId: string, info: PendingPaymentInfo) {
+  sessionStorage.setItem(PENDING_KEY_PREFIX + pymAcntId, JSON.stringify(info));
+}
+
+export function getPendingPayment(pymAcntId: string): PendingPaymentInfo | null {
+  try {
+    const raw = sessionStorage.getItem(PENDING_KEY_PREFIX + pymAcntId);
+    if (!raw) return null;
+    const info = JSON.parse(raw) as PendingPaymentInfo;
+    // 24시간 지난건 자동 만료
+    if (Date.now() - info.timestamp > 24 * 60 * 60 * 1000) {
+      sessionStorage.removeItem(PENDING_KEY_PREFIX + pymAcntId);
+      return null;
+    }
+    return info;
+  } catch {
+    return null;
+  }
+}
+
+export function clearPendingPayment(pymAcntId: string) {
+  sessionStorage.removeItem(PENDING_KEY_PREFIX + pymAcntId);
+}
 
 // ID 포맷 (3-3-4 형식)
 const formatId = (id: string): string => {
@@ -50,6 +91,21 @@ const formatCardNo = (value: string): string => {
   return groups.join('-');
 };
 
+// 카드번호 마스킹 (1234-56**-****-7890)
+const maskCardNo = (cardNo: string): string => {
+  const digits = cardNo.replace(/\D/g, '');
+  if (digits.length < 10) return formatCardNo(cardNo);
+  const first4 = digits.slice(0, 4);
+  const last4 = digits.slice(-4);
+  const middleLen = digits.length - 8;
+  const masked = first4 + '*'.repeat(middleLen > 0 ? middleLen : 4) + last4;
+  const groups = [];
+  for (let i = 0; i < masked.length; i += 4) {
+    groups.push(masked.slice(i, i + 4));
+  }
+  return groups.join('-');
+};
+
 interface UnpaymentCollectionModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -60,6 +116,7 @@ interface UnpaymentCollectionModalProps {
   unpaymentList: UnpaymentInfo[];
   showToast?: (message: string, type: 'success' | 'error' | 'warning' | 'info') => void;
   onSuccess?: () => void;
+  pendingPayment?: PendingPaymentInfo | null;
 }
 
 /**
@@ -79,8 +136,12 @@ const UnpaymentCollectionModal: React.FC<UnpaymentCollectionModalProps> = ({
   soId,
   unpaymentList,
   showToast,
-  onSuccess
+  onSuccess,
+  pendingPayment
 }) => {
+  // 진행중 결제 여부
+  const isPending = !!pendingPayment;
+
   // 선택된 미납 항목
   const [selectedItems, setSelectedItems] = useState<Set<number>>(new Set());
 
@@ -102,19 +163,33 @@ const UnpaymentCollectionModal: React.FC<UnpaymentCollectionModalProps> = ({
     orderDt?: string;
   } | null>(null);
 
-  // 모달 열릴 때 초기화
+  // 모달 열릴 때 초기화 (진행중이면 기존 카드정보 세팅)
   useEffect(() => {
     if (isOpen) {
       setSelectedItems(new Set(unpaymentList.map((_, idx) => idx)));
       setIsCompleted(false);
-      setCardNo('');
-      setExpMonth('');
-      setExpYear('');
-      setInstallment('00');
-      setKorId('');
-      setPaymentResult(null);
+      if (pendingPayment) {
+        // 진행중: 기존 카드정보 복원 (마스킹된 상태로 표시)
+        setCardNo(pendingPayment.cardNo);
+        setExpMonth(pendingPayment.expMonth);
+        setExpYear(pendingPayment.expYear);
+        setInstallment(pendingPayment.installment);
+        setKorId(pendingPayment.korId);
+        setPaymentResult({
+          mid: pendingPayment.mid,
+          orderNo: pendingPayment.orderNo,
+          orderDt: pendingPayment.orderDt,
+        });
+      } else {
+        setCardNo('');
+        setExpMonth('');
+        setExpYear('');
+        setInstallment('00');
+        setKorId('');
+        setPaymentResult(null);
+      }
     }
-  }, [isOpen, unpaymentList]);
+  }, [isOpen, unpaymentList, pendingPayment]);
 
   // 백그라운드 스크롤 제어
   useEffect(() => {
@@ -251,6 +326,16 @@ const UnpaymentCollectionModal: React.FC<UnpaymentCollectionModalProps> = ({
       const dpstRes = await insertDpstAndDTL(dpstParams);
       console.log('[Payment] insertDpstAndDTL result:', dpstRes.success);
 
+      // 입금 등록 성공 후 진행중 상태 저장
+      if (pymAcntId) {
+        savePendingPayment(pymAcntId, {
+          cardNo, expMonth, expYear, installment, korId,
+          mid, orderNo, orderDt,
+          selectedTotal,
+          timestamp: Date.now()
+        });
+      }
+
       // Step 3: PG 결제 요청
       // Stage 03~06은 백엔드 어댑터가 직접 관리 (JSP stage 03 중복 방지)
       console.log('[Payment] Step 3: processCardPayment');
@@ -273,6 +358,8 @@ const UnpaymentCollectionModal: React.FC<UnpaymentCollectionModalProps> = ({
       });
 
       if (payRes.success) {
+        // 결제 성공 → 진행중 상태 해제
+        if (pymAcntId) clearPendingPayment(pymAcntId);
         setIsCompleted(true);
         setPaymentResult({ mid, orderNo: fullOrderNo, orderDt });
         onSuccess?.();
@@ -294,10 +381,16 @@ const UnpaymentCollectionModal: React.FC<UnpaymentCollectionModalProps> = ({
         onClick={(e) => e.stopPropagation()}
       >
         {/* 헤더 */}
-        <div className="flex items-center justify-between p-4 border-b border-gray-200 bg-gradient-to-r from-red-500 to-red-600 rounded-t-xl">
+        <div className={`flex items-center justify-between p-4 border-b border-gray-200 rounded-t-xl ${
+          isPending
+            ? 'bg-gradient-to-r from-amber-500 to-amber-600'
+            : 'bg-gradient-to-r from-red-500 to-red-600'
+        }`}>
           <div className="flex items-center gap-2 text-white">
-            <CreditCard className="w-5 h-5" />
-            <h3 className="font-semibold">미납금 수납</h3>
+            {isPending ? <Clock className="w-5 h-5" /> : <CreditCard className="w-5 h-5" />}
+            <h3 className="font-semibold">
+              {isPending ? '미납금 수납 (진행중)' : '미납금 수납'}
+            </h3>
           </div>
           <button
             onClick={onClose}
@@ -423,11 +516,25 @@ const UnpaymentCollectionModal: React.FC<UnpaymentCollectionModalProps> = ({
               </div>
 
               {/* 카드 정보 입력 */}
-              <div className="mb-3 p-3 bg-white rounded-lg border border-gray-200">
+              <div className={`mb-3 p-3 rounded-lg border ${isPending ? 'bg-amber-50 border-amber-200' : 'bg-white border-gray-200'}`}>
                 <div className="flex items-center gap-1.5 mb-3">
                   <CreditCard className="w-4 h-4 text-gray-500" />
                   <span className="text-sm font-medium text-gray-700">카드 정보</span>
+                  {isPending && (
+                    <span className="ml-auto px-2 py-0.5 text-xs bg-amber-500 text-white rounded-full flex items-center gap-1">
+                      <Clock className="w-3 h-3" />
+                      결제 진행중
+                    </span>
+                  )}
                 </div>
+
+                {/* 진행중 안내 */}
+                {isPending && (
+                  <div className="mb-3 p-2 bg-amber-100 rounded-lg text-xs text-amber-800 flex items-start gap-2">
+                    <AlertCircle className="w-4 h-4 mt-0.5 flex-shrink-0" />
+                    <span>결제가 진행중입니다. 카드정보 수정 및 재결제가 불가능합니다.<br />취소 후 다시 시도해주세요.</span>
+                  </div>
+                )}
 
                 {/* 카드번호 */}
                 <div className="mb-2.5">
@@ -435,11 +542,16 @@ const UnpaymentCollectionModal: React.FC<UnpaymentCollectionModalProps> = ({
                   <input
                     type="text"
                     inputMode="numeric"
-                    value={formatCardNo(cardNo)}
+                    value={isPending ? maskCardNo(cardNo) : formatCardNo(cardNo)}
                     onChange={handleCardNoChange}
                     placeholder="0000-0000-0000-0000"
-                    disabled={isProcessing}
-                    className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none disabled:bg-gray-100 font-mono tracking-wider"
+                    disabled={isProcessing || isPending}
+                    readOnly={isPending}
+                    className={`w-full px-3 py-2 text-sm border rounded-lg outline-none font-mono tracking-wider ${
+                      isPending
+                        ? 'border-amber-300 bg-amber-50 text-gray-700 cursor-not-allowed'
+                        : 'border-gray-300 focus:ring-2 focus:ring-red-500 focus:border-red-500 disabled:bg-gray-100'
+                    }`}
                     maxLength={19}
                   />
                 </div>
@@ -454,8 +566,12 @@ const UnpaymentCollectionModal: React.FC<UnpaymentCollectionModalProps> = ({
                         <select
                           value={expMonth}
                           onChange={(e) => setExpMonth(e.target.value)}
-                          disabled={isProcessing}
-                          className="w-full px-2 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none appearance-none bg-white disabled:bg-gray-100 pr-7"
+                          disabled={isProcessing || isPending}
+                          className={`w-full px-2 py-2 text-sm border rounded-lg outline-none appearance-none pr-7 ${
+                            isPending
+                              ? 'border-amber-300 bg-amber-50 text-gray-700 cursor-not-allowed'
+                              : 'border-gray-300 focus:ring-2 focus:ring-red-500 focus:border-red-500 bg-white disabled:bg-gray-100'
+                          }`}
                         >
                           <option value="">월</option>
                           {Array.from({ length: 12 }, (_, i) => {
@@ -470,8 +586,12 @@ const UnpaymentCollectionModal: React.FC<UnpaymentCollectionModalProps> = ({
                         <select
                           value={expYear}
                           onChange={(e) => setExpYear(e.target.value)}
-                          disabled={isProcessing}
-                          className="w-full px-2 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none appearance-none bg-white disabled:bg-gray-100 pr-7"
+                          disabled={isProcessing || isPending}
+                          className={`w-full px-2 py-2 text-sm border rounded-lg outline-none appearance-none pr-7 ${
+                            isPending
+                              ? 'border-amber-300 bg-amber-50 text-gray-700 cursor-not-allowed'
+                              : 'border-gray-300 focus:ring-2 focus:ring-red-500 focus:border-red-500 bg-white disabled:bg-gray-100'
+                          }`}
                         >
                           <option value="">년</option>
                           {yearOptions.map(y => (
@@ -490,8 +610,12 @@ const UnpaymentCollectionModal: React.FC<UnpaymentCollectionModalProps> = ({
                       <select
                         value={installment}
                         onChange={(e) => setInstallment(e.target.value)}
-                        disabled={isProcessing}
-                        className="w-full px-2 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none appearance-none bg-white disabled:bg-gray-100 pr-7"
+                        disabled={isProcessing || isPending}
+                        className={`w-full px-2 py-2 text-sm border rounded-lg outline-none appearance-none pr-7 ${
+                          isPending
+                            ? 'border-amber-300 bg-amber-50 text-gray-700 cursor-not-allowed'
+                            : 'border-gray-300 focus:ring-2 focus:ring-red-500 focus:border-red-500 bg-white disabled:bg-gray-100'
+                        }`}
                       >
                         <option value="00">일시불</option>
                         {[2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map(m => (
@@ -511,11 +635,16 @@ const UnpaymentCollectionModal: React.FC<UnpaymentCollectionModalProps> = ({
                   <input
                     type="text"
                     inputMode="numeric"
-                    value={korId}
+                    value={isPending ? korId.replace(/./g, '*') : korId}
                     onChange={handleKorIdChange}
                     placeholder="예) 900101"
-                    disabled={isProcessing}
-                    className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none disabled:bg-gray-100"
+                    disabled={isProcessing || isPending}
+                    readOnly={isPending}
+                    className={`w-full px-3 py-2 text-sm border rounded-lg outline-none ${
+                      isPending
+                        ? 'border-amber-300 bg-amber-50 text-gray-700 cursor-not-allowed'
+                        : 'border-gray-300 focus:ring-2 focus:ring-red-500 focus:border-red-500 disabled:bg-gray-100'
+                    }`}
                     maxLength={10}
                   />
                 </div>
@@ -524,31 +653,45 @@ const UnpaymentCollectionModal: React.FC<UnpaymentCollectionModalProps> = ({
               {/* 버튼 */}
               <div className="flex gap-2">
                 <button
-                  onClick={onClose}
+                  onClick={() => {
+                    if (isPending && pymAcntId) {
+                      clearPendingPayment(pymAcntId);
+                    }
+                    onClose();
+                  }}
                   disabled={isProcessing}
-                  className="flex-1 py-3 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 transition-colors"
+                  className={`py-3 text-sm font-medium rounded-lg transition-colors ${
+                    isPending
+                      ? 'flex-1 text-white bg-amber-500 hover:bg-amber-600'
+                      : 'flex-1 text-gray-700 bg-white border border-gray-300 hover:bg-gray-50 disabled:opacity-50'
+                  }`}
                 >
-                  취소
+                  {isPending ? '취소 (진행중 해제)' : '취소'}
                 </button>
-                <button
-                  onClick={handlePayment}
-                  disabled={isProcessing || selectedItems.size === 0}
-                  className="flex-1 py-3 text-sm font-medium text-white bg-red-500 rounded-lg hover:bg-red-600 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2"
-                >
-                  {isProcessing ? (
-                    <>
-                      <Loader2 className="w-4 h-4 animate-spin" />
-                      결제 처리 중...
-                    </>
-                  ) : (
-                    <>결제하기 {selectedTotal > 0 ? formatCurrency(selectedTotal) + '원' : ''}</>
-                  )}
-                </button>
+                {!isPending && (
+                  <button
+                    onClick={handlePayment}
+                    disabled={isProcessing || selectedItems.size === 0}
+                    className="flex-1 py-3 text-sm font-medium text-white bg-red-500 rounded-lg hover:bg-red-600 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2"
+                  >
+                    {isProcessing ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        결제 처리 중...
+                      </>
+                    ) : (
+                      <>결제하기 {selectedTotal > 0 ? formatCurrency(selectedTotal) + '원' : ''}</>
+                    )}
+                  </button>
+                )}
               </div>
 
               {/* 안내 메시지 */}
               <p className="mt-3 text-xs text-gray-400 text-center">
-                * 수납 처리 후에는 취소가 불가능합니다.
+                {isPending
+                  ? '* 진행중인 결제가 있습니다. 취소 후 재시도해주세요.'
+                  : '* 수납 처리 후에는 취소가 불가능합니다.'
+                }
               </p>
             </div>
           </>

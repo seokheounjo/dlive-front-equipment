@@ -15,6 +15,7 @@ import {
   maskString
 } from '../../services/customerApi';
 import UnpaymentCollectionModal from './UnpaymentCollectionModal';
+import { getPendingPayment, PendingPaymentInfo } from './UnpaymentCollectionModal';
 import PaymentChangeModal from './PaymentChangeModal';
 
 // 납부계정ID 포맷 (3-3-4)
@@ -93,6 +94,9 @@ const PaymentInfo: React.FC<PaymentInfoProps> = ({
   // 납부방법 변경 모달
   const [showPaymentChangeModal, setShowPaymentChangeModal] = useState(false);
 
+  // 진행중 결제 정보
+  const [pendingPaymentInfo, setPendingPaymentInfo] = useState<PendingPaymentInfo | null>(null);
+
   // 데이터 로드
   useEffect(() => {
     if (expanded && custId) {
@@ -107,10 +111,11 @@ const PaymentInfo: React.FC<PaymentInfoProps> = ({
     }
   }, [selectedPymAcntIdFromContract]);
 
-  // 선택된 납부계정 변경 시 요금내역 로드
+  // 선택된 납부계정 변경 시 요금내역 로드 + 진행중 결제 확인
   useEffect(() => {
     if (selectedPymAcntId && custId) {
       loadBillingDetails(selectedPymAcntId);
+      setPendingPaymentInfo(getPendingPayment(selectedPymAcntId));
     }
   }, [selectedPymAcntId, custId]);
 
@@ -357,12 +362,21 @@ const PaymentInfo: React.FC<PaymentInfoProps> = ({
                   <button
                     onClick={handleUnpaymentClick}
                     disabled={isLoadingUnpayment || !selectedPymAcntId}
-                    className="w-full mt-3 py-2.5 text-sm bg-red-500 text-white rounded-lg hover:bg-red-600 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors font-medium flex items-center justify-center gap-2"
+                    className={`w-full mt-3 py-2.5 text-sm text-white rounded-lg disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors font-medium flex items-center justify-center gap-2 ${
+                      pendingPaymentInfo
+                        ? 'bg-amber-500 hover:bg-amber-600 animate-pulse'
+                        : 'bg-red-500 hover:bg-red-600'
+                    }`}
                   >
                     {isLoadingUnpayment ? (
                       <>
                         <Loader2 className="w-4 h-4 animate-spin" />
                         조회 중...
+                      </>
+                    ) : pendingPaymentInfo ? (
+                      <>
+                        <span className="inline-block w-2 h-2 bg-white rounded-full" />
+                        미납금 수납 진행중 ({formatPymAcntId(selectedPymAcntId || '')})
                       </>
                     ) : (
                       `미납금 수납 (${formatPymAcntId(selectedPymAcntId || '')})`
@@ -471,8 +485,12 @@ const PaymentInfo: React.FC<PaymentInfoProps> = ({
         onClose={() => {
           setShowUnpaymentModal(false);
           loadPaymentAccounts();
-          if (selectedPymAcntId) loadBillingDetails(selectedPymAcntId);
+          if (selectedPymAcntId) {
+            loadBillingDetails(selectedPymAcntId);
+            setPendingPaymentInfo(getPendingPayment(selectedPymAcntId));
+          }
         }}
+        pendingPayment={pendingPaymentInfo}
         custId={custId}
         custNm={custNm}
         pymAcntId={selectedPymAcntId || ''}
