@@ -195,26 +195,23 @@ const ConsultationAS: React.FC<ConsultationASProps> = ({
 
   // 상담 분류 코드 데이터 (D'Live API에서 로드)
   const [cnslLCodes, setCnslLCodes] = useState<DLiveCode[]>([]);
-  const [allCnslMCodes, setAllCnslMCodes] = useState<DLiveCode[]>([]);  // 전체 중분류 (필터용)
-  const [allCnslSCodes, setAllCnslSCodes] = useState<DLiveCode[]>([]);  // 전체 소분류 (필터용)
-  const [cnslMCodes, setCnslMCodes] = useState<DLiveCode[]>([]);        // 필터된 중분류
-  const [cnslSCodes, setCnslSCodes] = useState<DLiveCode[]>([]);        // 필터된 소분류
+  const [allCnslMCodes, setAllCnslMCodes] = useState<DLiveCode[]>([]);  // 전체 중분류 (역추적용)
+  const [allCnslSCodes, setAllCnslSCodes] = useState<DLiveCode[]>([]);  // 전체 소분류 (원본)
+  const [mobileSmallCodes, setMobileSmallCodes] = useState<DLiveCode[]>([]);  // ref_code12='Y' 세분류 (선택용)
 
-  // 상담대분류 변경 시 중분류 필터링
-  const handleCnslLChange = (code: string) => {
-    setConsultationForm(prev => ({ ...prev, cnslLClCd: code, cnslMClCd: '', cnslSClCd: '' }));
-    setCnslSCodes([]);
-    // allCnslMCodes에서 ref_code가 선택된 대분류와 일치하는 것만 필터링
-    const filtered = allCnslMCodes.filter(m => m.ref_code === code);
-    setCnslMCodes(filtered);
-  };
-
-  // 상담중분류 변경 시 소분류 필터링
-  const handleCnslMChange = (code: string) => {
-    setConsultationForm(prev => ({ ...prev, cnslMClCd: code, cnslSClCd: '' }));
-    // allCnslSCodes에서 ref_code가 선택된 중분류와 일치하는 것만 필터링
-    const filtered = allCnslSCodes.filter(s => s.ref_code === code);
-    setCnslSCodes(filtered);
+  // 상담세분류(소분류) 선택 시 중분류/대분류 자동 세팅 (레거시 방식: bottom-up)
+  const handleCnslSChange = (code: string) => {
+    if (!code) {
+      setConsultationForm(prev => ({ ...prev, cnslLClCd: '', cnslMClCd: '', cnslSClCd: '' }));
+      return;
+    }
+    // 소분류 → ref_code로 중분류 찾기
+    const smallItem = mobileSmallCodes.find(s => s.code === code);
+    const midCode = smallItem?.ref_code || '';
+    // 중분류 → ref_code로 대분류 찾기
+    const midItem = allCnslMCodes.find(m => m.code === midCode);
+    const largeCode = midItem?.ref_code || '';
+    setConsultationForm(prev => ({ ...prev, cnslLClCd: largeCode, cnslMClCd: midCode, cnslSClCd: code }));
   };
 
   // 작업예정시 기본값: 현재 시간 +1시간 (09~21 범위, 범위 밖이면 09시)
@@ -376,11 +373,11 @@ const ConsultationAS: React.FC<ConsultationASProps> = ({
         setAllCnslMCodes(filterCodes(mCodesRes.data));
       }
 
-      // 상담 소분류 (CMCS030) - ref_code로 중분류와 연결
-      // 대→중→소 캐스케이딩 패턴에서는 전체 소분류 사용 (ref_code12 필터 미적용)
-      // ref_code12='Y' 항목은 OPA/OBG/OBE/RTC/OBI/OBD 중분류만 커버하여 AS 등에서 빈 목록 발생
+      // 상담 소분류 (CMCS030) - ref_code12='Y' 항목만 모바일에서 선택 가능 (레거시 기준 20개)
       if (sCodesRes.success && sCodesRes.data) {
-        setAllCnslSCodes(filterCodes(sCodesRes.data));
+        const allSmall = filterCodes(sCodesRes.data);
+        setAllCnslSCodes(allSmall);
+        setMobileSmallCodes(allSmall.filter(s => s.ref_code12 === 'Y'));
       }
 
       // AS구분 (CMWT001, ref_code='03'이 AS 관련)
@@ -483,8 +480,8 @@ const ConsultationAS: React.FC<ConsultationASProps> = ({
       return;
     }
 
-    if (!consultationForm.cnslLClCd || !consultationForm.cnslMClCd || !consultationForm.cnslSClCd) {
-      showPopup('warning', '안내', '상담 분류를 모두 선택해주세요.');
+    if (!consultationForm.cnslSClCd) {
+      showPopup('warning', '안내', '상담세분류를 선택해주세요.');
       return;
     }
 
@@ -580,15 +577,12 @@ const ConsultationAS: React.FC<ConsultationASProps> = ({
       const userInfo = JSON.parse(localStorage.getItem('userInfo') || '{}');
 
       const isSubscriber = asSubscriberType === 'subscriber';
-      // non-subscriber: use first active contract for POST_ID/CTRT_ID (CONA needs these for work direction)
-      const fallbackContract = !isSubscriber && contracts.length > 0
-        ? (contracts.find(c => (c.CTRT_STAT_NM || '').includes('사용')) || contracts[0])
-        : null;
+      // 비가입자: CTRT_ID/POST_ID 빈값 전송 (있으면 CONA가 가입자AS로 처리 → "접수")
       const params = {
         CUST_ID: selectedCustomer.custId,
-        CTRT_ID: isSubscriber ? (selectedContract?.ctrtId || '') : (fallbackContract?.CTRT_ID || ''),
-        POST_ID: isSubscriber ? (selectedContract?.postId || '') : (fallbackContract?.POST_ID || ''),
-        INST_ADDR: isSubscriber ? (selectedContract?.instAddr || '') : (fallbackContract?.INST_ADDR || ''),
+        CTRT_ID: isSubscriber ? (selectedContract?.ctrtId || '') : '',
+        POST_ID: isSubscriber ? (selectedContract?.postId || '') : '',
+        INST_ADDR: isSubscriber ? (selectedContract?.instAddr || '') : '',
         AS_CL_CD: asForm.asClCd,
         AS_RESN_L_CD: asForm.asResnLCd,
         AS_RESN_M_CD: asForm.asResnMCd,
@@ -600,7 +594,7 @@ const ConsultationAS: React.FC<ConsultationASProps> = ({
         PG_GUBUN: '0',
         SO_ID: isSubscriber
           ? (selectedContract?.soId || '')
-          : (fallbackContract?.SO_ID || userInfo.authSoList?.[0]?.SO_ID || userInfo.authSoList?.[0]?.soId || userInfo.soId || userInfo.SO_ID || ''),
+          : (userInfo.authSoList?.[0]?.SO_ID || userInfo.authSoList?.[0]?.soId || userInfo.soId || userInfo.SO_ID || ''),
         MST_SO_ID: ''
       };
 
@@ -751,49 +745,41 @@ const ConsultationAS: React.FC<ConsultationASProps> = ({
               )}
             </div>
 
-            {/* 상담 분류 (대/중/소) - D'Live CMCS010/020/030 코드 사용 */}
+            {/* 상담 분류 - 레거시 방식: 세분류만 선택, 대/중분류는 자동 세팅 (READ-ONLY) */}
             <div className="space-y-3">
               <div>
-                <label className="block text-sm text-gray-600 mb-1">상담대분류 *</label>
+                <label className="block text-sm text-gray-600 mb-1">상담세분류 *</label>
                 <select
-                  value={consultationForm.cnslLClCd}
-                  onChange={(e) => handleCnslLChange(e.target.value)}
+                  value={consultationForm.cnslSClCd}
+                  onChange={(e) => handleCnslSChange(e.target.value)}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 >
                   <option value="">선택</option>
-                  {cnslLCodes.map(item => (
+                  {mobileSmallCodes.map(item => (
                     <option key={item.code} value={item.code}>{item.name}</option>
                   ))}
                 </select>
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-sm text-gray-600 mb-1">상담중분류 *</label>
-                  <select
-                    value={consultationForm.cnslMClCd}
-                    onChange={(e) => handleCnslMChange(e.target.value)}
-                    disabled={!consultationForm.cnslLClCd || cnslMCodes.length === 0}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100"
-                  >
-                    <option value="">선택</option>
-                    {cnslMCodes.map(item => (
-                      <option key={item.code} value={item.code}>{item.name}</option>
-                    ))}
-                  </select>
+                  <label className="block text-sm text-gray-600 mb-1">상담대분류</label>
+                  <input
+                    type="text"
+                    readOnly
+                    value={cnslLCodes.find(c => c.code === consultationForm.cnslLClCd)?.name || ''}
+                    placeholder="자동 설정"
+                    className="w-full px-3 py-2 border border-gray-200 rounded-lg bg-gray-100 text-gray-600"
+                  />
                 </div>
                 <div>
-                  <label className="block text-sm text-gray-600 mb-1">상담소분류 *</label>
-                  <select
-                    value={consultationForm.cnslSClCd}
-                    onChange={(e) => setConsultationForm(prev => ({ ...prev, cnslSClCd: e.target.value }))}
-                    disabled={!consultationForm.cnslMClCd || cnslSCodes.length === 0}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100"
-                  >
-                    <option value="">선택</option>
-                    {cnslSCodes.map(item => (
-                      <option key={item.code} value={item.code}>{item.name}</option>
-                    ))}
-                  </select>
+                  <label className="block text-sm text-gray-600 mb-1">상담중분류</label>
+                  <input
+                    type="text"
+                    readOnly
+                    value={allCnslMCodes.find(c => c.code === consultationForm.cnslMClCd)?.name || ''}
+                    placeholder="자동 설정"
+                    className="w-full px-3 py-2 border border-gray-200 rounded-lg bg-gray-100 text-gray-600"
+                  />
                 </div>
               </div>
             </div>
