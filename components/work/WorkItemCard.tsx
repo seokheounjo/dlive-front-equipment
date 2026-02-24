@@ -1,5 +1,8 @@
-import React from 'react';
+import React, { useState } from 'react';
+import { Navigation, Loader2 } from 'lucide-react';
 import { WorkItem, WorkOrderStatus } from '../../types';
+import { useUIStore } from '../../stores/uiStore';
+import { geocodeAndNavigate } from '../../services/navigationService';
 
 interface WorkItemCardProps {
   item: any; // 실제 API 데이터 구조 사용
@@ -37,12 +40,30 @@ const getProductGroupStyle = (prodGrp: string | undefined) => {
 };
 
 const WorkItemCard: React.FC<WorkItemCardProps> = ({ item, onSelect, onComplete, onCancel, index }) => {
+  const [navLoading, setNavLoading] = useState(false);
+  const preferredNavApp = useUIStore((s) => s.preferredNavApp);
+
   // 실제 API 데이터 매핑
   const status = item.WRK_STAT_CD_NM || item.status || '진행중';
   const isPending = status === '할당' || status === '진행중' || status === WorkOrderStatus.Pending;
+  const address = item.ADDR || item.address || '';
 
   // 상품군 (D:DTV, I:ISP, V:VoIP, C:번들)
   const prodGrp = item.PROD_GRP || item.KPI_PROD_GRP_CD;
+
+  const handleNavClick = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!address || navLoading) return;
+    setNavLoading(true);
+    try {
+      const ok = await geocodeAndNavigate(address, preferredNavApp);
+      if (!ok) alert('주소를 찾을 수 없습니다.');
+    } catch {
+      alert('길찾기 실행에 실패했습니다.');
+    } finally {
+      setNavLoading(false);
+    }
+  };
 
   const handleActionClick = (e: React.MouseEvent, action: 'complete' | 'cancel') => {
     e.stopPropagation();
@@ -109,6 +130,21 @@ const WorkItemCard: React.FC<WorkItemCardProps> = ({ item, onSelect, onComplete,
               className="flex-1 py-2 rounded-md bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs font-semibold transition-colors"
             >
               취소
+            </button>
+            <button
+              onClick={handleNavClick}
+              disabled={!address || navLoading}
+              className={`flex-shrink-0 w-10 py-2 rounded-md flex items-center justify-center transition-colors ${
+                address
+                  ? 'bg-green-500 hover:bg-green-600 text-white'
+                  : 'bg-gray-100 text-gray-400 cursor-not-allowed'
+              }`}
+              title="길찾기"
+            >
+              {navLoading
+                ? <Loader2 className="w-4 h-4 animate-spin" />
+                : <Navigation className="w-4 h-4" />
+              }
             </button>
           </div>
         )}

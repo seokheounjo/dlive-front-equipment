@@ -79,4 +79,68 @@ export const openNavigation = (app: NavApp, target: NavigationTarget): void => {
   }
 };
 
+// 카카오 SDK 로드 대기
+function ensureKakaoGeocoder(): Promise<boolean> {
+  return new Promise((resolve) => {
+    if ((window as any).kakao?.maps?.services) { resolve(true); return; }
+    if ((window as any).kakao?.maps) {
+      (window as any).kakao.maps.load(() => resolve(!!(window as any).kakao.maps.services));
+      return;
+    }
+    let t = 0;
+    const iv = setInterval(() => {
+      t++;
+      if ((window as any).kakao?.maps) {
+        clearInterval(iv);
+        if ((window as any).kakao.maps.services) { resolve(true); return; }
+        (window as any).kakao.maps.load(() => resolve(!!(window as any).kakao.maps.services));
+      } else if (t > 25) {
+        clearInterval(iv);
+        const s = document.createElement('script');
+        s.src = 'https://dapi.kakao.com/v2/maps/sdk.js?appkey=60a7bd1a64feb3d63955a9165bb4bc79&libraries=services&autoload=false';
+        s.onload = () => {
+          if ((window as any).kakao?.maps) {
+            (window as any).kakao.maps.load(() => resolve(!!(window as any).kakao.maps.services));
+          } else resolve(false);
+        };
+        s.onerror = () => resolve(false);
+        document.head.appendChild(s);
+      }
+    }, 200);
+  });
+}
+
+// 카카오 Geocoding
+function geocodeAddress(address: string): Promise<{ lat: number; lng: number } | null> {
+  return new Promise((resolve) => {
+    const kakao = (window as any).kakao;
+    if (!kakao?.maps?.services) { resolve(null); return; }
+    const geocoder = new kakao.maps.services.Geocoder();
+    geocoder.addressSearch(address, (result: any, status: any) => {
+      if (status === kakao.maps.services.Status.OK && result[0]) {
+        resolve({ lat: parseFloat(result[0].y), lng: parseFloat(result[0].x) });
+      } else {
+        const cleaned = address.replace(/\(.*?\)/g, '').replace(/\d+[층호]/g, '').replace(/\s{2,}/g, ' ').trim();
+        if (cleaned !== address) {
+          geocoder.addressSearch(cleaned, (r2: any, s2: any) => {
+            if (s2 === kakao.maps.services.Status.OK && r2[0]) {
+              resolve({ lat: parseFloat(r2[0].y), lng: parseFloat(r2[0].x) });
+            } else resolve(null);
+          });
+        } else resolve(null);
+      }
+    });
+  });
+}
+
+// 주소 → geocoding → 네비 앱 실행
+export async function geocodeAndNavigate(address: string, app: NavApp): Promise<boolean> {
+  const ready = await ensureKakaoGeocoder();
+  if (!ready) return false;
+  const coords = await geocodeAddress(address);
+  if (!coords) return false;
+  openNavigation(app, { lat: coords.lat, lng: coords.lng, name: address });
+  return true;
+}
+
 export type { NavApp, NavigationTarget };

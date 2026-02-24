@@ -13,6 +13,7 @@ import dayjs from 'dayjs';
 type View = 'today-work' | 'menu' | 'work-management' | 'work-order-detail' | 'work-process-flow' | 'work-complete-form' | 'work-complete-detail' | 'work-item-list' | 'customer-management' | 'equipment-management' | 'other-management' | 'coming-soon' | 'settings';
 
 type FontScale = 'small' | 'medium' | 'large' | 'xlarge';
+type NavAppPreference = 'kakao' | 'tmap' | 'naver';
 // FilterType은 WorkOrderStatus enum 값과 일치해야 함 (진행중, 완료, 취소)
 type FilterType = '진행중' | '완료' | '취소' | '전체';
 
@@ -56,6 +57,10 @@ interface UIStore {
   // 글자 크기 설정
   fontScale: FontScale;
   setFontScale: (scale: FontScale) => void;
+
+  // 길찾기 앱 설정
+  preferredNavApp: NavAppPreference;
+  setPreferredNavApp: (app: NavAppPreference) => void;
 }
 
 // dayjs로 현재 월 기간 계산
@@ -78,6 +83,7 @@ export const useUIStore = create<UIStore>()(
       selectedWorkItem: null,
       selectedWorkDirection: null,
       fontScale: 'medium' as FontScale,
+      preferredNavApp: 'kakao' as NavAppPreference,
       showMapView: false,
 
       // Actions
@@ -90,6 +96,7 @@ export const useUIStore = create<UIStore>()(
       setSelectedWorkItem: (item: any | null) => set({ selectedWorkItem: item }),
       setSelectedWorkDirection: (direction: any | null) => set({ selectedWorkDirection: direction }),
       setFontScale: (scale: FontScale) => set({ fontScale: scale }),
+      setPreferredNavApp: (app: NavAppPreference) => set({ preferredNavApp: app }),
     }),
     {
       name: 'dlive-ui-storage', // localStorage 키
@@ -97,6 +104,7 @@ export const useUIStore = create<UIStore>()(
         activeTab: state.activeTab,
         currentView: state.currentView,
         fontScale: state.fontScale,
+        preferredNavApp: state.preferredNavApp,
         // 날짜와 filter는 저장하지 않음 (매번 현재 월, '진행중'으로 시작)
         workFilters: {
           workTypeFilter: state.workFilters.workTypeFilter,
@@ -108,6 +116,8 @@ export const useUIStore = create<UIStore>()(
         const persistedWorkTypeFilter = persistedState?.workFilters?.workTypeFilter;
         const validFontScales = ['small', 'medium', 'large', 'xlarge'];
         const persistedFontScale = persistedState?.fontScale;
+        const validNavApps = ['kakao', 'tmap', 'naver'];
+        const persistedNavApp = persistedState?.preferredNavApp;
         return {
           ...currentState,
           activeTab: persistedState?.activeTab ?? currentState.activeTab,
@@ -115,6 +125,9 @@ export const useUIStore = create<UIStore>()(
           fontScale: (persistedFontScale && validFontScales.includes(persistedFontScale))
             ? persistedFontScale
             : 'medium',
+          preferredNavApp: (persistedNavApp && validNavApps.includes(persistedNavApp))
+            ? persistedNavApp
+            : 'kakao',
           workFilters: {
             ...currentState.workFilters,
             workTypeFilter: (persistedWorkTypeFilter && validFilters.includes(persistedWorkTypeFilter))

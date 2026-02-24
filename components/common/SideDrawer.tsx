@@ -31,13 +31,19 @@ const SideDrawer: React.FC<SideDrawerProps> = ({
   onLogout,
   onNavigate
 }) => {
-  const { fontScale, setFontScale } = useUIStore();
+  const { fontScale, setFontScale, preferredNavApp, setPreferredNavApp } = useUIStore();
 
   const fontScaleOptions = [
     { key: 'small' as const, label: '작게', size: '14px' },
     { key: 'medium' as const, label: '보통', size: '16px' },
     { key: 'large' as const, label: '크게', size: '18px' },
     { key: 'xlarge' as const, label: '매우 크게', size: '20px' },
+  ];
+
+  const navAppOptions = [
+    { key: 'kakao' as const, label: '카카오맵', letter: 'K', color: 'bg-yellow-400 text-yellow-900' },
+    { key: 'tmap' as const, label: 'T맵', letter: 'T', color: 'bg-blue-500 text-white' },
+    { key: 'naver' as const, label: '네이버', letter: 'N', color: 'bg-green-500 text-white' },
   ];
 
   const handleLogout = () => {
@@ -207,6 +213,33 @@ const SideDrawer: React.FC<SideDrawerProps> = ({
                     </span>
                     <span className={`text-[0.625rem] mt-0.5 ${
                       fontScale === opt.key ? 'text-blue-600 font-semibold' : 'text-gray-500'
+                    }`}>
+                      {opt.label}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* 길찾기 앱 설정 */}
+            <div className="mt-4 px-3">
+              <h3 className="text-xs font-semibold text-gray-500 mb-2">길찾기 앱</h3>
+              <div className="grid grid-cols-3 gap-1.5">
+                {navAppOptions.map((opt) => (
+                  <button
+                    key={opt.key}
+                    onClick={() => setPreferredNavApp(opt.key)}
+                    className={`flex flex-col items-center py-2 rounded-lg border-2 transition-all ${
+                      preferredNavApp === opt.key
+                        ? 'border-blue-500 bg-blue-50'
+                        : 'border-gray-200 bg-white'
+                    }`}
+                  >
+                    <span className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold ${opt.color}`}>
+                      {opt.letter}
+                    </span>
+                    <span className={`text-[0.625rem] mt-1 ${
+                      preferredNavApp === opt.key ? 'text-blue-600 font-semibold' : 'text-gray-500'
                     }`}>
                       {opt.label}
                     </span>

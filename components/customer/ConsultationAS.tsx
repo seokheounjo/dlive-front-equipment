@@ -582,6 +582,10 @@ const ConsultationAS: React.FC<ConsultationASProps> = ({
       const activeContract = !isSubscriber
         ? contracts.find(c => c.CTRT_STAT_CD === '82' || c.CTRT_STAT_CD === '80') || contracts[0]
         : null;
+      // ContractInfo has address fields needed by CONA (BLD_CL, BLD_NM, ADDR_DTL)
+      const contractInfo = isSubscriber
+        ? contracts.find(c => c.CTRT_ID === selectedContract?.ctrtId)
+        : activeContract;
       const params = {
         CUST_ID: selectedCustomer.custId,
         CTRT_ID: isSubscriber ? (selectedContract?.ctrtId || '') : '',
@@ -600,7 +604,12 @@ const ConsultationAS: React.FC<ConsultationASProps> = ({
         SO_ID: isSubscriber
           ? (selectedContract?.soId || '')
           : (activeContract?.SO_ID || userInfo.authSoList?.[0]?.SO_ID || userInfo.authSoList?.[0]?.soId || userInfo.soId || userInfo.SO_ID || ''),
-        MST_SO_ID: ''
+        MST_SO_ID: '',
+        BLD_CL: contractInfo?.BLD_CL || '',
+        BLD_NM: contractInfo?.BLD_NM || '',
+        ADDR_DTL: contractInfo?.ADDR_DTL || '',
+        ADDR: contractInfo?.INST_ADDR || contractInfo?.ADDR_FULL || '',
+        ADDR_ORD: '1',
       };
 
       const response = await registerASRequest(params);

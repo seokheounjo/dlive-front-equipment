@@ -1778,6 +1778,12 @@ export const registerASRequest = async (params: ASRequestParams): Promise<ApiRes
     REG_UID: wrkrId,
     SO_ID: isUIParams ? (uiParams.SO_ID || soId) : soId,
     MST_SO_ID: isUIParams ? (uiParams.MST_SO_ID || mstSoId) : mstSoId,
+    // Address fields for DS_SMS and rec_addr (legacy mowoa03p06.xml)
+    BLD_CL: isUIParams ? (uiParams.BLD_CL || '') : ((params as any).BLD_CL || ''),
+    BLD_NM: isUIParams ? (uiParams.BLD_NM || '') : ((params as any).BLD_NM || ''),
+    ADDR_DTL: isUIParams ? (uiParams.ADDR_DTL || '') : ((params as any).ADDR_DTL || ''),
+    ADDR: isUIParams ? (uiParams.ADDR || '') : ((params as any).ADDR || ''),
+    ADDR_ORD: isUIParams ? (uiParams.ADDR_ORD || '1') : ((params as any).ADDR_ORD || '1'),
   };
 
   if (isUIParams && uiParams.AS_CL_DTL_CD) {
