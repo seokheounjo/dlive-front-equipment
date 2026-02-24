@@ -577,11 +577,17 @@ const ConsultationAS: React.FC<ConsultationASProps> = ({
       const userInfo = JSON.parse(localStorage.getItem('userInfo') || '{}');
 
       const isSubscriber = asSubscriberType === 'subscriber';
-      // 비가입자: CTRT_ID/POST_ID 빈값 전송 (있으면 CONA가 가입자AS로 처리 → "접수")
+      // 비가입자: CTRT_ID 빈값 (CONA가 가입자AS로 처리 방지)
+      // 하지만 POST_ID는 첫번째 활성 계약에서 가져옴 (CONA가 지역/작업자 배정에 필요)
+      const activeContract = !isSubscriber
+        ? contracts.find(c => c.CTRT_STAT_CD === '82' || c.CTRT_STAT_CD === '80') || contracts[0]
+        : null;
       const params = {
         CUST_ID: selectedCustomer.custId,
         CTRT_ID: isSubscriber ? (selectedContract?.ctrtId || '') : '',
-        POST_ID: isSubscriber ? (selectedContract?.postId || '') : '',
+        POST_ID: isSubscriber
+          ? (selectedContract?.postId || '')
+          : (activeContract?.POST_ID || ''),
         INST_ADDR: isSubscriber ? (selectedContract?.instAddr || '') : '',
         AS_CL_CD: asForm.asClCd,
         AS_RESN_L_CD: asForm.asResnLCd,
@@ -590,11 +596,10 @@ const ConsultationAS: React.FC<ConsultationASProps> = ({
         SCHD_DT: asForm.schdDt.replace(/-/g, ''),
         SCHD_TM: asForm.schdHour + asForm.schdMin,
         WRKR_ID: userInfo.userId || '',
-        // PG_GUBUN: 항상 0 (1이면 CONA에서 "접수"로만 처리됨, 0이어야 "처리중")
         PG_GUBUN: '0',
         SO_ID: isSubscriber
           ? (selectedContract?.soId || '')
-          : (userInfo.authSoList?.[0]?.SO_ID || userInfo.authSoList?.[0]?.soId || userInfo.soId || userInfo.SO_ID || ''),
+          : (activeContract?.SO_ID || userInfo.authSoList?.[0]?.SO_ID || userInfo.authSoList?.[0]?.soId || userInfo.soId || userInfo.SO_ID || ''),
         MST_SO_ID: ''
       };
 
