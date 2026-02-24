@@ -476,7 +476,7 @@ const WorkMapView: React.FC<WorkMapViewProps> = ({ workOrders, onBack, onSelectW
     openNavigation(app, {
       lat: selectedCoords.lat,
       lng: selectedCoords.lng,
-      name: selectedWork.customer?.name || '목적지'
+      name: selectedWork.customer?.address || '목적지'
     });
     setShowNavModal(false);
   }, [selectedCoords, selectedWork]);
