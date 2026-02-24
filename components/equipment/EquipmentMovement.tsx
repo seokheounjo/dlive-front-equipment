@@ -1723,7 +1723,6 @@ const EquipmentMovement: React.FC<EquipmentMovementProps> = ({ onBack, showToast
           setModalEquipmentList([]);
           setSearchedWorkers([]);
           setWorkerSearchKeyword('');
-          setModalSelectedSoId('');
         }}
         title={modalSelectedWorker ? `${modalSelectedWorker.USR_NM} 보유장비` : '기사 검색'}
         size="large"
