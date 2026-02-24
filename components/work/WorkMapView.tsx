@@ -69,9 +69,10 @@ function geocodeAddress(address: string): Promise<{ lat: number; lng: number } |
   });
 }
 
-// 카카오맵 SDK 로드 확인/대기
+// 카카오맵 SDK 로드 확인/대기 (index.html 실패 시 동적 로드)
 function ensureKakaoLoaded(): Promise<boolean> {
   return new Promise((resolve) => {
+    // 이미 로드 완료
     if (window.kakao?.maps?.services) {
       resolve(true);
       return;
@@ -80,7 +81,8 @@ function ensureKakaoLoaded(): Promise<boolean> {
       window.kakao.maps.load(() => resolve(true));
       return;
     }
-    // index.html에서 로드 중일 수 있으므로 대기
+
+    // index.html에서 로드 중일 수 있으므로 잠시 대기
     let attempts = 0;
     const check = setInterval(() => {
       attempts++;
@@ -91,9 +93,21 @@ function ensureKakaoLoaded(): Promise<boolean> {
         } else {
           window.kakao.maps.load(() => resolve(true));
         }
-      } else if (attempts > 50) {
+      } else if (attempts > 15) {
+        // 3초 대기 후에도 없으면 직접 스크립트 로드
         clearInterval(check);
-        resolve(false);
+        const appKey = (import.meta as any).env?.VITE_KAKAO_MAP_KEY || 'f79259a03fe071c0d37e07113b527b22';
+        const script = document.createElement('script');
+        script.src = `https://dapi.kakao.com/v2/maps/sdk.js?appkey=${appKey}&libraries=services&autoload=false`;
+        script.onload = () => {
+          if (window.kakao?.maps) {
+            window.kakao.maps.load(() => resolve(true));
+          } else {
+            resolve(false);
+          }
+        };
+        script.onerror = () => resolve(false);
+        document.head.appendChild(script);
       }
     }, 200);
   });
