@@ -48,8 +48,37 @@ function createMarkerDataUrl(color: string, index: number): string {
   return 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg);
 }
 
-// Geocoding (카카오 Geocoder 활용 - index.html에 SDK 로드됨)
-function geocodeAddress(address: string): Promise<{ lat: number; lng: number } | null> {
+// V-World Geocoding API (기본)
+async function geocodeVWorld(address: string): Promise<{ lat: number; lng: number } | null> {
+  try {
+    // 도로명 주소 먼저 시도
+    const url = `https://api.vworld.kr/req/address?service=address&request=getcoord&version=2.0&crs=EPSG:4326&address=${encodeURIComponent(address)}&refine=true&simple=false&format=json&type=road&key=${VWORLD_API_KEY}`;
+    const res = await fetch(url);
+    const data = await res.json();
+    if (data.response?.status === 'OK' && data.response?.result?.point) {
+      return {
+        lat: parseFloat(data.response.result.point.y),
+        lng: parseFloat(data.response.result.point.x)
+      };
+    }
+    // 지번 주소로 재시도
+    const url2 = `https://api.vworld.kr/req/address?service=address&request=getcoord&version=2.0&crs=EPSG:4326&address=${encodeURIComponent(address)}&refine=true&simple=false&format=json&type=parcel&key=${VWORLD_API_KEY}`;
+    const res2 = await fetch(url2);
+    const data2 = await res2.json();
+    if (data2.response?.status === 'OK' && data2.response?.result?.point) {
+      return {
+        lat: parseFloat(data2.response.result.point.y),
+        lng: parseFloat(data2.response.result.point.x)
+      };
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+// 카카오 Geocoding (폴백)
+function geocodeKakao(address: string): Promise<{ lat: number; lng: number } | null> {
   return new Promise((resolve) => {
     if (!window.kakao?.maps?.services) {
       resolve(null);
@@ -69,48 +98,13 @@ function geocodeAddress(address: string): Promise<{ lat: number; lng: number } |
   });
 }
 
-// 카카오맵 SDK 로드 확인/대기 (index.html 실패 시 동적 로드)
-function ensureKakaoLoaded(): Promise<boolean> {
-  return new Promise((resolve) => {
-    // 이미 로드 완료
-    if (window.kakao?.maps?.services) {
-      resolve(true);
-      return;
-    }
-    if (window.kakao?.maps) {
-      window.kakao.maps.load(() => resolve(true));
-      return;
-    }
-
-    // index.html에서 로드 중일 수 있으므로 잠시 대기
-    let attempts = 0;
-    const check = setInterval(() => {
-      attempts++;
-      if (window.kakao?.maps) {
-        clearInterval(check);
-        if (window.kakao.maps.services) {
-          resolve(true);
-        } else {
-          window.kakao.maps.load(() => resolve(true));
-        }
-      } else if (attempts > 15) {
-        // 3초 대기 후에도 없으면 직접 스크립트 로드
-        clearInterval(check);
-        const appKey = (import.meta as any).env?.VITE_KAKAO_MAP_KEY || 'f79259a03fe071c0d37e07113b527b22';
-        const script = document.createElement('script');
-        script.src = `https://dapi.kakao.com/v2/maps/sdk.js?appkey=${appKey}&libraries=services&autoload=false`;
-        script.onload = () => {
-          if (window.kakao?.maps) {
-            window.kakao.maps.load(() => resolve(true));
-          } else {
-            resolve(false);
-          }
-        };
-        script.onerror = () => resolve(false);
-        document.head.appendChild(script);
-      }
-    }, 200);
-  });
+// 통합 Geocoding: V-World 우선, 카카오 폴백
+async function geocodeAddress(address: string): Promise<{ lat: number; lng: number } | null> {
+  // 1차: V-World
+  const vResult = await geocodeVWorld(address);
+  if (vResult) return vResult;
+  // 2차: 카카오 폴백
+  return geocodeKakao(address);
 }
 
 interface MarkerInfo {
@@ -204,14 +198,11 @@ const WorkMapView: React.FC<WorkMapViewProps> = ({ workOrders, onBack, onSelectW
       map.getTargetElement().style.cursor = hit ? 'pointer' : '';
     });
 
-    // Geocoding 후 마커 추가
+    // Geocoding 후 마커 추가 (V-World 기본, 카카오 폴백)
     (async () => {
-      const kakaoReady = await ensureKakaoLoaded();
-      if (!kakaoReady) {
-        // Geocoder 없어도 지도는 보여줌 (마커만 표시 못 함)
-        console.warn('카카오 Geocoder 로드 실패 - 마커 없이 지도만 표시');
-        setIsLoading(false);
-        return;
+      // 카카오 SDK가 있으면 폴백용으로 초기화 (없어도 진행)
+      if (window.kakao?.maps && !window.kakao.maps.services) {
+        try { window.kakao.maps.load(() => {}); } catch {}
       }
 
       const markerInfos: MarkerInfo[] = [];
