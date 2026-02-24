@@ -275,7 +275,6 @@ const UnpaymentCollectionModal: React.FC<UnpaymentCollectionModalProps> = ({
       if (payRes.success) {
         setIsCompleted(true);
         setPaymentResult({ mid, orderNo: fullOrderNo, orderDt });
-        showToast?.(`${formatCurrency(selectedTotal)}원 카드수납이 완료되었습니다.`, 'success');
         onSuccess?.();
       } else {
         showToast?.(payRes.message || '결제 처리에 실패했습니다.', 'error');
@@ -333,10 +332,9 @@ const UnpaymentCollectionModal: React.FC<UnpaymentCollectionModalProps> = ({
         {isCompleted ? (
           <div className="flex-1 flex flex-col items-center justify-center p-8">
             <CheckCircle className="w-16 h-16 text-green-500 mb-4" />
-            <h4 className="text-lg font-semibold text-gray-900 mb-2">수납 완료</h4>
-            <p className="text-gray-500 text-center mb-6">
-              {formatCurrency(selectedTotal)}원이<br />
-              정상적으로 수납되었습니다.
+            <p className="text-gray-700 text-center mb-6 text-sm leading-relaxed">
+              {formatCurrency(selectedTotal)}원<br />
+              수납 요청이 정상적으로 처리되었습니다.
             </p>
             <button
               onClick={onClose}
