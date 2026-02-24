@@ -208,7 +208,8 @@ const WorkMapView: React.FC<WorkMapViewProps> = ({ workOrders, onBack, onSelectW
     (async () => {
       const kakaoReady = await ensureKakaoLoaded();
       if (!kakaoReady) {
-        setLoadError('카카오 Geocoder를 불러올 수 없습니다.');
+        // Geocoder 없어도 지도는 보여줌 (마커만 표시 못 함)
+        console.warn('카카오 Geocoder 로드 실패 - 마커 없이 지도만 표시');
         setIsLoading(false);
         return;
       }
