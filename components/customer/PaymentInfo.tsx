@@ -468,7 +468,11 @@ const PaymentInfo: React.FC<PaymentInfoProps> = ({
       {/* 미납금 수납 모달 */}
       <UnpaymentCollectionModal
         isOpen={showUnpaymentModal}
-        onClose={() => setShowUnpaymentModal(false)}
+        onClose={() => {
+          setShowUnpaymentModal(false);
+          loadPaymentAccounts();
+          if (selectedPymAcntId) loadBillingDetails(selectedPymAcntId);
+        }}
         custId={custId}
         custNm={custNm}
         pymAcntId={selectedPymAcntId || ''}
@@ -506,7 +510,11 @@ const PaymentInfo: React.FC<PaymentInfoProps> = ({
       {/* 납부방법 변경 모달 */}
       <PaymentChangeModal
         isOpen={showPaymentChangeModal}
-        onClose={() => setShowPaymentChangeModal(false)}
+        onClose={() => {
+          setShowPaymentChangeModal(false);
+          loadPaymentAccounts();
+          if (selectedPymAcntId) loadBillingDetails(selectedPymAcntId);
+        }}
         custId={custId}
         custNm={custNm}
         soId={(() => {

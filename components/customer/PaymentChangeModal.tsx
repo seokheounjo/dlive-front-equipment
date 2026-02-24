@@ -86,6 +86,7 @@ const PaymentChangeModal: React.FC<PaymentChangeModalProps> = ({
   const [paymentForm, setPaymentForm] = useState<PaymentFormData>({ ...defaultPaymentForm });
   const [isVerified, setIsVerified] = useState(false);
   const [isVerifying, setIsVerifying] = useState(false);
+  const [verifyProgress, setVerifyProgress] = useState<string>(''); // 로딩 팝업 메시지
   const [isSaving, setIsSaving] = useState(false);
 
   // 서명
@@ -245,7 +246,7 @@ const PaymentChangeModal: React.FC<PaymentChangeModalProps> = ({
     });
   };
 
-  // 계좌/카드 인증
+  // 계좌/카드 인증 (로딩 팝업 + 재시도 로직)
   const handleVerify = async () => {
     if (!paymentForm.acntHolderNm) {
       showAlert('예금주/카드소유주 명을 입력해주세요.', 'warning');
@@ -259,27 +260,23 @@ const PaymentChangeModal: React.FC<PaymentChangeModalProps> = ({
       showAlert('계좌번호/카드번호를 입력해주세요.', 'warning');
       return;
     }
+    if (paymentForm.pymMthCd === '02' && (!paymentForm.cardExpMm || !paymentForm.cardExpYy)) {
+      showAlert('카드 유효기간을 입력해주세요.', 'warning');
+      return;
+    }
 
     setIsVerifying(true);
-    try {
+    setVerifyProgress('인증 요청 중...');
+
+    const doVerify = async (): Promise<{ success: boolean; message: string }> => {
       if (paymentForm.pymMthCd === '01') {
         const response = await verifyBankAccount({
           BANK_CD: paymentForm.bankCd,
           ACNT_NO: paymentForm.acntNo,
           ACNT_OWNER_NM: paymentForm.acntHolderNm
         });
-        if (response.success) {
-          setIsVerified(true);
-          showAlert('계좌 인증이 완료되었습니다.', 'success');
-        } else {
-          showAlert(response.message || '계좌 인증에 실패했습니다.', 'error');
-        }
+        return { success: response.success, message: response.message || '' };
       } else {
-        if (!paymentForm.cardExpMm || !paymentForm.cardExpYy) {
-          showAlert('카드 유효기간을 입력해주세요.', 'warning');
-          setIsVerifying(false);
-          return;
-        }
         const response = await verifyCard({
           CARD_NO: paymentForm.acntNo,
           CARD_EXPYEAR: paymentForm.cardExpYy,
@@ -291,18 +288,41 @@ const PaymentChangeModal: React.FC<PaymentChangeModalProps> = ({
           CUST_ID: custId,
           CUST_NM: custNm || ''
         });
-        if (response.success) {
+        return { success: response.success, message: response.message || '' };
+      }
+    };
+
+    try {
+      // 1차 시도
+      setVerifyProgress('인증 처리 중...');
+      const result1 = await doVerify();
+
+      if (result1.success) {
+        setIsVerified(true);
+        setVerifyProgress('');
+        showAlert(paymentForm.pymMthCd === '01' ? '계좌 인증이 완료되었습니다.' : '카드 인증이 완료되었습니다.', 'success');
+      } else {
+        // 1차 실패 → 5초 대기 후 재시도
+        setVerifyProgress('재시도 중... 잠시만 기다려주세요.');
+        await new Promise(r => setTimeout(r, 5000));
+
+        const result2 = await doVerify();
+        if (result2.success) {
           setIsVerified(true);
-          showAlert('카드 인증이 완료되었습니다.', 'success');
+          setVerifyProgress('');
+          showAlert(paymentForm.pymMthCd === '01' ? '계좌 인증이 완료되었습니다.' : '카드 인증이 완료되었습니다.', 'success');
         } else {
-          showAlert(response.message || '카드 인증에 실패했습니다.', 'error');
+          setVerifyProgress('');
+          showAlert('인증에 실패했습니다.\n잠시 후 다시 시도해주세요.\n\n' + (result2.message || ''), 'error');
         }
       }
     } catch (error) {
       console.error('Verify error:', error);
-      showAlert('인증 중 오류가 발생했습니다.', 'error');
+      setVerifyProgress('');
+      showAlert('인증 중 오류가 발생했습니다.\n잠시 후 다시 시도해주세요.', 'error');
     } finally {
       setIsVerifying(false);
+      setVerifyProgress('');
     }
   };
 
@@ -395,6 +415,16 @@ const PaymentChangeModal: React.FC<PaymentChangeModalProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+      {/* 인증 로딩 오버레이 */}
+      {isVerifying && verifyProgress && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40">
+          <div className="bg-white rounded-2xl shadow-2xl w-[85vw] max-w-[280px] p-6 flex flex-col items-center">
+            <Loader2 className="w-10 h-10 text-blue-500 animate-spin mb-4" />
+            <p className="text-sm text-gray-700 text-center font-medium">{verifyProgress}</p>
+          </div>
+        </div>
+      )}
+
       <div
         className="bg-white rounded-xl shadow-xl w-full max-w-md mx-4 max-h-[90vh] flex flex-col"
         onClick={(e) => e.stopPropagation()}
