@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Navigation, Loader2 } from 'lucide-react';
+import { MapPin, Loader2 } from 'lucide-react';
 import { WorkItem, WorkOrderStatus } from '../../types';
 import { useUIStore } from '../../stores/uiStore';
 import { geocodeAndNavigate } from '../../services/navigationService';
@@ -136,14 +136,14 @@ const WorkItemCard: React.FC<WorkItemCardProps> = ({ item, onSelect, onComplete,
               disabled={!address || navLoading}
               className={`flex-shrink-0 w-10 py-2 rounded-md flex items-center justify-center transition-colors ${
                 address
-                  ? 'bg-green-500 hover:bg-green-600 text-white'
+                  ? 'bg-orange-500 hover:bg-orange-600 text-white shadow-sm shadow-orange-200'
                   : 'bg-gray-100 text-gray-400 cursor-not-allowed'
               }`}
               title="길찾기"
             >
               {navLoading
                 ? <Loader2 className="w-4 h-4 animate-spin" />
-                : <Navigation className="w-4 h-4" />
+                : <MapPin className="w-5 h-5" fill="currentColor" />
               }
             </button>
           </div>
