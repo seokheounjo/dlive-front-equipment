@@ -122,12 +122,26 @@ const SignaturePad: React.FC<SignaturePadProps> = ({
     setHasSignature(false);
   }, [backgroundColor]);
 
-  // 서명 저장
+  // 서명 저장 (레거시 검증 로직 적용)
   const saveSignature = useCallback(() => {
     const canvas = canvasRef.current;
     if (!canvas || !hasSignature) return;
 
-    const signatureData = canvas.toDataURL('image/png');
+    let signatureData = canvas.toDataURL('image/png');
+    // 레거시: + → %2B 치환
+    signatureData = signatureData.replace(/\+/g, '%2B');
+
+    // 레거시: 서명 식별 검증
+    if (signatureData.length < 5000) {
+      alert('서명하신 것이 식별이 되지 않습니다.\n다시하기 버튼을 누르시고 다시 서명해주시기 바랍니다.');
+      return;
+    }
+    if (signatureData.length < 10000) {
+      if (!confirm('서명하신 것이 식별이 안 될 수도 있습니다.\n다시하기 버튼을 누르시고 다시 서명하기를 권장드립니다.\n다시 서명하시려면 \'취소\'를 눌러주십시오.')) {
+        return;
+      }
+    }
+
     onSave(signatureData);
   }, [hasSignature, onSave]);
 
