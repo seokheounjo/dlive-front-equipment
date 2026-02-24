@@ -29,9 +29,8 @@ const SignaturePad: React.FC<SignaturePadProps> = ({
     isOpen: boolean;
     type: ConfirmModalType;
     message: string;
-    showCancel: boolean;
     onConfirm: () => void;
-  }>({ isOpen: false, type: 'warning', message: '', showCancel: false, onConfirm: () => {} });
+  }>({ isOpen: false, type: 'warning', message: '', onConfirm: () => {} });
 
   // Canvas 초기화
   useEffect(() => {
@@ -144,9 +143,8 @@ const SignaturePad: React.FC<SignaturePadProps> = ({
       setModalState({
         isOpen: true,
         type: 'error',
-        message: '서명하신 것이 식별이 되지 않습니다.\n다시하기 버튼을 누르시고 다시 서명해주시기 바랍니다.',
-        showCancel: false,
-        onConfirm: () => {}
+        message: '서명하신 것이 식별이 되지 않습니다.\n다시 서명해주시기 바랍니다.',
+        onConfirm: () => clearCanvas()
       });
       return;
     }
@@ -154,15 +152,14 @@ const SignaturePad: React.FC<SignaturePadProps> = ({
       setModalState({
         isOpen: true,
         type: 'warning',
-        message: '서명하신 것이 식별이 안 될 수도 있습니다.\n다시하기 버튼을 누르시고 다시 서명하기를 권장드립니다.\n\n이대로 진행하시겠습니까?',
-        showCancel: true,
-        onConfirm: () => onSave(signatureData)
+        message: '서명하신 것이 식별이 안 될 수도 있습니다.\n다시 서명하기를 권장드립니다.',
+        onConfirm: () => clearCanvas()
       });
       return;
     }
 
     onSave(signatureData);
-  }, [hasSignature, onSave]);
+  }, [hasSignature, onSave, clearCanvas]);
 
   const closeModal = useCallback(() => {
     setModalState(prev => ({ ...prev, isOpen: false }));
@@ -178,9 +175,8 @@ const SignaturePad: React.FC<SignaturePadProps> = ({
         title="서명 확인"
         message={modalState.message}
         type={modalState.type}
-        showCancel={modalState.showCancel}
-        confirmText={modalState.showCancel ? '진행' : '확인'}
-        cancelText="다시 서명"
+        showCancel={false}
+        confirmText="확인"
       />
 
       {/* 헤더 */}
