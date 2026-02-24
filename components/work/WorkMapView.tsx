@@ -143,7 +143,6 @@ const WorkMapView: React.FC<WorkMapViewProps> = ({ workOrders, onBack, onSelectW
   const [geocodedSuccess, setGeocodedSuccess] = useState(0);
   const [selectedWork, setSelectedWork] = useState<WorkOrder | null>(null);
   const [selectedCoords, setSelectedCoords] = useState<{ lat: number; lng: number } | null>(null);
-  const [showNavModal, setShowNavModal] = useState(false);
 
   // Initialize both maps + geocode
   useEffect(() => {
@@ -198,7 +197,7 @@ const WorkMapView: React.FC<WorkMapViewProps> = ({ workOrders, onBack, onSelectW
         if (info) {
           setSelectedWork(info.work);
           setSelectedCoords(info.coords);
-          setShowNavModal(false);
+
           olMap.getView().animate({
             center: fromLonLat([info.coords.lng, info.coords.lat]),
             zoom: Math.max(olMap.getView().getZoom() || 14, 14),
@@ -208,7 +207,7 @@ const WorkMapView: React.FC<WorkMapViewProps> = ({ workOrders, onBack, onSelectW
       } else {
         setSelectedWork(null);
         setSelectedCoords(null);
-        setShowNavModal(false);
+
       }
     });
 
@@ -232,7 +231,7 @@ const WorkMapView: React.FC<WorkMapViewProps> = ({ workOrders, onBack, onSelectW
         window.kakao.maps.event.addListener(map, 'click', () => {
           setSelectedWork(null);
           setSelectedCoords(null);
-          setShowNavModal(false);
+
         });
 
         return map;
@@ -367,7 +366,7 @@ const WorkMapView: React.FC<WorkMapViewProps> = ({ workOrders, onBack, onSelectW
               window.kakao.maps.event.addListener(marker, 'click', () => {
                 setSelectedWork(workRef);
                 setSelectedCoords(coordsRef);
-                setShowNavModal(false);
+      
                 kakaoMap.panTo(new window.kakao.maps.LatLng(coordsRef.lat, coordsRef.lng));
               });
               kakaoMarkersRef.current.push(marker);
@@ -503,15 +502,16 @@ const WorkMapView: React.FC<WorkMapViewProps> = ({ workOrders, onBack, onSelectW
     );
   }, [mapSource]);
 
-  const handleNavigation = useCallback((app: NavApp) => {
+  const preferredNavApp = useUIStore((s) => s.preferredNavApp);
+
+  const handleNavigation = useCallback(() => {
     if (!selectedCoords || !selectedWork) return;
-    openNavigation(app, {
+    openNavigation(preferredNavApp, {
       lat: selectedCoords.lat,
       lng: selectedCoords.lng,
       name: selectedWork.customer?.address || '목적지'
     });
-    setShowNavModal(false);
-  }, [selectedCoords, selectedWork]);
+  }, [selectedCoords, selectedWork, preferredNavApp]);
 
   const closeInfoCard = useCallback(() => {
     setSelectedWork(null);
@@ -665,7 +665,7 @@ const WorkMapView: React.FC<WorkMapViewProps> = ({ workOrders, onBack, onSelectW
                   전화
                 </button>
                 <button
-                  onClick={() => setShowNavModal(!showNavModal)}
+                  onClick={handleNavigation}
                   className="flex-1 py-2.5 rounded-lg bg-purple-500 text-white text-xs font-medium active:bg-purple-600"
                 >
                   길찾기
@@ -678,26 +678,6 @@ const WorkMapView: React.FC<WorkMapViewProps> = ({ workOrders, onBack, onSelectW
                 </button>
               </div>
 
-              {/* 네비 앱 선택 */}
-              {showNavModal && (
-                <div className="flex gap-2 mt-2">
-                  <button onClick={() => handleNavigation('kakao')}
-                    className="flex-1 py-2.5 rounded-lg font-semibold text-xs active:opacity-80"
-                    style={{ background: '#FEE500', color: '#3C1E1E' }}>
-                    카카오맵
-                  </button>
-                  <button onClick={() => handleNavigation('tmap')}
-                    className="flex-1 py-2.5 rounded-lg font-semibold text-xs text-white active:opacity-80"
-                    style={{ background: '#1C6EF2' }}>
-                    T맵
-                  </button>
-                  <button onClick={() => handleNavigation('naver')}
-                    className="flex-1 py-2.5 rounded-lg font-semibold text-xs text-white active:opacity-80"
-                    style={{ background: '#1EC800' }}>
-                    네이버
-                  </button>
-                </div>
-              )}
             </div>
           </div>
         )}
