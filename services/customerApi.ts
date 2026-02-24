@@ -1748,8 +1748,8 @@ export const registerASRequest = async (params: ASRequestParams): Promise<ApiRes
   const isUIParams = 'AS_CL_CD' in params;
 
   const backendParams: Record<string, any> = {
-    // PG_GUBUN: 항상 0 (1이면 CONA에서 "접수"로만 처리됨, 0이어야 "처리중")
-    PG_GUBUN: isUIParams ? (uiParams.PG_GUBUN || '0') : '0',
+    // PG_GUBUN: 1 (legacy mowoe03m03/mowoa03p06 both use 1)
+    PG_GUBUN: isUIParams ? (uiParams.PG_GUBUN || '1') : '1',
     POST_ID: (params as ASRequestParams).POST_ID || '',
     CUST_ID: params.CUST_ID,
     CTRT_ID: (params as ASRequestParams).CTRT_ID || '',
