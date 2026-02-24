@@ -4,6 +4,7 @@ import CustomerBasicInfo from './CustomerBasicInfo';
 import CustomerInfoChange from './CustomerInfoChange';
 import CustomerSearch from './CustomerSearch';
 import ConsultationAS from './ConsultationAS';
+import ReContractModule from './ReContractModule';
 import CustomerCreate from './CustomerCreate';
 import { CustomerInfo, ContractInfo, ConsultationHistory, WorkHistory, getContractList } from '../../services/customerApi';
 
@@ -79,12 +80,13 @@ const CustomerManagementMenu: React.FC<CustomerManagementMenuProps> = ({ onNavig
   const [cachedDataCustId, setCachedDataCustId] = useState<string>('');  // 어떤 고객의 데이터인지 추적
 
   // 상담/AS 탭의 초기 탭 상태
-  const [consultationASInitialTab, setConsultationASInitialTab] = useState<'consultation' | 'as' | 're-contract'>('consultation');
+  const [consultationASInitialTab, setConsultationASInitialTab] = useState<'consultation' | 'as'>('consultation');
 
   const tabs: TabItem[] = [
     { id: 'basic-info', title: '기본조회', description: '고객 검색 및 정보 조회' },
     { id: 'info-change', title: '정보변경', description: '전화번호/주소 변경' },
-    { id: 'consultation-as', title: '상담/AS/재약정', description: '상담등록, AS접수, 재약정등록' },
+    { id: 'consultation-as', title: '상담/AS', description: '상담등록, AS접수' },
+    { id: 're-contract', title: '재약정', description: '재약정 등록/일괄처리' },
   ];
 
   const handleTabChange = (tabId: string) => {
@@ -229,6 +231,21 @@ const CustomerManagementMenu: React.FC<CustomerManagementMenuProps> = ({ onNavig
             initialTab={consultationASInitialTab}
           />
         );
+      case 're-contract':
+        return (
+          <ReContractModule
+            onBack={onNavigateToMenu}
+            showToast={showToast}
+            selectedCustomer={selectedCustomer ? {
+              custId: selectedCustomer.CUST_ID,
+              custNm: selectedCustomer.CUST_NM,
+              telNo: selectedCustomer.TEL_NO || selectedCustomer.HP_NO || ''
+            } : null}
+            selectedContract={selectedContract}
+            contracts={cachedContracts}
+            onNavigateToBasicInfo={() => handleNavigateToTab('basic-info')}
+          />
+        );
       case 'customer-create':
         return (
           <CustomerCreate
@@ -298,8 +315,7 @@ const CustomerManagementMenu: React.FC<CustomerManagementMenuProps> = ({ onNavig
               setActiveTab('info-change');
             }}
             onNavigateToReContract={() => {
-              setConsultationASInitialTab('re-contract');
-              setActiveTab('consultation-as');
+              setActiveTab('re-contract');
             }}
             selectedCustomer={selectedCustomer}
             savedContract={selectedContract}

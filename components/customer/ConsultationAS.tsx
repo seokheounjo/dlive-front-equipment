@@ -17,11 +17,6 @@ import {
   getASReasonLargeCodes,
   getASReasonDetailCodes,
   getProductGroups,
-  getPromOfContract,
-  saveCtrtAgreeInfo,
-  getPromMonthCodes,
-  getPromChangeReasonCodes,
-  getPromChangeCodes,
   ConsultationHistory,
   WorkHistory,
   ContractInfo,
@@ -29,7 +24,6 @@ import {
   ASRequestParams,
   formatDate
 } from '../../services/customerApi';
-import ReContractRegistration from './ReContractRegistration';
 
 // ID 포맷 (3-3-4 형식)
 const formatId = (id: string): string => {
@@ -60,7 +54,7 @@ interface ConsultationASProps {
   } | null;
   contracts?: ContractInfo[];  // 전체 계약 목록 (일자별 이력 조회용)
   onNavigateToBasicInfo: () => void;
-  initialTab?: 'consultation' | 'as' | 're-contract';  // 초기 탭 지정
+  initialTab?: 'consultation' | 'as';  // 초기 탭 지정
 }
 
 interface CodeItem {
@@ -95,32 +89,15 @@ const ConsultationAS: React.FC<ConsultationASProps> = ({
   onNavigateToBasicInfo,
   initialTab = 'consultation'
 }) => {
-  // 탭 상태 (initialTab prop으로 초기값 설정)
-  const [activeTab, setActiveTab] = useState<'consultation' | 'as' | 're-contract'>(initialTab);
+  // 탭 상태
+  const [activeTab, setActiveTab] = useState<'consultation' | 'as'>(initialTab as 'consultation' | 'as');
 
   // initialTab이 변경되면 activeTab 업데이트
   useEffect(() => {
-    setActiveTab(initialTab);
+    if (initialTab === 'consultation' || initialTab === 'as') {
+      setActiveTab(initialTab);
+    }
   }, [initialTab]);
-
-  // 재약정 탭 차단 팝업
-  const [showReContractBlock, setShowReContractBlock] = useState(false);
-
-  // 재약정 탭 클릭 핸들러 - 사용중(기간도래)만 허용
-  const handleReContractTabClick = () => {
-    if (!selectedContract) {
-      setShowReContractBlock(true);
-      return;
-    }
-    // contracts에서 선택된 계약 찾아서 CLOSE_DANGER 확인
-    const found = contracts.find(c => c.CTRT_ID === selectedContract.ctrtId);
-    const isCloseDanger = found && found.CLOSE_DANGER === 'Y' && (found.CTRT_STAT_NM || '').includes('사용중');
-    if (!isCloseDanger) {
-      setShowReContractBlock(true);
-      return;
-    }
-    setActiveTab('re-contract');
-  };
 
   // 이력 데이터
   const [consultationHistory, setConsultationHistory] = useState<ConsultationHistory[]>([]);
@@ -692,17 +669,6 @@ const ConsultationAS: React.FC<ConsultationASProps> = ({
             <Wrench className="w-4 h-4" />
             AS
           </button>
-          <button
-            onClick={handleReContractTabClick}
-            className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg transition-colors text-sm ${
-              activeTab === 're-contract'
-                ? 'bg-purple-500 text-white'
-                : 'text-gray-600 hover:bg-gray-100'
-            }`}
-          >
-            <RefreshCw className="w-4 h-4" />
-            재약정
-          </button>
         </div>
 
         {/* 상담 등록 */}
@@ -1049,20 +1015,8 @@ const ConsultationAS: React.FC<ConsultationASProps> = ({
           </div>
         )}
 
-        {/* 재약정 */}
-        {activeTab === 're-contract' && selectedCustomer && (
-          <ReContractRegistration
-            onBack={onBack}
-            showToast={showToast}
-            selectedCustomer={selectedCustomer}
-            selectedContract={selectedContract}
-            contracts={contracts}
-            onNavigateToBasicInfo={onNavigateToBasicInfo}
-          />
-        )}
-
-        {/* 이력 조회 - 재약정 탭에서는 숨김 */}
-        {activeTab !== 're-contract' && (
+        {/* 이력 조회 */}
+        {(
         <div className="bg-white rounded-lg shadow-sm border border-gray-200">
           <div className="flex items-center justify-between p-4">
             <button
@@ -1296,30 +1250,6 @@ const ConsultationAS: React.FC<ConsultationASProps> = ({
         </div>
         )}
       </div>
-
-      {/* 재약정 차단 팝업 */}
-      {showReContractBlock && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-5 max-w-sm mx-4 shadow-xl">
-            <div className="flex items-center gap-3 mb-4">
-              <div className="w-10 h-10 rounded-full bg-purple-100 flex items-center justify-center">
-                <AlertCircle className="w-5 h-5 text-purple-500" />
-              </div>
-              <h3 className="text-base font-medium text-gray-900">재약정 불가</h3>
-            </div>
-            <p className="text-sm text-gray-600 mb-5">
-              재약정은 <span className="font-bold text-orange-600">사용중(기간도래)</span> 상태의 계약만 가능합니다.<br />
-              기본조회에서 해당 계약을 선택해주세요.
-            </p>
-            <button
-              onClick={() => setShowReContractBlock(false)}
-              className="w-full px-4 py-2 text-sm text-white bg-purple-500 rounded-lg hover:bg-purple-600 transition-colors"
-            >
-              확인
-            </button>
-          </div>
-        </div>
-      )}
 
       {/* 결과 팝업 */}
       {resultPopup.show && (
