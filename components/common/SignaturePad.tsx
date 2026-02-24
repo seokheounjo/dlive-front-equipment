@@ -1,5 +1,6 @@
 import React, { useRef, useEffect, useState, useCallback } from 'react';
 import { Trash2, Check, RotateCcw } from 'lucide-react';
+import ConfirmModal, { ConfirmModalType } from './ConfirmModal';
 
 interface SignaturePadProps {
   onSave: (signatureData: string) => void;
@@ -24,6 +25,13 @@ const SignaturePad: React.FC<SignaturePadProps> = ({
   const [isDrawing, setIsDrawing] = useState(false);
   const [hasSignature, setHasSignature] = useState(false);
   const lastPointRef = useRef<{ x: number; y: number } | null>(null);
+  const [modalState, setModalState] = useState<{
+    isOpen: boolean;
+    type: ConfirmModalType;
+    message: string;
+    showCancel: boolean;
+    onConfirm: () => void;
+  }>({ isOpen: false, type: 'warning', message: '', showCancel: false, onConfirm: () => {} });
 
   // Canvas 초기화
   useEffect(() => {
@@ -133,20 +141,48 @@ const SignaturePad: React.FC<SignaturePadProps> = ({
 
     // 레거시: 서명 식별 검증
     if (signatureData.length < 5000) {
-      alert('서명하신 것이 식별이 되지 않습니다.\n다시하기 버튼을 누르시고 다시 서명해주시기 바랍니다.');
+      setModalState({
+        isOpen: true,
+        type: 'error',
+        message: '서명하신 것이 식별이 되지 않습니다.\n다시하기 버튼을 누르시고 다시 서명해주시기 바랍니다.',
+        showCancel: false,
+        onConfirm: () => {}
+      });
       return;
     }
     if (signatureData.length < 10000) {
-      if (!confirm('서명하신 것이 식별이 안 될 수도 있습니다.\n다시하기 버튼을 누르시고 다시 서명하기를 권장드립니다.\n다시 서명하시려면 \'취소\'를 눌러주십시오.')) {
-        return;
-      }
+      setModalState({
+        isOpen: true,
+        type: 'warning',
+        message: '서명하신 것이 식별이 안 될 수도 있습니다.\n다시하기 버튼을 누르시고 다시 서명하기를 권장드립니다.\n\n이대로 진행하시겠습니까?',
+        showCancel: true,
+        onConfirm: () => onSave(signatureData)
+      });
+      return;
     }
 
     onSave(signatureData);
   }, [hasSignature, onSave]);
 
+  const closeModal = useCallback(() => {
+    setModalState(prev => ({ ...prev, isOpen: false }));
+  }, []);
+
   return (
     <div className="bg-white rounded-lg shadow-lg overflow-hidden">
+      {/* 서명 검증 팝업 */}
+      <ConfirmModal
+        isOpen={modalState.isOpen}
+        onClose={closeModal}
+        onConfirm={modalState.onConfirm}
+        title="서명 확인"
+        message={modalState.message}
+        type={modalState.type}
+        showCancel={modalState.showCancel}
+        confirmText={modalState.showCancel ? '진행' : '확인'}
+        cancelText="다시 서명"
+      />
+
       {/* 헤더 */}
       <div className="px-4 py-3 bg-gradient-to-r from-blue-500 to-blue-600 text-white">
         <h3 className="font-medium">{title}</h3>
