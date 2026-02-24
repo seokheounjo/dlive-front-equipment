@@ -87,6 +87,12 @@ export interface ContractInfo {
   ADDR_DTL?: string;         // 상세주소
   BLD_CL?: string;           // 건물구분
   BLD_NM?: string;           // 건물명
+  BLD_ID?: string;           // 건물ID (AS작업배정에 필수)
+  BUN_CL?: string;           // 번지구분
+  BUN_NO?: string;           // 본번
+  HO_NM?: string;            // 호명
+  APT_DONG_NO?: string;      // 아파트동번호
+  APT_HO_CNT?: string;       // 아파트호수
   STREET_ID?: string;        // 도로명주소ID
   // 장비 정보
   EQT_NM: string;            // 장비명
@@ -782,6 +788,12 @@ const mapContractFields = (data: any): ContractInfo => {
     ADDR_DTL: v(data.ADDR_DTL),
     BLD_CL: v(data.BLD_CL) || '0',
     BLD_NM: v(data.BLD_NM),
+    BLD_ID: v(data.BLD_ID),
+    BUN_CL: v(data.BUN_CL),
+    BUN_NO: v(data.BUN_NO),
+    HO_NM: v(data.HO_NM),
+    APT_DONG_NO: v(data.APT_DONG_NO),
+    APT_HO_CNT: v(data.APT_HO_CNT),
     STREET_ID: v(data.STREET_ID)
   };
 };
@@ -1788,9 +1800,15 @@ export const registerASRequest = async (params: ASRequestParams): Promise<ApiRes
     REG_UID: wrkrId,
     SO_ID: isUIParams ? (uiParams.SO_ID || soId) : soId,
     MST_SO_ID: isUIParams ? (uiParams.MST_SO_ID || mstSoId) : mstSoId,
-    // Address fields for DS_SMS and rec_addr (legacy mowoa03p06.xml)
+    // Address fields for rec_addr (legacy mowoa03p06.xml - CONA work dispatch)
     BLD_CL: isUIParams ? (uiParams.BLD_CL || '') : ((params as any).BLD_CL || ''),
     BLD_NM: isUIParams ? (uiParams.BLD_NM || '') : ((params as any).BLD_NM || ''),
+    BLD_ID: isUIParams ? (uiParams.BLD_ID || '') : ((params as any).BLD_ID || ''),
+    BUN_CL: isUIParams ? (uiParams.BUN_CL || '') : ((params as any).BUN_CL || ''),
+    BUN_NO: isUIParams ? (uiParams.BUN_NO || '') : ((params as any).BUN_NO || ''),
+    HO_NM: isUIParams ? (uiParams.HO_NM || '') : ((params as any).HO_NM || ''),
+    APT_DONG_NO: isUIParams ? (uiParams.APT_DONG_NO || '') : ((params as any).APT_DONG_NO || ''),
+    APT_HO_CNT: isUIParams ? (uiParams.APT_HO_CNT || '') : ((params as any).APT_HO_CNT || ''),
     ADDR_DTL: isUIParams ? (uiParams.ADDR_DTL || '') : ((params as any).ADDR_DTL || ''),
     ADDR: isUIParams ? (uiParams.ADDR || '') : ((params as any).ADDR || ''),
     ADDR_ORD: isUIParams ? (uiParams.ADDR_ORD || '1') : ((params as any).ADDR_ORD || '1'),
