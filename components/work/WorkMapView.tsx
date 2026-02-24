@@ -137,6 +137,8 @@ const WorkMapView: React.FC<WorkMapViewProps> = ({ workOrders, onBack, onSelectW
   const [mapSource, setMapSource] = useState<MapSource>('vworld');
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const vworldOkRef = useRef(true);
+  const kakaoOkRef = useRef(true);
   const [geocodedCount, setGeocodedCount] = useState(0);
   const [geocodedSuccess, setGeocodedSuccess] = useState(0);
   const [selectedWork, setSelectedWork] = useState<WorkOrder | null>(null);
@@ -151,16 +153,31 @@ const WorkMapView: React.FC<WorkMapViewProps> = ({ workOrders, onBack, onSelectW
     const vectorSource = new VectorSource();
     olVectorSourceRef.current = vectorSource;
 
+    const vworldTileSource = new XYZ({
+      url: `https://api.vworld.kr/req/wmts/1.0.0/${VWORLD_API_KEY}/Base/{z}/{y}/{x}.png`,
+      maxZoom: 19,
+      attributions: '© VWorld'
+    });
+
+    // VWorld 타일 로드 실패 감지
+    let vworldErrorCount = 0;
+    vworldTileSource.on('tileloaderror', () => {
+      vworldErrorCount++;
+      if (vworldErrorCount >= 3 && vworldOkRef.current) {
+        vworldOkRef.current = false;
+        console.warn('[Map] VWorld 타일 로드 실패, 카카오맵으로 전환 시도');
+        if (kakaoOkRef.current) {
+          setMapSource('kakao');
+        } else {
+          setLoadError('지도 서비스에 연결할 수 없습니다. 네트워크 상태를 확인해주세요.');
+        }
+      }
+    });
+
     const olMap = new OlMap({
       target: vworldContainerRef.current!,
       layers: [
-        new TileLayer({
-          source: new XYZ({
-            url: `https://api.vworld.kr/req/wmts/1.0.0/${VWORLD_API_KEY}/Base/{z}/{y}/{x}.png`,
-            maxZoom: 19,
-            attributions: '© VWorld'
-          })
-        }),
+        new TileLayer({ source: vworldTileSource }),
         new VectorLayer({ source: vectorSource })
       ],
       view: new View({
@@ -203,21 +220,32 @@ const WorkMapView: React.FC<WorkMapViewProps> = ({ workOrders, onBack, onSelectW
     // ========== Kakao Map ==========
     let kakaoMap: any = null;
     const initKakaoMap = () => {
-      if (!window.kakao?.maps?.Map || !kakaoContainerRef.current) return null;
-      const map = new window.kakao.maps.Map(kakaoContainerRef.current, {
-        center: new window.kakao.maps.LatLng(37.5665, 126.9780),
-        level: 8
-      });
-      kakaoMapRef.current = map;
+      try {
+        if (!window.kakao?.maps?.Map || !kakaoContainerRef.current) return null;
+        const map = new window.kakao.maps.Map(kakaoContainerRef.current, {
+          center: new window.kakao.maps.LatLng(37.5665, 126.9780),
+          level: 8
+        });
+        kakaoMapRef.current = map;
 
-      // Kakao map click on empty area → close info card
-      window.kakao.maps.event.addListener(map, 'click', () => {
-        setSelectedWork(null);
-        setSelectedCoords(null);
-        setShowNavModal(false);
-      });
+        // Kakao map click on empty area → close info card
+        window.kakao.maps.event.addListener(map, 'click', () => {
+          setSelectedWork(null);
+          setSelectedCoords(null);
+          setShowNavModal(false);
+        });
 
-      return map;
+        return map;
+      } catch (e) {
+        console.warn('[Map] 카카오맵 초기화 실패:', e);
+        kakaoOkRef.current = false;
+        if (!vworldOkRef.current) {
+          setLoadError('지도 서비스에 연결할 수 없습니다. 네트워크 상태를 확인해주세요.');
+        } else {
+          setMapSource('vworld');
+        }
+        return null;
+      }
     };
 
     if (window.kakao?.maps) {
@@ -226,6 +254,10 @@ const WorkMapView: React.FC<WorkMapViewProps> = ({ workOrders, onBack, onSelectW
       } else {
         window.kakao.maps.load(() => { kakaoMap = initKakaoMap(); });
       }
+    } else {
+      // 카카오 SDK 자체가 없음
+      kakaoOkRef.current = false;
+      console.warn('[Map] 카카오맵 SDK 로드 실패');
     }
 
     // ========== 내 위치 마커 추가 함수 ==========
@@ -488,7 +520,12 @@ const WorkMapView: React.FC<WorkMapViewProps> = ({ workOrders, onBack, onSelectW
   }, []);
 
   const toggleMapSource = useCallback(() => {
-    setMapSource(prev => prev === 'vworld' ? 'kakao' : 'vworld');
+    setMapSource(prev => {
+      const next = prev === 'vworld' ? 'kakao' : 'vworld';
+      if (next === 'vworld' && !vworldOkRef.current) return prev;
+      if (next === 'kakao' && !kakaoOkRef.current) return prev;
+      return next;
+    });
     closeInfoCard();
   }, [closeInfoCard]);
 
