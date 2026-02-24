@@ -51,6 +51,15 @@ function createMarkerDataUrl(color: string, index: number): string {
   return 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg);
 }
 
+// 내 위치 마커 SVG (파란 원 + 흰 테두리 + 펄스 링)
+function createMyLocationMarkerUrl(): string {
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 40 40">
+    <circle cx="20" cy="20" r="18" fill="#3B82F6" fill-opacity="0.15" stroke="#3B82F6" stroke-width="1.5" stroke-opacity="0.4"/>
+    <circle cx="20" cy="20" r="9" fill="#3B82F6" stroke="#fff" stroke-width="3"/>
+  </svg>`;
+  return 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg);
+}
+
 // 카카오 SDK 로드 대기
 function ensureKakaoGeocoder(): Promise<boolean> {
   return new Promise((resolve) => {
@@ -117,9 +126,12 @@ const WorkMapView: React.FC<WorkMapViewProps> = ({ workOrders, onBack, onSelectW
   // Map instance refs
   const olMapRef = useRef<OlMap | null>(null);
   const olVectorSourceRef = useRef<VectorSource | null>(null);
+  const olMyLocFeatureRef = useRef<Feature | null>(null);
   const kakaoMapRef = useRef<any>(null);
   const kakaoMarkersRef = useRef<any[]>([]);
+  const kakaoMyLocMarkerRef = useRef<any>(null);
   const markerInfosRef = useRef<MarkerInfo[]>([]);
+  const myLocationRef = useRef<{ lat: number; lng: number } | null>(null);
 
   // State
   const [mapSource, setMapSource] = useState<MapSource>('vworld');
@@ -216,6 +228,54 @@ const WorkMapView: React.FC<WorkMapViewProps> = ({ workOrders, onBack, onSelectW
       }
     }
 
+    // ========== 내 위치 마커 추가 함수 ==========
+    const addMyLocationMarker = (lat: number, lng: number) => {
+      myLocationRef.current = { lat, lng };
+      const myLocUrl = createMyLocationMarkerUrl();
+
+      // OL 내 위치 마커
+      const myLocFeature = new Feature({
+        geometry: new Point(fromLonLat([lng, lat]))
+      });
+      myLocFeature.set('isMyLocation', true);
+      myLocFeature.setStyle(new Style({
+        image: new Icon({ src: myLocUrl, anchor: [0.5, 0.5], scale: 1 })
+      }));
+      vectorSource.addFeature(myLocFeature);
+      olMyLocFeatureRef.current = myLocFeature;
+
+      // 카카오 내 위치 마커
+      if (kakaoMap) {
+        const kakaoImg = new window.kakao.maps.MarkerImage(
+          myLocUrl,
+          new window.kakao.maps.Size(40, 40),
+          { offset: new window.kakao.maps.Point(20, 20) }
+        );
+        const kakaoMyMarker = new window.kakao.maps.Marker({
+          position: new window.kakao.maps.LatLng(lat, lng),
+          image: kakaoImg,
+          map: kakaoMap,
+          zIndex: 10
+        });
+        kakaoMyLocMarkerRef.current = kakaoMyMarker;
+      }
+
+      console.log(`[Map] 내 위치 표시: ${lat}, ${lng}`);
+    };
+
+    // ========== GPS 위치 가져오기 (비동기, 지오코딩과 병렬) ==========
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          if (!disposed) {
+            addMyLocationMarker(pos.coords.latitude, pos.coords.longitude);
+          }
+        },
+        (err) => console.warn('[Map] 위치 가져오기 실패:', err.message),
+        { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 }
+      );
+    }
+
     // ========== Geocoding ==========
     (async () => {
       const ready = await ensureKakaoGeocoder();
@@ -295,6 +355,12 @@ const WorkMapView: React.FC<WorkMapViewProps> = ({ workOrders, onBack, onSelectW
       markerInfosRef.current = markerInfos;
       console.log(`[Map] Geocoding 완료: ${successCount}/${workOrders.length}건 성공`);
 
+      // Fit bounds - 내 위치도 포함
+      const myLoc = myLocationRef.current;
+      if (myLoc) {
+        olCoordsList.push(fromLonLat([myLoc.lng, myLoc.lat]) as [number, number]);
+      }
+
       // Fit bounds - V-World
       if (olCoordsList.length > 0) {
         if (olCoordsList.length === 1) {
@@ -306,12 +372,15 @@ const WorkMapView: React.FC<WorkMapViewProps> = ({ workOrders, onBack, onSelectW
         }
       }
 
-      // Fit bounds - Kakao
-      if (kakaoMap && markerInfos.length > 0) {
+      // Fit bounds - Kakao (내 위치 포함)
+      if (kakaoMap && (markerInfos.length > 0 || myLoc)) {
         const bounds = new window.kakao.maps.LatLngBounds();
         markerInfos.forEach(m => {
           bounds.extend(new window.kakao.maps.LatLng(m.coords.lat, m.coords.lng));
         });
+        if (myLoc) {
+          bounds.extend(new window.kakao.maps.LatLng(myLoc.lat, myLoc.lng));
+        }
         kakaoMap.setBounds(bounds);
       }
 
@@ -323,9 +392,13 @@ const WorkMapView: React.FC<WorkMapViewProps> = ({ workOrders, onBack, onSelectW
       olMap.setTarget(undefined);
       olMapRef.current = null;
       olVectorSourceRef.current = null;
+      olMyLocFeatureRef.current = null;
       kakaoMarkersRef.current.forEach(m => m.setMap(null));
       kakaoMarkersRef.current = [];
+      if (kakaoMyLocMarkerRef.current) kakaoMyLocMarkerRef.current.setMap(null);
+      kakaoMyLocMarkerRef.current = null;
       kakaoMapRef.current = null;
+      myLocationRef.current = null;
     };
   }, [workOrders]);
 
@@ -354,6 +427,35 @@ const WorkMapView: React.FC<WorkMapViewProps> = ({ workOrders, onBack, onSelectW
     navigator.geolocation.getCurrentPosition(
       (pos) => {
         const { latitude, longitude } = pos.coords;
+        myLocationRef.current = { lat: latitude, lng: longitude };
+
+        // OL 내 위치 마커 업데이트
+        if (olMyLocFeatureRef.current) {
+          (olMyLocFeatureRef.current.getGeometry() as Point).setCoordinates(fromLonLat([longitude, latitude]));
+        } else if (olVectorSourceRef.current) {
+          const f = new Feature({ geometry: new Point(fromLonLat([longitude, latitude])) });
+          f.set('isMyLocation', true);
+          f.setStyle(new Style({ image: new Icon({ src: createMyLocationMarkerUrl(), anchor: [0.5, 0.5], scale: 1 }) }));
+          olVectorSourceRef.current.addFeature(f);
+          olMyLocFeatureRef.current = f;
+        }
+
+        // 카카오 내 위치 마커 업데이트
+        if (kakaoMyLocMarkerRef.current) {
+          kakaoMyLocMarkerRef.current.setPosition(new window.kakao.maps.LatLng(latitude, longitude));
+        } else if (kakaoMapRef.current) {
+          const img = new window.kakao.maps.MarkerImage(
+            createMyLocationMarkerUrl(),
+            new window.kakao.maps.Size(40, 40),
+            { offset: new window.kakao.maps.Point(20, 20) }
+          );
+          kakaoMyLocMarkerRef.current = new window.kakao.maps.Marker({
+            position: new window.kakao.maps.LatLng(latitude, longitude),
+            image: img, map: kakaoMapRef.current, zIndex: 10
+          });
+        }
+
+        // 지도 이동
         if (mapSource === 'vworld' && olMapRef.current) {
           olMapRef.current.getView().animate({
             center: fromLonLat([longitude, latitude]),
@@ -364,7 +466,8 @@ const WorkMapView: React.FC<WorkMapViewProps> = ({ workOrders, onBack, onSelectW
           kakaoMapRef.current.setLevel(3);
         }
       },
-      () => alert('위치 정보를 가져올 수 없습니다.')
+      () => alert('위치 정보를 가져올 수 없습니다.'),
+      { enableHighAccuracy: true, timeout: 10000 }
     );
   }, [mapSource]);
 
@@ -390,7 +493,7 @@ const WorkMapView: React.FC<WorkMapViewProps> = ({ workOrders, onBack, onSelectW
   }, [closeInfoCard]);
 
   return (
-    <div className="fixed inset-0 bg-white z-50 flex flex-col">
+    <div className="fixed inset-0 bg-white flex flex-col" style={{ zIndex: 200 }}>
       {/* 헤더 */}
       <div className="flex items-center justify-between px-4 py-3 bg-white border-b border-gray-200">
         <button onClick={onBack} className="flex items-center gap-2 text-gray-700">
@@ -452,6 +555,10 @@ const WorkMapView: React.FC<WorkMapViewProps> = ({ workOrders, onBack, onSelectW
         {!isLoading && !loadError && (
           <div className="absolute top-3 left-3 bg-white/90 backdrop-blur rounded-lg shadow p-2.5 z-20">
             <div className="flex gap-3 text-[11px]">
+              <div className="flex items-center gap-1">
+                <div className="w-2.5 h-2.5 rounded-full border-2 border-blue-500" style={{ background: '#3B82F6' }} />
+                <span className="text-gray-600 font-semibold">내 위치</span>
+              </div>
               {[['#DC2626', '진행중'], ['#16A34A', '완료'], ['#EF4444', '대기'], ['#9CA3AF', '취소']].map(([c, l]) => (
                 <div key={l} className="flex items-center gap-1">
                   <div className="w-2.5 h-2.5 rounded-full" style={{ background: c }} />
