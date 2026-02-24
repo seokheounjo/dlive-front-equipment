@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Loader2, AlertCircle, CreditCard, Check, PenTool } from 'lucide-react';
+import { X, Loader2, AlertCircle, CreditCard, Check, PenTool, FileDown } from 'lucide-react';
 import SignaturePad from '../common/SignaturePad';
 import {
   getPaymentAccounts,
@@ -9,6 +9,7 @@ import {
   verifyCard,
   savePaymentSignature
 } from '../../services/customerApi';
+import { generateAutoTransferPdf, downloadPdf } from '../../services/pdfService';
 
 // 납부계정ID 포맷 (3-3-4)
 const formatPymAcntId = (pymAcntId: string): string => {
@@ -354,6 +355,47 @@ const PaymentChangeModal: React.FC<PaymentChangeModalProps> = ({
     setSignatureData('');
   };
 
+  // 코드 → 이름 변환 헬퍼
+  const getCodeName = (codes: { CODE: string; CODE_NM: string }[], code: string): string => {
+    return codes.find(c => c.CODE === code)?.CODE_NM || code;
+  };
+
+  // 변경사유 텍스트
+  const getChangeReasonText = (): string => {
+    const large = getCodeName(changeReasonLargeCodes, paymentForm.changeReasonL);
+    const middleCodes = changeReasonMiddleCodes[paymentForm.changeReasonL] || [];
+    const middle = getCodeName(middleCodes, paymentForm.changeReasonM);
+    return `${large} > ${middle}`;
+  };
+
+  // 자동이체 PDF 생성 및 다운로드
+  const handleDownloadPdf = async () => {
+    try {
+      const blob = await generateAutoTransferPdf({
+        custId,
+        custNm: custNm || '',
+        pymAcntId: selectedPymAcntId,
+        pymMthNm: '자동이체(신)',
+        changeReasonNm: getChangeReasonText(),
+        acntHolderNm: paymentForm.acntHolderNm,
+        idTypeNm: getCodeName(idTypeCodes, paymentForm.idType),
+        birthDt: paymentForm.birthDt,
+        bankNm: getCodeName(bankCodes, paymentForm.bankCd),
+        acntNo: paymentForm.acntNo,
+        pyrRelNm: getCodeName(pyrRelCodes, paymentForm.pyrRel),
+        signatureData,
+      });
+
+      const dateStr = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+      const filename = `자동이체_변경신청_${custId}_${dateStr}.pdf`;
+      downloadPdf(blob, filename);
+      showToast?.('PDF 다운로드 완료', 'success');
+    } catch (error) {
+      console.error('PDF generation error:', error);
+      showAlert('PDF 생성에 실패했습니다.', 'error');
+    }
+  };
+
   // 저장 (자동이체: 서명 필수 / 카드: 서명 불필요)
   const handleSave = async () => {
     if (paymentForm.pymMthCd === '01' && !signatureData) {
@@ -392,6 +434,15 @@ const PaymentChangeModal: React.FC<PaymentChangeModalProps> = ({
           });
         } catch (signErr) {
           console.log('[PaymentChange] Signature save stub (API not connected yet):', signErr);
+        }
+
+        // 3. 자동이체인 경우 PDF 자동 다운로드
+        if (paymentForm.pymMthCd === '01' && signatureData) {
+          try {
+            await handleDownloadPdf();
+          } catch (pdfErr) {
+            console.warn('[PaymentChange] PDF auto-download failed:', pdfErr);
+          }
         }
 
         showToast?.('납부방법이 변경되었습니다.', 'success');
@@ -673,14 +724,25 @@ const PaymentChangeModal: React.FC<PaymentChangeModalProps> = ({
                 <div className="border border-gray-200 rounded-lg p-3">
                   <div className="flex items-center justify-between mb-2">
                     <label className="text-xs font-medium text-gray-700">고객 서명</label>
-                    {signatureData && (
-                      <button
-                        onClick={handleResetSignature}
-                        className="text-xs text-red-500 hover:text-red-600"
-                      >
-                        다시 서명
-                      </button>
-                    )}
+                    <div className="flex items-center gap-2">
+                      {signatureData && (
+                        <>
+                          <button
+                            onClick={handleDownloadPdf}
+                            className="text-xs text-blue-500 hover:text-blue-600 flex items-center gap-0.5"
+                          >
+                            <FileDown className="w-3 h-3" />
+                            PDF
+                          </button>
+                          <button
+                            onClick={handleResetSignature}
+                            className="text-xs text-red-500 hover:text-red-600"
+                          >
+                            다시 서명
+                          </button>
+                        </>
+                      )}
+                    </div>
                   </div>
                   {signatureData ? (
                     <div className="border border-green-300 rounded-lg bg-green-50 p-2 flex flex-col items-center">
