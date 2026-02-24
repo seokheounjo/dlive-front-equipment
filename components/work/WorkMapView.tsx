@@ -48,27 +48,49 @@ function createMarkerDataUrl(color: string, index: number): string {
   return 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg);
 }
 
-// V-World Geocoding API (기본)
-async function geocodeVWorld(address: string): Promise<{ lat: number; lng: number } | null> {
+// 주소 정제 (상세 주소, 괄호 등 제거)
+function cleanAddress(address: string): string {
+  let cleaned = address
+    .replace(/\(.*?\)/g, '')           // 괄호 내용 제거
+    .replace(/\d+층/g, '')             // 층수 제거
+    .replace(/\d+호/g, '')             // 호수 제거
+    .replace(/지하\s*\d*/g, '')        // 지하 제거
+    .replace(/\s{2,}/g, ' ')           // 다중 공백 정리
+    .trim();
+  return cleaned;
+}
+
+// V-World Geocoding - getcoord (정확한 주소)
+async function geocodeVWorldGetcoord(address: string): Promise<{ lat: number; lng: number } | null> {
   try {
-    // 도로명 주소 먼저 시도
-    const url = `https://api.vworld.kr/req/address?service=address&request=getcoord&version=2.0&crs=EPSG:4326&address=${encodeURIComponent(address)}&refine=true&simple=false&format=json&type=road&key=${VWORLD_API_KEY}`;
+    for (const type of ['road', 'parcel']) {
+      const url = `https://api.vworld.kr/req/address?service=address&request=getcoord&version=2.0&crs=EPSG:4326&address=${encodeURIComponent(address)}&refine=true&simple=false&format=json&type=${type}&key=${VWORLD_API_KEY}`;
+      const res = await fetch(url);
+      const data = await res.json();
+      if (data.response?.status === 'OK' && data.response?.result?.point) {
+        return {
+          lat: parseFloat(data.response.result.point.y),
+          lng: parseFloat(data.response.result.point.x)
+        };
+      }
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+// V-World Geocoding - search (유연한 검색)
+async function geocodeVWorldSearch(address: string): Promise<{ lat: number; lng: number } | null> {
+  try {
+    const url = `https://api.vworld.kr/req/search?service=search&request=search&version=2.0&crs=EPSG:4326&size=1&page=1&query=${encodeURIComponent(address)}&type=address&format=json&key=${VWORLD_API_KEY}`;
     const res = await fetch(url);
     const data = await res.json();
-    if (data.response?.status === 'OK' && data.response?.result?.point) {
+    const items = data.response?.result?.items;
+    if (items && items.length > 0 && items[0].point) {
       return {
-        lat: parseFloat(data.response.result.point.y),
-        lng: parseFloat(data.response.result.point.x)
-      };
-    }
-    // 지번 주소로 재시도
-    const url2 = `https://api.vworld.kr/req/address?service=address&request=getcoord&version=2.0&crs=EPSG:4326&address=${encodeURIComponent(address)}&refine=true&simple=false&format=json&type=parcel&key=${VWORLD_API_KEY}`;
-    const res2 = await fetch(url2);
-    const data2 = await res2.json();
-    if (data2.response?.status === 'OK' && data2.response?.result?.point) {
-      return {
-        lat: parseFloat(data2.response.result.point.y),
-        lng: parseFloat(data2.response.result.point.x)
+        lat: parseFloat(items[0].point.y),
+        lng: parseFloat(items[0].point.x)
       };
     }
     return null;
@@ -98,13 +120,31 @@ function geocodeKakao(address: string): Promise<{ lat: number; lng: number } | n
   });
 }
 
-// 통합 Geocoding: V-World 우선, 카카오 폴백
+// 통합 Geocoding: V-World getcoord → V-World search → 카카오 폴백
 async function geocodeAddress(address: string): Promise<{ lat: number; lng: number } | null> {
-  // 1차: V-World
-  const vResult = await geocodeVWorld(address);
-  if (vResult) return vResult;
-  // 2차: 카카오 폴백
-  return geocodeKakao(address);
+  const cleaned = cleanAddress(address);
+  console.log(`[Geocode] 원본: "${address}" → 정제: "${cleaned}"`);
+
+  // 1차: V-World getcoord (정확한 주소)
+  let result = await geocodeVWorldGetcoord(cleaned);
+  if (result) { console.log(`[Geocode] V-World getcoord 성공:`, result); return result; }
+
+  // 2차: V-World search (유연한 검색)
+  result = await geocodeVWorldSearch(cleaned);
+  if (result) { console.log(`[Geocode] V-World search 성공:`, result); return result; }
+
+  // 원본 주소로도 search 시도
+  if (cleaned !== address) {
+    result = await geocodeVWorldSearch(address);
+    if (result) { console.log(`[Geocode] V-World search(원본) 성공:`, result); return result; }
+  }
+
+  // 3차: 카카오 폴백
+  result = await geocodeKakao(address);
+  if (result) { console.log(`[Geocode] 카카오 성공:`, result); return result; }
+
+  console.warn(`[Geocode] 실패: "${address}"`);
+  return null;
 }
 
 interface MarkerInfo {
