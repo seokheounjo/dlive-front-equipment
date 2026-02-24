@@ -84,7 +84,7 @@ const Dashboard: React.FC<DashboardProps> = ({
     }
     return false;
   });
-  const [showMapView, setShowMapView] = useState<boolean>(false);
+  const { showMapView, setShowMapView } = useUIStore();
 
   // 작업관리 하위 메뉴 탭 데이터
   const workManagementTabs = [

@@ -1,5 +1,4 @@
 // 네비게이션 앱 딥링크 유틸리티
-// 카카오맵, T맵, 네이버지도 앱으로 길찾기 연동
 
 type NavApp = 'kakao' | 'tmap' | 'naver';
 
@@ -11,56 +10,67 @@ interface NavigationTarget {
 
 const isIOS = (): boolean => /iPhone|iPad|iPod/i.test(navigator.userAgent);
 
-// 카카오맵 길찾기
+// 카카오맵 길찾기 (sp 생략 = 현재위치 출발)
 export const openKakaoNavigation = ({ lat, lng, name }: NavigationTarget): void => {
-  // kakaomap://route?ep=lat,lng&by=car (sp 생략 = 현재위치 출발)
   const appUrl = `kakaomap://route?ep=${lat},${lng}&by=car`;
   const webUrl = `https://map.kakao.com/link/to/${encodeURIComponent(name)},${lat},${lng}`;
-
-  openAppOrFallback(appUrl, webUrl);
+  openApp(appUrl, webUrl);
 };
 
-// T맵 길찾기
+// T맵 길찾기 (현재위치 → 목적지)
 export const openTmapNavigation = ({ lat, lng, name }: NavigationTarget): void => {
   const appUrl = `tmap://route?goaly=${lat}&goalx=${lng}&goalname=${encodeURIComponent(name)}`;
-  const storeUrl = isIOS()
+  const fallback = isIOS()
     ? 'https://apps.apple.com/kr/app/tmap/id431589174'
     : 'market://details?id=com.skt.tmap.ku';
-
-  openAppOrFallback(appUrl, storeUrl);
+  openApp(appUrl, fallback);
 };
 
-// 네이버지도 길찾기
+// 네이버지도 길찾기 (현재위치 → 목적지)
 export const openNaverNavigation = ({ lat, lng, name }: NavigationTarget): void => {
   const appUrl = `nmap://navigation?dlat=${lat}&dlng=${lng}&dname=${encodeURIComponent(name)}&appname=com.dlive.cona`;
-  const storeUrl = isIOS()
+  const fallback = isIOS()
     ? 'https://apps.apple.com/kr/app/naver-map/id311867728'
     : 'market://details?id=com.nhn.android.nmap';
-
-  openAppOrFallback(appUrl, storeUrl);
+  openApp(appUrl, fallback);
 };
 
-// 앱 열기 시도 → 실패 시 fallback (웹/스토어)
-function openAppOrFallback(appUrl: string, fallbackUrl: string): void {
-  const start = Date.now();
-  const timeout = 1500;
+// 앱 열기: 직접 location.href로 시도, 실패 시 fallback
+function openApp(appUrl: string, fallbackUrl: string): void {
+  // 모바일에서는 직접 URL scheme으로 이동
+  const isAndroid = /Android/i.test(navigator.userAgent);
+  const isMobile = isIOS() || isAndroid;
 
-  // hidden iframe으로 딥링크 시도
-  const iframe = document.createElement('iframe');
-  iframe.style.display = 'none';
-  iframe.src = appUrl;
-  document.body.appendChild(iframe);
-
-  setTimeout(() => {
-    document.body.removeChild(iframe);
-    // 앱이 열리면 페이지가 blur되므로, 아직 포커스가 있으면 앱 미설치
-    if (Date.now() - start < timeout + 500) {
-      window.location.href = fallbackUrl;
+  if (isMobile) {
+    // Android Intent 방식 (더 안정적)
+    if (isAndroid && appUrl.startsWith('kakaomap://')) {
+      window.location.href = `intent://route?ep=${appUrl.split('ep=')[1]}#Intent;scheme=kakaomap;package=net.daum.android.map;S.browser_fallback_url=${encodeURIComponent(fallbackUrl)};end`;
+      return;
     }
-  }, timeout);
+    if (isAndroid && appUrl.startsWith('tmap://')) {
+      window.location.href = `intent://${appUrl.replace('tmap://', '')}#Intent;scheme=tmap;package=com.skt.tmap.ku;S.browser_fallback_url=${encodeURIComponent(fallbackUrl)};end`;
+      return;
+    }
+    if (isAndroid && appUrl.startsWith('nmap://')) {
+      window.location.href = `intent://${appUrl.replace('nmap://', '')}#Intent;scheme=nmap;package=com.nhn.android.nmap;S.browser_fallback_url=${encodeURIComponent(fallbackUrl)};end`;
+      return;
+    }
+
+    // iOS: 직접 URL scheme
+    window.location.href = appUrl;
+    setTimeout(() => {
+      // 앱이 안 열렸으면 (페이지가 아직 보이면) fallback
+      if (!document.hidden) {
+        window.location.href = fallbackUrl;
+      }
+    }, 2000);
+  } else {
+    // PC: 웹 fallback 바로 열기
+    window.open(fallbackUrl, '_blank');
+  }
 }
 
-// 네비 앱 열기 (통합)
+// 통합
 export const openNavigation = (app: NavApp, target: NavigationTarget): void => {
   switch (app) {
     case 'kakao': openKakaoNavigation(target); break;

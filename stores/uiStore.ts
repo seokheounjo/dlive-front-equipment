@@ -37,6 +37,10 @@ interface UIStore {
   currentView: View;
   setCurrentView: (view: View) => void;
 
+  // 지도 뷰 표시 여부
+  showMapView: boolean;
+  setShowMapView: (show: boolean) => void;
+
   // 작업 필터
   workFilters: WorkFilters;
   setWorkFilters: (filters: WorkFilters) => void;
@@ -74,12 +78,14 @@ export const useUIStore = create<UIStore>()(
       selectedWorkItem: null,
       selectedWorkDirection: null,
       fontScale: 'medium' as FontScale,
+      showMapView: false,
 
       // Actions
       openDrawer: () => set({ isDrawerOpen: true }),
       closeDrawer: () => set({ isDrawerOpen: false }),
       setActiveTab: (tab: string) => set({ activeTab: tab }),
-      setCurrentView: (view: View) => set({ currentView: view }),
+      setCurrentView: (view: View) => set({ currentView: view, showMapView: false }),
+      setShowMapView: (show: boolean) => set({ showMapView: show }),
       setWorkFilters: (filters: WorkFilters) => set({ workFilters: filters }),
       setSelectedWorkItem: (item: any | null) => set({ selectedWorkItem: item }),
       setSelectedWorkDirection: (direction: any | null) => set({ selectedWorkDirection: direction }),
