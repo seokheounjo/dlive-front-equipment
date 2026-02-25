@@ -3,8 +3,11 @@ import { X, Loader2, AlertCircle, CheckCircle, CreditCard, ChevronDown, Clock } 
 import {
   UnpaymentInfo,
   formatCurrency,
+  getCardVendorBySoId,
   insertDpstAndDTL,
   processCardPayment,
+  generateOrderNo,
+  getOrderDate,
   CardDpstParams,
   CardDpstDtlItem
 } from '../../services/customerApi';
@@ -272,8 +275,21 @@ const UnpaymentCollectionModal: React.FC<UnpaymentCollectionModalProps> = ({
         ? JSON.parse(sessionStorage.getItem('userInfo') || '{}').userId || 'SYSTEM'
         : 'SYSTEM';
 
-      // Step 1: BILL_SEQ_NO DTL list
-      console.log('[Payment] Step 1: build DTL list from BILL_SEQ_NO');
+      // Step 1: MID fallback (backend will override from DB if available)
+      console.log('[Payment] Step 1: getCardVendorBySoId');
+      let fallbackMid = 'dlivecon';
+      const vendorRes = await getCardVendorBySoId(soId);
+      if (vendorRes.success && vendorRes.data) {
+        const vendor = Array.isArray(vendorRes.data) ? vendorRes.data[0] : vendorRes.data;
+        if (vendor?.CARD_VENDOR) {
+          fallbackMid = vendor.CARD_VENDOR;
+        }
+      }
+      const fallbackOrderDt = getOrderDate();
+      const fallbackOrderNo = generateOrderNo();
+      console.log('[Payment] Fallback MID:', fallbackMid, 'OrderNo:', fallbackOrderNo);
+
+      // Build DTL list from BILL_SEQ_NO
       const selectedBills = unpaymentList.filter((_, idx) => selectedItems.has(idx));
       const dtlList: CardDpstDtlItem[] = [];
       selectedBills.forEach(item => {
@@ -281,9 +297,9 @@ const UnpaymentCollectionModal: React.FC<UnpaymentCollectionModalProps> = ({
         if (seqNos.length > 0) {
           seqNos.forEach(seqNo => {
             dtlList.push({
-              master_store_id: '',
-              order_dt: '',
-              order_no: '',
+              master_store_id: fallbackMid,
+              order_dt: fallbackOrderDt,
+              order_no: fallbackOrderNo,
               BILL_SEQ_NO: seqNo,
               SO_ID: item.SO_ID || soId || '',
               BILL_AMT: item.BILL_AMT || item.UNPAY_AMT,
@@ -293,9 +309,9 @@ const UnpaymentCollectionModal: React.FC<UnpaymentCollectionModalProps> = ({
           });
         } else {
           dtlList.push({
-            master_store_id: '',
-            order_dt: '',
-            order_no: '',
+            master_store_id: fallbackMid,
+            order_dt: fallbackOrderDt,
+            order_no: fallbackOrderNo,
             BILL_SEQ_NO: '',
             SO_ID: item.SO_ID || soId || '',
             BILL_AMT: item.BILL_AMT || item.UNPAY_AMT,
@@ -305,12 +321,12 @@ const UnpaymentCollectionModal: React.FC<UnpaymentCollectionModalProps> = ({
         }
       });
 
-      // Step 2: insertDpstAndDTL (backend handles order_no, order_dt, MID from DB)
+      // Step 2: insertDpstAndDTL (backend overrides order_no, order_dt, MID from DB if available)
       console.log('[Payment] Step 2: insertDpstAndDTL');
       const dpstParams: CardDpstParams = {
-        master_store_id: '',
-        order_dt: '',
-        order_no: '',
+        master_store_id: fallbackMid,
+        order_dt: fallbackOrderDt,
+        order_no: fallbackOrderNo,
         ctrt_so_id: soId || '',
         pym_acnt_id: pymAcntId || '',
         cust_id: custId,
@@ -334,12 +350,12 @@ const UnpaymentCollectionModal: React.FC<UnpaymentCollectionModalProps> = ({
         return;
       }
 
-      // Backend returns ORDER_NO, ORDER_DT, MID from DB
-      const orderNo = dpstRes.data?.ORDER_NO || '';
-      const orderDt = dpstRes.data?.ORDER_DT || '';
-      const mid = dpstRes.data?.MID || '';
+      // Use DB values if backend returned them, otherwise use fallbacks
+      const orderNo = dpstRes.data?.ORDER_NO || fallbackOrderNo;
+      const orderDt = dpstRes.data?.ORDER_DT || fallbackOrderDt;
+      const mid = dpstRes.data?.MID || fallbackMid;
       const fullOrderNo = mid + orderDt + orderNo;
-      console.log('[Payment] DB values - ORDER_NO:', orderNo, 'ORDER_DT:', orderDt, 'MID:', mid);
+      console.log('[Payment] Final values - ORDER_NO:', orderNo, 'ORDER_DT:', orderDt, 'MID:', mid);
 
       // 입금 등록 성공 후 진행중 상태 저장
       if (pymAcntId) {
