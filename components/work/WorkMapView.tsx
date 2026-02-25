@@ -533,8 +533,14 @@ const WorkMapView: React.FC<WorkMapViewProps> = ({ workOrders, onBack, onSelectW
   const toggleMapSource = useCallback(() => {
     setMapSource(prev => {
       const next = prev === 'vworld' ? 'kakao' : 'vworld';
-      if (next === 'vworld' && !vworldOkRef.current) return prev;
-      if (next === 'kakao' && !kakaoOkRef.current) return prev;
+      if (next === 'kakao' && !kakaoOkRef.current) {
+        alert('현재 카카오맵을 사용할 수 없습니다.\n카카오맵 SDK 로드에 실패했습니다.');
+        return prev;
+      }
+      if (next === 'vworld' && !vworldOkRef.current) {
+        alert('현재 국토부 지도를 사용할 수 없습니다.\nVWorld 타일 로드에 실패했습니다.');
+        return prev;
+      }
       return next;
     });
     closeInfoCard();
