@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { ArrowLeft, Navigation, List, X, Layers } from 'lucide-react';
 import { WorkOrder } from '../../types';
 import { useUIStore } from '../../stores/uiStore';
-import { openNavigation, NavApp } from '../../services/navigationService';
+import { openNavigation, NavApp, loadMapApiKeys, pickRandomKey } from '../../services/navigationService';
 
 // OpenLayers imports
 import OlMap from 'ol/Map';
@@ -37,7 +37,7 @@ const STATUS_COLORS: Record<string, string> = {
   'default': '#EF4444'
 };
 
-const VWORLD_API_KEY = 'A4EED0C3-BED4-315A-AF7B-B47F94357975';
+const VWORLD_FALLBACK_KEY = 'A4EED0C3-BED4-315A-AF7B-B47F94357975';
 
 // 넘버링 마커 SVG
 function createMarkerDataUrl(color: string, index: number): string {
@@ -60,7 +60,7 @@ function createMyLocationMarkerUrl(): string {
   return 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg);
 }
 
-// 카카오 SDK 로드 대기
+// 카카오 SDK 로드 대기 (MOMP001 공통코드에서 키 동적 로드)
 function ensureKakaoGeocoder(): Promise<boolean> {
   return new Promise((resolve) => {
     if (window.kakao?.maps?.services) { resolve(true); return; }
@@ -69,7 +69,7 @@ function ensureKakaoGeocoder(): Promise<boolean> {
       return;
     }
     let t = 0;
-    const iv = setInterval(() => {
+    const iv = setInterval(async () => {
       t++;
       if (window.kakao?.maps) {
         clearInterval(iv);
@@ -77,8 +77,11 @@ function ensureKakaoGeocoder(): Promise<boolean> {
         window.kakao.maps.load(() => resolve(!!window.kakao.maps.services));
       } else if (t > 25) {
         clearInterval(iv);
+        const mapKeys = await loadMapApiKeys();
+        const appKey = pickRandomKey(mapKeys.kakao);
+        if (!appKey) { resolve(false); return; }
         const s = document.createElement('script');
-        s.src = 'https://dapi.kakao.com/v2/maps/sdk.js?appkey=60a7bd1a64feb3d63955a9165bb4bc79&libraries=services&autoload=false';
+        s.src = `https://dapi.kakao.com/v2/maps/sdk.js?appkey=${appKey}&libraries=services&autoload=false`;
         s.onload = () => {
           if (window.kakao?.maps) {
             window.kakao.maps.load(() => resolve(!!window.kakao.maps.services));
@@ -148,12 +151,20 @@ const WorkMapView: React.FC<WorkMapViewProps> = ({ workOrders, onBack, onSelectW
   useEffect(() => {
     let disposed = false;
 
+    (async () => {
+    // MOMP001에서 API 키 로드 (랜덤 선택)
+    const mapKeys = await loadMapApiKeys();
+    const vworldKey = pickRandomKey(mapKeys.vworld) || VWORLD_FALLBACK_KEY;
+    console.log(`[Map] VWorld 키 선택: ${vworldKey.substring(0, 8)}...`);
+
+    if (disposed) return;
+
     // ========== V-World (OpenLayers) ==========
     const vectorSource = new VectorSource();
     olVectorSourceRef.current = vectorSource;
 
     const vworldTileSource = new XYZ({
-      url: `https://api.vworld.kr/req/wmts/1.0.0/${VWORLD_API_KEY}/Base/{z}/{y}/{x}.png`,
+      url: `https://api.vworld.kr/req/wmts/1.0.0/${vworldKey}/Base/{z}/{y}/{x}.png`,
       maxZoom: 19,
       attributions: '© VWorld'
     });
@@ -308,120 +319,121 @@ const WorkMapView: React.FC<WorkMapViewProps> = ({ workOrders, onBack, onSelectW
     }
 
     // ========== Geocoding ==========
-    (async () => {
-      const ready = await ensureKakaoGeocoder();
-      if (!ready) {
-        setLoadError('주소 변환 서비스를 불러올 수 없습니다.');
-        setIsLoading(false);
-        return;
-      }
-
-      // Ensure Kakao map is initialized
-      if (!kakaoMap && window.kakao?.maps?.Map) {
-        kakaoMap = initKakaoMap();
-      }
-
-      console.log(`[Map] Geocoding 시작: ${workOrders.length}건`);
-      const markerInfos: MarkerInfo[] = [];
-      const olCoordsList: [number, number][] = [];
-      let successCount = 0;
-
-      for (let i = 0; i < workOrders.length; i++) {
-        if (disposed) return;
-        const work = workOrders[i];
-        const address = work.customer?.address;
-
-        if (address) {
-          if (i > 0) await new Promise(r => setTimeout(r, 80));
-          const result = await geocodeAddress(address);
-          if (result) {
-            const statusColor = STATUS_COLORS[work.status] || STATUS_COLORS.default;
-            const markerDataUrl = createMarkerDataUrl(statusColor, i);
-
-            // --- OpenLayers marker ---
-            const feature = new Feature({
-              geometry: new Point(fromLonLat([result.lng, result.lat]))
-            });
-            feature.set('workId', work.id);
-            feature.setStyle(new Style({
-              image: new Icon({ src: markerDataUrl, anchor: [0.5, 1], scale: 1 })
-            }));
-            vectorSource.addFeature(feature);
-            olCoordsList.push(fromLonLat([result.lng, result.lat]) as [number, number]);
-
-            // --- Kakao marker ---
-            if (kakaoMap) {
-              const markerImage = new window.kakao.maps.MarkerImage(
-                markerDataUrl,
-                new window.kakao.maps.Size(36, 48),
-                { offset: new window.kakao.maps.Point(18, 48) }
-              );
-              const marker = new window.kakao.maps.Marker({
-                position: new window.kakao.maps.LatLng(result.lat, result.lng),
-                image: markerImage,
-                map: kakaoMap
-              });
-              const workRef = work;
-              const coordsRef = result;
-              window.kakao.maps.event.addListener(marker, 'click', () => {
-                setSelectedWork(workRef);
-                setSelectedCoords(coordsRef);
-      
-                kakaoMap.panTo(new window.kakao.maps.LatLng(coordsRef.lat, coordsRef.lng));
-              });
-              kakaoMarkersRef.current.push(marker);
-            }
-
-            markerInfos.push({ work, coords: result });
-            successCount++;
-            console.log(`[Map] ${i + 1}/${workOrders.length} 성공: "${address}" → ${result.lat},${result.lng}`);
-          } else {
-            console.warn(`[Map] ${i + 1}/${workOrders.length} 실패: "${address}"`);
-          }
-        }
-        setGeocodedCount(i + 1);
-        setGeocodedSuccess(successCount);
-      }
-
-      markerInfosRef.current = markerInfos;
-      console.log(`[Map] Geocoding 완료: ${successCount}/${workOrders.length}건 성공`);
-
-      // Fit bounds - 내 위치도 포함
-      const myLoc = myLocationRef.current;
-      if (myLoc) {
-        olCoordsList.push(fromLonLat([myLoc.lng, myLoc.lat]) as [number, number]);
-      }
-
-      // Fit bounds - V-World
-      if (olCoordsList.length > 0) {
-        if (olCoordsList.length === 1) {
-          olMap.getView().animate({ center: olCoordsList[0], zoom: 15, duration: 300 });
-        } else {
-          olMap.getView().fit(boundingExtent(olCoordsList), {
-            padding: [60, 60, 60, 60], maxZoom: 16, duration: 300
-          });
-        }
-      }
-
-      // Fit bounds - Kakao (내 위치 포함)
-      if (kakaoMap && (markerInfos.length > 0 || myLoc)) {
-        const bounds = new window.kakao.maps.LatLngBounds();
-        markerInfos.forEach(m => {
-          bounds.extend(new window.kakao.maps.LatLng(m.coords.lat, m.coords.lng));
-        });
-        if (myLoc) {
-          bounds.extend(new window.kakao.maps.LatLng(myLoc.lat, myLoc.lng));
-        }
-        kakaoMap.setBounds(bounds);
-      }
-
+    const ready = await ensureKakaoGeocoder();
+    if (!ready) {
+      setLoadError('주소 변환 서비스를 불러올 수 없습니다.');
       setIsLoading(false);
-    })();
+      return;
+    }
+
+    // Ensure Kakao map is initialized
+    if (!kakaoMap && window.kakao?.maps?.Map) {
+      kakaoMap = initKakaoMap();
+    }
+
+    console.log(`[Map] Geocoding 시작: ${workOrders.length}건`);
+    const markerInfos: MarkerInfo[] = [];
+    const olCoordsList: [number, number][] = [];
+    let successCount = 0;
+
+    for (let i = 0; i < workOrders.length; i++) {
+      if (disposed) return;
+      const work = workOrders[i];
+      const address = work.customer?.address;
+
+      if (address) {
+        if (i > 0) await new Promise(r => setTimeout(r, 80));
+        const result = await geocodeAddress(address);
+        if (result) {
+          const statusColor = STATUS_COLORS[work.status] || STATUS_COLORS.default;
+          const markerDataUrl = createMarkerDataUrl(statusColor, i);
+
+          // --- OpenLayers marker ---
+          const feature = new Feature({
+            geometry: new Point(fromLonLat([result.lng, result.lat]))
+          });
+          feature.set('workId', work.id);
+          feature.setStyle(new Style({
+            image: new Icon({ src: markerDataUrl, anchor: [0.5, 1], scale: 1 })
+          }));
+          vectorSource.addFeature(feature);
+          olCoordsList.push(fromLonLat([result.lng, result.lat]) as [number, number]);
+
+          // --- Kakao marker ---
+          if (kakaoMap) {
+            const markerImage = new window.kakao.maps.MarkerImage(
+              markerDataUrl,
+              new window.kakao.maps.Size(36, 48),
+              { offset: new window.kakao.maps.Point(18, 48) }
+            );
+            const marker = new window.kakao.maps.Marker({
+              position: new window.kakao.maps.LatLng(result.lat, result.lng),
+              image: markerImage,
+              map: kakaoMap
+            });
+            const workRef = work;
+            const coordsRef = result;
+            window.kakao.maps.event.addListener(marker, 'click', () => {
+              setSelectedWork(workRef);
+              setSelectedCoords(coordsRef);
+
+              kakaoMap.panTo(new window.kakao.maps.LatLng(coordsRef.lat, coordsRef.lng));
+            });
+            kakaoMarkersRef.current.push(marker);
+          }
+
+          markerInfos.push({ work, coords: result });
+          successCount++;
+          console.log(`[Map] ${i + 1}/${workOrders.length} 성공: "${address}" → ${result.lat},${result.lng}`);
+        } else {
+          console.warn(`[Map] ${i + 1}/${workOrders.length} 실패: "${address}"`);
+        }
+      }
+      setGeocodedCount(i + 1);
+      setGeocodedSuccess(successCount);
+    }
+
+    markerInfosRef.current = markerInfos;
+    console.log(`[Map] Geocoding 완료: ${successCount}/${workOrders.length}건 성공`);
+
+    // Fit bounds - 내 위치도 포함
+    const myLoc = myLocationRef.current;
+    if (myLoc) {
+      olCoordsList.push(fromLonLat([myLoc.lng, myLoc.lat]) as [number, number]);
+    }
+
+    // Fit bounds - V-World
+    if (olCoordsList.length > 0) {
+      if (olCoordsList.length === 1) {
+        olMap.getView().animate({ center: olCoordsList[0], zoom: 15, duration: 300 });
+      } else {
+        olMap.getView().fit(boundingExtent(olCoordsList), {
+          padding: [60, 60, 60, 60], maxZoom: 16, duration: 300
+        });
+      }
+    }
+
+    // Fit bounds - Kakao (내 위치 포함)
+    if (kakaoMap && (markerInfos.length > 0 || myLoc)) {
+      const bounds = new window.kakao.maps.LatLngBounds();
+      markerInfos.forEach(m => {
+        bounds.extend(new window.kakao.maps.LatLng(m.coords.lat, m.coords.lng));
+      });
+      if (myLoc) {
+        bounds.extend(new window.kakao.maps.LatLng(myLoc.lat, myLoc.lng));
+      }
+      kakaoMap.setBounds(bounds);
+    }
+
+    setIsLoading(false);
+    })(); // end async IIFE
 
     return () => {
       disposed = true;
-      olMap.setTarget(undefined);
-      olMapRef.current = null;
+      if (olMapRef.current) {
+        olMapRef.current.setTarget(undefined);
+        olMapRef.current = null;
+      }
       olVectorSourceRef.current = null;
       olMyLocFeatureRef.current = null;
       kakaoMarkersRef.current.forEach(m => m.setMap(null));

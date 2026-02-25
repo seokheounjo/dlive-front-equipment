@@ -79,6 +79,43 @@ export const openNavigation = (app: NavApp, target: NavigationTarget): void => {
   }
 };
 
+// MOMP001 공통코드에서 API 키 캐시
+let cachedMapKeys: { kakao: string[]; vworld: string[] } | null = null;
+
+// MOMP001 공통코드에서 지도 API 키 목록 로드
+export async function loadMapApiKeys(): Promise<{ kakao: string[]; vworld: string[] }> {
+  if (cachedMapKeys) return cachedMapKeys;
+  try {
+    const response = await fetch('/api/common/getCommonCodeList', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ CODE_IDS: 'MOMP001' }),
+    });
+    const data = await response.json();
+    const list: any[] = Array.isArray(data) ? data
+      : (data.MOMP001 || data.data || []);
+    const kakaoKeys = list
+      .filter((c: any) => c.REF_CODE === 'KAKAO' && c.COMMON_CD_NM)
+      .map((c: any) => c.COMMON_CD_NM);
+    const vworldKeys = list
+      .filter((c: any) => c.REF_CODE === 'VWORLD' && c.COMMON_CD_NM)
+      .map((c: any) => c.COMMON_CD_NM);
+    cachedMapKeys = { kakao: kakaoKeys, vworld: vworldKeys };
+    console.log(`[MapKeys] MOMP001 로드 완료 - 카카오:${kakaoKeys.length}개, 국토부:${vworldKeys.length}개`);
+    return cachedMapKeys;
+  } catch (e) {
+    console.error('[MapKeys] MOMP001 로드 실패:', e);
+    cachedMapKeys = { kakao: [], vworld: [] };
+    return cachedMapKeys;
+  }
+}
+
+// 랜덤으로 키 1개 선택
+export function pickRandomKey(keys: string[]): string {
+  if (keys.length === 0) return '';
+  return keys[Math.floor(Math.random() * keys.length)];
+}
+
 // 카카오 SDK 로드 대기
 function ensureKakaoGeocoder(): Promise<boolean> {
   return new Promise((resolve) => {
@@ -88,7 +125,7 @@ function ensureKakaoGeocoder(): Promise<boolean> {
       return;
     }
     let t = 0;
-    const iv = setInterval(() => {
+    const iv = setInterval(async () => {
       t++;
       if ((window as any).kakao?.maps) {
         clearInterval(iv);
@@ -96,8 +133,11 @@ function ensureKakaoGeocoder(): Promise<boolean> {
         (window as any).kakao.maps.load(() => resolve(!!(window as any).kakao.maps.services));
       } else if (t > 25) {
         clearInterval(iv);
+        const mapKeys = await loadMapApiKeys();
+        const appKey = pickRandomKey(mapKeys.kakao);
+        if (!appKey) { resolve(false); return; }
         const s = document.createElement('script');
-        s.src = 'https://dapi.kakao.com/v2/maps/sdk.js?appkey=60a7bd1a64feb3d63955a9165bb4bc79&libraries=services&autoload=false';
+        s.src = `https://dapi.kakao.com/v2/maps/sdk.js?appkey=${appKey}&libraries=services&autoload=false`;
         s.onload = () => {
           if ((window as any).kakao?.maps) {
             (window as any).kakao.maps.load(() => resolve(!!(window as any).kakao.maps.services));
