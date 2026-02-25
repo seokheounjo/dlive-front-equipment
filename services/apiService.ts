@@ -4572,7 +4572,6 @@ export const modAsPdaReceipt = async (params: {
   ADDR?: string;
   ADDR_DTL?: string;
 }): Promise<{ code: string; message: string }> => {
-  console.log('[AS할당 API] modAsPdaReceipt 호출:', params);
 
   // 더미 모드 체크
   if (checkDemoMode()) {
@@ -4615,7 +4614,6 @@ export const modAsPdaReceipt = async (params: {
       ADDR_DTL: params.ADDR_DTL || '',
     };
 
-    console.log('[AS할당 API] 요청 데이터:', requestData);
 
     const response = await fetch(`${API_BASE}/customer/work/modAsPdaReceipt`, {
       method: 'POST',
@@ -4627,7 +4625,6 @@ export const modAsPdaReceipt = async (params: {
     });
 
     const result = await response.json();
-    console.log('[AS할당 API] 응답:', result);
 
     // 서버 응답이 배열이거나 성공 코드인 경우 성공으로 처리
     if (Array.isArray(result) || result.code === 'SUCCESS' || result.success === true) {

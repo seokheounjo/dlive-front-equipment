@@ -577,8 +577,6 @@ const apiCall = async <T>(
 ): Promise<ApiResponse<T>> => {
   try {
     const url = `${API_BASE}${endpoint}`;
-    console.log(`[CustomerAPI] ${method} ${url}`);
-    console.log(JSON.stringify(params, null, 2));
 
     const response = await fetch(url, {
       method,
@@ -594,8 +592,6 @@ const apiCall = async <T>(
     }
 
     const result = await response.json();
-    console.log(`[CustomerAPI] Response:`);
-    console.log(JSON.stringify(result, null, 2));
 
     // 레거시 API 응답 형식 처리
     // D'Live API: { code: 'SUCCESS', message: 'OK', data: [...] }
@@ -834,7 +830,6 @@ export const searchCustomer = async (params: CustomerSearchParams): Promise<ApiR
       SERCH_GB: '3',
       LOGIN_ID: loginId
     };
-    console.log('[CustomerAPI] CUSTOMER_ID search params:\n' + JSON.stringify(reqParams, null, 2));
     const result = await apiCall<any>('/customer/common/customercommon/getConditionalCustList2', reqParams);
 
     if (result.success && result.data) {
@@ -948,7 +943,6 @@ export const searchCustomer = async (params: CustomerSearchParams): Promise<ApiR
         if (params.phoneNumber) ctrtParams.TEL_NO = params.phoneNumber;
         if (params.customerName) ctrtParams.CUST_NM = params.customerName;
 
-        console.log('[CustomerAPI] Trying getCtrtIDforSmartPhone:\n' + JSON.stringify(ctrtParams, null, 2));
         const ctrtResult = await apiCall<any>('/customer/phoneNumber/getCtrtIDforSmartPhone', ctrtParams);
 
         if (ctrtResult.success && ctrtResult.data) {
@@ -977,7 +971,6 @@ export const searchCustomer = async (params: CustomerSearchParams): Promise<ApiR
     if (params.customerName) {
       reqParams.CUST_NM = params.customerName;
     }
-    console.log('[CustomerAPI] PHONE_NAME search params:\n' + JSON.stringify(reqParams, null, 2));
 
     try {
       const result = await apiCall<any>('/customer/common/customercommon/getConditionalCustList2', reqParams);
@@ -1000,7 +993,6 @@ export const searchCustomer = async (params: CustomerSearchParams): Promise<ApiR
       EQT_SERNO: params.equipmentNo,
       MAC_ADDR: ''
     };
-    console.log('[CustomerAPI] EQUIPMENT_NO search params:\n' + JSON.stringify(reqParams, null, 2));
 
     try {
       const result = await apiCall<any>('/customer/common/customercommon/getConditionalCustList2', reqParams);
@@ -1066,11 +1058,8 @@ export const searchCustomerAll = async (params: {
     reqParams.CUST_NM = params.customerName;
   }
 
-  console.log('[CustomerAPI] searchCustomerAll 요청 파라미터:\n' + JSON.stringify(reqParams, null, 2));
-
   try {
     const result = await apiCall<any>('/customer/common/customercommon/getConditionalCustList2', reqParams);
-    console.log('[CustomerAPI] searchCustomerAll 응답:', result);
 
     if (result.success && result.data) {
       const dataArray = Array.isArray(result.data) ? result.data : [result.data];
@@ -1599,7 +1588,7 @@ export const savePaymentSignature = async (params: SignatureSaveRequest): Promis
   // return apiCall<any>('/customer/signature/save', params);
 
   // 현재는 stub (API 미연결)
-  console.log('[CustomerAPI] savePaymentSignature stub called:', {
+  console.warn('[CustomerAPI] savePaymentSignature stub called:', {
     CUST_ID: params.CUST_ID,
     PYM_ACNT_ID: params.PYM_ACNT_ID,
     SIGN_TYPE: params.SIGN_TYPE,
@@ -1637,7 +1626,7 @@ export const getPaymentCommonCodes = async (params: CommonCodeRequest): Promise<
   // return apiCall<CommonCodeItem[]>('/customer/common/getCodeList', params);
 
   // 현재는 stub (프론트엔드 하드코딩 사용 중)
-  console.log('[CustomerAPI] getPaymentCommonCodes stub called:', params);
+  console.warn('[CustomerAPI] getPaymentCommonCodes stub called:', params);
   return Promise.resolve({
     success: true,
     data: [],
@@ -2009,7 +1998,6 @@ export const searchPostAddress = async (params: PostAddressSearchRequest): Promi
       USE_FLAG: params.USE_FLAG || 'Y'
     };
     if (params.DONGMYONG) searchParams.DONGMYONG = params.DONGMYONG;
-    console.log('[CustomerAPI] searchPostAddress (단일):', { SO_ID: params.SO_ID, DONGMYONG: params.DONGMYONG });
     return apiCall<PostAddressInfo[]>('/statistics/customer/getPostList', searchParams);
   }
 
@@ -2045,7 +2033,6 @@ export const searchPostAddress = async (params: PostAddressSearchRequest): Promi
   }
 
   // 전체 지점에 대해 병렬 조회
-  console.log('[CustomerAPI] searchPostAddress (전체 지점):', soList.map(s => s.soId), '검색어:', params.DONGMYONG);
   const promises = soList.map(so => {
     const searchParams: Record<string, string> = {
       SO_ID: so.soId,
@@ -2077,7 +2064,6 @@ export const searchPostAddress = async (params: PostAddressSearchRequest): Promi
     }
   }
 
-  console.log(`[CustomerAPI] searchPostAddress 전체 결과: ${allData.length}건 (${soList.length}개 지점)`);
   return { success: true, data: allData, message: '' };
 };
 
