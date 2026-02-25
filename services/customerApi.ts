@@ -148,6 +148,8 @@ export interface UnpaymentInfo {
   UNPAY_AMT: number;         // 미납금액
   UNPAY_DAYS: number;        // 미납일수
   UNPAY_STAT_NM: string;     // 미납상태
+  BILL_SEQ_NO?: string;      // 청구순번 (콤마 구분: "7, 8, 9")
+  SO_ID?: string;             // SO ID
 }
 
 // 상담 이력 (D'Live: getTgtCtrtRcptHist_m)
@@ -1262,6 +1264,8 @@ export interface BillingDetailInfo {
   BILL_AMT: number;          // 청구금액
   RCPT_AMT: number;          // 수납금액
   UPYM_AMT: number;          // 미납금액
+  BILL_SEQ_NO?: string;      // 청구순번 (콤마 구분: "7, 8, 9")
+  SO_ID?: string;             // SO ID
 }
 
 export const getBillingDetails = async (custId: string, pymAcntId?: string): Promise<ApiResponse<BillingDetailInfo[]>> => {
@@ -2252,6 +2256,7 @@ export interface CardDpstParams {
   rcpt_bill_emp_id: string;  // 수납담당자ID
   smry: string;              // 적요
   cust_email: string;        // 고객이메일
+  stage?: string;             // 스테이지 ('01')
   // 상세 리스트
   dtlList?: CardDpstDtlItem[];
 }
@@ -2284,6 +2289,7 @@ export const insertDpstAndDTL = async (params: CardDpstParams): Promise<ApiRespo
     PYR_REL: params.pyr_rel,
     PROD_INFO_CD: params.prod_info_cd,
     CUST_EMAIL: params.cust_email,
+    STAGE: params.stage || '',
   };
   if (params.dtlList) {
     backendParams.DTL_LIST = params.dtlList.map(dtl => ({
@@ -2314,6 +2320,12 @@ export interface CardPayStageParams {
   so_id?: string;            // SO_ID (SQL requires)
   cust_id?: string;          // CUST_ID (SQL requires)
   ctrt_id?: string;          // CTRT_ID (SQL requires)
+  gubun?: string;            // 'P' (결제구분)
+  buyer?: string;            // 고객명
+  productinfo?: string;      // '01' (상품코드)
+  card_vendor?: string;      // MID (가맹점ID)
+  mid?: string;              // MID
+  order_no_full?: string;    // 전체 주문번호
 }
 
 export const insertCardPayStage = async (params: CardPayStageParams): Promise<ApiResponse<any>> => {
@@ -2327,6 +2339,12 @@ export const insertCardPayStage = async (params: CardPayStageParams): Promise<Ap
     SO_ID: params.so_id || '',
     CUST_ID: params.cust_id || '',
     CTRT_ID: params.ctrt_id || '',
+    GUBUN: params.gubun || '',
+    BUYER: params.buyer || '',
+    PRODUCTINFO: params.productinfo || '',
+    CARD_VENDOR: params.card_vendor || '',
+    MID: params.mid || '',
+    ORDER_NO: params.order_no_full || '',
   };
   return apiCall<any>('/billing/payment/anony/insertCardPayStage', backendParams);
 };
@@ -2353,6 +2371,8 @@ export interface CardPaymentRequest {
   so_id?: string;            // SO_ID (stage insert용)
   cust_id?: string;          // CUST_ID (stage insert용)
   ctrt_id?: string;          // CTRT_ID (stage insert용)
+  stage?: string;            // 스테이지 ('02': PG 요청 전)
+  card_vendor?: string;      // 카드사 (= MID)
 }
 
 export const processCardPayment = async (params: CardPaymentRequest): Promise<ApiResponse<any>> => {
@@ -2376,6 +2396,8 @@ export const processCardPayment = async (params: CardPaymentRequest): Promise<Ap
     SO_ID: params.so_id || '',
     CUST_ID: params.cust_id || '',
     CTRT_ID: params.ctrt_id || '',
+    STAGE: params.stage || '',
+    CARD_VENDOR: params.card_vendor || '',
   };
   return apiCall<any>('/billing/payment/anony/processCardPayment', backendParams);
 };

@@ -294,16 +294,35 @@ const UnpaymentCollectionModal: React.FC<UnpaymentCollectionModalProps> = ({
         : 'SYSTEM';
 
       const selectedBills = unpaymentList.filter((_, idx) => selectedItems.has(idx));
-      const dtlList: CardDpstDtlItem[] = selectedBills.map((item, idx) => ({
-        master_store_id: mid,
-        order_dt: orderDt,
-        order_no: orderNo,
-        BILL_SEQ_NO: String(idx + 1),
-        SO_ID: soId || '',
-        BILL_AMT: item.BILL_AMT || item.UNPAY_AMT,
-        PRE_RCPT_AMT: (item.BILL_AMT || 0) - (item.UNPAY_AMT || 0),
-        RCPT_AMT: item.UNPAY_AMT
-      }));
+      const dtlList: CardDpstDtlItem[] = [];
+      selectedBills.forEach(item => {
+        const seqNos = (item.BILL_SEQ_NO || '').split(',').map(s => s.trim()).filter(Boolean);
+        if (seqNos.length > 0) {
+          seqNos.forEach(seqNo => {
+            dtlList.push({
+              master_store_id: mid,
+              order_dt: orderDt,
+              order_no: orderNo,
+              BILL_SEQ_NO: seqNo,
+              SO_ID: item.SO_ID || soId || '',
+              BILL_AMT: item.BILL_AMT || item.UNPAY_AMT,
+              PRE_RCPT_AMT: (item.BILL_AMT || 0) - (item.UNPAY_AMT || 0),
+              RCPT_AMT: item.UNPAY_AMT
+            });
+          });
+        } else {
+          dtlList.push({
+            master_store_id: mid,
+            order_dt: orderDt,
+            order_no: orderNo,
+            BILL_SEQ_NO: '',
+            SO_ID: item.SO_ID || soId || '',
+            BILL_AMT: item.BILL_AMT || item.UNPAY_AMT,
+            PRE_RCPT_AMT: (item.BILL_AMT || 0) - (item.UNPAY_AMT || 0),
+            RCPT_AMT: item.UNPAY_AMT
+          });
+        }
+      });
 
       const dpstParams: CardDpstParams = {
         master_store_id: mid,
@@ -312,14 +331,15 @@ const UnpaymentCollectionModal: React.FC<UnpaymentCollectionModalProps> = ({
         ctrt_so_id: soId || '',
         pym_acnt_id: pymAcntId || '',
         cust_id: custId,
-        prod_info_cd: '0',
+        prod_info_cd: '01',
         encrypted_amt: amountStr,
         reqr_nm: custNm || '',
-        pyr_rel: '01',
+        pyr_rel: 'A',
         user_id: loginId,
         rcpt_bill_emp_id: loginId,
         smry: '모바일 미납금 카드수납',
         cust_email: '',
+        stage: '01',
         dtlList
       };
 
@@ -345,7 +365,7 @@ const UnpaymentCollectionModal: React.FC<UnpaymentCollectionModalProps> = ({
         oid: orderNo,
         amount: amountStr,
         buyer: custNm || '',
-        productinfo: '미납금수납',
+        productinfo: '01',
         card_no: cardNo,
         card_expyear: expYear,
         card_expmon: expMonth,
@@ -354,7 +374,9 @@ const UnpaymentCollectionModal: React.FC<UnpaymentCollectionModalProps> = ({
         pym_acnt_id: pymAcntId || '',
         encrypted_amt: amountStr,
         so_id: soId || '',
-        cust_id: custId
+        cust_id: custId,
+        stage: '02',
+        card_vendor: mid,
       });
 
       if (payRes.success) {

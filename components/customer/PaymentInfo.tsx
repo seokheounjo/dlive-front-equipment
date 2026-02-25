@@ -221,7 +221,9 @@ const PaymentInfo: React.FC<PaymentInfoProps> = ({
             BILL_AMT: item.BILL_AMT,
             UNPAY_AMT: item.UPYM_AMT,
             UNPAY_DAYS: 0,
-            UNPAY_STAT_NM: '미납'
+            UNPAY_STAT_NM: '미납',
+            BILL_SEQ_NO: item.BILL_SEQ_NO || '',
+            SO_ID: item.SO_ID || '',
           }));
 
         if (unpaymentItems.length > 0) {
