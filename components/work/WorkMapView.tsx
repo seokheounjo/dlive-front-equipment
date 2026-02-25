@@ -242,9 +242,10 @@ const WorkMapView: React.FC<WorkMapViewProps> = ({ workOrders, onBack, onSelectW
         window.kakao.maps.event.addListener(map, 'click', () => {
           setSelectedWork(null);
           setSelectedCoords(null);
-
         });
 
+        kakaoOkRef.current = true;
+        console.log('[Map] 카카오맵 초기화 성공');
         return map;
       } catch (e) {
         console.warn('[Map] 카카오맵 초기화 실패:', e);
@@ -258,6 +259,39 @@ const WorkMapView: React.FC<WorkMapViewProps> = ({ workOrders, onBack, onSelectW
       }
     };
 
+    // 카카오 SDK 동적 로드 (index.html에서 제거됨 → 여기서 로드)
+    if (!window.kakao?.maps) {
+      const kakaoKey = pickRandomKey(mapKeys.kakao);
+      if (kakaoKey) {
+        console.log(`[Map] 카카오 SDK 동적 로드 시작 (키: ${kakaoKey.substring(0, 8)}...)`);
+        await new Promise<void>((resolve) => {
+          const s = document.createElement('script');
+          s.src = `https://dapi.kakao.com/v2/maps/sdk.js?appkey=${kakaoKey}&libraries=services&autoload=false`;
+          s.onload = () => {
+            console.log('[Map] 카카오 SDK 스크립트 로드 완료');
+            if (window.kakao?.maps) {
+              window.kakao.maps.load(() => {
+                console.log('[Map] 카카오 maps.load() 완료');
+                resolve();
+              });
+            } else {
+              resolve();
+            }
+          };
+          s.onerror = () => {
+            console.error('[Map] 카카오 SDK 스크립트 로드 실패');
+            resolve();
+          };
+          document.head.appendChild(s);
+        });
+      } else {
+        console.warn('[Map] MOMP001에 카카오 키 없음');
+      }
+    }
+
+    if (disposed) return;
+
+    // 카카오맵 초기화
     if (window.kakao?.maps) {
       if (window.kakao.maps.Map) {
         kakaoMap = initKakaoMap();
@@ -265,9 +299,8 @@ const WorkMapView: React.FC<WorkMapViewProps> = ({ workOrders, onBack, onSelectW
         window.kakao.maps.load(() => { kakaoMap = initKakaoMap(); });
       }
     } else {
-      // 카카오 SDK 자체가 없음
       kakaoOkRef.current = false;
-      console.warn('[Map] 카카오맵 SDK 로드 실패');
+      console.warn('[Map] 카카오맵 SDK 사용 불가');
     }
 
     // ========== 내 위치 마커 추가 함수 ==========
