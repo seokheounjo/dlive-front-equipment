@@ -3,11 +3,8 @@ import { X, Loader2, AlertCircle, CheckCircle, CreditCard, ChevronDown, Clock } 
 import {
   UnpaymentInfo,
   formatCurrency,
-  getCardVendorBySoId,
   insertDpstAndDTL,
   processCardPayment,
-  generateOrderNo,
-  getOrderDate,
   CardDpstParams,
   CardDpstDtlItem
 } from '../../services/customerApi';
@@ -270,29 +267,13 @@ const UnpaymentCollectionModal: React.FC<UnpaymentCollectionModalProps> = ({
     setIsProcessing(true);
 
     try {
-      // Step 1: 카드사 벤더(MID) 조회
-      console.log('[Payment] Step 1: getCardVendorBySoId');
-      const vendorRes = await getCardVendorBySoId(soId);
-      let mid = 'dlivecon';  // 기본 MID
-      if (vendorRes.success && vendorRes.data) {
-        const vendor = Array.isArray(vendorRes.data) ? vendorRes.data[0] : vendorRes.data;
-        if (vendor?.CARD_VENDOR) {
-          mid = vendor.CARD_VENDOR;
-        }
-      }
-      console.log('[Payment] MID:', mid);
-
-      const orderDt = getOrderDate();
-      const orderNo = generateOrderNo();
-      const fullOrderNo = mid + orderDt + orderNo;
       const amountStr = String(selectedTotal);
-
-      // Step 2: 입금 등록 (insertDpstAndDTL)
-      console.log('[Payment] Step 2: insertDpstAndDTL');
       const loginId = sessionStorage.getItem('userInfo')
         ? JSON.parse(sessionStorage.getItem('userInfo') || '{}').userId || 'SYSTEM'
         : 'SYSTEM';
 
+      // Step 1: BILL_SEQ_NO DTL list
+      console.log('[Payment] Step 1: build DTL list from BILL_SEQ_NO');
       const selectedBills = unpaymentList.filter((_, idx) => selectedItems.has(idx));
       const dtlList: CardDpstDtlItem[] = [];
       selectedBills.forEach(item => {
@@ -300,9 +281,9 @@ const UnpaymentCollectionModal: React.FC<UnpaymentCollectionModalProps> = ({
         if (seqNos.length > 0) {
           seqNos.forEach(seqNo => {
             dtlList.push({
-              master_store_id: mid,
-              order_dt: orderDt,
-              order_no: orderNo,
+              master_store_id: '',
+              order_dt: '',
+              order_no: '',
               BILL_SEQ_NO: seqNo,
               SO_ID: item.SO_ID || soId || '',
               BILL_AMT: item.BILL_AMT || item.UNPAY_AMT,
@@ -312,9 +293,9 @@ const UnpaymentCollectionModal: React.FC<UnpaymentCollectionModalProps> = ({
           });
         } else {
           dtlList.push({
-            master_store_id: mid,
-            order_dt: orderDt,
-            order_no: orderNo,
+            master_store_id: '',
+            order_dt: '',
+            order_no: '',
             BILL_SEQ_NO: '',
             SO_ID: item.SO_ID || soId || '',
             BILL_AMT: item.BILL_AMT || item.UNPAY_AMT,
@@ -324,10 +305,12 @@ const UnpaymentCollectionModal: React.FC<UnpaymentCollectionModalProps> = ({
         }
       });
 
+      // Step 2: insertDpstAndDTL (backend handles order_no, order_dt, MID from DB)
+      console.log('[Payment] Step 2: insertDpstAndDTL');
       const dpstParams: CardDpstParams = {
-        master_store_id: mid,
-        order_dt: orderDt,
-        order_no: orderNo,
+        master_store_id: '',
+        order_dt: '',
+        order_no: '',
         ctrt_so_id: soId || '',
         pym_acnt_id: pymAcntId || '',
         cust_id: custId,
@@ -344,7 +327,19 @@ const UnpaymentCollectionModal: React.FC<UnpaymentCollectionModalProps> = ({
       };
 
       const dpstRes = await insertDpstAndDTL(dpstParams);
-      console.log('[Payment] insertDpstAndDTL result:', dpstRes.success);
+      console.log('[Payment] insertDpstAndDTL result:', dpstRes);
+
+      if (!dpstRes.success) {
+        showToast?.(dpstRes.message || '입금 등록에 실패했습니다.', 'error');
+        return;
+      }
+
+      // Backend returns ORDER_NO, ORDER_DT, MID from DB
+      const orderNo = dpstRes.data?.ORDER_NO || '';
+      const orderDt = dpstRes.data?.ORDER_DT || '';
+      const mid = dpstRes.data?.MID || '';
+      const fullOrderNo = mid + orderDt + orderNo;
+      console.log('[Payment] DB values - ORDER_NO:', orderNo, 'ORDER_DT:', orderDt, 'MID:', mid);
 
       // 입금 등록 성공 후 진행중 상태 저장
       if (pymAcntId) {
@@ -357,7 +352,6 @@ const UnpaymentCollectionModal: React.FC<UnpaymentCollectionModalProps> = ({
       }
 
       // Step 3: PG 결제 요청
-      // Stage 03~06은 백엔드 어댑터가 직접 관리 (JSP stage 03 중복 방지)
       console.log('[Payment] Step 3: processCardPayment');
       const payRes = await processCardPayment({
         mid,
