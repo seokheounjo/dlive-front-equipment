@@ -528,7 +528,6 @@ const WorkMapView: React.FC<WorkMapViewProps> = ({ workOrders, onBack, onSelectW
   const closeInfoCard = useCallback(() => {
     setSelectedWork(null);
     setSelectedCoords(null);
-    setShowNavModal(false);
   }, []);
 
   const toggleMapSource = useCallback(() => {
