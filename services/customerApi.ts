@@ -1812,6 +1812,7 @@ export const registerASRequest = async (params: ASRequestParams): Promise<ApiRes
     ADDR_DTL: isUIParams ? (uiParams.ADDR_DTL || '') : ((params as any).ADDR_DTL || ''),
     ADDR: isUIParams ? (uiParams.ADDR || '') : ((params as any).ADDR || ''),
     ADDR_ORD: isUIParams ? (uiParams.ADDR_ORD || '1') : ((params as any).ADDR_ORD || '1'),
+    CNSL_RSLT: '2',
   };
 
   if (isUIParams && uiParams.AS_CL_DTL_CD) {
