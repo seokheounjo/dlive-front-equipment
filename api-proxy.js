@@ -443,12 +443,11 @@ async function handleBankAccountVerify(req, res) {
     console.log('\n========== [BankAccountVerify] ==========');
     console.log('Input params:', JSON.stringify(body, null, 2));
 
-    // ACCESS_TICKET 구성
+    // JSESSIONID or ACCESS_TICKET for auth
     const userId = body.USR_ID || storedUserId || '';
     if (!userId) {
       return res.json({ success: false, code: 'NO_USER', message: 'Login required (no USR_ID)', data: {} });
     }
-    const accessTicket = encodeURIComponent(userId + '###bank-verify###2099/01/01_00:00:00:0000');
 
     // CONA 파라미터 매핑 (CustomerManagerImpl.addCustomerRlnmAuthCheck 기준)
     const checkType = body.CHECK_TYPE || 'E';  // E=계좌인증, A=실명인증
@@ -480,17 +479,22 @@ async function handleBankAccountVerify(req, res) {
     const xmlBody = jsonToMiPlatformXML('DS_INPUT', reqParams);
     const postData = iconv.encode(xmlBody, 'euc-kr');
 
-    const targetUrl = DLIVE_API_BASE + '/customer/customer/general/addCustomerRlnmAuthCheck.req?ACCESS_TICKET=' + accessTicket;
-    console.log('[BankAccountVerify] URL:', targetUrl);
+    // Use JSESSIONID cookie if available, fallback to ACCESS_TICKET (without %2F)
+    let reqPath = '/customer/customer/general/addCustomerRlnmAuthCheck.req';
+    if (!storedJSessionId) {
+      // No JSESSIONID: use ACCESS_TICKET with short date (no / to avoid WebSphere 404)
+      const ticket = userId + '%23%23%23bank-verify%23%23%232099';
+      reqPath += '?ACCESS_TICKET=' + ticket;
+    }
+    const targetUrl = DLIVE_API_BASE + reqPath;
+    console.log('[BankAccountVerify] URL:', targetUrl, storedJSessionId ? '(JSESSIONID auth)' : '(ACCESS_TICKET auth)');
 
     const http = require('http');
-    const urlMod = require('url');
-    const parsedUrl = urlMod.parse(targetUrl);
 
     const options = {
-      hostname: parsedUrl.hostname,
-      port: parsedUrl.port || 80,
-      path: parsedUrl.path,
+      hostname: '58.143.140.222',
+      port: 8080,
+      path: reqPath,
       method: 'POST',
       headers: {
         'Content-Type': 'text/xml; charset=euc-kr',
