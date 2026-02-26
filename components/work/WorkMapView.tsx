@@ -351,7 +351,7 @@ const WorkMapView: React.FC<WorkMapViewProps> = ({ workOrders, onBack, onSelectW
         });
 
         const ngiiTileSource = new XYZ({
-          url: `http://map.ngii.go.kr/openapi/Gettile.do?apikey=${ngiiKey}&layer=korean_map&level={z}&row={y}&col={x}`,
+          url: `https://map.ngii.go.kr/openapi/Gettile.do?apikey=${ngiiKey}&layer=korean_map&level={z}&row={y}&col={x}`,
           tileGrid: ngiiTileGrid,
           projection: 'EPSG:5179',
           maxZoom: 18,
