@@ -540,7 +540,7 @@ async function handleBankAccountVerify(req, res) {
         'Content-Length': postData.length,
         'Cookie': storedJSessionId ? 'JSESSIONID=' + storedJSessionId : ''
       },
-      timeout: 30000
+      timeout: 10000
     };
 
     const proxyReq = http.request(options, (proxyRes) => {
