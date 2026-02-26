@@ -3,6 +3,7 @@ import { MapPin, Loader2 } from 'lucide-react';
 import { WorkItem, WorkOrderStatus } from '../../types';
 import { useUIStore } from '../../stores/uiStore';
 import { geocodeAndNavigate } from '../../services/navigationService';
+import ConfirmModal from '../common/ConfirmModal';
 
 interface WorkItemCardProps {
   item: any; // 실제 API 데이터 구조 사용
@@ -41,6 +42,7 @@ const getProductGroupStyle = (prodGrp: string | undefined) => {
 
 const WorkItemCard: React.FC<WorkItemCardProps> = ({ item, onSelect, onComplete, onCancel, index }) => {
   const [navLoading, setNavLoading] = useState(false);
+  const [modalMsg, setModalMsg] = useState('');
   const preferredNavApp = useUIStore((s) => s.preferredNavApp);
 
   // 실제 API 데이터 매핑
@@ -57,9 +59,9 @@ const WorkItemCard: React.FC<WorkItemCardProps> = ({ item, onSelect, onComplete,
     setNavLoading(true);
     try {
       const ok = await geocodeAndNavigate(address, preferredNavApp);
-      if (!ok) alert('주소를 찾을 수 없습니다.');
+      if (!ok) setModalMsg('주소를 찾을 수 없습니다.');
     } catch {
-      alert('길찾기 실행에 실패했습니다.');
+      setModalMsg('길찾기 실행에 실패했습니다.');
     } finally {
       setNavLoading(false);
     }
@@ -149,6 +151,15 @@ const WorkItemCard: React.FC<WorkItemCardProps> = ({ item, onSelect, onComplete,
           </div>
         )}
       </div>
+
+      <ConfirmModal
+        isOpen={!!modalMsg}
+        onClose={() => setModalMsg('')}
+        onConfirm={() => setModalMsg('')}
+        message={modalMsg}
+        type="warning"
+        showCancel={false}
+      />
     </div>
   );
 };

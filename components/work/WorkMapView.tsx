@@ -3,6 +3,7 @@ import { ArrowLeft, Navigation, List, X, Layers } from 'lucide-react';
 import { WorkOrder } from '../../types';
 import { useUIStore } from '../../stores/uiStore';
 import { openNavigation, NavApp, loadMapApiKeys, pickRandomKey } from '../../services/navigationService';
+import ConfirmModal from '../common/ConfirmModal';
 
 // OpenLayers imports
 import OlMap from 'ol/Map';
@@ -146,6 +147,7 @@ const WorkMapView: React.FC<WorkMapViewProps> = ({ workOrders, onBack, onSelectW
   const [geocodedSuccess, setGeocodedSuccess] = useState(0);
   const [selectedWork, setSelectedWork] = useState<WorkOrder | null>(null);
   const [selectedCoords, setSelectedCoords] = useState<{ lat: number; lng: number } | null>(null);
+  const [toastMsg, setToastMsg] = useState('');
 
   // Initialize both maps + geocode
   useEffect(() => {
@@ -542,7 +544,7 @@ const WorkMapView: React.FC<WorkMapViewProps> = ({ workOrders, onBack, onSelectW
           kakaoMapRef.current.setLevel(3);
         }
       },
-      () => alert('위치 정보를 가져올 수 없습니다.'),
+      () => setToastMsg('위치 정보를 가져올 수 없습니다.'),
       { enableHighAccuracy: true, timeout: 10000 }
     );
   }, [mapSource]);
@@ -567,11 +569,11 @@ const WorkMapView: React.FC<WorkMapViewProps> = ({ workOrders, onBack, onSelectW
     setMapSource(prev => {
       const next = prev === 'vworld' ? 'kakao' : 'vworld';
       if (next === 'kakao' && !kakaoOkRef.current) {
-        alert('현재 카카오맵을 사용할 수 없습니다.\n카카오맵 SDK 로드에 실패했습니다.');
+        setToastMsg('현재 카카오맵을 사용할 수 없습니다.\n카카오맵 SDK 로드에 실패했습니다.');
         return prev;
       }
       if (next === 'vworld' && !vworldOkRef.current) {
-        alert('현재 국토부 지도를 사용할 수 없습니다.\nVWorld 타일 로드에 실패했습니다.');
+        setToastMsg('현재 국토부 지도를 사용할 수 없습니다.\nVWorld 타일 로드에 실패했습니다.');
         return prev;
       }
       return next;
@@ -739,6 +741,15 @@ const WorkMapView: React.FC<WorkMapViewProps> = ({ workOrders, onBack, onSelectW
           총 {workOrders.length}건 {geocodedSuccess > 0 && !isLoading && `(${geocodedSuccess}건 표시)`}
         </div>
       </div>
+
+      <ConfirmModal
+        isOpen={!!toastMsg}
+        onClose={() => setToastMsg('')}
+        onConfirm={() => setToastMsg('')}
+        message={toastMsg}
+        type="warning"
+        showCancel={false}
+      />
     </div>
   );
 };
