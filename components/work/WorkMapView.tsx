@@ -362,11 +362,9 @@ const WorkMapView: React.FC<WorkMapViewProps> = ({ workOrders, onBack, onSelectW
             const col = tileCoord[1];
             const row = -(tileCoord[2] + 1); // OL XYZ uses negative y: -(row+1)
             const level = 'L' + String(z + 5).padStart(2, '0');
-            return `https://map.ngii.go.kr/openapi/Gettile.do?apikey=${ngiiKey}`
-              + `&service=WMTS&request=GetTile&version=1.0.0`
-              + `&layer=korean_map&style=korean&format=image/png`
-              + `&tilematrixset=korean&tilematrix=${level}`
-              + `&tilerow=${row}&tilecol=${col}`;
+            // Proxy through our server (NGII checks Referer, blocks direct browser calls)
+            return `/api/ngii-tile?apikey=${ngiiKey}`
+              + `&tilematrix=${level}&tilerow=${row}&tilecol=${col}`;
           }
         });
 
