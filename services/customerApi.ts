@@ -466,14 +466,14 @@ export interface PaymentMethodChangeRequest {
 
 // 계좌 인증 요청
 export interface AccountVerifyRequest {
-  BANK_CD: string;           // 은행코드
-  ACNT_NO: string;           // 계좌번호
-  ACNT_OWNER_NM: string;     // 예금주명
-  BIRTH_DT?: string;         // 생년월일 (YYYYMMDD)
+  BANK_CD: string;           // 은행코드 (CARD_ACNT_CD)
+  ACNT_NO: string;           // 계좌번호 (CARD_ACNT_NO)
+  ACNT_OWNER_NM: string;     // 예금주명 (CUST_NM)
+  RSDT_CRRNO?: string;       // 주민/사업자/외국인 등록번호
   SO_ID?: string;            // 지점ID
   MST_SO_ID?: string;        // 마스터 SO_ID
   CUST_TP?: string;          // 고객유형 (A/C/E 등)
-  ID_TYPE_CD?: string;       // 신분유형코드
+  ID_TYPE_CD?: string;       // 신분유형코드 (01:주민, 02:사업자, 03:외국인)
   CUST_ID?: string;          // 고객ID
   PYM_ACNT_ID?: string;      // 납부계정ID
 }
@@ -1537,15 +1537,16 @@ export const verifyBankAccount = async (params: AccountVerifyRequest): Promise<A
   }
 
   try {
-    // 3-step CONA .req flow: getRealAge → getCustomerRlnmAuthCheck → customerRlnmAuthCheck
+    // CONA AddCustomerRlnmAuthCheck.req - KSNET 계좌 실명인증
     const response = await apiCall<any>('/customer/payment/verifyBankAccount', {
+      CHECK_TYPE: 'E',
       CUST_NM: params.ACNT_OWNER_NM,
-      BIRTH_DT: params.BIRTH_DT || '',
-      BANK_CD: params.BANK_CD,
-      ACNT_NO: params.ACNT_NO,
+      CUST_TP: params.CUST_TP || 'A',
+      RSDT_CRRNO: params.RSDT_CRRNO || '',
+      CARD_ACNT_CD: params.BANK_CD,
+      CARD_ACNT_NO: params.ACNT_NO,
       SO_ID: soId,
       MST_SO_ID: mstSoId,
-      CUST_TP: params.CUST_TP || 'A',
       ID_TYPE_CD: params.ID_TYPE_CD || '01',
       CUST_ID: params.CUST_ID || '',
       PYM_ACNT_ID: params.PYM_ACNT_ID || ''
@@ -1553,13 +1554,14 @@ export const verifyBankAccount = async (params: AccountVerifyRequest): Promise<A
 
     if (response.success && response.data) {
       const data = response.data;
-      if (data.success === 'true' || data.RESP_CD === '0000') {
-        return { success: true, data: { verified: true }, message: '계좌 인증이 완료되었습니다.' };
-      } else if (data.success === 'false') {
-        return { success: false, data, message: data.MESSAGE || data.RESP_MSG || '계좌 인증에 실패했습니다.' };
+      // CONA KSNET 응답: RSPN_CD=0000 성공, A002/A005 주민번호 불일치(자동 실명인증 후 0000)
+      const rspnCd = data.RSPN_CD || data.RES_MSG_CD || '';
+      if (rspnCd === '0000' || data.success === 'true' || data.RESP_CD === '0000') {
+        return { success: true, data: { verified: true, ...data }, message: data.RES_MSG || '계좌 인증이 완료되었습니다.' };
+      } else if (rspnCd || data.success === 'false') {
+        return { success: false, data, message: data.RES_MSG || data.MESSAGE || data.RESP_MSG || '계좌 인증에 실패했습니다. (' + rspnCd + ')' };
       }
     }
-    // response.success but no explicit failure → treat as success
     if (response.success) {
       return { success: true, data: { verified: true }, message: '계좌 인증이 완료되었습니다.' };
     }

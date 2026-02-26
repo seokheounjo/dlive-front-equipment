@@ -39,7 +39,7 @@ interface PaymentFormData {
   changeReasonL: string;
   acntHolderNm: string;
   idType: string;
-  birthDt: string;
+  idNumber: string;  // 주민등록번호/사업자등록번호/외국인등록번호 → RSDT_CRRNO
   bankCd: string;
   acntNo: string;
   cardExpMm: string;
@@ -54,7 +54,7 @@ const defaultPaymentForm: PaymentFormData = {
   changeReasonL: '',
   acntHolderNm: '',
   idType: '01',
-  birthDt: '',
+  idNumber: '',
   bankCd: '',
   acntNo: '',
   cardExpMm: '',
@@ -240,6 +240,11 @@ const PaymentChangeModal: React.FC<PaymentChangeModalProps> = ({
       showAlert('계좌번호/카드번호를 입력해주세요.', 'warning');
       return;
     }
+    if (!paymentForm.idNumber) {
+      const idLabel = paymentForm.idType === '01' ? '주민등록번호' : paymentForm.idType === '02' ? '사업자등록번호' : '외국인등록번호';
+      showAlert(`${idLabel}를 입력해주세요.`, 'warning');
+      return;
+    }
     if (paymentForm.pymMthCd === '02' && (!paymentForm.cardExpMm || !paymentForm.cardExpYy)) {
       showAlert('카드 유효기간을 입력해주세요.', 'warning');
       return;
@@ -250,12 +255,12 @@ const PaymentChangeModal: React.FC<PaymentChangeModalProps> = ({
 
     const doVerify = async (): Promise<{ success: boolean; message: string }> => {
       if (paymentForm.pymMthCd === '01') {
-        // 자동이체 계좌 실명인증 (3-step .req flow)
+        // 계좌 실명인증 (CONA AddCustomerRlnmAuthCheck.req - KSNET)
         const response = await verifyBankAccount({
           BANK_CD: paymentForm.bankCd,
           ACNT_NO: paymentForm.acntNo,
           ACNT_OWNER_NM: paymentForm.acntHolderNm,
-          BIRTH_DT: paymentForm.birthDt,
+          RSDT_CRRNO: paymentForm.idNumber,
           SO_ID: soId || '',
           CUST_TP: custTpCd || 'A',
           ID_TYPE_CD: paymentForm.idType,
@@ -362,7 +367,7 @@ const PaymentChangeModal: React.FC<PaymentChangeModalProps> = ({
         changeReasonNm: getChangeReasonText(),
         acntHolderNm: paymentForm.acntHolderNm,
         idTypeNm: getCodeName(idTypeCodes, paymentForm.idType),
-        birthDt: paymentForm.birthDt,
+        birthDt: paymentForm.idNumber,
         bankNm: getCodeName(bankCodes, paymentForm.bankCd),
         acntNo: paymentForm.acntNo,
         pyrRelNm: getCodeName(pyrRelCodes, paymentForm.pyrRel),
@@ -397,7 +402,7 @@ const PaymentChangeModal: React.FC<PaymentChangeModalProps> = ({
         ACNT_NO: paymentForm.acntNo,
         ACNT_OWNER_NM: paymentForm.acntHolderNm,
         ID_TYPE_CD: paymentForm.idType,
-        BIRTH_DT: paymentForm.birthDt,
+        BIRTH_DT: paymentForm.idNumber,
         PAYER_REL_CD: paymentForm.pyrRel,
         PAY_DAY_CD: paymentForm.pymDay,
         CARD_VALID_YM: paymentForm.pymMthCd === '02' ? paymentForm.cardExpYy + paymentForm.cardExpMm : undefined,
@@ -554,7 +559,10 @@ const PaymentChangeModal: React.FC<PaymentChangeModalProps> = ({
                   <label className="w-20 flex-shrink-0 text-xs text-gray-500">신분유형</label>
                   <select
                     value={paymentForm.idType}
-                    onChange={(e) => setPaymentForm(prev => ({ ...prev, idType: e.target.value }))}
+                    onChange={(e) => {
+                      setPaymentForm(prev => ({ ...prev, idType: e.target.value, idNumber: '' }));
+                      setIsVerified(false);
+                    }}
                     className="flex-1 px-2 py-1.5 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-orange-500"
                   >
                     {idTypeCodes.map(code => (
@@ -563,15 +571,20 @@ const PaymentChangeModal: React.FC<PaymentChangeModalProps> = ({
                   </select>
                 </div>
 
-                {/* 생년월일 */}
+                {/* 등록번호 (신분유형에 따라 변경) */}
                 <div className="flex items-center">
-                  <label className="w-20 flex-shrink-0 text-xs text-gray-500">생년월일</label>
+                  <label className="w-20 flex-shrink-0 text-xs text-gray-500">
+                    {paymentForm.idType === '01' ? '주민번호' : paymentForm.idType === '02' ? '사업자번호' : '외국인번호'}
+                  </label>
                   <input
                     type="text"
-                    value={paymentForm.birthDt}
-                    onChange={(e) => setPaymentForm(prev => ({ ...prev, birthDt: e.target.value.replace(/[^0-9]/g, '').slice(0, 8) }))}
-                    placeholder="YYYYMMDD"
-                    maxLength={8}
+                    value={paymentForm.idNumber}
+                    onChange={(e) => {
+                      setPaymentForm(prev => ({ ...prev, idNumber: e.target.value.replace(/[^0-9]/g, '').slice(0, paymentForm.idType === '02' ? 10 : 13) }));
+                      setIsVerified(false);
+                    }}
+                    placeholder={paymentForm.idType === '01' ? '주민등록번호 13자리 (- 제외)' : paymentForm.idType === '02' ? '사업자등록번호 10자리 (- 제외)' : '외국인등록번호 13자리 (- 제외)'}
+                    maxLength={paymentForm.idType === '02' ? 10 : 13}
                     className="flex-1 px-2 py-1.5 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-orange-500"
                   />
                 </div>
