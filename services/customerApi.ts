@@ -469,6 +469,13 @@ export interface AccountVerifyRequest {
   BANK_CD: string;           // 은행코드
   ACNT_NO: string;           // 계좌번호
   ACNT_OWNER_NM: string;     // 예금주명
+  BIRTH_DT?: string;         // 생년월일 (YYYYMMDD)
+  SO_ID?: string;            // 지점ID
+  MST_SO_ID?: string;        // 마스터 SO_ID
+  CUST_TP?: string;          // 고객유형 (A/C/E 등)
+  ID_TYPE_CD?: string;       // 신분유형코드
+  CUST_ID?: string;          // 고객ID
+  PYM_ACNT_ID?: string;      // 납부계정ID
 }
 
 // 카드 인증 요청
@@ -1508,28 +1515,59 @@ export const updatePaymentMethod = async (params: PaymentMethodChangeRequest): P
  * 실제 계좌 인증 API가 있으면 연동, 없으면 시뮬레이션
  */
 export const verifyBankAccount = async (params: AccountVerifyRequest): Promise<ApiResponse<any>> => {
-  // TODO: 실제 계좌 인증 API 연동
-  // D'Live 계좌 인증 API가 있는 경우 아래 주석 해제
-  // return apiCall<any>('/customer/payment/verifyBankAccount', params);
-
-  // 현재는 시뮬레이션 (API 연동 전까지)
-  return new Promise((resolve) => {
-    setTimeout(() => {
-      // 시뮬레이션: 계좌번호가 10자리 이상이면 성공
-      if (params.ACNT_NO && params.ACNT_NO.length >= 10) {
-        resolve({
-          success: true,
-          data: { verified: true, ownerName: params.ACNT_OWNER_NM },
-          message: '계좌 인증이 완료되었습니다.'
-        });
-      } else {
-        resolve({
-          success: false,
-          message: '계좌번호를 정확히 입력해주세요.'
-        });
+  // 세션에서 SO_ID, MST_SO_ID 보충
+  let soId = params.SO_ID || '';
+  let mstSoId = params.MST_SO_ID || '';
+  try {
+    const userInfoStr = sessionStorage.getItem('userInfo') || localStorage.getItem('userInfo');
+    if (userInfoStr) {
+      const userInfo = JSON.parse(userInfoStr);
+      if (!soId) {
+        const authSoList = userInfo.authSoList || userInfo.AUTH_SO_List || [];
+        if (authSoList.length > 0) {
+          soId = authSoList[0].SO_ID || authSoList[0].soId || '';
+          if (!mstSoId) mstSoId = authSoList[0].MST_SO_ID || '';
+        }
+        if (!soId) soId = userInfo.soId || userInfo.SO_ID || '';
       }
-    }, 1000);
-  });
+      if (!mstSoId) mstSoId = userInfo.mstSoId || userInfo.MST_SO_ID || soId;
+    }
+  } catch (e) {
+    console.log('[CustomerAPI] Failed to get session info for bank verify');
+  }
+
+  try {
+    // 3-step CONA .req flow: getRealAge → getCustomerRlnmAuthCheck → customerRlnmAuthCheck
+    const response = await apiCall<any>('/customer/payment/verifyBankAccount', {
+      CUST_NM: params.ACNT_OWNER_NM,
+      BIRTH_DT: params.BIRTH_DT || '',
+      BANK_CD: params.BANK_CD,
+      ACNT_NO: params.ACNT_NO,
+      SO_ID: soId,
+      MST_SO_ID: mstSoId,
+      CUST_TP: params.CUST_TP || 'A',
+      ID_TYPE_CD: params.ID_TYPE_CD || '01',
+      CUST_ID: params.CUST_ID || '',
+      PYM_ACNT_ID: params.PYM_ACNT_ID || ''
+    });
+
+    if (response.success && response.data) {
+      const data = response.data;
+      if (data.success === 'true' || data.RESP_CD === '0000') {
+        return { success: true, data: { verified: true }, message: '계좌 인증이 완료되었습니다.' };
+      } else if (data.success === 'false') {
+        return { success: false, data, message: data.MESSAGE || data.RESP_MSG || '계좌 인증에 실패했습니다.' };
+      }
+    }
+    // response.success but no explicit failure → treat as success
+    if (response.success) {
+      return { success: true, data: { verified: true }, message: '계좌 인증이 완료되었습니다.' };
+    }
+    return { success: false, message: response.message || '계좌 인증에 실패했습니다.' };
+  } catch (error: any) {
+    console.error('[BankVerify] Error:', error);
+    return { success: false, message: error?.message || '계좌 인증 중 오류가 발생했습니다.' };
+  }
 };
 
 /**

@@ -26,6 +26,7 @@ interface PaymentChangeModalProps {
   onClose: () => void;
   custId: string;
   custNm?: string;
+  custTpCd?: string;  // 고객유형코드 (A/C/E 등) - 계좌 실명인증용
   soId?: string;
   initialPymAcntId?: string;
   showToast?: (message: string, type: 'success' | 'error' | 'warning' | 'info') => void;
@@ -73,6 +74,7 @@ const PaymentChangeModal: React.FC<PaymentChangeModalProps> = ({
   onClose,
   custId,
   custNm,
+  custTpCd,
   soId,
   initialPymAcntId,
   showToast,
@@ -271,10 +273,17 @@ const PaymentChangeModal: React.FC<PaymentChangeModalProps> = ({
 
     const doVerify = async (): Promise<{ success: boolean; message: string }> => {
       if (paymentForm.pymMthCd === '01') {
+        // 자동이체 계좌 실명인증 (3-step .req flow)
         const response = await verifyBankAccount({
           BANK_CD: paymentForm.bankCd,
           ACNT_NO: paymentForm.acntNo,
-          ACNT_OWNER_NM: paymentForm.acntHolderNm
+          ACNT_OWNER_NM: paymentForm.acntHolderNm,
+          BIRTH_DT: paymentForm.birthDt,
+          SO_ID: soId || '',
+          CUST_TP: custTpCd || 'A',
+          ID_TYPE_CD: paymentForm.idType,
+          CUST_ID: custId,
+          PYM_ACNT_ID: selectedPymAcntId || initialPymAcntId || ''
         });
         return { success: response.success, message: response.message || '' };
       } else {

@@ -434,6 +434,7 @@ const CustomerBasicInfo: React.FC<CustomerBasicInfoProps> = ({
             <PaymentInfo
               custId={selectedCustomer.CUST_ID}
               custNm={selectedCustomer.CUST_NM}
+              custTpCd={selectedCustomer.CUST_TP_CD}
               expanded={expandedSections.payment}
               onToggle={() => toggleSection('payment')}
               showToast={showToast}

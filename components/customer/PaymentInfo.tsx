@@ -37,6 +37,7 @@ const formatBillYymm = (yymm: string): string => {
 interface PaymentInfoProps {
   custId: string;
   custNm?: string;
+  custTpCd?: string;  // 고객유형코드 (A/C/E 등) - 계좌 실명인증용
   expanded: boolean;
   onToggle: () => void;
   showToast?: (message: string, type: 'success' | 'error' | 'warning' | 'info') => void;
@@ -58,6 +59,7 @@ interface PaymentInfoProps {
 const PaymentInfo: React.FC<PaymentInfoProps> = ({
   custId,
   custNm,
+  custTpCd,
   expanded,
   onToggle,
   showToast,
@@ -537,6 +539,7 @@ const PaymentInfo: React.FC<PaymentInfoProps> = ({
         }}
         custId={custId}
         custNm={custNm}
+        custTpCd={custTpCd}
         soId={(() => {
           if (selectedPymAcntId) {
             const account = paymentAccounts.find(a => a.PYM_ACNT_ID === selectedPymAcntId);
