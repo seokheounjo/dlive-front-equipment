@@ -480,7 +480,7 @@ async function handleBankAccountVerify(req, res) {
     const xmlBody = jsonToMiPlatformXML('DS_INPUT', reqParams);
     const postData = iconv.encode(xmlBody, 'euc-kr');
 
-    const targetUrl = DLIVE_API_BASE + '/customer/customer/AddCustomerRlnmAuthCheck.req?ACCESS_TICKET=' + accessTicket;
+    const targetUrl = DLIVE_API_BASE + '/customer/customer/general/addCustomerRlnmAuthCheck.req?ACCESS_TICKET=' + accessTicket;
     console.log('[BankAccountVerify] URL:', targetUrl);
 
     const http = require('http');
