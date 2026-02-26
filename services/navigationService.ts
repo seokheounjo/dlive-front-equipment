@@ -98,7 +98,7 @@ export async function loadMapApiKeys(): Promise<{ kakao: string[]; vworld: strin
       .filter((c: any) => c.REF_CODE === 'KAKAO' && c.COMMON_CD_NM)
       .map((c: any) => c.COMMON_CD_NM);
     const vworldKeys = list
-      .filter((c: any) => (c.REF_CODE === 'VWORLD' || c.REF_CODE === 'NGII') && c.COMMON_CD_NM)
+      .filter((c: any) => c.REF_CODE === 'VWORLD' && c.COMMON_CD_NM)
       .map((c: any) => c.COMMON_CD_NM);
     cachedMapKeys = { kakao: kakaoKeys, vworld: vworldKeys };
     console.log(`[MapKeys] MOMP001 로드 완료 - 카카오:${kakaoKeys.length}개, 국토부:${vworldKeys.length}개`);
