@@ -15,9 +15,15 @@ import XYZ from 'ol/source/XYZ';
 import Feature from 'ol/Feature';
 import Point from 'ol/geom/Point';
 import { fromLonLat } from 'ol/proj';
+import { register } from 'ol/proj/proj4';
+import { get as getProjection } from 'ol/proj';
+import TileGrid from 'ol/tilegrid/TileGrid';
 import { Style, Icon } from 'ol/style';
 import { boundingExtent } from 'ol/extent';
 import 'ol/ol.css';
+
+// proj4 for EPSG:5179 (NGII)
+import proj4 from 'proj4';
 
 declare global {
   interface Window { kakao: any; }
@@ -29,7 +35,7 @@ interface WorkMapViewProps {
   onSelectWork: (work: WorkOrder) => void;
 }
 
-type MapSource = 'vworld' | 'kakao';
+type MapSource = 'vworld' | 'kakao' | 'ngii';
 
 const STATUS_COLORS: Record<string, string> = {
   '진행중': '#DC2626',
@@ -126,6 +132,7 @@ const WorkMapView: React.FC<WorkMapViewProps> = ({ workOrders, onBack, onSelectW
   // Map container refs
   const vworldContainerRef = useRef<HTMLDivElement>(null);
   const kakaoContainerRef = useRef<HTMLDivElement>(null);
+  const ngiiContainerRef = useRef<HTMLDivElement>(null);
 
   // Map instance refs
   const olMapRef = useRef<OlMap | null>(null);
@@ -134,6 +141,9 @@ const WorkMapView: React.FC<WorkMapViewProps> = ({ workOrders, onBack, onSelectW
   const kakaoMapRef = useRef<any>(null);
   const kakaoMarkersRef = useRef<any[]>([]);
   const kakaoMyLocMarkerRef = useRef<any>(null);
+  const ngiiMapRef = useRef<OlMap | null>(null);
+  const ngiiVectorSourceRef = useRef<VectorSource | null>(null);
+  const ngiiMyLocFeatureRef = useRef<Feature | null>(null);
   const markerInfosRef = useRef<MarkerInfo[]>([]);
   const myLocationRef = useRef<{ lat: number; lng: number } | null>(null);
 
@@ -143,6 +153,7 @@ const WorkMapView: React.FC<WorkMapViewProps> = ({ workOrders, onBack, onSelectW
   const [loadError, setLoadError] = useState<string | null>(null);
   const vworldOkRef = useRef(true);
   const kakaoOkRef = useRef(true);
+  const ngiiOkRef = useRef(true);
   const [geocodedCount, setGeocodedCount] = useState(0);
   const [geocodedSuccess, setGeocodedSuccess] = useState(0);
   const [selectedWork, setSelectedWork] = useState<WorkOrder | null>(null);
@@ -157,7 +168,10 @@ const WorkMapView: React.FC<WorkMapViewProps> = ({ workOrders, onBack, onSelectW
     // MOMP001에서 API 키 로드 (랜덤 선택)
     const mapKeys = await loadMapApiKeys();
     const vworldKey = pickRandomKey(mapKeys.vworld) || VWORLD_FALLBACK_KEY;
+    const ngiiKey = pickRandomKey(mapKeys.ngii);
     console.log(`[Map] VWorld 키 선택: ${vworldKey.substring(0, 8)}...`);
+    if (ngiiKey) console.log(`[Map] NGII 키 선택: ${ngiiKey.substring(0, 8)}...`);
+    else console.warn('[Map] MOMP001에 NGII 키 없음');
 
     if (disposed) return;
 
@@ -177,9 +191,11 @@ const WorkMapView: React.FC<WorkMapViewProps> = ({ workOrders, onBack, onSelectW
       vworldErrorCount++;
       if (vworldErrorCount >= 3 && vworldOkRef.current) {
         vworldOkRef.current = false;
-        console.warn('[Map] VWorld 타일 로드 실패, 카카오맵으로 전환 시도');
+        console.warn('[Map] VWorld 타일 로드 실패, 다른 지도로 전환 시도');
         if (kakaoOkRef.current) {
           setMapSource('kakao');
+        } else if (ngiiOkRef.current) {
+          setMapSource('ngii');
         } else {
           setLoadError('지도 서비스에 연결할 수 없습니다. 네트워크 상태를 확인해주세요.');
         }
@@ -252,10 +268,12 @@ const WorkMapView: React.FC<WorkMapViewProps> = ({ workOrders, onBack, onSelectW
       } catch (e) {
         console.warn('[Map] 카카오맵 초기화 실패:', e);
         kakaoOkRef.current = false;
-        if (!vworldOkRef.current) {
-          setLoadError('지도 서비스에 연결할 수 없습니다. 네트워크 상태를 확인해주세요.');
-        } else {
+        if (vworldOkRef.current) {
           setMapSource('vworld');
+        } else if (ngiiOkRef.current) {
+          setMapSource('ngii');
+        } else {
+          setLoadError('지도 서비스에 연결할 수 없습니다. 네트워크 상태를 확인해주세요.');
         }
         return null;
       }
@@ -305,12 +323,134 @@ const WorkMapView: React.FC<WorkMapViewProps> = ({ workOrders, onBack, onSelectW
       console.warn('[Map] 카카오맵 SDK 사용 불가');
     }
 
+    // ========== NGII Map (OpenLayers, EPSG:5179) ==========
+    let ngiiMap: OlMap | null = null;
+    let ngiiVectorSource: VectorSource | null = null;
+
+    if (ngiiKey && ngiiContainerRef.current) {
+      try {
+        // Register EPSG:5179 projection
+        proj4.defs('EPSG:5179',
+          '+proj=tmerc +lat_0=38 +lon_0=127.5 +k=0.9996 +x_0=1000000 +y_0=2000000 +ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +units=m +no_defs');
+        register(proj4);
+
+        const proj5179 = getProjection('EPSG:5179');
+
+        // NGII tile grid: 14 levels (L05~L18)
+        const resolutions: number[] = [];
+        const matrixIds: string[] = [];
+        const origin = [-200000, 4000000];
+        for (let z = 0; z < 14; z++) {
+          resolutions.push(2088.96 / Math.pow(2, z));
+          matrixIds.push('L' + String(z + 5).padStart(2, '0'));
+        }
+
+        const ngiiTileGrid = new TileGrid({
+          origin: origin,
+          resolutions: resolutions
+        });
+
+        const ngiiTileSource = new XYZ({
+          url: `http://map.ngii.go.kr/openapi/Gettile.do?apikey=${ngiiKey}&layer=korean_map&level={z}&row={y}&col={x}`,
+          tileGrid: ngiiTileGrid,
+          projection: 'EPSG:5179',
+          maxZoom: 18,
+          minZoom: 5,
+          attributions: '© NGII',
+          tileLoadFunction: (imageTile: any, src: string) => {
+            // NGII expects level=L05 format
+            const zMatch = src.match(/level=(\d+)/);
+            if (zMatch) {
+              const zNum = parseInt(zMatch[1]);
+              const levelStr = 'L' + String(zNum + 5).padStart(2, '0');
+              src = src.replace(/level=\d+/, `level=${levelStr}`);
+            }
+            imageTile.getImage().src = src;
+          }
+        });
+
+        // NGII tile error detection
+        let ngiiErrorCount = 0;
+        ngiiTileSource.on('tileloaderror', () => {
+          ngiiErrorCount++;
+          if (ngiiErrorCount >= 3 && ngiiOkRef.current) {
+            ngiiOkRef.current = false;
+            console.warn('[Map] NGII 타일 로드 실패, 다른 지도로 전환');
+            if (vworldOkRef.current) {
+              setMapSource('vworld');
+            } else if (kakaoOkRef.current) {
+              setMapSource('kakao');
+            } else {
+              setLoadError('지도 서비스에 연결할 수 없습니다. 네트워크 상태를 확인해주세요.');
+            }
+          }
+        });
+
+        ngiiVectorSource = new VectorSource();
+        ngiiVectorSourceRef.current = ngiiVectorSource;
+
+        const defaultCenter = proj5179
+          ? fromLonLat([126.9780, 37.5665], 'EPSG:5179')
+          : [1000000, 2000000];
+
+        ngiiMap = new OlMap({
+          target: ngiiContainerRef.current,
+          layers: [
+            new TileLayer({ source: ngiiTileSource }),
+            new VectorLayer({ source: ngiiVectorSource })
+          ],
+          view: new View({
+            projection: 'EPSG:5179',
+            center: defaultCenter as [number, number],
+            zoom: 3,
+            maxZoom: 13,
+            minZoom: 0
+          })
+        });
+        ngiiMapRef.current = ngiiMap;
+
+        // NGII marker click
+        ngiiMap.on('click', (evt) => {
+          const feature = ngiiMap!.forEachFeatureAtPixel(evt.pixel, (f) => f);
+          if (feature) {
+            const workId = feature.get('workId');
+            const info = markerInfosRef.current.find(m => m.work.id === workId);
+            if (info) {
+              setSelectedWork(info.work);
+              setSelectedCoords(info.coords);
+              ngiiMap!.getView().animate({
+                center: fromLonLat([info.coords.lng, info.coords.lat], 'EPSG:5179'),
+                zoom: Math.max(ngiiMap!.getView().getZoom() || 9, 9),
+                duration: 300
+              });
+            }
+          } else {
+            setSelectedWork(null);
+            setSelectedCoords(null);
+          }
+        });
+
+        ngiiMap.on('pointermove', (evt) => {
+          const hit = ngiiMap!.forEachFeatureAtPixel(evt.pixel, () => true);
+          ngiiMap!.getTargetElement().style.cursor = hit ? 'pointer' : '';
+        });
+
+        ngiiOkRef.current = true;
+        console.log('[Map] NGII 맵 초기화 성공');
+      } catch (e) {
+        console.warn('[Map] NGII 맵 초기화 실패:', e);
+        ngiiOkRef.current = false;
+      }
+    } else {
+      ngiiOkRef.current = false;
+    }
+
     // ========== 내 위치 마커 추가 함수 ==========
     const addMyLocationMarker = (lat: number, lng: number) => {
       myLocationRef.current = { lat, lng };
       const myLocUrl = createMyLocationMarkerUrl();
 
-      // OL 내 위치 마커
+      // OL 내 위치 마커 (VWorld)
       const myLocFeature = new Feature({
         geometry: new Point(fromLonLat([lng, lat]))
       });
@@ -320,6 +460,19 @@ const WorkMapView: React.FC<WorkMapViewProps> = ({ workOrders, onBack, onSelectW
       }));
       vectorSource.addFeature(myLocFeature);
       olMyLocFeatureRef.current = myLocFeature;
+
+      // NGII 내 위치 마커
+      if (ngiiVectorSource) {
+        const ngiiMyLocFeature = new Feature({
+          geometry: new Point(fromLonLat([lng, lat], 'EPSG:5179'))
+        });
+        ngiiMyLocFeature.set('isMyLocation', true);
+        ngiiMyLocFeature.setStyle(new Style({
+          image: new Icon({ src: myLocUrl, anchor: [0.5, 0.5], scale: 1 })
+        }));
+        ngiiVectorSource.addFeature(ngiiMyLocFeature);
+        ngiiMyLocFeatureRef.current = ngiiMyLocFeature;
+      }
 
       // 카카오 내 위치 마커
       if (kakaoMap) {
@@ -417,6 +570,18 @@ const WorkMapView: React.FC<WorkMapViewProps> = ({ workOrders, onBack, onSelectW
             kakaoMarkersRef.current.push(marker);
           }
 
+          // --- NGII marker ---
+          if (ngiiVectorSource) {
+            const ngiiFeature = new Feature({
+              geometry: new Point(fromLonLat([result.lng, result.lat], 'EPSG:5179'))
+            });
+            ngiiFeature.set('workId', work.id);
+            ngiiFeature.setStyle(new Style({
+              image: new Icon({ src: markerDataUrl, anchor: [0.5, 1], scale: 1 })
+            }));
+            ngiiVectorSource.addFeature(ngiiFeature);
+          }
+
           markerInfos.push({ work, coords: result });
           successCount++;
           console.log(`[Map] ${i + 1}/${workOrders.length} 성공: "${address}" → ${result.lat},${result.lng}`);
@@ -460,6 +625,25 @@ const WorkMapView: React.FC<WorkMapViewProps> = ({ workOrders, onBack, onSelectW
       kakaoMap.setBounds(bounds);
     }
 
+    // Fit bounds - NGII
+    if (ngiiMap && ngiiVectorSource) {
+      const ngiiCoordsList: [number, number][] = markerInfos.map(m =>
+        fromLonLat([m.coords.lng, m.coords.lat], 'EPSG:5179') as [number, number]
+      );
+      if (myLoc) {
+        ngiiCoordsList.push(fromLonLat([myLoc.lng, myLoc.lat], 'EPSG:5179') as [number, number]);
+      }
+      if (ngiiCoordsList.length > 0) {
+        if (ngiiCoordsList.length === 1) {
+          ngiiMap.getView().animate({ center: ngiiCoordsList[0], zoom: 10, duration: 300 });
+        } else {
+          ngiiMap.getView().fit(boundingExtent(ngiiCoordsList), {
+            padding: [60, 60, 60, 60], maxZoom: 11, duration: 300
+          });
+        }
+      }
+    }
+
     setIsLoading(false);
     })(); // end async IIFE
 
@@ -471,6 +655,12 @@ const WorkMapView: React.FC<WorkMapViewProps> = ({ workOrders, onBack, onSelectW
       }
       olVectorSourceRef.current = null;
       olMyLocFeatureRef.current = null;
+      if (ngiiMapRef.current) {
+        ngiiMapRef.current.setTarget(undefined);
+        ngiiMapRef.current = null;
+      }
+      ngiiVectorSourceRef.current = null;
+      ngiiMyLocFeatureRef.current = null;
       kakaoMarkersRef.current.forEach(m => m.setMap(null));
       kakaoMarkersRef.current = [];
       if (kakaoMyLocMarkerRef.current) kakaoMyLocMarkerRef.current.setMap(null);
@@ -495,6 +685,8 @@ const WorkMapView: React.FC<WorkMapViewProps> = ({ workOrders, onBack, onSelectW
           });
           kakaoMapRef.current.setBounds(bounds);
         }
+      } else if (mapSource === 'ngii' && ngiiMapRef.current) {
+        ngiiMapRef.current.updateSize();
       }
     }, 150);
     return () => clearTimeout(timer);
@@ -507,7 +699,7 @@ const WorkMapView: React.FC<WorkMapViewProps> = ({ workOrders, onBack, onSelectW
         const { latitude, longitude } = pos.coords;
         myLocationRef.current = { lat: latitude, lng: longitude };
 
-        // OL 내 위치 마커 업데이트
+        // OL 내 위치 마커 업데이트 (VWorld)
         if (olMyLocFeatureRef.current) {
           (olMyLocFeatureRef.current.getGeometry() as Point).setCoordinates(fromLonLat([longitude, latitude]));
         } else if (olVectorSourceRef.current) {
@@ -516,6 +708,17 @@ const WorkMapView: React.FC<WorkMapViewProps> = ({ workOrders, onBack, onSelectW
           f.setStyle(new Style({ image: new Icon({ src: createMyLocationMarkerUrl(), anchor: [0.5, 0.5], scale: 1 }) }));
           olVectorSourceRef.current.addFeature(f);
           olMyLocFeatureRef.current = f;
+        }
+
+        // NGII 내 위치 마커 업데이트
+        if (ngiiMyLocFeatureRef.current) {
+          (ngiiMyLocFeatureRef.current.getGeometry() as Point).setCoordinates(fromLonLat([longitude, latitude], 'EPSG:5179'));
+        } else if (ngiiVectorSourceRef.current) {
+          const f = new Feature({ geometry: new Point(fromLonLat([longitude, latitude], 'EPSG:5179')) });
+          f.set('isMyLocation', true);
+          f.setStyle(new Style({ image: new Icon({ src: createMyLocationMarkerUrl(), anchor: [0.5, 0.5], scale: 1 }) }));
+          ngiiVectorSourceRef.current.addFeature(f);
+          ngiiMyLocFeatureRef.current = f;
         }
 
         // 카카오 내 위치 마커 업데이트
@@ -542,6 +745,11 @@ const WorkMapView: React.FC<WorkMapViewProps> = ({ workOrders, onBack, onSelectW
         } else if (mapSource === 'kakao' && kakaoMapRef.current) {
           kakaoMapRef.current.panTo(new window.kakao.maps.LatLng(latitude, longitude));
           kakaoMapRef.current.setLevel(3);
+        } else if (mapSource === 'ngii' && ngiiMapRef.current) {
+          ngiiMapRef.current.getView().animate({
+            center: fromLonLat([longitude, latitude], 'EPSG:5179'),
+            zoom: 10, duration: 500
+          });
         }
       },
       () => setToastMsg('위치 정보를 가져올 수 없습니다.'),
@@ -567,16 +775,22 @@ const WorkMapView: React.FC<WorkMapViewProps> = ({ workOrders, onBack, onSelectW
 
   const toggleMapSource = useCallback(() => {
     setMapSource(prev => {
-      const next = prev === 'vworld' ? 'kakao' : 'vworld';
-      if (next === 'kakao' && !kakaoOkRef.current) {
-        setToastMsg('현재 카카오맵을 사용할 수 없습니다.\n카카오맵 SDK 로드에 실패했습니다.');
-        return prev;
+      // 카카오 → VWorld → NGII → 카카오 순환
+      const order: MapSource[] = ['kakao', 'vworld', 'ngii'];
+      const okMap: Record<MapSource, React.MutableRefObject<boolean>> = {
+        kakao: kakaoOkRef, vworld: vworldOkRef, ngii: ngiiOkRef
+      };
+      const nameMap: Record<MapSource, string> = {
+        kakao: '카카오맵', vworld: '국토부(VWorld)', ngii: 'NGII'
+      };
+      const curIdx = order.indexOf(prev);
+      // Try next, then next+1, give up if all fail
+      for (let step = 1; step <= order.length - 1; step++) {
+        const candidate = order[(curIdx + step) % order.length];
+        if (okMap[candidate].current) return candidate;
       }
-      if (next === 'vworld' && !vworldOkRef.current) {
-        setToastMsg('현재 국토부 지도를 사용할 수 없습니다.\nVWorld 타일 로드에 실패했습니다.');
-        return prev;
-      }
-      return next;
+      setToastMsg(`다른 지도 서비스를 사용할 수 없습니다.`);
+      return prev;
     });
     closeInfoCard();
   }, [closeInfoCard]);
@@ -594,13 +808,13 @@ const WorkMapView: React.FC<WorkMapViewProps> = ({ workOrders, onBack, onSelectW
           onClick={toggleMapSource}
           className="flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-semibold border"
           style={{
-            background: mapSource === 'vworld' ? '#EFF6FF' : '#FEF9C3',
-            color: mapSource === 'vworld' ? '#1D4ED8' : '#92400E',
-            borderColor: mapSource === 'vworld' ? '#BFDBFE' : '#FDE68A'
+            background: mapSource === 'vworld' ? '#EFF6FF' : mapSource === 'kakao' ? '#FEF9C3' : '#ECFDF5',
+            color: mapSource === 'vworld' ? '#1D4ED8' : mapSource === 'kakao' ? '#92400E' : '#065F46',
+            borderColor: mapSource === 'vworld' ? '#BFDBFE' : mapSource === 'kakao' ? '#FDE68A' : '#A7F3D0'
           }}
         >
           <Layers className="w-3.5 h-3.5" />
-          {mapSource === 'vworld' ? '국토부' : '카카오'}
+          {mapSource === 'vworld' ? '국토부' : mapSource === 'kakao' ? '카카오' : 'NGII'}
         </button>
       </div>
 
@@ -617,6 +831,12 @@ const WorkMapView: React.FC<WorkMapViewProps> = ({ workOrders, onBack, onSelectW
           ref={kakaoContainerRef}
           className="absolute inset-0"
           style={{ display: mapSource === 'kakao' ? 'block' : 'none' }}
+        />
+        {/* NGII Map (OpenLayers, EPSG:5179) */}
+        <div
+          ref={ngiiContainerRef}
+          className="absolute inset-0"
+          style={{ display: mapSource === 'ngii' ? 'block' : 'none' }}
         />
 
         {/* 로딩 */}
