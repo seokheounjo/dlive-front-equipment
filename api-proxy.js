@@ -479,15 +479,14 @@ async function handleBankAccountVerify(req, res) {
     const xmlBody = jsonToMiPlatformXML('DS_INPUT', reqParams);
     const postData = iconv.encode(xmlBody, 'euc-kr');
 
-    // Use JSESSIONID cookie if available, fallback to ACCESS_TICKET (without %2F)
-    let reqPath = '/customer/customer/general/addCustomerRlnmAuthCheck.req';
+    // JSESSIONID required (from login session) - ACCESS_TICKET has WebSphere %2F issue
+    const reqPath = '/customer/customer/general/addCustomerRlnmAuthCheck.req';
     if (!storedJSessionId) {
-      // No JSESSIONID: use ACCESS_TICKET with short date (no / to avoid WebSphere 404)
-      const ticket = userId + '%23%23%23bank-verify%23%23%232099';
-      reqPath += '?ACCESS_TICKET=' + ticket;
+      console.log('[BankAccountVerify] No JSESSIONID - login required');
+      return res.json({ success: false, code: 'NO_SESSION', message: 'Login session required for bank verification', data: {} });
     }
     const targetUrl = DLIVE_API_BASE + reqPath;
-    console.log('[BankAccountVerify] URL:', targetUrl, storedJSessionId ? '(JSESSIONID auth)' : '(ACCESS_TICKET auth)');
+    console.log('[BankAccountVerify] URL:', targetUrl, '(JSESSIONID auth)');
 
     const http = require('http');
 
