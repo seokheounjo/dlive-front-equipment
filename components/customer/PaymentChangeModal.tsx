@@ -37,7 +37,6 @@ interface PaymentChangeModalProps {
 interface PaymentFormData {
   pymMthCd: string;
   changeReasonL: string;
-  changeReasonM: string;
   acntHolderNm: string;
   idType: string;
   birthDt: string;
@@ -53,7 +52,6 @@ interface PaymentFormData {
 const defaultPaymentForm: PaymentFormData = {
   pymMthCd: '01',
   changeReasonL: '',
-  changeReasonM: '',
   acntHolderNm: '',
   idType: '01',
   birthDt: '',
@@ -104,7 +102,7 @@ const PaymentChangeModal: React.FC<PaymentChangeModalProps> = ({
     type: 'success' | 'error' | 'warning' | 'info';
   }>({ show: false, title: '', message: '', type: 'info' });
 
-  // 은행 코드 목록
+  // 은행 코드 목록 (공통코드: BLPY015)
   const bankCodes = [
     { CODE: '003', CODE_NM: 'IBK기업' },
     { CODE: '004', CODE_NM: 'KB국민' },
@@ -124,7 +122,7 @@ const PaymentChangeModal: React.FC<PaymentChangeModalProps> = ({
     { CODE: '092', CODE_NM: '토스뱅크' }
   ];
 
-  // 카드사 코드 목록
+  // 카드사 코드 목록 (공통코드: BLPY016)
   const cardCompanyCodes = [
     { CODE: '01', CODE_NM: '삼성카드' },
     { CODE: '02', CODE_NM: '현대카드' },
@@ -137,36 +135,15 @@ const PaymentChangeModal: React.FC<PaymentChangeModalProps> = ({
     { CODE: '09', CODE_NM: 'NH농협카드' }
   ];
 
-  // 변경사유 대분류
-  const changeReasonLargeCodes = [
+  // 변경사유 (공통코드: CMCU079) - 중분류 없이 대분류만 사용
+  const changeReasonCodes = [
     { CODE: '01', CODE_NM: '개인사정' },
     { CODE: '02', CODE_NM: '요금관련' },
     { CODE: '03', CODE_NM: '서비스관련' },
     { CODE: '04', CODE_NM: '기타' }
   ];
 
-  // 변경사유 중분류
-  const changeReasonMiddleCodes: Record<string, { CODE: string; CODE_NM: string }[]> = {
-    '01': [
-      { CODE: '0101', CODE_NM: '계좌/카드 변경' },
-      { CODE: '0102', CODE_NM: '명의 변경' },
-      { CODE: '0103', CODE_NM: '주소 이전' }
-    ],
-    '02': [
-      { CODE: '0201', CODE_NM: '요금 미납' },
-      { CODE: '0202', CODE_NM: '요금 문의' },
-      { CODE: '0203', CODE_NM: '할인 요청' }
-    ],
-    '03': [
-      { CODE: '0301', CODE_NM: '서비스 불만' },
-      { CODE: '0302', CODE_NM: '상품 변경' }
-    ],
-    '04': [
-      { CODE: '0401', CODE_NM: '기타 사유' }
-    ]
-  };
-
-  // 신분유형 코드
+  // 신분유형 코드 (공통코드: CMCU111)
   const idTypeCodes = [
     { CODE: '01', CODE_NM: '주민등록번호' },
     { CODE: '02', CODE_NM: '사업자등록번호' },
@@ -346,7 +323,7 @@ const PaymentChangeModal: React.FC<PaymentChangeModalProps> = ({
       showAlert('계좌 인증을 먼저 완료해주세요.', 'warning');
       return;
     }
-    if (!paymentForm.changeReasonL || !paymentForm.changeReasonM) {
+    if (!paymentForm.changeReasonL) {
       showAlert('변경사유를 선택해주세요.', 'warning');
       return;
     }
@@ -371,10 +348,7 @@ const PaymentChangeModal: React.FC<PaymentChangeModalProps> = ({
 
   // 변경사유 텍스트
   const getChangeReasonText = (): string => {
-    const large = getCodeName(changeReasonLargeCodes, paymentForm.changeReasonL);
-    const middleCodes = changeReasonMiddleCodes[paymentForm.changeReasonL] || [];
-    const middle = getCodeName(middleCodes, paymentForm.changeReasonM);
-    return `${large} > ${middle}`;
+    return getCodeName(changeReasonCodes, paymentForm.changeReasonL);
   };
 
   // 자동이체 PDF 생성 및 다운로드
@@ -429,7 +403,6 @@ const PaymentChangeModal: React.FC<PaymentChangeModalProps> = ({
         CARD_VALID_YM: paymentForm.pymMthCd === '02' ? paymentForm.cardExpYy + paymentForm.cardExpMm : undefined,
         JOIN_CARD_YN: paymentForm.pymMthCd === '02' ? paymentForm.joinCardYn : undefined,
         CHG_RESN_L_CD: paymentForm.changeReasonL,
-        CHG_RESN_M_CD: paymentForm.changeReasonM,
       });
 
       if (response.success) {
@@ -544,32 +517,19 @@ const PaymentChangeModal: React.FC<PaymentChangeModalProps> = ({
                   </select>
                 </div>
 
-                {/* 변경사유 */}
+                {/* 변경사유 (CMCU079) */}
                 <div className="flex items-center">
                   <label className="w-20 flex-shrink-0 text-xs text-gray-500">변경사유</label>
-                  <div className="flex-1 flex gap-1">
-                    <select
-                      value={paymentForm.changeReasonL}
-                      onChange={(e) => setPaymentForm(prev => ({ ...prev, changeReasonL: e.target.value, changeReasonM: '' }))}
-                      className="flex-1 px-2 py-1.5 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-orange-500"
-                    >
-                      <option value="">대분류</option>
-                      {changeReasonLargeCodes.map(code => (
-                        <option key={code.CODE} value={code.CODE}>{code.CODE_NM}</option>
-                      ))}
-                    </select>
-                    <select
-                      value={paymentForm.changeReasonM}
-                      onChange={(e) => setPaymentForm(prev => ({ ...prev, changeReasonM: e.target.value }))}
-                      disabled={!paymentForm.changeReasonL}
-                      className="flex-1 px-2 py-1.5 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-orange-500 disabled:bg-gray-100"
-                    >
-                      <option value="">중분류</option>
-                      {(changeReasonMiddleCodes[paymentForm.changeReasonL] || []).map(code => (
-                        <option key={code.CODE} value={code.CODE}>{code.CODE_NM}</option>
-                      ))}
-                    </select>
-                  </div>
+                  <select
+                    value={paymentForm.changeReasonL}
+                    onChange={(e) => setPaymentForm(prev => ({ ...prev, changeReasonL: e.target.value }))}
+                    className="flex-1 px-2 py-1.5 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-orange-500"
+                  >
+                    <option value="">선택</option>
+                    {changeReasonCodes.map(code => (
+                      <option key={code.CODE} value={code.CODE}>{code.CODE_NM}</option>
+                    ))}
+                  </select>
                 </div>
 
                 {/* 예금주명/카드소유주 */}
