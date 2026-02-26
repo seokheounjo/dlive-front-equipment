@@ -340,7 +340,7 @@ router.post('/customer/etc/saveMargeAddrOrdInfo', handleProxy);
 router.post('/customer/etc/savePymAddrInfo', handleProxy);
 router.post('/customer/customer/general/customerPymChgAddManager', handlePaymentMethodChange);  // handlePaymentMethodChange calls .req directly; adapter fallback via handleProxy if needed
 router.post('/customer/customer/general/addCustomerPymInfoChange', handleProxy);
-router.post('/customer/payment/verifyBankAccount', handleBankAccountVerify);  // KSNET 계좌 실명인증 (.req 직접)
+router.post('/customer/payment/verifyBankAccount', handleProxy);  // KSNET bank account verify (adapter)
 // 6. Consultation/AS
 router.post('/customer/negociation/saveCnslRcptInfo', handleProxy);
 // 7. Customer Create
