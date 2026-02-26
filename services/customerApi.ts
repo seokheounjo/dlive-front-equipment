@@ -1515,13 +1515,15 @@ export const updatePaymentMethod = async (params: PaymentMethodChangeRequest): P
  * 실제 계좌 인증 API가 있으면 연동, 없으면 시뮬레이션
  */
 export const verifyBankAccount = async (params: AccountVerifyRequest): Promise<ApiResponse<any>> => {
-  // 세션에서 SO_ID, MST_SO_ID 보충
+  // 세션에서 SO_ID, MST_SO_ID, USR_ID 보충
   let soId = params.SO_ID || '';
   let mstSoId = params.MST_SO_ID || '';
+  let usrId = '';
   try {
     const userInfoStr = sessionStorage.getItem('userInfo') || localStorage.getItem('userInfo');
     if (userInfoStr) {
       const userInfo = JSON.parse(userInfoStr);
+      usrId = userInfo.userId || userInfo.USR_ID || userInfo.usrId || '';
       if (!soId) {
         const authSoList = userInfo.authSoList || userInfo.AUTH_SO_List || [];
         if (authSoList.length > 0) {
@@ -1549,7 +1551,8 @@ export const verifyBankAccount = async (params: AccountVerifyRequest): Promise<A
       MST_SO_ID: mstSoId,
       ID_TYPE_CD: params.ID_TYPE_CD || '01',
       CUST_ID: params.CUST_ID || '',
-      PYM_ACNT_ID: params.PYM_ACNT_ID || ''
+      PYM_ACNT_ID: params.PYM_ACNT_ID || '',
+      USR_ID: usrId
     });
 
     if (response.success && response.data) {

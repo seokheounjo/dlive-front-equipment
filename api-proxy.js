@@ -443,11 +443,7 @@ async function handleBankAccountVerify(req, res) {
     console.log('\n========== [BankAccountVerify] ==========');
     console.log('Input params:', JSON.stringify(body, null, 2));
 
-    // JSESSIONID or ACCESS_TICKET for auth
-    const userId = body.USR_ID || storedUserId || '';
-    if (!userId) {
-      return res.json({ success: false, code: 'NO_USER', message: 'Login required (no USR_ID)', data: {} });
-    }
+    // JSESSIONID 인증 사용 - USR_ID 체크 불필요 (로그인 세션이 있으면 됨)
 
     // CONA 파라미터 매핑 (CustomerManagerImpl.addCustomerRlnmAuthCheck 기준)
     const checkType = body.CHECK_TYPE || 'E';  // E=계좌인증, A=실명인증
@@ -1199,8 +1195,9 @@ async function handleProxy(req, res) {
           console.log('[PROXY] Response:');
           console.log(JSON.stringify(jsonResponse, null, 2));
           // 로그인 응답에서 userId 캡처
-          if (jsonResponse.ok && jsonResponse.userId) {
-            storedUserId = jsonResponse.userId;
+          const capturedId = jsonResponse.userId || jsonResponse.USR_ID || jsonResponse.usrId || jsonResponse.LOGIN_ID;
+          if (capturedId && !storedUserId) {
+            storedUserId = capturedId;
             console.log('[PROXY] Captured userId: ' + storedUserId);
           }
         } catch (e) {
