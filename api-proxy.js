@@ -448,7 +448,7 @@ async function handleBankAccountVerify(req, res) {
     if (!userId) {
       return res.json({ success: false, code: 'NO_USER', message: 'Login required (no USR_ID)', data: {} });
     }
-    const accessTicket = userId + '%23%23%23bank-verify%23%23%2320990101_000000';
+    const accessTicket = userId + '%23%23%23bank-verify%23%23%232099/01/01_00:00:00:0000';
 
     // CONA 파라미터 매핑 (CustomerManagerImpl.addCustomerRlnmAuthCheck 기준)
     const checkType = body.CHECK_TYPE || 'E';  // E=계좌인증, A=실명인증
