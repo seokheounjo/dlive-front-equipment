@@ -335,6 +335,9 @@ const WorkMapView: React.FC<WorkMapViewProps> = ({ workOrders, onBack, onSelectW
         register(proj4);
 
         const proj5179 = getProjection('EPSG:5179');
+        if (proj5179) {
+          proj5179.setExtent([-200000, -28024123.62, 31824123.62, 4000000]);
+        }
 
         // NGII tile grid: 14 levels (L05~L18)
         const resolutions: number[] = [];
@@ -351,21 +354,19 @@ const WorkMapView: React.FC<WorkMapViewProps> = ({ workOrders, onBack, onSelectW
         });
 
         const ngiiTileSource = new XYZ({
-          url: `https://map.ngii.go.kr/openapi/Gettile.do?apikey=${ngiiKey}&layer=korean_map&level={z}&row={y}&col={x}`,
           tileGrid: ngiiTileGrid,
           projection: 'EPSG:5179',
-          maxZoom: 18,
-          minZoom: 5,
           attributions: '© NGII',
-          tileLoadFunction: (imageTile: any, src: string) => {
-            // NGII expects level=L05 format
-            const zMatch = src.match(/level=(\d+)/);
-            if (zMatch) {
-              const zNum = parseInt(zMatch[1]);
-              const levelStr = 'L' + String(zNum + 5).padStart(2, '0');
-              src = src.replace(/level=\d+/, `level=${levelStr}`);
-            }
-            imageTile.getImage().src = src;
+          tileUrlFunction: (tileCoord: number[]) => {
+            const z = tileCoord[0];
+            const col = tileCoord[1];
+            const row = -(tileCoord[2] + 1); // OL XYZ uses negative y: -(row+1)
+            const level = 'L' + String(z + 5).padStart(2, '0');
+            return `https://map.ngii.go.kr/openapi/Gettile.do?apikey=${ngiiKey}`
+              + `&service=WMTS&request=GetTile&version=1.0.0`
+              + `&layer=korean_map&style=korean&format=image/png`
+              + `&tilematrixset=korean&tilematrix=${level}`
+              + `&tilerow=${row}&tilecol=${col}`;
           }
         });
 
