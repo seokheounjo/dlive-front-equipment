@@ -356,29 +356,23 @@ const WorkMapView: React.FC<WorkMapViewProps> = ({ workOrders, onBack, onSelectW
           tileSize: 256
         });
 
-        const ngiiTileSource = new WMTS({
-          url: '/api/ngii-tile',
-          layer: 'korean_map',
-          matrixSet: 'korean',
-          format: 'image/png',
+        // XYZ source with WMTS tile grid - avoids WMTS source internal URL conflicts
+        const ngiiTileSource = new XYZ({
           projection: 'EPSG:5179',
           tileGrid: ngiiWmtsTileGrid,
-          style: 'korean',
-          requestEncoding: 'KVP',
+          tileUrlFunction: (tileCoord: number[]) => {
+            if (!tileCoord) return undefined as unknown as string;
+            const z = tileCoord[0];
+            const tilecol = tileCoord[1];
+            const tilerow = tileCoord[2];
+            if (z < 0 || z >= matrixIds.length || tilecol < 0 || tilerow < 0) {
+              return undefined as unknown as string;
+            }
+            const tilematrix = matrixIds[z];
+            console.log(`[NGII] tile: ${tilematrix}/${tilerow}/${tilecol}`);
+            return `/api/ngii-tile?apikey=${ngiiKey}&tilematrix=${tilematrix}&tilerow=${tilerow}&tilecol=${tilecol}`;
+          },
           attributions: '© NGII'
-        });
-
-        // Override URL function - tileUrlFunction receives properly processed WMTS coordinates
-        ngiiTileSource.setTileUrlFunction((tileCoord: number[]) => {
-          if (!tileCoord) return undefined;
-          const z = tileCoord[0];
-          const tilecol = tileCoord[1];
-          const tilerow = tileCoord[2];
-          // Skip out-of-range tiles
-          if (z < 0 || z >= matrixIds.length || tilecol < 0 || tilerow < 0) return undefined;
-          const tilematrix = matrixIds[z];
-          console.log(`[NGII] tile: ${tilematrix}/${tilerow}/${tilecol}`);
-          return `/api/ngii-tile?apikey=${ngiiKey}&tilematrix=${tilematrix}&tilerow=${tilerow}&tilecol=${tilecol}`;
         });
 
         // NGII tile error detection
