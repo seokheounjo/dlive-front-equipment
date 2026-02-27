@@ -55,7 +55,7 @@ const defaultPaymentForm: PaymentFormData = {
   pymMthCd: '01',
   changeReasonL: '',
   acntHolderNm: '',
-  idType: '01',
+  idType: 'A',
   idNumber: '',
   bankCd: '',
   acntNo: '',
@@ -258,7 +258,7 @@ const PaymentChangeModal: React.FC<PaymentChangeModalProps> = ({
       return;
     }
     if (!paymentForm.idNumber) {
-      const idLabel = paymentForm.idType === '01' ? '주민등록번호' : paymentForm.idType === '02' ? '사업자등록번호' : '외국인등록번호';
+      const idLabel = paymentForm.idType === 'A' ? '생년월일' : paymentForm.idType === 'B' ? '사업자번호' : '생년월일(외국인)';
       showAlert(`${idLabel}를 입력해주세요.`, 'warning');
       return;
     }
@@ -599,17 +599,17 @@ const PaymentChangeModal: React.FC<PaymentChangeModalProps> = ({
                 {/* 등록번호 (신분유형에 따라 변경) */}
                 <div className="flex items-center">
                   <label className="w-20 flex-shrink-0 text-xs text-gray-500">
-                    {paymentForm.idType === '01' ? '주민번호' : paymentForm.idType === '02' ? '사업자번호' : '외국인번호'}
+                    {paymentForm.idType === 'A' ? '생년월일' : paymentForm.idType === 'B' ? '사업자번호' : '생년월일(외국인)'}
                   </label>
                   <input
                     type="text"
                     value={paymentForm.idNumber}
                     onChange={(e) => {
-                      setPaymentForm(prev => ({ ...prev, idNumber: e.target.value.replace(/[^0-9]/g, '').slice(0, paymentForm.idType === '02' ? 10 : 13) }));
+                      setPaymentForm(prev => ({ ...prev, idNumber: e.target.value.replace(/[^0-9]/g, '').slice(0, paymentForm.idType === 'B' ? 10 : 6) }));
                       setIsVerified(false);
                     }}
-                    placeholder={paymentForm.idType === '01' ? '주민등록번호 13자리 (- 제외)' : paymentForm.idType === '02' ? '사업자등록번호 10자리 (- 제외)' : '외국인등록번호 13자리 (- 제외)'}
-                    maxLength={paymentForm.idType === '02' ? 10 : 13}
+                    placeholder={paymentForm.idType === 'A' ? '생년월일 6자리 (YYMMDD)' : paymentForm.idType === 'B' ? '사업자등록번호 10자리 (- 제외)' : '생년월일 6자리 (YYMMDD)'}
+                    maxLength={paymentForm.idType === 'B' ? 10 : 6}
                     className="flex-1 px-2 py-1.5 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-orange-500"
                   />
                 </div>
