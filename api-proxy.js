@@ -476,17 +476,14 @@ async function handleBankAccountVerify(req, res) {
     const xmlBody = jsonToMiPlatformXML('DS_INPUT', reqParams);
     const postData = iconv.encode(xmlBody, 'euc-kr');
 
-    // addCustomerRlnmAuthCheck.req는 ACCESS_TICKET에 /가 포함되면 404 (WebSphere 제한)
-    // 유일한 방법: 실제 로그인 JSESSIONID (loginUser 세션 필요)
-    const reqPath = '/customer/customer/general/addCustomerRlnmAuthCheck.req';
-
-    if (!storedJSessionId) {
-      console.log('[BankAccountVerify] No JSESSIONID - user must login first');
-      return res.json({ success: false, code: 'NO_SESSION', message: '로그인 후 다시 시도해주세요. (세션 없음)', data: {} });
-    }
+    // customerRlnmAuthCheck.req (NOT addCustomerRlnmAuthCheck.req - that rejects %3A in URL)
+    // ACCESS_TICKET 인증 사용
+    const userId = body.USR_ID || storedUserId || 'MOBILE';
+    const accessTicket = encodeURIComponent(userId + '###bank-verify###2099/01/01_00:00:00:0000');
+    const reqPath = '/customer/customer/general/customerRlnmAuthCheck.req?ACCESS_TICKET=' + accessTicket;
 
     const targetUrl = DLIVE_API_BASE + reqPath;
-    console.log('[BankAccountVerify] URL:', targetUrl, '(JSESSIONID:', storedJSessionId.substring(0, 15) + '...)');
+    console.log('[BankAccountVerify] URL:', targetUrl);
 
     const http = require('http');
 
@@ -498,7 +495,7 @@ async function handleBankAccountVerify(req, res) {
       headers: {
         'Content-Type': 'text/xml; charset=euc-kr',
         'Content-Length': postData.length,
-        'Cookie': 'JSESSIONID=' + storedJSessionId
+        'Cookie': storedJSessionId ? 'JSESSIONID=' + storedJSessionId : ''
       },
       timeout: 10000
     };
@@ -1045,6 +1042,7 @@ async function handleProxy(req, res) {
 
       // 로그인 응답에서 JSESSIONID 캡처
       const setCookies = proxyRes.headers['set-cookie'];
+      console.log('[PROXY] Response headers set-cookie:', setCookies ? JSON.stringify(setCookies).substring(0, 200) : 'NONE');
       if (setCookies) {
         const arr = Array.isArray(setCookies) ? setCookies : [setCookies];
         arr.forEach(c => {
