@@ -366,12 +366,26 @@ const WorkMapView: React.FC<WorkMapViewProps> = ({ workOrders, onBack, onSelectW
           style: 'korean',
           requestEncoding: 'KVP',
           tileLoadFunction: (imageTile: any, src: string) => {
-            // OL WMTS builds: /api/ngii-tile?SERVICE=WMTS&REQUEST=GetTile&...
-            // We need to rewrite to our proxy params
-            const url = new URL(src, window.location.origin);
-            const tilematrix = url.searchParams.get('TILEMATRIX') || '';
-            const tilerow = url.searchParams.get('TILEROW') || '';
-            const tilecol = url.searchParams.get('TILECOL') || '';
+            // Extract tile coords directly from the tile object (more reliable than URL parsing)
+            const tileCoord = imageTile.getTileCoord();
+            let tilematrix = '', tilerow = '', tilecol = '';
+
+            if (tileCoord) {
+              const z = tileCoord[0];
+              tilematrix = matrixIds[z] || '';
+              tilecol = String(tileCoord[1]);
+              tilerow = String(tileCoord[2]);
+            } else {
+              // Fallback: parse from URL (case-insensitive)
+              const url = new URL(src, window.location.origin);
+              url.searchParams.forEach((value, key) => {
+                const k = key.toUpperCase();
+                if (k === 'TILEMATRIX') tilematrix = value;
+                else if (k === 'TILEROW') tilerow = value;
+                else if (k === 'TILECOL') tilecol = value;
+              });
+            }
+
             const proxyUrl = `/api/ngii-tile?apikey=${ngiiKey}&tilematrix=${tilematrix}&tilerow=${tilerow}&tilecol=${tilecol}`;
             console.log(`[NGII] tile: ${tilematrix}/${tilerow}/${tilecol}`);
             imageTile.getImage().src = proxyUrl;
