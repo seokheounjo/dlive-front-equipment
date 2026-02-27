@@ -405,7 +405,7 @@ const PaymentChangeModal: React.FC<PaymentChangeModalProps> = ({
         ACNT_NO: paymentForm.acntNo,
         ACNT_OWNER_NM: paymentForm.acntHolderNm,
         ID_TYPE_CD: paymentForm.idType,
-        BIRTH_DT: paymentForm.idNumber,
+        BIRTH_DT: paymentForm.idNumber.length === 6 ? paymentForm.idNumber + '0000000' : paymentForm.idNumber,
         PAYER_REL_CD: paymentForm.pyrRel,
         PAY_DAY_CD: paymentForm.pymDay,
         CARD_VALID_YM: paymentForm.pymMthCd === '02' ? paymentForm.cardExpYy + paymentForm.cardExpMm : undefined,
