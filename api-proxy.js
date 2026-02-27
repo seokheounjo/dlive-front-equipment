@@ -1276,12 +1276,29 @@ async function handleProxy(req, res) {
 
 // ========== NGII Tile Proxy ==========
 // Browser cannot call NGII directly (Referer check), so proxy through our server
+// Memory cache: ~500MB max (tiles avg 20KB, 25000 tiles)
+const ngiiTileCache = new Map();
+const NGII_CACHE_MAX = 25000;
+const NGII_CACHE_TTL = 3600000; // 1 hour
+
 router.get('/ngii-tile', async (req, res) => {
   try {
     const { apikey, tilematrix, tilerow, tilecol } = req.query;
     if (!apikey || !tilematrix || !tilerow || !tilecol) {
       return res.status(400).send('Missing params');
     }
+
+    const cacheKey = `${tilematrix}/${tilerow}/${tilecol}`;
+
+    // Serve from cache
+    const cached = ngiiTileCache.get(cacheKey);
+    if (cached && (Date.now() - cached.time < NGII_CACHE_TTL)) {
+      res.set('Content-Type', 'image/png');
+      res.set('Cache-Control', 'public, max-age=86400');
+      res.set('X-Cache', 'HIT');
+      return res.send(cached.data);
+    }
+
     const url = `https://map.ngii.go.kr/openapi/Gettile.do`
       + `?apikey=${apikey}&service=WMTS&request=GetTile&version=1.0.0`
       + `&layer=korean_map&style=korean&format=image/png`
@@ -1290,9 +1307,24 @@ router.get('/ngii-tile', async (req, res) => {
 
     const https = require('https');
     const proxyReq = https.get(url, { headers: { 'Referer': `http://${req.headers.host || 'localhost'}` } }, (proxyRes) => {
-      res.set('Content-Type', proxyRes.headers['content-type'] || 'image/png');
-      res.set('Cache-Control', 'public, max-age=86400');
-      proxyRes.pipe(res);
+      const chunks = [];
+      proxyRes.on('data', (chunk) => chunks.push(chunk));
+      proxyRes.on('end', () => {
+        const data = Buffer.concat(chunks);
+        // Cache only valid tiles (>100 bytes)
+        if (data.length > 100) {
+          if (ngiiTileCache.size >= NGII_CACHE_MAX) {
+            // Evict oldest entry
+            const firstKey = ngiiTileCache.keys().next().value;
+            ngiiTileCache.delete(firstKey);
+          }
+          ngiiTileCache.set(cacheKey, { data, time: Date.now() });
+        }
+        res.set('Content-Type', proxyRes.headers['content-type'] || 'image/png');
+        res.set('Cache-Control', 'public, max-age=86400');
+        res.set('X-Cache', 'MISS');
+        res.send(data);
+      });
     });
     proxyReq.on('error', (e) => {
       console.error('[NGII Proxy] Error:', e.message);
