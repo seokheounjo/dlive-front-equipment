@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import {
   ChevronDown, ChevronUp, Loader2,
-  AlertCircle
+  AlertCircle, RefreshCw
 } from 'lucide-react';
 
 import {
@@ -99,6 +99,10 @@ const PaymentInfo: React.FC<PaymentInfoProps> = ({
   // 진행중 결제 정보 (per-item 배열)
   const [pendingPaymentInfo, setPendingPaymentInfo] = useState<PendingPaymentInfo[] | null>(null);
 
+  // 타임아웃 → 최신화 버튼
+  const [needsRefresh, setNeedsRefresh] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+
   // 데이터 로드
   useEffect(() => {
     if (expanded && custId) {
@@ -126,8 +130,15 @@ const PaymentInfo: React.FC<PaymentInfoProps> = ({
   const loadPaymentAccounts = async () => {
     setIsLoading(true);
     try {
-      const paymentRes = await getPaymentAccounts(custId);
+      const paymentRes = await getPaymentAccounts(custId, 10000);
 
+      if (paymentRes.errorCode === 'TIMEOUT') {
+        setNeedsRefresh(true);
+        showToast?.('납부정보 조회 시간이 초과되었습니다.', 'warning');
+        return;
+      }
+
+      setNeedsRefresh(false);
       if (paymentRes.success && paymentRes.data) {
         setPaymentAccounts(paymentRes.data);
         // 납부계정 자동 선택: 계약에서 지정된 계정이 목록에 있으면 우선, 없으면 첫 번째
@@ -150,7 +161,13 @@ const PaymentInfo: React.FC<PaymentInfoProps> = ({
   const loadBillingDetails = async (pymAcntId: string) => {
     setIsLoadingBilling(true);
     try {
-      const response = await getBillingDetails(custId, pymAcntId);
+      const response = await getBillingDetails(custId, pymAcntId, 10000);
+      if (response.errorCode === 'TIMEOUT') {
+        setNeedsRefresh(true);
+        showToast?.('요금내역 조회 시간이 초과되었습니다.', 'warning');
+        return;
+      }
+      setNeedsRefresh(false);
       if (response.success && response.data) {
         setBillingDetails(response.data);
       } else {
@@ -199,6 +216,17 @@ const PaymentInfo: React.FC<PaymentInfoProps> = ({
     setPendingSwitchPymAcntId('');
   };
 
+  // 최신화 핸들러
+  const handleRefresh = async () => {
+    setIsRefreshing(true);
+    setNeedsRefresh(false);
+    await loadPaymentAccounts();
+    if (selectedPymAcntId) {
+      await loadBillingDetails(selectedPymAcntId);
+    }
+    setIsRefreshing(false);
+  };
+
   // 선택된 납부계정 정보
   const selectedPayment = paymentAccounts.find(p => p.PYM_ACNT_ID === selectedPymAcntId);
 
@@ -212,7 +240,12 @@ const PaymentInfo: React.FC<PaymentInfoProps> = ({
     setIsLoadingUnpayment(true);
     try {
       // 요금내역에서 미납 내역 조회 (getCustBillInfo_m의 UPYM_AMT > 0인 항목)
-      const response = await getBillingDetails(custId, selectedPymAcntId);
+      const response = await getBillingDetails(custId, selectedPymAcntId, 10000);
+      if (response.errorCode === 'TIMEOUT') {
+        setNeedsRefresh(true);
+        showToast?.('미납 내역 조회 시간이 초과되었습니다.', 'warning');
+        return;
+      }
       if (response.success && response.data) {
         // 미납금이 있는 항목만 필터링하여 UnpaymentInfo 형태로 변환
         const unpaymentItems: UnpaymentInfo[] = response.data
@@ -366,7 +399,7 @@ const PaymentInfo: React.FC<PaymentInfoProps> = ({
                 {paymentAccounts.some(p => p.UPYM_AMT_ACNT > 0) && (
                   <button
                     onClick={handleUnpaymentClick}
-                    disabled={isLoadingUnpayment || !selectedPymAcntId}
+                    disabled={needsRefresh || isLoadingUnpayment || !selectedPymAcntId}
                     className={`w-full mt-3 py-2.5 text-sm text-white rounded-lg disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors font-medium flex items-center justify-center gap-2 ${
                       pendingPaymentInfo
                         ? 'bg-amber-500 hover:bg-amber-600 animate-pulse'
@@ -393,7 +426,12 @@ const PaymentInfo: React.FC<PaymentInfoProps> = ({
                 {selectedPymAcntId && (
                   <button
                     onClick={() => setShowPaymentChangeModal(true)}
-                    className="w-full mt-2 py-2 text-sm text-indigo-600 bg-indigo-50 hover:bg-indigo-100 rounded-lg transition-colors font-medium"
+                    disabled={needsRefresh}
+                    className={`w-full mt-2 py-2 text-sm rounded-lg transition-colors font-medium ${
+                      needsRefresh
+                        ? 'text-gray-400 bg-gray-100 cursor-not-allowed'
+                        : 'text-indigo-600 bg-indigo-50 hover:bg-indigo-100'
+                    }`}
                   >
                     납부정보 변경
                   </button>
@@ -479,6 +517,33 @@ const PaymentInfo: React.FC<PaymentInfoProps> = ({
                   </>
                 )}
               </div>
+
+              {/* 최신화 버튼 (타임아웃 발생 시) */}
+              {needsRefresh && (
+                <div className="border-t border-orange-200 pt-3 mt-3">
+                  <div className="flex items-center gap-2 mb-2 text-sm text-orange-600">
+                    <AlertCircle className="w-4 h-4" />
+                    <span>조회 시간이 초과되었습니다. 최신화를 눌러 다시 조회하세요.</span>
+                  </div>
+                  <button
+                    onClick={handleRefresh}
+                    disabled={isRefreshing}
+                    className="w-full py-2.5 text-sm font-medium text-white bg-orange-500 rounded-lg hover:bg-orange-600 disabled:bg-gray-400 flex items-center justify-center gap-2"
+                  >
+                    {isRefreshing ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        최신화 중...
+                      </>
+                    ) : (
+                      <>
+                        <RefreshCw className="w-4 h-4" />
+                        최신화
+                      </>
+                    )}
+                  </button>
+                </div>
+              )}
             </div>
           )}
         </div>

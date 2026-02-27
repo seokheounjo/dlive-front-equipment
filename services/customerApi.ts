@@ -691,47 +691,67 @@ export interface ApiResponse<T> {
 const apiCall = async <T>(
   endpoint: string,
   params: Record<string, any> = {},
-  method: 'GET' | 'POST' = 'POST'
+  method: 'GET' | 'POST' = 'POST',
+  timeoutMs?: number
 ): Promise<ApiResponse<T>> => {
   try {
     const url = `${API_BASE}${endpoint}`;
 
-    const response = await fetch(url, {
+    const fetchOptions: RequestInit = {
       method,
       headers: {
         'Content-Type': 'application/json',
       },
       credentials: 'include',
       body: method === 'POST' ? JSON.stringify(params) : undefined,
-    });
-
-    if (!response.ok) {
-      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-    }
-
-    const result = await response.json();
-
-    // 레거시 API 응답 형식 처리
-    // D'Live API: { code: 'SUCCESS', message: 'OK', data: [...] }
-    // 레거시 API: { resultCode: '0000', resultData: [...] }
-    // 공통코드 API: 배열을 직접 반환하는 경우
-    if (Array.isArray(result)) {
-      return { success: true, data: result as T };
-    }
-    if (result.code === 'SUCCESS' || result.resultCode === '0000' || result.success) {
-      return {
-        success: true,
-        data: result.data || result.resultData || result,
-        totalCount: result.totalCount || result.resultCount
-      };
-    }
-
-    return {
-      success: false,
-      message: result.message || result.resultMsg || '요청 처리에 실패했습니다.',
-      errorCode: result.code || result.resultCode || result.errorCode
     };
+
+    // timeout support via AbortController
+    let controller: AbortController | undefined;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    if (timeoutMs) {
+      controller = new AbortController();
+      fetchOptions.signal = controller.signal;
+      timer = setTimeout(() => controller!.abort(), timeoutMs);
+    }
+
+    try {
+      const response = await fetch(url, fetchOptions);
+
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
+
+      const result = await response.json();
+
+      // 레거시 API 응답 형식 처리
+      // D'Live API: { code: 'SUCCESS', message: 'OK', data: [...] }
+      // 레거시 API: { resultCode: '0000', resultData: [...] }
+      // 공통코드 API: 배열을 직접 반환하는 경우
+      if (Array.isArray(result)) {
+        return { success: true, data: result as T };
+      }
+      if (result.code === 'SUCCESS' || result.resultCode === '0000' || result.success) {
+        return {
+          success: true,
+          data: result.data || result.resultData || result,
+          totalCount: result.totalCount || result.resultCount
+        };
+      }
+
+      return {
+        success: false,
+        message: result.message || result.resultMsg || '요청 처리에 실패했습니다.',
+        errorCode: result.code || result.resultCode || result.errorCode
+      };
+    } finally {
+      if (timer) clearTimeout(timer);
+    }
   } catch (error) {
+    // AbortError = timeout
+    if (error instanceof DOMException && error.name === 'AbortError') {
+      return { success: false, message: 'TIMEOUT', errorCode: 'TIMEOUT' };
+    }
     console.error(`[CustomerAPI] Error:`, error);
     return {
       success: false,
@@ -1329,14 +1349,14 @@ export const getPaymentAccountsRaw = async (custId: string): Promise<ApiResponse
  * getCustAccountInfo_m API 직접 사용 (ROLLUP 없이 순수 납부계정만)
  * UPYM_AMT → UPYM_AMT_ACNT 매핑
  */
-export const getPaymentAccounts = async (custId: string): Promise<ApiResponse<PaymentAccountInfo[]>> => {
+export const getPaymentAccounts = async (custId: string, timeoutMs?: number): Promise<ApiResponse<PaymentAccountInfo[]>> => {
   const loginId = getLoginIdFromSession();
 
   // getCustAccountInfo_m API 직접 호출 (ROLLUP 행 없음)
   const response = await apiCall<any[]>('/customer/negociation/getCustAccountInfo_m', {
     CUST_ID: custId,
     LOGIN_ID: loginId
-  });
+  }, 'POST', timeoutMs);
 
   if (response.success && response.data) {
     // UPYM_AMT → UPYM_AMT_ACNT 매핑 및 유효한 PYM_ACNT_ID만 필터링
@@ -1375,13 +1395,13 @@ export interface BillingDetailInfo {
   SO_ID?: string;             // SO ID
 }
 
-export const getBillingDetails = async (custId: string, pymAcntId?: string): Promise<ApiResponse<BillingDetailInfo[]>> => {
+export const getBillingDetails = async (custId: string, pymAcntId?: string, timeoutMs?: number): Promise<ApiResponse<BillingDetailInfo[]>> => {
   const loginId = getLoginIdFromSession();
   const params: Record<string, any> = { CUST_ID: custId, LOGIN_ID: loginId };
   if (pymAcntId) {
     params.PYM_ACNT_ID = pymAcntId;
   }
-  return apiCall<BillingDetailInfo[]>('/customer/negociation/getCustBillInfo_m', params);
+  return apiCall<BillingDetailInfo[]>('/customer/negociation/getCustBillInfo_m', params, 'POST', timeoutMs);
 };
 
 /**
@@ -2652,7 +2672,7 @@ export const checkPaymentResult = async (params: {
   AMT: number;
   ORDER_DT: string;
   PYM_ACNT_ID: string;
-}): Promise<ApiResponse<any>> => {
+}, timeoutMs?: number): Promise<ApiResponse<any>> => {
   return apiCall<any>('/billing/payment/anony/processCardPayment', {
     ...params,
     BUYER: '',
@@ -2662,7 +2682,7 @@ export const checkPaymentResult = async (params: {
     KOR_ID: '',
     INSTALL: '00',
     CHECK_ONLY: 'Y'
-  });
+  }, 'POST', timeoutMs);
 };
 
 /**

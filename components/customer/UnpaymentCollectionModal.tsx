@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import {
   X, CreditCard, Lock, Loader2, AlertCircle,
-  CheckCircle, ChevronDown, ChevronUp, Search
+  CheckCircle, ChevronDown, ChevronUp, Search, RefreshCw
 } from 'lucide-react';
 
 import {
@@ -86,12 +86,18 @@ const UnpaymentCollectionModal: React.FC<UnpaymentCollectionModalProps> = ({
   const [showCardForm, setShowCardForm] = useState(true);
   const [completedBillYms, setCompletedBillYms] = useState<Set<string>>(new Set());
 
+  // 타임아웃 → 최신화 버튼
+  const [needsRefresh, setNeedsRefresh] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+
   // Initialize on open
   useEffect(() => {
     if (isOpen && pymAcntId) {
       const stored = getPendingPayments(pymAcntId);
       setPendingPayments(stored);
       setCompletedBillYms(new Set());
+      setNeedsRefresh(false);
+      setIsRefreshing(false);
       // 기본 전체 선택 (non-pending만)
       const nonPendingYms = unpaymentList
         .filter(item => !stored.some(p => p.pendingBillYms.includes(item.BILL_YM)))
@@ -189,8 +195,15 @@ const UnpaymentCollectionModal: React.FC<UnpaymentCollectionModalProps> = ({
         AMT: pendingInfo.selectedTotal,
         ORDER_DT: pendingInfo.orderDt,
         PYM_ACNT_ID: pymAcntId
-      });
+      }, 10000);
 
+      if (res.errorCode === 'TIMEOUT') {
+        setNeedsRefresh(true);
+        showToast?.('처리결과 조회 시간이 초과되었습니다.', 'warning');
+        return;
+      }
+
+      setNeedsRefresh(false);
       if (res.success) {
         removePendingPayment(pymAcntId, pendingInfo.orderNo);
         setPendingPayments(getPendingPayments(pymAcntId));
@@ -203,9 +216,7 @@ const UnpaymentCollectionModal: React.FC<UnpaymentCollectionModalProps> = ({
         onSuccess?.();
       } else {
         const msg = res.message || '처리 결과를 확인할 수 없습니다.';
-        if (msg === 'TIMEOUT' || res.errorCode === 'TIMEOUT') {
-          showToast?.('결과 조회 시간이 초과되었습니다. 잠시 후 다시 시도해주세요.', 'warning');
-        } else if (res.errorCode === 'NOT_FOUND' || res.errorCode === 'PENDING') {
+        if (res.errorCode === 'NOT_FOUND' || res.errorCode === 'PENDING') {
           showToast?.('아직 처리중입니다. 잠시 후 다시 조회해주세요.', 'info');
         } else {
           removePendingPayment(pymAcntId, pendingInfo.orderNo);
@@ -375,8 +386,9 @@ const UnpaymentCollectionModal: React.FC<UnpaymentCollectionModalProps> = ({
         showToast?.(`${formatCurrency(selectedTotal)}원 결제가 완료되었습니다.`, 'success');
         onSuccess?.();
       } else if (pgRes.errorCode === 'TIMEOUT') {
-        // 10초 타임아웃 — pending 유지, 처리결과 조회 안내
-        showToast?.('결제 요청 시간이 초과되었습니다. [처리결과 조회]로 결과를 확인해주세요.', 'warning');
+        // 10초 타임아웃 — pending 유지, 최신화 버튼 표시
+        setNeedsRefresh(true);
+        showToast?.('결제 요청 시간이 초과되었습니다. [최신화]로 결과를 확인해주세요.', 'warning');
       } else {
         // 명확한 실패 — pending 제거
         removePendingPayment(pymAcntId, orderNo);
@@ -391,6 +403,16 @@ const UnpaymentCollectionModal: React.FC<UnpaymentCollectionModalProps> = ({
       setProcessingBillYms([]);
     }
   };
+
+  // 최신화 핸들러 (pending 항목 처리결과 재조회)
+  const handleRefresh = useCallback(async () => {
+    setIsRefreshing(true);
+    setNeedsRefresh(false);
+    for (const p of pendingPayments) {
+      await handleCheckResult(p);
+    }
+    setIsRefreshing(false);
+  }, [pendingPayments, handleCheckResult]);
 
   // Card number formatting
   const formatCardInput = (value: string) => {
@@ -564,7 +586,7 @@ const UnpaymentCollectionModal: React.FC<UnpaymentCollectionModalProps> = ({
                                 e.stopPropagation();
                                 handleCheckResult(pendingInfo);
                               }}
-                              disabled={checkingOrderNo === pendingInfo.orderNo}
+                              disabled={needsRefresh || checkingOrderNo === pendingInfo.orderNo}
                               className="text-xs text-blue-600 hover:text-blue-700 underline flex items-center gap-1 disabled:opacity-50"
                             >
                               {checkingOrderNo === pendingInfo.orderNo ? (
@@ -716,6 +738,35 @@ const UnpaymentCollectionModal: React.FC<UnpaymentCollectionModalProps> = ({
           </div>
         </div>
 
+        {/* 최신화 버튼 (타임아웃 발생 시) */}
+        {needsRefresh && (
+          <div className="px-4 pb-2">
+            <div className="border-t border-orange-200 pt-3">
+              <div className="flex items-center gap-2 mb-2 text-sm text-orange-600">
+                <AlertCircle className="w-4 h-4" />
+                <span>조회 시간이 초과되었습니다. 최신화를 눌러 다시 조회하세요.</span>
+              </div>
+              <button
+                onClick={handleRefresh}
+                disabled={isRefreshing}
+                className="w-full py-2.5 text-sm font-medium text-white bg-orange-500 rounded-lg hover:bg-orange-600 disabled:bg-gray-400 flex items-center justify-center gap-2"
+              >
+                {isRefreshing ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    최신화 중...
+                  </>
+                ) : (
+                  <>
+                    <RefreshCw className="w-4 h-4" />
+                    최신화
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        )}
+
         {/* 푸터 */}
         <div className="p-4 border-t border-gray-200 bg-gray-50 rounded-b-xl">
           <div className="flex gap-2">
@@ -729,7 +780,7 @@ const UnpaymentCollectionModal: React.FC<UnpaymentCollectionModalProps> = ({
             {nonPendingSelected.length > 0 ? (
               <button
                 onClick={handlePayment}
-                disabled={isProcessing || cardNo.replace(/\D/g, '').length !== 16}
+                disabled={needsRefresh || isProcessing || cardNo.replace(/\D/g, '').length !== 16}
                 className="flex-1 py-3 text-sm font-medium text-white bg-red-500 rounded-lg hover:bg-red-600 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2"
               >
                 {isProcessing ? (
@@ -748,7 +799,7 @@ const UnpaymentCollectionModal: React.FC<UnpaymentCollectionModalProps> = ({
                     handleCheckResult(pendingPayments[0]);
                   }
                 }}
-                disabled={!!checkingOrderNo}
+                disabled={needsRefresh || !!checkingOrderNo}
                 className="flex-1 py-3 text-sm font-medium text-white bg-blue-500 rounded-lg hover:bg-blue-600 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2"
               >
                 {checkingOrderNo ? (
