@@ -409,7 +409,7 @@ const WorkMapView: React.FC<WorkMapViewProps> = ({ workOrders, onBack, onSelectW
             projection: 'EPSG:5179',
             center: defaultCenter as [number, number],
             zoom: 3,
-            maxZoom: 13,
+            maxZoom: 18,
             minZoom: 0
           })
         });
@@ -644,7 +644,7 @@ const WorkMapView: React.FC<WorkMapViewProps> = ({ workOrders, onBack, onSelectW
           ngiiMap.getView().animate({ center: ngiiCoordsList[0], zoom: 10, duration: 300 });
         } else {
           ngiiMap.getView().fit(boundingExtent(ngiiCoordsList), {
-            padding: [60, 60, 60, 60], maxZoom: 11, duration: 300
+            padding: [60, 60, 60, 60], maxZoom: 16, duration: 300
           });
         }
       }
