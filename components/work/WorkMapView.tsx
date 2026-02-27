@@ -375,10 +375,15 @@ const WorkMapView: React.FC<WorkMapViewProps> = ({ workOrders, onBack, onSelectW
           attributions: '© NGII'
         });
 
-        // NGII tile error detection
+        // NGII tile error detection - only switch if many errors in short time (server down)
         let ngiiErrorCount = 0;
+        let ngiiErrorTimer: ReturnType<typeof setTimeout> | null = null;
         ngiiTileSource.on('tileloaderror', () => {
           ngiiErrorCount++;
+          // Reset counter after 5 seconds of no errors
+          if (ngiiErrorTimer) clearTimeout(ngiiErrorTimer);
+          ngiiErrorTimer = setTimeout(() => { ngiiErrorCount = 0; }, 5000);
+          // Only switch if 20+ errors within 5 seconds (= server truly down)
           if (ngiiErrorCount >= 20 && ngiiOkRef.current) {
             ngiiOkRef.current = false;
             console.warn('[Map] NGII 타일 로드 실패, 다른 지도로 전환');
