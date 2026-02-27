@@ -475,58 +475,14 @@ async function handleBankAccountVerify(req, res) {
     const xmlBody = jsonToMiPlatformXML('DS_INPUT', reqParams);
     const postData = iconv.encode(xmlBody, 'euc-kr');
 
-    // JSESSIONID required - ACCESS_TICKET has WebSphere %2F issue on this endpoint
-    const reqPath = '/customer/customer/general/addCustomerRlnmAuthCheck.req';
-
-    // JSESSIONID가 없으면 먼저 다른 .req 엔드포인트로 세션 생성
-    if (!storedJSessionId) {
-      console.log('[BankAccountVerify] No JSESSIONID - acquiring session via ping...');
-      const userId = body.USR_ID || storedUserId || 'MOBILE';
-      const ticket = encodeURIComponent(userId + '###bank-verify###2099/01/01_00:00:00:0000');
-      // customerPymChgAddManager.req는 ACCESS_TICKET %2F 허용됨
-      const pingPath = '/customer/customer/general/customerPymChgAddManager.req?ACCESS_TICKET=' + ticket;
-      try {
-        const sessionId = await new Promise((resolve, reject) => {
-          const http = require('http');
-          const pingReq = http.request({
-            hostname: '58.143.140.222', port: 8080, path: pingPath, method: 'POST',
-            headers: { 'Content-Type': 'text/xml; charset=euc-kr', 'Content-Length': 0 },
-            timeout: 10000
-          }, (pingRes) => {
-            let d = [];
-            pingRes.on('data', c => d.push(c));
-            pingRes.on('end', () => {
-              const cookies = pingRes.headers['set-cookie'];
-              if (cookies) {
-                const arr = Array.isArray(cookies) ? cookies : [cookies];
-                for (const c of arr) {
-                  const m = c.match(/JSESSIONID=([^;]+)/);
-                  if (m) { resolve(m[1]); return; }
-                }
-              }
-              // 응답 본문에서 세션 없어도, 응답 자체가 JSESSIONID를 줄 수 있음
-              resolve(null);
-            });
-          });
-          pingReq.on('error', reject);
-          pingReq.on('timeout', () => { pingReq.destroy(); reject(new Error('ping timeout')); });
-          pingReq.end();
-        });
-        if (sessionId) {
-          storedJSessionId = sessionId;
-          console.log('[BankAccountVerify] Acquired JSESSIONID:', sessionId.substring(0, 20) + '...');
-        } else {
-          console.log('[BankAccountVerify] Ping succeeded but no JSESSIONID in response');
-          return res.json({ success: false, code: 'NO_SESSION', message: 'CONA session not available', data: {} });
-        }
-      } catch (pingErr) {
-        console.log('[BankAccountVerify] Session ping failed:', pingErr.message);
-        return res.json({ success: false, code: 'NO_SESSION', message: 'Failed to establish CONA session', data: {} });
-      }
-    }
+    // ACCESS_TICKET: #만 인코딩, /와 :는 쿼리스트링에서 그대로 사용 (WebSphere %2F 404 회피)
+    const userId = body.USR_ID || storedUserId || 'MOBILE';
+    const ticketRaw = userId + '###bank-verify###2099/01/01_00:00:00:0000';
+    const ticketEncoded = ticketRaw.replace(/#/g, '%23');
+    const reqPath = '/customer/customer/general/addCustomerRlnmAuthCheck.req?ACCESS_TICKET=' + ticketEncoded;
 
     const targetUrl = DLIVE_API_BASE + reqPath;
-    console.log('[BankAccountVerify] URL:', targetUrl, '(JSESSIONID auth)');
+    console.log('[BankAccountVerify] URL:', targetUrl);
 
     const http = require('http');
 
