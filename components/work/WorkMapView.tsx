@@ -823,19 +823,19 @@ const WorkMapView: React.FC<WorkMapViewProps> = ({ workOrders, onBack, onSelectW
         <div
           ref={vworldContainerRef}
           className="absolute inset-0"
-          style={{ display: mapSource === 'vworld' ? 'block' : 'none' }}
+          style={{ visibility: mapSource === 'vworld' ? 'visible' : 'hidden', zIndex: mapSource === 'vworld' ? 1 : 0 }}
         />
         {/* Kakao Map */}
         <div
           ref={kakaoContainerRef}
           className="absolute inset-0"
-          style={{ display: mapSource === 'kakao' ? 'block' : 'none' }}
+          style={{ visibility: mapSource === 'kakao' ? 'visible' : 'hidden', zIndex: mapSource === 'kakao' ? 1 : 0 }}
         />
         {/* NGII Map (OpenLayers, EPSG:5179) */}
         <div
           ref={ngiiContainerRef}
           className="absolute inset-0"
-          style={{ display: mapSource === 'ngii' ? 'block' : 'none' }}
+          style={{ visibility: mapSource === 'ngii' ? 'visible' : 'hidden', zIndex: mapSource === 'ngii' ? 1 : 0 }}
         />
 
         {/* 로딩 */}
