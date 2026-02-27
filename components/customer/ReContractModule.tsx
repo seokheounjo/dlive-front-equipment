@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   Loader2, AlertCircle, Send, Calendar,
-  RefreshCw, CheckCircle, XCircle, FileText, ChevronDown, ChevronUp, PenTool
+  RefreshCw, CheckCircle, XCircle, FileText, ChevronDown, ChevronUp, PenTool,
+  MessageSquare, RotateCcw
 } from 'lucide-react';
 import SignaturePad from '../common/SignaturePad';
 import {
@@ -128,6 +129,10 @@ const ReContractModule: React.FC<ReContractModuleProps> = ({
   // 서명 관련
   const [showSignPad, setShowSignPad] = useState(false);
   const [signatureData, setSignatureData] = useState<string>('');
+
+  // 문자전송 상태
+  const [isSendingSms, setIsSendingSms] = useState(false);
+  const [smsSent, setSmsSent] = useState(false);
 
   // 상태
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -580,7 +585,7 @@ const ReContractModule: React.FC<ReContractModuleProps> = ({
                       name="receiptMethod"
                       value="face"
                       checked={receiptMethod === 'face'}
-                      onChange={() => setReceiptMethod('face')}
+                      onChange={() => { setReceiptMethod('face'); setSmsSent(false); }}
                       className="w-4 h-4 text-purple-600 focus:ring-purple-500"
                     />
                     <span className="text-sm text-gray-700">대면</span>
@@ -591,36 +596,118 @@ const ReContractModule: React.FC<ReContractModuleProps> = ({
                       name="receiptMethod"
                       value="sms"
                       checked={receiptMethod === 'sms'}
-                      onChange={() => setReceiptMethod('sms')}
+                      onChange={() => { setReceiptMethod('sms'); setShowSignPad(false); setSignatureData(''); }}
                       className="w-4 h-4 text-purple-600 focus:ring-purple-500"
                     />
                     <span className="text-sm text-gray-700">문자전송</span>
                   </label>
-                  {/* 서명 버튼 */}
-                  <button
-                    onClick={() => setShowSignPad(!showSignPad)}
-                    className={`ml-auto flex items-center gap-1 px-3 py-1.5 text-xs rounded-lg border transition-colors ${
-                      signatureData
-                        ? 'bg-green-50 border-green-300 text-green-700'
-                        : 'bg-gray-50 border-gray-300 text-gray-600 hover:bg-gray-100'
-                    }`}
-                  >
-                    <PenTool className="w-3.5 h-3.5" />
-                    {signatureData ? '서명완료' : '서명'}
-                  </button>
                 </div>
               </div>
 
-              {/* 서명 패드 */}
-              {showSignPad && (
-                <SignaturePad
-                  title="고객 서명"
-                  onSave={(data) => {
-                    setSignatureData(data);
-                    setShowSignPad(false);
-                  }}
-                  onCancel={() => setShowSignPad(false)}
-                />
+              {/* 대면: 서명 영역 */}
+              {receiptMethod === 'face' && (
+                <>
+                  {!showSignPad && !signatureData && (
+                    <button
+                      onClick={() => setShowSignPad(true)}
+                      className="w-full flex items-center justify-center gap-2 py-3 rounded-lg border-2 border-dashed border-purple-300 text-purple-600 hover:bg-purple-50 transition-colors"
+                    >
+                      <PenTool className="w-4 h-4" />
+                      <span className="text-sm font-medium">서명하기</span>
+                    </button>
+                  )}
+                  {signatureData && !showSignPad && (
+                    <div className="flex items-center justify-between p-3 bg-green-50 border border-green-200 rounded-lg">
+                      <div className="flex items-center gap-2 text-green-700">
+                        <CheckCircle className="w-4 h-4" />
+                        <span className="text-sm font-medium">서명완료</span>
+                      </div>
+                      <button
+                        onClick={() => { setSignatureData(''); setShowSignPad(true); }}
+                        className="flex items-center gap-1 text-xs text-gray-500 hover:text-gray-700"
+                      >
+                        <RotateCcw className="w-3 h-3" />
+                        다시 서명
+                      </button>
+                    </div>
+                  )}
+                  {showSignPad && (
+                    <SignaturePad
+                      title="고객 서명"
+                      onSave={(data) => {
+                        setSignatureData(data);
+                        setShowSignPad(false);
+                      }}
+                      onCancel={() => setShowSignPad(false)}
+                    />
+                  )}
+                </>
+              )}
+
+              {/* 문자전송: 전송 버튼 */}
+              {receiptMethod === 'sms' && (
+                <>
+                  {!smsSent ? (
+                    <button
+                      onClick={async () => {
+                        setIsSendingSms(true);
+                        // TODO: 실제 문자전송 API 연결
+                        setTimeout(() => {
+                          setIsSendingSms(false);
+                          setSmsSent(true);
+                          showToast?.('문자가 전송되었습니다.', 'success');
+                        }, 1000);
+                      }}
+                      disabled={isSendingSms}
+                      className="w-full flex items-center justify-center gap-2 py-3 rounded-lg bg-blue-500 hover:bg-blue-600 text-white text-sm font-medium transition-colors disabled:bg-gray-400"
+                    >
+                      {isSendingSms ? (
+                        <>
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                          전송 중...
+                        </>
+                      ) : (
+                        <>
+                          <MessageSquare className="w-4 h-4" />
+                          문자전송
+                        </>
+                      )}
+                    </button>
+                  ) : (
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between p-3 bg-green-50 border border-green-200 rounded-lg">
+                        <div className="flex items-center gap-2 text-green-700">
+                          <CheckCircle className="w-4 h-4" />
+                          <span className="text-sm font-medium">전송완료</span>
+                        </div>
+                      </div>
+                      <button
+                        onClick={async () => {
+                          setIsSendingSms(true);
+                          // TODO: 실제 재전송 API 연결
+                          setTimeout(() => {
+                            setIsSendingSms(false);
+                            showToast?.('문자가 재전송되었습니다.', 'success');
+                          }, 1000);
+                        }}
+                        disabled={isSendingSms}
+                        className="w-full flex items-center justify-center gap-2 py-2.5 rounded-lg border border-blue-300 text-blue-600 hover:bg-blue-50 text-sm font-medium transition-colors disabled:opacity-50"
+                      >
+                        {isSendingSms ? (
+                          <>
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                            재전송 중...
+                          </>
+                        ) : (
+                          <>
+                            <RotateCcw className="w-3.5 h-3.5" />
+                            재전송
+                          </>
+                        )}
+                      </button>
+                    </div>
+                  )}
+                </>
               )}
 
               {/* 등록 버튼 */}
