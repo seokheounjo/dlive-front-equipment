@@ -370,10 +370,13 @@ const WorkMapView: React.FC<WorkMapViewProps> = ({ workOrders, onBack, onSelectW
 
         // Override URL function - tileUrlFunction receives properly processed WMTS coordinates
         ngiiTileSource.setTileUrlFunction((tileCoord: number[]) => {
-          if (!tileCoord) return '';
-          const tilematrix = matrixIds[tileCoord[0]];
+          if (!tileCoord) return undefined;
+          const z = tileCoord[0];
           const tilecol = tileCoord[1];
           const tilerow = tileCoord[2];
+          // Skip out-of-range tiles
+          if (z < 0 || z >= matrixIds.length || tilecol < 0 || tilerow < 0) return undefined;
+          const tilematrix = matrixIds[z];
           console.log(`[NGII] tile: ${tilematrix}/${tilerow}/${tilecol}`);
           return `/api/ngii-tile?apikey=${ngiiKey}&tilematrix=${tilematrix}&tilerow=${tilerow}&tilecol=${tilecol}`;
         });
@@ -382,7 +385,7 @@ const WorkMapView: React.FC<WorkMapViewProps> = ({ workOrders, onBack, onSelectW
         let ngiiErrorCount = 0;
         ngiiTileSource.on('tileloaderror', () => {
           ngiiErrorCount++;
-          if (ngiiErrorCount >= 3 && ngiiOkRef.current) {
+          if (ngiiErrorCount >= 20 && ngiiOkRef.current) {
             ngiiOkRef.current = false;
             console.warn('[Map] NGII 타일 로드 실패, 다른 지도로 전환');
             if (vworldOkRef.current) {
