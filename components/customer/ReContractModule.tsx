@@ -114,7 +114,7 @@ const ReContractModule: React.FC<ReContractModuleProps> = ({
 
   // 일괄 폼
   const [batchForm, setBatchForm] = useState({
-    promChgCd: '05',
+    promChgCd: '',
     promChgrsnCd: '',
     promCnt: '',
     startDate: '',
@@ -140,61 +140,55 @@ const ReContractModule: React.FC<ReContractModuleProps> = ({
         getPromChangeCodes(),
       ]);
 
-      const parseCodes = (res: any, fallback: CodeItem[]): CodeItem[] => {
+      const parseCodes = (res: any, fallback: CodeItem[], allowedCodes?: string[]): CodeItem[] => {
         if (res.success && res.data) {
           const codes = (res.data as any[]).map((c: any) => ({
             CODE: c.code || c.CODE || '',
             CODE_NM: c.name || c.CODE_NM || '',
-          })).filter((c: CodeItem) => c.CODE);
-          return codes.length > 0 ? codes : fallback;
+          })).filter((c: CodeItem) => c.CODE && c.CODE !== '[]');
+          const filtered = allowedCodes
+            ? codes.filter(c => allowedCodes.includes(c.CODE))
+            : codes;
+          return filtered.length > 0 ? filtered : fallback;
         }
         return fallback;
       };
 
       setPromMonthCodes(parseCodes(monthRes, [
-        { CODE: '0', CODE_NM: '약정없음' },
+        { CODE: '0', CODE_NM: '무약정' },
         { CODE: '12', CODE_NM: '12개월' },
         { CODE: '24', CODE_NM: '24개월' },
         { CODE: '36', CODE_NM: '36개월' },
-        { CODE: '48', CODE_NM: '48개월' },
-        { CODE: '60', CODE_NM: '60개월' },
       ]));
       setPromChangeReasonCodes(parseCodes(reasonRes, [
-        { CODE: 'A', CODE_NM: '연장' },
-        { CODE: 'B', CODE_NM: '신규' },
-        { CODE: 'C', CODE_NM: '변경' },
-        { CODE: 'D', CODE_NM: '기타' },
+        { CODE: 'A', CODE_NM: '고객요청' },
+        { CODE: 'B', CODE_NM: 'TM유치' },
+        { CODE: 'C', CODE_NM: '해지방어' },
+        { CODE: 'D', CODE_NM: '전산처리' },
       ]));
+      // CMCU252: 02(약정만기후재계약), 03(약정상향변경)만
       setPromChangeCodes(parseCodes(changeRes, [
-        { CODE: '01', CODE_NM: '신규약정' },
-        { CODE: '02', CODE_NM: '약정변경' },
-        { CODE: '03', CODE_NM: '약정취소' },
-        { CODE: '04', CODE_NM: '약정변경처리' },
-        { CODE: '05', CODE_NM: '재약정' },
-      ]));
+        { CODE: '02', CODE_NM: '약정만기후재계약' },
+        { CODE: '03', CODE_NM: '약정상향변경' },
+      ], ['02', '03']));
       setCodesLoaded(true);
     } catch (e) {
       console.error('Code loading failed:', e);
       setPromMonthCodes([
-        { CODE: '0', CODE_NM: '약정없음' },
+        { CODE: '0', CODE_NM: '무약정' },
         { CODE: '12', CODE_NM: '12개월' },
         { CODE: '24', CODE_NM: '24개월' },
         { CODE: '36', CODE_NM: '36개월' },
-        { CODE: '48', CODE_NM: '48개월' },
-        { CODE: '60', CODE_NM: '60개월' },
       ]);
       setPromChangeReasonCodes([
-        { CODE: 'A', CODE_NM: '연장' },
-        { CODE: 'B', CODE_NM: '신규' },
-        { CODE: 'C', CODE_NM: '변경' },
-        { CODE: 'D', CODE_NM: '기타' },
+        { CODE: 'A', CODE_NM: '고객요청' },
+        { CODE: 'B', CODE_NM: 'TM유치' },
+        { CODE: 'C', CODE_NM: '해지방어' },
+        { CODE: 'D', CODE_NM: '전산처리' },
       ]);
       setPromChangeCodes([
-        { CODE: '01', CODE_NM: '신규약정' },
-        { CODE: '02', CODE_NM: '약정변경' },
-        { CODE: '03', CODE_NM: '약정취소' },
-        { CODE: '04', CODE_NM: '약정변경처리' },
-        { CODE: '05', CODE_NM: '재약정' },
+        { CODE: '02', CODE_NM: '약정만기후재계약' },
+        { CODE: '03', CODE_NM: '약정상향변경' },
       ]);
       setCodesLoaded(true);
     }
