@@ -35,7 +35,8 @@ import {
   getCardCompanyCodes,
   getPayerRelationCodes,
   getIdTypeCodes,
-  getContractList
+  getContractList,
+  updateInstlLoc
 } from '../../services/customerApi';
 
 // 납부폼 타입 정의
@@ -959,39 +960,11 @@ const CustomerInfoChange: React.FC<CustomerInfoChangeProps> = ({
 
     setIsSavingLocation(true);
     try {
-      // 설치위치만 변경: 기존 주소 정보를 먼저 조회해서 그대로 유지
-      let existingAddrDtl = '';
-      let existingBldCl = '0';
-      let existingBldNm = '';
-      let existingStreetId = '';
-      try {
-        const ctrtRes = await getContractList(selectedCustomer!.custId);
-        if (ctrtRes.success && ctrtRes.data) {
-          const found = ctrtRes.data.find(c => c.CTRT_ID === selectedContract.ctrtId);
-          if (found) {
-            existingAddrDtl = found.ADDR_DTL || '';
-            existingBldCl = found.BLD_CL || '0';
-            existingBldNm = found.BLD_NM || '';
-            existingStreetId = found.STREET_ID || '';
-          }
-        }
-      } catch (e) {
-        console.log('[설치위치변경] 기존 주소 조회 실패, 빈값 사용:', e);
-      }
-
-      const installParams: InstallAddressChangeRequest = {
+      const response = await updateInstlLoc({
         CTRT_ID: selectedContract.ctrtId,
-        POST_ID: selectedContract.postId || '',
-        ADDR_DTL: existingAddrDtl,
-        BLD_CL: existingBldCl,
-        BLD_NM: existingBldNm,
-        STREET_ID: existingStreetId,
         INSTL_LOC: locationForm,
-        CUST_FLAG: '0',
-        PYM_FLAG: '0'
-      };
-
-      const response = await updateInstallAddress(installParams);
+        CUST_FLAG: '1'
+      });
 
       if (response.success) {
         showAlert('설치위치가 변경되었습니다.', 'success');
