@@ -288,6 +288,7 @@ router.post('/customer/work/getEquipLossInfo', handleProxy);
 router.post('/customer/work/getEquipLossInfo_ForM', handleProxy);
 router.post('/customer/work/modEquipLoss', handleProxy);
 router.post('/customer/work/modEquipLoss_ForM', handleProxy);
+router.post('/customer/work/getSafeCheckResultInfo_ForM', handleProxy);
 
 // Customer/Receipt/Contract API
 router.post('/customer/receipt/contract/getEquipmentNmListOfProd', handleProxy);
@@ -475,14 +476,17 @@ async function handleBankAccountVerify(req, res) {
     const xmlBody = jsonToMiPlatformXML('DS_INPUT', reqParams);
     const postData = iconv.encode(xmlBody, 'euc-kr');
 
-    // ACCESS_TICKET: #만 인코딩, /와 :는 쿼리스트링에서 그대로 사용 (WebSphere %2F 404 회피)
-    const userId = body.USR_ID || storedUserId || 'MOBILE';
-    const ticketRaw = userId + '###bank-verify###2099/01/01_00:00:00:0000';
-    const ticketEncoded = ticketRaw.replace(/#/g, '%23');
-    const reqPath = '/customer/customer/general/addCustomerRlnmAuthCheck.req?ACCESS_TICKET=' + ticketEncoded;
+    // addCustomerRlnmAuthCheck.req는 ACCESS_TICKET에 /가 포함되면 404 (WebSphere 제한)
+    // 유일한 방법: 실제 로그인 JSESSIONID (loginUser 세션 필요)
+    const reqPath = '/customer/customer/general/addCustomerRlnmAuthCheck.req';
+
+    if (!storedJSessionId) {
+      console.log('[BankAccountVerify] No JSESSIONID - user must login first');
+      return res.json({ success: false, code: 'NO_SESSION', message: '로그인 후 다시 시도해주세요. (세션 없음)', data: {} });
+    }
 
     const targetUrl = DLIVE_API_BASE + reqPath;
-    console.log('[BankAccountVerify] URL:', targetUrl);
+    console.log('[BankAccountVerify] URL:', targetUrl, '(JSESSIONID:', storedJSessionId.substring(0, 15) + '...)');
 
     const http = require('http');
 
@@ -494,7 +498,7 @@ async function handleBankAccountVerify(req, res) {
       headers: {
         'Content-Type': 'text/xml; charset=euc-kr',
         'Content-Length': postData.length,
-        'Cookie': storedJSessionId ? 'JSESSIONID=' + storedJSessionId : ''
+        'Cookie': 'JSESSIONID=' + storedJSessionId
       },
       timeout: 10000
     };
