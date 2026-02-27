@@ -620,11 +620,12 @@ const ReContractModule: React.FC<ReContractModuleProps> = ({
                       value="face"
                       checked={receiptMethod === 'face'}
                       onChange={() => setReceiptMethod('face')}
+                      disabled={batchRegistered}
                       className="w-4 h-4 text-purple-600 focus:ring-purple-500"
                     />
-                    <span className="text-sm text-gray-700">대면</span>
+                    <span className={`text-sm ${batchRegistered ? 'text-gray-400' : 'text-gray-700'}`}>대면</span>
                   </label>
-                  <label className="flex items-center gap-2 cursor-pointer">
+                  <label className={`flex items-center gap-2 ${batchRegistered ? 'cursor-default' : 'cursor-pointer'}`}>
                     <input
                       type="radio"
                       name="receiptMethod"
@@ -634,9 +635,10 @@ const ReContractModule: React.FC<ReContractModuleProps> = ({
                         setReceiptMethod('direct');
                         setTimeout(() => actionAreaRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 100);
                       }}
+                      disabled={batchRegistered}
                       className="w-4 h-4 text-purple-600 focus:ring-purple-500"
                     />
-                    <span className="text-sm text-gray-700">직접</span>
+                    <span className={`text-sm ${batchRegistered ? 'text-gray-400' : 'text-gray-700'}`}>직접</span>
                   </label>
                 </div>
 
@@ -718,14 +720,21 @@ const ReContractModule: React.FC<ReContractModuleProps> = ({
                 {/* 재약정 일괄등록 버튼 */}
                 <button
                   onClick={handleBatchSubmit}
-                  disabled={isSubmitting || !batchForm.promChgCd || !batchForm.promChgrsnCd || !batchForm.promCnt || !batchForm.startDate}
+                  disabled={batchRegistered || isSubmitting || !batchForm.promChgCd || !batchForm.promChgrsnCd || !batchForm.promCnt || !batchForm.startDate}
                   className={`w-full flex items-center justify-center gap-2 py-3 rounded-lg text-sm font-bold transition-colors ${
-                    isSubmitting || !batchForm.promChgCd || !batchForm.promChgrsnCd || !batchForm.promCnt || !batchForm.startDate
-                      ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                      : 'bg-purple-500 hover:bg-purple-600 text-white'
+                    batchRegistered
+                      ? 'bg-green-100 text-green-700 border border-green-300 cursor-default'
+                      : isSubmitting || !batchForm.promChgCd || !batchForm.promChgrsnCd || !batchForm.promCnt || !batchForm.startDate
+                        ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                        : 'bg-purple-500 hover:bg-purple-600 text-white'
                   }`}
                 >
-                  {isSubmitting ? (
+                  {batchRegistered ? (
+                    <>
+                      <CheckCircle className="w-4 h-4" />
+                      등록 완료
+                    </>
+                  ) : isSubmitting ? (
                     <>
                       <Loader2 className="w-4 h-4 animate-spin" />
                       일괄 등록 중...
