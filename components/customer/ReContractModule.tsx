@@ -444,15 +444,17 @@ const ReContractModule: React.FC<ReContractModuleProps> = ({
                       }}
                     >
                       <div className="flex items-center justify-between">
-                        <span className="text-sm font-medium text-gray-900 truncate">
-                          {ctrt.PROD_NM || '상품명 없음'}
-                        </span>
+                        <div className="flex items-center gap-1 min-w-0">
+                          <span className="text-sm font-medium text-gray-900 truncate">
+                            {ctrt.PROD_NM || '상품명 없음'}
+                          </span>
+                          <span className="text-xs text-gray-400 flex-shrink-0">
+                            ({formatId(ctrt.CTRT_ID)})
+                          </span>
+                        </div>
                         <span className="text-xs text-orange-600 bg-orange-100 px-1.5 py-0.5 rounded-full flex-shrink-0 ml-1">
                           기간도래
                         </span>
-                      </div>
-                      <div className="text-xs text-gray-500 mt-0.5">
-                        (계약ID: {formatId(ctrt.CTRT_ID)})
                       </div>
                     </div>
                     <button
