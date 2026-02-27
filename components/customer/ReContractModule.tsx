@@ -449,7 +449,7 @@ const ReContractModule: React.FC<ReContractModuleProps> = ({
                             {ctrt.PROD_NM || '상품명 없음'}
                           </span>
                           <span className="text-xs text-gray-400 flex-shrink-0">
-                            ({formatId(ctrt.CTRT_ID)})
+                            (계약ID: {formatId(ctrt.CTRT_ID)})
                           </span>
                         </div>
                         <span className="text-xs text-orange-600 bg-orange-100 px-1.5 py-0.5 rounded-full flex-shrink-0 ml-1">
