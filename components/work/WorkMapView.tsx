@@ -18,6 +18,8 @@ import { fromLonLat } from 'ol/proj';
 import { register } from 'ol/proj/proj4';
 import { get as getProjection } from 'ol/proj';
 import TileGrid from 'ol/tilegrid/TileGrid';
+import WMTSTileGrid from 'ol/tilegrid/WMTS';
+import WMTS from 'ol/source/WMTS';
 import { Style, Icon } from 'ol/style';
 import { boundingExtent } from 'ol/extent';
 import 'ol/ol.css';
@@ -342,30 +344,39 @@ const WorkMapView: React.FC<WorkMapViewProps> = ({ workOrders, onBack, onSelectW
         // NGII tile grid: 14 levels (L05~L18)
         const resolutions: number[] = [];
         const matrixIds: string[] = [];
-        const origin = [-200000, 4000000];
         for (let z = 0; z < 14; z++) {
           resolutions.push(2088.96 / Math.pow(2, z));
           matrixIds.push('L' + String(z + 5).padStart(2, '0'));
         }
 
-        const ngiiTileGrid = new TileGrid({
-          origin: origin,
-          resolutions: resolutions
+        const ngiiWmtsTileGrid = new WMTSTileGrid({
+          origin: [-200000, 4000000],
+          resolutions: resolutions,
+          matrixIds: matrixIds,
+          tileSize: 256
         });
 
-        const ngiiTileSource = new XYZ({
-          tileGrid: ngiiTileGrid,
+        const ngiiTileSource = new WMTS({
+          url: '/api/ngii-tile',
+          layer: 'korean_map',
+          matrixSet: 'korean',
+          format: 'image/png',
           projection: 'EPSG:5179',
-          attributions: '© NGII',
-          tileUrlFunction: (tileCoord: number[]) => {
-            const z = tileCoord[0];
-            const col = tileCoord[1];
-            const row = -(tileCoord[2] + 1); // OL XYZ uses negative y: -(row+1)
-            const level = 'L' + String(z + 5).padStart(2, '0');
-            // Proxy through our server (NGII checks Referer, blocks direct browser calls)
-            return `/api/ngii-tile?apikey=${ngiiKey}`
-              + `&tilematrix=${level}&tilerow=${row}&tilecol=${col}`;
-          }
+          tileGrid: ngiiWmtsTileGrid,
+          style: 'korean',
+          requestEncoding: 'KVP',
+          tileLoadFunction: (imageTile: any, src: string) => {
+            // OL WMTS builds: /api/ngii-tile?SERVICE=WMTS&REQUEST=GetTile&...
+            // We need to rewrite to our proxy params
+            const url = new URL(src, window.location.origin);
+            const tilematrix = url.searchParams.get('TILEMATRIX') || '';
+            const tilerow = url.searchParams.get('TILEROW') || '';
+            const tilecol = url.searchParams.get('TILECOL') || '';
+            const proxyUrl = `/api/ngii-tile?apikey=${ngiiKey}&tilematrix=${tilematrix}&tilerow=${tilerow}&tilecol=${tilecol}`;
+            console.log(`[NGII] tile: ${tilematrix}/${tilerow}/${tilecol}`);
+            imageTile.getImage().src = proxyUrl;
+          },
+          attributions: '© NGII'
         });
 
         // NGII tile error detection
