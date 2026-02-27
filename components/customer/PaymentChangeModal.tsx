@@ -91,6 +91,7 @@ const PaymentChangeModal: React.FC<PaymentChangeModalProps> = ({
   const [isVerifying, setIsVerifying] = useState(false);
   const [verifyProgress, setVerifyProgress] = useState<string>(''); // 로딩 팝업 메시지
   const [isSaving, setIsSaving] = useState(false);
+  const [isSaved, setIsSaved] = useState(false);
 
   // 서명
   const [showSignatureModal, setShowSignatureModal] = useState(false);
@@ -193,6 +194,7 @@ const PaymentChangeModal: React.FC<PaymentChangeModalProps> = ({
     if (isOpen) {
       setPaymentForm({ ...defaultPaymentForm });
       setIsVerified(false);
+      setIsSaved(false);
       setSignatureData('');
       if (initialPymAcntId) {
         setSelectedPymAcntId(initialPymAcntId);
@@ -451,9 +453,14 @@ const PaymentChangeModal: React.FC<PaymentChangeModalProps> = ({
           }
         }
 
+        setIsSaved(true);
+        setIsSaving(false);
         showToast?.('납부방법이 변경되었습니다.', 'success');
         onSuccess?.();
-        onClose();
+        // 저장완료 표시 후 1초 뒤 닫기
+        setTimeout(() => {
+          onClose();
+        }, 1000);
       } else {
         showAlert(response.message || '납부방법 변경에 실패했습니다.', 'error');
       }
@@ -653,13 +660,25 @@ const PaymentChangeModal: React.FC<PaymentChangeModalProps> = ({
                     <button
                       onClick={handleVerify}
                       disabled={isVerifying || isVerified}
-                      className={`flex-shrink-0 px-3 py-1.5 text-sm rounded font-medium transition-colors whitespace-nowrap ${
+                      className={`flex-shrink-0 px-3 py-1.5 text-sm rounded font-medium transition-colors whitespace-nowrap flex items-center gap-1 ${
                         isVerified
                           ? 'bg-green-100 text-green-700 border border-green-300'
-                          : 'bg-blue-500 text-white hover:bg-blue-600'
+                          : isVerifying
+                            ? 'bg-blue-400 text-white cursor-wait'
+                            : 'bg-blue-500 text-white hover:bg-blue-600'
                       }`}
                     >
-                      {isVerifying ? '인증중' : isVerified ? '완료' : '인증'}
+                      {isVerifying ? (
+                        <>
+                          <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                          인증 진행중
+                        </>
+                      ) : isVerified ? (
+                        <>
+                          <Check className="w-3.5 h-3.5" />
+                          인증완료
+                        </>
+                      ) : '인증'}
                     </button>
                   </div>
                 </div>
@@ -802,14 +821,21 @@ const PaymentChangeModal: React.FC<PaymentChangeModalProps> = ({
             <div className="flex gap-2">
               <button
                 onClick={handleSave}
-                disabled={isSaving || !isVerified || (paymentForm.pymMthCd === '01' && !signatureData)}
+                disabled={isSaving || isSaved || !isVerified || (paymentForm.pymMthCd === '01' && !signatureData)}
                 className={`flex-1 py-2.5 rounded-lg transition-colors text-sm font-medium flex items-center justify-center gap-2 ${
-                  isVerified && (paymentForm.pymMthCd === '02' || signatureData)
-                    ? 'bg-orange-500 text-white hover:bg-orange-600'
-                    : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                  isSaved
+                    ? 'bg-green-100 text-green-700 border border-green-300'
+                    : isVerified && (paymentForm.pymMthCd === '02' || signatureData)
+                      ? 'bg-orange-500 text-white hover:bg-orange-600'
+                      : 'bg-gray-300 text-gray-500 cursor-not-allowed'
                 }`}
               >
-                {isSaving ? (
+                {isSaved ? (
+                  <>
+                    <Check className="w-4 h-4" />
+                    저장완료
+                  </>
+                ) : isSaving ? (
                   <>
                     <Loader2 className="w-4 h-4 animate-spin" />
                     저장 중...
