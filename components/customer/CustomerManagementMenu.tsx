@@ -100,6 +100,8 @@ const CustomerManagementMenu: React.FC<CustomerManagementMenuProps> = ({ onNavig
     setCachedConsultationHistory([]);
     setCachedWorkHistory([]);
     setCachedDataCustId('');
+    // 고객 변경 시 기본조회 탭으로 이동
+    setActiveTab('basic-info');
     // 같은 고객 재선택 시 React 변화 감지를 위해 null 후 재설정
     setSelectedCustomer(null);
     setTimeout(() => {
