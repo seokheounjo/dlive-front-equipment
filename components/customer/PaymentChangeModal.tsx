@@ -10,7 +10,9 @@ import {
   savePaymentSignature,
   getBankCodesDLive,
   getIdTypeCodes111,
-  getCardCompanyCodes
+  getCardCompanyCodes,
+  getPayerRelationCodes,
+  getChangeReasonCodes
 } from '../../services/customerApi';
 import { generateAutoTransferPdf, downloadPdf } from '../../services/pdfService';
 
@@ -63,7 +65,7 @@ const defaultPaymentForm: PaymentFormData = {
   cardExpMm: '',
   cardExpYy: '',
   joinCardYn: 'N',
-  pyrRel: '01',
+  pyrRel: 'A',
   pymDay: ''
 };
 
@@ -116,30 +118,15 @@ const PaymentChangeModal: React.FC<PaymentChangeModalProps> = ({
     { CODE: '088', CODE_NM: '신한' }
   ]);
   const [cardCompanyCodes, setCardCompanyCodes] = useState<{ CODE: string; CODE_NM: string }[]>([]);
-  const [changeReasonCodes] = useState([
-    { CODE: '01', CODE_NM: '개인사정' },
-    { CODE: '02', CODE_NM: '요금관련' },
-    { CODE: '03', CODE_NM: '서비스관련' },
-    { CODE: '04', CODE_NM: '기타' }
-  ]);
-  const [idTypeCodes, setIdTypeCodes] = useState<{ CODE: string; CODE_NM: string }[]>([
-    { CODE: '01', CODE_NM: '주민등록번호' },
-    { CODE: '02', CODE_NM: '사업자등록번호' },
-    { CODE: '03', CODE_NM: '외국인등록번호' }
-  ]);
+  const [changeReasonCodes, setChangeReasonCodes] = useState<{ CODE: string; CODE_NM: string }[]>([]);
+  const [idTypeCodes, setIdTypeCodes] = useState<{ CODE: string; CODE_NM: string }[]>([]);
 
   // IME 조합 상태 추적 (한글 입력 시 마지막 글자 잘림 방지)
   const acntHolderRef = useRef<HTMLInputElement>(null);
   const isComposingRef = useRef(false);
 
   // 납부자관계 코드
-  const pyrRelCodes = [
-    { CODE: '01', CODE_NM: '본인' },
-    { CODE: '02', CODE_NM: '배우자' },
-    { CODE: '03', CODE_NM: '부모' },
-    { CODE: '04', CODE_NM: '자녀' },
-    { CODE: '05', CODE_NM: '기타' }
-  ];
+  const [pyrRelCodes, setPyrRelCodes] = useState<{ CODE: string; CODE_NM: string }[]>([]);
 
   // 결제일 목록
   const paymentDays = [
@@ -158,33 +145,24 @@ const PaymentChangeModal: React.FC<PaymentChangeModalProps> = ({
     }
   }, [isOpen, custId]);
 
-  // 공통코드 로드 (BLPY015 은행명, BLPY016 카드사명, CMCU111 신분유형)
+  // 공통코드 로드
   useEffect(() => {
     if (isOpen) {
-      getBankCodesDLive().then(res => {
-        if (res.success && res.data && res.data.length > 0) {
-          const mapped = res.data
-            .filter((item: any) => item.code && item.name && item.name !== '선택')
-            .map((item: any) => ({ CODE: item.code, CODE_NM: item.name }));
-          if (mapped.length > 0) setBankCodes(mapped);
-        }
-      }).catch(() => {});
-      getCardCompanyCodes().then(res => {
-        if (res.success && res.data && res.data.length > 0) {
-          const mapped = res.data
-            .filter((item: any) => item.code && item.name && item.name !== '선택' && item.code !== '[]')
-            .map((item: any) => ({ CODE: item.code, CODE_NM: item.name.trim() }));
-          if (mapped.length > 0) setCardCompanyCodes(mapped);
-        }
-      }).catch(() => {});
-      getIdTypeCodes111().then(res => {
-        if (res.success && res.data && res.data.length > 0) {
-          const mapped = res.data
-            .filter((item: any) => item.code && item.name && item.name !== '선택')
-            .map((item: any) => ({ CODE: item.code, CODE_NM: item.name }));
-          if (mapped.length > 0) setIdTypeCodes(mapped);
-        }
-      }).catch(() => {});
+      const loadCodes = (apiFn: () => Promise<any>, setter: (v: any) => void) => {
+        apiFn().then(res => {
+          if (res.success && res.data && res.data.length > 0) {
+            const mapped = res.data
+              .filter((item: any) => item.code && item.name && item.name !== '선택' && item.code !== '[]')
+              .map((item: any) => ({ CODE: item.code, CODE_NM: item.name.trim() }));
+            if (mapped.length > 0) setter(mapped);
+          }
+        }).catch(() => {});
+      };
+      loadCodes(getBankCodesDLive, setBankCodes);           // BLPY015 은행명
+      loadCodes(getCardCompanyCodes, setCardCompanyCodes);  // BLPY016 카드사명
+      loadCodes(getIdTypeCodes111, setIdTypeCodes);         // CMCU111 신분유형
+      loadCodes(getPayerRelationCodes, setPyrRelCodes);     // CMCU005 납부자관계
+      loadCodes(getChangeReasonCodes, setChangeReasonCodes); // CMCU079 변경사유
     }
   }, [isOpen]);
 

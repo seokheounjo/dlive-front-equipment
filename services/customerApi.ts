@@ -2129,6 +2129,14 @@ export const getPayerRelationCodes = async (): Promise<ApiResponse<any[]>> => {
 };
 
 /**
+ * 납부방법 변경사유 코드 조회 (CMCU079)
+ * Returns: code (10=고객요구, 20=영업유치, 40=AS유치), name
+ */
+export const getChangeReasonCodes = async (): Promise<ApiResponse<any[]>> => {
+  return apiCall<any[]>('/common/getCommonCodes', { CODE_GROUP: 'CMCU079' });
+};
+
+/**
  * 고객유형/신분유형 코드 조회 (CMCU002)
  * Returns: code (A=개인, B=개인사업자, C=외국인, D=법인사업자, E=단체), name
  */
@@ -2753,6 +2761,7 @@ export default {
   getBankCodesDLive,
   getCardCompanyCodes,
   getPayerRelationCodes,
+  getChangeReasonCodes,
   getIdTypeCodes,
   getCustomerTypeCodes,
   getTelecomCodes,
