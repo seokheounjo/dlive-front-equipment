@@ -1,7 +1,7 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   Loader2, AlertCircle, Send, Calendar,
-  RefreshCw, CheckCircle, XCircle, FileText, ChevronDown, ChevronUp
+  RefreshCw, CheckCircle, XCircle, FileText, ChevronDown, ChevronUp, PenTool, Trash2
 } from 'lucide-react';
 import {
   getPromOfContract,
@@ -121,6 +121,15 @@ const ReContractModule: React.FC<ReContractModuleProps> = ({
     endDate: '',
   });
 
+  // 접수방식: 대면 / 문자전송
+  const [receiptMethod, setReceiptMethod] = useState<'face' | 'sms'>('face');
+
+  // 서명 관련
+  const signCanvasRef = useRef<HTMLCanvasElement>(null);
+  const [isDrawing, setIsDrawing] = useState(false);
+  const [hasSigned, setHasSigned] = useState(false);
+  const [showSignPad, setShowSignPad] = useState(false);
+
   // 상태
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [expandedCtrt, setExpandedCtrt] = useState<string | null>(null);
@@ -129,6 +138,60 @@ const ReContractModule: React.FC<ReContractModuleProps> = ({
     success: boolean;
     message: string;
   }>({ show: false, success: false, message: '' });
+
+  // 서명 캔버스 이벤트 핸들러
+  const getCanvasPos = (e: React.TouchEvent | React.MouseEvent, canvas: HTMLCanvasElement) => {
+    const rect = canvas.getBoundingClientRect();
+    if ('touches' in e) {
+      return {
+        x: e.touches[0].clientX - rect.left,
+        y: e.touches[0].clientY - rect.top,
+      };
+    }
+    return {
+      x: (e as React.MouseEvent).clientX - rect.left,
+      y: (e as React.MouseEvent).clientY - rect.top,
+    };
+  };
+
+  const startDraw = (e: React.TouchEvent | React.MouseEvent) => {
+    const canvas = signCanvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+    setIsDrawing(true);
+    const pos = getCanvasPos(e, canvas);
+    ctx.beginPath();
+    ctx.moveTo(pos.x, pos.y);
+  };
+
+  const draw = (e: React.TouchEvent | React.MouseEvent) => {
+    if (!isDrawing) return;
+    const canvas = signCanvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+    const pos = getCanvasPos(e, canvas);
+    ctx.lineWidth = 2;
+    ctx.lineCap = 'round';
+    ctx.strokeStyle = '#000';
+    ctx.lineTo(pos.x, pos.y);
+    ctx.stroke();
+    setHasSigned(true);
+  };
+
+  const endDraw = () => {
+    setIsDrawing(false);
+  };
+
+  const clearSign = () => {
+    const canvas = signCanvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    setHasSigned(false);
+  };
 
   // 코드 로드
   const loadCodes = useCallback(async () => {
@@ -389,7 +452,7 @@ const ReContractModule: React.FC<ReContractModuleProps> = ({
         <div className="bg-gray-50 border border-gray-200 rounded-lg p-6 text-center">
           <AlertCircle className="w-10 h-10 text-gray-400 mx-auto mb-2" />
           <p className="text-sm text-gray-600">재약정 대상 계약이 없습니다.</p>
-          <p className="text-xs text-gray-400 mt-1">사용중(기간도래) 상태의 계약만 재약정할 수 있습니다.</p>
+          <p className="text-xs text-gray-400 mt-1">사용중(재약정) 상태의 계약만 재약정할 수 있습니다.</p>
         </div>
       ) : (
         <>
@@ -453,7 +516,7 @@ const ReContractModule: React.FC<ReContractModuleProps> = ({
                           </span>
                         </div>
                         <span className="text-xs text-orange-600 bg-orange-100 px-1.5 py-0.5 rounded-full flex-shrink-0 ml-1">
-                          기간도래
+                          사용중(재약정)
                         </span>
                       </div>
                     </div>
@@ -561,6 +624,79 @@ const ReContractModule: React.FC<ReContractModuleProps> = ({
                   />
                 </div>
               </div>
+
+              {/* 접수방식 라디오 */}
+              <div>
+                <label className="block text-xs text-gray-600 mb-1">접수방식 *</label>
+                <div className="flex items-center gap-4">
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="radio"
+                      name="receiptMethod"
+                      value="face"
+                      checked={receiptMethod === 'face'}
+                      onChange={() => setReceiptMethod('face')}
+                      className="w-4 h-4 text-purple-600 focus:ring-purple-500"
+                    />
+                    <span className="text-sm text-gray-700">대면</span>
+                  </label>
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="radio"
+                      name="receiptMethod"
+                      value="sms"
+                      checked={receiptMethod === 'sms'}
+                      onChange={() => setReceiptMethod('sms')}
+                      className="w-4 h-4 text-purple-600 focus:ring-purple-500"
+                    />
+                    <span className="text-sm text-gray-700">문자전송</span>
+                  </label>
+                  {/* 서명 버튼 */}
+                  <button
+                    onClick={() => setShowSignPad(!showSignPad)}
+                    className={`ml-auto flex items-center gap-1 px-3 py-1.5 text-xs rounded-lg border transition-colors ${
+                      hasSigned
+                        ? 'bg-green-50 border-green-300 text-green-700'
+                        : 'bg-gray-50 border-gray-300 text-gray-600 hover:bg-gray-100'
+                    }`}
+                  >
+                    <PenTool className="w-3.5 h-3.5" />
+                    {hasSigned ? '서명완료' : '서명'}
+                  </button>
+                </div>
+              </div>
+
+              {/* 서명 패드 */}
+              {showSignPad && (
+                <div className="border border-gray-300 rounded-lg p-3 bg-gray-50">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-xs text-gray-600 font-medium">고객 서명</span>
+                    <button
+                      onClick={clearSign}
+                      className="flex items-center gap-1 text-xs text-red-500 hover:text-red-700"
+                    >
+                      <Trash2 className="w-3 h-3" />
+                      지우기
+                    </button>
+                  </div>
+                  <canvas
+                    ref={signCanvasRef}
+                    width={300}
+                    height={150}
+                    className="w-full border border-gray-300 rounded bg-white cursor-crosshair touch-none"
+                    onMouseDown={startDraw}
+                    onMouseMove={draw}
+                    onMouseUp={endDraw}
+                    onMouseLeave={endDraw}
+                    onTouchStart={startDraw}
+                    onTouchMove={draw}
+                    onTouchEnd={endDraw}
+                  />
+                  {!hasSigned && (
+                    <p className="text-xs text-gray-400 text-center mt-1">위 영역에 서명해주세요</p>
+                  )}
+                </div>
+              )}
 
               {/* 등록 버튼 */}
               <button

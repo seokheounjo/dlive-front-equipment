@@ -270,7 +270,7 @@ const ContractSummary: React.FC<ContractSummaryProps> = ({
                             {(() => {
                               const statNm = contract.CTRT_STAT_NM || (contract.CTRT_STAT_CD === '90' ? '해지' : contract.CTRT_STAT_CD === '20' ? '사용중' : '기타');
                               if (contract.CLOSE_DANGER === 'Y' && statNm.includes('사용중')) {
-                                return '사용중(기간도래)';
+                                return '사용중(재약정)';
                               }
                               return statNm;
                             })()}
