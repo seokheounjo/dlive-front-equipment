@@ -278,7 +278,7 @@ const ReContractModule: React.FC<ReContractModuleProps> = ({
       showToast?.('재약정할 계약을 선택해주세요.', 'warning');
       return;
     }
-    if (!batchForm.promChgCd || !batchForm.promCnt || !batchForm.promChgrsnCd || !batchForm.startDate) {
+    if (!batchForm.promChgCd || !batchForm.promCnt || !batchForm.startDate) {
       showToast?.('필수 항목을 모두 입력해주세요.', 'warning');
       return;
     }
@@ -506,9 +506,9 @@ const ReContractModule: React.FC<ReContractModuleProps> = ({
                 재약정 등록 ({selectedCtrtIds.size}건)
               </div>
 
-              {/* 약정변경코드 */}
+              {/* 약정변경사유 (CMCU252: 02/03) */}
               <div>
-                <label className="block text-xs text-gray-600 mb-1">약정변경코드 *</label>
+                <label className="block text-xs text-gray-600 mb-1">약정변경사유 *</label>
                 <select
                   value={batchForm.promChgCd}
                   onChange={(e) => setBatchForm(prev => ({ ...prev, promChgCd: e.target.value }))}
@@ -516,21 +516,6 @@ const ReContractModule: React.FC<ReContractModuleProps> = ({
                 >
                   <option value="">선택</option>
                   {promChangeCodes.map(c => (
-                    <option key={c.CODE} value={c.CODE}>{c.CODE_NM}</option>
-                  ))}
-                </select>
-              </div>
-
-              {/* 약정변경사유 */}
-              <div>
-                <label className="block text-xs text-gray-600 mb-1">약정변경사유 *</label>
-                <select
-                  value={batchForm.promChgrsnCd}
-                  onChange={(e) => setBatchForm(prev => ({ ...prev, promChgrsnCd: e.target.value }))}
-                  className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
-                >
-                  <option value="">선택</option>
-                  {promChangeReasonCodes.map(c => (
                     <option key={c.CODE} value={c.CODE}>{c.CODE_NM}</option>
                   ))}
                 </select>
@@ -579,9 +564,9 @@ const ReContractModule: React.FC<ReContractModuleProps> = ({
               {/* 등록 버튼 */}
               <button
                 onClick={handleBatchSubmit}
-                disabled={isSubmitting || !batchForm.promChgCd || !batchForm.promCnt || !batchForm.promChgrsnCd || !batchForm.startDate}
+                disabled={isSubmitting || !batchForm.promChgCd || !batchForm.promCnt || !batchForm.startDate}
                 className={`w-full flex items-center justify-center gap-2 py-3 rounded-lg text-sm font-bold transition-colors ${
-                  isSubmitting || !batchForm.promChgCd || !batchForm.promCnt || !batchForm.promChgrsnCd || !batchForm.startDate
+                  isSubmitting || !batchForm.promChgCd || !batchForm.promCnt || !batchForm.startDate
                     ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
                     : 'bg-purple-500 hover:bg-purple-600 text-white'
                 }`}
