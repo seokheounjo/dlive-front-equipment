@@ -532,7 +532,7 @@ const ReContractModule: React.FC<ReContractModuleProps> = ({
 
               {/* 약정변경 구분 (CMCU252: 02/03) */}
               <div className="flex items-center gap-2">
-                <label className="text-xs text-gray-600 flex-shrink-0 w-20">약정변경 구분 *</label>
+                <label className="text-xs text-gray-600 flex-shrink-0 w-16">변경 구분</label>
                 <select
                   value={batchForm.promChgCd}
                   onChange={(e) => setBatchForm(prev => ({ ...prev, promChgCd: e.target.value }))}
@@ -547,7 +547,7 @@ const ReContractModule: React.FC<ReContractModuleProps> = ({
 
               {/* 약정변경사유 (CMCU072, 0번 제외) */}
               <div className="flex items-center gap-2">
-                <label className="text-xs text-gray-600 flex-shrink-0 w-20">약정변경사유 *</label>
+                <label className="text-xs text-gray-600 flex-shrink-0 w-16">변경사유</label>
                 <select
                   value={batchForm.promChgrsnCd}
                   onChange={(e) => setBatchForm(prev => ({ ...prev, promChgrsnCd: e.target.value }))}
@@ -562,7 +562,7 @@ const ReContractModule: React.FC<ReContractModuleProps> = ({
 
               {/* 약정개월수 */}
               <div className="flex items-center gap-2">
-                <label className="text-xs text-gray-600 flex-shrink-0 w-20">약정개월수 *</label>
+                <label className="text-xs text-gray-600 flex-shrink-0 w-16">약정개월</label>
                 <select
                   value={batchForm.promCnt}
                   onChange={(e) => setBatchForm(prev => ({ ...prev, promCnt: e.target.value }))}
@@ -575,9 +575,9 @@ const ReContractModule: React.FC<ReContractModuleProps> = ({
                 </select>
               </div>
 
-              {/* 약정시작일 / 종료일 */}
+              {/* 약정일 (시작~종료 한 줄) */}
               <div className="flex items-center gap-2">
-                <label className="text-xs text-gray-600 flex-shrink-0 w-20">약정시작일 *</label>
+                <label className="text-xs text-gray-600 flex-shrink-0 w-16">약정일</label>
                 <input
                   type="date"
                   value={batchForm.startDate ? formatDateStr(batchForm.startDate) : ''}
@@ -585,16 +585,14 @@ const ReContractModule: React.FC<ReContractModuleProps> = ({
                     const val = e.target.value.replace(/-/g, '');
                     setBatchForm(prev => ({ ...prev, startDate: val }));
                   }}
-                  className="flex-1 px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                  className="flex-1 px-2 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
                 />
-              </div>
-              <div className="flex items-center gap-2">
-                <label className="text-xs text-gray-600 flex-shrink-0 w-20">약정종료일</label>
+                <span className="text-xs text-gray-400">~</span>
                 <input
                   type="text"
                   value={batchForm.endDate ? formatDateStr(batchForm.endDate) : '-'}
                   readOnly
-                  className="flex-1 px-3 py-2 text-sm border border-gray-200 rounded-lg bg-gray-50 text-gray-600"
+                  className="flex-1 px-2 py-2 text-sm border border-gray-200 rounded-lg bg-gray-50 text-gray-600"
                 />
               </div>
 
