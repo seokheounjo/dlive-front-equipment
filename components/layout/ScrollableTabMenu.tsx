@@ -36,7 +36,7 @@ const ScrollableTabMenu: React.FC<ScrollableTabMenuProps> = ({
           50% { background-color: #f59e0b; color: #fff; }
         }
         .tab-breathe {
-          animation: breathe 2s ease-in-out infinite;
+          animation: breathe 4s ease-in-out infinite;
         }
       `}</style>
       {/* 탭 컨테이너 - 작업관리와 정확히 동일한 스타일 */}
