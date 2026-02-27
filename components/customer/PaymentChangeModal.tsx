@@ -181,9 +181,11 @@ const PaymentChangeModal: React.FC<PaymentChangeModalProps> = ({
       }).catch(() => {});
       getCardCompanyCodes().then(res => {
         if (res.success && res.data && res.data.length > 0) {
+          // 주요 카드사만 필터 (VISA/MASTER/JCB/AMEX/CUP 등 세부 브랜드 제외)
+          const mainCardCodes = ['01','02','03','04','05','08','09','10','14','20','40','46','55','73','84','91','97','D1','F1','I7','J5'];
           const mapped = res.data
-            .filter((item: any) => item.code && item.name && item.name !== '선택')
-            .map((item: any) => ({ CODE: item.code, CODE_NM: item.name }));
+            .filter((item: any) => item.code && item.name && item.name !== '선택' && mainCardCodes.includes(item.code))
+            .map((item: any) => ({ CODE: item.code, CODE_NM: item.name.trim() }));
           if (mapped.length > 0) setCardCompanyCodes(mapped);
         }
       }).catch(() => {});
