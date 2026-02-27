@@ -137,6 +137,12 @@ const ReContractModule: React.FC<ReContractModuleProps> = ({
   // 일괄등록 완료 여부
   const [batchRegistered, setBatchRegistered] = useState(false);
 
+  // 다시보내기 처리 중
+  const [isResending, setIsResending] = useState(false);
+
+  // 전자서명 URL (API에서 받아올 값)
+  const [signUrl, setSignUrl] = useState<string>('');
+
   // 스크롤 ref
   const actionAreaRef = useRef<HTMLDivElement>(null);
 
@@ -586,33 +592,31 @@ const ReContractModule: React.FC<ReContractModuleProps> = ({
                 {/* 접수방식 */}
                 <div className="flex items-center gap-2">
                   <label className="text-xs text-gray-600 flex-shrink-0 w-16">접수방식</label>
-                  <div className="flex items-center gap-4">
-                    <label className="flex items-center gap-2 cursor-pointer">
-                      <input
-                        type="radio"
-                        name="receiptMethod"
-                        value="face"
-                        checked={receiptMethod === 'face'}
-                        onChange={() => setReceiptMethod('face')}
-                        className="w-4 h-4 text-purple-600 focus:ring-purple-500"
-                      />
-                      <span className="text-sm text-gray-700">대면</span>
-                    </label>
-                    <label className="flex items-center gap-2 cursor-pointer">
-                      <input
-                        type="radio"
-                        name="receiptMethod"
-                        value="direct"
-                        checked={receiptMethod === 'direct'}
-                        onChange={() => {
-                          setReceiptMethod('direct');
-                          setTimeout(() => actionAreaRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 100);
-                        }}
-                        className="w-4 h-4 text-purple-600 focus:ring-purple-500"
-                      />
-                      <span className="text-sm text-gray-700">직접</span>
-                    </label>
-                  </div>
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="radio"
+                      name="receiptMethod"
+                      value="face"
+                      checked={receiptMethod === 'face'}
+                      onChange={() => setReceiptMethod('face')}
+                      className="w-4 h-4 text-purple-600 focus:ring-purple-500"
+                    />
+                    <span className="text-sm text-gray-700">대면</span>
+                  </label>
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="radio"
+                      name="receiptMethod"
+                      value="direct"
+                      checked={receiptMethod === 'direct'}
+                      onChange={() => {
+                        setReceiptMethod('direct');
+                        setTimeout(() => actionAreaRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 100);
+                      }}
+                      className="w-4 h-4 text-purple-600 focus:ring-purple-500"
+                    />
+                    <span className="text-sm text-gray-700">직접</span>
+                  </label>
                 </div>
 
                 {/* 직접 선택 시 전화번호 */}
@@ -657,24 +661,41 @@ const ReContractModule: React.FC<ReContractModuleProps> = ({
                 {/* 다시보내기 / 전자서명하기 버튼 */}
                 <div ref={actionAreaRef} className="flex gap-2">
                   <button
-                    onClick={() => {
-                      // TODO: 다시보내기 API
-                      showToast?.('문자가 전송되었습니다.', 'success');
+                    onClick={async () => {
+                      setIsResending(true);
+                      try {
+                        // TODO: 다시보내기 API 연결
+                        await new Promise(r => setTimeout(r, 500));
+                        setResultPopup({ show: true, success: true, message: '문자가 전송되었습니다.' });
+                      } catch {
+                        setResultPopup({ show: true, success: false, message: '문자 전송에 실패했습니다.' });
+                      } finally {
+                        setIsResending(false);
+                      }
                     }}
-                    disabled={!(receiptMethod === 'direct' && batchRegistered)}
+                    disabled={!(receiptMethod === 'direct' && batchRegistered) || isResending}
                     className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-lg text-sm font-bold transition-colors ${
-                      receiptMethod === 'direct' && batchRegistered
+                      receiptMethod === 'direct' && batchRegistered && !isResending
                         ? 'bg-blue-500 hover:bg-blue-600 text-white'
                         : 'bg-gray-200 text-gray-400 cursor-not-allowed'
                     }`}
                   >
-                    <MessageSquare className="w-4 h-4" />
+                    {isResending ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <MessageSquare className="w-4 h-4" />
+                    )}
                     다시보내기
                   </button>
                   <button
                     onClick={() => {
-                      // TODO: 전자서명하기 API
-                      showToast?.('전자서명 요청을 보냈습니다.', 'success');
+                      // TODO: API에서 전자서명 URL 받아오기
+                      const url = signUrl || '';
+                      if (url) {
+                        window.open(url, '_blank');
+                      } else {
+                        showToast?.('전자서명 URL이 아직 준비되지 않았습니다.', 'warning');
+                      }
                     }}
                     disabled={!(receiptMethod === 'face' && batchRegistered)}
                     className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-lg text-sm font-bold transition-colors ${
@@ -687,6 +708,21 @@ const ReContractModule: React.FC<ReContractModuleProps> = ({
                     전자서명하기
                   </button>
                 </div>
+
+                {/* 전자서명 URL 표시 (URL 있을 때) */}
+                {signUrl && receiptMethod === 'face' && batchRegistered && (
+                  <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg">
+                    <p className="text-xs text-gray-500 mb-1">전자서명 URL</p>
+                    <a
+                      href={signUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-sm text-blue-600 underline break-all"
+                    >
+                      {signUrl}
+                    </a>
+                  </div>
+                )}
               </div>
 
               {/* 일괄 등록 취소 버튼 */}
