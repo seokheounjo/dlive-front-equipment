@@ -134,6 +134,9 @@ const ReContractModule: React.FC<ReContractModuleProps> = ({
   const [isSendingSms, setIsSendingSms] = useState(false);
   const [smsSent, setSmsSent] = useState(false);
 
+  // 모두의싸인 활성화 여부
+  const [moduSignActivated, setModuSignActivated] = useState(false);
+
   // 상태
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [expandedCtrt, setExpandedCtrt] = useState<string | null>(null);
@@ -298,7 +301,7 @@ const ReContractModule: React.FC<ReContractModuleProps> = ({
       showToast?.('재약정할 계약을 선택해주세요.', 'warning');
       return;
     }
-    if (!batchForm.promChgCd || !batchForm.promCnt || !batchForm.startDate) {
+    if (!batchForm.promChgCd || !batchForm.promChgrsnCd || !batchForm.promCnt || !batchForm.startDate) {
       showToast?.('필수 항목을 모두 입력해주세요.', 'warning');
       return;
     }
@@ -527,9 +530,9 @@ const ReContractModule: React.FC<ReContractModuleProps> = ({
                 재약정 등록 ({selectedCtrtIds.size}건)
               </div>
 
-              {/* 약정변경사유 (CMCU252: 02/03) */}
+              {/* 약정변경 구분 (CMCU252: 02/03) */}
               <div>
-                <label className="block text-xs text-gray-600 mb-1">약정변경사유 *</label>
+                <label className="block text-xs text-gray-600 mb-1">약정변경 구분 *</label>
                 <select
                   value={batchForm.promChgCd}
                   onChange={(e) => setBatchForm(prev => ({ ...prev, promChgCd: e.target.value }))}
@@ -537,6 +540,21 @@ const ReContractModule: React.FC<ReContractModuleProps> = ({
                 >
                   <option value="">선택</option>
                   {promChangeCodes.map(c => (
+                    <option key={c.CODE} value={c.CODE}>{c.CODE_NM}</option>
+                  ))}
+                </select>
+              </div>
+
+              {/* 약정변경사유 (CMCU072, 0번 제외) */}
+              <div>
+                <label className="block text-xs text-gray-600 mb-1">약정변경사유 *</label>
+                <select
+                  value={batchForm.promChgrsnCd}
+                  onChange={(e) => setBatchForm(prev => ({ ...prev, promChgrsnCd: e.target.value }))}
+                  className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                >
+                  <option value="">선택</option>
+                  {promChangeReasonCodes.filter(c => c.CODE !== '0').map(c => (
                     <option key={c.CODE} value={c.CODE}>{c.CODE_NM}</option>
                   ))}
                 </select>
@@ -582,156 +600,12 @@ const ReContractModule: React.FC<ReContractModuleProps> = ({
                 </div>
               </div>
 
-              {/* 접수방식 라디오 */}
-              <div>
-                <label className="block text-xs text-gray-600 mb-1">접수방식 *</label>
-                <div className="flex items-center gap-4">
-                  <label className="flex items-center gap-2 cursor-pointer">
-                    <input
-                      type="radio"
-                      name="receiptMethod"
-                      value="face"
-                      checked={receiptMethod === 'face'}
-                      onChange={() => { setReceiptMethod('face'); setSmsSent(false); }}
-                      className="w-4 h-4 text-purple-600 focus:ring-purple-500"
-                    />
-                    <span className="text-sm text-gray-700">대면</span>
-                  </label>
-                  <label className="flex items-center gap-2 cursor-pointer">
-                    <input
-                      type="radio"
-                      name="receiptMethod"
-                      value="sms"
-                      checked={receiptMethod === 'sms'}
-                      onChange={() => { setReceiptMethod('sms'); setShowSignPad(false); setSignatureData(''); }}
-                      className="w-4 h-4 text-purple-600 focus:ring-purple-500"
-                    />
-                    <span className="text-sm text-gray-700">문자전송</span>
-                  </label>
-                </div>
-              </div>
-
-              {/* 대면: 서명 영역 */}
-              {receiptMethod === 'face' && (
-                <>
-                  {!showSignPad && !signatureData && (
-                    <button
-                      onClick={() => setShowSignPad(true)}
-                      className="w-full flex items-center justify-center gap-2 py-3 rounded-lg border-2 border-dashed border-purple-300 text-purple-600 hover:bg-purple-50 transition-colors"
-                    >
-                      <PenTool className="w-4 h-4" />
-                      <span className="text-sm font-medium">서명하기</span>
-                    </button>
-                  )}
-                  {signatureData && !showSignPad && (
-                    <div className="bg-green-50 border border-green-200 rounded-lg overflow-hidden">
-                      <div className="flex items-center justify-between p-3">
-                        <div className="flex items-center gap-2 text-green-700">
-                          <CheckCircle className="w-4 h-4" />
-                          <span className="text-sm font-medium">서명완료</span>
-                        </div>
-                        <button
-                          onClick={() => { setSignatureData(''); setShowSignPad(true); }}
-                          className="flex items-center gap-1 text-xs text-gray-500 hover:text-gray-700"
-                        >
-                          <RotateCcw className="w-3 h-3" />
-                          다시 서명
-                        </button>
-                      </div>
-                      <div className="px-3 pb-3">
-                        <img
-                          src={signatureData.replace(/%2B/g, '+')}
-                          alt="서명"
-                          className="w-full rounded border border-green-200 bg-white"
-                        />
-                      </div>
-                    </div>
-                  )}
-                  {showSignPad && (
-                    <SignaturePad
-                      title="고객 서명"
-                      onSave={(data) => {
-                        setSignatureData(data);
-                        setShowSignPad(false);
-                      }}
-                      onCancel={() => setShowSignPad(false)}
-                    />
-                  )}
-                </>
-              )}
-
-              {/* 문자전송: 전송 버튼 */}
-              {receiptMethod === 'sms' && (
-                <>
-                  {!smsSent ? (
-                    <button
-                      onClick={async () => {
-                        setIsSendingSms(true);
-                        // TODO: 실제 문자전송 API 연결
-                        setTimeout(() => {
-                          setIsSendingSms(false);
-                          setSmsSent(true);
-                          showToast?.('문자가 전송되었습니다.', 'success');
-                        }, 1000);
-                      }}
-                      disabled={isSendingSms}
-                      className="w-full flex items-center justify-center gap-2 py-3 rounded-lg bg-blue-500 hover:bg-blue-600 text-white text-sm font-medium transition-colors disabled:bg-gray-400"
-                    >
-                      {isSendingSms ? (
-                        <>
-                          <Loader2 className="w-4 h-4 animate-spin" />
-                          전송 중...
-                        </>
-                      ) : (
-                        <>
-                          <MessageSquare className="w-4 h-4" />
-                          문자전송
-                        </>
-                      )}
-                    </button>
-                  ) : (
-                    <div className="space-y-2">
-                      <div className="flex items-center justify-between p-3 bg-green-50 border border-green-200 rounded-lg">
-                        <div className="flex items-center gap-2 text-green-700">
-                          <CheckCircle className="w-4 h-4" />
-                          <span className="text-sm font-medium">전송완료</span>
-                        </div>
-                      </div>
-                      <button
-                        onClick={async () => {
-                          setIsSendingSms(true);
-                          // TODO: 실제 재전송 API 연결
-                          setTimeout(() => {
-                            setIsSendingSms(false);
-                            showToast?.('문자가 재전송되었습니다.', 'success');
-                          }, 1000);
-                        }}
-                        disabled={isSendingSms}
-                        className="w-full flex items-center justify-center gap-2 py-2.5 rounded-lg border border-blue-300 text-blue-600 hover:bg-blue-50 text-sm font-medium transition-colors disabled:opacity-50"
-                      >
-                        {isSendingSms ? (
-                          <>
-                            <Loader2 className="w-4 h-4 animate-spin" />
-                            재전송 중...
-                          </>
-                        ) : (
-                          <>
-                            <RotateCcw className="w-3.5 h-3.5" />
-                            재전송
-                          </>
-                        )}
-                      </button>
-                    </div>
-                  )}
-                </>
-              )}
-
-              {/* 등록 버튼 */}
+              {/* 재약정 일괄등록 버튼 */}
               <button
                 onClick={handleBatchSubmit}
-                disabled={isSubmitting || !batchForm.promChgCd || !batchForm.promCnt || !batchForm.startDate}
+                disabled={isSubmitting || !batchForm.promChgCd || !batchForm.promChgrsnCd || !batchForm.promCnt || !batchForm.startDate}
                 className={`w-full flex items-center justify-center gap-2 py-3 rounded-lg text-sm font-bold transition-colors ${
-                  isSubmitting || !batchForm.promChgCd || !batchForm.promCnt || !batchForm.startDate
+                  isSubmitting || !batchForm.promChgCd || !batchForm.promChgrsnCd || !batchForm.promCnt || !batchForm.startDate
                     ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
                     : 'bg-purple-500 hover:bg-purple-600 text-white'
                 }`}
@@ -748,6 +622,190 @@ const ReContractModule: React.FC<ReContractModuleProps> = ({
                   </>
                 )}
               </button>
+
+              {/* 모두의싸인 버튼 */}
+              <button
+                onClick={() => setModuSignActivated(true)}
+                disabled={moduSignActivated}
+                className={`w-full flex items-center justify-center gap-2 py-3 rounded-lg text-sm font-bold transition-colors ${
+                  moduSignActivated
+                    ? 'bg-green-100 text-green-700 border border-green-300 cursor-default'
+                    : 'bg-amber-500 hover:bg-amber-600 text-white'
+                }`}
+              >
+                {moduSignActivated ? (
+                  <>
+                    <CheckCircle className="w-4 h-4" />
+                    모두의싸인 활성화됨
+                  </>
+                ) : (
+                  <>
+                    <FileText className="w-4 h-4" />
+                    모두의싸인
+                  </>
+                )}
+              </button>
+
+              {/* 접수방식 (모두의싸인 활성화 후 표시) */}
+              {moduSignActivated && (
+                <>
+                  <div>
+                    <label className="block text-xs text-gray-600 mb-1">접수방식 *</label>
+                    <div className="flex items-center gap-4">
+                      <label className="flex items-center gap-2 cursor-pointer">
+                        <input
+                          type="radio"
+                          name="receiptMethod"
+                          value="face"
+                          checked={receiptMethod === 'face'}
+                          onChange={() => { setReceiptMethod('face'); setSmsSent(false); }}
+                          className="w-4 h-4 text-purple-600 focus:ring-purple-500"
+                        />
+                        <span className="text-sm text-gray-700">대면</span>
+                      </label>
+                      <label className="flex items-center gap-2 cursor-pointer">
+                        <input
+                          type="radio"
+                          name="receiptMethod"
+                          value="sms"
+                          checked={receiptMethod === 'sms'}
+                          onChange={() => { setReceiptMethod('sms'); setShowSignPad(false); setSignatureData(''); }}
+                          className="w-4 h-4 text-purple-600 focus:ring-purple-500"
+                        />
+                        <span className="text-sm text-gray-700">문자전송</span>
+                      </label>
+                    </div>
+                  </div>
+
+                  {/* 대면: 서명 영역 */}
+                  {receiptMethod === 'face' && (
+                    <>
+                      {!showSignPad && !signatureData && (
+                        <button
+                          onClick={() => setShowSignPad(true)}
+                          className="w-full flex items-center justify-center gap-2 py-3 rounded-lg border-2 border-dashed border-purple-300 text-purple-600 hover:bg-purple-50 transition-colors"
+                        >
+                          <PenTool className="w-4 h-4" />
+                          <span className="text-sm font-medium">서명하기</span>
+                        </button>
+                      )}
+                      {signatureData && !showSignPad && (
+                        <div className="bg-green-50 border border-green-200 rounded-lg overflow-hidden">
+                          <div className="flex items-center justify-between p-3">
+                            <div className="flex items-center gap-2 text-green-700">
+                              <CheckCircle className="w-4 h-4" />
+                              <span className="text-sm font-medium">서명완료</span>
+                            </div>
+                            <button
+                              onClick={() => { setSignatureData(''); setShowSignPad(true); }}
+                              className="flex items-center gap-1 text-xs text-gray-500 hover:text-gray-700"
+                            >
+                              <RotateCcw className="w-3 h-3" />
+                              다시 서명
+                            </button>
+                          </div>
+                          <div className="px-3 pb-3">
+                            <img
+                              src={signatureData.replace(/%2B/g, '+')}
+                              alt="서명"
+                              className="w-full rounded border border-green-200 bg-white"
+                            />
+                          </div>
+                          {/* 대면 확인 → 모두의싸인 + CONA 전송 */}
+                          <div className="px-3 pb-3">
+                            <button
+                              onClick={() => {
+                                // TODO: 모두의싸인 + CONA 두 곳으로 전송
+                                showToast?.('서명이 전송되었습니다. (모두의싸인 + CONA)', 'success');
+                              }}
+                              className="w-full flex items-center justify-center gap-2 py-2.5 rounded-lg bg-green-500 hover:bg-green-600 text-white text-sm font-bold transition-colors"
+                            >
+                              <Send className="w-4 h-4" />
+                              확인 (전송)
+                            </button>
+                          </div>
+                        </div>
+                      )}
+                      {showSignPad && (
+                        <SignaturePad
+                          title="고객 서명"
+                          onSave={(data) => {
+                            setSignatureData(data);
+                            setShowSignPad(false);
+                          }}
+                          onCancel={() => setShowSignPad(false)}
+                        />
+                      )}
+                    </>
+                  )}
+
+                  {/* 문자전송: 모두의싸인 URL 전송 */}
+                  {receiptMethod === 'sms' && (
+                    <>
+                      {!smsSent ? (
+                        <button
+                          onClick={async () => {
+                            setIsSendingSms(true);
+                            // TODO: 모두의싸인 URL로 문자전송
+                            setTimeout(() => {
+                              setIsSendingSms(false);
+                              setSmsSent(true);
+                              showToast?.('모두의싸인 URL이 문자로 전송되었습니다.', 'success');
+                            }, 1000);
+                          }}
+                          disabled={isSendingSms}
+                          className="w-full flex items-center justify-center gap-2 py-3 rounded-lg bg-blue-500 hover:bg-blue-600 text-white text-sm font-medium transition-colors disabled:bg-gray-400"
+                        >
+                          {isSendingSms ? (
+                            <>
+                              <Loader2 className="w-4 h-4 animate-spin" />
+                              전송 중...
+                            </>
+                          ) : (
+                            <>
+                              <MessageSquare className="w-4 h-4" />
+                              문자전송 (모두의싸인 URL)
+                            </>
+                          )}
+                        </button>
+                      ) : (
+                        <div className="space-y-2">
+                          <div className="flex items-center justify-between p-3 bg-green-50 border border-green-200 rounded-lg">
+                            <div className="flex items-center gap-2 text-green-700">
+                              <CheckCircle className="w-4 h-4" />
+                              <span className="text-sm font-medium">전송완료</span>
+                            </div>
+                          </div>
+                          <button
+                            onClick={async () => {
+                              setIsSendingSms(true);
+                              // TODO: 모두의싸인 URL 재전송
+                              setTimeout(() => {
+                                setIsSendingSms(false);
+                                showToast?.('모두의싸인 URL이 재전송되었습니다.', 'success');
+                              }, 1000);
+                            }}
+                            disabled={isSendingSms}
+                            className="w-full flex items-center justify-center gap-2 py-2.5 rounded-lg border border-blue-300 text-blue-600 hover:bg-blue-50 text-sm font-medium transition-colors disabled:opacity-50"
+                          >
+                            {isSendingSms ? (
+                              <>
+                                <Loader2 className="w-4 h-4 animate-spin" />
+                                재전송 중...
+                              </>
+                            ) : (
+                              <>
+                                <RotateCcw className="w-3.5 h-3.5" />
+                                재전송
+                              </>
+                            )}
+                          </button>
+                        </div>
+                      )}
+                    </>
+                  )}
+                </>
+              )}
             </div>
           )}
         </>
