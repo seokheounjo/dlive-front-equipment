@@ -1,8 +1,9 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   Loader2, AlertCircle, Send, Calendar,
-  RefreshCw, CheckCircle, XCircle, FileText, ChevronDown, ChevronUp, PenTool, Trash2
+  RefreshCw, CheckCircle, XCircle, FileText, ChevronDown, ChevronUp, PenTool
 } from 'lucide-react';
+import SignaturePad from '../common/SignaturePad';
 import {
   getPromOfContract,
   saveCtrtAgreeInfo,
@@ -125,10 +126,8 @@ const ReContractModule: React.FC<ReContractModuleProps> = ({
   const [receiptMethod, setReceiptMethod] = useState<'face' | 'sms'>('face');
 
   // 서명 관련
-  const signCanvasRef = useRef<HTMLCanvasElement>(null);
-  const [isDrawing, setIsDrawing] = useState(false);
-  const [hasSigned, setHasSigned] = useState(false);
   const [showSignPad, setShowSignPad] = useState(false);
+  const [signatureData, setSignatureData] = useState<string>('');
 
   // 상태
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -138,60 +137,6 @@ const ReContractModule: React.FC<ReContractModuleProps> = ({
     success: boolean;
     message: string;
   }>({ show: false, success: false, message: '' });
-
-  // 서명 캔버스 이벤트 핸들러
-  const getCanvasPos = (e: React.TouchEvent | React.MouseEvent, canvas: HTMLCanvasElement) => {
-    const rect = canvas.getBoundingClientRect();
-    if ('touches' in e) {
-      return {
-        x: e.touches[0].clientX - rect.left,
-        y: e.touches[0].clientY - rect.top,
-      };
-    }
-    return {
-      x: (e as React.MouseEvent).clientX - rect.left,
-      y: (e as React.MouseEvent).clientY - rect.top,
-    };
-  };
-
-  const startDraw = (e: React.TouchEvent | React.MouseEvent) => {
-    const canvas = signCanvasRef.current;
-    if (!canvas) return;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
-    setIsDrawing(true);
-    const pos = getCanvasPos(e, canvas);
-    ctx.beginPath();
-    ctx.moveTo(pos.x, pos.y);
-  };
-
-  const draw = (e: React.TouchEvent | React.MouseEvent) => {
-    if (!isDrawing) return;
-    const canvas = signCanvasRef.current;
-    if (!canvas) return;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
-    const pos = getCanvasPos(e, canvas);
-    ctx.lineWidth = 2;
-    ctx.lineCap = 'round';
-    ctx.strokeStyle = '#000';
-    ctx.lineTo(pos.x, pos.y);
-    ctx.stroke();
-    setHasSigned(true);
-  };
-
-  const endDraw = () => {
-    setIsDrawing(false);
-  };
-
-  const clearSign = () => {
-    const canvas = signCanvasRef.current;
-    if (!canvas) return;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    setHasSigned(false);
-  };
 
   // 코드 로드
   const loadCodes = useCallback(async () => {
@@ -655,47 +600,27 @@ const ReContractModule: React.FC<ReContractModuleProps> = ({
                   <button
                     onClick={() => setShowSignPad(!showSignPad)}
                     className={`ml-auto flex items-center gap-1 px-3 py-1.5 text-xs rounded-lg border transition-colors ${
-                      hasSigned
+                      signatureData
                         ? 'bg-green-50 border-green-300 text-green-700'
                         : 'bg-gray-50 border-gray-300 text-gray-600 hover:bg-gray-100'
                     }`}
                   >
                     <PenTool className="w-3.5 h-3.5" />
-                    {hasSigned ? '서명완료' : '서명'}
+                    {signatureData ? '서명완료' : '서명'}
                   </button>
                 </div>
               </div>
 
               {/* 서명 패드 */}
               {showSignPad && (
-                <div className="border border-gray-300 rounded-lg p-3 bg-gray-50">
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-xs text-gray-600 font-medium">고객 서명</span>
-                    <button
-                      onClick={clearSign}
-                      className="flex items-center gap-1 text-xs text-red-500 hover:text-red-700"
-                    >
-                      <Trash2 className="w-3 h-3" />
-                      지우기
-                    </button>
-                  </div>
-                  <canvas
-                    ref={signCanvasRef}
-                    width={300}
-                    height={150}
-                    className="w-full border border-gray-300 rounded bg-white cursor-crosshair touch-none"
-                    onMouseDown={startDraw}
-                    onMouseMove={draw}
-                    onMouseUp={endDraw}
-                    onMouseLeave={endDraw}
-                    onTouchStart={startDraw}
-                    onTouchMove={draw}
-                    onTouchEnd={endDraw}
-                  />
-                  {!hasSigned && (
-                    <p className="text-xs text-gray-400 text-center mt-1">위 영역에 서명해주세요</p>
-                  )}
-                </div>
+                <SignaturePad
+                  title="고객 서명"
+                  onSave={(data) => {
+                    setSignatureData(data);
+                    setShowSignPad(false);
+                  }}
+                  onCancel={() => setShowSignPad(false)}
+                />
               )}
 
               {/* 등록 버튼 */}
