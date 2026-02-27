@@ -1,10 +1,9 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
-  Loader2, AlertCircle, Send, Calendar,
+  Loader2, AlertCircle, Send,
   RefreshCw, CheckCircle, XCircle, FileText, ChevronDown, ChevronUp, PenTool,
-  MessageSquare, RotateCcw
+  MessageSquare, Phone
 } from 'lucide-react';
-import SignaturePad from '../common/SignaturePad';
 import {
   getPromOfContract,
   saveCtrtAgreeInfo,
@@ -123,25 +122,16 @@ const ReContractModule: React.FC<ReContractModuleProps> = ({
     endDate: '',
   });
 
-  // 접수방식: 대면 / 문자전송
-  const [receiptMethod, setReceiptMethod] = useState<'face' | 'sms'>('face');
+  // 접수방식: 대면 / 직접
+  const [receiptMethod, setReceiptMethod] = useState<'face' | 'direct'>('face');
 
-  // 서명 관련
-  const [showSignPad, setShowSignPad] = useState(false);
-  const [signatureData, setSignatureData] = useState<string>('');
+  // 직접 전송 시 전화번호
+  const [directPhone, setDirectPhone] = useState<string>('');
 
-  // 문자전송 상태
-  const [isSendingSms, setIsSendingSms] = useState(false);
-  const [smsSent, setSmsSent] = useState(false);
-
-  // 일괄등록 완료 여부 (모두의싸인 버튼 활성화 조건)
+  // 일괄등록 완료 여부
   const [batchRegistered, setBatchRegistered] = useState(false);
 
-  // 모두의싸인 활성화 여부 (접수방식 활성화 조건)
-  const [moduSignActivated, setModuSignActivated] = useState(false);
-
-  // 접수방식 스크롤 ref
-  const receiptMethodRef = useRef<HTMLDivElement>(null);
+  // 스크롤 ref
   const actionAreaRef = useRef<HTMLDivElement>(null);
 
   // 상태
@@ -225,6 +215,13 @@ const ReContractModule: React.FC<ReContractModuleProps> = ({
       setSelectedCtrtIds(new Set(eligibleContracts.map(c => c.CTRT_ID)));
     }
   }, [eligibleContracts.length]);
+
+  // 고객 전화번호 초기값
+  useEffect(() => {
+    if (selectedCustomer?.telNo) {
+      setDirectPhone(selectedCustomer.telNo);
+    }
+  }, [selectedCustomer?.telNo]);
 
   // 선택된 계약 자동 선택
   useEffect(() => {
@@ -529,302 +526,203 @@ const ReContractModule: React.FC<ReContractModuleProps> = ({
 
           {/* 일괄 재약정 폼 */}
           {selectedCtrtIds.size > 0 && (
-            <div className="bg-white rounded-lg border border-purple-300 p-4 space-y-3 shadow-sm">
-              <div className="flex items-center gap-2 text-sm font-medium text-purple-700">
-                <FileText className="w-4 h-4" />
-                재약정 등록 ({selectedCtrtIds.size}건)
+            <>
+              {/* Box 1: 약정 정보 */}
+              <div className="bg-white rounded-lg border border-purple-300 p-4 space-y-3 shadow-sm">
+                <div className="flex items-center gap-2 text-sm font-medium text-purple-700">
+                  <FileText className="w-4 h-4" />
+                  재약정 등록 ({selectedCtrtIds.size}건)
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <label className="text-xs text-gray-600 flex-shrink-0 w-16">변경 구분</label>
+                  <select
+                    value={batchForm.promChgCd}
+                    onChange={(e) => setBatchForm(prev => ({ ...prev, promChgCd: e.target.value }))}
+                    className="flex-1 px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                  >
+                    <option value="">선택</option>
+                    {promChangeCodes.map(c => (
+                      <option key={c.CODE} value={c.CODE}>{c.CODE_NM}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <label className="text-xs text-gray-600 flex-shrink-0 w-16">변경사유</label>
+                  <select
+                    value={batchForm.promChgrsnCd}
+                    onChange={(e) => setBatchForm(prev => ({ ...prev, promChgrsnCd: e.target.value }))}
+                    className="flex-1 px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                  >
+                    <option value="">선택</option>
+                    {promChangeReasonCodes.filter(c => c.CODE !== '0').map(c => (
+                      <option key={c.CODE} value={c.CODE}>{c.CODE_NM}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <label className="text-xs text-gray-600 flex-shrink-0 w-16">약정개월</label>
+                  <select
+                    value={batchForm.promCnt}
+                    onChange={(e) => setBatchForm(prev => ({ ...prev, promCnt: e.target.value }))}
+                    className="flex-1 px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                  >
+                    <option value="">선택</option>
+                    {promMonthCodes.map(c => (
+                      <option key={c.CODE} value={c.CODE}>{c.CODE_NM}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <label className="text-xs text-gray-600 flex-shrink-0 w-16">약정일</label>
+                  <input
+                    type="date"
+                    value={batchForm.startDate ? formatDateStr(batchForm.startDate) : ''}
+                    onChange={(e) => {
+                      const val = e.target.value.replace(/-/g, '');
+                      setBatchForm(prev => ({ ...prev, startDate: val }));
+                    }}
+                    className="flex-1 px-2 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                  />
+                  <span className="text-xs text-gray-400">~</span>
+                  <input
+                    type="text"
+                    value={batchForm.endDate ? formatDateStr(batchForm.endDate) : '-'}
+                    readOnly
+                    className="flex-1 px-2 py-2 text-sm border border-gray-200 rounded-lg bg-gray-50 text-gray-600"
+                  />
+                </div>
               </div>
 
-              {/* 약정변경 구분 (CMCU252: 02/03) */}
-              <div className="flex items-center gap-2">
-                <label className="text-xs text-gray-600 flex-shrink-0 w-16">변경 구분</label>
-                <select
-                  value={batchForm.promChgCd}
-                  onChange={(e) => setBatchForm(prev => ({ ...prev, promChgCd: e.target.value }))}
-                  className="flex-1 px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
-                >
-                  <option value="">선택</option>
-                  {promChangeCodes.map(c => (
-                    <option key={c.CODE} value={c.CODE}>{c.CODE_NM}</option>
-                  ))}
-                </select>
-              </div>
+              {/* Box 2: 접수방식 + 등록 + 전자서명/다시보내기 */}
+              <div className="bg-white rounded-lg border border-purple-300 p-4 space-y-3 shadow-sm">
+                {/* 접수방식 */}
+                <div className="flex items-center gap-2">
+                  <label className="text-xs text-gray-600 flex-shrink-0 w-16">접수방식</label>
+                  <div className="flex items-center gap-4">
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="radio"
+                        name="receiptMethod"
+                        value="face"
+                        checked={receiptMethod === 'face'}
+                        onChange={() => setReceiptMethod('face')}
+                        className="w-4 h-4 text-purple-600 focus:ring-purple-500"
+                      />
+                      <span className="text-sm text-gray-700">대면</span>
+                    </label>
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="radio"
+                        name="receiptMethod"
+                        value="direct"
+                        checked={receiptMethod === 'direct'}
+                        onChange={() => {
+                          setReceiptMethod('direct');
+                          setTimeout(() => actionAreaRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 100);
+                        }}
+                        className="w-4 h-4 text-purple-600 focus:ring-purple-500"
+                      />
+                      <span className="text-sm text-gray-700">직접</span>
+                    </label>
+                  </div>
+                </div>
 
-              {/* 약정변경사유 (CMCU072, 0번 제외) */}
-              <div className="flex items-center gap-2">
-                <label className="text-xs text-gray-600 flex-shrink-0 w-16">변경사유</label>
-                <select
-                  value={batchForm.promChgrsnCd}
-                  onChange={(e) => setBatchForm(prev => ({ ...prev, promChgrsnCd: e.target.value }))}
-                  className="flex-1 px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
-                >
-                  <option value="">선택</option>
-                  {promChangeReasonCodes.filter(c => c.CODE !== '0').map(c => (
-                    <option key={c.CODE} value={c.CODE}>{c.CODE_NM}</option>
-                  ))}
-                </select>
-              </div>
-
-              {/* 약정개월수 */}
-              <div className="flex items-center gap-2">
-                <label className="text-xs text-gray-600 flex-shrink-0 w-16">약정개월</label>
-                <select
-                  value={batchForm.promCnt}
-                  onChange={(e) => setBatchForm(prev => ({ ...prev, promCnt: e.target.value }))}
-                  className="flex-1 px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
-                >
-                  <option value="">선택</option>
-                  {promMonthCodes.map(c => (
-                    <option key={c.CODE} value={c.CODE}>{c.CODE_NM}</option>
-                  ))}
-                </select>
-              </div>
-
-              {/* 약정일 (시작~종료 한 줄) */}
-              <div className="flex items-center gap-2">
-                <label className="text-xs text-gray-600 flex-shrink-0 w-16">약정일</label>
-                <input
-                  type="date"
-                  value={batchForm.startDate ? formatDateStr(batchForm.startDate) : ''}
-                  onChange={(e) => {
-                    const val = e.target.value.replace(/-/g, '');
-                    setBatchForm(prev => ({ ...prev, startDate: val }));
-                  }}
-                  className="flex-1 px-2 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
-                />
-                <span className="text-xs text-gray-400">~</span>
-                <input
-                  type="text"
-                  value={batchForm.endDate ? formatDateStr(batchForm.endDate) : '-'}
-                  readOnly
-                  className="flex-1 px-2 py-2 text-sm border border-gray-200 rounded-lg bg-gray-50 text-gray-600"
-                />
-              </div>
-
-              {/* 재약정 일괄등록 버튼 */}
-              <button
-                onClick={handleBatchSubmit}
-                disabled={isSubmitting || !batchForm.promChgCd || !batchForm.promChgrsnCd || !batchForm.promCnt || !batchForm.startDate}
-                className={`w-full flex items-center justify-center gap-2 py-3 rounded-lg text-sm font-bold transition-colors ${
-                  isSubmitting || !batchForm.promChgCd || !batchForm.promChgrsnCd || !batchForm.promCnt || !batchForm.startDate
-                    ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                    : 'bg-purple-500 hover:bg-purple-600 text-white'
-                }`}
-              >
-                {isSubmitting ? (
-                  <>
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                    일괄 등록 중...
-                  </>
-                ) : (
-                  <>
-                    <Send className="w-4 h-4" />
-                    재약정 일괄 등록 ({selectedCtrtIds.size}건)
-                  </>
+                {/* 직접 선택 시 전화번호 */}
+                {receiptMethod === 'direct' && (
+                  <div className="flex items-center gap-2">
+                    <label className="text-xs text-gray-600 flex-shrink-0 w-16">
+                      <Phone className="w-3.5 h-3.5 inline mr-1" />전화번호
+                    </label>
+                    <input
+                      type="tel"
+                      value={directPhone}
+                      onChange={(e) => setDirectPhone(e.target.value)}
+                      placeholder="전화번호 입력"
+                      className="flex-1 px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                    />
+                  </div>
                 )}
-              </button>
 
-              {/* 모두의싸인 버튼 (일괄등록 완료 후 활성화) */}
+                {/* 재약정 일괄등록 버튼 */}
+                <button
+                  onClick={handleBatchSubmit}
+                  disabled={isSubmitting || !batchForm.promChgCd || !batchForm.promChgrsnCd || !batchForm.promCnt || !batchForm.startDate}
+                  className={`w-full flex items-center justify-center gap-2 py-3 rounded-lg text-sm font-bold transition-colors ${
+                    isSubmitting || !batchForm.promChgCd || !batchForm.promChgrsnCd || !batchForm.promCnt || !batchForm.startDate
+                      ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                      : 'bg-purple-500 hover:bg-purple-600 text-white'
+                  }`}
+                >
+                  {isSubmitting ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      일괄 등록 중...
+                    </>
+                  ) : (
+                    <>
+                      <Send className="w-4 h-4" />
+                      재약정 일괄 등록 ({selectedCtrtIds.size}건)
+                    </>
+                  )}
+                </button>
+
+                {/* 다시보내기 / 전자서명하기 버튼 */}
+                <div ref={actionAreaRef} className="flex gap-2">
+                  <button
+                    onClick={() => {
+                      // TODO: 다시보내기 API
+                      showToast?.('문자가 전송되었습니다.', 'success');
+                    }}
+                    disabled={!(receiptMethod === 'direct' && batchRegistered)}
+                    className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-lg text-sm font-bold transition-colors ${
+                      receiptMethod === 'direct' && batchRegistered
+                        ? 'bg-blue-500 hover:bg-blue-600 text-white'
+                        : 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                    }`}
+                  >
+                    <MessageSquare className="w-4 h-4" />
+                    다시보내기
+                  </button>
+                  <button
+                    onClick={() => {
+                      // TODO: 전자서명하기 API
+                      showToast?.('전자서명 요청을 보냈습니다.', 'success');
+                    }}
+                    disabled={!(receiptMethod === 'face' && batchRegistered)}
+                    className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-lg text-sm font-bold transition-colors ${
+                      receiptMethod === 'face' && batchRegistered
+                        ? 'bg-amber-500 hover:bg-amber-600 text-white'
+                        : 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                    }`}
+                  >
+                    <PenTool className="w-4 h-4" />
+                    전자서명하기
+                  </button>
+                </div>
+              </div>
+
+              {/* 일괄 등록 취소 버튼 */}
               <button
                 onClick={() => {
-                  setModuSignActivated(true);
-                  setTimeout(() => {
-                    receiptMethodRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                  }, 100);
+                  // TODO: 일괄 등록 취소 API
+                  setBatchRegistered(false);
+                  showToast?.('일괄 등록이 취소되었습니다.', 'info');
                 }}
-                disabled={!batchRegistered || moduSignActivated}
+                disabled={!batchRegistered}
                 className={`w-full flex items-center justify-center gap-2 py-3 rounded-lg text-sm font-bold transition-colors ${
-                  moduSignActivated
-                    ? 'bg-green-100 text-green-700 border border-green-300 cursor-default'
-                    : !batchRegistered
-                      ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                      : 'bg-amber-500 hover:bg-amber-600 text-white'
+                  batchRegistered
+                    ? 'bg-red-500 hover:bg-red-600 text-white'
+                    : 'bg-gray-200 text-gray-400 cursor-not-allowed'
                 }`}
               >
-                {moduSignActivated ? (
-                  <>
-                    <CheckCircle className="w-4 h-4" />
-                    모두의싸인 활성화됨
-                  </>
-                ) : (
-                  <>
-                    <FileText className="w-4 h-4" />
-                    모두의싸인
-                  </>
-                )}
+                <XCircle className="w-4 h-4" />
+                일괄 등록 취소
               </button>
-
-              {/* 접수방식 (모두의싸인 활성화 후 표시) */}
-              {moduSignActivated && (
-                <>
-                  <div ref={receiptMethodRef}>
-                    <label className="block text-xs text-gray-600 mb-1">접수방식</label>
-                    <div className="flex items-center gap-4">
-                      <label className="flex items-center gap-2 cursor-pointer">
-                        <input
-                          type="radio"
-                          name="receiptMethod"
-                          value="face"
-                          checked={receiptMethod === 'face'}
-                          onChange={() => {
-                            setReceiptMethod('face'); setSmsSent(false);
-                            setTimeout(() => actionAreaRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 100);
-                          }}
-                          className="w-4 h-4 text-purple-600 focus:ring-purple-500"
-                        />
-                        <span className="text-sm text-gray-700">대면</span>
-                      </label>
-                      <label className="flex items-center gap-2 cursor-pointer">
-                        <input
-                          type="radio"
-                          name="receiptMethod"
-                          value="sms"
-                          checked={receiptMethod === 'sms'}
-                          onChange={() => {
-                            setReceiptMethod('sms'); setShowSignPad(false); setSignatureData('');
-                            setTimeout(() => actionAreaRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 100);
-                          }}
-                          className="w-4 h-4 text-purple-600 focus:ring-purple-500"
-                        />
-                        <span className="text-sm text-gray-700">문자전송</span>
-                      </label>
-                    </div>
-                  </div>
-
-                  {/* 대면: 서명 영역 */}
-                  {receiptMethod === 'face' && (
-                    <div ref={actionAreaRef}>
-                      {!showSignPad && !signatureData && (
-                        <button
-                          onClick={() => {
-                            setShowSignPad(true);
-                            setTimeout(() => actionAreaRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 100);
-                          }}
-                          className="w-full flex items-center justify-center gap-2 py-3 rounded-lg border-2 border-dashed border-purple-300 text-purple-600 hover:bg-purple-50 transition-colors"
-                        >
-                          <PenTool className="w-4 h-4" />
-                          <span className="text-sm font-medium">서명하기</span>
-                        </button>
-                      )}
-                      {signatureData && !showSignPad && (
-                        <div className="bg-green-50 border border-green-200 rounded-lg overflow-hidden">
-                          <div className="flex items-center justify-between p-3">
-                            <div className="flex items-center gap-2 text-green-700">
-                              <CheckCircle className="w-4 h-4" />
-                              <span className="text-sm font-medium">서명완료</span>
-                            </div>
-                            <button
-                              onClick={() => { setSignatureData(''); setShowSignPad(true); }}
-                              className="flex items-center gap-1 text-xs text-gray-500 hover:text-gray-700"
-                            >
-                              <RotateCcw className="w-3 h-3" />
-                              다시 서명
-                            </button>
-                          </div>
-                          <div className="px-3 pb-3">
-                            <img
-                              src={signatureData.replace(/%2B/g, '+')}
-                              alt="서명"
-                              className="w-full rounded border border-green-200 bg-white"
-                            />
-                          </div>
-                          {/* 대면 확인 → 모두의싸인 + CONA 전송 */}
-                          <div className="px-3 pb-3">
-                            <button
-                              onClick={() => {
-                                // TODO: 모두의싸인 + CONA 두 곳으로 전송
-                                showToast?.('서명이 전송되었습니다. (모두의싸인 + CONA)', 'success');
-                              }}
-                              className="w-full flex items-center justify-center gap-2 py-2.5 rounded-lg bg-green-500 hover:bg-green-600 text-white text-sm font-bold transition-colors"
-                            >
-                              <Send className="w-4 h-4" />
-                              확인 (전송)
-                            </button>
-                          </div>
-                        </div>
-                      )}
-                      {showSignPad && (
-                        <SignaturePad
-                          title="고객 서명"
-                          onSave={(data) => {
-                            setSignatureData(data);
-                            setShowSignPad(false);
-                          }}
-                          onCancel={() => setShowSignPad(false)}
-                        />
-                      )}
-                    </div>
-                  )}
-
-                  {/* 문자전송: 모두의싸인 URL 전송 */}
-                  {receiptMethod === 'sms' && (
-                    <div ref={actionAreaRef}>
-                      {!smsSent ? (
-                        <button
-                          onClick={async () => {
-                            setIsSendingSms(true);
-                            // TODO: 모두의싸인 URL로 문자전송
-                            setTimeout(() => {
-                              setIsSendingSms(false);
-                              setSmsSent(true);
-                              showToast?.('문자가 전송되었습니다.', 'success');
-                              setTimeout(() => actionAreaRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 100);
-                            }, 1000);
-                          }}
-                          disabled={isSendingSms}
-                          className="w-full flex items-center justify-center gap-2 py-3 rounded-lg bg-blue-500 hover:bg-blue-600 text-white text-sm font-medium transition-colors disabled:bg-gray-400"
-                        >
-                          {isSendingSms ? (
-                            <>
-                              <Loader2 className="w-4 h-4 animate-spin" />
-                              전송 중...
-                            </>
-                          ) : (
-                            <>
-                              <MessageSquare className="w-4 h-4" />
-                              문자전송
-                            </>
-                          )}
-                        </button>
-                      ) : (
-                        <div className="space-y-2">
-                          <div className="flex items-center justify-between p-3 bg-green-50 border border-green-200 rounded-lg">
-                            <div className="flex items-center gap-2 text-green-700">
-                              <CheckCircle className="w-4 h-4" />
-                              <span className="text-sm font-medium">전송완료</span>
-                            </div>
-                          </div>
-                          <button
-                            onClick={async () => {
-                              setIsSendingSms(true);
-                              // TODO: 모두의싸인 URL 재전송
-                              setTimeout(() => {
-                                setIsSendingSms(false);
-                                showToast?.('모두의싸인 URL이 재전송되었습니다.', 'success');
-                              }, 1000);
-                            }}
-                            disabled={isSendingSms}
-                            className="w-full flex items-center justify-center gap-2 py-2.5 rounded-lg border border-blue-300 text-blue-600 hover:bg-blue-50 text-sm font-medium transition-colors disabled:opacity-50"
-                          >
-                            {isSendingSms ? (
-                              <>
-                                <Loader2 className="w-4 h-4 animate-spin" />
-                                재전송 중...
-                              </>
-                            ) : (
-                              <>
-                                <RotateCcw className="w-3.5 h-3.5" />
-                                재전송
-                              </>
-                            )}
-                          </button>
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </>
-              )}
-            </div>
+            </>
           )}
         </>
       )}
