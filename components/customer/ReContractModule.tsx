@@ -452,7 +452,7 @@ const ReContractModule: React.FC<ReContractModuleProps> = ({
                         </span>
                       </div>
                       <div className="text-xs text-gray-500 mt-0.5">
-                        <span className="text-gray-400">계약ID:</span> {formatId(ctrt.CTRT_ID)}
+                        (계약ID: {formatId(ctrt.CTRT_ID)})
                       </div>
                     </div>
                     <button
