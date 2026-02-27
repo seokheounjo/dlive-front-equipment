@@ -2137,6 +2137,14 @@ export const getIdTypeCodes = async (): Promise<ApiResponse<any[]>> => {
 };
 
 /**
+ * 신분유형 코드 조회 (CMCU111)
+ * 납부방법변경 계좌/카드 인증 시 사용
+ */
+export const getIdTypeCodes111 = async (): Promise<ApiResponse<any[]>> => {
+  return apiCall<any[]>('/common/getCommonCodes', { CODE_GROUP: 'CMCU111' });
+};
+
+/**
  * 은행 코드 조회
  */
 export const getBankCodes = async (): Promise<ApiResponse<any[]>> => {

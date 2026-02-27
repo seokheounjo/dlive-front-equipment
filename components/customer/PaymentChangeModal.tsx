@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { X, Loader2, AlertCircle, CreditCard, Check, PenTool, FileDown } from 'lucide-react';
 import SignaturePad from '../common/SignaturePad';
 import {
@@ -7,7 +7,9 @@ import {
   updatePaymentMethod,
   verifyBankAccount,
   verifyCard,
-  savePaymentSignature
+  savePaymentSignature,
+  getBankCodesDLive,
+  getIdTypeCodes111
 } from '../../services/customerApi';
 import { generateAutoTransferPdf, downloadPdf } from '../../services/pdfService';
 
@@ -102,28 +104,16 @@ const PaymentChangeModal: React.FC<PaymentChangeModalProps> = ({
     type: 'success' | 'error' | 'warning' | 'info';
   }>({ show: false, title: '', message: '', type: 'info' });
 
-  // 은행 코드 목록 (공통코드: BLPY015)
-  const bankCodes = [
+  // 공통코드 (API에서 로드, 로드 전 fallback용 기본값)
+  const [bankCodes, setBankCodes] = useState<{ CODE: string; CODE_NM: string }[]>([
     { CODE: '003', CODE_NM: 'IBK기업' },
     { CODE: '004', CODE_NM: 'KB국민' },
     { CODE: '011', CODE_NM: 'NH농협' },
     { CODE: '020', CODE_NM: '우리' },
-    { CODE: '023', CODE_NM: 'SC제일' },
-    { CODE: '031', CODE_NM: '대구' },
-    { CODE: '032', CODE_NM: '부산' },
-    { CODE: '039', CODE_NM: '경남' },
-    { CODE: '045', CODE_NM: '새마을' },
-    { CODE: '048', CODE_NM: '신협' },
-    { CODE: '071', CODE_NM: '우체국' },
     { CODE: '081', CODE_NM: '하나' },
-    { CODE: '088', CODE_NM: '신한' },
-    { CODE: '089', CODE_NM: 'K뱅크' },
-    { CODE: '090', CODE_NM: '카카오뱅크' },
-    { CODE: '092', CODE_NM: '토스뱅크' }
-  ];
-
-  // 카드사 코드 목록 (공통코드: BLPY016)
-  const cardCompanyCodes = [
+    { CODE: '088', CODE_NM: '신한' }
+  ]);
+  const [cardCompanyCodes] = useState([
     { CODE: '01', CODE_NM: '삼성카드' },
     { CODE: '02', CODE_NM: '현대카드' },
     { CODE: '03', CODE_NM: 'KB국민카드' },
@@ -133,22 +123,22 @@ const PaymentChangeModal: React.FC<PaymentChangeModalProps> = ({
     { CODE: '07', CODE_NM: '우리카드' },
     { CODE: '08', CODE_NM: 'BC카드' },
     { CODE: '09', CODE_NM: 'NH농협카드' }
-  ];
-
-  // 변경사유 (공통코드: CMCU079) - 중분류 없이 대분류만 사용
-  const changeReasonCodes = [
+  ]);
+  const [changeReasonCodes] = useState([
     { CODE: '01', CODE_NM: '개인사정' },
     { CODE: '02', CODE_NM: '요금관련' },
     { CODE: '03', CODE_NM: '서비스관련' },
     { CODE: '04', CODE_NM: '기타' }
-  ];
-
-  // 신분유형 코드 (공통코드: CMCU111)
-  const idTypeCodes = [
+  ]);
+  const [idTypeCodes, setIdTypeCodes] = useState<{ CODE: string; CODE_NM: string }[]>([
     { CODE: '01', CODE_NM: '주민등록번호' },
     { CODE: '02', CODE_NM: '사업자등록번호' },
     { CODE: '03', CODE_NM: '외국인등록번호' }
-  ];
+  ]);
+
+  // IME 조합 상태 추적 (한글 입력 시 마지막 글자 잘림 방지)
+  const acntHolderRef = useRef<HTMLInputElement>(null);
+  const isComposingRef = useRef(false);
 
   // 납부자관계 코드
   const pyrRelCodes = [
@@ -175,6 +165,28 @@ const PaymentChangeModal: React.FC<PaymentChangeModalProps> = ({
       loadPaymentAccounts();
     }
   }, [isOpen, custId]);
+
+  // 공통코드 로드 (BLPY015 은행명, CMCU111 신분유형)
+  useEffect(() => {
+    if (isOpen) {
+      getBankCodesDLive().then(res => {
+        if (res.success && res.data && res.data.length > 0) {
+          const mapped = res.data
+            .filter((item: any) => item.code && item.name && item.name !== '선택')
+            .map((item: any) => ({ CODE: item.code, CODE_NM: item.name }));
+          if (mapped.length > 0) setBankCodes(mapped);
+        }
+      }).catch(() => {});
+      getIdTypeCodes111().then(res => {
+        if (res.success && res.data && res.data.length > 0) {
+          const mapped = res.data
+            .filter((item: any) => item.code && item.name && item.name !== '선택')
+            .map((item: any) => ({ CODE: item.code, CODE_NM: item.name }));
+          if (mapped.length > 0) setIdTypeCodes(mapped);
+        }
+      }).catch(() => {});
+    }
+  }, [isOpen]);
 
   // 모달 열릴 때 초기화
   useEffect(() => {
@@ -228,7 +240,12 @@ const PaymentChangeModal: React.FC<PaymentChangeModalProps> = ({
 
   // 계좌/카드 인증 (로딩 팝업 + 재시도 로직)
   const handleVerify = async () => {
-    if (!paymentForm.acntHolderNm) {
+    // IME 조합 중인 경우 input에서 최신 값 읽기 (한글 마지막 글자 잘림 방지)
+    const acntHolderNm = acntHolderRef.current?.value || paymentForm.acntHolderNm;
+    if (acntHolderNm !== paymentForm.acntHolderNm) {
+      setPaymentForm(prev => ({ ...prev, acntHolderNm }));
+    }
+    if (!acntHolderNm) {
       showAlert('예금주/카드소유주 명을 입력해주세요.', 'warning');
       return;
     }
@@ -254,12 +271,14 @@ const PaymentChangeModal: React.FC<PaymentChangeModalProps> = ({
     setVerifyProgress('인증 요청 중...');
 
     const doVerify = async (): Promise<{ success: boolean; message: string }> => {
+      // ref에서 최신 값 사용 (IME 한글 조합 이슈 방지)
+      const ownerNm = acntHolderRef.current?.value || acntHolderNm;
       if (paymentForm.pymMthCd === '01') {
         // 계좌 실명인증 (CONA AddCustomerRlnmAuthCheck.req - KSNET)
         const response = await verifyBankAccount({
           BANK_CD: paymentForm.bankCd,
           ACNT_NO: paymentForm.acntNo,
-          ACNT_OWNER_NM: paymentForm.acntHolderNm,
+          ACNT_OWNER_NM: ownerNm,
           RSDT_CRRNO: paymentForm.idNumber,
           SO_ID: soId || '',
           CUST_TP: custTpCd || 'A',
@@ -273,7 +292,7 @@ const PaymentChangeModal: React.FC<PaymentChangeModalProps> = ({
           CARD_NO: paymentForm.acntNo,
           CARD_EXPYEAR: paymentForm.cardExpYy,
           CARD_EXPMON: paymentForm.cardExpMm,
-          CARD_OWNER_NM: paymentForm.acntHolderNm,
+          CARD_OWNER_NM: ownerNm,
           KOR_ID: paymentForm.birthDt,
           SO_ID: soId || '',
           PYM_ACNT_ID: initialPymAcntId || '',
@@ -545,9 +564,15 @@ const PaymentChangeModal: React.FC<PaymentChangeModalProps> = ({
                   <input
                     type="text"
                     value={paymentForm.acntHolderNm}
+                    ref={acntHolderRef}
                     onChange={(e) => {
                       setPaymentForm(prev => ({ ...prev, acntHolderNm: e.target.value }));
                       setIsVerified(false);
+                    }}
+                    onCompositionStart={() => { isComposingRef.current = true; }}
+                    onCompositionEnd={(e) => {
+                      isComposingRef.current = false;
+                      setPaymentForm(prev => ({ ...prev, acntHolderNm: (e.target as HTMLInputElement).value }));
                     }}
                     placeholder="이름 입력"
                     className="flex-1 px-2 py-1.5 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-orange-500"
