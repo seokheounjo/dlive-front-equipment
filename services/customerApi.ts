@@ -549,6 +549,30 @@ export interface PaymentMethodChangeRequest {
   BLDG_NO?: string;          // 건물번호
   DONG_NO?: string;          // 동
   HO_NO?: string;            // 호
+  // 고정값/세션값
+  AGR_FILE_GB?: string;      // 자동이체 시 "A"
+  PYM_AUTH_CHECK?: string;   // 실명인증 완료 "Y" / "N"
+  INSERT_YN?: string;        // "N" 고정
+  PYM_SO_ID?: string;        // 지점코드 (SO_ID와 동일)
+  ATRT_CRR_ID?: string;     // 접속 사용자 CRR_ID
+  ATRT_EMP_ID?: string;     // 접속 사용자 EMP_ID
+  // 기존 납부계정 데이터 (상세 조회 API 필요)
+  ACNT_NM?: string;          // 기존 납부자명
+  BILL_POST_ID?: string;     // 기존 청구주소ID
+  BILL_ZIP_CD?: string;      // 기존 우편번호
+  BILL_MDM_GIRO_YN?: string; // 지로고지 여부
+  BILL_MDM_EML_YN?: string;  // 이메일고지 여부
+  BILL_MDM_SMS_YN?: string;  // SMS고지 여부
+  BILL_MDM_FAX_YN?: string;  // FAX고지 여부
+  BILL_EML?: string;         // 이메일
+  BILL_CELL_PHN?: string;    // 휴대폰번호
+  BILL_FAX_NO?: string;      // FAX번호
+  TBR_FLG?: string;          // 세금계산서 여부
+  OLD_PYM_MTHD?: string;     // 기존 납부방법
+  RCPT_YN?: string;          // 수납ID 유무
+  CORP_CD?: string;          // 법인코드
+  COLLECT_SO_ID?: string;    // 모집지점
+  COLLECT_DT?: string;       // 모집일자
 }
 
 // 계좌 인증 요청
@@ -1596,15 +1620,17 @@ export const updateInstlLoc = async (params: {
  * - USR_ID: 처리자ID
  */
 export const updatePaymentMethod = async (params: PaymentMethodChangeRequest): Promise<ApiResponse<any>> => {
-  // 세션에서 사용자 ID, SO_ID, MST_SO_ID 가져오기
+  // 세션에서 사용자 ID, SO_ID, MST_SO_ID, CRR_ID 가져오기
   let usrId = params.USR_ID || 'MOBILE_USER';
   let soId = params.SO_ID || '';
   let mstSoId = params.MST_SO_ID || '';
+  let crrId = '';
   try {
     const userInfoStr = sessionStorage.getItem('userInfo') || localStorage.getItem('userInfo');
     if (userInfoStr) {
       const userInfo = JSON.parse(userInfoStr);
       usrId = userInfo.userId || userInfo.USR_ID || usrId;
+      crrId = userInfo.crrId || userInfo.CRR_ID || '';
       if (!soId) {
         const authSoList = userInfo.authSoList || userInfo.AUTH_SO_List || [];
         if (authSoList.length > 0) {
@@ -1624,7 +1650,11 @@ export const updatePaymentMethod = async (params: PaymentMethodChangeRequest): P
     ...params,
     USR_ID: usrId,
     SO_ID: soId,
-    MST_SO_ID: mstSoId
+    PYM_SO_ID: soId,
+    MST_SO_ID: mstSoId,
+    ATRT_CRR_ID: crrId,
+    ATRT_EMP_ID: usrId,
+    INSERT_YN: 'N',
   });
 };
 

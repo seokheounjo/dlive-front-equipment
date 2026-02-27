@@ -397,6 +397,11 @@ const PaymentChangeModal: React.FC<PaymentChangeModalProps> = ({
     setIsSaving(true);
     try {
       // 1. 납부방법 변경 API 호출
+      // 주민번호 패딩: 6자리 → 13자리 (PC코나 동일: 앞6자리 + 0000000)
+      const paddedId = paymentForm.idNumber.length === 6
+        ? paymentForm.idNumber + '0000000'
+        : paymentForm.idNumber;
+
       const response = await updatePaymentMethod({
         CUST_ID: custId,
         PYM_ACNT_ID: selectedPymAcntId,
@@ -405,13 +410,16 @@ const PaymentChangeModal: React.FC<PaymentChangeModalProps> = ({
         ACNT_NO: paymentForm.acntNo,
         ACNT_OWNER_NM: paymentForm.acntHolderNm,
         ID_TYPE_CD: paymentForm.idType,
-        BIRTH_DT: paymentForm.idNumber.length === 6 ? paymentForm.idNumber + '0000000' : paymentForm.idNumber,
+        BIRTH_DT: paddedId,
         PAYER_REL_CD: paymentForm.pyrRel,
         PAY_DAY_CD: paymentForm.pymDay,
         CARD_VALID_YM: paymentForm.pymMthCd === '02' ? paymentForm.cardExpYy + paymentForm.cardExpMm : undefined,
         JOIN_CARD_YN: paymentForm.pymMthCd === '02' ? paymentForm.joinCardYn : undefined,
         CARD_CL: paymentForm.pymMthCd === '02' ? paymentForm.cardCl : undefined,
         CHG_RESN_L_CD: paymentForm.changeReasonL,
+        // 고정값
+        AGR_FILE_GB: paymentForm.pymMthCd === '01' ? 'A' : undefined,
+        PYM_AUTH_CHECK: isVerified ? 'Y' : 'N',
       });
 
       if (response.success) {
