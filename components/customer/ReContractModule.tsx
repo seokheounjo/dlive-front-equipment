@@ -696,7 +696,10 @@ const ReContractModule: React.FC<ReContractModuleProps> = ({
                     <div ref={actionAreaRef}>
                       {!showSignPad && !signatureData && (
                         <button
-                          onClick={() => setShowSignPad(true)}
+                          onClick={() => {
+                            setShowSignPad(true);
+                            setTimeout(() => actionAreaRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 100);
+                          }}
                           className="w-full flex items-center justify-center gap-2 py-3 rounded-lg border-2 border-dashed border-purple-300 text-purple-600 hover:bg-purple-50 transition-colors"
                         >
                           <PenTool className="w-4 h-4" />
@@ -764,7 +767,8 @@ const ReContractModule: React.FC<ReContractModuleProps> = ({
                             setTimeout(() => {
                               setIsSendingSms(false);
                               setSmsSent(true);
-                              showToast?.('모두의싸인 URL이 문자로 전송되었습니다.', 'success');
+                              showToast?.('문자가 전송되었습니다.', 'success');
+                              setTimeout(() => actionAreaRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 100);
                             }, 1000);
                           }}
                           disabled={isSendingSms}
@@ -778,7 +782,7 @@ const ReContractModule: React.FC<ReContractModuleProps> = ({
                           ) : (
                             <>
                               <MessageSquare className="w-4 h-4" />
-                              문자전송 (모두의싸인 URL)
+                              문자전송
                             </>
                           )}
                         </button>
