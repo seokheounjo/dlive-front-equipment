@@ -152,6 +152,93 @@ export interface UnpaymentInfo {
   SO_ID?: string;             // SO ID
 }
 
+// 미납금 수납 - Pending 결제 정보 (sessionStorage per-item tracking)
+export interface PendingPaymentInfo {
+  cardNo: string;
+  expMonth: string;
+  expYear: string;
+  installment: string;
+  korId: string;
+  mid: string;
+  orderNo: string;
+  orderDt: string;
+  selectedTotal: number;
+  timestamp: number;
+  pendingBillYms: string[];  // 이 결제에 포함된 BILL_YM 목록
+}
+
+// ============ Pending Payment sessionStorage 헬퍼 ============
+const PENDING_EXPIRY_MS = 24 * 60 * 60 * 1000; // 24시간
+
+function cleanExpired(arr: PendingPaymentInfo[]): PendingPaymentInfo[] {
+  const now = Date.now();
+  return arr.filter(p => now - p.timestamp < PENDING_EXPIRY_MS);
+}
+
+export function getPendingPayments(pymAcntId: string): PendingPaymentInfo[] {
+  try {
+    const raw = sessionStorage.getItem(`pendingPayments_${pymAcntId}`);
+    if (raw) {
+      return cleanExpired(JSON.parse(raw));
+    }
+    // 기존 단일 키 마이그레이션
+    const legacy = sessionStorage.getItem(`pendingPayment_${pymAcntId}`);
+    if (legacy) {
+      const single = JSON.parse(legacy) as PendingPaymentInfo;
+      const arr = cleanExpired([{ ...single, pendingBillYms: single.pendingBillYms || [] }]);
+      sessionStorage.setItem(`pendingPayments_${pymAcntId}`, JSON.stringify(arr));
+      sessionStorage.removeItem(`pendingPayment_${pymAcntId}`);
+      return arr;
+    }
+  } catch (e) {
+    console.error('[PendingPayment] getPendingPayments error:', e);
+  }
+  return [];
+}
+
+export function savePendingPayment(pymAcntId: string, info: PendingPaymentInfo): void {
+  try {
+    const existing = getPendingPayments(pymAcntId);
+    existing.push(info);
+    sessionStorage.setItem(`pendingPayments_${pymAcntId}`, JSON.stringify(existing));
+  } catch (e) {
+    console.error('[PendingPayment] savePendingPayment error:', e);
+  }
+}
+
+export function removePendingPayment(pymAcntId: string, orderNo: string): void {
+  try {
+    const existing = getPendingPayments(pymAcntId);
+    const filtered = existing.filter(p => p.orderNo !== orderNo);
+    if (filtered.length > 0) {
+      sessionStorage.setItem(`pendingPayments_${pymAcntId}`, JSON.stringify(filtered));
+    } else {
+      sessionStorage.removeItem(`pendingPayments_${pymAcntId}`);
+    }
+  } catch (e) {
+    console.error('[PendingPayment] removePendingPayment error:', e);
+  }
+}
+
+export function clearAllPendingPayments(pymAcntId: string): void {
+  try {
+    sessionStorage.removeItem(`pendingPayments_${pymAcntId}`);
+    sessionStorage.removeItem(`pendingPayment_${pymAcntId}`);
+  } catch (e) {
+    console.error('[PendingPayment] clearAllPendingPayments error:', e);
+  }
+}
+
+export function isPendingBillYm(pymAcntId: string, billYm: string): boolean {
+  const pending = getPendingPayments(pymAcntId);
+  return pending.some(p => p.pendingBillYms.includes(billYm));
+}
+
+export function getPendingInfoForBillYm(pymAcntId: string, billYm: string): PendingPaymentInfo | null {
+  const pending = getPendingPayments(pymAcntId);
+  return pending.find(p => p.pendingBillYms.includes(billYm)) || null;
+}
+
 // 상담 이력 (D'Live: getTgtCtrtRcptHist_m)
 export interface ConsultationHistory {
   START_DATE: string;        // 접수일 (yyyy-mm-dd)
@@ -1463,6 +1550,37 @@ export const updateAddress = async (params: AddressChangeRequest): Promise<ApiRe
 };
 
 /**
+ * 설치위치(INSTL_LOC) 변경 전용 API
+ * API: /customer/negociation/updateInstlLoc
+ *
+ * 설치주소 변경(saveMargeAddrOrdInfo)과는 별도 - INSTL_LOC만 직접 UPDATE
+ * CUST_FLAG='1' 이면 고객주소도 함께 변경
+ */
+export const updateInstlLoc = async (params: {
+  CTRT_ID: string;
+  INSTL_LOC: string;
+  CUST_FLAG?: string;
+}): Promise<ApiResponse<any>> => {
+  let chgUid = 'SYSTEM';
+  try {
+    const userInfoStr = sessionStorage.getItem('userInfo') || localStorage.getItem('userInfo');
+    if (userInfoStr) {
+      const userInfo = JSON.parse(userInfoStr);
+      chgUid = userInfo.userId || userInfo.USR_ID || chgUid;
+    }
+  } catch (e) {
+    console.log('[CustomerAPI] Failed to get CHG_UID from session');
+  }
+
+  return apiCall<any>('/customer/negociation/updateInstlLoc', {
+    CTRT_ID: params.CTRT_ID,
+    INSTL_LOC: params.INSTL_LOC,
+    CUST_FLAG: params.CUST_FLAG || '1',
+    CHG_UID: chgUid
+  });
+};
+
+/**
  * 납부방법 변경
  * API: customer/customer/general/customerPymChgAddManager.req
  *
@@ -2404,9 +2522,8 @@ export interface CardPaymentRequest {
   card_vendor?: string;      // 카드사 (= MID)
 }
 
-export const processCardPayment = async (params: CardPaymentRequest): Promise<ApiResponse<any>> => {
+export const processCardPayment = async (params: CardPaymentRequest, timeoutMs: number = 10000): Promise<ApiResponse<any>> => {
   // Transform to backend expected param names
-  // PG JSP expects: amount, buyer, productinfo, card_no, card_expyear, card_expmon, install
   const backendParams: any = {
     MID: params.mid,
     OID: params.oid,
@@ -2415,9 +2532,9 @@ export const processCardPayment = async (params: CardPaymentRequest): Promise<Ap
     CUST_NM: params.buyer,
     GOODNAME: params.productinfo,
     CARD_NO: params.card_no,
-    CARD_EXPIRY: params.card_expyear + params.card_expmon,  // YYMM (하위호환)
-    CARD_EXPYEAR: params.card_expyear,    // YY (분리 전송 - 신규)
-    CARD_EXPMON: params.card_expmon,       // MM (분리 전송 - 신규)
+    CARD_EXPIRY: params.card_expyear + params.card_expmon,  // YYMM
+    CARD_EXPYEAR: params.card_expyear,    // YY
+    CARD_EXPMON: params.card_expmon,       // MM
     KOR_ID: params.kor_id,
     INSTALL_PERIOD: params.install,
     PYM_ACNT_ID: params.pym_acnt_id,
@@ -2428,7 +2545,70 @@ export const processCardPayment = async (params: CardPaymentRequest): Promise<Ap
     STAGE: params.stage || '',
     CARD_VENDOR: params.card_vendor || '',
   };
-  return apiCall<any>('/billing/payment/anony/processCardPayment', backendParams);
+
+  const url = `${API_BASE}/billing/payment/anony/processCardPayment`;
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+
+  try {
+    console.log(`[CustomerAPI] POST ${url} (timeout=${timeoutMs}ms)`);
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify(backendParams),
+      signal: controller.signal
+    });
+    clearTimeout(timer);
+
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+    }
+
+    const result = await response.json();
+    console.log(`[CustomerAPI] processCardPayment Response:`, JSON.stringify(result, null, 2));
+
+    if (result.code === 'SUCCESS' || result.resultCode === '0000' || result.success) {
+      return { success: true, data: result.data || result.resultData || result };
+    }
+    return {
+      success: false,
+      message: result.message || result.resultMsg || '결제 처리에 실패했습니다.',
+      errorCode: result.code || result.resultCode
+    };
+  } catch (error: any) {
+    clearTimeout(timer);
+    if (error.name === 'AbortError') {
+      console.warn('[CustomerAPI] processCardPayment: timeout after ' + timeoutMs + 'ms');
+      return { success: false, message: 'TIMEOUT', errorCode: 'TIMEOUT' };
+    }
+    console.error('[CustomerAPI] processCardPayment Error:', error);
+    return { success: false, message: error.message || '네트워크 오류가 발생했습니다.' };
+  }
+};
+
+/**
+ * 처리결과 조회 (pending 건의 결과 확인)
+ * processCardPayment과 동일 API를 재호출하여 결과 확인
+ * 백엔드에서 이미 처리된 건이면 결과를 바로 반환
+ */
+export const checkPaymentResult = async (params: {
+  OID: string;
+  MID: string;
+  AMT: number;
+  ORDER_DT: string;
+  PYM_ACNT_ID: string;
+}): Promise<ApiResponse<any>> => {
+  return apiCall<any>('/billing/payment/anony/processCardPayment', {
+    ...params,
+    BUYER: '',
+    CARD_NO: '',
+    CARD_EXPYEAR: '',
+    CARD_EXPMON: '',
+    KOR_ID: '',
+    INSTALL: '00',
+    CHECK_ONLY: 'Y'
+  });
 };
 
 /**
@@ -2534,6 +2714,7 @@ export default {
   // 정보변경
   updatePhoneNumber,
   updateAddress,
+  updateInstlLoc,
   updatePaymentMethod,
   verifyBankAccount,
   verifyCard,
@@ -2576,8 +2757,16 @@ export default {
   insertDpstAndDTL,
   insertCardPayStage,
   processCardPayment,
+  checkPaymentResult,
   generateOrderNo,
   getOrderDate,
+  // Pending Payment 헬퍼
+  getPendingPayments,
+  savePendingPayment,
+  removePendingPayment,
+  clearAllPendingPayments,
+  isPendingBillYm,
+  getPendingInfoForBillYm,
   // 유틸
   formatPhoneNumber,
   maskPhoneNumber,

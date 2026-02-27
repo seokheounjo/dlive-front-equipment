@@ -15,7 +15,7 @@ import {
   maskString
 } from '../../services/customerApi';
 import UnpaymentCollectionModal from './UnpaymentCollectionModal';
-import { getPendingPayment, PendingPaymentInfo } from './UnpaymentCollectionModal';
+import { PendingPaymentInfo, getPendingPayments } from '../../services/customerApi';
 import PaymentChangeModal from './PaymentChangeModal';
 
 // 납부계정ID 포맷 (3-3-4)
@@ -96,8 +96,8 @@ const PaymentInfo: React.FC<PaymentInfoProps> = ({
   // 납부방법 변경 모달
   const [showPaymentChangeModal, setShowPaymentChangeModal] = useState(false);
 
-  // 진행중 결제 정보
-  const [pendingPaymentInfo, setPendingPaymentInfo] = useState<PendingPaymentInfo | null>(null);
+  // 진행중 결제 정보 (per-item 배열)
+  const [pendingPaymentInfo, setPendingPaymentInfo] = useState<PendingPaymentInfo[] | null>(null);
 
   // 데이터 로드
   useEffect(() => {
@@ -117,7 +117,8 @@ const PaymentInfo: React.FC<PaymentInfoProps> = ({
   useEffect(() => {
     if (selectedPymAcntId && custId) {
       loadBillingDetails(selectedPymAcntId);
-      setPendingPaymentInfo(getPendingPayment(selectedPymAcntId));
+      const pending = getPendingPayments(selectedPymAcntId);
+      setPendingPaymentInfo(pending.length > 0 ? pending : null);
     }
   }, [selectedPymAcntId, custId]);
 
@@ -491,10 +492,10 @@ const PaymentInfo: React.FC<PaymentInfoProps> = ({
           loadPaymentAccounts();
           if (selectedPymAcntId) {
             loadBillingDetails(selectedPymAcntId);
-            setPendingPaymentInfo(getPendingPayment(selectedPymAcntId));
+            const pending = getPendingPayments(selectedPymAcntId);
+            setPendingPaymentInfo(pending.length > 0 ? pending : null);
           }
         }}
-        pendingPayment={pendingPaymentInfo}
         custId={custId}
         custNm={custNm}
         pymAcntId={selectedPymAcntId || ''}
