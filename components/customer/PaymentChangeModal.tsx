@@ -12,7 +12,8 @@ import {
   getIdTypeCodes111,
   getCardCompanyCodes,
   getPayerRelationCodes,
-  getChangeReasonCodes
+  getChangeReasonCodes,
+  getCardClassCodes
 } from '../../services/customerApi';
 import { generateAutoTransferPdf, downloadPdf } from '../../services/pdfService';
 
@@ -50,6 +51,7 @@ interface PaymentFormData {
   cardExpMm: string;
   cardExpYy: string;
   joinCardYn: string;
+  cardCl: string;       // 카드구분 (CMCU112: 10=개인, 20=법인)
   pyrRel: string;
   pymDay: string;
 }
@@ -65,6 +67,7 @@ const defaultPaymentForm: PaymentFormData = {
   cardExpMm: '',
   cardExpYy: '',
   joinCardYn: 'N',
+  cardCl: '10',
   pyrRel: 'A',
   pymDay: ''
 };
@@ -119,6 +122,7 @@ const PaymentChangeModal: React.FC<PaymentChangeModalProps> = ({
   ]);
   const [cardCompanyCodes, setCardCompanyCodes] = useState<{ CODE: string; CODE_NM: string }[]>([]);
   const [changeReasonCodes, setChangeReasonCodes] = useState<{ CODE: string; CODE_NM: string }[]>([]);
+  const [cardClassCodes, setCardClassCodes] = useState<{ CODE: string; CODE_NM: string }[]>([]);
   const [idTypeCodes, setIdTypeCodes] = useState<{ CODE: string; CODE_NM: string }[]>([]);
 
   // IME 조합 상태 추적 (한글 입력 시 마지막 글자 잘림 방지)
@@ -163,6 +167,7 @@ const PaymentChangeModal: React.FC<PaymentChangeModalProps> = ({
       loadCodes(getIdTypeCodes111, setIdTypeCodes);         // CMCU111 신분유형
       loadCodes(getPayerRelationCodes, setPyrRelCodes);     // CMCU005 납부자관계
       loadCodes(getChangeReasonCodes, setChangeReasonCodes); // CMCU079 변경사유
+      loadCodes(getCardClassCodes, setCardClassCodes);       // CMCU112 카드구분(개인/법인)
     }
   }, [isOpen]);
 
@@ -405,6 +410,7 @@ const PaymentChangeModal: React.FC<PaymentChangeModalProps> = ({
         PAY_DAY_CD: paymentForm.pymDay,
         CARD_VALID_YM: paymentForm.pymMthCd === '02' ? paymentForm.cardExpYy + paymentForm.cardExpMm : undefined,
         JOIN_CARD_YN: paymentForm.pymMthCd === '02' ? paymentForm.joinCardYn : undefined,
+        CARD_CL: paymentForm.pymMthCd === '02' ? paymentForm.cardCl : undefined,
         CHG_RESN_L_CD: paymentForm.changeReasonL,
       });
 
@@ -701,6 +707,26 @@ const PaymentChangeModal: React.FC<PaymentChangeModalProps> = ({
                       >
                         <option value="N">아니오</option>
                         <option value="Y">예</option>
+                      </select>
+                    </div>
+
+                    <div className="flex items-center">
+                      <label className="w-20 flex-shrink-0 text-xs text-gray-500">카드구분</label>
+                      <select
+                        value={paymentForm.cardCl}
+                        onChange={(e) => setPaymentForm(prev => ({ ...prev, cardCl: e.target.value }))}
+                        className="flex-1 px-2 py-1.5 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-orange-500"
+                      >
+                        {cardClassCodes.length > 0 ? (
+                          cardClassCodes.map(code => (
+                            <option key={code.CODE} value={code.CODE}>{code.CODE_NM}</option>
+                          ))
+                        ) : (
+                          <>
+                            <option value="10">개인</option>
+                            <option value="20">법인</option>
+                          </>
+                        )}
                       </select>
                     </div>
                   </>

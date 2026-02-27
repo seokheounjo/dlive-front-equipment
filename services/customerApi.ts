@@ -2145,6 +2145,14 @@ export const getIdTypeCodes = async (): Promise<ApiResponse<any[]>> => {
 };
 
 /**
+ * 카드구분 코드 조회 (CMCU112)
+ * Returns: code (10=개인, 20=법인), name
+ */
+export const getCardClassCodes = async (): Promise<ApiResponse<any[]>> => {
+  return apiCall<any[]>('/common/getCommonCodes', { CODE_GROUP: 'CMCU112' });
+};
+
+/**
  * 신분유형 코드 조회 (CMCU111)
  * 납부방법변경 계좌/카드 인증 시 사용
  */
@@ -2762,6 +2770,7 @@ export default {
   getCardCompanyCodes,
   getPayerRelationCodes,
   getChangeReasonCodes,
+  getCardClassCodes,
   getIdTypeCodes,
   getCustomerTypeCodes,
   getTelecomCodes,
