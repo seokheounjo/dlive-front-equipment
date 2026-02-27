@@ -650,9 +650,9 @@ const ReContractModule: React.FC<ReContractModuleProps> = ({
                       <button
                         type="button"
                         onClick={() => setPhoneDropdownOpen(!phoneDropdownOpen)}
-                        disabled={isManualPhone}
+                        disabled={isManualPhone || batchRegistered}
                         className={`w-full px-2 py-2 text-sm text-left border rounded-lg flex items-center justify-between ${
-                          isManualPhone ? 'bg-gray-100 border-gray-200 text-gray-400' : 'bg-white border-gray-300 hover:border-gray-400'
+                          isManualPhone || batchRegistered ? 'bg-gray-100 border-gray-200 text-gray-400' : 'bg-white border-gray-300 hover:border-gray-400'
                         }`}
                       >
                         <span className="whitespace-nowrap text-xs">
@@ -687,10 +687,10 @@ const ReContractModule: React.FC<ReContractModuleProps> = ({
                       type="tel"
                       value={directPhone}
                       onChange={(e) => setDirectPhone(e.target.value)}
-                      readOnly={!isManualPhone}
+                      readOnly={!isManualPhone || batchRegistered}
                       placeholder="전화번호 입력"
                       className={`flex-1 px-3 py-2 text-sm border rounded-lg ${
-                        isManualPhone
+                        isManualPhone && !batchRegistered
                           ? 'border-gray-300 focus:ring-2 focus:ring-purple-500 focus:border-purple-500'
                           : 'border-gray-200 bg-gray-50 text-gray-700'
                       }`}
@@ -700,6 +700,7 @@ const ReContractModule: React.FC<ReContractModuleProps> = ({
                       <input
                         type="checkbox"
                         checked={isManualPhone}
+                        disabled={batchRegistered}
                         onChange={(e) => {
                           setIsManualPhone(e.target.checked);
                           setPhoneDropdownOpen(false);
