@@ -114,11 +114,17 @@ const ReContractModule: React.FC<ReContractModuleProps> = ({
   const [codesLoaded, setCodesLoaded] = useState(false);
 
   // 일괄 폼
+  // 오늘 날짜 YYYYMMDD
+  const today = (() => {
+    const d = new Date();
+    return `${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, '0')}${String(d.getDate()).padStart(2, '0')}`;
+  })();
+
   const [batchForm, setBatchForm] = useState({
     promChgCd: '',
     promChgrsnCd: '',
-    promCnt: '',
-    startDate: '',
+    promCnt: '36',
+    startDate: today,
     endDate: '',
   });
 
@@ -564,36 +570,14 @@ const ReContractModule: React.FC<ReContractModuleProps> = ({
 
                 <div className="flex items-center gap-2">
                   <label className="text-xs text-gray-600 flex-shrink-0 w-16">약정개월</label>
-                  <select
-                    value={batchForm.promCnt}
-                    onChange={(e) => setBatchForm(prev => ({ ...prev, promCnt: e.target.value }))}
-                    className="flex-1 px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
-                  >
-                    <option value="">선택</option>
-                    {promMonthCodes.map(c => (
-                      <option key={c.CODE} value={c.CODE}>{c.CODE_NM}</option>
-                    ))}
-                  </select>
+                  <span className="flex-1 px-3 py-2 text-sm border border-gray-200 rounded-lg bg-gray-50 text-gray-700 font-medium">36개월</span>
                 </div>
 
                 <div className="flex items-center gap-2">
                   <label className="text-xs text-gray-600 flex-shrink-0 w-16">약정일</label>
-                  <input
-                    type="date"
-                    value={batchForm.startDate ? formatDateStr(batchForm.startDate) : ''}
-                    onChange={(e) => {
-                      const val = e.target.value.replace(/-/g, '');
-                      setBatchForm(prev => ({ ...prev, startDate: val }));
-                    }}
-                    className="flex-1 px-2 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
-                  />
+                  <span className="flex-1 px-2 py-2 text-sm border border-gray-200 rounded-lg bg-gray-50 text-gray-700 font-medium">{formatDateStr(batchForm.startDate)}</span>
                   <span className="text-xs text-gray-400">~</span>
-                  <input
-                    type="text"
-                    value={batchForm.endDate ? formatDateStr(batchForm.endDate) : '-'}
-                    readOnly
-                    className="flex-1 px-2 py-2 text-sm border border-gray-200 rounded-lg bg-gray-50 text-gray-600"
-                  />
+                  <span className="flex-1 px-2 py-2 text-sm border border-gray-200 rounded-lg bg-gray-50 text-gray-600">{batchForm.endDate ? formatDateStr(batchForm.endDate) : '-'}</span>
                 </div>
               </div>
 
