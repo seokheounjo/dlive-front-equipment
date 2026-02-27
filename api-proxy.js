@@ -444,10 +444,8 @@ async function handleBankAccountVerify(req, res) {
     console.log('\n========== [BankAccountVerify] ==========');
     console.log('Input params:', JSON.stringify(body, null, 2));
 
-    // JSESSIONID 인증 사용 - USR_ID 체크 불필요 (로그인 세션이 있으면 됨)
-
-    // CONA 파라미터 매핑 (CustomerManagerImpl.addCustomerRlnmAuthCheck 기준)
-    const checkType = body.CHECK_TYPE || 'E';  // E=계좌인증, A=실명인증
+    // CONA parameter mapping
+    const checkType = body.CHECK_TYPE || 'E';  // E=bank account, A=real name
     const custTp = body.CUST_TP || 'A';
     const custNm = body.CUST_NM || '';
     const rsdtCrrno = body.RSDT_CRRNO || '';
@@ -463,27 +461,21 @@ async function handleBankAccountVerify(req, res) {
       CARD_ACNT_CD: cardAcntCd,
       CARD_ACNT_NO: cardAcntNo,
       PYM_ACNT_ID: pymAcntId,
-      SUB_RSDT: body.SUB_RSDT || '',
-      CDTCD_EXP_DT: body.CDTCD_EXP_DT || '',
-      CARD_PASS: body.CARD_PASS || '',
-      RFND_GUBUN: body.RFND_GUBUN || '',
+      SO_ID: body.SO_ID || '',
+      MST_SO_ID: body.MST_SO_ID || '',
+      ID_TYPE_CD: body.ID_TYPE_CD || '01',
+      CUST_ID: body.CUST_ID || '',
       PAGE_GB: body.PAGE_GB || 'MOBILE'
     };
 
     console.log('[BankAccountVerify] CHECK_TYPE=' + checkType + ' CUST_TP=' + custTp + ' BANK=' + cardAcntCd + ' ACNT=****' + cardAcntNo.slice(-4));
 
-    // .req 엔드포인트 직접 호출 (ARGUMENT_VARIABLES 형식)
-    const xmlBody = jsonToMiPlatformXML('DS_INPUT', reqParams);
-    const postData = iconv.encode(xmlBody, 'euc-kr');
+    // Route through adapter (NOT .req direct - MiPlatform binary format only)
+    // Adapter's handleVerifyBankAccount calls customerManager.addCustomerRlnmAuthCheck via KSNET
+    const postData = JSON.stringify(reqParams);
+    const reqPath = '/api/customer/payment/verifyBankAccount';
 
-    // customerRlnmAuthCheck.req (NOT addCustomerRlnmAuthCheck.req - that rejects %3A in URL)
-    // ACCESS_TICKET 인증 사용
-    const userId = body.USR_ID || storedUserId || 'MOBILE';
-    const accessTicket = encodeURIComponent(userId + '###bank-verify###2099/01/01_00:00:00:0000');
-    const reqPath = '/customer/customer/general/customerRlnmAuthCheck.req?ACCESS_TICKET=' + accessTicket;
-
-    const targetUrl = DLIVE_API_BASE + reqPath;
-    console.log('[BankAccountVerify] URL:', targetUrl);
+    console.log('[BankAccountVerify] Adapter URL:', DLIVE_API_BASE + reqPath);
 
     const http = require('http');
 
@@ -493,9 +485,8 @@ async function handleBankAccountVerify(req, res) {
       path: reqPath,
       method: 'POST',
       headers: {
-        'Content-Type': 'text/xml; charset=euc-kr',
-        'Content-Length': postData.length,
-        'Cookie': storedJSessionId ? 'JSESSIONID=' + storedJSessionId : ''
+        'Content-Type': 'application/json; charset=utf-8',
+        'Content-Length': Buffer.byteLength(postData, 'utf-8')
       },
       timeout: 10000
     };
@@ -504,74 +495,22 @@ async function handleBankAccountVerify(req, res) {
       let chunks = [];
       proxyRes.on('data', (chunk) => chunks.push(chunk));
       proxyRes.on('end', () => {
-        const rawBuffer = Buffer.concat(chunks);
-        let responseText;
-        try {
-          responseText = iconv.decode(rawBuffer, 'euc-kr');
-        } catch (e) {
-          responseText = rawBuffer.toString('utf-8');
-        }
+        const responseText = Buffer.concat(chunks).toString('utf-8');
         console.log('[BankAccountVerify] Status:', proxyRes.statusCode);
         console.log('[BankAccountVerify] Response:', responseText.substring(0, 800));
 
-        // JSESSIONID 캡처
-        const setCookies = proxyRes.headers['set-cookie'];
-        if (setCookies) {
-          (Array.isArray(setCookies) ? setCookies : [setCookies]).forEach(c => {
-            const m = c.match(/JSESSIONID=([^;]+)/);
-            if (m) { storedJSessionId = m[1]; }
-          });
-        }
-
-        // CONA 에러 코드 확인
-        const errorCodeMatch = responseText.match(/ErrorCode[^>]*>([^<]+)/);
-        const errorReasonMatch = responseText.match(/ExceptionReason[^>]*>([^<]+)/);
-        const errorCode = errorCodeMatch ? errorCodeMatch[1].trim() : null;
-        const errorReason = errorReasonMatch ? errorReasonMatch[1].replace(/&#32;/g, ' ').replace(/&#10;/g, '\n') : null;
-
-        if (errorCode && errorCode !== '0') {
-          console.error('[BankAccountVerify] CONA error: code=' + errorCode + ', reason=' + errorReason);
-          return res.json({ success: false, code: 'CONA_ERROR', message: errorReason || 'CONA error (' + errorCode + ')', data: {} });
-        }
-
-        // SRVE0255E (servlet not found) 처리
-        if (responseText.includes('SRVE0255E') || responseText.includes('SRVE0207E')) {
-          console.error('[BankAccountVerify] Servlet error');
-          return res.json({ success: false, code: 'SERVLET_ERROR', message: 'CONA verification servlet unavailable', data: {} });
-        }
-
-        // MiPlatform dataset 응답 파싱
-        const parsed = parseMiPlatformDatasetXMLtoJSON(responseText);
-        if (parsed) {
-          const data = Array.isArray(parsed) ? parsed[0] : parsed;
-          const rspnCd = data.RSPN_CD || '';
-          const resMsg = data.RES_MSG || '';
-          console.log('[BankAccountVerify] RSPN_CD=' + rspnCd + ' RES_MSG=' + resMsg);
-          if (rspnCd === '0000') {
-            return res.json({ success: true, code: 'SUCCESS', message: resMsg || 'Verification successful', data: data });
+        try {
+          const jsonResp = JSON.parse(responseText);
+          // Adapter returns: {success, code, message, data: {RSPN_CD, ACNT_NM, ...}}
+          return res.json(jsonResp);
+        } catch (e) {
+          console.error('[BankAccountVerify] JSON parse error:', e.message);
+          // Try to extract error from non-JSON response
+          if (responseText.includes('SRVE0255E') || responseText.includes('SRVE0207E')) {
+            return res.json({ success: false, code: 'SERVLET_ERROR', message: 'Adapter endpoint not found (deploy required)', data: {} });
           }
-          return res.json({ success: true, code: 'SUCCESS', message: resMsg || 'Verification result', data: data });
+          return res.json({ success: false, code: 'PARSE_ERROR', message: 'Invalid response from adapter', data: { raw: responseText.substring(0, 300) } });
         }
-
-        // MiPlatform params 응답 파싱
-        const paramsData = parseMiPlatformParamsXMLtoJSON(responseText);
-        if (paramsData) {
-          return res.json({ success: true, code: 'SUCCESS', message: paramsData.MESSAGE || 'OK', data: paramsData });
-        }
-
-        // responseSingleList 뷰
-        if (responseText.includes('ErrorCode>0<') || responseText.includes('responseSingleList')) {
-          // Record 데이터 파싱
-          const records = parseMiPlatformXMLtoJSON(responseText);
-          if (records && records.length > 0) {
-            return res.json({ success: true, code: 'SUCCESS', message: 'OK', data: records[0] });
-          }
-          return res.json({ success: true, code: 'SUCCESS', message: 'OK', data: {} });
-        }
-
-        // 그 외
-        console.log('[BankAccountVerify] Unknown response format');
-        return res.json({ success: false, code: 'UNKNOWN', message: 'Unknown response from CONA', data: { raw: responseText.substring(0, 300) } });
       });
     });
 
@@ -582,7 +521,7 @@ async function handleBankAccountVerify(req, res) {
 
     proxyReq.on('timeout', () => {
       proxyReq.destroy();
-      console.error('[BankAccountVerify] Timeout');
+      console.error('[BankAccountVerify] Timeout (10s)');
       res.json({ success: false, code: 'TIMEOUT', message: 'Verification request timed out', data: {} });
     });
 
