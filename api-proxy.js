@@ -342,6 +342,7 @@ router.post('/customer/etc/savePymAddrInfo', handleProxy);
 router.post('/customer/customer/general/customerPymChgAddManager', handlePaymentMethodChange);  // handlePaymentMethodChange calls .req directly; adapter fallback via handleProxy if needed
 router.post('/customer/customer/general/addCustomerPymInfoChange', handleProxy);
 router.post('/customer/payment/verifyBankAccount', handleBankAccountVerify);  // KSNET bank account verify (.req direct)
+router.post('/customer/payment/verifyCreditCard', handleProxy);  // LGU+ card verify (adapter -> JSP)
 // 6. Consultation/AS
 router.post('/customer/negociation/saveCnslRcptInfo', handleProxy);
 // 7. Customer Create
