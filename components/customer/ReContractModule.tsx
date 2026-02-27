@@ -617,18 +617,27 @@ const ReContractModule: React.FC<ReContractModuleProps> = ({
                     </button>
                   )}
                   {signatureData && !showSignPad && (
-                    <div className="flex items-center justify-between p-3 bg-green-50 border border-green-200 rounded-lg">
-                      <div className="flex items-center gap-2 text-green-700">
-                        <CheckCircle className="w-4 h-4" />
-                        <span className="text-sm font-medium">서명완료</span>
+                    <div className="bg-green-50 border border-green-200 rounded-lg overflow-hidden">
+                      <div className="flex items-center justify-between p-3">
+                        <div className="flex items-center gap-2 text-green-700">
+                          <CheckCircle className="w-4 h-4" />
+                          <span className="text-sm font-medium">서명완료</span>
+                        </div>
+                        <button
+                          onClick={() => { setSignatureData(''); setShowSignPad(true); }}
+                          className="flex items-center gap-1 text-xs text-gray-500 hover:text-gray-700"
+                        >
+                          <RotateCcw className="w-3 h-3" />
+                          다시 서명
+                        </button>
                       </div>
-                      <button
-                        onClick={() => { setSignatureData(''); setShowSignPad(true); }}
-                        className="flex items-center gap-1 text-xs text-gray-500 hover:text-gray-700"
-                      >
-                        <RotateCcw className="w-3 h-3" />
-                        다시 서명
-                      </button>
+                      <div className="px-3 pb-3">
+                        <img
+                          src={signatureData.replace(/%2B/g, '+')}
+                          alt="서명"
+                          className="w-full rounded border border-green-200 bg-white"
+                        />
+                      </div>
                     </div>
                   )}
                   {showSignPad && (
