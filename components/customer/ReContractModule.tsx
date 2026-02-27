@@ -641,7 +641,7 @@ const ReContractModule: React.FC<ReContractModuleProps> = ({
                 {receiptMethod === 'direct' && (
                   <div className="flex items-center gap-2">
                     {/* 전화번호 타입 드롭다운 */}
-                    <div className="flex-shrink-0 w-20 relative">
+                    <div className="flex-shrink-0 w-24 relative">
                       <button
                         type="button"
                         onClick={() => setPhoneDropdownOpen(!phoneDropdownOpen)}
