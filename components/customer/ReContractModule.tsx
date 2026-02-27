@@ -650,10 +650,10 @@ const ReContractModule: React.FC<ReContractModuleProps> = ({
                           isManualPhone ? 'bg-gray-100 border-gray-200 text-gray-400' : 'bg-white border-gray-300 hover:border-gray-400'
                         }`}
                       >
-                        <span className="truncate">
+                        <span className="whitespace-nowrap text-xs">
                           {isManualPhone ? '직접' : (phoneOptions.find(p => p.fieldName === selectedPhoneField)?.typeNm || '선택')}
                         </span>
-                        <ChevronDown className="w-3.5 h-3.5 text-gray-400 flex-shrink-0" />
+                        <ChevronDown className="w-3 h-3 text-gray-400 flex-shrink-0 ml-1" />
                       </button>
                       {phoneDropdownOpen && !isManualPhone && (
                         <div className="absolute top-full left-0 mt-1 w-32 bg-white border border-gray-200 rounded-lg shadow-lg z-10">
