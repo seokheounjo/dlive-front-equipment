@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   Loader2, AlertCircle, Send, Calendar,
   RefreshCw, CheckCircle, XCircle, FileText, ChevronDown, ChevronUp, PenTool,
@@ -134,8 +134,14 @@ const ReContractModule: React.FC<ReContractModuleProps> = ({
   const [isSendingSms, setIsSendingSms] = useState(false);
   const [smsSent, setSmsSent] = useState(false);
 
-  // 모두의싸인 활성화 여부
+  // 일괄등록 완료 여부 (모두의싸인 버튼 활성화 조건)
+  const [batchRegistered, setBatchRegistered] = useState(false);
+
+  // 모두의싸인 활성화 여부 (접수방식 활성화 조건)
   const [moduSignActivated, setModuSignActivated] = useState(false);
+
+  // 접수방식 스크롤 ref
+  const receiptMethodRef = useRef<HTMLDivElement>(null);
 
   // 상태
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -346,17 +352,15 @@ const ReContractModule: React.FC<ReContractModuleProps> = ({
         success: true,
         message: `${successCount}건의 재약정이 등록되었습니다.`
       });
+      setBatchRegistered(true);
     } else {
       setResultPopup({
         show: true,
         success: false,
         message: `성공 ${successCount}건, 실패 ${failCount}건\n\n${failMessages.join('\n')}`
       });
+      if (successCount > 0) setBatchRegistered(true);
     }
-
-    // Reset
-    setSelectedCtrtIds(new Set());
-    setBatchForm(prev => ({ ...prev, promChgrsnCd: '', promCnt: '', endDate: '' }));
 
     // Refresh prom info for all
     setPromInfoMap({});
@@ -619,14 +623,21 @@ const ReContractModule: React.FC<ReContractModuleProps> = ({
                 )}
               </button>
 
-              {/* 모두의싸인 버튼 */}
+              {/* 모두의싸인 버튼 (일괄등록 완료 후 활성화) */}
               <button
-                onClick={() => setModuSignActivated(true)}
-                disabled={moduSignActivated}
+                onClick={() => {
+                  setModuSignActivated(true);
+                  setTimeout(() => {
+                    receiptMethodRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                  }, 100);
+                }}
+                disabled={!batchRegistered || moduSignActivated}
                 className={`w-full flex items-center justify-center gap-2 py-3 rounded-lg text-sm font-bold transition-colors ${
                   moduSignActivated
                     ? 'bg-green-100 text-green-700 border border-green-300 cursor-default'
-                    : 'bg-amber-500 hover:bg-amber-600 text-white'
+                    : !batchRegistered
+                      ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                      : 'bg-amber-500 hover:bg-amber-600 text-white'
                 }`}
               >
                 {moduSignActivated ? (
@@ -645,8 +656,8 @@ const ReContractModule: React.FC<ReContractModuleProps> = ({
               {/* 접수방식 (모두의싸인 활성화 후 표시) */}
               {moduSignActivated && (
                 <>
-                  <div>
-                    <label className="block text-xs text-gray-600 mb-1">접수방식 *</label>
+                  <div ref={receiptMethodRef}>
+                    <label className="block text-xs text-gray-600 mb-1">접수방식</label>
                     <div className="flex items-center gap-4">
                       <label className="flex items-center gap-2 cursor-pointer">
                         <input
