@@ -298,12 +298,20 @@ const UnpaymentCollectionModal: React.FC<UnpaymentCollectionModalProps> = ({
 
       // Step 2: Insert DPST & DTL
       const dpstRes = await insertDpstAndDTL({
-        CUST_ID: custId,
-        PYM_ACNT_ID: pymAcntId,
-        SO_ID: soId,
-        AMT: selectedTotal,
-        BILL_YM_LIST: billYmList.join(','),
-        ORDER_NO: orderNo
+        master_store_id: mid,
+        order_dt: orderDt,
+        order_no: orderNo,
+        ctrt_so_id: soId,
+        pym_acnt_id: pymAcntId,
+        cust_id: custId,
+        prod_info_cd: '01',
+        encrypted_amt: String(selectedTotal),
+        reqr_nm: custNm || '',
+        pyr_rel: '',
+        user_id: '',
+        rcpt_bill_emp_id: '',
+        smry: 'DLIVE_UNPAY',
+        cust_email: '',
       });
 
       if (!dpstRes.success) {
