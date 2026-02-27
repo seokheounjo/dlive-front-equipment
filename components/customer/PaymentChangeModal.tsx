@@ -295,7 +295,7 @@ const PaymentChangeModal: React.FC<PaymentChangeModalProps> = ({
           CARD_EXPYEAR: paymentForm.cardExpYy,
           CARD_EXPMON: paymentForm.cardExpMm,
           CARD_OWNER_NM: ownerNm,
-          KOR_ID: paymentForm.birthDt,
+          KOR_ID: paymentForm.idNumber,
           SO_ID: soId || '',
           PYM_ACNT_ID: initialPymAcntId || '',
           CUST_ID: custId,
