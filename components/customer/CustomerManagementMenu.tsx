@@ -82,11 +82,19 @@ const CustomerManagementMenu: React.FC<CustomerManagementMenuProps> = ({ onNavig
   // 상담/AS 탭의 초기 탭 상태
   const [consultationASInitialTab, setConsultationASInitialTab] = useState<'consultation' | 'as'>('consultation');
 
+  // 재약정 대상 수 계산 (CLOSE_DANGER='Y' + 사용중)
+  const reContractCount = cachedContracts.filter(c => {
+    const isActive = !['해지', '정지'].some(s => (c.CTRT_STAT_NM || '').includes(s));
+    const isCloseDanger = c.CLOSE_DANGER === 'Y';
+    const isInUse = (c.CTRT_STAT_NM || '').includes('사용중');
+    return isActive && isCloseDanger && isInUse;
+  }).length;
+
   const tabs: TabItem[] = [
     { id: 'basic-info', title: '기본조회', description: '고객 검색 및 정보 조회' },
     { id: 'info-change', title: '정보변경', description: '전화번호/주소 변경' },
     { id: 'consultation-as', title: '상담/AS', description: '상담등록, AS접수' },
-    { id: 're-contract', title: '재약정', description: '재약정 등록/일괄처리' },
+    { id: 're-contract', title: '재약정', description: '재약정 등록/일괄처리', badge: reContractCount },
   ];
 
   const handleTabChange = (tabId: string) => {

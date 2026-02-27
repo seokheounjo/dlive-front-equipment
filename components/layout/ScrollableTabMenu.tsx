@@ -4,6 +4,8 @@ export interface TabItem {
   id: string;
   title: string;
   description?: string;
+  badge?: number;
+  badgeColor?: string;
 }
 
 interface ScrollableTabMenuProps {
@@ -56,6 +58,13 @@ const ScrollableTabMenu: React.FC<ScrollableTabMenuProps> = ({
               `}
             >
               {tab.title}
+              {tab.badge != null && tab.badge > 0 && (
+                <span className={`ml-1 inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 text-xs font-bold rounded-full ${
+                  tab.badgeColor || 'bg-yellow-400 text-yellow-900'
+                }`}>
+                  {tab.badge}
+                </span>
+              )}
             </button>
           ))}
         </div>

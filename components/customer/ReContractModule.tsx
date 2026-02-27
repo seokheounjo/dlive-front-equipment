@@ -209,6 +209,13 @@ const ReContractModule: React.FC<ReContractModuleProps> = ({
 
   useEffect(() => { loadCodes(); }, [loadCodes]);
 
+  // 최초 마운트 시 전체 선택
+  useEffect(() => {
+    if (eligibleContracts.length > 0 && selectedCtrtIds.size === 0) {
+      setSelectedCtrtIds(new Set(eligibleContracts.map(c => c.CTRT_ID)));
+    }
+  }, [eligibleContracts.length]);
+
   // 선택된 계약 자동 선택
   useEffect(() => {
     if (selectedContract) {
