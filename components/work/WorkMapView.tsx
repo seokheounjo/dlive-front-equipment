@@ -365,32 +365,17 @@ const WorkMapView: React.FC<WorkMapViewProps> = ({ workOrders, onBack, onSelectW
           tileGrid: ngiiWmtsTileGrid,
           style: 'korean',
           requestEncoding: 'KVP',
-          tileLoadFunction: (imageTile: any, src: string) => {
-            // Extract tile coords directly from the tile object (more reliable than URL parsing)
-            const tileCoord = imageTile.getTileCoord();
-            let tilematrix = '', tilerow = '', tilecol = '';
-
-            if (tileCoord) {
-              const z = tileCoord[0];
-              tilematrix = matrixIds[z] || '';
-              tilecol = String(tileCoord[1]);
-              tilerow = String(tileCoord[2]);
-            } else {
-              // Fallback: parse from URL (case-insensitive)
-              const url = new URL(src, window.location.origin);
-              url.searchParams.forEach((value, key) => {
-                const k = key.toUpperCase();
-                if (k === 'TILEMATRIX') tilematrix = value;
-                else if (k === 'TILEROW') tilerow = value;
-                else if (k === 'TILECOL') tilecol = value;
-              });
-            }
-
-            const proxyUrl = `/api/ngii-tile?apikey=${ngiiKey}&tilematrix=${tilematrix}&tilerow=${tilerow}&tilecol=${tilecol}`;
-            console.log(`[NGII] tile: ${tilematrix}/${tilerow}/${tilecol}`);
-            imageTile.getImage().src = proxyUrl;
-          },
           attributions: '© NGII'
+        });
+
+        // Override URL function - tileUrlFunction receives properly processed WMTS coordinates
+        ngiiTileSource.setTileUrlFunction((tileCoord: number[]) => {
+          if (!tileCoord) return '';
+          const tilematrix = matrixIds[tileCoord[0]];
+          const tilecol = tileCoord[1];
+          const tilerow = tileCoord[2];
+          console.log(`[NGII] tile: ${tilematrix}/${tilerow}/${tilecol}`);
+          return `/api/ngii-tile?apikey=${ngiiKey}&tilematrix=${tilematrix}&tilerow=${tilerow}&tilecol=${tilecol}`;
         });
 
         // NGII tile error detection
