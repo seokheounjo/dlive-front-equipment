@@ -142,6 +142,7 @@ const ReContractModule: React.FC<ReContractModuleProps> = ({
 
   // 접수방식 스크롤 ref
   const receiptMethodRef = useRef<HTMLDivElement>(null);
+  const actionAreaRef = useRef<HTMLDivElement>(null);
 
   // 상태
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -665,7 +666,10 @@ const ReContractModule: React.FC<ReContractModuleProps> = ({
                           name="receiptMethod"
                           value="face"
                           checked={receiptMethod === 'face'}
-                          onChange={() => { setReceiptMethod('face'); setSmsSent(false); }}
+                          onChange={() => {
+                            setReceiptMethod('face'); setSmsSent(false);
+                            setTimeout(() => actionAreaRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 100);
+                          }}
                           className="w-4 h-4 text-purple-600 focus:ring-purple-500"
                         />
                         <span className="text-sm text-gray-700">대면</span>
@@ -676,7 +680,10 @@ const ReContractModule: React.FC<ReContractModuleProps> = ({
                           name="receiptMethod"
                           value="sms"
                           checked={receiptMethod === 'sms'}
-                          onChange={() => { setReceiptMethod('sms'); setShowSignPad(false); setSignatureData(''); }}
+                          onChange={() => {
+                            setReceiptMethod('sms'); setShowSignPad(false); setSignatureData('');
+                            setTimeout(() => actionAreaRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 100);
+                          }}
                           className="w-4 h-4 text-purple-600 focus:ring-purple-500"
                         />
                         <span className="text-sm text-gray-700">문자전송</span>
@@ -686,7 +693,7 @@ const ReContractModule: React.FC<ReContractModuleProps> = ({
 
                   {/* 대면: 서명 영역 */}
                   {receiptMethod === 'face' && (
-                    <>
+                    <div ref={actionAreaRef}>
                       {!showSignPad && !signatureData && (
                         <button
                           onClick={() => setShowSignPad(true)}
@@ -743,12 +750,12 @@ const ReContractModule: React.FC<ReContractModuleProps> = ({
                           onCancel={() => setShowSignPad(false)}
                         />
                       )}
-                    </>
+                    </div>
                   )}
 
                   {/* 문자전송: 모두의싸인 URL 전송 */}
                   {receiptMethod === 'sms' && (
-                    <>
+                    <div ref={actionAreaRef}>
                       {!smsSent ? (
                         <button
                           onClick={async () => {
@@ -809,7 +816,7 @@ const ReContractModule: React.FC<ReContractModuleProps> = ({
                           </button>
                         </div>
                       )}
-                    </>
+                    </div>
                   )}
                 </>
               )}
