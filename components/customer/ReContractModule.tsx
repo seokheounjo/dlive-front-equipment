@@ -234,15 +234,18 @@ const ReContractModule: React.FC<ReContractModuleProps> = ({
   }, [eligibleContracts.length]);
 
   // 고객 전화번호 목록
-  // 휴대폰번호만 (전화번호 불가)
+  // 휴대폰번호만 (전화번호 불가, 휴대폰번호2 등 포함)
   const phoneOptions = (() => {
     if (!selectedCustomer) return [];
     if (selectedCustomer.phoneList && selectedCustomer.phoneList.length > 0) {
-      return selectedCustomer.phoneList.filter(p => p.number && p.type === 'hp');
+      const hpList = selectedCustomer.phoneList.filter(p => p.number && p.type === 'hp');
+      if (hpList.length > 0) return hpList;
     }
-    const list: { type: string; typeNm: string; number: string; fieldName: string }[] = [];
-    if (selectedCustomer.hpNo) list.push({ type: 'hp', typeNm: '휴대폰', number: selectedCustomer.hpNo, fieldName: 'HP_NO' });
-    return list;
+    // fallback: hpNo만
+    if (selectedCustomer.hpNo) {
+      return [{ type: 'hp', typeNm: '휴대폰', number: selectedCustomer.hpNo, fieldName: 'HP_NO' }];
+    }
+    return [];
   })();
 
   // 고객 전화번호 초기값
