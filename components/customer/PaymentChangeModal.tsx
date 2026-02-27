@@ -9,7 +9,8 @@ import {
   verifyCard,
   savePaymentSignature,
   getBankCodesDLive,
-  getIdTypeCodes111
+  getIdTypeCodes111,
+  getCardCompanyCodes
 } from '../../services/customerApi';
 import { generateAutoTransferPdf, downloadPdf } from '../../services/pdfService';
 
@@ -114,7 +115,7 @@ const PaymentChangeModal: React.FC<PaymentChangeModalProps> = ({
     { CODE: '081', CODE_NM: '하나' },
     { CODE: '088', CODE_NM: '신한' }
   ]);
-  const [cardCompanyCodes] = useState([
+  const [cardCompanyCodes, setCardCompanyCodes] = useState<{ CODE: string; CODE_NM: string }[]>([
     { CODE: '01', CODE_NM: '삼성카드' },
     { CODE: '02', CODE_NM: '현대카드' },
     { CODE: '03', CODE_NM: 'KB국민카드' },
@@ -167,7 +168,7 @@ const PaymentChangeModal: React.FC<PaymentChangeModalProps> = ({
     }
   }, [isOpen, custId]);
 
-  // 공통코드 로드 (BLPY015 은행명, CMCU111 신분유형)
+  // 공통코드 로드 (BLPY015 은행명, BLPY016 카드사명, CMCU111 신분유형)
   useEffect(() => {
     if (isOpen) {
       getBankCodesDLive().then(res => {
@@ -176,6 +177,14 @@ const PaymentChangeModal: React.FC<PaymentChangeModalProps> = ({
             .filter((item: any) => item.code && item.name && item.name !== '선택')
             .map((item: any) => ({ CODE: item.code, CODE_NM: item.name }));
           if (mapped.length > 0) setBankCodes(mapped);
+        }
+      }).catch(() => {});
+      getCardCompanyCodes().then(res => {
+        if (res.success && res.data && res.data.length > 0) {
+          const mapped = res.data
+            .filter((item: any) => item.code && item.name && item.name !== '선택')
+            .map((item: any) => ({ CODE: item.code, CODE_NM: item.name }));
+          if (mapped.length > 0) setCardCompanyCodes(mapped);
         }
       }).catch(() => {});
       getIdTypeCodes111().then(res => {
