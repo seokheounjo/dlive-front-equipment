@@ -2663,9 +2663,8 @@ export const processCardPayment = async (params: CardPaymentRequest, timeoutMs: 
 };
 
 /**
- * 처리결과 조회 (pending 건의 결과 확인)
- * processCardPayment과 동일 API를 재호출하여 결과 확인
- * 백엔드에서 이미 처리된 건이면 결과를 바로 반환
+ * 처리결과 조회 (chkUpymPayStatus_m)
+ * TBLPY_CARD_PAY_STAGE + TBLPY_CARD_DPST JOIN
  */
 export const checkPaymentResult = async (params: {
   OID: string;
@@ -2674,15 +2673,9 @@ export const checkPaymentResult = async (params: {
   ORDER_DT: string;
   PYM_ACNT_ID: string;
 }, timeoutMs?: number): Promise<ApiResponse<any>> => {
-  return apiCall<any>('/billing/payment/anony/processCardPayment', {
-    ...params,
-    BUYER: '',
-    CARD_NO: '',
-    CARD_EXPYEAR: '',
-    CARD_EXPMON: '',
-    KOR_ID: '',
-    INSTALL: '00',
-    CHECK_ONLY: 'Y'
+  return apiCall<any>('/billing/payment/anony/chkUpymPayStatus_m', {
+    ORDER_NO: params.OID,
+    MASTER_STORE_ID: params.MID
   }, 'POST', timeoutMs);
 };
 
