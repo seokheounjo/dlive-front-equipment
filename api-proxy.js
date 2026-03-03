@@ -624,14 +624,51 @@ async function handlePaymentMethodChange(req, res) {
     console.log('[PaymentMethodChange] Mobile params:', JSON.stringify(mobileParams, null, 2));
     console.log('[PaymentMethodChange] ACCESS_TICKET userId:', userId);
 
-    // 5. .req 직접 호출 (어댑터는 트랜잭션 커밋 안 되므로 건너뜀)
-    // CONA .req 서블릿이 자체 트랜잭션 관리하므로 실제 DB 반영됨
-    console.log('[PaymentMethodChange] Calling .req endpoints directly (skip adapter)...');
-    const endpoints = [
-      { url: '/customer/customer/general/customerPymChgAddManager.req', params: desktopParams, name: 'addCustomerPymChgInfo' },
-      { url: '/customer/customer/general/savePymAtmtApplInfo.req', params: mobileParams, name: 'savePymAtmtApplInfo' }
-    ];
-    callLegacyReqEndpoint(endpoints, 0, accessTicket, res);
+    // 5. 어댑터 경유 호출 (JDBC 직접 커밋 방식)
+    console.log('[PaymentMethodChange] Calling adapter...');
+    const adapterBody = JSON.stringify(body);
+    const adapterPath = '/api/customer/customer/general/customerPymChgAddManager';
+    const adapterUrl = DLIVE_API_BASE + adapterPath;
+
+    const adapterHttp = require('http');
+    const adapterUrlMod = require('url');
+    const adapterParsedUrl = adapterUrlMod.parse(adapterUrl);
+
+    const adapterReq = adapterHttp.request({
+      hostname: adapterParsedUrl.hostname,
+      port: adapterParsedUrl.port || 80,
+      path: adapterParsedUrl.path,
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Content-Length': Buffer.byteLength(adapterBody),
+        'Cookie': storedJSessionId ? 'JSESSIONID=' + storedJSessionId : ''
+      },
+      timeout: 30000
+    }, (adapterRes) => {
+      let chunks = [];
+      adapterRes.on('data', (chunk) => chunks.push(chunk));
+      adapterRes.on('end', () => {
+        const responseText = Buffer.concat(chunks).toString('utf-8');
+        console.log('[PaymentMethodChange] Adapter status:', adapterRes.statusCode);
+        console.log('[PaymentMethodChange] Adapter response:', responseText.substring(0, 500));
+        try {
+          const adapterData = JSON.parse(responseText);
+          if (adapterData.code === 'SUCCESS' || adapterData.code === '0') {
+            return res.json({ success: true, code: 'SUCCESS', message: adapterData.message || '납부방법이 변경되었습니다', data: adapterData.data || {} });
+          }
+          return res.json({ success: false, code: adapterData.code || 'FAIL', message: adapterData.message || '저장 실패', data: adapterData.data || {} });
+        } catch (e) {
+          return res.json({ success: false, code: 'PARSE_ERROR', message: 'Adapter response parse error', data: {} });
+        }
+      });
+    });
+    adapterReq.on('error', (err) => {
+      console.error('[PaymentMethodChange] Adapter error:', err.message);
+      res.json({ success: false, code: 'ERROR', message: err.message, data: {} });
+    });
+    adapterReq.write(adapterBody);
+    adapterReq.end();
 
   } catch (error) {
     console.error('[PaymentMethodChange] Error:', error.message);
