@@ -80,10 +80,10 @@ export const openNavigation = (app: NavApp, target: NavigationTarget): void => {
 };
 
 // MOMP001 공통코드에서 API 키 캐시
-let cachedMapKeys: { kakao: string[]; vworld: string[]; ngii: string[] } | null = null;
+let cachedMapKeys: { kakao: string[]; vworld: string[] } | null = null;
 
 // MOMP001 공통코드에서 지도 API 키 목록 로드
-export async function loadMapApiKeys(): Promise<{ kakao: string[]; vworld: string[]; ngii: string[] }> {
+export async function loadMapApiKeys(): Promise<{ kakao: string[]; vworld: string[] }> {
   if (cachedMapKeys) return cachedMapKeys;
   try {
     const response = await fetch('/api/common/getCommonCodeList', {
@@ -98,17 +98,14 @@ export async function loadMapApiKeys(): Promise<{ kakao: string[]; vworld: strin
       .filter((c: any) => c.REF_CODE === 'KAKAO' && c.COMMON_CD_NM)
       .map((c: any) => c.COMMON_CD_NM);
     const vworldKeys = list
-      .filter((c: any) => c.REF_CODE === 'VWORLD' && c.COMMON_CD_NM)
+      .filter((c: any) => (c.REF_CODE === 'VWORLD' || c.REF_CODE === 'V-world') && c.COMMON_CD_NM)
       .map((c: any) => c.COMMON_CD_NM);
-    const ngiiKeys = list
-      .filter((c: any) => c.REF_CODE === 'NGII' && c.COMMON_CD_NM)
-      .map((c: any) => c.COMMON_CD_NM);
-    cachedMapKeys = { kakao: kakaoKeys, vworld: vworldKeys, ngii: ngiiKeys };
-    console.log(`[MapKeys] MOMP001 로드 완료 - 카카오:${kakaoKeys.length}개, 국토부:${vworldKeys.length}개, NGII:${ngiiKeys.length}개`);
+    cachedMapKeys = { kakao: kakaoKeys, vworld: vworldKeys };
+    console.log(`[MapKeys] MOMP001 로드 완료 - 카카오:${kakaoKeys.length}개, 국토부:${vworldKeys.length}개`);
     return cachedMapKeys;
   } catch (e) {
     console.error('[MapKeys] MOMP001 로드 실패:', e);
-    cachedMapKeys = { kakao: [], vworld: [], ngii: [] };
+    cachedMapKeys = { kakao: [], vworld: [] };
     return cachedMapKeys;
   }
 }
