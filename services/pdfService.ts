@@ -1,11 +1,8 @@
 /**
  * PDF Generation Service
- * 자동이체 납부방법 변경 PDF 생성
+ * 은행 자동이체 신청서 PDF 생성 (D'LIVE 양식)
  */
 import { jsPDF } from 'jspdf';
-
-// 한글 폰트 Base64는 너무 크므로, 기본 폰트 + Unicode escape 방식 대신
-// Canvas를 이용한 텍스트 렌더링 방식 사용
 
 interface AutoTransferPdfData {
   // 고객 정보
@@ -14,14 +11,14 @@ interface AutoTransferPdfData {
   pymAcntId: string;
 
   // 변경 정보
-  pymMthNm: string;        // 납부방법명 (자동이체(신))
-  changeReasonNm: string;  // 변경사유
+  pymMthNm?: string;
+  changeReasonNm?: string;
   acntHolderNm: string;    // 예금주명
-  idTypeNm: string;        // 신분유형명
-  birthDt: string;         // 생년월일
+  idTypeNm?: string;
+  birthDt: string;         // 생년월일 (6자리 또는 13자리)
   bankNm: string;          // 은행명
   acntNo: string;          // 계좌번호
-  pyrRelNm: string;        // 납부자관계명
+  pyrRelNm?: string;
 
   // 서명 이미지 (base64)
   signatureData?: string;
@@ -31,159 +28,192 @@ interface AutoTransferPdfData {
 }
 
 /**
- * Canvas를 이용하여 한글 텍스트를 이미지로 변환 후 PDF에 삽입하는 방식으로 PDF 생성
+ * Canvas를 이용하여 한글 텍스트를 이미지로 변환
+ */
+function textToImage(
+  text: string,
+  fontSize: number = 12,
+  fontWeight: string = 'normal',
+  color: string = '#000000',
+  align: CanvasTextAlign = 'left',
+  width?: number
+): string {
+  const canvas = document.createElement('canvas');
+  const ctx = canvas.getContext('2d')!;
+  const scale = 3;
+  const font = `${fontWeight} ${fontSize * scale}px "Malgun Gothic", "맑은 고딕", sans-serif`;
+  ctx.font = font;
+
+  const metrics = ctx.measureText(text);
+  const canvasWidth = width ? width * scale : Math.ceil(metrics.width) + 20;
+  canvas.width = canvasWidth;
+  canvas.height = Math.ceil(fontSize * scale * 1.6);
+
+  // 투명 배경
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  ctx.font = font;
+  ctx.fillStyle = color;
+  ctx.textBaseline = 'middle';
+
+  if (align === 'center') {
+    ctx.textAlign = 'center';
+    ctx.fillText(text, canvas.width / 2, canvas.height / 2);
+  } else {
+    ctx.textAlign = 'left';
+    ctx.fillText(text, 4, canvas.height / 2);
+  }
+
+  return canvas.toDataURL('image/png');
+}
+
+/**
+ * 생년월일 마스킹: 890814 → 890814******
+ */
+function maskBirthDt(birthDt: string): string {
+  if (!birthDt) return '-';
+  // 13자리 주민번호 → 앞6자리 + ******
+  if (birthDt.length >= 13) {
+    return birthDt.slice(0, 6) + '******';
+  }
+  // 6자리 → 그대로 + ******
+  if (birthDt.length === 6) {
+    return birthDt + '******';
+  }
+  // 8자리 (YYYYMMDD) → YYMMDD + ******
+  if (birthDt.length === 8) {
+    return birthDt.slice(2, 8) + '******';
+  }
+  return birthDt;
+}
+
+/**
+ * D'LIVE 은행 자동이체 신청서 PDF 생성
  */
 export async function generateAutoTransferPdf(data: AutoTransferPdfData): Promise<Blob> {
   const doc = new jsPDF('p', 'mm', 'a4');
   const pageWidth = 210;
-  const margin = 20;
-  const contentWidth = pageWidth - margin * 2;
+  const centerX = pageWidth / 2;
 
-  // Canvas 기반 한글 텍스트 → 이미지 변환
-  const textToImage = (
-    text: string,
-    fontSize: number = 12,
-    fontWeight: string = 'normal',
-    color: string = '#000000',
-    maxWidth: number = contentWidth * 3 // mm to px approximate
-  ): string => {
-    const canvas = document.createElement('canvas');
-    const ctx = canvas.getContext('2d')!;
-    const scale = 3; // 고해상도
-    const font = `${fontWeight} ${fontSize * scale}px "Malgun Gothic", "맑은 고딕", sans-serif`;
-    ctx.font = font;
+  // 테이블 설정
+  const tableLeft = 35;
+  const tableWidth = 140;
+  const labelWidth = 55;
+  const valueLeft = tableLeft + labelWidth;
+  const valueWidth = tableWidth - labelWidth;
+  const rowHeight = 12;
 
-    const metrics = ctx.measureText(text);
-    canvas.width = Math.min(Math.ceil(metrics.width) + 10, maxWidth * scale);
-    canvas.height = Math.ceil(fontSize * scale * 1.5);
+  let y = 40;
 
-    ctx.fillStyle = '#ffffff';
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-    ctx.font = font;
-    ctx.fillStyle = color;
-    ctx.textBaseline = 'middle';
-    ctx.fillText(text, 2, canvas.height / 2);
+  // === 타이틀 헤더 바 (teal/cyan 색상) ===
+  doc.setFillColor(0, 172, 193); // #00ACC1 teal
+  doc.rect(tableLeft, y, tableWidth, 14, 'F');
 
-    return canvas.toDataURL('image/png');
-  };
+  const titleImg = textToImage('은행 자동이체 신청서', 15, 'bold', '#FFFFFF', 'center', tableWidth);
+  doc.addImage(titleImg, 'PNG', tableLeft, y + 0.5, tableWidth, 13);
+  y += 14;
 
-  // 텍스트를 PDF에 이미지로 추가하는 헬퍼
-  const addText = (
-    text: string,
-    x: number,
-    y: number,
-    fontSize: number = 10,
-    fontWeight: string = 'normal',
-    color: string = '#333333'
-  ): number => {
-    const img = textToImage(text, fontSize, fontWeight, color);
-    const imgHeight = fontSize * 0.5; // mm
-    const imgWidth = contentWidth; // 최대 너비
-    doc.addImage(img, 'PNG', x, y, imgWidth, imgHeight);
-    return y + imgHeight + 1;
-  };
+  // === 테이블 행들 ===
+  const rows = [
+    { label: '납부자명', value: data.custNm || '-' },
+    { label: '납부계정', value: data.pymAcntId || '-' },
+    { label: '은행명', value: data.bankNm || '-' },
+    { label: '계좌번호', value: data.acntNo || '-' },
+    { label: '예금주명', value: data.acntHolderNm || '-' },
+    { label: '예금주\n생년월일 / 사업자번호', value: maskBirthDt(data.birthDt) },
+    { label: '신청일자', value: formatDate(data.createdAt) },
+  ];
 
-  // 라벨-값 행 추가
-  const addRow = (label: string, value: string, y: number): number => {
-    const labelImg = textToImage(label, 10, 'bold', '#555555');
-    const valueImg = textToImage(value || '-', 10, 'normal', '#000000');
-    const rowH = 6;
+  for (let i = 0; i < rows.length; i++) {
+    const row = rows[i];
+    const isLastBeforeSignature = i === rows.length - 1;
+    const currentRowHeight = row.label.includes('\n') ? rowHeight + 4 : rowHeight;
 
-    doc.addImage(labelImg, 'PNG', margin, y, 35, rowH - 1);
-    doc.addImage(valueImg, 'PNG', margin + 38, y, contentWidth - 40, rowH - 1);
+    // 행 배경 (흰색)
+    doc.setFillColor(255, 255, 255);
+    doc.rect(tableLeft, y, tableWidth, currentRowHeight, 'F');
 
-    // 하단 구분선
-    doc.setDrawColor(220, 220, 220);
-    doc.line(margin, y + rowH, margin + contentWidth, y + rowH);
+    // 라벨 배경 (연한 회색)
+    doc.setFillColor(245, 245, 245);
+    doc.rect(tableLeft, y, labelWidth, currentRowHeight, 'F');
 
-    return y + rowH + 1;
-  };
-
-  let y = margin;
-
-  // === 제목 ===
-  const titleImg = textToImage('자동이체 납부방법 변경 신청서', 16, 'bold', '#1a1a1a');
-  doc.addImage(titleImg, 'PNG', margin, y, contentWidth, 8);
-  y += 12;
-
-  // 구분선
-  doc.setDrawColor(0, 0, 0);
-  doc.setLineWidth(0.5);
-  doc.line(margin, y, margin + contentWidth, y);
-  y += 6;
-
-  // === 고객 정보 섹션 ===
-  const sectionImg1 = textToImage('고객 정보', 12, 'bold', '#2563eb');
-  doc.addImage(sectionImg1, 'PNG', margin, y, 40, 5);
-  y += 8;
-
-  y = addRow('고객ID', data.custId, y);
-  y = addRow('고객명', data.custNm, y);
-  y = addRow('납부계정ID', data.pymAcntId, y);
-  y += 4;
-
-  // === 변경 정보 섹션 ===
-  const sectionImg2 = textToImage('변경 정보', 12, 'bold', '#2563eb');
-  doc.addImage(sectionImg2, 'PNG', margin, y, 40, 5);
-  y += 8;
-
-  y = addRow('납부방법', data.pymMthNm, y);
-  y = addRow('변경사유', data.changeReasonNm, y);
-  y = addRow('예금주명', data.acntHolderNm, y);
-  y = addRow('신분유형', data.idTypeNm, y);
-  y = addRow('생년월일', data.birthDt, y);
-  y = addRow('은행명', data.bankNm, y);
-  y = addRow('계좌번호', maskAccountNo(data.acntNo), y);
-  y = addRow('납부자관계', data.pyrRelNm, y);
-  y += 4;
-
-  // === 서명 섹션 ===
-  const sectionImg3 = textToImage('고객 서명', 12, 'bold', '#2563eb');
-  doc.addImage(sectionImg3, 'PNG', margin, y, 40, 5);
-  y += 8;
-
-  if (data.signatureData) {
-    // 서명 이미지 테두리
-    doc.setDrawColor(180, 180, 180);
+    // 테두리
+    doc.setDrawColor(200, 200, 200);
     doc.setLineWidth(0.3);
-    doc.rect(margin, y, 60, 25);
+    doc.rect(tableLeft, y, labelWidth, currentRowHeight);
+    doc.rect(valueLeft, y, valueWidth, currentRowHeight);
 
-    try {
-      doc.addImage(data.signatureData, 'PNG', margin + 2, y + 2, 56, 21);
-    } catch (e) {
-      console.warn('Signature image insert failed:', e);
+    // 라벨 텍스트
+    if (row.label.includes('\n')) {
+      // 2줄 라벨 (예금주 생년월일/사업자번호)
+      const lines = row.label.split('\n');
+      const labelImg1 = textToImage(lines[0], 9, 'normal', '#333333', 'center', labelWidth);
+      const labelImg2 = textToImage(lines[1], 8, 'normal', '#333333', 'center', labelWidth);
+      doc.addImage(labelImg1, 'PNG', tableLeft, y + 1, labelWidth, 6);
+      doc.addImage(labelImg2, 'PNG', tableLeft, y + 8, labelWidth, 6);
+    } else {
+      const labelImg = textToImage(row.label, 10, 'normal', '#333333', 'center', labelWidth);
+      doc.addImage(labelImg, 'PNG', tableLeft, y + 1, labelWidth, currentRowHeight - 2);
     }
-    y += 28;
-  } else {
-    y = addRow('서명', '(서명 없음)', y);
+
+    // 값 텍스트
+    const valueImg = textToImage(row.value, 10, 'normal', '#000000');
+    const valueY = row.label.includes('\n') ? y + 3 : y + 1;
+    doc.addImage(valueImg, 'PNG', valueLeft + 4, valueY, valueWidth - 8, currentRowHeight - 4);
+
+    y += currentRowHeight;
   }
 
-  y += 6;
+  // === 전자서명 행 ===
+  const signatureRowHeight = 40;
 
-  // === 하단 정보 ===
-  doc.setDrawColor(0, 0, 0);
-  doc.setLineWidth(0.3);
-  doc.line(margin, y, margin + contentWidth, y);
-  y += 4;
+  // 라벨
+  doc.setFillColor(245, 245, 245);
+  doc.rect(tableLeft, y, labelWidth, signatureRowHeight, 'F');
+  doc.setDrawColor(200, 200, 200);
+  doc.rect(tableLeft, y, labelWidth, signatureRowHeight);
 
-  const dateStr = data.createdAt || new Date().toLocaleString('ko-KR');
-  const dateImg = textToImage(`생성일시: ${dateStr}`, 8, 'normal', '#999999');
-  doc.addImage(dateImg, 'PNG', margin, y, contentWidth, 3);
-  y += 5;
+  const signLabelImg = textToImage('전자서명', 10, 'normal', '#333333', 'center', labelWidth);
+  doc.addImage(signLabelImg, 'PNG', tableLeft, y + 14, labelWidth, 12);
 
-  const footerImg = textToImage('본 문서는 D\'Live 모바일 고객관리 시스템에서 자동 생성되었습니다.', 8, 'normal', '#999999');
-  doc.addImage(footerImg, 'PNG', margin, y, contentWidth, 3);
+  // 서명 값 영역
+  doc.setFillColor(255, 255, 255);
+  doc.rect(valueLeft, y, valueWidth, signatureRowHeight, 'F');
+  doc.setDrawColor(200, 200, 200);
+  doc.rect(valueLeft, y, valueWidth, signatureRowHeight);
+
+  if (data.signatureData) {
+    try {
+      doc.addImage(data.signatureData, 'PNG', valueLeft + 8, y + 4, valueWidth - 16, signatureRowHeight - 8);
+    } catch (e) {
+      console.warn('Signature image insert failed:', e);
+      const noSignImg = textToImage('(서명 삽입 실패)', 9, 'normal', '#999999');
+      doc.addImage(noSignImg, 'PNG', valueLeft + 4, y + 14, valueWidth - 8, 12);
+    }
+  } else {
+    const noSignImg = textToImage('(서명 없음)', 9, 'normal', '#999999');
+    doc.addImage(noSignImg, 'PNG', valueLeft + 4, y + 14, valueWidth - 8, 12);
+  }
+
+  y += signatureRowHeight;
+
+  // === 하단 로고/사명 ===
+  y += 12;
+  const footerImg = textToImage("D'LIVE  (주)딜라이브 케이블방송", 11, 'bold', '#333333', 'center', tableWidth);
+  doc.addImage(footerImg, 'PNG', tableLeft, y, tableWidth, 8);
 
   return doc.output('blob');
 }
 
-// 계좌번호 마스킹 (중간 자리 **)
-function maskAccountNo(acntNo: string): string {
-  if (!acntNo || acntNo.length < 6) return acntNo;
-  const first3 = acntNo.slice(0, 3);
-  const last3 = acntNo.slice(-3);
-  const middle = '*'.repeat(acntNo.length - 6);
-  return first3 + middle + last3;
+/**
+ * 날짜 포맷: YYYY.MM.DD
+ */
+function formatDate(dateStr?: string): string {
+  if (dateStr) return dateStr;
+  const now = new Date();
+  const yyyy = now.getFullYear();
+  const mm = String(now.getMonth() + 1).padStart(2, '0');
+  const dd = String(now.getDate()).padStart(2, '0');
+  return `${yyyy}.${mm}.${dd}`;
 }
 
 /**

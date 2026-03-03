@@ -366,14 +366,10 @@ const PaymentChangeModal: React.FC<PaymentChangeModalProps> = ({
         custId,
         custNm: custNm || '',
         pymAcntId: selectedPymAcntId,
-        pymMthNm: '자동이체(신)',
-        changeReasonNm: getChangeReasonText(),
         acntHolderNm: paymentForm.acntHolderNm,
-        idTypeNm: getCodeName(idTypeCodes, paymentForm.idType),
         birthDt: paymentForm.idNumber,
         bankNm: getCodeName(bankCodes, paymentForm.bankCd),
         acntNo: paymentForm.acntNo,
-        pyrRelNm: getCodeName(pyrRelCodes, paymentForm.pyrRel),
         signatureData,
       });
 
