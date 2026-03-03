@@ -1403,41 +1403,37 @@ const CustomerInfoChange: React.FC<CustomerInfoChangeProps> = ({
                     />
                   </div>
 
-                  {/* 고객주소 / 청구지주소 함께 변경 옵션 */}
-                  <div className="p-3 bg-gray-50 border border-gray-200 rounded-lg space-y-2">
-                    <label className="flex items-center gap-2 cursor-pointer">
+                  {/* 고객주소 + 청구지주소 함께 변경 옵션 (체크박스 1개) */}
+                  <div className="p-3 bg-gray-50 border border-gray-200 rounded-lg">
+                    <label className={`flex items-center gap-2 ${canChangeBillAddr ? 'cursor-pointer' : 'cursor-pointer'}`}>
                       <input
                         type="checkbox"
                         checked={addressForm.changeCustAddr}
-                        onChange={(e) => setAddressForm(prev => ({ ...prev, changeCustAddr: e.target.checked }))}
+                        onChange={(e) => {
+                          const checked = e.target.checked;
+                          setAddressForm(prev => ({
+                            ...prev,
+                            changeCustAddr: checked,
+                            changeBillAddr: canChangeBillAddr ? checked : false,
+                          }));
+                        }}
                         className="w-4 h-4 text-green-600 rounded"
                       />
-                      <span className="text-sm text-gray-700">고객주소도 함께 변경</span>
-                    </label>
-
-                    <label className={`flex items-center gap-2 ${canChangeBillAddr ? 'cursor-pointer' : 'cursor-not-allowed opacity-50'}`}>
-                      <input
-                        type="checkbox"
-                        checked={addressForm.changeBillAddr}
-                        onChange={(e) => setAddressForm(prev => ({ ...prev, changeBillAddr: e.target.checked }))}
-                        disabled={!canChangeBillAddr}
-                        className="w-4 h-4 text-green-600 rounded"
-                      />
-                      <span className="text-sm text-gray-700">청구지주소도 함께 변경</span>
+                      <span className="text-sm text-gray-700">고객주소 / 청구지주소도 함께 변경</span>
                       {!canChangeBillAddr && (
                         <span className="text-xs text-orange-500">
-                          (납부계정 {paymentInfoList.length}개 - 단일 계정만 가능)
+                          (청구지는 납부계정 {paymentInfoList.length}개로 제외)
                         </span>
                       )}
                     </label>
 
-                    {(addressForm.changeCustAddr || (addressForm.changeBillAddr && canChangeBillAddr)) && (
-                      <div className="mt-1 p-2 bg-blue-50 border border-blue-200 rounded text-xs">
-                        {addressForm.changeCustAddr && (
-                          <p className="text-blue-700">→ 고객주소도 함께 변경됩니다</p>
-                        )}
-                        {addressForm.changeBillAddr && canChangeBillAddr && (
+                    {addressForm.changeCustAddr && (
+                      <div className="mt-2 p-2 bg-blue-50 border border-blue-200 rounded text-xs">
+                        <p className="text-blue-700">→ 고객주소도 함께 변경됩니다</p>
+                        {canChangeBillAddr ? (
                           <p className="text-blue-700">→ 청구지주소도 함께 변경됩니다</p>
+                        ) : (
+                          <p className="text-gray-400">→ 청구지주소는 납부계정이 2개 이상이라 변경되지 않습니다</p>
                         )}
                       </div>
                     )}
