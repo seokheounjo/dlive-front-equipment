@@ -398,6 +398,16 @@ const PaymentChangeModal: React.FC<PaymentChangeModalProps> = ({
         ? paymentForm.idNumber + '0000000'
         : paymentForm.idNumber;
 
+      // 기존 납부계정 데이터에서 old_pym_mthd 매핑
+      const pymMthdNm = selectedPayment?.PYM_MTHD_NM || '';
+      let oldPymMthd = '';
+      if (pymMthdNm.includes('자동이체')) oldPymMthd = '02';
+      else if (pymMthdNm.includes('신용카드') || pymMthdNm.includes('카드')) oldPymMthd = '04';
+      else if (pymMthdNm.includes('지로')) oldPymMthd = '01';
+
+      // 기존 납부계정의 확장 필드 (any 캐스팅으로 접근)
+      const acctRaw = selectedPayment as any || {};
+
       const response = await updatePaymentMethod({
         CUST_ID: custId,
         PYM_ACNT_ID: selectedPymAcntId,
@@ -405,6 +415,7 @@ const PaymentChangeModal: React.FC<PaymentChangeModalProps> = ({
         BANK_CD: paymentForm.bankCd,
         ACNT_NO: paymentForm.acntNo,
         ACNT_OWNER_NM: paymentForm.acntHolderNm,
+        ACNT_NM: custNm || paymentForm.acntHolderNm,
         ID_TYPE_CD: paymentForm.idType,
         BIRTH_DT: paddedId,
         PAYER_REL_CD: paymentForm.pyrRel,
@@ -413,6 +424,20 @@ const PaymentChangeModal: React.FC<PaymentChangeModalProps> = ({
         JOIN_CARD_YN: paymentForm.pymMthCd === '02' ? paymentForm.joinCardYn : undefined,
         CARD_CL: paymentForm.pymMthCd === '02' ? paymentForm.cardCl : undefined,
         CHG_RESN_L_CD: paymentForm.changeReasonL,
+        // 기존 납부계정 데이터
+        OLD_PYM_MTHD: oldPymMthd,
+        BILL_POST_ID: acctRaw.BILL_POST_ID || acctRaw.POST_ID || '',
+        BILL_ZIP_CD: acctRaw.BILL_ZIP_CD || acctRaw.ZIP_CD || '',
+        BILL_ADDR: acctRaw.BILL_ADDR || '',
+        TBR_FLG: acctRaw.TBR_FLG || 'N',
+        BILL_MDM_GIRO_YN: acctRaw.BILL_MDM_GIRO_YN || 'N',
+        BILL_MDM_EML_YN: acctRaw.BILL_MDM_EML_YN || 'N',
+        BILL_MDM_SMS_YN: acctRaw.BILL_MDM_SMS_YN || 'N',
+        BILL_MDM_FAX_YN: acctRaw.BILL_MDM_FAX_YN || 'N',
+        BILL_EML: acctRaw.BILL_EML || acctRaw.EML || '',
+        BILL_CELL_PHN: acctRaw.BILL_CELL_PHN || '',
+        BILL_FAX_NO: acctRaw.BILL_FAX_NO || '',
+        RCPT_YN: acctRaw.RCPT_ID ? 'Y' : 'N',
         // 고정값
         AGR_FILE_GB: paymentForm.pymMthCd === '01' ? 'A' : undefined,
         PYM_AUTH_CHECK: isVerified ? 'Y' : 'N',

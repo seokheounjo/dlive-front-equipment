@@ -1363,6 +1363,7 @@ export const getPaymentAccounts = async (custId: string, timeoutMs?: number): Pr
     const mapped: PaymentAccountInfo[] = response.data
       .filter((item: any) => item.PYM_ACNT_ID && /^\d{10}$/.test(item.PYM_ACNT_ID))
       .map((item: any) => ({
+        ...item,  // 원본 데이터 전체 보존 (기존 청구 필드 등)
         PYM_ACNT_ID: item.PYM_ACNT_ID,
         PYM_MTHD_NM: item.PYM_MTHD_NM || '',
         BANK_CARD_NM: item.BANK_CARD_NM || null,
