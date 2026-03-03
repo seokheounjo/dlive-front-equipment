@@ -161,6 +161,7 @@ const CustomerInfoChange: React.FC<CustomerInfoChangeProps> = ({
     addr1: '',
     addr2: '',
     instlLoc: '',           // 설치위치 (거실, 안방 등)
+    changeCustAddr: false,  // 고객주소 함께 변경
     changeBillAddr: false,  // 청구지주소 함께 변경
     // 주소 검색 결과에서 가져오는 추가 정보
     postId: '',             // 주소ID (POST_ID)
@@ -905,7 +906,7 @@ const CustomerInfoChange: React.FC<CustomerInfoChangeProps> = ({
         ADDR_DTL: addressForm.addr2 || '',
         STREET_ID: addressForm.streetId || undefined,
         INSTL_LOC: currentInstallInfo.instlLoc || undefined,
-        CUST_FLAG: '0',
+        CUST_FLAG: addressForm.changeCustAddr ? '1' : '0',
         PYM_FLAG: addressForm.changeBillAddr ? '1' : '0'
       };
 
@@ -922,6 +923,7 @@ const CustomerInfoChange: React.FC<CustomerInfoChangeProps> = ({
           addr1: '',
           addr2: '',
           instlLoc: '',
+          changeCustAddr: false,
           changeBillAddr: false,
           postId: '',
           streetId: '',
@@ -1401,8 +1403,18 @@ const CustomerInfoChange: React.FC<CustomerInfoChangeProps> = ({
                     />
                   </div>
 
-                  {/* 청구지주소 함께 변경 옵션 */}
-                  <div className="p-3 bg-gray-50 border border-gray-200 rounded-lg">
+                  {/* 고객주소 / 청구지주소 함께 변경 옵션 */}
+                  <div className="p-3 bg-gray-50 border border-gray-200 rounded-lg space-y-2">
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={addressForm.changeCustAddr}
+                        onChange={(e) => setAddressForm(prev => ({ ...prev, changeCustAddr: e.target.checked }))}
+                        className="w-4 h-4 text-green-600 rounded"
+                      />
+                      <span className="text-sm text-gray-700">고객주소도 함께 변경</span>
+                    </label>
+
                     <label className={`flex items-center gap-2 ${canChangeBillAddr ? 'cursor-pointer' : 'cursor-not-allowed opacity-50'}`}>
                       <input
                         type="checkbox"
@@ -1419,14 +1431,14 @@ const CustomerInfoChange: React.FC<CustomerInfoChangeProps> = ({
                       )}
                     </label>
 
-                    {addressForm.changeBillAddr && canChangeBillAddr && (
-                      <div className="mt-2 p-2 bg-blue-50 border border-blue-200 rounded text-xs">
-                        <p className="text-blue-700">
-                          <strong>현재 청구지:</strong> {(paymentInfoList[0] as any)?.BILL_ADDR || '설치주소와 동일하게 변경됩니다'}
-                        </p>
-                        <p className="text-blue-600 mt-1">
-                          → 변경된 주소로 청구지도 함께 변경됩니다
-                        </p>
+                    {(addressForm.changeCustAddr || (addressForm.changeBillAddr && canChangeBillAddr)) && (
+                      <div className="mt-1 p-2 bg-blue-50 border border-blue-200 rounded text-xs">
+                        {addressForm.changeCustAddr && (
+                          <p className="text-blue-700">→ 고객주소도 함께 변경됩니다</p>
+                        )}
+                        {addressForm.changeBillAddr && canChangeBillAddr && (
+                          <p className="text-blue-700">→ 청구지주소도 함께 변경됩니다</p>
+                        )}
                       </div>
                     )}
                   </div>
