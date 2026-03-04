@@ -2494,38 +2494,15 @@ export interface CardDpstDtlItem {
   RCPT_AMT: number;          // 수납금액
 }
 
-export const insertDpstAndDTL = async (params: CardDpstParams): Promise<ApiResponse<any>> => {
-  // Transform to backend expected uppercase param names
-  const backendParams: any = {
-    MID: params.master_store_id,
-    OID: params.order_no,
-    ORDER_DT: params.order_dt,
-    SO_ID: params.ctrt_so_id,
-    CUST_ID: params.cust_id,
-    CUST_NM: params.reqr_nm,
-    AMT: params.encrypted_amt,
-    PYM_ACNT_ID: params.pym_acnt_id,
-    USER_ID: params.user_id || params.cust_id,
-    RCPT_BILL_EMP_ID: params.rcpt_bill_emp_id || params.cust_id,
-    SMRY: params.smry,
-    PYR_REL: params.pyr_rel,
-    PROD_INFO_CD: params.prod_info_cd,
-    CUST_EMAIL: params.cust_email,
-    STAGE: params.stage || '',
-  };
-  if (params.dtlList) {
-    backendParams.DTL_LIST = params.dtlList.map(dtl => ({
-      MID: dtl.master_store_id,
-      OID: dtl.order_no,
-      ORDER_DT: dtl.order_dt,
-      BILL_SEQ_NO: dtl.BILL_SEQ_NO,
-      SO_ID: dtl.SO_ID,
-      BILL_AMT: dtl.BILL_AMT,
-      PRE_RCPT_AMT: dtl.PRE_RCPT_AMT,
-      RCPT_AMT: dtl.RCPT_AMT,
-    }));
-  }
-  return apiCall<any>('/billing/payment/anony/insertDpstAndDTL', backendParams);
+export const insertDpstAndDTL = async (params: {
+  CUST_ID: string;
+  PYM_ACNT_ID: string;
+  SO_ID: string;
+  AMT: number;
+  BILL_YM_LIST: string;
+  ORDER_NO?: string;
+}): Promise<ApiResponse<any>> => {
+  return apiCall<any>('/billing/payment/anony/insertDpstAndDTL', params);
 };
 
 /**
@@ -2691,6 +2668,25 @@ export const checkPaymentResult = async (params: {
       CHECK_ONLY: 'Y'
     }, 'POST', timeoutMs);
   }
+
+  // API call succeeded (HTTP 200) but need to check actual payment status via RESP_CD
+  if (res.success && res.data) {
+    const respCd = res.data.RESP_CD || '';
+    const stage = res.data.STAGE || '';
+    const respMsg = res.data.RESP_MSG || '';
+
+    // 0000 = payment completed
+    if (respCd === '0000' || res.data.success === 'true') {
+      return { success: true, data: res.data };
+    }
+    // PENDING / NOT_FOUND / empty = still processing
+    if (respCd === 'PENDING' || respCd === 'NOT_FOUND' || respCd === '' || stage === '03' || stage === '04') {
+      return { success: false, data: res.data, message: respMsg || 'PENDING', errorCode: 'PENDING' };
+    }
+    // Other codes = payment failed
+    return { success: false, data: res.data, message: respMsg || respCd, errorCode: respCd };
+  }
+
   return res;
 };
 
