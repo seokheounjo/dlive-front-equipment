@@ -326,6 +326,7 @@ router.post('/billing/payment/anony/getCardVendorBySoId', handleProxy);
 router.post('/billing/payment/anony/insertDpstAndDTL', handleProxy);
 router.post('/billing/payment/anony/insertCardPayStage', handleProxy);
 router.post('/billing/payment/anony/processCardPayment', handleProxy);
+router.post('/billing/payment/anony/chkUpymPayStatus_m', handleProxy);
 // 4. History (D'Live: CUST_ID만으로 조회 가능 - LEGACY_REQ_ROUTES로 .req 직접 호출)
 router.post('/customer/negociation/getTgtCtrtRcptHist_m', handleProxy);  // 상담이력
 router.post('/customer/negociation/getTgtCtrtWorkList_m', handleProxy);  // 작업이력
