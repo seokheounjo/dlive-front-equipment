@@ -2595,6 +2595,7 @@ export interface CardPaymentRequest {
   ctrt_id?: string;          // CTRT_ID (stage insert용)
   stage?: string;            // 스테이지 ('02': PG 요청 전)
   card_vendor?: string;      // 카드사 (= MID)
+  mert_key?: string;         // 가맹점 인증키 (insertDpstAndDTL 응답)
 }
 
 export const processCardPayment = async (params: CardPaymentRequest, timeoutMs: number = 10000): Promise<ApiResponse<any>> => {
@@ -2619,6 +2620,7 @@ export const processCardPayment = async (params: CardPaymentRequest, timeoutMs: 
     CTRT_ID: params.ctrt_id || '',
     STAGE: params.stage || '',
     CARD_VENDOR: params.card_vendor || '',
+    MERT_KEY: params.mert_key || '',
   };
 
   const url = `${API_BASE}/billing/payment/anony/processCardPayment`;

@@ -284,34 +284,19 @@ const UnpaymentCollectionModal: React.FC<UnpaymentCollectionModalProps> = ({
     setProcessingBillYms(billYmList);
 
     try {
-      // Step 1: Get MID
+      // Step 1: Get SO_ID for backend
       const soId = getSoId();
-      let mid = '';
-      if (soId) {
-        const vendorRes = await getCardVendorBySoId(soId);
-        if (vendorRes.success && vendorRes.data) {
-          const vendorData = Array.isArray(vendorRes.data) ? vendorRes.data[0] : vendorRes.data;
-          mid = vendorData?.MID || vendorData?.CARD_VENDOR || '';
-        }
-      }
-      if (!mid) {
-        showToast?.('가맹점 정보를 조회할 수 없습니다. 관리자에게 문의하세요.', 'error');
-        setIsProcessing(false);
-        setProcessingBillYms([]);
-        return;
-      }
 
-      const orderNo = generateOrderNo();
       const now = new Date();
       const orderDt = now.getFullYear().toString() +
         (now.getMonth() + 1).toString().padStart(2, '0') +
         now.getDate().toString().padStart(2, '0');
 
-      // Step 2: Insert DPST & DTL
+      // Step 2: Insert DPST & DTL (returns real MID, ORDER_NO, MERT_KEY from CONA)
       const dpstRes = await insertDpstAndDTL({
-        master_store_id: mid,
+        master_store_id: '',
         order_dt: orderDt,
-        order_no: orderNo,
+        order_no: '',
         ctrt_so_id: soId,
         pym_acnt_id: pymAcntId,
         cust_id: custId,
@@ -327,6 +312,19 @@ const UnpaymentCollectionModal: React.FC<UnpaymentCollectionModalProps> = ({
 
       if (!dpstRes.success) {
         showToast?.(`입금 등록 실패: ${dpstRes.message || '알 수 없는 오류'}`, 'error');
+        setIsProcessing(false);
+        setProcessingBillYms([]);
+        return;
+      }
+
+      // MID, ORDER_NO, MERT_KEY are returned by insertDpstAndDTL from CONA DB
+      const dpstData = dpstRes.data || {};
+      const mid = dpstData.MID || '';
+      const orderNo = dpstData.ORDER_NO || '';
+      const mertKey = dpstData.MERT_KEY || '';
+
+      if (!mid || !orderNo) {
+        showToast?.('가맹점/주문번호 정보를 가져올 수 없습니다.', 'error');
         setIsProcessing(false);
         setProcessingBillYms([]);
         return;
@@ -373,6 +371,7 @@ const UnpaymentCollectionModal: React.FC<UnpaymentCollectionModalProps> = ({
         encrypted_amt: String(selectedTotal),
         so_id: soId,
         cust_id: custId,
+        mert_key: mertKey,
       });
 
       if (pgRes.success) {
