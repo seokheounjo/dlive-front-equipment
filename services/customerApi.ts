@@ -2504,6 +2504,7 @@ export const insertDpstAndDTL = async (params: {
   OID: string;
   CUST_NM?: string;
   BILL_YM_LIST?: string;
+  DTL_LIST?: Array<{BILL_SEQ_NO: string; SO_ID: string; BILL_AMT: number; PRE_RCPT_AMT: number; RCPT_AMT: number}>;
 }): Promise<ApiResponse<any>> => {
   return apiCall<any>('/billing/payment/anony/insertDpstAndDTL', params);
 };

@@ -332,6 +332,23 @@ const UnpaymentCollectionModal: React.FC<UnpaymentCollectionModalProps> = ({
         (now.getMonth() + 1).toString().padStart(2, '0') +
         now.getDate().toString().padStart(2, '0');
 
+      // Step 2: Build DTL_LIST from selected items
+      const dtlList: Array<{BILL_SEQ_NO: string; SO_ID: string; BILL_AMT: number; PRE_RCPT_AMT: number; RCPT_AMT: number}> = [];
+      for (const item of nonPendingSelected) {
+        const seqNos = (item.BILL_SEQ_NO || '').split(',').map(s => s.trim()).filter(s => s);
+        if (seqNos.length > 0) {
+          for (const seq of seqNos) {
+            dtlList.push({
+              BILL_SEQ_NO: seq,
+              SO_ID: item.SO_ID || soId,
+              BILL_AMT: item.BILL_AMT || 0,
+              PRE_RCPT_AMT: (item.BILL_AMT || 0) - (item.UNPAY_AMT || 0),
+              RCPT_AMT: item.UNPAY_AMT || 0,
+            });
+          }
+        }
+      }
+
       // Step 2: Insert DPST & DTL
       const dpstRes = await insertDpstAndDTL({
         CUST_ID: custId,
@@ -343,6 +360,7 @@ const UnpaymentCollectionModal: React.FC<UnpaymentCollectionModalProps> = ({
         OID: orderNo,
         CUST_NM: custNm || custId || 'Mobile',
         BILL_YM_LIST: billYmList.join(','),
+        DTL_LIST: dtlList,
       });
 
       if (!dpstRes.success) {
