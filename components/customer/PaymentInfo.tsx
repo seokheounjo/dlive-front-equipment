@@ -324,7 +324,8 @@ const PaymentInfo: React.FC<PaymentInfoProps> = ({
                       {paymentAccounts.map((payment, index) => {
                         const isWorking = currentWorkingPymAcntId === payment.PYM_ACNT_ID;
                         const isSelected = selectedPymAcntId === payment.PYM_ACNT_ID;
-                        const hasPending = isSelected && pendingPaymentInfo && pendingPaymentInfo.length > 0;
+                        const acctPending = getPendingPayments(payment.PYM_ACNT_ID);
+                        const hasPending = acctPending.length > 0;
 
                         return (
                           <div
