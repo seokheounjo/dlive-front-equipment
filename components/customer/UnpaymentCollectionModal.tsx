@@ -341,7 +341,7 @@ const UnpaymentCollectionModal: React.FC<UnpaymentCollectionModalProps> = ({
         MID: mid,
         ORDER_DT: orderDt,
         OID: orderNo,
-        CUST_NM: custNm || '',
+        CUST_NM: custNm || custId || 'Mobile',
         BILL_YM_LIST: billYmList.join(','),
       });
 
