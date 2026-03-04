@@ -655,9 +655,9 @@ async function handlePaymentMethodChange(req, res) {
         try {
           const adapterData = JSON.parse(responseText);
           if (adapterData.code === 'SUCCESS' || adapterData.code === '0') {
-            return res.json({ success: true, code: 'SUCCESS', message: adapterData.message || '납부방법이 변경되었습니다', data: adapterData.data || {} });
+            return res.json({ success: true, code: 'SUCCESS', message: adapterData.message || '납부방법이 변경되었습니다', data: adapterData.data || {}, debugLogs: adapterData.debugLogs || [] });
           }
-          return res.json({ success: false, code: adapterData.code || 'FAIL', message: adapterData.message || '저장 실패', data: adapterData.data || {} });
+          return res.json({ success: false, code: adapterData.code || 'FAIL', message: adapterData.message || '저장 실패', data: adapterData.data || {}, debugLogs: adapterData.debugLogs || [] });
         } catch (e) {
           return res.json({ success: false, code: 'PARSE_ERROR', message: 'Adapter response parse error', data: {} });
         }
