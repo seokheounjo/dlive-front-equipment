@@ -324,6 +324,7 @@ const PaymentInfo: React.FC<PaymentInfoProps> = ({
                       {paymentAccounts.map((payment, index) => {
                         const isWorking = currentWorkingPymAcntId === payment.PYM_ACNT_ID;
                         const isSelected = selectedPymAcntId === payment.PYM_ACNT_ID;
+                        const hasPending = isSelected && pendingPaymentInfo && pendingPaymentInfo.length > 0;
 
                         return (
                           <div
@@ -332,9 +333,11 @@ const PaymentInfo: React.FC<PaymentInfoProps> = ({
                             className={`p-2 rounded-lg border cursor-pointer transition-all ${
                               isWorking
                                 ? 'bg-orange-50 border-orange-300'
-                                : isSelected
-                                  ? 'bg-blue-50 border-blue-400'
-                                  : 'bg-gray-50 border-gray-200 hover:border-gray-300'
+                                : hasPending
+                                  ? 'bg-amber-50 border-amber-300'
+                                  : isSelected
+                                    ? 'bg-blue-50 border-blue-400'
+                                    : 'bg-gray-50 border-gray-200 hover:border-gray-300'
                             }`}
                           >
                             <div className="flex items-center justify-between text-sm">
@@ -346,6 +349,12 @@ const PaymentInfo: React.FC<PaymentInfoProps> = ({
                                 {isWorking && (
                                   <span className="px-1.5 py-0.5 text-xs bg-orange-500 text-white rounded-full animate-pulse">
                                     작업중
+                                  </span>
+                                )}
+                                {hasPending && (
+                                  <span className="px-1.5 py-0.5 text-xs bg-amber-500 text-white rounded-full flex items-center gap-1">
+                                    <Loader2 className="w-3 h-3 animate-spin" />
+                                    수납 진행중
                                   </span>
                                 )}
                               </div>
@@ -476,16 +485,26 @@ const PaymentInfo: React.FC<PaymentInfoProps> = ({
                     ) : (
                       <div className="space-y-2">
                         {/* 요금 상세 목록 */}
-                        {billingDetails.slice(0, 10).map((item, index) => (
+                        {billingDetails.slice(0, 10).map((item, index) => {
+                          const isPending = pendingPaymentInfo?.some(p => p.pendingBillYms.includes(item.BILL_YYMM));
+                          return (
                           <div
                             key={index}
                             className={`p-3 rounded-lg border ${
-                              item.UPYM_AMT > 0 ? 'bg-red-50 border-red-200' : 'bg-gray-50 border-gray-200'
+                              isPending ? 'bg-amber-50 border-amber-300' : item.UPYM_AMT > 0 ? 'bg-red-50 border-red-200' : 'bg-gray-50 border-gray-200'
                             }`}
                           >
                             {/* 청구년월 헤더 */}
                             <div className="flex justify-between items-center mb-2 pb-2 border-b border-gray-200">
-                              <span className="font-medium text-gray-800">{formatBillYymm(item.BILL_YYMM)}</span>
+                              <div className="flex items-center gap-2">
+                                <span className="font-medium text-gray-800">{formatBillYymm(item.BILL_YYMM)}</span>
+                                {isPending && (
+                                  <span className="px-1.5 py-0.5 text-xs font-medium bg-amber-200 text-amber-800 rounded flex items-center gap-1">
+                                    <Loader2 className="w-3 h-3 animate-spin" />
+                                    수납 진행중
+                                  </span>
+                                )}
+                              </div>
                               <span className="text-xs text-gray-500">{item.BILL_CYCL || '정기'}</span>
                             </div>
                             {/* 금액 정보 - 세로 배치 */}
@@ -501,12 +520,13 @@ const PaymentInfo: React.FC<PaymentInfoProps> = ({
                               {item.UPYM_AMT > 0 && (
                                 <div className="flex justify-between pt-1 border-t border-gray-200">
                                   <span className="text-gray-500 text-xs">미납금액</span>
-                                  <span className="text-red-600 font-bold">{formatCurrency(item.UPYM_AMT)}원</span>
+                                  <span className={`font-bold ${isPending ? 'text-amber-600' : 'text-red-600'}`}>{formatCurrency(item.UPYM_AMT)}원</span>
                                 </div>
                               )}
                             </div>
                           </div>
-                        ))}
+                          );
+                        })}
                         {billingDetails.length > 10 && (
                           <div className="text-center text-sm text-gray-500 py-2">
                             +{billingDetails.length - 10}건 더 있음
