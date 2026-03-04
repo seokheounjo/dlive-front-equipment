@@ -404,8 +404,8 @@ const PaymentInfo: React.FC<PaymentInfoProps> = ({
                   </>
                 )}
 
-                {/* 미납금 수납 버튼 - 미납 계정이 있을 때 */}
-                {paymentAccounts.some(p => p.UPYM_AMT_ACNT > 0) && (
+                {/* 미납금 수납 버튼 - 선택된 납부계정에 미납이 있거나 진행중일 때만 */}
+                {(selectedPayment && selectedPayment.UPYM_AMT_ACNT > 0 || pendingPaymentInfo) && (
                   <button
                     onClick={handleUnpaymentClick}
                     disabled={needsRefresh || isLoadingUnpayment || !selectedPymAcntId}
