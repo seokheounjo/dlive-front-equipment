@@ -1318,11 +1318,13 @@ async function handleProxy(req, res) {
 
     proxyReq.on('error', (error) => {
       console.error('[ERROR] Proxy request error:', error.message);
-      res.status(500).json({
-        error: 'Proxy Error',
-        message: error.message,
-        targetUrl: targetUrl
-      });
+      if (!res.headersSent) {
+        res.status(500).json({
+          error: 'Proxy Error',
+          message: error.message,
+          targetUrl: targetUrl
+        });
+      }
     });
 
     proxyReq.on('timeout', () => {

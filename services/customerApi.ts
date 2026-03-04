@@ -2675,10 +2675,23 @@ export const checkPaymentResult = async (params: {
   ORDER_DT: string;
   PYM_ACNT_ID: string;
 }, timeoutMs?: number): Promise<ApiResponse<any>> => {
-  return apiCall<any>('/billing/payment/anony/chkUpymPayStatus_m', {
+  // Try dedicated endpoint first
+  const res = await apiCall<any>('/billing/payment/anony/chkUpymPayStatus_m', {
     ORDER_NO: params.OID,
     MASTER_STORE_ID: params.MID
   }, 'POST', timeoutMs);
+
+  // Fallback: if chkUpymPayStatus_m returns 404, use processCardPayment CHECK_ONLY
+  if (!res.success && (res.message?.includes('404') || res.message?.includes('Cannot') || res.message?.includes('SRVE0295'))) {
+    console.log('[CustomerAPI] chkUpymPayStatus_m failed, falling back to CHECK_ONLY');
+    return apiCall<any>('/billing/payment/anony/processCardPayment', {
+      OID: params.OID,
+      MID: params.MID,
+      AMT: String(params.AMT),
+      CHECK_ONLY: 'Y'
+    }, 'POST', timeoutMs);
+  }
+  return res;
 };
 
 /**
