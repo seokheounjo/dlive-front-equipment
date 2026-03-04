@@ -249,9 +249,11 @@ const UnpaymentCollectionModal: React.FC<UnpaymentCollectionModalProps> = ({
     setPaymentPopup(null);
   }, [paymentPopup]);
 
-  const retryPayment = useCallback(() => {
+  const retryPayment = () => {
     setPaymentPopup(null);
-  }, []);
+    // Auto-retry: trigger payment again after popup closes
+    setTimeout(() => handlePayment(), 300);
+  };
 
   // SO_ID 획득 헬퍼
   const getSoId = (): string => {
@@ -336,8 +338,11 @@ const UnpaymentCollectionModal: React.FC<UnpaymentCollectionModalProps> = ({
         PYM_ACNT_ID: pymAcntId,
         SO_ID: soId,
         AMT: selectedTotal,
+        MID: mid,
+        ORDER_DT: orderDt,
+        OID: orderNo,
+        CUST_NM: custNm || '',
         BILL_YM_LIST: billYmList.join(','),
-        ORDER_NO: orderNo
       });
 
       if (!dpstRes.success) {

@@ -2499,8 +2499,11 @@ export const insertDpstAndDTL = async (params: {
   PYM_ACNT_ID: string;
   SO_ID: string;
   AMT: number;
-  BILL_YM_LIST: string;
-  ORDER_NO?: string;
+  MID: string;
+  ORDER_DT: string;
+  OID: string;
+  CUST_NM?: string;
+  BILL_YM_LIST?: string;
 }): Promise<ApiResponse<any>> => {
   return apiCall<any>('/billing/payment/anony/insertDpstAndDTL', params);
 };
