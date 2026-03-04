@@ -516,7 +516,7 @@ const UnpaymentCollectionModal: React.FC<UnpaymentCollectionModalProps> = ({
                 {selectableItems.length > 0 && (
                   <button
                     onClick={toggleAll}
-                    disabled={isProcessing}
+                    disabled={isCardInputDisabled}
                     className="text-xs text-blue-500 hover:text-blue-600 disabled:opacity-50"
                   >
                     {allSelectableSelected ? '전체 해제' : '전체 선택'}
@@ -565,8 +565,8 @@ const UnpaymentCollectionModal: React.FC<UnpaymentCollectionModalProps> = ({
                               type="checkbox"
                               checked={isSelected}
                               onChange={() => toggleBillYm(item.BILL_YM)}
-                              className="w-5 h-5 rounded border-gray-300 text-red-600 focus:ring-red-500"
-                              disabled={isProcessing}
+                              className="w-5 h-5 rounded border-gray-300 text-red-600 focus:ring-red-500 disabled:opacity-40"
+                              disabled={isCardInputDisabled}
                             />
                           )}
                         </div>
