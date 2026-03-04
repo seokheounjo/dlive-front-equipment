@@ -19,6 +19,7 @@ const PATH_MAPPING = {
   "/work/cancel": "/api/work/cancel",
   "/work/complete": "/api/work/complete",
   "/customer/work/getEquipLossInfo_ForM": "/api/customer/work/getEquipLossInfo",  // 어댑터 경유 (레거시 .req는 CONA 세션 필요)
+  "/customer/work/modEquipLoss_ForM": "/api/customer/work/modEquipLoss_ForM",  // 어댑터 경유 (모바일용 단건 처리)
 };
 
 // Routes that should go directly to legacy .req servlet (bypass our adapter)
