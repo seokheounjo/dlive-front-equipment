@@ -2688,7 +2688,7 @@ export const checkPaymentResult = async (params: {
   // API call succeeded (HTTP 200) - PAY_RESULT based judgment
   // iBatis v1: '미확인(재전송)' / '결제완' / '거절'
   // iBatis v2: '주문정보없음' / '결제요청 후 처리중' / '결제완료 // 입금처리완료' / '결제완료 // 입금처리중(재요청)' / '결제요청실패,...' / API오류
-  // JDBC fallback: 'SUCCESS' / 'PENDING' / 'FAIL'
+  // JDBC fallback v2: 'SUCCESS_DEPOSITED' / 'SUCCESS_PROCESSING' / 'PENDING_RESEND' / 'FAIL'
   if (res.success && res.data) {
     const payResult = (res.data.PAY_RESULT || '').trim();
     const payResultMsg = (res.data.PAY_RESULT_MSG || '').trim();
@@ -2696,25 +2696,36 @@ export const checkPaymentResult = async (params: {
     const stage = res.data.STAGE || '';
     const respMsg = res.data.RESP_MSG || '';
 
-    // SUCCESS: JDBC='SUCCESS', iBatis v1='결제완', iBatis v2='결제완료 // 입금처리완료'
-    if (payResult === 'SUCCESS' || payResult === '결제완'
-        || payResult === '결제완료 // 입금처리완료') {
+    // Map JDBC v2 English codes to Korean display text for badge/toast
+    const jdbcDisplayMap: Record<string, string> = {
+      'PENDING_RESEND': '미확인(재전송)',
+      'SUCCESS_DEPOSITED': '결제완료 // 입금처리완료',
+      'SUCCESS_PROCESSING': '결제완료 // 입금처리중(재요청)',
+    };
+    if (jdbcDisplayMap[payResult]) {
+      res.data.PAY_RESULT = jdbcDisplayMap[payResult];
+    }
+    const displayResult = jdbcDisplayMap[payResult] || payResult;
+
+    // SUCCESS: JDBC='SUCCESS'/'SUCCESS_DEPOSITED', iBatis v1='결제완', iBatis v2='결제완료 // 입금처리완료'
+    if (payResult === 'SUCCESS' || payResult === 'SUCCESS_DEPOSITED'
+        || displayResult === '결제완' || displayResult === '결제완료 // 입금처리완료') {
       return { success: true, data: res.data };
     }
 
     // PENDING: still processing
-    // JDBC='PENDING', iBatis v1='미확인(재전송)', iBatis v2='결제요청 후 처리중' / '결제완료 // 입금처리중(재요청)'
+    // JDBC='PENDING'/'PENDING_RESEND'/'SUCCESS_PROCESSING', iBatis v1='미확인(재전송)', iBatis v2='결제요청 후 처리중' / '결제완료 // 입금처리중(재요청)'
     // also empty PAY_RESULT or early stage
-    if (payResult === '' || payResult === 'PENDING'
-        || payResult === '미확인(재전송)'
-        || payResult === '결제요청 후 처리중'
-        || payResult === '결제완료 // 입금처리중(재요청)'
+    if (payResult === '' || payResult === 'PENDING' || payResult === 'PENDING_RESEND' || payResult === 'SUCCESS_PROCESSING'
+        || displayResult === '미확인(재전송)'
+        || displayResult === '결제요청 후 처리중'
+        || displayResult === '결제완료 // 입금처리중(재요청)'
         || stage === '03' || stage === '04') {
-      return { success: false, data: res.data, message: payResult || 'PENDING', errorCode: 'PENDING' };
+      return { success: false, data: res.data, message: displayResult || 'PENDING', errorCode: 'PENDING' };
     }
 
     // FAIL: JDBC='FAIL', iBatis v1='거절', iBatis v2='결제요청실패,...' / '주문정보없음' / API오류
-    return { success: false, data: res.data, message: payResult, errorCode: 'FAIL' };
+    return { success: false, data: res.data, message: displayResult, errorCode: 'FAIL' };
   }
 
   return res;
