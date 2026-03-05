@@ -58,9 +58,9 @@ const OtherManagement: React.FC<OtherManagementProps> = ({
   };
 
   return (
-    <div className="w-full">
+    <div className="h-full overflow-y-auto bg-gray-50">
       <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
-        <div className="bg-white border-b border-gray-200">
+        <div className="bg-white border-b border-gray-200 sticky top-0 z-10">
           <div
             ref={tabListRef}
             className="w-full overflow-x-auto scrollbar-hide"
