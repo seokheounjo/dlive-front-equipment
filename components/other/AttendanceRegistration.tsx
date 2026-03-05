@@ -21,9 +21,9 @@ interface LocationInfo {
 
 interface AttendanceRecord {
   date: string;
-  inTime: string;
-  outTime: string;
-  location: string;
+  gubun: string;
+  address: string;
+  lookupDate: string;
   memo: string;
 }
 
@@ -260,14 +260,11 @@ const AttendanceRegistration: React.FC<AttendanceRegistrationProps> = ({
 
       if (res.ok && Array.isArray(data)) {
         const parsed: AttendanceRecord[] = data.map((row: any) => {
-          const baseDd = row.BASE_DD || '';
-          const inDt = row.IN_DTTM || row.IN_DT || '';
-          const outDt = row.OUT_DTTM || row.OUT_DT || '';
           return {
-            date: baseDd,
-            inTime: inDt,
-            outTime: outDt,
-            location: row.ADDRESS || '',
+            date: row.BASE_DD || '',
+            gubun: row.GUBUN || '',
+            address: row.ADDRESS || '',
+            lookupDate: row.LOOKUP_DATE || row.P_LOOKUP_DATE || '',
             memo: row.MEMO || ''
           };
         });
@@ -339,7 +336,6 @@ const AttendanceRegistration: React.FC<AttendanceRegistrationProps> = ({
         {/* 위치 확인 */}
         <div>
           <div className="flex items-center gap-2 mb-2">
-            <label className="block text-sm text-gray-600">위치</label>
             <button
               onClick={handleCheckLocation}
               disabled={locationLoading}
@@ -471,16 +467,37 @@ const AttendanceRegistration: React.FC<AttendanceRegistrationProps> = ({
             {records.length > 0 ? (
               <div className="space-y-1.5">
                 {records
-                  .sort((a, b) => b.date.localeCompare(a.date))
-                  .map((record, idx) => (
-                    <div key={idx} className="bg-gray-50 rounded-lg border border-gray-100 px-3 py-2.5">
-                      <div className="text-sm text-gray-800">
-                        <span className="font-medium">{record.inTime}</span>
-                        <span className="text-gray-400 mx-1.5">~</span>
-                        <span className="font-medium">{record.outTime}</span>
+                  .sort((a, b) => {
+                    const cmp = b.date.localeCompare(a.date);
+                    if (cmp !== 0) return cmp;
+                    return b.lookupDate.localeCompare(a.lookupDate);
+                  })
+                  .map((record, idx) => {
+                    const isIn = record.gubun === 'I';
+                    // YYYYMMDDHHMMSS -> YYYY-MM-DD HH:MM:SS
+                    const ld = record.lookupDate;
+                    const dtStr = ld.length >= 14
+                      ? `${ld.slice(0,4)}-${ld.slice(4,6)}-${ld.slice(6,8)} ${ld.slice(8,10)}:${ld.slice(10,12)}:${ld.slice(12,14)}`
+                      : ld;
+                    return (
+                      <div key={idx} className="bg-gray-50 rounded-lg border border-gray-100 px-3 py-2.5">
+                        <div className="flex items-center gap-2 text-sm">
+                          <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium ${
+                            isIn ? 'bg-blue-100 text-blue-700' : 'bg-orange-100 text-orange-700'
+                          }`}>
+                            {isIn ? '출근' : '퇴근'}
+                          </span>
+                          <span className="font-medium text-gray-800">{dtStr}</span>
+                        </div>
+                        {record.address && (
+                          <div className="text-xs text-gray-500 mt-1 truncate">{record.address}</div>
+                        )}
+                        {record.memo && (
+                          <div className="text-xs text-gray-400 mt-0.5">{record.memo}</div>
+                        )}
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
               </div>
             ) : !searching ? (
               <div className="text-center py-6 text-gray-400 text-sm">
