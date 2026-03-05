@@ -21,8 +21,8 @@ interface LocationInfo {
 
 interface AttendanceRecord {
   date: string;
-  type: 'in' | 'out';
-  time: string;
+  inTime: string;
+  outTime: string;
   location: string;
   memo: string;
 }
@@ -72,7 +72,6 @@ const AttendanceRegistration: React.FC<AttendanceRegistrationProps> = ({
   const [searchTo, setSearchTo] = useState(today);
   const [searching, setSearching] = useState(false);
   const [records, setRecords] = useState<AttendanceRecord[]>([]);
-  const [expandedRecords, setExpandedRecords] = useState<Set<number>>(new Set());
   const [historyOpen, setHistoryOpen] = useState(true);
   const historyRef = useRef<HTMLDivElement>(null);
 
@@ -220,16 +219,9 @@ const AttendanceRegistration: React.FC<AttendanceRegistrationProps> = ({
         if (dayOfWeek !== 0 && dayOfWeek !== 6) {
           mockRecords.push({
             date: dateStr,
-            type: 'in',
-            time: '08:52',
-            location: `위도 37.5665, 경도 126.9780`,
-            memo: ''
-          });
-          mockRecords.push({
-            date: dateStr,
-            type: 'out',
-            time: '18:05',
-            location: `위도 37.5665, 경도 126.9780`,
+            inTime: `${dateStr} 08:52:14`,
+            outTime: `${dateStr} 18:05:37`,
+            location: '',
             memo: ''
           });
         }
@@ -248,20 +240,8 @@ const AttendanceRegistration: React.FC<AttendanceRegistrationProps> = ({
     }
   };
 
-  const toggleRecord = (index: number) => {
-    setExpandedRecords(prev => {
-      const next = new Set(prev);
-      next.has(index) ? next.delete(index) : next.add(index);
-      return next;
-    });
-  };
 
-  // 날짜별로 그룹핑
-  const groupedRecords: Record<string, AttendanceRecord[]> = records.reduce<Record<string, AttendanceRecord[]>>((acc, r) => {
-    if (!acc[r.date]) acc[r.date] = [];
-    acc[r.date].push(r);
-    return acc;
-  }, {});
+
 
   return (
     <div className="p-4 space-y-4">
@@ -437,66 +417,21 @@ const AttendanceRegistration: React.FC<AttendanceRegistrationProps> = ({
             <p className="text-xs text-gray-400">* 최대 1주일까지 조회 가능</p>
 
             {/* 조회 결과 */}
-            {Object.keys(groupedRecords).length > 0 ? (
-              <div className="space-y-2">
-                {Object.entries(groupedRecords)
-                  .sort(([a], [b]) => b.localeCompare(a))
-                  .map(([date, dayRecords]) => (
-                    <div key={date} className="bg-gray-50 rounded-lg border border-gray-100">
-                      <div className="px-3 py-2 border-b border-gray-100">
-                        <span className="text-sm font-medium text-gray-800">{date}</span>
-                        <span className="text-xs text-gray-500 ml-2">
-                          ({['일','월','화','수','목','금','토'][new Date(date).getDay()]}요일)
-                        </span>
-                      </div>
-                      <div className="divide-y divide-gray-100">
-                        {dayRecords.map((record, idx) => {
-                          const globalIdx = records.indexOf(record);
-                          const isExpanded = expandedRecords.has(globalIdx);
-                          return (
-                            <div key={idx} className="px-3 py-2">
-                              <div
-                                className="flex items-center justify-between cursor-pointer"
-                                onClick={() => toggleRecord(globalIdx)}
-                              >
-                                <div className="flex items-center gap-3 text-sm">
-                                  <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
-                                    record.type === 'in'
-                                      ? 'bg-green-100 text-green-700'
-                                      : 'bg-orange-100 text-orange-700'
-                                  }`}>
-                                    {record.type === 'in' ? '출근' : '퇴근'}
-                                  </span>
-                                  <span className="text-gray-800 font-medium">{record.time}</span>
-                                </div>
-                                {isExpanded ? (
-                                  <ChevronUp className="w-4 h-4 text-gray-400" />
-                                ) : (
-                                  <ChevronDown className="w-4 h-4 text-gray-400" />
-                                )}
-                              </div>
-                              {isExpanded && (
-                                <div className="mt-2 pl-2 space-y-1 text-xs text-gray-500">
-                                  <div className="flex items-center gap-1">
-                                    <MapPin className="w-3.5 h-3.5" />
-                                    <span>{record.location}</span>
-                                  </div>
-                                  {record.memo && (
-                                    <div className="flex items-start gap-1">
-                                      <span className="text-gray-400">메모:</span>
-                                      <span>{record.memo}</span>
-                                    </div>
-                                  )}
-                                </div>
-                              )}
-                            </div>
-                          );
-                        })}
+            {records.length > 0 ? (
+              <div className="space-y-1.5">
+                {records
+                  .sort((a, b) => b.date.localeCompare(a.date))
+                  .map((record, idx) => (
+                    <div key={idx} className="bg-gray-50 rounded-lg border border-gray-100 px-3 py-2.5">
+                      <div className="text-sm text-gray-800">
+                        <span className="font-medium">{record.inTime}</span>
+                        <span className="text-gray-400 mx-1.5">~</span>
+                        <span className="font-medium">{record.outTime}</span>
                       </div>
                     </div>
                   ))}
               </div>
-            ) : records.length === 0 && !searching ? (
+            ) : !searching ? (
               <div className="text-center py-6 text-gray-400 text-sm">
                 조회 버튼을 눌러 근태 이력을 확인하세요.
               </div>
