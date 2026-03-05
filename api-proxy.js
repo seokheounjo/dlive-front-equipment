@@ -1351,4 +1351,29 @@ async function handleProxy(req, res) {
   }
 }
 
+// VWorld reverse geocoding proxy (CORS bypass)
+router.get('/vworld/address', async (req, res) => {
+  const { point, key } = req.query;
+  if (!point || !key) {
+    return res.status(400).json({ error: 'point and key are required' });
+  }
+  const url = `https://api.vworld.kr/req/address?service=address&request=getAddress&version=2.0&crs=epsg:4326&point=${point}&format=json&type=both&zipcode=false&simple=false&key=${key}`;
+  try {
+    const https = require('https');
+    const fetch = (u) => new Promise((resolve, reject) => {
+      https.get(u, (resp) => {
+        let data = '';
+        resp.on('data', chunk => data += chunk);
+        resp.on('end', () => resolve(data));
+      }).on('error', reject);
+    });
+    const data = await fetch(url);
+    res.setHeader('Content-Type', 'application/json; charset=utf-8');
+    res.send(data);
+  } catch (e) {
+    console.error('[VWorld] reverse geocode proxy error:', e.message);
+    res.status(500).json({ error: e.message });
+  }
+});
+
 module.exports = router;

@@ -73,7 +73,7 @@ const AttendanceRegistration: React.FC<AttendanceRegistrationProps> = ({
   const [expandedRecords, setExpandedRecords] = useState<Set<number>>(new Set());
   const [historyOpen, setHistoryOpen] = useState(true);
 
-  // VWorld reverse geocoding (MOMP001 common code key)
+  // VWorld reverse geocoding (server proxy to bypass CORS)
   const reverseGeocode = async (lat: number, lng: number): Promise<{ road: string; jibun: string }> => {
     const mapKeys = await loadMapApiKeys();
     const vworldKey = pickRandomKey(mapKeys.vworld);
@@ -82,8 +82,8 @@ const AttendanceRegistration: React.FC<AttendanceRegistrationProps> = ({
       return { road: '', jibun: '' };
     }
     try {
-      const url = `https://api.vworld.kr/req/address?service=address&request=getAddress&version=2.0&crs=epsg:4326&point=${lng},${lat}&format=json&type=both&zipcode=false&simple=false&key=${vworldKey}`;
-      const res = await fetch(url);
+      const point = `${lng},${lat}`;
+      const res = await fetch(`/api/vworld/address?point=${encodeURIComponent(point)}&key=${encodeURIComponent(vworldKey)}`);
       const data = await res.json();
       let road = '';
       let jibun = '';
