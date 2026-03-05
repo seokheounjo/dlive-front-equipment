@@ -202,10 +202,10 @@ const AttendanceRegistration: React.FC<AttendanceRegistrationProps> = ({
       const data = await res.json();
 
       if (res.ok) {
-        const msgCode = Array.isArray(data) && data[0]?.MSGCODE;
+        const msgCode = data?.MSGCODE;
+        const message = data?.MESSAGE;
         if (msgCode === 'E') {
-          const errMsg = data[0]?.MESSAGE || 'Unknown error';
-          showToast?.(`등록 실패: ${errMsg}`, 'error');
+          showToast?.(`등록 실패: ${message || 'Unknown error'}`, 'error');
         } else {
           showToast?.(`${activeTab === 'in' ? '출근' : '퇴근'} 등록이 완료되었습니다.`, 'success');
           setMemo('');
