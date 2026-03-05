@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '../ui/tabs';
-import SignalHistoryList from '../equipment/SignalHistoryList';
-import SignalIntegration from './SignalIntegration';
+import AttendanceRegistration from './AttendanceRegistration';
 import LGUConstructionRequest from '../other/LGUConstructionRequest';
 import LGUNetworkFault from '../other/LGUNetworkFault';
 import ComingSoon from '../layout/ComingSoon';
@@ -25,25 +24,20 @@ const OtherManagement: React.FC<OtherManagementProps> = ({
   userInfo,
   showToast
 }) => {
-  const [activeTab, setActiveTab] = useState<string>('time-request');
+  const [activeTab, setActiveTab] = useState<string>('notice');
   const tabListRef = React.useRef<HTMLDivElement>(null);
   const tabButtonRefs = React.useRef<(HTMLButtonElement | null)[]>([]);
 
-  // 기타관리 하위 메뉴 탭 데이터
   const otherManagementTabs = [
-    { id: 'time-request', title: '시간외근무신청' },
-    { id: 'time-record', title: '시간외근무실적입력' },
     { id: 'notice', title: '공지사항' },
-    { id: 'signal-interlock', title: '신호연동관리' },
+    { id: 'attendance', title: '근태등록' },
     { id: 'lgu-construction', title: '(LGU)공사요청진행정보' },
     { id: 'lgu-network-fault', title: '(LGU)망장애이관리스트' },
-    { id: 'auto-confirm', title: '업무자동확봇' }
   ];
 
   const handleTabChange = (tabId: string) => {
     setActiveTab(tabId);
 
-    // 선택된 탭을 중앙으로 스크롤
     const scrollToCenter = () => {
       const tabList = tabListRef.current;
       const activeButton = tabButtonRefs.current[otherManagementTabs.findIndex(tab => tab.id === tabId)];
@@ -86,25 +80,6 @@ const OtherManagement: React.FC<OtherManagementProps> = ({
           </div>
         </div>
 
-        {/* 시간외근무신청 탭 */}
-        <TabsContent value="time-request" className="px-3 pt-1">
-          <ComingSoon
-            onNavigateToMenu={onNavigateToMenu}
-            title="시간외근무신청"
-            description="시간외근무 신청 기능이 준비 중입니다."
-          />
-        </TabsContent>
-
-        {/* 시간외근무실적입력 탭 */}
-        <TabsContent value="time-record" className="px-3 pt-1">
-          <ComingSoon
-            onNavigateToMenu={onNavigateToMenu}
-            title="시간외근무실적입력"
-            description="시간외근무 실적 입력 기능이 준비 중입니다."
-          />
-        </TabsContent>
-
-        {/* 공지사항 탭 */}
         <TabsContent value="notice" className="px-3 pt-1">
           <ComingSoon
             onNavigateToMenu={onNavigateToMenu}
@@ -113,28 +88,16 @@ const OtherManagement: React.FC<OtherManagementProps> = ({
           />
         </TabsContent>
 
-        {/* 신호연동관리 탭 */}
-        <TabsContent value="signal-interlock" className="px-3 pt-1">
-          <SignalIntegration onBack={onNavigateToMenu} userInfo={userInfo} showToast={showToast} />
+        <TabsContent value="attendance" className="px-0 pt-1">
+          <AttendanceRegistration onBack={onNavigateToMenu} userInfo={userInfo} showToast={showToast} />
         </TabsContent>
 
-        {/* LGU 공사요청진행정보 탭 */}
         <TabsContent value="lgu-construction" className="px-3 pt-1">
           <LGUConstructionRequest onBack={onNavigateToMenu} userInfo={userInfo} showToast={showToast} />
         </TabsContent>
 
-        {/* LGU 망장애이관리스트 탭 */}
         <TabsContent value="lgu-network-fault" className="px-3 pt-1">
           <LGUNetworkFault onBack={onNavigateToMenu} userInfo={userInfo} showToast={showToast} />
-        </TabsContent>
-
-        {/* 업무자동확봇 탭 */}
-        <TabsContent value="auto-confirm" className="px-3 pt-1">
-          <ComingSoon
-            onNavigateToMenu={onNavigateToMenu}
-            title="업무자동확봇"
-            description="업무자동확봇 기능이 준비 중입니다."
-          />
         </TabsContent>
       </Tabs>
     </div>
