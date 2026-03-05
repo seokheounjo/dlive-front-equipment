@@ -40,7 +40,8 @@ const formatDateTimeKR = (d: Date): string => {
   const dd = String(d.getDate()).padStart(2, '0');
   const hh = String(d.getHours()).padStart(2, '0');
   const mm = String(d.getMinutes()).padStart(2, '0');
-  return `${y}년 ${m}월 ${dd}일 ${hh}시 ${mm}분`;
+  const ss = String(d.getSeconds()).padStart(2, '0');
+  return `${y}년 ${m}월 ${dd}일 ${hh}시 ${mm}분 ${ss}초`;
 };
 
 const AttendanceRegistration: React.FC<AttendanceRegistrationProps> = ({
@@ -73,6 +74,7 @@ const AttendanceRegistration: React.FC<AttendanceRegistrationProps> = ({
   const [records, setRecords] = useState<AttendanceRecord[]>([]);
   const [expandedRecords, setExpandedRecords] = useState<Set<number>>(new Set());
   const [historyOpen, setHistoryOpen] = useState(true);
+  const historyRef = useRef<HTMLDivElement>(null);
 
   // VWorld reverse geocoding (server proxy to bypass CORS)
   const vworldFetch = async (point: string, key: string, type: string): Promise<any> => {
@@ -234,7 +236,11 @@ const AttendanceRegistration: React.FC<AttendanceRegistrationProps> = ({
         cur.setDate(cur.getDate() + 1);
       }
       setRecords(mockRecords);
+      setHistoryOpen(true);
       showToast?.(`${mockRecords.length}건 조회되었습니다.`, 'info');
+      setTimeout(() => {
+        historyRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }, 100);
     } catch {
       showToast?.('조회에 실패했습니다.', 'error');
     } finally {
@@ -379,7 +385,7 @@ const AttendanceRegistration: React.FC<AttendanceRegistrationProps> = ({
       </div>
 
       {/* 기간 조회 */}
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200">
+      <div ref={historyRef} className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
         <div
           className="flex items-center justify-between p-4 cursor-pointer"
           onClick={() => setHistoryOpen(!historyOpen)}
@@ -401,29 +407,29 @@ const AttendanceRegistration: React.FC<AttendanceRegistrationProps> = ({
         {historyOpen && (
           <div className="px-4 pb-4 space-y-3">
             {/* 기간 선택 */}
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1.5">
               <input
                 type="date"
                 value={searchFrom}
                 onChange={(e) => setSearchFrom(e.target.value)}
-                className="flex-1 px-2 py-1.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                className="flex-1 min-w-0 px-1.5 py-1.5 border border-gray-300 rounded-lg text-xs focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               />
-              <span className="text-gray-400 text-sm">~</span>
+              <span className="text-gray-400 text-xs flex-shrink-0">~</span>
               <input
                 type="date"
                 value={searchTo}
                 onChange={(e) => setSearchTo(e.target.value)}
-                className="flex-1 px-2 py-1.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                className="flex-1 min-w-0 px-1.5 py-1.5 border border-gray-300 rounded-lg text-xs focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               />
               <button
                 onClick={handleSearch}
                 disabled={searching}
-                className="flex items-center gap-1 px-3 py-1.5 bg-gray-100 text-gray-700 rounded-lg text-sm hover:bg-gray-200 transition-colors disabled:opacity-50"
+                className="flex items-center gap-1 px-2.5 py-1.5 bg-gray-100 text-gray-700 rounded-lg text-xs hover:bg-gray-200 transition-colors disabled:opacity-50 flex-shrink-0"
               >
                 {searching ? (
-                  <Loader2 className="w-4 h-4 animate-spin" />
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
                 ) : (
-                  <Search className="w-4 h-4" />
+                  <Search className="w-3.5 h-3.5" />
                 )}
                 조회
               </button>
@@ -432,7 +438,7 @@ const AttendanceRegistration: React.FC<AttendanceRegistrationProps> = ({
 
             {/* 조회 결과 */}
             {Object.keys(groupedRecords).length > 0 ? (
-              <div className="space-y-2 max-h-[400px] overflow-y-auto">
+              <div className="space-y-2">
                 {Object.entries(groupedRecords)
                   .sort(([a], [b]) => b.localeCompare(a))
                   .map(([date, dayRecords]) => (
