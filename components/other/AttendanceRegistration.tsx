@@ -56,6 +56,7 @@ const AttendanceRegistration: React.FC<AttendanceRegistrationProps> = ({
   // 위치 정보
   const [location, setLocation] = useState<LocationInfo | null>(null);
   const [locationLoading, setLocationLoading] = useState(false);
+  const [addrType, setAddrType] = useState<'jibun' | 'road'>('jibun');
 
   // 메모
   const [memo, setMemo] = useState('');
@@ -74,6 +75,11 @@ const AttendanceRegistration: React.FC<AttendanceRegistrationProps> = ({
   const [historyOpen, setHistoryOpen] = useState(true);
 
   // VWorld reverse geocoding (server proxy to bypass CORS)
+  const vworldFetch = async (point: string, key: string, type: string): Promise<any> => {
+    const res = await fetch(`/api/vworld/address?point=${encodeURIComponent(point)}&key=${encodeURIComponent(key)}&type=${type}`);
+    return res.json();
+  };
+
   const reverseGeocode = async (lat: number, lng: number): Promise<{ road: string; jibun: string }> => {
     const mapKeys = await loadMapApiKeys();
     const vworldKey = pickRandomKey(mapKeys.vworld);
@@ -83,16 +89,18 @@ const AttendanceRegistration: React.FC<AttendanceRegistrationProps> = ({
     }
     try {
       const point = `${lng},${lat}`;
-      const res = await fetch(`/api/vworld/address?point=${encodeURIComponent(point)}&key=${encodeURIComponent(vworldKey)}`);
-      const data = await res.json();
-      let road = '';
+      // parcel + road parallel request
+      const [parcelData, roadData] = await Promise.all([
+        vworldFetch(point, vworldKey, 'parcel'),
+        vworldFetch(point, vworldKey, 'road'),
+      ]);
       let jibun = '';
-      if (data?.response?.status === 'OK' && data.response.result) {
-        const results = data.response.result;
-        for (const r of results) {
-          if (r.type === 'road') road = r.text || '';
-          if (r.type === 'parcel') jibun = r.text || '';
-        }
+      let road = '';
+      if (parcelData?.response?.status === 'OK' && parcelData.response.result) {
+        jibun = parcelData.response.result[0]?.text || '';
+      }
+      if (roadData?.response?.status === 'OK' && roadData.response.result) {
+        road = roadData.response.result[0]?.text || '';
       }
       return { road, jibun };
     } catch (e) {
@@ -293,53 +301,46 @@ const AttendanceRegistration: React.FC<AttendanceRegistrationProps> = ({
 
         {/* 위치 확인 */}
         <div>
-          <div className="flex items-center justify-between mb-2">
-            <div className="flex items-center gap-2">
-              <label className="block text-sm text-gray-600">위치</label>
-              <button
-                onClick={handleCheckLocation}
-                disabled={locationLoading}
-                className="flex items-center gap-1 px-3 py-1.5 bg-blue-50 text-blue-600 border border-blue-200 rounded-lg text-sm hover:bg-blue-100 transition-colors disabled:opacity-50"
-              >
-                {locationLoading ? (
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                ) : (
-                  <MapPin className="w-4 h-4" />
-                )}
-                위치확인
-              </button>
-            </div>
-            {location && (
-              <button
-                onClick={handleCheckLocation}
-                disabled={locationLoading}
-                className="flex items-center gap-1 px-2.5 py-1.5 text-gray-500 border border-gray-300 rounded-lg text-xs hover:bg-gray-50 transition-colors disabled:opacity-50"
-              >
-                <RefreshCw className={`w-3.5 h-3.5 ${locationLoading ? 'animate-spin' : ''}`} />
-                변경
-              </button>
-            )}
+          <div className="flex items-center gap-2 mb-2">
+            <label className="block text-sm text-gray-600">위치</label>
+            <button
+              onClick={handleCheckLocation}
+              disabled={locationLoading}
+              className="flex items-center gap-1 px-3 py-1.5 bg-blue-50 text-blue-600 border border-blue-200 rounded-lg text-sm hover:bg-blue-100 transition-colors disabled:opacity-50"
+            >
+              {locationLoading ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                <MapPin className="w-4 h-4" />
+              )}
+              위치확인
+            </button>
           </div>
 
           {location && (
             <div className="p-3 bg-blue-50 rounded-lg border border-blue-200 space-y-2">
-              <div className="space-y-1.5">
-                <div className="flex items-start gap-1.5">
+              <div className="flex items-start justify-between gap-2">
+                <div className="flex items-start gap-1.5 flex-1">
                   <MapPin className="w-5 h-5 flex-shrink-0 text-blue-500 mt-0.5" />
                   <div>
                     <span className="text-xs text-blue-500 font-medium">
-                      {location.jibunAddr ? '도로명' : '주소'}
+                      {addrType === 'jibun' ? '지번' : '도로명'}
                     </span>
-                    <p className="text-lg font-semibold text-gray-900 leading-snug">{location.roadAddr}</p>
+                    <p className="text-lg font-semibold text-gray-900 leading-snug">
+                      {addrType === 'jibun'
+                        ? (location.jibunAddr || location.roadAddr)
+                        : (location.roadAddr || location.jibunAddr)}
+                    </p>
                   </div>
                 </div>
-                {location.jibunAddr && (
-                  <div className="flex items-start gap-1.5 pl-[26px]">
-                    <div>
-                      <span className="text-xs text-blue-500 font-medium">지번</span>
-                      <p className="text-base text-gray-700">{location.jibunAddr}</p>
-                    </div>
-                  </div>
+                {location.roadAddr && location.jibunAddr && (
+                  <button
+                    onClick={() => setAddrType(prev => prev === 'jibun' ? 'road' : 'jibun')}
+                    className="flex items-center gap-1 px-2.5 py-1.5 text-blue-600 border border-blue-300 rounded-lg text-xs hover:bg-blue-100 transition-colors flex-shrink-0"
+                  >
+                    <RefreshCw className="w-3.5 h-3.5" />
+                    {addrType === 'jibun' ? '도로명' : '지번'}
+                  </button>
                 )}
               </div>
               <div className="flex items-center gap-1.5 text-xs text-blue-600 pt-1.5 border-t border-blue-200">

@@ -1353,11 +1353,12 @@ async function handleProxy(req, res) {
 
 // VWorld reverse geocoding proxy (CORS bypass)
 router.get('/vworld/address', async (req, res) => {
-  const { point, key } = req.query;
+  const { point, key, type } = req.query;
   if (!point || !key) {
     return res.status(400).json({ error: 'point and key are required' });
   }
-  const url = `https://api.vworld.kr/req/address?service=address&request=getAddress&version=2.0&crs=epsg:4326&point=${point}&format=json&type=both&zipcode=false&simple=false&key=${key}`;
+  const addrType = type || 'both';
+  const url = `https://api.vworld.kr/req/address?service=address&request=getAddress&version=2.0&crs=epsg:4326&point=${point}&format=json&type=${addrType}&zipcode=false&simple=false&key=${key}`;
   try {
     const https = require('https');
     const fetch = (u) => new Promise((resolve, reject) => {
