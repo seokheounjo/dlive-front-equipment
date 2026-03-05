@@ -261,6 +261,193 @@ function parseMiPlatformDatasetXMLtoJSON(xmlString) {
 // .req 서블릿은 CONA 원본 MiPlatform 로그인 세션만 인식
 const DIRECT_REQ_ROUTES = {};
 
+// ============================================================
+// OTP Authentication (GrippinTower RADIUS - Node.js direct)
+// ============================================================
+const dgram = require('dgram');
+const crypto = require('crypto');
+
+// GrippinTower OTP Server Config (D'Live infra team must provide these)
+const OTP_SERVER_IP = process.env.OTP_SERVER_IP || '127.0.0.1';
+const OTP_SERVER_PORT = parseInt(process.env.OTP_SERVER_PORT || '1812');
+const OTP_SHARED_SECRET = process.env.OTP_SHARED_SECRET || 'sharedsecret';
+const OTP_TIMEOUT = parseInt(process.env.OTP_TIMEOUT || '3') * 1000; // ms
+
+/**
+ * RADIUS Access-Request (RFC 2865)
+ * Encodes username + OTP password into RADIUS packet and sends via UDP
+ */
+function radiusAccessRequest(serverIp, serverPort, sharedSecret, username, password, timeout) {
+  return new Promise((resolve, reject) => {
+    const client = dgram.createSocket('udp4');
+    const identifier = Math.floor(Math.random() * 256);
+
+    // 16-byte random Request Authenticator
+    const requestAuthenticator = crypto.randomBytes(16);
+
+    // Encrypt password per RFC 2865 Section 5.2
+    function encryptPassword(password, secret, authenticator) {
+      let padded = Buffer.from(password, 'utf8');
+      const padLen = 16 - (padded.length % 16);
+      if (padLen < 16) {
+        padded = Buffer.concat([padded, Buffer.alloc(padLen, 0)]);
+      }
+      if (padded.length === 0) {
+        padded = Buffer.alloc(16, 0);
+      }
+
+      const encrypted = Buffer.alloc(padded.length);
+      let prevBlock = authenticator;
+
+      for (let i = 0; i < padded.length; i += 16) {
+        const hash = crypto.createHash('md5').update(Buffer.concat([Buffer.from(secret), prevBlock])).digest();
+        for (let j = 0; j < 16; j++) {
+          encrypted[i + j] = padded[i + j] ^ hash[j];
+        }
+        prevBlock = encrypted.slice(i, i + 16);
+      }
+      return encrypted;
+    }
+
+    const encryptedPwd = encryptPassword(password, sharedSecret, requestAuthenticator);
+
+    // Build attributes
+    // Attr 1: User-Name
+    const usernameBytes = Buffer.from(username, 'utf8');
+    const attr1 = Buffer.alloc(2 + usernameBytes.length);
+    attr1[0] = 1; // Type: User-Name
+    attr1[1] = 2 + usernameBytes.length; // Length
+    usernameBytes.copy(attr1, 2);
+
+    // Attr 2: User-Password
+    const attr2 = Buffer.alloc(2 + encryptedPwd.length);
+    attr2[0] = 2; // Type: User-Password
+    attr2[1] = 2 + encryptedPwd.length; // Length
+    encryptedPwd.copy(attr2, 2);
+
+    // Attr 6: Service-Type = Login (1)
+    const attr6 = Buffer.from([6, 6, 0, 0, 0, 1]);
+
+    // Attr 4: NAS-IP-Address (0.0.0.0)
+    const attr4 = Buffer.from([4, 6, 0, 0, 0, 0]);
+
+    const attributes = Buffer.concat([attr1, attr2, attr6, attr4]);
+
+    // Build RADIUS packet
+    const packetLength = 20 + attributes.length; // 1(code) + 1(id) + 2(len) + 16(auth) + attrs
+    const packet = Buffer.alloc(packetLength);
+    packet[0] = 1; // Code: Access-Request
+    packet[1] = identifier;
+    packet.writeUInt16BE(packetLength, 2);
+    requestAuthenticator.copy(packet, 4);
+    attributes.copy(packet, 20);
+
+    let responded = false;
+    const timer = setTimeout(() => {
+      if (!responded) {
+        responded = true;
+        client.close();
+        resolve({ code: '6040', count: '0', message: 'ERR_NETWORK_TIMEOUT' });
+      }
+    }, timeout);
+
+    client.on('message', (msg) => {
+      if (responded) return;
+      responded = true;
+      clearTimeout(timer);
+      client.close();
+
+      const packetCode = msg[0]; // 2=Accept, 3=Reject
+      // Parse attributes to find Reply-Message (type 18)
+      let replyMessage = '';
+      let offset = 20;
+      while (offset < msg.length) {
+        const attrType = msg[offset];
+        const attrLen = msg[offset + 1];
+        if (attrLen < 2) break;
+        if (attrType === 18) { // Reply-Message
+          replyMessage = msg.slice(offset + 2, offset + attrLen).toString('utf8');
+        }
+        offset += attrLen;
+      }
+
+      if (replyMessage && replyMessage.includes('#')) {
+        const parts = replyMessage.split('#');
+        resolve({
+          code: parts[0] || '6042',
+          count: parts[1] || '0',
+          message: parts[2] || ''
+        });
+      } else if (packetCode === 2) {
+        resolve({ code: '0', count: '0', message: 'SUCCESS' });
+      } else if (packetCode === 3) {
+        resolve({ code: '6000', count: '0', message: replyMessage || 'ACCESS_REJECT' });
+      } else {
+        resolve({ code: '6042', count: '0', message: 'UNKNOWN_RESPONSE' });
+      }
+    });
+
+    client.on('error', (err) => {
+      if (!responded) {
+        responded = true;
+        clearTimeout(timer);
+        client.close();
+        console.error('[OTP] RADIUS UDP error:', err.message);
+        resolve({ code: '6040', count: '0', message: 'ERR_NETWORK_FAIL' });
+      }
+    });
+
+    client.send(packet, 0, packetLength, serverPort, serverIp, (err) => {
+      if (err && !responded) {
+        responded = true;
+        clearTimeout(timer);
+        client.close();
+        console.error('[OTP] UDP send error:', err.message);
+        resolve({ code: '6040', count: '0', message: 'ERR_SEND_FAIL' });
+      }
+    });
+  });
+}
+
+// OTP Verify Endpoint
+router.post('/auth/otp-verify', async (req, res) => {
+  const userId = req.body.USR_ID;
+  const otpCode = req.body.OTP_CODE;
+
+  console.log('[OTP] Verify request - userId:', userId, 'otpCode length:', otpCode ? otpCode.length : 0);
+
+  if (!userId || !otpCode) {
+    return res.json({ ok: false, code: '6007', message: 'USR_ID or OTP_CODE is missing' });
+  }
+
+  if (!/^\d{6}$/.test(otpCode)) {
+    return res.json({ ok: false, code: '6010', message: 'OTP must be 6 digits' });
+  }
+
+  try {
+    const result = await radiusAccessRequest(
+      OTP_SERVER_IP, OTP_SERVER_PORT, OTP_SHARED_SECRET,
+      userId, otpCode, OTP_TIMEOUT
+    );
+
+    console.log('[OTP] RADIUS result:', JSON.stringify(result));
+
+    if (result.code === '0') {
+      res.json({ ok: true, code: '0', message: 'OTP authentication successful' });
+    } else {
+      res.json({
+        ok: false,
+        code: result.code,
+        message: result.message,
+        errorCount: parseInt(result.count) || 0
+      });
+    }
+  } catch (err) {
+    console.error('[OTP] Unexpected error:', err);
+    res.json({ ok: false, code: '6042', message: 'OTP server error' });
+  }
+});
+
 // Attendance API
 router.post('/system/attendance/get', handleProxy);
 router.post('/system/attendance/save', handleProxy);
