@@ -6,6 +6,9 @@ import { EyeSlashIcon } from '../icons/EyeSlashIcon';
 import { TestTube } from 'lucide-react';
 import { login, verifyOtp } from '../../services/apiService';
 
+// OTP 기능 ON/OFF (OTP 서버 연결 전까지 false)
+const OTP_ENABLED = false;
+
 interface LoginProps {
   onLogin: (userId?: string, userName?: string, userNameEn?: string, userRole?: string, crrId?: string, soId?: string, mstSoId?: string, telNo2?: string, authSoList?: Array<{SO_ID: string; SO_NM: string; MST_SO_ID: string}>) => void;
 }
@@ -13,53 +16,44 @@ interface LoginProps {
 const Login: React.FC<LoginProps> = ({ onLogin }) => {
   const [username, setUsername] = useState('A20117965');
   const [password, setPassword] = useState('dlive12!@#$');
+  const [otpCode, setOtpCode] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showDupConfirm, setShowDupConfirm] = useState(false);
 
-  // OTP 2단계 인증 상태
-  const [loginStep, setLoginStep] = useState<'credentials' | 'otp'>('credentials');
-  const [otpCode, setOtpCode] = useState('');
-  const [pendingLoginData, setPendingLoginData] = useState<any>(null);
-  const [otpTimer, setOtpTimer] = useState(180); // 3분 타이머
-  const otpInputRef = React.useRef<HTMLInputElement>(null);
+  const inputBaseClasses = "w-full py-3 bg-white border border-gray-200 rounded-lg text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition";
 
-  // OTP 타이머
-  React.useEffect(() => {
-    if (loginStep !== 'otp') return;
-    if (otpTimer <= 0) {
-      setError('OTP 입력 시간이 초과되었습니다. 다시 로그인해주세요.');
-      return;
-    }
-    const interval = setInterval(() => {
-      setOtpTimer(prev => prev - 1);
-    }, 1000);
-    return () => clearInterval(interval);
-  }, [loginStep, otpTimer]);
-
-  // OTP 화면 전환 시 포커스
-  React.useEffect(() => {
-    if (loginStep === 'otp' && otpInputRef.current) {
-      otpInputRef.current.focus();
-    }
-  }, [loginStep]);
-
-  // 로그인 완료 처리 (ID/PW + OTP 모두 통과 후)
+  // 로그인 완료 처리
   const completeLogin = (result: any) => {
     localStorage.removeItem('demoMode');
     onLogin(result.userId, result.userName, result.userNameEn, result.userRole, result.crrId, result.soId, result.mstSoId, result.telNo2, result.AUTH_SO_List);
   };
 
+  // OTP 에러코드별 메시지
+  const otpErrorMessages: Record<string, string> = {
+    '6000': 'OTP 인증에 실패했습니다. 다시 입력해주세요.',
+    '6001': '이미 사용된 OTP입니다. 새 코드를 입력해주세요.',
+    '6010': 'OTP는 숫자 6자리를 입력해주세요.',
+    '6025': '인증 실패 횟수를 초과했습니다. 관리자에게 문의하세요.',
+    '6040': 'OTP 서버에 연결할 수 없습니다. 잠시 후 다시 시도해주세요.',
+    '6041': 'OTP 서버 통신 오류가 발생했습니다.',
+  };
+
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>, forceDisconnect: boolean = false) => {
     e.preventDefault();
     if (!username || !password) return;
+    if (OTP_ENABLED && (!otpCode || otpCode.length !== 6)) {
+      setError('OTP 6자리를 입력해주세요.');
+      return;
+    }
 
     setIsLoading(true);
     setError(null);
     setShowDupConfirm(false);
 
     try {
+      // 1단계: ID/PW 인증
       const result = await login(username, password, forceDisconnect ? 'Y' : 'N');
       console.log('[Login] API 응답:', result);
 
@@ -70,16 +64,27 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
         return;
       }
 
-      if (result.ok) {
-        // ID/PW 인증 성공 → OTP 단계로 전환
-        setPendingLoginData(result);
-        setLoginStep('otp');
-        setOtpCode('');
-        setOtpTimer(180);
-        setError(null);
-      } else {
+      if (!result.ok) {
         setError('로그인에 실패했습니다.');
+        return;
       }
+
+      // 2단계: OTP 인증 (활성화 시)
+      if (OTP_ENABLED) {
+        console.log('[Login] ID/PW 성공, OTP 검증 시작...');
+        const otpResult = await verifyOtp(username, otpCode);
+        console.log('[Login] OTP 검증 응답:', otpResult);
+
+        if (!otpResult.ok) {
+          const errorCode = otpResult.code || '';
+          setError(otpErrorMessages[errorCode] || otpResult.message || 'OTP 인증에 실패했습니다.');
+          setOtpCode('');
+          return;
+        }
+      }
+
+      // 모든 인증 통과 → 로그인 완료
+      completeLogin(result);
     } catch (err: any) {
       if (err.message && err.message.includes('401')) {
         setError('아이디 또는 비밀번호가 잘못되었습니다.');
@@ -94,60 +99,6 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
     }
   };
 
-  // OTP 검증
-  const handleOtpSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    if (!otpCode || otpCode.length !== 6) {
-      setError('OTP 6자리를 입력해주세요.');
-      return;
-    }
-    if (otpTimer <= 0) {
-      setError('OTP 입력 시간이 초과되었습니다. 다시 로그인해주세요.');
-      return;
-    }
-
-    setIsLoading(true);
-    setError(null);
-
-    try {
-      const result = await verifyOtp(username, otpCode);
-      console.log('[Login] OTP 검증 응답:', result);
-
-      if (result.ok) {
-        // OTP 인증 성공 → 최종 로그인 완료
-        completeLogin(pendingLoginData);
-      } else {
-        // OTP 에러코드별 메시지
-        const otpErrorMessages: Record<string, string> = {
-          '6000': 'OTP 인증에 실패했습니다. 다시 입력해주세요.',
-          '6001': '이미 사용된 OTP입니다. 새 코드를 입력해주세요.',
-          '6010': 'OTP는 숫자 6자리를 입력해주세요.',
-          '6025': '인증 실패 횟수를 초과했습니다. 관리자에게 문의하세요.',
-          '6040': 'OTP 서버에 연결할 수 없습니다. 잠시 후 다시 시도해주세요.',
-          '6041': 'OTP 서버 통신 오류가 발생했습니다.',
-        };
-        const errorCode = result.code || '';
-        const errorMsg = otpErrorMessages[errorCode] || result.message || 'OTP 인증에 실패했습니다.';
-        setError(errorMsg);
-        setOtpCode('');
-      }
-    } catch (err: any) {
-      setError('OTP 인증 중 오류가 발생했습니다. 다시 시도해주세요.');
-      console.error('OTP 검증 오류:', err);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  // OTP 단계에서 뒤로가기
-  const handleBackToLogin = () => {
-    setLoginStep('credentials');
-    setOtpCode('');
-    setPendingLoginData(null);
-    setError(null);
-    setOtpTimer(180);
-  };
-
   // 강제 로그인 (기존 세션 종료)
   const handleForceLogin = async () => {
     setIsLoading(true);
@@ -155,31 +106,33 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
     try {
       const result = await login(username, password, 'Y');
       console.log('[Login] 강제 로그인 응답:', result);
-      if (result.ok) {
-        // 강제 로그인도 OTP 단계로 전환
-        setPendingLoginData(result);
-        setLoginStep('otp');
-        setOtpCode('');
-        setOtpTimer(180);
-        setError(null);
-      } else {
+      if (!result.ok) {
         setError('로그인에 실패했습니다.');
+        return;
       }
+
+      // OTP 인증 (활성화 시)
+      if (OTP_ENABLED) {
+        if (!otpCode || otpCode.length !== 6) {
+          setError('OTP 6자리를 입력해주세요.');
+          return;
+        }
+        const otpResult = await verifyOtp(username, otpCode);
+        if (!otpResult.ok) {
+          const errorCode = otpResult.code || '';
+          setError(otpErrorMessages[errorCode] || otpResult.message || 'OTP 인증에 실패했습니다.');
+          setOtpCode('');
+          return;
+        }
+      }
+
+      completeLogin(result);
     } catch (err: any) {
       setError('로그인 중 오류가 발생했습니다.');
       console.error('강제 로그인 오류:', err);
     } finally {
       setIsLoading(false);
     }
-  };
-
-  const inputBaseClasses = "w-full py-3 bg-white border border-gray-200 rounded-lg text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition";
-
-  // OTP 타이머 포맷
-  const formatTimer = (seconds: number) => {
-    const m = Math.floor(seconds / 60);
-    const s = seconds % 60;
-    return `${m}:${s.toString().padStart(2, '0')}`;
   };
 
   return (
@@ -193,160 +146,112 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
           </div>
         </div>
 
-        {/* ===== 1단계: ID/PW 입력 ===== */}
-        {loginStep === 'credentials' && (
-          <form onSubmit={handleSubmit} className="space-y-6">
-            <div>
-              <label htmlFor="username" className="sr-only">사용자 ID</label>
-              <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
-                  <ShieldCheckIcon className="h-5 w-5 text-gray-400" />
-                </div>
-                <input
-                  id="username"
-                  name="username"
-                  type="text"
-                  required
-                  className={`${inputBaseClasses} pl-10 pr-3`}
-                  placeholder="사용자 ID"
-                  value={username}
-                  onChange={(e) => setUsername(e.target.value)}
-                />
+        <form onSubmit={handleSubmit} className="space-y-5">
+          {/* 사용자 ID */}
+          <div>
+            <label htmlFor="username" className="sr-only">사용자 ID</label>
+            <div className="relative">
+              <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
+                <ShieldCheckIcon className="h-5 w-5 text-gray-400" />
+              </div>
+              <input
+                id="username"
+                name="username"
+                type="text"
+                required
+                className={`${inputBaseClasses} pl-10 pr-3`}
+                placeholder="사용자 ID"
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+              />
+            </div>
+          </div>
+
+          {/* 비밀번호 */}
+          <div>
+            <label htmlFor="password" className="sr-only">비밀번호</label>
+            <div className="relative">
+              <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
+                <LockClosedIcon className="h-5 w-5 text-gray-400" />
+              </div>
+              <input
+                id="password"
+                name="password"
+                type={showPassword ? 'text' : 'password'}
+                required
+                className={`${inputBaseClasses} pl-10 pr-10`}
+                placeholder="비밀번호"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+              />
+              <div className="absolute inset-y-0 right-0 pr-3.5 flex items-center">
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="text-gray-400 hover:text-gray-600 focus:outline-none"
+                  aria-label={showPassword ? "비밀번호 숨기기" : "비밀번호 보기"}
+                >
+                  {showPassword ? <EyeSlashIcon className="h-5 w-5" /> : <EyeIcon className="h-5 w-5" />}
+                </button>
               </div>
             </div>
+          </div>
 
+          {/* OTP 입력 (OTP_ENABLED=true 일 때만 표시) */}
+          {OTP_ENABLED && (
             <div>
-              <label htmlFor="password" className="sr-only">비밀번호</label>
-              <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
-                  <LockClosedIcon className="h-5 w-5 text-gray-400" />
-                </div>
-                <input
-                  id="password"
-                  name="password"
-                  type={showPassword ? 'text' : 'password'}
-                  required
-                  className={`${inputBaseClasses} pl-10 pr-10`}
-                  placeholder="비밀번호"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                />
-                <div className="absolute inset-y-0 right-0 pr-3.5 flex items-center">
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    className="text-gray-400 hover:text-gray-600 focus:outline-none"
-                    aria-label={showPassword ? "비밀번호 숨기기" : "비밀번호 보기"}
-                  >
-                    {showPassword ? <EyeSlashIcon className="h-5 w-5" /> : <EyeIcon className="h-5 w-5" />}
-                  </button>
-                </div>
-              </div>
-            </div>
-
-            {error && (
-              <div className="text-red-500 text-sm text-center bg-red-50 p-3 rounded-lg">
-                {error}
-              </div>
-            )}
-
-            <div className="space-y-3">
-              <button
-                type="submit"
-                disabled={isLoading}
-                className="w-full flex justify-center py-3 px-4 border border-transparent text-base font-bold rounded-lg text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {isLoading ? '로그인 중...' : '로그인'}
-              </button>
-
-              {/* 더미 계정 로그인 버튼 */}
-              <button
-                type="button"
-                onClick={() => {
-                  localStorage.setItem('demoMode', 'true');
-                  onLogin('demo', 'demo', 'demo');
+              <label htmlFor="otpCode" className="block text-xs font-medium text-gray-600 mb-1.5 ml-1">
+                OTP 인증번호
+              </label>
+              <input
+                id="otpCode"
+                name="otpCode"
+                type="text"
+                inputMode="numeric"
+                pattern="[0-9]*"
+                maxLength={6}
+                autoComplete="one-time-code"
+                className={`${inputBaseClasses} text-center text-xl tracking-[0.4em] font-mono px-4`}
+                placeholder="6자리 입력"
+                value={otpCode}
+                onChange={(e) => {
+                  const val = e.target.value.replace(/[^0-9]/g, '');
+                  if (val.length <= 6) setOtpCode(val);
                 }}
-                className="w-full flex items-center justify-center gap-2 py-2 px-4 border border-gray-300 text-sm font-medium rounded-lg text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500 transition-colors shadow-sm"
-              >
-                <TestTube className="w-4 h-4" />
-                UI 테스트 계정
-              </button>
+              />
+              <p className="text-xs text-gray-400 mt-1 ml-1">OTP 기기에 표시된 6자리 숫자</p>
             </div>
-          </form>
-        )}
+          )}
 
-        {/* ===== 2단계: OTP 입력 ===== */}
-        {loginStep === 'otp' && (
-          <form onSubmit={handleOtpSubmit} className="space-y-6">
-            {/* OTP 안내 */}
-            <div className="text-center space-y-2">
-              <div className="mx-auto w-14 h-14 bg-amber-50 rounded-full flex items-center justify-center">
-                <LockClosedIcon className="h-7 w-7 text-amber-600" />
-              </div>
-              <p className="text-sm font-semibold text-gray-800">OTP 인증</p>
-              <p className="text-xs text-gray-500">
-                OTP 기기에 표시된 6자리 인증번호를 입력해주세요.
-              </p>
-              {/* 사용자 ID 표시 */}
-              <p className="text-xs text-blue-600 font-medium">
-                {pendingLoginData?.userName || username}
-              </p>
+          {error && (
+            <div className="text-red-500 text-sm text-center bg-red-50 p-3 rounded-lg">
+              {error}
             </div>
+          )}
 
-            {/* OTP 입력 필드 */}
-            <div>
-              <div className="relative">
-                <input
-                  ref={otpInputRef}
-                  id="otpCode"
-                  name="otpCode"
-                  type="text"
-                  inputMode="numeric"
-                  pattern="[0-9]*"
-                  maxLength={6}
-                  required
-                  autoComplete="one-time-code"
-                  className={`${inputBaseClasses} text-center text-2xl tracking-[0.5em] font-mono px-4`}
-                  placeholder="000000"
-                  value={otpCode}
-                  onChange={(e) => {
-                    const val = e.target.value.replace(/[^0-9]/g, '');
-                    if (val.length <= 6) setOtpCode(val);
-                  }}
-                />
-              </div>
-              {/* 타이머 */}
-              <div className="flex justify-center mt-2">
-                <span className={`text-sm font-mono font-semibold ${otpTimer <= 30 ? 'text-red-500' : 'text-gray-500'}`}>
-                  {otpTimer > 0 ? formatTimer(otpTimer) : '시간 초과'}
-                </span>
-              </div>
-            </div>
+          <div className="space-y-3">
+            <button
+              type="submit"
+              disabled={isLoading}
+              className="w-full flex justify-center py-3 px-4 border border-transparent text-base font-bold rounded-lg text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {isLoading ? '로그인 중...' : '로그인'}
+            </button>
 
-            {error && (
-              <div className="text-red-500 text-sm text-center bg-red-50 p-3 rounded-lg">
-                {error}
-              </div>
-            )}
-
-            <div className="space-y-3">
-              <button
-                type="submit"
-                disabled={isLoading || otpCode.length !== 6 || otpTimer <= 0}
-                className="w-full flex justify-center py-3 px-4 border border-transparent text-base font-bold rounded-lg text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {isLoading ? '인증 중...' : '인증 확인'}
-              </button>
-              <button
-                type="button"
-                onClick={handleBackToLogin}
-                className="w-full flex justify-center py-2 px-4 border border-gray-300 text-sm font-medium rounded-lg text-gray-600 bg-white hover:bg-gray-50 focus:outline-none transition-colors"
-              >
-                로그인 화면으로 돌아가기
-              </button>
-            </div>
-          </form>
-        )}
+            {/* 더미 계정 로그인 버튼 */}
+            <button
+              type="button"
+              onClick={() => {
+                localStorage.setItem('demoMode', 'true');
+                onLogin('demo', 'demo', 'demo');
+              }}
+              className="w-full flex items-center justify-center gap-2 py-2 px-4 border border-gray-300 text-sm font-medium rounded-lg text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500 transition-colors shadow-sm"
+            >
+              <TestTube className="w-4 h-4" />
+              UI 테스트 계정
+            </button>
+          </div>
+        </form>
 
         <div className="mt-8 text-center">
           <div className="mb-3">
