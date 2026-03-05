@@ -5,8 +5,6 @@ import {
 } from 'lucide-react';
 import { loadMapApiKeys, pickRandomKey } from '../../services/navigationService';
 
-const VWORLD_FALLBACK_KEY = 'A4EED0C3-BED4-315A-AF7B-B47F94357975';
-
 interface AttendanceRegistrationProps {
   onBack: () => void;
   userInfo?: { userId: string; userName: string; soId?: string } | null;
@@ -75,11 +73,15 @@ const AttendanceRegistration: React.FC<AttendanceRegistrationProps> = ({
   const [expandedRecords, setExpandedRecords] = useState<Set<number>>(new Set());
   const [historyOpen, setHistoryOpen] = useState(true);
 
-  // VWorld reverse geocoding
+  // VWorld reverse geocoding (MOMP001 common code key)
   const reverseGeocode = async (lat: number, lng: number): Promise<{ road: string; jibun: string }> => {
+    const mapKeys = await loadMapApiKeys();
+    const vworldKey = pickRandomKey(mapKeys.vworld);
+    if (!vworldKey) {
+      console.warn('[Attendance] MOMP001 VWorld key not found');
+      return { road: '', jibun: '' };
+    }
     try {
-      const mapKeys = await loadMapApiKeys();
-      const vworldKey = pickRandomKey(mapKeys.vworld) || VWORLD_FALLBACK_KEY;
       const url = `https://api.vworld.kr/req/address?service=address&request=getAddress&version=2.0&crs=epsg:4326&point=${lng},${lat}&format=json&type=both&zipcode=false&simple=false&key=${vworldKey}`;
       const res = await fetch(url);
       const data = await res.json();
@@ -90,9 +92,6 @@ const AttendanceRegistration: React.FC<AttendanceRegistrationProps> = ({
         for (const r of results) {
           if (r.type === 'road') road = r.text || '';
           if (r.type === 'parcel') jibun = r.text || '';
-        }
-        if (!road && !jibun && results.length > 0) {
-          road = results[0].text || '';
         }
       }
       return { road, jibun };
@@ -115,14 +114,19 @@ const AttendanceRegistration: React.FC<AttendanceRegistrationProps> = ({
         const { latitude, longitude } = position.coords;
         try {
           const { road, jibun } = await reverseGeocode(latitude, longitude);
+          const coordsFallback = `위도 ${latitude.toFixed(6)}, 경도 ${longitude.toFixed(6)}`;
           setLocation({
-            roadAddr: road || `위도 ${latitude.toFixed(6)}, 경도 ${longitude.toFixed(6)}`,
-            jibunAddr: jibun,
+            roadAddr: road || jibun || coordsFallback,
+            jibunAddr: road ? jibun : '',
             lat: latitude,
             lng: longitude,
             checkedAt: formatDateTimeKR(new Date())
           });
-          showToast?.('위치 확인 완료', 'success');
+          if (road || jibun) {
+            showToast?.('위치 확인 완료', 'success');
+          } else {
+            showToast?.('주소 변환 실패 (좌표로 표시)', 'warning');
+          }
         } catch {
           setLocation({
             roadAddr: `위도 ${latitude.toFixed(6)}, 경도 ${longitude.toFixed(6)}`,
@@ -319,16 +323,18 @@ const AttendanceRegistration: React.FC<AttendanceRegistrationProps> = ({
 
           {location && (
             <div className="p-3 bg-blue-50 rounded-lg border border-blue-200 space-y-2">
-              <div className="space-y-1">
+              <div className="space-y-1.5">
                 <div className="flex items-start gap-1.5">
-                  <MapPin className="w-4 h-4 flex-shrink-0 text-blue-500 mt-0.5" />
+                  <MapPin className="w-5 h-5 flex-shrink-0 text-blue-500 mt-0.5" />
                   <div>
-                    <span className="text-xs text-blue-500 font-medium">도로명</span>
-                    <p className="text-base font-medium text-gray-900">{location.roadAddr}</p>
+                    <span className="text-xs text-blue-500 font-medium">
+                      {location.jibunAddr ? '도로명' : '주소'}
+                    </span>
+                    <p className="text-lg font-semibold text-gray-900 leading-snug">{location.roadAddr}</p>
                   </div>
                 </div>
                 {location.jibunAddr && (
-                  <div className="flex items-start gap-1.5 pl-[22px]">
+                  <div className="flex items-start gap-1.5 pl-[26px]">
                     <div>
                       <span className="text-xs text-blue-500 font-medium">지번</span>
                       <p className="text-base text-gray-700">{location.jibunAddr}</p>
@@ -336,9 +342,9 @@ const AttendanceRegistration: React.FC<AttendanceRegistrationProps> = ({
                   </div>
                 )}
               </div>
-              <div className="flex items-center gap-1.5 text-xs text-blue-600 pt-1 border-t border-blue-200">
+              <div className="flex items-center gap-1.5 text-xs text-blue-600 pt-1.5 border-t border-blue-200">
                 <Clock className="w-3.5 h-3.5 flex-shrink-0" />
-                <span className="text-sm">{location.checkedAt}</span>
+                <span className="text-sm font-medium">{location.checkedAt}</span>
               </div>
             </div>
           )}
