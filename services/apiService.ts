@@ -444,6 +444,42 @@ export const login = async (userId: string, password: string, disconnYn: string 
 };
 
 
+// OTP 검증 API
+export interface OtpVerifyResponse {
+  ok: boolean;
+  code?: string;
+  message?: string;
+  errorCount?: number;
+}
+
+export const verifyOtp = async (userId: string, otpCode: string): Promise<OtpVerifyResponse> => {
+  const origin = typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000';
+
+  try {
+    const response = await fetchWithRetry(`${API_BASE}/auth/otp-verify`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Origin': origin
+      },
+      credentials: 'include',
+      body: JSON.stringify({
+        USR_ID: userId,
+        OTP_CODE: otpCode
+      }),
+    }, 1);
+
+    const result = await response.json();
+    return result;
+  } catch (error) {
+    console.error('OTP 검증 API 호출 실패:', error);
+    if (error instanceof NetworkError) {
+      throw error;
+    }
+    throw new NetworkError('OTP 인증 중 오류가 발생했습니다. 다시 시도해주세요.');
+  }
+};
+
 // 더미 모드 확인 함수
 export const checkDemoMode = (): boolean => {
   return typeof window !== 'undefined' && localStorage.getItem('demoMode') === 'true';
