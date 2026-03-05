@@ -261,6 +261,10 @@ function parseMiPlatformDatasetXMLtoJSON(xmlString) {
 // .req 서블릿은 CONA 원본 MiPlatform 로그인 세션만 인식
 const DIRECT_REQ_ROUTES = {};
 
+// Attendance API
+router.post('/system/attendance/get', handleProxy);
+router.post('/system/attendance/save', handleProxy);
+
 // Proxy routes
 router.post('/login', handleProxy);
 router.post('/work/directions', handleProxy);

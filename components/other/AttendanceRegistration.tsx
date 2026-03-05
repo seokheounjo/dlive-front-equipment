@@ -160,30 +160,60 @@ const AttendanceRegistration: React.FC<AttendanceRegistrationProps> = ({
     );
   };
 
+  // YYYYMMDDHHMMSS format for P_LOOKUP_DATE
+  const formatLookupDate = (d: Date): string => {
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const dd = String(d.getDate()).padStart(2, '0');
+    const hh = String(d.getHours()).padStart(2, '0');
+    const mm = String(d.getMinutes()).padStart(2, '0');
+    const ss = String(d.getSeconds()).padStart(2, '0');
+    return `${y}${m}${dd}${hh}${mm}${ss}`;
+  };
+
   // 근태 입력
   const handleSubmit = async () => {
     if (!location) {
       showToast?.('위치 확인을 먼저 해주세요.', 'warning');
       return;
     }
+    if (!userInfo?.userId) {
+      showToast?.('로그인 정보가 없습니다.', 'error');
+      return;
+    }
 
     setSubmitting(true);
     try {
-      // TODO: Backend API call
-      // const params = {
-      //   userId: userInfo?.userId,
-      //   type: activeTab,
-      //   lat: location.lat,
-      //   lng: location.lng,
-      //   roadAddr: location.roadAddr,
-      //   jibunAddr: location.jibunAddr,
-      //   memo: memo,
-      //   checkedAt: location.checkedAt
-      // };
+      const address = addrType === 'jibun'
+        ? (location.jibunAddr || location.roadAddr)
+        : (location.roadAddr || location.jibunAddr);
 
-      showToast?.(`${activeTab === 'in' ? '출근' : '퇴근'} 등록이 완료되었습니다.`, 'success');
-      setMemo('');
-      setLocation(null);
+      const res = await fetch('/api/system/attendance/save', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          P_USER_ID: userInfo.userId,
+          P_GUBUN: activeTab === 'in' ? 'I' : 'O',
+          P_ADDRESS: address,
+          P_LOOKUP_DATE: formatLookupDate(new Date()),
+          P_MEMO: memo || ''
+        })
+      });
+      const data = await res.json();
+
+      if (res.ok) {
+        const msgCode = Array.isArray(data) && data[0]?.MSGCODE;
+        if (msgCode === 'E') {
+          const errMsg = data[0]?.MESSAGE || 'Unknown error';
+          showToast?.(`등록 실패: ${errMsg}`, 'error');
+        } else {
+          showToast?.(`${activeTab === 'in' ? '출근' : '퇴근'} 등록이 완료되었습니다.`, 'success');
+          setMemo('');
+          setLocation(null);
+        }
+      } else {
+        showToast?.(`근태 등록 실패: ${data?.message || res.status}`, 'error');
+      }
     } catch (err: any) {
       showToast?.('근태 등록에 실패했습니다.', 'error');
     } finally {
@@ -206,33 +236,54 @@ const AttendanceRegistration: React.FC<AttendanceRegistrationProps> = ({
       return;
     }
 
+    if (!userInfo?.userId) {
+      showToast?.('로그인 정보가 없습니다.', 'error');
+      return;
+    }
+
     setSearching(true);
     try {
-      // TODO: Backend API call
-      // Mock data for UI demo
-      const mockRecords: AttendanceRecord[] = [];
-      const cur = new Date(searchFrom);
-      const end = new Date(searchTo);
-      while (cur <= end) {
-        const dateStr = formatDateStr(cur);
-        const dayOfWeek = cur.getDay();
-        if (dayOfWeek !== 0 && dayOfWeek !== 6) {
-          mockRecords.push({
-            date: dateStr,
-            inTime: `${dateStr} 08:52:14`,
-            outTime: `${dateStr} 18:05:37`,
-            location: '',
-            memo: ''
-          });
-        }
-        cur.setDate(cur.getDate() + 1);
+      // YYYYMMDD format
+      const startDd = searchFrom.replace(/-/g, '');
+      const endDd = searchTo.replace(/-/g, '');
+
+      const res = await fetch('/api/system/attendance/get', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          USR_ID: userInfo.userId,
+          START_DD: startDd,
+          END_DD: endDd
+        })
+      });
+      const data = await res.json();
+
+      if (res.ok && Array.isArray(data)) {
+        const parsed: AttendanceRecord[] = data.map((row: any) => {
+          const baseDd = row.BASE_DD || '';
+          const inDt = row.IN_DTTM || row.IN_DT || '';
+          const outDt = row.OUT_DTTM || row.OUT_DT || '';
+          return {
+            date: baseDd,
+            inTime: inDt,
+            outTime: outDt,
+            location: row.ADDRESS || '',
+            memo: row.MEMO || ''
+          };
+        });
+        setRecords(parsed);
+        setHistoryOpen(true);
+        showToast?.(`${parsed.length}건 조회되었습니다.`, 'info');
+        setTimeout(() => {
+          historyRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }, 100);
+      } else if (res.ok && data?.code) {
+        showToast?.(`조회 실패: ${data.message || data.code}`, 'error');
+        setRecords([]);
+      } else {
+        setRecords([]);
+        showToast?.('조회 결과가 없습니다.', 'info');
       }
-      setRecords(mockRecords);
-      setHistoryOpen(true);
-      showToast?.(`${mockRecords.length}건 조회되었습니다.`, 'info');
-      setTimeout(() => {
-        historyRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-      }, 100);
     } catch {
       showToast?.('조회에 실패했습니다.', 'error');
     } finally {
