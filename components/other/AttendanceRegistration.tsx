@@ -1,8 +1,11 @@
 import React, { useState, useRef } from 'react';
 import {
   MapPin, Clock, Send, Search, ChevronDown, ChevronUp,
-  Loader2, CalendarDays, LogIn, LogOut
+  Loader2, CalendarDays, LogIn, LogOut, RefreshCw
 } from 'lucide-react';
+import { loadMapApiKeys, pickRandomKey } from '../../services/navigationService';
+
+const VWORLD_FALLBACK_KEY = 'A4EED0C3-BED4-315A-AF7B-B47F94357975';
 
 interface AttendanceRegistrationProps {
   onBack: () => void;
@@ -11,7 +14,8 @@ interface AttendanceRegistrationProps {
 }
 
 interface LocationInfo {
-  address: string;
+  roadAddr: string;
+  jibunAddr: string;
   lat: number;
   lng: number;
   checkedAt: string;
@@ -71,6 +75,33 @@ const AttendanceRegistration: React.FC<AttendanceRegistrationProps> = ({
   const [expandedRecords, setExpandedRecords] = useState<Set<number>>(new Set());
   const [historyOpen, setHistoryOpen] = useState(true);
 
+  // VWorld reverse geocoding
+  const reverseGeocode = async (lat: number, lng: number): Promise<{ road: string; jibun: string }> => {
+    try {
+      const mapKeys = await loadMapApiKeys();
+      const vworldKey = pickRandomKey(mapKeys.vworld) || VWORLD_FALLBACK_KEY;
+      const url = `https://api.vworld.kr/req/address?service=address&request=getAddress&version=2.0&crs=epsg:4326&point=${lng},${lat}&format=json&type=both&zipcode=false&simple=false&key=${vworldKey}`;
+      const res = await fetch(url);
+      const data = await res.json();
+      let road = '';
+      let jibun = '';
+      if (data?.response?.status === 'OK' && data.response.result) {
+        const results = data.response.result;
+        for (const r of results) {
+          if (r.type === 'road') road = r.text || '';
+          if (r.type === 'parcel') jibun = r.text || '';
+        }
+        if (!road && !jibun && results.length > 0) {
+          road = results[0].text || '';
+        }
+      }
+      return { road, jibun };
+    } catch (e) {
+      console.warn('[Attendance] VWorld reverse geocode failed:', e);
+      return { road: '', jibun: '' };
+    }
+  };
+
   // 위치 확인
   const handleCheckLocation = () => {
     if (!navigator.geolocation) {
@@ -83,11 +114,10 @@ const AttendanceRegistration: React.FC<AttendanceRegistrationProps> = ({
       async (position) => {
         const { latitude, longitude } = position.coords;
         try {
-          // Reverse geocoding via Kakao/Naver is blocked (no external API)
-          // Use coordinate display as address
-          const address = `위도 ${latitude.toFixed(6)}, 경도 ${longitude.toFixed(6)}`;
+          const { road, jibun } = await reverseGeocode(latitude, longitude);
           setLocation({
-            address,
+            roadAddr: road || `위도 ${latitude.toFixed(6)}, 경도 ${longitude.toFixed(6)}`,
+            jibunAddr: jibun,
             lat: latitude,
             lng: longitude,
             checkedAt: formatDateTimeKR(new Date())
@@ -95,7 +125,8 @@ const AttendanceRegistration: React.FC<AttendanceRegistrationProps> = ({
           showToast?.('위치 확인 완료', 'success');
         } catch {
           setLocation({
-            address: `위도 ${latitude.toFixed(6)}, 경도 ${longitude.toFixed(6)}`,
+            roadAddr: `위도 ${latitude.toFixed(6)}, 경도 ${longitude.toFixed(6)}`,
+            jibunAddr: '',
             lat: latitude,
             lng: longitude,
             checkedAt: formatDateTimeKR(new Date())
@@ -131,7 +162,8 @@ const AttendanceRegistration: React.FC<AttendanceRegistrationProps> = ({
       //   type: activeTab,
       //   lat: location.lat,
       //   lng: location.lng,
-      //   address: location.address,
+      //   roadAddr: location.roadAddr,
+      //   jibunAddr: location.jibunAddr,
       //   memo: memo,
       //   checkedAt: location.checkedAt
       // };
@@ -257,31 +289,56 @@ const AttendanceRegistration: React.FC<AttendanceRegistrationProps> = ({
 
         {/* 위치 확인 */}
         <div>
-          <div className="flex items-center gap-2 mb-2">
-            <label className="block text-sm text-gray-600">위치</label>
-            <button
-              onClick={handleCheckLocation}
-              disabled={locationLoading}
-              className="flex items-center gap-1 px-3 py-1.5 bg-blue-50 text-blue-600 border border-blue-200 rounded-lg text-sm hover:bg-blue-100 transition-colors disabled:opacity-50"
-            >
-              {locationLoading ? (
-                <Loader2 className="w-4 h-4 animate-spin" />
-              ) : (
-                <MapPin className="w-4 h-4" />
-              )}
-              위치확인
-            </button>
+          <div className="flex items-center justify-between mb-2">
+            <div className="flex items-center gap-2">
+              <label className="block text-sm text-gray-600">위치</label>
+              <button
+                onClick={handleCheckLocation}
+                disabled={locationLoading}
+                className="flex items-center gap-1 px-3 py-1.5 bg-blue-50 text-blue-600 border border-blue-200 rounded-lg text-sm hover:bg-blue-100 transition-colors disabled:opacity-50"
+              >
+                {locationLoading ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <MapPin className="w-4 h-4" />
+                )}
+                위치확인
+              </button>
+            </div>
+            {location && (
+              <button
+                onClick={handleCheckLocation}
+                disabled={locationLoading}
+                className="flex items-center gap-1 px-2.5 py-1.5 text-gray-500 border border-gray-300 rounded-lg text-xs hover:bg-gray-50 transition-colors disabled:opacity-50"
+              >
+                <RefreshCw className={`w-3.5 h-3.5 ${locationLoading ? 'animate-spin' : ''}`} />
+                변경
+              </button>
+            )}
           </div>
 
           {location && (
-            <div className="p-3 bg-blue-50 rounded-lg border border-blue-200 space-y-1">
-              <div className="flex items-center gap-1.5 text-sm text-blue-800">
-                <MapPin className="w-4 h-4 flex-shrink-0" />
-                <span>{location.address}</span>
+            <div className="p-3 bg-blue-50 rounded-lg border border-blue-200 space-y-2">
+              <div className="space-y-1">
+                <div className="flex items-start gap-1.5">
+                  <MapPin className="w-4 h-4 flex-shrink-0 text-blue-500 mt-0.5" />
+                  <div>
+                    <span className="text-xs text-blue-500 font-medium">도로명</span>
+                    <p className="text-base font-medium text-gray-900">{location.roadAddr}</p>
+                  </div>
+                </div>
+                {location.jibunAddr && (
+                  <div className="flex items-start gap-1.5 pl-[22px]">
+                    <div>
+                      <span className="text-xs text-blue-500 font-medium">지번</span>
+                      <p className="text-base text-gray-700">{location.jibunAddr}</p>
+                    </div>
+                  </div>
+                )}
               </div>
-              <div className="flex items-center gap-1.5 text-xs text-blue-600">
+              <div className="flex items-center gap-1.5 text-xs text-blue-600 pt-1 border-t border-blue-200">
                 <Clock className="w-3.5 h-3.5 flex-shrink-0" />
-                <span>{location.checkedAt}</span>
+                <span className="text-sm">{location.checkedAt}</span>
               </div>
             </div>
           )}
