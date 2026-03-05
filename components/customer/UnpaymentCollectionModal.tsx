@@ -15,6 +15,7 @@ import {
   getPendingPayments,
   savePendingPayment,
   removePendingPayment,
+  updatePendingPayment,
   getPendingInfoForBillYm
 } from '../../services/customerApi';
 
@@ -197,6 +198,8 @@ const UnpaymentCollectionModal: React.FC<UnpaymentCollectionModalProps> = ({
     setIsRefreshing(true);
 
     let anyCompleted = false;
+    let anyFailed = false;
+    let lastPendingMsg = '';
 
     try {
       for (const pendingInfo of [...pendingPayments]) {
@@ -209,23 +212,35 @@ const UnpaymentCollectionModal: React.FC<UnpaymentCollectionModalProps> = ({
             PYM_ACNT_ID: pymAcntId
           });
 
+          const payResult = (res.data?.PAY_RESULT || '').trim();
+          const regDate = res.data?.REG_DATE || '';
+
           if (res.success) {
+            // SUCCESS / 결제완 / 결제완료 // 입금처리완료
             removePendingPayment(pymAcntId, pendingInfo.orderNo);
             setCompletedBillYms(prev => {
               const next = new Set(prev);
               pendingInfo.pendingBillYms.forEach(ym => next.add(ym));
               return next;
             });
-            showToast?.(`${formatCurrency(pendingInfo.selectedTotal)}원 결제 완료 확인`, 'success');
+            showToast?.(`${formatCurrency(pendingInfo.selectedTotal)}원 수납 완료`, 'success');
             anyCompleted = true;
           } else if (res.errorCode === 'TIMEOUT') {
             showToast?.('결과 조회 시간 초과. 잠시 후 다시 시도해주세요.', 'warning');
-          } else if (res.errorCode === 'NOT_FOUND' || res.errorCode === 'PENDING') {
-            // Still pending - keep
+          } else if (res.errorCode === 'PENDING') {
+            // PENDING / 미확인(재전송) / 결제요청 후 처리중 / 결제완료 // 입금처리중(재요청)
+            const updates: Partial<PendingPaymentInfo> = {};
+            if (regDate) updates.regDate = regDate;
+            if (payResult && payResult !== 'PENDING') updates.payResultText = payResult;
+            if (Object.keys(updates).length > 0) {
+              updatePendingPayment(pymAcntId, pendingInfo.orderNo, updates);
+            }
+            lastPendingMsg = payResult || 'PENDING';
           } else {
-            // Failed - remove pending
+            // FAIL / 거절 / 결제요청실패 / 주문정보없음 / API오류
             removePendingPayment(pymAcntId, pendingInfo.orderNo);
-            showToast?.(`결제 실패 확인: ${res.message || '알 수 없는 오류'}`, 'error');
+            showToast?.(`결제 실패: ${payResult || res.message || '알 수 없는 오류'}`, 'error');
+            anyFailed = true;
           }
         } catch (error) {
           console.error('[UnpaymentModal] Refresh check error:', error);
@@ -235,8 +250,11 @@ const UnpaymentCollectionModal: React.FC<UnpaymentCollectionModalProps> = ({
       setPendingPayments(getPendingPayments(pymAcntId));
       if (anyCompleted) {
         onSuccess?.();
-      } else {
-        showToast?.('아직 처리중입니다. 잠시 후 다시 시도해주세요.', 'info');
+      }
+      if (!anyCompleted && !anyFailed && lastPendingMsg) {
+        // Show PAY_RESULT text as-is
+        const displayMsg = lastPendingMsg === 'PENDING' ? '처리 대기중' : lastPendingMsg;
+        showToast?.(`결제 상태: ${displayMsg}`, 'info');
       }
     } finally {
       setIsRefreshing(false);
@@ -578,9 +596,9 @@ const UnpaymentCollectionModal: React.FC<UnpaymentCollectionModalProps> = ({
                               <span className="text-sm font-medium text-gray-900">
                                 {formatBillYm(item.BILL_YM)}
                               </span>
-                              {isPending && (
+                              {isPending && pendingInfo && (
                                 <span className="px-1.5 py-0.5 text-xs font-medium bg-amber-200 text-amber-800 rounded">
-                                  진행중
+                                  {pendingInfo.payResultText || '진행중'}
                                 </span>
                               )}
                               {isCompleted && (
@@ -605,11 +623,16 @@ const UnpaymentCollectionModal: React.FC<UnpaymentCollectionModalProps> = ({
                             {item.UNPAY_DAYS > 0 && ` | 미납 ${item.UNPAY_DAYS}일`}
                           </div>
 
-                          {/* Pending detail (no check button) */}
+                          {/* Pending detail */}
                           {isPending && pendingInfo && (
                             <div className="mt-1">
                               <span className="text-xs text-amber-600">
                                 카드 ****{pendingInfo.cardNo} | {formatCurrency(pendingInfo.selectedTotal)}원
+                                {pendingInfo.regDate && (
+                                  <span className="text-amber-500 ml-1">
+                                    | {pendingInfo.regDate.replace(/(\d{4})(\d{2})(\d{2})(\d{2})(\d{2})(\d{2})?/, '$1-$2-$3 $4:$5')}
+                                  </span>
+                                )}
                               </span>
                             </div>
                           )}

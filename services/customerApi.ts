@@ -165,6 +165,8 @@ export interface PendingPaymentInfo {
   selectedTotal: number;
   timestamp: number;
   pendingBillYms: string[];  // 이 결제에 포함된 BILL_YM 목록
+  regDate?: string;  // 결제요청 시각 (from REG_DATE)
+  payResultText?: string;  // PAY_RESULT 원문 (backend response as-is)
 }
 
 // ============ Pending Payment sessionStorage 헬퍼 ============
@@ -217,6 +219,16 @@ export function removePendingPayment(pymAcntId: string, orderNo: string): void {
     }
   } catch (e) {
     console.error('[PendingPayment] removePendingPayment error:', e);
+  }
+}
+
+export function updatePendingPayment(pymAcntId: string, orderNo: string, updates: Partial<PendingPaymentInfo>): void {
+  try {
+    const existing = getPendingPayments(pymAcntId);
+    const updated = existing.map(p => p.orderNo === orderNo ? { ...p, ...updates } : p);
+    sessionStorage.setItem(`pendingPayments_${pymAcntId}`, JSON.stringify(updated));
+  } catch (e) {
+    console.error('[PendingPayment] updatePendingPayment error:', e);
   }
 }
 
@@ -2673,22 +2685,36 @@ export const checkPaymentResult = async (params: {
     }, 'POST', timeoutMs);
   }
 
-  // API call succeeded (HTTP 200) but need to check actual payment status via RESP_CD
+  // API call succeeded (HTTP 200) - PAY_RESULT based judgment
+  // iBatis v1: '미확인(재전송)' / '결제완' / '거절'
+  // iBatis v2: '주문정보없음' / '결제요청 후 처리중' / '결제완료 // 입금처리완료' / '결제완료 // 입금처리중(재요청)' / '결제요청실패,...' / API오류
+  // JDBC fallback: 'SUCCESS' / 'PENDING' / 'FAIL'
   if (res.success && res.data) {
+    const payResult = (res.data.PAY_RESULT || '').trim();
+    const payResultMsg = (res.data.PAY_RESULT_MSG || '').trim();
     const respCd = res.data.RESP_CD || '';
     const stage = res.data.STAGE || '';
     const respMsg = res.data.RESP_MSG || '';
 
-    // 0000 = payment completed
-    if (respCd === '0000' || res.data.success === 'true') {
+    // SUCCESS: JDBC='SUCCESS', iBatis v1='결제완', iBatis v2='결제완료 // 입금처리완료'
+    if (payResult === 'SUCCESS' || payResult === '결제완'
+        || payResult === '결제완료 // 입금처리완료') {
       return { success: true, data: res.data };
     }
-    // PENDING / NOT_FOUND / empty = still processing
-    if (respCd === 'PENDING' || respCd === 'NOT_FOUND' || respCd === '' || stage === '03' || stage === '04') {
-      return { success: false, data: res.data, message: respMsg || 'PENDING', errorCode: 'PENDING' };
+
+    // PENDING: still processing
+    // JDBC='PENDING', iBatis v1='미확인(재전송)', iBatis v2='결제요청 후 처리중' / '결제완료 // 입금처리중(재요청)'
+    // also empty PAY_RESULT or early stage
+    if (payResult === '' || payResult === 'PENDING'
+        || payResult === '미확인(재전송)'
+        || payResult === '결제요청 후 처리중'
+        || payResult === '결제완료 // 입금처리중(재요청)'
+        || stage === '03' || stage === '04') {
+      return { success: false, data: res.data, message: payResult || 'PENDING', errorCode: 'PENDING' };
     }
-    // Other codes = payment failed
-    return { success: false, data: res.data, message: respMsg || respCd, errorCode: respCd };
+
+    // FAIL: JDBC='FAIL', iBatis v1='거절', iBatis v2='결제요청실패,...' / '주문정보없음' / API오류
+    return { success: false, data: res.data, message: payResult, errorCode: 'FAIL' };
   }
 
   return res;
