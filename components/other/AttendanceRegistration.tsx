@@ -193,7 +193,7 @@ const AttendanceRegistration: React.FC<AttendanceRegistrationProps> = ({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           P_USER_ID: userInfo.userId,
-          P_GUBUN: activeTab === 'in' ? 'I' : 'O',
+          P_GUBUN: activeTab === 'in' ? 'IN' : 'OUT',
           P_ADDRESS: address,
           P_LOOKUP_DATE: formatLookupDate(new Date()),
           P_MEMO: memo || ''
@@ -473,7 +473,7 @@ const AttendanceRegistration: React.FC<AttendanceRegistrationProps> = ({
                     return b.lookupDate.localeCompare(a.lookupDate);
                   })
                   .map((record, idx) => {
-                    const isIn = record.gubun === 'I';
+                    const isIn = record.gubun === 'IN' || record.gubun === 'I';
                     // YYYYMMDDHHMMSS -> YYYY-MM-DD HH:MM:SS
                     const ld = record.lookupDate;
                     const dtStr = ld.length >= 14
