@@ -2686,9 +2686,7 @@ export const checkPaymentResult = async (params: {
   }
 
   // API call succeeded (HTTP 200) - PAY_RESULT based judgment
-  // iBatis v1: '미확인(재전송)' / '결제완' / '거절'
-  // iBatis v2: '주문정보없음' / '결제요청 후 처리중' / '결제완료 // 입금처리완료' / '결제완료 // 입금처리중(재요청)' / '결제요청실패,...' / API오류
-  // JDBC fallback v2: 'SUCCESS_DEPOSITED' / 'SUCCESS_PROCESSING' / 'PENDING_RESEND' / 'FAIL'
+  // JDBC @CONTODPAY v2: NO_ORDER / PENDING_PROCESSING / API_ERROR / SUCCESS_DEPOSITED / SUCCESS_PROCESSING / FAIL
   if (res.success && res.data) {
     const payResult = (res.data.PAY_RESULT || '').trim();
     const payResultMsg = (res.data.PAY_RESULT_MSG || '').trim();
@@ -2696,27 +2694,30 @@ export const checkPaymentResult = async (params: {
     const stage = res.data.STAGE || '';
     const respMsg = res.data.RESP_MSG || '';
 
-    // Map JDBC v2 English codes to Korean display text for badge/toast
+    // Map JDBC @CONTODPAY codes to Korean display text for badge/toast
     const jdbcDisplayMap: Record<string, string> = {
+      'NO_ORDER': '결제요청없음',
+      'PENDING_PROCESSING': '결제요청 후 처리중',
       'PENDING_RESEND': '미확인(재전송)',
+      'API_ERROR': '결제요청 API 오류, 상담센터로 문의주세요',
       'SUCCESS_DEPOSITED': '결제완료 // 입금처리완료',
       'SUCCESS_PROCESSING': '결제완료 // 입금처리중(재요청)',
+      'FAIL': '결제요청실패, 콜센터로 문의하세요',
     };
     if (jdbcDisplayMap[payResult]) {
       res.data.PAY_RESULT = jdbcDisplayMap[payResult];
     }
     const displayResult = jdbcDisplayMap[payResult] || payResult;
 
-    // SUCCESS: JDBC='SUCCESS'/'SUCCESS_DEPOSITED', iBatis v1='결제완', iBatis v2='결제완료 // 입금처리완료'
+    // SUCCESS: payment complete + deposit processed
     if (payResult === 'SUCCESS' || payResult === 'SUCCESS_DEPOSITED'
         || displayResult === '결제완' || displayResult === '결제완료 // 입금처리완료') {
       return { success: true, data: res.data };
     }
 
     // PENDING: still processing
-    // JDBC='PENDING'/'PENDING_RESEND'/'SUCCESS_PROCESSING', iBatis v1='미확인(재전송)', iBatis v2='결제요청 후 처리중' / '결제완료 // 입금처리중(재요청)'
-    // also empty PAY_RESULT or early stage
-    if (payResult === '' || payResult === 'PENDING' || payResult === 'PENDING_RESEND' || payResult === 'SUCCESS_PROCESSING'
+    if (payResult === '' || payResult === 'PENDING' || payResult === 'PENDING_RESEND'
+        || payResult === 'PENDING_PROCESSING' || payResult === 'SUCCESS_PROCESSING'
         || displayResult === '미확인(재전송)'
         || displayResult === '결제요청 후 처리중'
         || displayResult === '결제완료 // 입금처리중(재요청)'
@@ -2724,7 +2725,7 @@ export const checkPaymentResult = async (params: {
       return { success: false, data: res.data, message: displayResult || 'PENDING', errorCode: 'PENDING' };
     }
 
-    // FAIL: JDBC='FAIL', iBatis v1='거절', iBatis v2='결제요청실패,...' / '주문정보없음' / API오류
+    // FAIL: NO_ORDER / API_ERROR / FAIL / unknown
     return { success: false, data: res.data, message: displayResult, errorCode: 'FAIL' };
   }
 
