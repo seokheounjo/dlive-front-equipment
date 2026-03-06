@@ -2686,47 +2686,29 @@ export const checkPaymentResult = async (params: {
   }
 
   // API call succeeded (HTTP 200) - PAY_RESULT based judgment
-  // JDBC @CONTODPAY v2: NO_ORDER / PENDING_PROCESSING / API_ERROR / SUCCESS_DEPOSITED / SUCCESS_PROCESSING / FAIL
+  // PAY_RESULT = MCONA01 code (900~904, 001~070, 999)
+  // PAY_RESULT_DISPLAY = Korean text from TSYCM_CODE_DETAIL (DB dynamic)
   if (res.success && res.data) {
     const payResult = (res.data.PAY_RESULT || '').trim();
-    const payResultMsg = (res.data.PAY_RESULT_MSG || '').trim();
-    const respCd = res.data.RESP_CD || '';
-    const stage = res.data.STAGE || '';
-    const respMsg = res.data.RESP_MSG || '';
+    const displayResult = (res.data.PAY_RESULT_DISPLAY || '').trim();
 
-    // Map JDBC @CONTODPAY codes to Korean display text for badge/toast
-    const jdbcDisplayMap: Record<string, string> = {
-      'NO_ORDER': '결제요청없음',
-      'PENDING_PROCESSING': '결제요청 후 처리중',
-      'PENDING_RESEND': '미확인(재전송)',
-      'API_ERROR': '결제요청 API 오류, 상담센터로 문의주세요',
-      'SUCCESS_DEPOSITED': '결제완료 // 입금처리완료',
-      'SUCCESS_PROCESSING': '결제완료 // 입금처리중(재요청)',
-      'FAIL': '결제요청실패, 콜센터로 문의하세요',
-    };
-    if (jdbcDisplayMap[payResult]) {
-      res.data.PAY_RESULT = jdbcDisplayMap[payResult];
+    // Set display text for badge/toast
+    if (displayResult) {
+      res.data.PAY_RESULT = displayResult;
     }
-    const displayResult = jdbcDisplayMap[payResult] || payResult;
 
-    // SUCCESS: payment complete + deposit processed
-    if (payResult === 'SUCCESS' || payResult === 'SUCCESS_DEPOSITED'
-        || displayResult === '결제완' || displayResult === '결제완료 // 입금처리완료') {
+    // SUCCESS: 903 = payment complete + deposit processed
+    if (payResult === '903') {
       return { success: true, data: res.data };
     }
 
-    // PENDING: still processing
-    if (payResult === '' || payResult === 'PENDING' || payResult === 'PENDING_RESEND'
-        || payResult === 'PENDING_PROCESSING' || payResult === 'SUCCESS_PROCESSING'
-        || displayResult === '미확인(재전송)'
-        || displayResult === '결제요청 후 처리중'
-        || displayResult === '결제완료 // 입금처리중(재요청)'
-        || stage === '03' || stage === '04') {
+    // PENDING: 901 = processing, 904 = deposit pending
+    if (payResult === '' || payResult === '901' || payResult === '904') {
       return { success: false, data: res.data, message: displayResult || 'PENDING', errorCode: 'PENDING' };
     }
 
-    // FAIL: NO_ORDER / API_ERROR / FAIL / unknown
-    return { success: false, data: res.data, message: displayResult, errorCode: 'FAIL' };
+    // FAIL: 900 = no order, 902 = API error, 001~070 = PG error, 999 = unknown
+    return { success: false, data: res.data, message: displayResult || payResult, errorCode: 'FAIL' };
   }
 
   return res;
