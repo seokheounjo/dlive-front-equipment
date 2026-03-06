@@ -340,31 +340,31 @@ const AttendanceRegistration: React.FC<AttendanceRegistrationProps> = ({
 
       {/* 근태 등록 카드 */}
       <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 space-y-4">
-        <h3 className="font-medium text-gray-800 flex items-center gap-2">
-          {activeTab === 'in' ? (
-            <LogIn className="w-5 h-5 text-blue-500" />
-          ) : (
-            <LogOut className="w-5 h-5 text-blue-500" />
-          )}
-          {activeTab === 'in' ? '출근' : '퇴근'} 등록
-        </h3>
+        <div className="flex items-center justify-between">
+          <h3 className="font-medium text-gray-800 flex items-center gap-2">
+            {activeTab === 'in' ? (
+              <LogIn className="w-5 h-5 text-blue-500" />
+            ) : (
+              <LogOut className="w-5 h-5 text-blue-500" />
+            )}
+            {activeTab === 'in' ? '출근' : '퇴근'} 등록
+          </h3>
+          <button
+            onClick={handleCheckLocation}
+            disabled={locationLoading}
+            className="flex items-center gap-1 px-3 py-1.5 bg-blue-50 text-blue-600 border border-blue-200 rounded-lg text-sm hover:bg-blue-100 transition-colors disabled:opacity-50"
+          >
+            {locationLoading ? (
+              <Loader2 className="w-4 h-4 animate-spin" />
+            ) : (
+              <MapPin className="w-4 h-4" />
+            )}
+            위치확인
+          </button>
+        </div>
 
         {/* 위치 확인 */}
         <div>
-          <div className="flex items-center gap-2 mb-2">
-            <button
-              onClick={handleCheckLocation}
-              disabled={locationLoading}
-              className="flex items-center gap-1 px-3 py-1.5 bg-blue-50 text-blue-600 border border-blue-200 rounded-lg text-sm hover:bg-blue-100 transition-colors disabled:opacity-50"
-            >
-              {locationLoading ? (
-                <Loader2 className="w-4 h-4 animate-spin" />
-              ) : (
-                <MapPin className="w-4 h-4" />
-              )}
-              위치확인
-            </button>
-          </div>
 
           {location && (
             <div className="p-3 bg-blue-50 rounded-lg border border-blue-200 space-y-2">
