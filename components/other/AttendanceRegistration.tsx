@@ -506,7 +506,7 @@ const AttendanceRegistration: React.FC<AttendanceRegistrationProps> = ({
                           <div className="text-xs text-gray-500 mt-1 truncate">{record.address}</div>
                         )}
                         {record.memo && (
-                          <div className="text-xs text-gray-400 mt-0.5">{record.memo}</div>
+                          <div className="text-xs text-gray-400 mt-0.5 whitespace-pre-wrap">{record.memo}</div>
                         )}
                       </div>
                     );
