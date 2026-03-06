@@ -25,6 +25,7 @@ interface AttendanceRecord {
   address: string;
   lookupDate: string;
   memo: string;
+  regDate: string;
 }
 
 const formatDateStr = (d: Date): string => {
@@ -259,14 +260,29 @@ const AttendanceRegistration: React.FC<AttendanceRegistrationProps> = ({
       const data = await res.json();
 
       if (res.ok && Array.isArray(data)) {
-        const parsed: AttendanceRecord[] = data.map((row: any) => {
-          return {
-            date: row.BASE_DD || '',
-            gubun: row.GUBUN || '',
-            address: row.ADDRESS || '',
-            lookupDate: row.LOOKUP_DATE || row.P_LOOKUP_DATE || '',
-            memo: row.MEMO || ''
-          };
+        const parsed: AttendanceRecord[] = [];
+        data.forEach((row: any) => {
+          // Each row has IN_* and OUT_* columns for same day
+          if (row.IN_LOOKUP_DATE) {
+            parsed.push({
+              date: row.BASE_DD || '',
+              gubun: 'IN',
+              address: row.IN_ADDRESS || '',
+              lookupDate: row.IN_LOOKUP_DATE || '',
+              memo: row.IN_MEMO || '',
+              regDate: row.IN_REG_DATE || ''
+            });
+          }
+          if (row.OUT_LOOKUP_DATE) {
+            parsed.push({
+              date: row.BASE_DD || '',
+              gubun: 'OUT',
+              address: row.OUT_ADDRESS || '',
+              lookupDate: row.OUT_LOOKUP_DATE || '',
+              memo: row.OUT_MEMO || '',
+              regDate: row.OUT_REG_DATE || ''
+            });
+          }
         });
         setRecords(parsed);
         setHistoryOpen(true);
@@ -473,12 +489,9 @@ const AttendanceRegistration: React.FC<AttendanceRegistrationProps> = ({
                     return b.lookupDate.localeCompare(a.lookupDate);
                   })
                   .map((record, idx) => {
-                    const isIn = record.gubun === 'IN' || record.gubun === 'I';
-                    // YYYYMMDDHHMMSS -> YYYY-MM-DD HH:MM:SS
-                    const ld = record.lookupDate;
-                    const dtStr = ld.length >= 14
-                      ? `${ld.slice(0,4)}-${ld.slice(4,6)}-${ld.slice(6,8)} ${ld.slice(8,10)}:${ld.slice(10,12)}:${ld.slice(12,14)}`
-                      : ld;
+                    const isIn = record.gubun === 'IN';
+                    // DB returns "2026-03-06 17:30:00.0" format - trim .0 suffix
+                    const dtStr = record.lookupDate.replace(/\.0$/, '');
                     return (
                       <div key={idx} className="bg-gray-50 rounded-lg border border-gray-100 px-3 py-2.5">
                         <div className="flex items-center gap-2 text-sm">
