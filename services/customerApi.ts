@@ -2686,29 +2686,23 @@ export const checkPaymentResult = async (params: {
   }
 
   // API call succeeded (HTTP 200) - PAY_RESULT based judgment
-  // PAY_RESULT = MCONA01 code (900~904, 001~070, 999)
-  // PAY_RESULT_DISPLAY = Korean text from TSYCM_CODE_DETAIL (DB dynamic)
   if (res.success && res.data) {
     const payResult = (res.data.PAY_RESULT || '').trim();
-    const displayResult = (res.data.PAY_RESULT_DISPLAY || '').trim();
+    const payResultMsg = (res.data.PAY_RESULT_MSG || '').trim();
 
-    // Set display text for badge/toast
-    if (displayResult) {
-      res.data.PAY_RESULT = displayResult;
-    }
-
-    // SUCCESS: 903 = payment complete + deposit processed
-    if (payResult === '903') {
+    // SUCCESS
+    if (payResult === 'SUCCESS_DEPOSITED' || payResult === '903') {
       return { success: true, data: res.data };
     }
 
-    // PENDING: 901 = processing, 904 = deposit pending
-    if (payResult === '' || payResult === '901' || payResult === '904') {
-      return { success: false, data: res.data, message: displayResult || 'PENDING', errorCode: 'PENDING' };
+    // PENDING
+    if (payResult === '' || payResult === 'PENDING_PROCESSING' || payResult === 'SUCCESS_PROCESSING'
+        || payResult === '901' || payResult === '904') {
+      return { success: false, data: res.data, message: payResultMsg || payResult || 'PENDING', errorCode: 'PENDING' };
     }
 
-    // FAIL: 900 = no order, 902 = API error, 001~070 = PG error, 999 = unknown
-    return { success: false, data: res.data, message: displayResult || payResult, errorCode: 'FAIL' };
+    // FAIL
+    return { success: false, data: res.data, message: payResultMsg || payResult, errorCode: 'FAIL' };
   }
 
   return res;
