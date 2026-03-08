@@ -15,7 +15,7 @@ import {
   getChangeReasonCodes,
   getCardClassCodes
 } from '../../services/customerApi';
-import { generateAutoTransferPdf, downloadPdf } from '../../services/pdfService';
+import { generateAutoTransferPdf, downloadPdf, savePdfToServer } from '../../services/pdfService';
 
 // 납부계정ID 포맷 (3-3-4)
 const formatPymAcntId = (pymAcntId: string): string => {
@@ -375,8 +375,22 @@ const PaymentChangeModal: React.FC<PaymentChangeModalProps> = ({
 
       const dateStr = new Date().toISOString().slice(0, 10).replace(/-/g, '');
       const filename = `자동이체_변경신청_${custId}_${dateStr}.pdf`;
+
+      // 1. 서버 디렉토리에 저장
+      try {
+        const saveResult = await savePdfToServer(blob, filename);
+        if (saveResult.success) {
+          console.log('[PDF] Server save OK:', saveResult.filePath);
+        } else {
+          console.warn('[PDF] Server save failed:', saveResult.message);
+        }
+      } catch (saveErr) {
+        console.warn('[PDF] Server save error:', saveErr);
+      }
+
+      // 2. 브라우저 다운로드
       downloadPdf(blob, filename);
-      showToast?.('PDF 다운로드 완료', 'success');
+      showToast?.('PDF 저장 완료', 'success');
     } catch (error) {
       console.error('PDF generation error:', error);
       showAlert('PDF 생성에 실패했습니다.', 'error');
@@ -435,10 +449,13 @@ const PaymentChangeModal: React.FC<PaymentChangeModalProps> = ({
         BILL_MDM_SMS_YN: acctRaw.BILL_MDM_SMS_YN || 'N',
         BILL_MDM_FAX_YN: acctRaw.BILL_MDM_FAX_YN || 'N',
         BILL_EML: acctRaw.BILL_EML || acctRaw.EML || '',
+        BILL_EML_ETC: acctRaw.BILL_EML_ETC || acctRaw.EML_ETC || '',
         BILL_CELL_PHN: acctRaw.BILL_CELL_PHN || '',
         BILL_FAX_NO: acctRaw.BILL_FAX_NO || '',
         RCPT_YN: acctRaw.RCPT_ID ? 'Y' : 'N',
         // 고정값
+        SECURE_YN: 'Y',
+        APPL_PYM_MTHD: oldPymMthd,
         AGR_FILE_GB: paymentForm.pymMthCd === '01' ? 'A' : undefined,
         PYM_AUTH_CHECK: isVerified ? 'Y' : 'N',
       });

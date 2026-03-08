@@ -537,6 +537,7 @@ router.post('/customer/customer/general/customerPymChgAddManager', handlePayment
 router.post('/customer/customer/general/addCustomerPymInfoChange', handleProxy);
 router.post('/customer/payment/verifyBankAccount', handleBankAccountVerify);  // KSNET bank account verify (.req direct)
 router.post('/customer/payment/verifyCreditCard', handleCardVerify);  // LGU+ card verify (adapter -> JSP, DEV fallback)
+router.post('/customer/payment/savePdf', handleSavePdf);  // PDF save to local directory
 // 6. Consultation/AS
 router.post('/customer/negociation/saveCnslRcptInfo', handleProxy);
 // 7. Customer Create
@@ -813,6 +814,44 @@ async function handleCardVerify(req, res) {
     // Even catch block returns DEV fallback success
     console.log('[CardVerify] DEV MODE: Returning forced success on error');
     res.json({ success: true, code: 'SUCCESS', message: 'OK', data: { success: 'true', RESP_CD: '0000', RESP_MSG: '[DEV] 카드 인증 강제 성공', verified: true } });
+  }
+}
+
+// === PDF 저장 핸들러 ===
+async function handleSavePdf(req, res) {
+  try {
+    const fs = require('fs');
+    const path = require('path');
+
+    // OS별 저장 경로
+    const PDF_SAVE_DIR = process.platform === 'win32'
+      ? 'C:\\bottle\\dlivepdf'
+      : '/home/ubuntu/dlivepdf';
+
+    // 디렉토리 생성
+    if (!fs.existsSync(PDF_SAVE_DIR)) {
+      fs.mkdirSync(PDF_SAVE_DIR, { recursive: true });
+    }
+
+    const body = req.body || {};
+    const filename = body.filename || 'unknown.pdf';
+    const pdfBase64 = body.pdfData || '';
+
+    if (!pdfBase64) {
+      return res.json({ success: false, message: 'pdfData is required' });
+    }
+
+    // base64 -> Buffer
+    const pdfBuffer = Buffer.from(pdfBase64, 'base64');
+    const filePath = path.join(PDF_SAVE_DIR, filename);
+
+    fs.writeFileSync(filePath, pdfBuffer);
+    console.log('[SavePdf] Saved:', filePath, '(' + pdfBuffer.length + ' bytes)');
+
+    return res.json({ success: true, message: 'PDF saved', data: { filePath, size: pdfBuffer.length } });
+  } catch (error) {
+    console.error('[SavePdf] Error:', error.message);
+    return res.json({ success: false, message: 'PDF save failed: ' + error.message });
   }
 }
 
