@@ -200,6 +200,7 @@ const UnpaymentCollectionModal: React.FC<UnpaymentCollectionModalProps> = ({
     let anyCompleted = false;
     let anyFailed = false;
     let lastPendingMsg = '';
+    let lastPayResultMsg = '';
 
     try {
       for (const pendingInfo of [...pendingPayments]) {
@@ -213,10 +214,11 @@ const UnpaymentCollectionModal: React.FC<UnpaymentCollectionModalProps> = ({
           });
 
           const payResult = (res.data?.PAY_RESULT || '').trim();
+          const payResultMsg = (res.data?.PAY_RESULT_MSG || '').trim();
           const regDate = res.data?.REG_DATE || '';
 
           if (res.success) {
-            // SUCCESS / 결제완 / 결제완료 // 입금처리완료
+            // SUCCESS: 903 / SUCCESS_DEPOSITED
             removePendingPayment(pymAcntId, pendingInfo.orderNo);
             setCompletedBillYms(prev => {
               const next = new Set(prev);
@@ -228,18 +230,20 @@ const UnpaymentCollectionModal: React.FC<UnpaymentCollectionModalProps> = ({
           } else if (res.errorCode === 'TIMEOUT') {
             showToast?.('결과 조회 시간 초과. 잠시 후 다시 시도해주세요.', 'warning');
           } else if (res.errorCode === 'PENDING') {
-            // PENDING / 미확인(재전송) / 결제요청 후 처리중 / 결제완료 // 입금처리중(재요청)
+            // PENDING: 900/901/904 / PENDING_PROCESSING / SUCCESS_PROCESSING
             const updates: Partial<PendingPaymentInfo> = {};
             if (regDate) updates.regDate = regDate;
             if (payResult && payResult !== 'PENDING') updates.payResultText = payResult;
+            if (payResultMsg) updates.payResultMsg = payResultMsg;
             if (Object.keys(updates).length > 0) {
               updatePendingPayment(pymAcntId, pendingInfo.orderNo, updates);
             }
             lastPendingMsg = payResult || 'PENDING';
+            lastPayResultMsg = payResultMsg;
           } else {
-            // FAIL / 거절 / 결제요청실패 / 주문정보없음 / API오류
+            // FAIL: 902 / PG error codes / FAIL / NO_ORDER
             removePendingPayment(pymAcntId, pendingInfo.orderNo);
-            showToast?.(`결제 실패: ${payResult || res.message || '알 수 없는 오류'}`, 'error');
+            showToast?.(`결제 실패: ${payResultMsg || payResult || res.message || '알 수 없는 오류'}`, 'error');
             anyFailed = true;
           }
         } catch (error) {
@@ -252,8 +256,9 @@ const UnpaymentCollectionModal: React.FC<UnpaymentCollectionModalProps> = ({
         onSuccess?.();
       }
       if (!anyCompleted && !anyFailed && lastPendingMsg) {
-        // Show PAY_RESULT text as-is
-        const displayMsg = lastPendingMsg === 'PENDING' ? '처리 대기중' : lastPendingMsg;
+        // PAY_RESULT_MSG (CONA Korean text) takes priority over raw code
+        const displayMsg = lastPendingMsg === 'PENDING' ? '처리 대기중'
+          : lastPayResultMsg || lastPendingMsg;
         showToast?.(`결제 상태: ${displayMsg}`, 'info');
       }
     } finally {
@@ -388,6 +393,11 @@ const UnpaymentCollectionModal: React.FC<UnpaymentCollectionModalProps> = ({
         return;
       }
 
+      // Use actual ORDER_NO/ORDER_DT/MID from backend response (DB sequence may differ from frontend-generated values)
+      const actualOrderNo = dpstRes.data?.ORDER_NO || orderNo;
+      const actualOrderDt = dpstRes.data?.ORDER_DT || orderDt;
+      const actualMid = dpstRes.data?.MID || mid;
+
       // Step 3: Save pending BEFORE PG call
       const pendingInfo: PendingPaymentInfo = {
         cardNo: cleanCardNo.slice(-4),
@@ -395,9 +405,9 @@ const UnpaymentCollectionModal: React.FC<UnpaymentCollectionModalProps> = ({
         expYear,
         installment,
         korId: korId.slice(0, 2) + '****',
-        mid,
-        orderNo,
-        orderDt,
+        mid: actualMid,
+        orderNo: actualOrderNo,
+        orderDt: actualOrderDt,
         selectedTotal,
         timestamp: Date.now(),
         pendingBillYms: billYmList
@@ -414,9 +424,9 @@ const UnpaymentCollectionModal: React.FC<UnpaymentCollectionModalProps> = ({
 
       // Step 4: Process card payment (may timeout)
       const pgRes = await processCardPayment({
-        mid,
-        oid: orderNo,
-        order_dt: orderDt,
+        mid: actualMid,
+        oid: actualOrderNo,
+        order_dt: actualOrderDt,
         amount: String(selectedTotal),
         buyer: custNm || '',
         productinfo: 'DLIVE_UNPAY',
@@ -432,7 +442,7 @@ const UnpaymentCollectionModal: React.FC<UnpaymentCollectionModalProps> = ({
       });
 
       if (pgRes.success) {
-        removePendingPayment(pymAcntId, orderNo);
+        removePendingPayment(pymAcntId, actualOrderNo);
         setPendingPayments(getPendingPayments(pymAcntId));
         setCompletedBillYms(prev => {
           const next = new Set(prev);
@@ -447,7 +457,7 @@ const UnpaymentCollectionModal: React.FC<UnpaymentCollectionModalProps> = ({
         setPaymentPopup({ visible: true, status: 'pending', message: '' });
       } else {
         // Explicit failure - remove pending
-        removePendingPayment(pymAcntId, orderNo);
+        removePendingPayment(pymAcntId, actualOrderNo);
         setPendingPayments(getPendingPayments(pymAcntId));
         setPaymentPopup({ visible: true, status: 'fail', message: pgRes.message || '서버 오류' });
       }
@@ -598,7 +608,7 @@ const UnpaymentCollectionModal: React.FC<UnpaymentCollectionModalProps> = ({
                               </span>
                               {isPending && pendingInfo && (
                                 <span className="px-1.5 py-0.5 text-xs font-medium bg-amber-200 text-amber-800 rounded">
-                                  {pendingInfo.payResultText || '진행중'}
+                                  {pendingInfo.payResultMsg || pendingInfo.payResultText || '진행중'}
                                 </span>
                               )}
                               {isCompleted && (

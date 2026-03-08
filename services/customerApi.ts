@@ -166,7 +166,8 @@ export interface PendingPaymentInfo {
   timestamp: number;
   pendingBillYms: string[];  // 이 결제에 포함된 BILL_YM 목록
   regDate?: string;  // 결제요청 시각 (from REG_DATE)
-  payResultText?: string;  // PAY_RESULT 원문 (backend response as-is)
+  payResultText?: string;  // PAY_RESULT 코드 (backend response as-is)
+  payResultMsg?: string;   // PAY_RESULT_MSG 텍스트 (CONA 한글 표시용)
 }
 
 // ============ Pending Payment sessionStorage 헬퍼 ============
@@ -2690,18 +2691,19 @@ export const checkPaymentResult = async (params: {
     const payResult = (res.data.PAY_RESULT || '').trim();
     const payResultMsg = (res.data.PAY_RESULT_MSG || '').trim();
 
-    // SUCCESS
-    if (payResult === 'SUCCESS_DEPOSITED' || payResult === '903') {
+    // SUCCESS: 903 or legacy SUCCESS_DEPOSITED
+    if (payResult === '903' || payResult === 'SUCCESS_DEPOSITED') {
       return { success: true, data: res.data };
     }
 
-    // PENDING
-    if (payResult === '' || payResult === 'PENDING_PROCESSING' || payResult === 'SUCCESS_PROCESSING'
-        || payResult === '901' || payResult === '904') {
+    // PENDING: 900(no order yet), 901(processing), 904(deposit pending), empty, or legacy codes
+    if (payResult === '' || payResult === '900'
+        || payResult === '901' || payResult === '904'
+        || payResult === 'PENDING_PROCESSING' || payResult === 'SUCCESS_PROCESSING') {
       return { success: false, data: res.data, message: payResultMsg || payResult || 'PENDING', errorCode: 'PENDING' };
     }
 
-    // FAIL
+    // FAIL: 902(API error), PG error codes(001~070), 999(unmapped), or legacy FAIL/NO_ORDER
     return { success: false, data: res.data, message: payResultMsg || payResult, errorCode: 'FAIL' };
   }
 
