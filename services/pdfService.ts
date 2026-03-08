@@ -27,8 +27,15 @@ interface AutoTransferPdfData {
   createdAt?: string;
 }
 
+interface TextImageResult {
+  dataUrl: string;
+  canvasWidth: number;
+  canvasHeight: number;
+}
+
 /**
  * Canvas를 이용하여 한글 텍스트를 이미지로 변환
+ * 캔버스 실제 크기를 함께 반환하여 PDF 삽입 시 비율 유지
  */
 function textToImage(
   text: string,
@@ -36,18 +43,24 @@ function textToImage(
   fontWeight: string = 'normal',
   color: string = '#000000',
   align: CanvasTextAlign = 'left',
-  width?: number
-): string {
+  maxWidthMm?: number
+): TextImageResult {
   const canvas = document.createElement('canvas');
   const ctx = canvas.getContext('2d')!;
-  const scale = 3;
+  const scale = 4; // 고해상도
   const font = `${fontWeight} ${fontSize * scale}px "Malgun Gothic", "맑은 고딕", sans-serif`;
   ctx.font = font;
 
   const metrics = ctx.measureText(text);
-  const canvasWidth = width ? width * scale : Math.ceil(metrics.width) + 20;
+  const textWidth = Math.ceil(metrics.width) + scale * 4; // 좌우 패딩
+
+  // maxWidthMm이 지정되면 해당 mm를 px로 변환 (1mm ≈ 3.78px, scale 적용)
+  const mmToPx = 3.78 * scale;
+  const canvasWidth = maxWidthMm ? Math.max(textWidth, Math.ceil(maxWidthMm * mmToPx)) : textWidth;
+  const canvasHeight = Math.ceil(fontSize * scale * 1.5);
+
   canvas.width = canvasWidth;
-  canvas.height = Math.ceil(fontSize * scale * 1.6);
+  canvas.height = canvasHeight;
 
   // 투명 배경
   ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -60,28 +73,93 @@ function textToImage(
     ctx.fillText(text, canvas.width / 2, canvas.height / 2);
   } else {
     ctx.textAlign = 'left';
-    ctx.fillText(text, 4, canvas.height / 2);
+    ctx.fillText(text, scale * 2, canvas.height / 2);
   }
 
-  return canvas.toDataURL('image/png');
+  return {
+    dataUrl: canvas.toDataURL('image/png'),
+    canvasWidth,
+    canvasHeight,
+  };
 }
 
 /**
- * 생년월일 마스킹: 890814 → 890814******
+ * 이미지를 PDF에 비율 유지하면서 삽입
+ * targetWidthMm 기준으로 높이를 자동 계산
+ */
+function addImageKeepRatio(
+  doc: jsPDF,
+  img: TextImageResult,
+  x: number,
+  y: number,
+  targetWidthMm: number,
+  maxHeightMm?: number
+) {
+  const ratio = img.canvasHeight / img.canvasWidth;
+  let displayWidth = targetWidthMm;
+  let displayHeight = targetWidthMm * ratio;
+
+  // 최대 높이 제한
+  if (maxHeightMm && displayHeight > maxHeightMm) {
+    displayHeight = maxHeightMm;
+    displayWidth = maxHeightMm / ratio;
+  }
+
+  doc.addImage(img.dataUrl, 'PNG', x, y, displayWidth, displayHeight);
+  return { width: displayWidth, height: displayHeight };
+}
+
+/**
+ * 셀 안에 텍스트 이미지를 수직 중앙 배치
+ */
+function addTextInCell(
+  doc: jsPDF,
+  text: string,
+  fontSize: number,
+  fontWeight: string,
+  color: string,
+  align: CanvasTextAlign,
+  cellX: number,
+  cellY: number,
+  cellWidth: number,
+  cellHeight: number,
+  paddingX: number = 3
+) {
+  const img = textToImage(text, fontSize, fontWeight, color, align, align === 'center' ? cellWidth : undefined);
+
+  // 비율 유지한 표시 높이 계산
+  const ratio = img.canvasHeight / img.canvasWidth;
+  const availWidth = align === 'center' ? cellWidth : cellWidth - paddingX * 2;
+  let displayWidth = availWidth;
+  let displayHeight = availWidth * ratio;
+
+  // 텍스트가 셀보다 높으면 셀 높이에 맞춤
+  const maxH = cellHeight - 2;
+  if (displayHeight > maxH) {
+    displayHeight = maxH;
+    displayWidth = maxH / ratio;
+  }
+
+  // 수직 중앙
+  const offsetY = (cellHeight - displayHeight) / 2;
+  const drawX = align === 'center' ? cellX : cellX + paddingX;
+
+  doc.addImage(img.dataUrl, 'PNG', drawX, cellY + offsetY, displayWidth, displayHeight);
+}
+
+/**
+ * 생년월일 마스킹: 890814 → 890814-******
  */
 function maskBirthDt(birthDt: string): string {
   if (!birthDt) return '-';
-  // 13자리 주민번호 → 앞6자리 + ******
   if (birthDt.length >= 13) {
-    return birthDt.slice(0, 6) + '******';
+    return birthDt.slice(0, 6) + '-******';
   }
-  // 6자리 → 그대로 + ******
   if (birthDt.length === 6) {
-    return birthDt + '******';
+    return birthDt + '-******';
   }
-  // 8자리 (YYYYMMDD) → YYMMDD + ******
   if (birthDt.length === 8) {
-    return birthDt.slice(2, 8) + '******';
+    return birthDt.slice(2, 8) + '-******';
   }
   return birthDt;
 }
@@ -91,115 +169,130 @@ function maskBirthDt(birthDt: string): string {
  */
 export async function generateAutoTransferPdf(data: AutoTransferPdfData): Promise<Blob> {
   const doc = new jsPDF('p', 'mm', 'a4');
-  const pageWidth = 210;
-  const centerX = pageWidth / 2;
 
   // 테이블 설정
-  const tableLeft = 35;
-  const tableWidth = 140;
-  const labelWidth = 55;
+  const tableLeft = 30;
+  const tableWidth = 150;
+  const labelWidth = 45;
   const valueLeft = tableLeft + labelWidth;
   const valueWidth = tableWidth - labelWidth;
-  const rowHeight = 12;
+  const rowHeight = 14;  // 기본 행 높이 (넉넉하게)
 
-  let y = 40;
+  let y = 35;
 
-  // === 타이틀 헤더 바 (teal/cyan 색상) ===
-  doc.setFillColor(0, 172, 193); // #00ACC1 teal
-  doc.rect(tableLeft, y, tableWidth, 14, 'F');
+  // === 타이틀 헤더 바 ===
+  const titleHeight = 16;
+  doc.setFillColor(0, 150, 180);
+  doc.rect(tableLeft, y, tableWidth, titleHeight, 'F');
 
-  const titleImg = textToImage('은행 자동이체 신청서', 15, 'bold', '#FFFFFF', 'center', tableWidth);
-  doc.addImage(titleImg, 'PNG', tableLeft, y + 0.5, tableWidth, 13);
-  y += 14;
+  addTextInCell(doc, '은행 자동이체 신청서', 14, 'bold', '#FFFFFF', 'center',
+    tableLeft, y, tableWidth, titleHeight);
+  y += titleHeight;
 
-  // === 테이블 행들 ===
+  // === 테이블 행 데이터 ===
   const rows = [
     { label: '납부자명', value: data.custNm || '-' },
     { label: '납부계정', value: data.pymAcntId || '-' },
     { label: '은행명', value: data.bankNm || '-' },
     { label: '계좌번호', value: data.acntNo || '-' },
     { label: '예금주명', value: data.acntHolderNm || '-' },
-    { label: '예금주\n생년월일 / 사업자번호', value: maskBirthDt(data.birthDt) },
+    { label: '생년월일/사업자번호', value: maskBirthDt(data.birthDt) },
     { label: '신청일자', value: formatDate(data.createdAt) },
   ];
 
   for (let i = 0; i < rows.length; i++) {
     const row = rows[i];
-    const isLastBeforeSignature = i === rows.length - 1;
-    const currentRowHeight = row.label.includes('\n') ? rowHeight + 4 : rowHeight;
-
-    // 행 배경 (흰색)
-    doc.setFillColor(255, 255, 255);
-    doc.rect(tableLeft, y, tableWidth, currentRowHeight, 'F');
+    const rh = rowHeight;
 
     // 라벨 배경 (연한 회색)
     doc.setFillColor(245, 245, 245);
-    doc.rect(tableLeft, y, labelWidth, currentRowHeight, 'F');
+    doc.rect(tableLeft, y, labelWidth, rh, 'F');
+
+    // 값 배경 (흰색)
+    doc.setFillColor(255, 255, 255);
+    doc.rect(valueLeft, y, valueWidth, rh, 'F');
 
     // 테두리
-    doc.setDrawColor(200, 200, 200);
+    doc.setDrawColor(190, 190, 190);
     doc.setLineWidth(0.3);
-    doc.rect(tableLeft, y, labelWidth, currentRowHeight);
-    doc.rect(valueLeft, y, valueWidth, currentRowHeight);
+    doc.rect(tableLeft, y, labelWidth, rh);
+    doc.rect(valueLeft, y, valueWidth, rh);
 
-    // 라벨 텍스트
-    if (row.label.includes('\n')) {
-      // 2줄 라벨 (예금주 생년월일/사업자번호)
-      const lines = row.label.split('\n');
-      const labelImg1 = textToImage(lines[0], 9, 'normal', '#333333', 'center', labelWidth);
-      const labelImg2 = textToImage(lines[1], 8, 'normal', '#333333', 'center', labelWidth);
-      doc.addImage(labelImg1, 'PNG', tableLeft, y + 1, labelWidth, 6);
-      doc.addImage(labelImg2, 'PNG', tableLeft, y + 8, labelWidth, 6);
-    } else {
-      const labelImg = textToImage(row.label, 10, 'normal', '#333333', 'center', labelWidth);
-      doc.addImage(labelImg, 'PNG', tableLeft, y + 1, labelWidth, currentRowHeight - 2);
-    }
+    // 라벨 텍스트 (중앙 정렬, 비율 유지)
+    addTextInCell(doc, row.label, 9, 'normal', '#333333', 'center',
+      tableLeft, y, labelWidth, rh);
 
-    // 값 텍스트
-    const valueImg = textToImage(row.value, 10, 'normal', '#000000');
-    const valueY = row.label.includes('\n') ? y + 3 : y + 1;
-    doc.addImage(valueImg, 'PNG', valueLeft + 4, valueY, valueWidth - 8, currentRowHeight - 4);
+    // 값 텍스트 (좌측 정렬, 비율 유지)
+    addTextInCell(doc, row.value, 10, 'normal', '#000000', 'left',
+      valueLeft, y, valueWidth, rh, 5);
 
-    y += currentRowHeight;
+    y += rh;
   }
 
   // === 전자서명 행 ===
-  const signatureRowHeight = 40;
+  const signatureRowHeight = 45;
 
   // 라벨
   doc.setFillColor(245, 245, 245);
   doc.rect(tableLeft, y, labelWidth, signatureRowHeight, 'F');
-  doc.setDrawColor(200, 200, 200);
+  doc.setDrawColor(190, 190, 190);
   doc.rect(tableLeft, y, labelWidth, signatureRowHeight);
 
-  const signLabelImg = textToImage('전자서명', 10, 'normal', '#333333', 'center', labelWidth);
-  doc.addImage(signLabelImg, 'PNG', tableLeft, y + 14, labelWidth, 12);
+  addTextInCell(doc, '전자서명', 10, 'normal', '#333333', 'center',
+    tableLeft, y, labelWidth, signatureRowHeight);
 
   // 서명 값 영역
   doc.setFillColor(255, 255, 255);
   doc.rect(valueLeft, y, valueWidth, signatureRowHeight, 'F');
-  doc.setDrawColor(200, 200, 200);
+  doc.setDrawColor(190, 190, 190);
   doc.rect(valueLeft, y, valueWidth, signatureRowHeight);
 
   if (data.signatureData) {
     try {
-      doc.addImage(data.signatureData, 'PNG', valueLeft + 8, y + 4, valueWidth - 16, signatureRowHeight - 8);
+      // 서명 이미지: 여백 두고 비율 유지
+      const sigPad = 6;
+      const sigMaxW = valueWidth - sigPad * 2;
+      const sigMaxH = signatureRowHeight - sigPad * 2;
+
+      // 서명 이미지 원본 크기 파악을 위해 임시 Image 사용
+      const sigImg = new Image();
+      sigImg.src = data.signatureData;
+      // 동기로 처리 (이미 base64이므로 로드 완료 상태)
+      let sigW = sigMaxW;
+      let sigH = sigMaxH;
+      if (sigImg.naturalWidth && sigImg.naturalHeight) {
+        const sigRatio = sigImg.naturalHeight / sigImg.naturalWidth;
+        sigW = sigMaxW;
+        sigH = sigMaxW * sigRatio;
+        if (sigH > sigMaxH) {
+          sigH = sigMaxH;
+          sigW = sigMaxH / sigRatio;
+        }
+      }
+      const sigX = valueLeft + (valueWidth - sigW) / 2;
+      const sigY = y + (signatureRowHeight - sigH) / 2;
+      doc.addImage(data.signatureData, 'PNG', sigX, sigY, sigW, sigH);
     } catch (e) {
       console.warn('Signature image insert failed:', e);
-      const noSignImg = textToImage('(서명 삽입 실패)', 9, 'normal', '#999999');
-      doc.addImage(noSignImg, 'PNG', valueLeft + 4, y + 14, valueWidth - 8, 12);
+      addTextInCell(doc, '(서명 삽입 실패)', 9, 'normal', '#999999', 'center',
+        valueLeft, y, valueWidth, signatureRowHeight);
     }
   } else {
-    const noSignImg = textToImage('(서명 없음)', 9, 'normal', '#999999');
-    doc.addImage(noSignImg, 'PNG', valueLeft + 4, y + 14, valueWidth - 8, 12);
+    addTextInCell(doc, '(서명 없음)', 9, 'normal', '#999999', 'center',
+      valueLeft, y, valueWidth, signatureRowHeight);
   }
 
   y += signatureRowHeight;
 
+  // === 하단 안내문구 ===
+  y += 8;
+  addTextInCell(doc, '위와 같이 자동이체를 신청합니다.', 10, 'normal', '#555555', 'center',
+    tableLeft, y, tableWidth, 10);
+  y += 14;
+
   // === 하단 로고/사명 ===
-  y += 12;
-  const footerImg = textToImage("D'LIVE  (주)딜라이브 케이블방송", 11, 'bold', '#333333', 'center', tableWidth);
-  doc.addImage(footerImg, 'PNG', tableLeft, y, tableWidth, 8);
+  addTextInCell(doc, "D'LIVE (주)딜라이브", 12, 'bold', '#333333', 'center',
+    tableLeft, y, tableWidth, 10);
 
   return doc.output('blob');
 }
