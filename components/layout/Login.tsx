@@ -21,6 +21,7 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showDupConfirm, setShowDupConfirm] = useState(false);
+  const [lockMessage, setLockMessage] = useState<string | null>(null);
 
   const inputBaseClasses = "w-full py-3 bg-white border border-gray-200 rounded-lg text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition";
 
@@ -51,11 +52,19 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
     setIsLoading(true);
     setError(null);
     setShowDupConfirm(false);
+    setLockMessage(null);
 
     try {
       // 1단계: ID/PW 인증
       const result = await login(username, password, forceDisconnect ? 'Y' : 'N');
       console.log('[Login] API 응답:', result);
+
+      // 계정 잠금 감지
+      if (result.code === 'LOCK') {
+        setLockMessage(result.message || '계정이 잠겨있습니다. 관리자에게 문의하세요.');
+        setIsLoading(false);
+        return;
+      }
 
       // 동시접속 감지
       if (result.LOGIN_DUP_YN === 'Y' || result.code === 'LOGIN_DUP') {
@@ -269,6 +278,29 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
         </div>
 
       </div>
+
+      {/* 계정 잠금 팝업 */}
+      {lockMessage && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-2xl max-w-sm w-full p-6 space-y-4">
+            <div className="text-center">
+              <div className="mx-auto w-12 h-12 bg-red-100 rounded-full flex items-center justify-center mb-4">
+                <LockClosedIcon className="w-6 h-6 text-red-600" />
+              </div>
+              <h3 className="text-lg font-bold text-gray-900 mb-2">계정 잠금</h3>
+              <p className="text-sm text-gray-600 whitespace-pre-line">
+                {lockMessage}
+              </p>
+            </div>
+            <button
+              onClick={() => setLockMessage(null)}
+              className="w-full py-2.5 px-4 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 transition"
+            >
+              확인
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* 동시접속 확인 모달 */}
       {showDupConfirm && (
