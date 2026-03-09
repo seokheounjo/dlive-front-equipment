@@ -267,11 +267,14 @@ const DIRECT_REQ_ROUTES = {};
 const dgram = require('dgram');
 const crypto = require('crypto');
 
-// GrippinTower OTP Server Config (D'Live infra team must provide these)
-const OTP_SERVER_IP = process.env.OTP_SERVER_IP || '127.0.0.1';
-const OTP_SERVER_PORT = parseInt(process.env.OTP_SERVER_PORT || '1812');
-const OTP_SHARED_SECRET = process.env.OTP_SHARED_SECRET || 'sharedsecret';
-const OTP_TIMEOUT = parseInt(process.env.OTP_TIMEOUT || '3') * 1000; // ms
+// GrippinTower OTP Server Config
+const OTP_SERVER_IP = '58.143.140.185';
+const OTP_SERVER_PORT = 1812;
+const OTP_SHARED_SECRET = '6FA8D9C467D1492E';
+const OTP_TIMEOUT = 5000; // 5s
+
+// OTP 인증용 사용자 ID (당분간 내부 테스트 계정 고정)
+const OTP_AUTH_USER_ID = 'A20250117';
 
 /**
  * RADIUS Access-Request (RFC 2865)
@@ -425,9 +428,13 @@ router.post('/auth/otp-verify', async (req, res) => {
   }
 
   try {
+    // 당분간 OTP 인증은 내부 테스트 계정(A20250117)으로 고정
+    const otpUserId = OTP_AUTH_USER_ID;
+    console.log('[OTP] Using hardcoded OTP user:', otpUserId, '(original:', userId, ')');
+
     const result = await radiusAccessRequest(
       OTP_SERVER_IP, OTP_SERVER_PORT, OTP_SHARED_SECRET,
-      userId, otpCode, OTP_TIMEOUT
+      otpUserId, otpCode, OTP_TIMEOUT
     );
 
     console.log('[OTP] RADIUS result:', JSON.stringify(result));
@@ -567,6 +574,7 @@ router.post('/signal/port-close', handleProxy);
 router.post('/signal/port-open', handleProxy);
 router.post('/signal/port-reset', handleProxy);
 router.post('/customer/work/modIfSvc', handleProxy);
+router.post('/customer/work/modIfSvc_m', handleProxy);  // HP Pay apply/cancel (SMR74/SMR75)
 router.post('/customer/equipment/callMetroEqtStatusSearch', handleProxy);
 router.post('/customer/sigtrans/removal', handleProxy);
 router.post('/customer/sigtrans/portClose', handleProxy);

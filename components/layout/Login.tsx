@@ -6,8 +6,8 @@ import { EyeSlashIcon } from '../icons/EyeSlashIcon';
 import { TestTube } from 'lucide-react';
 import { login, verifyOtp } from '../../services/apiService';
 
-// OTP 기능 ON/OFF (OTP 서버 연결 전까지 false)
-const OTP_ENABLED = false;
+// OTP 기능 ON/OFF
+const OTP_ENABLED = true;
 
 interface LoginProps {
   onLogin: (userId?: string, userName?: string, userNameEn?: string, userRole?: string, crrId?: string, soId?: string, mstSoId?: string, telNo2?: string, authSoList?: Array<{SO_ID: string; SO_NM: string; MST_SO_ID: string}>) => void;
