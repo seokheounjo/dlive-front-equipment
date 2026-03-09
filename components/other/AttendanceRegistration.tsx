@@ -1,7 +1,7 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useCallback } from 'react';
 import {
   MapPin, Clock, Send, Search, ChevronDown, ChevronUp,
-  Loader2, CalendarDays, LogIn, LogOut, RefreshCw
+  Loader2, CalendarDays, LogIn, LogOut, RefreshCw, AlertTriangle
 } from 'lucide-react';
 import { loadMapApiKeys, pickRandomKey } from '../../services/navigationService';
 
@@ -9,6 +9,12 @@ interface AttendanceRegistrationProps {
   onBack: () => void;
   userInfo?: { userId: string; userName: string; soId?: string } | null;
   showToast?: (message: string, type: 'success' | 'error' | 'warning' | 'info') => void;
+}
+
+interface ConfirmPopup {
+  show: boolean;
+  message: string;
+  onConfirm: () => void;
 }
 
 interface LocationInfo {
@@ -50,10 +56,23 @@ const AttendanceRegistration: React.FC<AttendanceRegistrationProps> = ({
   userInfo,
   showToast
 }) => {
+  // 14시 테스트 토글 (임시)
+  const [fakeAfternoon, setFakeAfternoon] = useState<boolean | null>(null);
+
+  // 현재 시간 기준 (테스트 모드 시 가짜 시간 적용)
+  const getEffectiveHour = useCallback(() => {
+    if (fakeAfternoon === true) return 15; // 14시 이후로 가장
+    if (fakeAfternoon === false) return 9;  // 14시 이전으로 가장
+    return new Date().getHours();
+  }, [fakeAfternoon]);
+
   // 출근/퇴근 탭 (오후 2시 기준 자동 선택)
   const currentHour = new Date().getHours();
   const defaultTab = currentHour >= 14 ? 'out' : 'in';
   const [activeTab, setActiveTab] = useState<'in' | 'out'>(defaultTab);
+
+  // 반차 확인 팝업
+  const [confirmPopup, setConfirmPopup] = useState<ConfirmPopup>({ show: false, message: '', onConfirm: () => {} });
 
   // 위치 정보
   const [location, setLocation] = useState<LocationInfo | null>(null);
@@ -133,7 +152,7 @@ const AttendanceRegistration: React.FC<AttendanceRegistrationProps> = ({
             checkedAt: formatDateTimeKR(new Date())
           });
           if (road || jibun) {
-            showToast?.('위치 확인 완료', 'success');
+            // 성공 시 팝업 없음
           } else {
             showToast?.('주소 변환 실패 (좌표로 표시)', 'warning');
           }
@@ -172,16 +191,9 @@ const AttendanceRegistration: React.FC<AttendanceRegistrationProps> = ({
     return `${y}${m}${dd}${hh}${mm}${ss}`;
   };
 
-  // 근태 입력
-  const handleSubmit = async () => {
-    if (!location) {
-      showToast?.('위치 확인을 먼저 해주세요.', 'warning');
-      return;
-    }
-    if (!userInfo?.userId) {
-      showToast?.('로그인 정보가 없습니다.', 'error');
-      return;
-    }
+  // 실제 등록 API 호출
+  const doSubmit = async () => {
+    if (!location || !userInfo?.userId) return;
 
     setSubmitting(true);
     try {
@@ -220,6 +232,49 @@ const AttendanceRegistration: React.FC<AttendanceRegistrationProps> = ({
     } finally {
       setSubmitting(false);
     }
+  };
+
+  // 근태 입력 (14시 기준 반차 확인)
+  const handleSubmit = async () => {
+    if (!location) {
+      showToast?.('위치 확인을 먼저 해주세요.', 'warning');
+      return;
+    }
+    if (!userInfo?.userId) {
+      showToast?.('로그인 정보가 없습니다.', 'error');
+      return;
+    }
+
+    const hour = getEffectiveHour();
+    const now = new Date();
+    const hh = String(now.getHours()).padStart(2, '0');
+    const mm = String(now.getMinutes()).padStart(2, '0');
+    const timeStr = fakeAfternoon !== null
+      ? (fakeAfternoon ? '15시 00분' : '09시 00분')
+      : `${hh}시 ${mm}분`;
+
+    // 출근인데 14시 이후 → 반차 확인
+    if (activeTab === 'in' && hour >= 14) {
+      setConfirmPopup({
+        show: true,
+        message: `현재 ${timeStr} 출근입니다.\n등록하시겠습니까?`,
+        onConfirm: () => { setConfirmPopup(p => ({ ...p, show: false })); doSubmit(); }
+      });
+      return;
+    }
+
+    // 퇴근인데 14시 이전 → 반차 확인
+    if (activeTab === 'out' && hour < 14) {
+      setConfirmPopup({
+        show: true,
+        message: `현재 ${timeStr} 퇴근입니다.\n등록하시겠습니까?`,
+        onConfirm: () => { setConfirmPopup(p => ({ ...p, show: false })); doSubmit(); }
+      });
+      return;
+    }
+
+    // 정상 시간대 → 바로 등록
+    doSubmit();
   };
 
   // 기간 조회
@@ -333,9 +388,18 @@ const AttendanceRegistration: React.FC<AttendanceRegistrationProps> = ({
           <LogOut className="w-4 h-4" />
           퇴근
         </button>
-        <div className="flex items-center px-2 text-xs text-gray-400">
-          오후2시기준
-        </div>
+        <button
+          onClick={() => setFakeAfternoon(prev => prev === null ? true : prev === true ? false : null)}
+          className={`flex items-center px-2 text-xs rounded-lg transition-colors ${
+            fakeAfternoon === null
+              ? 'text-gray-400'
+              : fakeAfternoon
+                ? 'text-orange-600 bg-orange-50 border border-orange-200'
+                : 'text-blue-600 bg-blue-50 border border-blue-200'
+          }`}
+        >
+          {fakeAfternoon === null ? '오후2시' : fakeAfternoon ? '오후2시▲' : '오후2시▼'}
+        </button>
       </div>
 
       {/* 근태 등록 카드 */}
@@ -520,6 +584,32 @@ const AttendanceRegistration: React.FC<AttendanceRegistrationProps> = ({
           </div>
         )}
       </div>
+      {/* 반차 확인 팝업 */}
+      {confirmPopup.show && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-xl max-w-sm w-full p-5 space-y-4">
+            <div className="flex items-center gap-2 text-orange-600">
+              <AlertTriangle className="w-5 h-5" />
+              <span className="font-semibold">반차 확인</span>
+            </div>
+            <p className="text-gray-700 text-sm whitespace-pre-wrap">{confirmPopup.message}</p>
+            <div className="flex gap-2">
+              <button
+                onClick={() => setConfirmPopup(p => ({ ...p, show: false }))}
+                className="flex-1 py-2.5 border border-gray-300 text-gray-700 rounded-lg text-sm hover:bg-gray-50 transition-colors"
+              >
+                취소
+              </button>
+              <button
+                onClick={confirmPopup.onConfirm}
+                className="flex-1 py-2.5 bg-blue-500 text-white rounded-lg text-sm hover:bg-blue-600 transition-colors"
+              >
+                등록
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
