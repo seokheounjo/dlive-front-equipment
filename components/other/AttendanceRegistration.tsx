@@ -1,4 +1,4 @@
-import React, { useState, useRef, useCallback } from 'react';
+import React, { useState, useRef } from 'react';
 import {
   MapPin, Clock, Send, Search, ChevronDown, ChevronUp,
   Loader2, CalendarDays, LogIn, LogOut, RefreshCw, AlertTriangle
@@ -56,15 +56,8 @@ const AttendanceRegistration: React.FC<AttendanceRegistrationProps> = ({
   userInfo,
   showToast
 }) => {
-  // 14시 테스트 토글 (임시)
-  const [fakeAfternoon, setFakeAfternoon] = useState<boolean | null>(null);
-
-  // 현재 시간 기준 (테스트 모드 시 가짜 시간 적용)
-  const getEffectiveHour = useCallback(() => {
-    if (fakeAfternoon === true) return 15; // 14시 이후로 가장
-    if (fakeAfternoon === false) return 9;  // 14시 이전으로 가장
-    return new Date().getHours();
-  }, [fakeAfternoon]);
+  // 현재 시간
+  const getEffectiveHour = () => new Date().getHours();
 
   // 출근/퇴근 탭 (오후 2시 기준 자동 선택)
   const currentHour = new Date().getHours();
@@ -381,25 +374,6 @@ const AttendanceRegistration: React.FC<AttendanceRegistrationProps> = ({
         >
           <LogOut className="w-4 h-4" />
           퇴근
-        </button>
-        <button
-          onClick={() => setFakeAfternoon(prev => {
-            const next = prev === null ? true : prev === true ? false : null;
-            // 탭 자동 전환: 14시 이후→퇴근, 14시 이전→출근
-            if (next === true) setActiveTab('out');
-            else if (next === false) setActiveTab('in');
-            else setActiveTab(new Date().getHours() >= 14 ? 'out' : 'in');
-            return next;
-          })}
-          className={`flex items-center px-2 text-xs rounded-lg transition-colors ${
-            fakeAfternoon === null
-              ? 'text-gray-400'
-              : fakeAfternoon
-                ? 'text-orange-600 bg-orange-50 border border-orange-200'
-                : 'text-blue-600 bg-blue-50 border border-blue-200'
-          }`}
-        >
-          {fakeAfternoon === null ? '오후2시' : fakeAfternoon ? '오후2시▲' : '오후2시▼'}
         </button>
       </div>
 
