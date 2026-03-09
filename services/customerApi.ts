@@ -167,7 +167,7 @@ export interface PendingPaymentInfo {
   pendingBillYms: string[];  // 이 결제에 포함된 BILL_YM 목록
   regDate?: string;  // 결제요청 시각 (from REG_DATE)
   payResultText?: string;  // PAY_RESULT 코드 (backend response as-is)
-  payResultMsg?: string;   // PAY_RESULT_MSG 텍스트 (CONA 한글 표시용)
+  payResultMsg?: string;   // PAY_RESULT_NM 텍스트 (CONA 한글 표시용)
 }
 
 // ============ Pending Payment sessionStorage 헬퍼 ============
@@ -2689,7 +2689,7 @@ export const checkPaymentResult = async (params: {
   // API call succeeded (HTTP 200) - PAY_RESULT based judgment
   if (res.success && res.data) {
     const payResult = (res.data.PAY_RESULT || '').trim();
-    const payResultMsg = (res.data.PAY_RESULT_MSG || '').trim();
+    const payResultMsg = (res.data.PAY_RESULT_NM || '').trim();
 
     // SUCCESS: 903 or legacy SUCCESS_DEPOSITED
     if (payResult === '903' || payResult === 'SUCCESS_DEPOSITED') {

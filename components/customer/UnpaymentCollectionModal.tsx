@@ -214,7 +214,7 @@ const UnpaymentCollectionModal: React.FC<UnpaymentCollectionModalProps> = ({
           });
 
           const payResult = (res.data?.PAY_RESULT || '').trim();
-          const payResultMsg = (res.data?.PAY_RESULT_MSG || '').trim();
+          const payResultMsg = (res.data?.PAY_RESULT_NM || '').trim();
           const regDate = res.data?.REG_DATE || '';
 
           if (res.success) {
@@ -256,7 +256,7 @@ const UnpaymentCollectionModal: React.FC<UnpaymentCollectionModalProps> = ({
         onSuccess?.();
       }
       if (!anyCompleted && !anyFailed && lastPendingMsg) {
-        // PAY_RESULT_MSG (CONA Korean text) takes priority over raw code
+        // PAY_RESULT_NM (CONA Korean text) takes priority over raw code
         const displayMsg = lastPendingMsg === 'PENDING' ? '처리 대기중'
           : lastPayResultMsg || lastPendingMsg;
         showToast?.(`결제 상태: ${displayMsg}`, 'info');
