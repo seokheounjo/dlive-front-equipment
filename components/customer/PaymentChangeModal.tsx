@@ -5,6 +5,7 @@ import {
   getPaymentAccounts,
   PaymentAccountInfo,
   updatePaymentMethod,
+  updatePymAtmtApplAGRPdf,
   verifyBankAccount,
   verifyCard,
   savePaymentSignature,
@@ -406,62 +407,46 @@ const PaymentChangeModal: React.FC<PaymentChangeModalProps> = ({
 
     setIsSaving(true);
     try {
-      // 1. 납부방법 변경 API 호출
-      // 주민번호 패딩: 6자리 → 13자리 (PC코나 동일: 앞6자리 + 0000000)
-      const paddedId = paymentForm.idNumber.length === 6
-        ? paymentForm.idNumber + '0000000'
-        : paymentForm.idNumber;
-
-      // 기존 납부계정 데이터에서 old_pym_mthd 매핑
-      const pymMthdNm = selectedPayment?.PYM_MTHD_NM || '';
-      let oldPymMthd = '';
-      if (pymMthdNm.includes('자동이체')) oldPymMthd = '02';
-      else if (pymMthdNm.includes('신용카드') || pymMthdNm.includes('카드')) oldPymMthd = '04';
-      else if (pymMthdNm.includes('지로')) oldPymMthd = '01';
-
-      // 기존 납부계정의 확장 필드 (any 캐스팅으로 접근)
-      const acctRaw = selectedPayment as any || {};
-
+      // 1. 납부방법 변경 API 호출 (chgPymMthd_m)
+      // chgPymMthd_m params: pym_acnt_id, pym_mthd, pmc_resn, ACNT_OWNER_NM,
+      // rsdtno, bnk_card_cd, acnt_no, pyr_rel, cdtcd_exp_dt, join_card_yn, card_cl, so_id, crr_id, usr_id
       const response = await updatePaymentMethod({
-        CUST_ID: custId,
         PYM_ACNT_ID: selectedPymAcntId,
         PYM_MTH_CD: paymentForm.pymMthCd,
-        BANK_CD: paymentForm.bankCd,
-        ACNT_NO: paymentForm.acntNo,
+        // 은행/카드 코드: 자동이체=BANK_CD, 카드=CARD_CO_CD
+        BANK_CD: paymentForm.pymMthCd === '01' ? paymentForm.bankCd : undefined,
+        CARD_CO_CD: paymentForm.pymMthCd === '02' ? paymentForm.bankCd : undefined,
+        ACNT_NO: paymentForm.pymMthCd === '01' ? paymentForm.acntNo : undefined,
+        CARD_NO: paymentForm.pymMthCd === '02' ? paymentForm.acntNo : undefined,
         ACNT_OWNER_NM: paymentForm.acntHolderNm,
-        ACNT_NM: custNm || paymentForm.acntHolderNm,
-        ID_TYPE_CD: paymentForm.idType,
-        BIRTH_DT: paddedId,
+        RSDTNO: paymentForm.idNumber,
         PAYER_REL_CD: paymentForm.pyrRel,
-        PAY_DAY_CD: paymentForm.pymDay,
         CARD_VALID_YM: paymentForm.pymMthCd === '02' ? paymentForm.cardExpYy + paymentForm.cardExpMm : undefined,
         JOIN_CARD_YN: paymentForm.pymMthCd === '02' ? paymentForm.joinCardYn : undefined,
         CARD_CL: paymentForm.pymMthCd === '02' ? paymentForm.cardCl : undefined,
         CHG_RESN_L_CD: paymentForm.changeReasonL,
-        // 기존 납부계정 데이터
-        OLD_PYM_MTHD: oldPymMthd,
-        BILL_POST_ID: acctRaw.BILL_POST_ID || acctRaw.POST_ID || '',
-        BILL_ZIP_CD: acctRaw.BILL_ZIP_CD || acctRaw.ZIP_CD || '',
-        BILL_ADDR: acctRaw.BILL_ADDR || '',
-        TBR_FLG: acctRaw.TBR_FLG || 'N',
-        BILL_MDM_GIRO_YN: acctRaw.BILL_MDM_GIRO_YN || 'N',
-        BILL_MDM_EML_YN: acctRaw.BILL_MDM_EML_YN || 'N',
-        BILL_MDM_SMS_YN: acctRaw.BILL_MDM_SMS_YN || 'N',
-        BILL_MDM_FAX_YN: acctRaw.BILL_MDM_FAX_YN || 'N',
-        BILL_EML: acctRaw.BILL_EML || acctRaw.EML || '',
-        BILL_EML_ETC: acctRaw.BILL_EML_ETC || acctRaw.EML_ETC || '',
-        BILL_CELL_PHN: acctRaw.BILL_CELL_PHN || '',
-        BILL_FAX_NO: acctRaw.BILL_FAX_NO || '',
-        RCPT_YN: acctRaw.RCPT_ID ? 'Y' : 'N',
-        // 고정값
-        SECURE_YN: 'Y',
-        APPL_PYM_MTHD: oldPymMthd,
-        AGR_FILE_GB: paymentForm.pymMthCd === '01' ? 'A' : undefined,
-        PYM_AUTH_CHECK: isVerified ? 'Y' : 'N',
       });
 
       if (response.success) {
-        // 2. 서명 이미지 저장 (stub - 추후 API 연결)
+        // 2. updatePymAtmtApplAGRPdf 호출 (chgPymMthd_m 응답의 UPDATE_DATE, NEXT_AGR_FILE_NAME_SEQ 사용)
+        const resData = response.data || {};
+        const updateDate = resData.UPDATE_DATE || '';
+        const nextSeq = resData.NEXT_AGR_FILE_NAME_SEQ || '';
+        if (updateDate && nextSeq) {
+          try {
+            await updatePymAtmtApplAGRPdf({
+              PYM_ACNT_ID: selectedPymAcntId,
+              UPDATE_DATE: updateDate,
+              NEXT_AGR_FILE_NAME_SEQ: nextSeq,
+              AGR_FILE_GB: 'A',
+            });
+            console.log('[PaymentChange] AGR PDF updated');
+          } catch (agrErr) {
+            console.warn('[PaymentChange] AGR PDF update failed:', agrErr);
+          }
+        }
+
+        // 3. 서명 이미지 저장 (stub - 추후 API 연결)
         try {
           await savePaymentSignature({
             CUST_ID: custId,
@@ -470,10 +455,10 @@ const PaymentChangeModal: React.FC<PaymentChangeModalProps> = ({
             SIGNATURE_DATA: signatureData,
           });
         } catch (signErr) {
-          console.log('[PaymentChange] Signature save stub (API not connected yet):', signErr);
+          console.log('[PaymentChange] Signature save stub:', signErr);
         }
 
-        // 3. 자동이체인 경우 PDF 자동 다운로드
+        // 4. 자동이체인 경우 PDF 자동 다운로드
         if (paymentForm.pymMthCd === '01' && signatureData) {
           try {
             await handleDownloadPdf();
@@ -486,7 +471,6 @@ const PaymentChangeModal: React.FC<PaymentChangeModalProps> = ({
         setIsSaving(false);
         showToast?.('납부방법이 변경되었습니다.', 'success');
         onSuccess?.();
-        // 저장완료 표시 후 1초 뒤 닫기
         setTimeout(() => {
           onClose();
         }, 1000);

@@ -533,7 +533,8 @@ router.post('/customer/negociation/updateCustTelDetailInfo', handleProxy);
 router.post('/customer/etc/saveMargeAddrOrdInfo', handleProxy);
 router.post('/customer/negociation/updateInstlLoc', handleProxy);
 router.post('/customer/etc/savePymAddrInfo', handleProxy);
-router.post('/customer/customer/general/customerPymChgAddManager', handlePaymentMethodChange);  // handlePaymentMethodChange calls .req directly; adapter fallback via handleProxy if needed
+router.post('/customer/customer/general/customerPymChgAddManager', handlePaymentMethodChange);  // chgPymMthd_m via adapter
+router.post('/customer/customer/general/updatePymAtmtApplAGRPdf', handleProxy);  // AGR PDF update after chgPymMthd_m
 router.post('/customer/customer/general/addCustomerPymInfoChange', handleProxy);
 router.post('/customer/payment/verifyBankAccount', handleBankAccountVerify);  // KSNET bank account verify (.req direct)
 router.post('/customer/payment/verifyCreditCard', handleCardVerify);  // LGU+ card verify (adapter -> JSP, DEV fallback)
@@ -855,139 +856,76 @@ async function handleSavePdf(req, res) {
   }
 }
 
-// === 납부방법 변경 특별 핸들러 ===
-// 어댑터의 addCustomerPymChgInfo (잘못된 메서드명: saveHdcPymAcntInfo로 fallback) 대신
-// 레거시 .req 엔드포인트 직접 호출 (ACCESS_TICKET으로 UserVO 인증 우회)
-//
-// 전략:
-// 1차: savePymAtmtApplInfo.req (모바일용, ARGUMENT_VARIABLES 사용, UPPERCASE 파라미터)
-// 2차: customerPymChgAddManager.req (데스크톱용, MERGED_LIST 사용, lowercase 파라미터)
-// 어댑터 fallback 없음 (어댑터가 saveHdcPymAcntInfo 호출하여 실제 DB 변경 안 됨)
+// === 납부방법 변경 핸들러 ===
+// NEW: chgPymMthd_m (PCMCU_PYM_MTHD_CHG_m) via adapter
+// Returns UPDATE_DATE, NEXT_AGR_FILE_NAME_SEQ for AGR PDF update
 async function handlePaymentMethodChange(req, res) {
   try {
     const body = req.body || {};
     console.log('\n========== [PaymentMethodChange] ==========');
     console.log('Input params:', JSON.stringify(body, null, 2));
 
-    // 1. ACCESS_TICKET 구성 (Authentication.java의 UserVO 자동생성 우회)
-    // 형식: userId###fileUUID###expireDate
-    const userId = body.USR_ID || storedUserId || '';
-    if (!userId) {
-      return res.json({ success: false, code: 'NO_USER', message: '로그인이 필요합니다 (USR_ID 없음)', data: {} });
-    }
-    const accessTicket = encodeURIComponent(userId + '###payment-change###2099/01/01_00:00:00:0000');
-
-    // 2. 파라미터 매핑
-    const pymMthCd = body.PYM_MTH_CD || body.PYM_MTHD || '';
-    let pymMthd = pymMthCd;
-    // 코드 변환: 프론트 01(자동이체)→CONA 02, 프론트 02(카드)→CONA 04
-    if (pymMthCd === '01') pymMthd = '02';
-    else if (pymMthCd === '02') pymMthd = '04';
-
-    const bankCard = body.BANK_CD || body.CARD_CO_CD || body.BNK_CARD_CD || body.BANK_CARD || '';
-    const acntNo = body.ACNT_NO || body.CARD_NO || body.ACNT_CARD_NO || '';
-    const ownerNm = body.ACNT_OWNER_NM || body.PYM_CUST_NM || '';
-    const cardValidYm = body.CARD_VALID_YM || body.CDTCD_EXP_DT || '';
-    const payDay = body.PAY_DAY_CD || body.PYM_CARD_DATE || body.PYM_HOPE_DD || '';
-    const birthDt = body.BIRTH_DT || body.PYM_CUST_CRRNO || body.RSDTNO || '';
-    const pyrRel = body.PAYER_REL_CD || body.PYR_REL || '';
-
-    // 3. savePymAtmtApplInfo용 UPPERCASE 파라미터 (pcmcu_pym_mthd_mobile_upd 프로시저)
-    const mobileParams = {
-      PYM_ACNT_ID: body.PYM_ACNT_ID || '',
-      RCPT_ID: body.RCPT_ID || '',
-      PYM_MTHD: pymMthd,
-      ACNT_OWNER_NM: ownerNm,
-      BNK_CARD_CD: bankCard,
-      ACNT_NO: acntNo,
-      RSDTNO: birthDt,
-      CARD_CL: body.CARD_CL || '',
-      REQR_NM: body.REQR_NM || ownerNm,
-      PYR_REL: pyrRel,
-      CDTCD_EXP_DT: cardValidYm,
-      RLNM_TP_CD: body.RLNM_TP_CD || 'N',
-      CORP_CD: body.CORP_CD || '',
-      PYM_HOPE_DD: payDay,
-      ATRT_CRR_ID: body.ATRT_CRR_ID || body.SO_ID || '',
-      ATRT_EMP_ID: body.ATRT_EMP_ID || userId,
-      REG_UID: userId
-    };
-
-    // 4. addCustomerPymChgInfo용 lowercase 파라미터 (pcmcu_pym_mthd_card_info_upd 프로시저)
-    const desktopParams = {
-      pym_mthd: pymMthd,
-      bank_card: bankCard,
-      acnt_card_no: acntNo,
-      pym_card_date: payDay,
-      pym_cust_nm: ownerNm,
-      pym_cust_crrno: birthDt,
-      pyr_rel: pyrRel,
-      pmc_resn: body.CHG_RESN_M_CD || body.CHG_RESN_L_CD || body.PMC_RESN || '',
-      cdtcd_exp_dt: cardValidYm,
-      partner_card_cd: body.CARD_CL || '',
-      pym_acnt_id: body.PYM_ACNT_ID || '',
-      ctrt_id: body.CTRT_ID || '',
-      cust_id: body.CUST_ID || '',
-      so_id: body.SO_ID || '',
-      user_id: userId,
-      // 프로시저 필수 기본값들
-      bill_mdm_cd: '01',
-      bill_mdm_email: '',
-      bill_mdm_hp: '',
-      bill_mdm_fax: '',
-      rlnm_tp_cd: body.RLNM_TP_CD || 'N',
-      atrt_crr_id: body.ATRT_CRR_ID || body.SO_ID || '',
-      atrt_emp_id: body.ATRT_EMP_ID || userId
-    };
-
-    console.log('[PaymentMethodChange] Mobile params:', JSON.stringify(mobileParams, null, 2));
-    console.log('[PaymentMethodChange] ACCESS_TICKET userId:', userId);
-
-    // 5. 어댑터 경유 호출 (JDBC 직접 커밋 방식)
-    console.log('[PaymentMethodChange] Calling adapter...');
+    // Adapter call (chgPymMthd_m)
     const adapterBody = JSON.stringify(body);
     const adapterPath = '/api/customer/customer/general/customerPymChgAddManager';
-    const adapterUrl = DLIVE_API_BASE + adapterPath;
 
-    const adapterHttp = require('http');
-    const adapterUrlMod = require('url');
-    const adapterParsedUrl = adapterUrlMod.parse(adapterUrl);
+    console.log('[PaymentMethodChange] Calling adapter chgPymMthd_m...');
 
-    const adapterReq = adapterHttp.request({
-      hostname: adapterParsedUrl.hostname,
-      port: adapterParsedUrl.port || 80,
-      path: adapterParsedUrl.path,
+    const http = require('http');
+    const options = {
+      hostname: '58.143.140.222',
+      port: 8080,
+      path: adapterPath,
       method: 'POST',
       headers: {
-        'Content-Type': 'application/json',
-        'Content-Length': Buffer.byteLength(adapterBody),
+        'Content-Type': 'application/json; charset=utf-8',
+        'Content-Length': Buffer.byteLength(adapterBody, 'utf-8'),
         'Cookie': storedJSessionId ? 'JSESSIONID=' + storedJSessionId : ''
       },
       timeout: 30000
-    }, (adapterRes) => {
+    };
+
+    const proxyReq = http.request(options, (proxyRes) => {
       let chunks = [];
-      adapterRes.on('data', (chunk) => chunks.push(chunk));
-      adapterRes.on('end', () => {
+      proxyRes.on('data', (chunk) => chunks.push(chunk));
+      proxyRes.on('end', () => {
         const responseText = Buffer.concat(chunks).toString('utf-8');
-        console.log('[PaymentMethodChange] Adapter status:', adapterRes.statusCode);
-        console.log('[PaymentMethodChange] Adapter response:', responseText.substring(0, 500));
+        console.log('[PaymentMethodChange] Status:', proxyRes.statusCode);
+        console.log('[PaymentMethodChange] Response:', responseText.substring(0, 500));
         try {
-          const adapterData = JSON.parse(responseText);
-          if (adapterData.code === 'SUCCESS' || adapterData.code === '0') {
-            return res.json({ success: true, code: 'SUCCESS', message: adapterData.message || '납부방법이 변경되었습니다', data: adapterData.data || {}, debugLogs: adapterData.debugLogs || [] });
+          const jsonResp = JSON.parse(responseText);
+          if (jsonResp.code === 'SUCCESS' || jsonResp.code === '0') {
+            return res.json({
+              success: true, code: 'SUCCESS',
+              message: jsonResp.message || 'Payment method changed',
+              data: jsonResp.data || {}
+            });
           }
-          return res.json({ success: false, code: adapterData.code || 'FAIL', message: adapterData.message || '저장 실패', data: adapterData.data || {}, debugLogs: adapterData.debugLogs || [] });
+          return res.json({
+            success: false, code: jsonResp.code || 'FAIL',
+            message: jsonResp.message || 'Failed',
+            data: jsonResp.data || {}
+          });
         } catch (e) {
-          return res.json({ success: false, code: 'PARSE_ERROR', message: 'Adapter response parse error', data: {} });
+          console.error('[PaymentMethodChange] JSON parse error:', e.message);
+          return res.json({ success: false, code: 'PARSE_ERROR', message: 'Response parse error', data: {} });
         }
       });
     });
-    adapterReq.on('error', (err) => {
-      console.error('[PaymentMethodChange] Adapter error:', err.message);
+
+    proxyReq.on('error', (err) => {
+      console.error('[PaymentMethodChange] Request error:', err.message);
       res.json({ success: false, code: 'ERROR', message: err.message, data: {} });
     });
-    adapterReq.write(adapterBody);
-    adapterReq.end();
+
+    proxyReq.on('timeout', () => {
+      proxyReq.destroy();
+      console.error('[PaymentMethodChange] Timeout (30s)');
+      res.json({ success: false, code: 'TIMEOUT', message: 'Adapter timeout', data: {} });
+    });
+
+    proxyReq.write(adapterBody);
+    proxyReq.end();
 
   } catch (error) {
     console.error('[PaymentMethodChange] Error:', error.message);

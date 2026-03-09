@@ -511,7 +511,7 @@ export interface CustomerCreateRequest {
 export interface PaymentMethodChangeRequest {
   // 공통 필수
   PYM_ACNT_ID: string;       // 납부계정ID
-  CUST_ID: string;           // 고객ID
+  CUST_ID?: string;          // 고객ID (chgPymMthd_m에서는 불필요)
   ACNT_NM?: string;          // 납부자명
   PYM_MTHD?: string;         // 납부방법 (BLIV005) - 02: 자동이체, 04: 신용카드
   PMC_RESN?: string;         // 납부방법변경사유 (CMCU079)
@@ -552,6 +552,7 @@ export interface PaymentMethodChangeRequest {
   PAY_DAY_CD?: string;       // -> PYM_CARD_DATE로 매핑
   ID_TYPE_CD?: string;       // 신분유형
   BIRTH_DT?: string;         // -> PYM_CUST_CRRNO/CARD_RSDT_CRRNO로 매핑
+  RSDTNO?: string;            // 주민등록번호 (chgPymMthd_m용)
   // 청구주소 상세필드
   DONG_NM?: string;          // 읍/면/동
   ROAD_ADDR?: string;        // 도로명주소
@@ -569,9 +570,6 @@ export interface PaymentMethodChangeRequest {
   ATRT_CRR_ID?: string;     // 접속 사용자 CRR_ID
   ATRT_EMP_ID?: string;     // 접속 사용자 EMP_ID
   // 기존 납부계정 데이터 (상세 조회 API 필요)
-  ACNT_NM?: string;          // 기존 납부자명
-  BILL_POST_ID?: string;     // 기존 청구주소ID
-  BILL_ZIP_CD?: string;      // 기존 우편번호
   BILL_MDM_GIRO_YN?: string; // 지로고지 여부
   BILL_MDM_EML_YN?: string;  // 이메일고지 여부
   BILL_MDM_SMS_YN?: string;  // SMS고지 여부
@@ -582,7 +580,6 @@ export interface PaymentMethodChangeRequest {
   TBR_FLG?: string;          // 세금계산서 여부
   OLD_PYM_MTHD?: string;     // 기존 납부방법
   RCPT_YN?: string;          // 수납ID 유무
-  CORP_CD?: string;          // 법인코드
   COLLECT_SO_ID?: string;    // 모집지점
   COLLECT_DT?: string;       // 모집일자
 }
@@ -1639,24 +1636,21 @@ export const updateInstlLoc = async (params: {
 
 /**
  * 납부방법 변경
- * API: customer/customer/general/customerPymChgAddManager.req
+ * API: customer/customer/general/customerPymChgAddManager
+ * Backend: chgPymMthd_m (PCMCU_PYM_MTHD_CHG_m procedure)
  *
- * Backend params:
- * - CUST_ID: 고객ID
- * - PYM_ACNT_ID: 납부계정ID
- * - PYM_MTH_CD: 납부방법코드 (01: 자동이체, 02: 신용카드)
- * - BANK_CD: 은행코드 (자동이체 시)
- * - ACNT_NO: 계좌번호 (자동이체 시)
- * - CARD_NO: 카드번호 (신용카드 시)
- * - CARD_VALID_YM: 카드유효기간 YYMM (신용카드 시)
- * - ACNT_OWNER_NM: 예금주/카드소유자명
- * - USR_ID: 처리자ID
+ * Required params (chgPymMthd_m):
+ * - PYM_ACNT_ID, PYM_MTH_CD (01:자동이체, 02:카드 → CONA 02, 04),
+ * - ACNT_OWNER_NM, RSDTNO (주민번호/사업자번호),
+ * - BANK_CD/CARD_CO_CD (은행/카드 코드), ACNT_NO/CARD_NO,
+ * - PYR_REL, CDTCD_EXP_DT, JOIN_CARD_YN, CARD_CL,
+ * - CHG_RESN_L_CD (변경사유), SO_ID, USR_ID
+ *
+ * Returns: UPDATE_DATE, NEXT_AGR_FILE_NAME_SEQ (for updatePymAtmtApplAGRPdf)
  */
 export const updatePaymentMethod = async (params: PaymentMethodChangeRequest): Promise<ApiResponse<any>> => {
-  // 세션에서 사용자 ID, SO_ID, MST_SO_ID, CRR_ID 가져오기
   let usrId = params.USR_ID || 'MOBILE_USER';
   let soId = params.SO_ID || '';
-  let mstSoId = params.MST_SO_ID || '';
   let crrId = '';
   try {
     const userInfoStr = sessionStorage.getItem('userInfo') || localStorage.getItem('userInfo');
@@ -1671,9 +1665,6 @@ export const updatePaymentMethod = async (params: PaymentMethodChangeRequest): P
         }
         if (!soId) soId = userInfo.soId || userInfo.SO_ID || '';
       }
-      if (!mstSoId) {
-        mstSoId = userInfo.mstSoId || userInfo.MST_SO_ID || soId;
-      }
     }
   } catch (e) {
     console.log('[CustomerAPI] Failed to get session info for payment change');
@@ -1683,11 +1674,40 @@ export const updatePaymentMethod = async (params: PaymentMethodChangeRequest): P
     ...params,
     USR_ID: usrId,
     SO_ID: soId,
-    PYM_SO_ID: soId,
-    MST_SO_ID: mstSoId,
     ATRT_CRR_ID: crrId,
     ATRT_EMP_ID: usrId,
-    INSERT_YN: 'N',
+  });
+};
+
+/**
+ * 납부방법 변경 후 AGR PDF 정보 업데이트
+ * API: customer/customer/general/updatePymAtmtApplAGRPdf
+ * chgPymMthd_m 성공 후 호출 (UPDATE_DATE, NEXT_AGR_FILE_NAME_SEQ 필요)
+ */
+export const updatePymAtmtApplAGRPdf = async (params: {
+  PYM_ACNT_ID: string;
+  UPDATE_DATE: string;
+  NEXT_AGR_FILE_NAME_SEQ: string;
+  AGR_FILE_GB?: string;
+}): Promise<ApiResponse<any>> => {
+  let usrId = 'MOBILE_USER';
+  try {
+    const userInfoStr = sessionStorage.getItem('userInfo') || localStorage.getItem('userInfo');
+    if (userInfoStr) {
+      const userInfo = JSON.parse(userInfoStr);
+      usrId = userInfo.userId || userInfo.USR_ID || usrId;
+    }
+  } catch (e) { /* ignore */ }
+
+  const agrFileName = params.PYM_ACNT_ID + params.NEXT_AGR_FILE_NAME_SEQ + params.UPDATE_DATE;
+
+  return apiCall<any>('/customer/customer/general/updatePymAtmtApplAGRPdf', {
+    AGR_FILE_GB: params.AGR_FILE_GB || 'A',
+    AGR_FILE_NAME: agrFileName,
+    AGR_CTI_UID: usrId,
+    USER_ID: usrId,
+    PYM_ACNT_ID: params.PYM_ACNT_ID,
+    UPDATE_DATE: params.UPDATE_DATE,
   });
 };
 
@@ -1761,16 +1781,34 @@ export const verifyBankAccount = async (params: AccountVerifyRequest): Promise<A
  * 실제 카드 인증 API가 있으면 연동, 없으면 시뮬레이션
  */
 export const verifyCard = async (params: CardVerifyRequest): Promise<ApiResponse<any>> => {
+  // REG_UID from session
+  let regUid = '';
+  try {
+    const userInfoStr = sessionStorage.getItem('userInfo') || localStorage.getItem('userInfo');
+    if (userInfoStr) {
+      const userInfo = JSON.parse(userInfoStr);
+      regUid = userInfo.userId || userInfo.USR_ID || '';
+    }
+  } catch (e) { /* ignore */ }
+
+  const custNm = params.CUST_NM || params.CARD_OWNER_NM || '';
+  // RSDT_CRRNO: birth date 6 digits (YYMMDD)
+  let rsdtCrrno = (params.KOR_ID || '').replace(/-/g, '');
+  if (rsdtCrrno.length > 6) rsdtCrrno = rsdtCrrno.substring(0, 6);
+
   try {
     const response = await apiCall<any>('/customer/payment/verifyCreditCard', {
       SO_ID: params.SO_ID || '',
       PYM_ACNT_ID: params.PYM_ACNT_ID || '',
       CUST_ID: params.CUST_ID || '',
-      CUST_NM: params.CUST_NM || params.CARD_OWNER_NM || '',
+      CUST_NM: custNm,
       CARD_NO: params.CARD_NO,
       CARD_EXPYEAR: params.CARD_EXPYEAR || (params.CARD_VALID_YM ? params.CARD_VALID_YM.substring(0, 2) : ''),
       CARD_EXPMON: params.CARD_EXPMON || (params.CARD_VALID_YM ? params.CARD_VALID_YM.substring(2, 4) : ''),
-      KOR_ID: params.KOR_ID || ''
+      KOR_ID: params.KOR_ID || '',
+      BUYER: custNm,
+      RSDT_CRRNO: rsdtCrrno,
+      REG_UID: regUid || params.CUST_ID || 'MOBILE'
     });
 
     if (response.success && response.data) {
