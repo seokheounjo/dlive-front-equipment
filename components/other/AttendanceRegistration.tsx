@@ -246,28 +246,22 @@ const AttendanceRegistration: React.FC<AttendanceRegistrationProps> = ({
     }
 
     const hour = getEffectiveHour();
-    const now = new Date();
-    const hh = String(now.getHours()).padStart(2, '0');
-    const mm = String(now.getMinutes()).padStart(2, '0');
-    const timeStr = fakeAfternoon !== null
-      ? (fakeAfternoon ? '15시 00분' : '09시 00분')
-      : `${hh}시 ${mm}분`;
 
-    // 출근인데 14시 이후 → 반차 확인
+    // 출근인데 14시 이후 → 확인
     if (activeTab === 'in' && hour >= 14) {
       setConfirmPopup({
         show: true,
-        message: `현재 ${timeStr} 출근입니다.\n등록하시겠습니까?`,
+        message: '등록하시겠습니까?',
         onConfirm: () => { setConfirmPopup(p => ({ ...p, show: false })); doSubmit(); }
       });
       return;
     }
 
-    // 퇴근인데 14시 이전 → 반차 확인
+    // 퇴근인데 14시 이전 → 확인
     if (activeTab === 'out' && hour < 14) {
       setConfirmPopup({
         show: true,
-        message: `현재 ${timeStr} 퇴근입니다.\n등록하시겠습니까?`,
+        message: '등록하시겠습니까?',
         onConfirm: () => { setConfirmPopup(p => ({ ...p, show: false })); doSubmit(); }
       });
       return;
@@ -597,7 +591,7 @@ const AttendanceRegistration: React.FC<AttendanceRegistrationProps> = ({
           <div className="bg-white rounded-xl shadow-xl max-w-sm w-full p-5 space-y-4">
             <div className="flex items-center gap-2 text-orange-600">
               <AlertTriangle className="w-5 h-5" />
-              <span className="font-semibold">반차 확인</span>
+              <span className="font-semibold">{activeTab === 'in' ? '출근' : '퇴근'} 등록</span>
             </div>
             <p className="text-gray-700 text-sm whitespace-pre-wrap">{confirmPopup.message}</p>
             <div className="flex gap-2">
