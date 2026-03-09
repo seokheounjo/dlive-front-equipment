@@ -935,12 +935,6 @@ async function handleBankAccountVerify(req, res) {
       timeout: 10000
     };
 
-    // DEV fallback: if real KSNET verification fails, return forced success
-    const devFallbackSuccess = () => {
-      console.log('[BankAccountVerify] DEV MODE: Returning forced success (real verification unavailable)');
-      return res.json({ success: true, code: 'SUCCESS', message: 'OK', data: { RSPN_CD: '0000', ACNT_NM: custNm, RES_MSG: '[DEV] 계좌 인증 강제 성공', verified: true } });
-    };
-
     const proxyReq = http.request(options, (proxyRes) => {
       let chunks = [];
       proxyRes.on('data', (chunk) => chunks.push(chunk));
@@ -951,32 +945,23 @@ async function handleBankAccountVerify(req, res) {
 
         try {
           const jsonResp = JSON.parse(responseText);
-          // If real verification succeeded, return as-is
-          if (jsonResp.success && jsonResp.data && (jsonResp.data.RSPN_CD === '0000' || jsonResp.data.success === 'true')) {
-            return res.json(jsonResp);
-          }
-          // Real verification failed -> DEV fallback
-          console.log('[BankAccountVerify] Real verification failed, using DEV fallback');
-          return devFallbackSuccess();
+          return res.json(jsonResp);
         } catch (e) {
           console.error('[BankAccountVerify] JSON parse error:', e.message);
-          // Non-JSON response -> DEV fallback
-          return devFallbackSuccess();
+          return res.json({ success: false, code: 'PARSE_ERROR', message: 'Invalid response from adapter', data: {} });
         }
       });
     });
 
     proxyReq.on('error', (err) => {
       console.error('[BankAccountVerify] Request error:', err.message);
-      // Connection error -> DEV fallback
-      devFallbackSuccess();
+      res.json({ success: false, code: 'ERROR', message: err.message, data: {} });
     });
 
     proxyReq.on('timeout', () => {
       proxyReq.destroy();
       console.error('[BankAccountVerify] Timeout (10s)');
-      // Timeout -> DEV fallback
-      devFallbackSuccess();
+      res.json({ success: false, code: 'TIMEOUT', message: 'Bank account verification request timed out', data: {} });
     });
 
     proxyReq.write(postData);
@@ -988,15 +973,12 @@ async function handleBankAccountVerify(req, res) {
   }
 }
 
-// === 카드 인증 핸들러 (DEV fallback 포함) ===
+// === Card verification handler ===
 async function handleCardVerify(req, res) {
   try {
     const body = req.body || {};
     console.log('\n========== [CardVerify] ==========');
     console.log('Input params:', JSON.stringify(body, null, 2));
-
-    const cardNo = body.CARD_NO || '';
-    const cardOwnerNm = body.CUST_NM || body.CARD_OWNER_NM || '';
 
     const postData = JSON.stringify(body);
     const reqPath = '/api/customer/payment/verifyCreditCard';
@@ -1016,11 +998,6 @@ async function handleCardVerify(req, res) {
       timeout: 10000
     };
 
-    const devFallbackSuccess = () => {
-      console.log('[CardVerify] DEV MODE: Returning forced success (real verification unavailable)');
-      return res.json({ success: true, code: 'SUCCESS', message: 'OK', data: { success: 'true', RESP_CD: '0000', RESP_MSG: '[DEV] 카드 인증 강제 성공', verified: true } });
-    };
-
     const proxyReq = http.request(options, (proxyRes) => {
       let chunks = [];
       proxyRes.on('data', (chunk) => chunks.push(chunk));
@@ -1031,27 +1008,23 @@ async function handleCardVerify(req, res) {
 
         try {
           const jsonResp = JSON.parse(responseText);
-          if (jsonResp.success && jsonResp.data && (jsonResp.data.RESP_CD === '0000' || jsonResp.data.success === 'true')) {
-            return res.json(jsonResp);
-          }
-          console.log('[CardVerify] Real verification failed, using DEV fallback');
-          return devFallbackSuccess();
+          return res.json(jsonResp);
         } catch (e) {
           console.error('[CardVerify] JSON parse error:', e.message);
-          return devFallbackSuccess();
+          return res.json({ success: false, code: 'PARSE_ERROR', message: 'Invalid response from adapter', data: {} });
         }
       });
     });
 
     proxyReq.on('error', (err) => {
       console.error('[CardVerify] Request error:', err.message);
-      devFallbackSuccess();
+      res.json({ success: false, code: 'ERROR', message: err.message, data: {} });
     });
 
     proxyReq.on('timeout', () => {
       proxyReq.destroy();
       console.error('[CardVerify] Timeout (10s)');
-      devFallbackSuccess();
+      res.json({ success: false, code: 'TIMEOUT', message: 'Card verification request timed out', data: {} });
     });
 
     proxyReq.write(postData);
@@ -1059,9 +1032,7 @@ async function handleCardVerify(req, res) {
 
   } catch (error) {
     console.error('[CardVerify] Error:', error.message);
-    // Even catch block returns DEV fallback success
-    console.log('[CardVerify] DEV MODE: Returning forced success on error');
-    res.json({ success: true, code: 'SUCCESS', message: 'OK', data: { success: 'true', RESP_CD: '0000', RESP_MSG: '[DEV] 카드 인증 강제 성공', verified: true } });
+    res.json({ success: false, code: 'ERROR', message: error.message, data: {} });
   }
 }
 
