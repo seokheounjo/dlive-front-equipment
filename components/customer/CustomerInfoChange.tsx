@@ -14,6 +14,7 @@ import {
   updateInstallAddress,
   getTelecomCodes,
   getHPPayList,
+  modIfSvcHP,
   formatPhoneNumber,
   PhoneChangeRequest,
   AddressChangeRequest,
@@ -30,7 +31,6 @@ import {
   StreetAddressInfo,
   registerConsultation,
   ConsultationRequest,
-  saveHPPayInfo,
   getBankCodesDLive,
   getCardCompanyCodes,
   getPayerRelationCodes,
@@ -182,6 +182,9 @@ const CustomerInfoChange: React.FC<CustomerInfoChangeProps> = ({
   const [hpPayList, setHpPayList] = useState<HPPayInfo[]>([]);
   const [isLoadingHpPay, setIsLoadingHpPay] = useState(false);
   const [hpPayLoaded, setHpPayLoaded] = useState(false);
+  const [hpPaySelectedApply, setHpPaySelectedApply] = useState<Set<string>>(new Set());
+  const [hpPaySelectedCancel, setHpPaySelectedCancel] = useState<Set<string>>(new Set());
+  const [isProcessingHpPay, setIsProcessingHpPay] = useState(false);
 
   // 납부방법 변경
   const [paymentInfoList, setPaymentInfoList] = useState<PaymentAccountInfo[]>([]);
@@ -665,49 +668,25 @@ const CustomerInfoChange: React.FC<CustomerInfoChangeProps> = ({
     }
   };
 
-  // 휴대폰결제 신청/해지 실제 처리
+  // 휴대폰결제 신청/해제 실제 처리 (modIfSvc_m.req)
   const executeHpPayChange = async (item: HPPayInfo, actionText: string) => {
     if (!selectedCustomer) return;
 
     const isApply = actionText === '신청';
-    const userInfo = JSON.parse(sessionStorage.getItem('userInfo') || localStorage.getItem('userInfo') || '{}');
+    const msgId = isApply ? 'SMR74' : 'SMR75';
 
     try {
-      // 1차: 직접 HP Pay 상태 변경 API 호출
-      const saveParams = {
+      const response = await modIfSvcHP({
+        MSG_ID: msgId,
         CUST_ID: selectedCustomer.custId,
         CTRT_ID: item.CTRT_ID,
-        HP_PAY_STAT: isApply ? 'Y' : 'N',
-        SO_ID: selectedContract?.soId || userInfo.soId || '',
-        MST_SO_ID: userInfo.mstSoId || '200',
-        USR_ID: userInfo.userId || userInfo.USR_ID || ''
-      };
-
-      const response = await saveHPPayInfo(saveParams);
+      });
 
       if (response.success) {
         showAlert(`휴대폰결제 ${actionText} 완료되었습니다.`, 'success');
         loadHpPayList();
-        return;
-      }
-
-      // 2차: 직접 변경 실패 시 상담 등록으로 폴백
-      console.warn('HP Pay direct save failed, falling back to consultation:', response.message);
-      const consultParams: Partial<ConsultationRequest> = {
-        CUST_ID: selectedCustomer.custId,
-        CTRT_ID: item.CTRT_ID,
-        CNSL_MST_CL: '04',
-        CNSL_MID_CL: '0401',
-        CNSL_SLV_CL: '040101',
-        REQ_CTX: `[휴대폰결제 ${actionText} 요청]\n상품: ${item.PROD_NM}\n계약ID: ${item.CTRT_ID}\n현재상태: ${item.HP_STAT || '미신청'}\n요청: ${actionText}`
-      };
-
-      const consultResponse = await registerConsultation(consultParams as ConsultationRequest);
-      if (consultResponse.success) {
-        showAlert(`휴대폰결제 ${actionText} 상담이 접수되었습니다. 담당자 확인 후 처리됩니다.`, 'info');
-        loadHpPayList();
       } else {
-        showAlert(consultResponse.message || `${actionText} 요청에 실패했습니다.`, 'error');
+        showAlert(response.message || `${actionText} 요청에 실패했습니다.`, 'error');
       }
     } catch (error) {
       console.error('HP Pay change error:', error);

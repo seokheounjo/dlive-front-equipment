@@ -1423,18 +1423,51 @@ export const getHPPayList = async (custId: string): Promise<ApiResponse<HPPayInf
 };
 
 /**
- * 휴대폰결제(선불) 신청/해지
- * API: customer/negociation/saveHPPayInfo
+ * 휴대폰결제(선불) 신청/해제
+ * API: customer/work/modIfSvc_m.req
+ * MSG_ID: SMR74(신청), SMR75(해제)
+ * Flow: ctrtEqtInfo(PMOBILE_IFSVC_HP_SETTING) -> modIfSvc(pcmif_ifsvc_set_cona)
  */
-export const saveHPPayInfo = async (params: {
+export const modIfSvcHP = async (params: {
+  MSG_ID: string;        // 'SMR74'=신청, 'SMR75'=해제
   CUST_ID: string;
   CTRT_ID: string;
-  HP_PAY_STAT: string;  // 'Y'=신청, 'N'=해지
   SO_ID?: string;
-  MST_SO_ID?: string;
-  USR_ID?: string;
+  REG_UID?: string;
 }): Promise<ApiResponse<any>> => {
-  return apiCall<any>('/customer/negociation/saveHPPayInfo', params);
+  let usrId = '';
+  let soId = params.SO_ID || '';
+  try {
+    const userInfoStr = sessionStorage.getItem('userInfo') || localStorage.getItem('userInfo');
+    if (userInfoStr) {
+      const userInfo = JSON.parse(userInfoStr);
+      usrId = userInfo.userId || userInfo.USR_ID || '';
+      if (!soId) {
+        const authSoList = userInfo.authSoList || userInfo.AUTH_SO_List || [];
+        if (authSoList.length > 0) {
+          soId = authSoList[0].SO_ID || authSoList[0].soId || '';
+        }
+      }
+    }
+  } catch (e) {
+    console.log('[CustomerAPI] Failed to get session info for modIfSvcHP');
+  }
+  const fullParams = {
+    MSG_ID: params.MSG_ID,
+    CUST_ID: params.CUST_ID,
+    CTRT_ID: params.CTRT_ID,
+    SO_ID: soId,
+    REG_UID: params.REG_UID || usrId || 'MOBILE',
+    ITV_USR_ID: usrId || 'MOBILE',
+    IP_CNT: '0',
+    SUB_PROD_CD: '',
+    WRK_ID: '',
+    IF_DTL_ID: '',
+    VOIP_JOIN_CTRT_ID: '',
+    NEW_VOIP_TEL_NO: '',
+    EQT_PROD_CMPS_ID: '',
+  };
+  return apiCall<any>('/customer/work/modIfSvc_m', fullParams);
 };
 
 // ============ 이력 조회 API ============
