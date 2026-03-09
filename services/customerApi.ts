@@ -165,7 +165,6 @@ export interface PendingPaymentInfo {
   selectedTotal: number;
   timestamp: number;
   pendingBillYms: string[];  // 이 결제에 포함된 BILL_YM 목록
-  regDate?: string;  // 결제요청 시각 (from REG_DATE)
   payResultText?: string;  // PAY_RESULT 코드 (backend response as-is)
   payResultMsg?: string;   // PAY_RESULT_NM 텍스트 (CONA 한글 표시용)
 }

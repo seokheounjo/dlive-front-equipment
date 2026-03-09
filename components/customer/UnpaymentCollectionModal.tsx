@@ -215,8 +215,6 @@ const UnpaymentCollectionModal: React.FC<UnpaymentCollectionModalProps> = ({
 
           const payResult = (res.data?.PAY_RESULT || '').trim();
           const payResultMsg = (res.data?.PAY_RESULT_NM || '').trim();
-          const regDate = res.data?.REG_DATE || '';
-
           if (res.success) {
             // SUCCESS: 903 / SUCCESS_DEPOSITED
             removePendingPayment(pymAcntId, pendingInfo.orderNo);
@@ -232,7 +230,6 @@ const UnpaymentCollectionModal: React.FC<UnpaymentCollectionModalProps> = ({
           } else if (res.errorCode === 'PENDING') {
             // PENDING: 900/901/904 / PENDING_PROCESSING / SUCCESS_PROCESSING
             const updates: Partial<PendingPaymentInfo> = {};
-            if (regDate) updates.regDate = regDate;
             if (payResult && payResult !== 'PENDING') updates.payResultText = payResult;
             if (payResultMsg) updates.payResultMsg = payResultMsg;
             if (Object.keys(updates).length > 0) {
@@ -638,11 +635,6 @@ const UnpaymentCollectionModal: React.FC<UnpaymentCollectionModalProps> = ({
                             <div className="mt-1">
                               <span className="text-xs text-amber-600">
                                 카드 ****{pendingInfo.cardNo} | {formatCurrency(pendingInfo.selectedTotal)}원
-                                {pendingInfo.regDate && (
-                                  <span className="text-amber-500 ml-1">
-                                    | {pendingInfo.regDate.replace(/(\d{4})(\d{2})(\d{2})(\d{2})(\d{2})(\d{2})?/, '$1-$2-$3 $4:$5')}
-                                  </span>
-                                )}
                               </span>
                             </div>
                           )}
