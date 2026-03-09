@@ -389,7 +389,14 @@ const AttendanceRegistration: React.FC<AttendanceRegistrationProps> = ({
           퇴근
         </button>
         <button
-          onClick={() => setFakeAfternoon(prev => prev === null ? true : prev === true ? false : null)}
+          onClick={() => setFakeAfternoon(prev => {
+            const next = prev === null ? true : prev === true ? false : null;
+            // 탭 자동 전환: 14시 이후→퇴근, 14시 이전→출근
+            if (next === true) setActiveTab('out');
+            else if (next === false) setActiveTab('in');
+            else setActiveTab(new Date().getHours() >= 14 ? 'out' : 'in');
+            return next;
+          })}
           className={`flex items-center px-2 text-xs rounded-lg transition-colors ${
             fakeAfternoon === null
               ? 'text-gray-400'
