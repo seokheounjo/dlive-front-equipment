@@ -455,6 +455,245 @@ router.post('/auth/otp-verify', async (req, res) => {
   }
 });
 
+// ============================================================
+// Login Audit Log APIs (pmobileLoginApi_1/2/3)
+// TRX_ID format: yyyyMMddHHmmss_userId
+// ============================================================
+
+function generateTrxId(userId) {
+  const now = new Date();
+  const ts = now.getFullYear().toString() +
+    String(now.getMonth() + 1).padStart(2, '0') +
+    String(now.getDate()).padStart(2, '0') +
+    String(now.getHours()).padStart(2, '0') +
+    String(now.getMinutes()).padStart(2, '0') +
+    String(now.getSeconds()).padStart(2, '0');
+  return ts + '_' + (userId || 'unknown');
+}
+
+// Call CONA login audit procedure via adapter
+function callLoginApi(apiPath, params) {
+  return new Promise((resolve) => {
+    const http = require('http');
+    const postData = JSON.stringify(params);
+    const urlObj = new URL(`${DLIVE_API_BASE}/api/system/pm/${apiPath}`);
+    const options = {
+      hostname: urlObj.hostname,
+      port: urlObj.port || 8080,
+      path: urlObj.pathname,
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Content-Length': Buffer.byteLength(postData),
+        ...(storedJSessionId ? { 'Cookie': `JSESSIONID=${storedJSessionId}` } : {})
+      },
+      timeout: 10000
+    };
+    const req = http.request(options, (res) => {
+      let body = '';
+      res.on('data', (chunk) => { body += chunk; });
+      res.on('end', () => {
+        try {
+          const result = JSON.parse(body);
+          console.log(`[LoginLog] ${apiPath} result:`, JSON.stringify(result));
+          resolve(result);
+        } catch (e) {
+          console.log(`[LoginLog] ${apiPath} response:`, body.substring(0, 200));
+          resolve({ ok: false, error: 'parse error' });
+        }
+      });
+    });
+    req.on('error', (err) => {
+      console.error(`[LoginLog] ${apiPath} error:`, err.message);
+      resolve({ ok: false, error: err.message });
+    });
+    req.on('timeout', () => {
+      req.destroy();
+      console.error(`[LoginLog] ${apiPath} timeout`);
+      resolve({ ok: false, error: 'timeout' });
+    });
+    req.write(postData);
+    req.end();
+  });
+}
+
+// Full login flow with audit logging
+router.post('/auth/login-with-otp', async (req, res) => {
+  const userId = req.body.USR_ID;
+  const password = req.body.PASSWORD || req.body.USR_PWD;
+  const otpCode = req.body.OTP_CODE;
+  const disconnYn = req.body.DISCONN_YN || 'N';
+  const clientIp = req.headers['x-forwarded-for'] || req.headers['x-real-ip'] || req.connection.remoteAddress || '';
+  const userAgent = req.headers['user-agent'] || '';
+
+  const trxId = generateTrxId(userId);
+  console.log('[LoginFlow] Start TRX_ID:', trxId);
+
+  // Step 1: Log login start (API_1 - LOGIN)
+  // PASSWORD is NOT included in log
+  await callLoginApi('pmobileLoginApi_1', {
+    P_LOGIN_TRX_ID: trxId,
+    P_USER_ID: userId,
+    P_CLIENT_IP: clientIp,
+    P_USER_AGENT: userAgent.substring(0, 200),
+    P_SERVER: 'EC2_MOBILE',
+    P_API_TYPE: 'LOGIN',
+    P_REQUEST_DATA: JSON.stringify({ USR_ID: userId, LOGIN_VIEW: 'MOBILE' })
+  });
+
+  // Step 2: ID/PW authentication via CONA
+  let loginResult;
+  try {
+    loginResult = await new Promise((resolve, reject) => {
+      const http = require('http');
+      const postData = JSON.stringify({
+        USR_ID: userId,
+        PASSWORD: password,
+        LOGIN_VIEW: 'MOBILE',
+        DISCONN_YN: disconnYn
+      });
+      const urlObj = new URL(`${DLIVE_API_BASE}/api/login`);
+      const options = {
+        hostname: urlObj.hostname,
+        port: urlObj.port || 8080,
+        path: urlObj.pathname,
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Content-Length': Buffer.byteLength(postData),
+          ...(storedJSessionId ? { 'Cookie': `JSESSIONID=${storedJSessionId}` } : {})
+        },
+        timeout: 30000
+      };
+      const loginReq = http.request(options, (loginRes) => {
+        // Capture JSESSIONID
+        const cookies = loginRes.headers['set-cookie'] || [];
+        const cookieStr = Array.isArray(cookies) ? cookies.join('; ') : String(cookies);
+        if (cookieStr) {
+          const match = cookieStr.match(/JSESSIONID=([^;]+)/);
+          if (match) {
+            storedJSessionId = match[1];
+            storedUserId = userId;
+          }
+        }
+        let body = '';
+        loginRes.on('data', (chunk) => { body += chunk; });
+        loginRes.on('end', () => {
+          try { resolve(JSON.parse(body)); }
+          catch (e) { reject(new Error('Login response parse error')); }
+        });
+      });
+      loginReq.on('error', (err) => reject(err));
+      loginReq.on('timeout', () => { loginReq.destroy(); reject(new Error('Login timeout')); });
+      loginReq.write(postData);
+      loginReq.end();
+    });
+  } catch (err) {
+    // Log login failure (API_2 - LOGIN)
+    await callLoginApi('pmobileLoginApi_2', {
+      P_LOGIN_TRX_ID: trxId,
+      P_API_TYPE: 'LOGIN',
+      P_RESPONSE_DATA: '',
+      P_RESULT_CD: 'ERROR',
+      P_RESULT_MSG: err.message
+    });
+    // Log final failure (API_3)
+    await callLoginApi('pmobileLoginApi_3', {
+      P_LOGIN_TRX_ID: trxId,
+      P_FINAL_RESULT_CD: 'FAIL',
+      P_FINAL_RESULT_MSG: 'Login request failed: ' + err.message
+    });
+    return res.json({ ok: false, code: 'LOGIN_ERROR', message: 'Login server error' });
+  }
+
+  // Step 3: Log login result (API_2 - LOGIN)
+  // PASSWORD is NOT in response data
+  const loginOk = loginResult.ok === true;
+  await callLoginApi('pmobileLoginApi_2', {
+    P_LOGIN_TRX_ID: trxId,
+    P_API_TYPE: 'LOGIN',
+    P_RESPONSE_DATA: JSON.stringify({ ok: loginOk, userId: loginResult.userId || '', code: loginResult.code || '' }),
+    P_RESULT_CD: loginOk ? 'SUCCESS' : (loginResult.code || 'FAIL'),
+    P_RESULT_MSG: loginOk ? 'Login OK' : (loginResult.message || 'Login failed')
+  });
+
+  if (!loginOk) {
+    // Log final failure (API_3)
+    await callLoginApi('pmobileLoginApi_3', {
+      P_LOGIN_TRX_ID: trxId,
+      P_FINAL_RESULT_CD: loginResult.code || 'FAIL',
+      P_FINAL_RESULT_MSG: loginResult.message || 'Login failed'
+    });
+    return res.json(loginResult);
+  }
+
+  // Step 4: OTP authentication (if OTP code provided)
+  if (otpCode && otpCode.length === 6) {
+    // Log OTP start (API_1 - OTP)
+    // OTP_CODE is NOT included in log
+    await callLoginApi('pmobileLoginApi_1', {
+      P_LOGIN_TRX_ID: trxId,
+      P_USER_ID: userId,
+      P_CLIENT_IP: clientIp,
+      P_USER_AGENT: userAgent.substring(0, 200),
+      P_SERVER: 'EC2_OTP',
+      P_API_TYPE: 'OTP',
+      P_REQUEST_DATA: JSON.stringify({ USR_ID: userId })
+    });
+
+    // Call OTP RADIUS
+    const otpUserId = OTP_AUTH_USER_ID;
+    let otpResult;
+    try {
+      otpResult = await radiusAccessRequest(
+        OTP_SERVER_IP, OTP_SERVER_PORT, OTP_SHARED_SECRET,
+        otpUserId, otpCode, OTP_TIMEOUT
+      );
+    } catch (err) {
+      otpResult = { code: '6042', count: '0', message: 'OTP error: ' + err.message };
+    }
+
+    const otpOk = otpResult.code === '0';
+
+    // Log OTP result (API_2 - OTP)
+    // OTP_CODE is NOT in response data
+    await callLoginApi('pmobileLoginApi_2', {
+      P_LOGIN_TRX_ID: trxId,
+      P_API_TYPE: 'OTP',
+      P_RESPONSE_DATA: JSON.stringify({ code: otpResult.code, message: otpResult.message }),
+      P_RESULT_CD: otpOk ? 'SUCCESS' : otpResult.code,
+      P_RESULT_MSG: otpOk ? 'OTP OK' : otpResult.message
+    });
+
+    if (!otpOk) {
+      // Log final failure (API_3)
+      await callLoginApi('pmobileLoginApi_3', {
+        P_LOGIN_TRX_ID: trxId,
+        P_FINAL_RESULT_CD: 'OTP_FAIL',
+        P_FINAL_RESULT_MSG: otpResult.message || 'OTP authentication failed'
+      });
+      return res.json({
+        ok: false,
+        code: otpResult.code,
+        message: otpResult.message,
+        errorCount: parseInt(otpResult.count) || 0,
+        loginData: loginResult
+      });
+    }
+  }
+
+  // Step 5: All passed - Log final success (API_3)
+  await callLoginApi('pmobileLoginApi_3', {
+    P_LOGIN_TRX_ID: trxId,
+    P_FINAL_RESULT_CD: 'SUCCESS',
+    P_FINAL_RESULT_MSG: 'Login complete'
+  });
+
+  // Return login result with TRX_ID
+  loginResult.trxId = trxId;
+  return res.json(loginResult);
+});
+
 // Attendance API
 router.post('/system/attendance/get', handleProxy);
 router.post('/system/attendance/save', handleProxy);
