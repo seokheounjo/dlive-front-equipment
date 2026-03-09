@@ -669,8 +669,9 @@ const CustomerInfoChange: React.FC<CustomerInfoChangeProps> = ({
   };
 
   // 휴대폰결제 신청/해제 실제 처리 (modIfSvc_m.req)
-  const executeHpPayChange = async (item: HPPayInfo, actionText: string) => {
-    if (!selectedCustomer) return;
+  // batch=true: 일괄처리시 alert 없이 결과만 리턴
+  const executeHpPayChange = async (item: HPPayInfo, actionText: string, batch = false): Promise<boolean> => {
+    if (!selectedCustomer) return false;
 
     const isApply = actionText === '신청';
     const msgId = isApply ? 'SMR74' : 'SMR75';
@@ -683,14 +684,23 @@ const CustomerInfoChange: React.FC<CustomerInfoChangeProps> = ({
       });
 
       if (response.success) {
-        showAlert(`휴대폰결제 ${actionText} 완료되었습니다.`, 'success');
-        loadHpPayList();
+        if (!batch) {
+          showAlert(`휴대폰결제 ${actionText} 완료되었습니다.`, 'success');
+          loadHpPayList();
+        }
+        return true;
       } else {
-        showAlert(response.message || `${actionText} 요청에 실패했습니다.`, 'error');
+        if (!batch) {
+          showAlert(response.message || `${actionText} 요청에 실패했습니다.`, 'error');
+        }
+        return false;
       }
     } catch (error) {
       console.error('HP Pay change error:', error);
-      showAlert(`${actionText} 요청 중 오류가 발생했습니다.`, 'error');
+      if (!batch) {
+        showAlert(`${actionText} 요청 중 오류가 발생했습니다.`, 'error');
+      }
+      return false;
     }
   };
 
@@ -730,10 +740,21 @@ const CustomerInfoChange: React.FC<CustomerInfoChangeProps> = ({
       message: `${targets.length}건을 신청하시겠습니까?`,
       type: 'confirm',
       onConfirm: async () => {
+        let successCount = 0;
+        let failCount = 0;
         for (const item of targets) {
-          await executeHpPayChange(item, '신청');
+          const ok = await executeHpPayChange(item, '신청', true);
+          if (ok) successCount++; else failCount++;
         }
         setHpPayApplySelected(new Set());
+        loadHpPayList();
+        if (failCount === 0) {
+          showAlert(`${successCount}건 신청 완료`, 'success');
+        } else if (successCount === 0) {
+          showAlert(`${failCount}건 모두 신청 실패`, 'error');
+        } else {
+          showAlert(`총 ${targets.length}건 중 ${successCount}건 성공, ${failCount}건 실패`, 'warning');
+        }
       }
     });
   };
@@ -751,10 +772,21 @@ const CustomerInfoChange: React.FC<CustomerInfoChangeProps> = ({
       message: `${targets.length}건을 해지하시겠습니까?`,
       type: 'confirm',
       onConfirm: async () => {
+        let successCount = 0;
+        let failCount = 0;
         for (const item of targets) {
-          await executeHpPayChange(item, '해지');
+          const ok = await executeHpPayChange(item, '해지', true);
+          if (ok) successCount++; else failCount++;
         }
         setHpPayCancelSelected(new Set());
+        loadHpPayList();
+        if (failCount === 0) {
+          showAlert(`${successCount}건 해지 완료`, 'success');
+        } else if (successCount === 0) {
+          showAlert(`${failCount}건 모두 해지 실패`, 'error');
+        } else {
+          showAlert(`총 ${targets.length}건 중 ${successCount}건 성공, ${failCount}건 실패`, 'warning');
+        }
       }
     });
   };
