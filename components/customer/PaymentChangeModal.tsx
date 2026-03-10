@@ -16,7 +16,7 @@ import {
   getChangeReasonCodes,
   getCardClassCodes
 } from '../../services/customerApi';
-import { generateAutoTransferPdf, downloadPdf, savePdfToServer } from '../../services/pdfService';
+import { generateAutoTransferPdf, generateCardPaymentPdf, downloadPdf, savePdfToServer } from '../../services/pdfService';
 
 // 납부계정ID 포맷 (3-3-4)
 const formatPymAcntId = (pymAcntId: string): string => {
@@ -296,7 +296,8 @@ const PaymentChangeModal: React.FC<PaymentChangeModalProps> = ({
       if (result1.success) {
         setIsVerified(true);
         setVerifyProgress('');
-        showAlert(paymentForm.pymMthCd === '01' ? '계좌 인증이 완료되었습니다.' : '카드 인증이 완료되었습니다.', 'success');
+        const successMsg = result1.message || (paymentForm.pymMthCd === '01' ? '계좌 인증이 완료되었습니다.' : '카드 인증이 완료되었습니다.');
+        showAlert(successMsg, 'success');
       } else {
         // 1차 실패 → 5초 대기 후 재시도
         setVerifyProgress('재시도 중... 잠시만 기다려주세요.');
@@ -306,10 +307,12 @@ const PaymentChangeModal: React.FC<PaymentChangeModalProps> = ({
         if (result2.success) {
           setIsVerified(true);
           setVerifyProgress('');
-          showAlert(paymentForm.pymMthCd === '01' ? '계좌 인증이 완료되었습니다.' : '카드 인증이 완료되었습니다.', 'success');
+          const successMsg = result2.message || (paymentForm.pymMthCd === '01' ? '계좌 인증이 완료되었습니다.' : '카드 인증이 완료되었습니다.');
+          showAlert(successMsg, 'success');
         } else {
           setVerifyProgress('');
-          showAlert('인증에 실패했습니다.\n잠시 후 다시 시도해주세요.\n\n' + (result2.message || ''), 'error');
+          const failMsg = result2.message || '인증에 실패했습니다.';
+          showAlert(failMsg, 'error');
         }
       }
     } catch (error) {
@@ -360,22 +363,41 @@ const PaymentChangeModal: React.FC<PaymentChangeModalProps> = ({
     return getCodeName(changeReasonCodes, paymentForm.changeReasonL);
   };
 
-  // 자동이체 PDF 생성 및 다운로드
+  // PDF 생성 및 다운로드 (자동이체 + 카드 모두 지원)
   const handleDownloadPdf = async () => {
     try {
-      const blob = await generateAutoTransferPdf({
-        custId,
-        custNm: custNm || '',
-        pymAcntId: selectedPymAcntId,
-        acntHolderNm: paymentForm.acntHolderNm,
-        birthDt: paymentForm.idNumber,
-        bankNm: getCodeName(bankCodes, paymentForm.bankCd),
-        acntNo: paymentForm.acntNo,
-        signatureData,
-      });
-
+      let blob: Blob;
+      let filename: string;
       const dateStr = new Date().toISOString().slice(0, 10).replace(/-/g, '');
-      const filename = `자동이체_변경신청_${custId}_${dateStr}.pdf`;
+
+      if (paymentForm.pymMthCd === '02') {
+        // 카드 PDF
+        blob = await generateCardPaymentPdf({
+          custId,
+          custNm: custNm || '',
+          pymAcntId: selectedPymAcntId,
+          cardOwnerNm: paymentForm.acntHolderNm,
+          birthDt: paymentForm.idNumber,
+          cardCoNm: getCodeName(bankCodes, paymentForm.bankCd),
+          cardNo: paymentForm.acntNo,
+          cardValidYm: (paymentForm.cardExpYy || '') + (paymentForm.cardExpMm || ''),
+          signatureData,
+        });
+        filename = `카드납부_변경신청_${custId}_${dateStr}.pdf`;
+      } else {
+        // 자동이체 PDF
+        blob = await generateAutoTransferPdf({
+          custId,
+          custNm: custNm || '',
+          pymAcntId: selectedPymAcntId,
+          acntHolderNm: paymentForm.acntHolderNm,
+          birthDt: paymentForm.idNumber,
+          bankNm: getCodeName(bankCodes, paymentForm.bankCd),
+          acntNo: paymentForm.acntNo,
+          signatureData,
+        });
+        filename = `자동이체_변경신청_${custId}_${dateStr}.pdf`;
+      }
 
       // 1. 서버 디렉토리에 저장
       try {
@@ -458,13 +480,11 @@ const PaymentChangeModal: React.FC<PaymentChangeModalProps> = ({
           console.log('[PaymentChange] Signature save stub:', signErr);
         }
 
-        // 4. 자동이체인 경우 PDF 자동 다운로드
-        if (paymentForm.pymMthCd === '01' && signatureData) {
-          try {
-            await handleDownloadPdf();
-          } catch (pdfErr) {
-            console.warn('[PaymentChange] PDF auto-download failed:', pdfErr);
-          }
+        // 4. PDF 자동 저장 및 다운로드 (자동이체 + 카드 모두)
+        try {
+          await handleDownloadPdf();
+        } catch (pdfErr) {
+          console.warn('[PaymentChange] PDF auto-download failed:', pdfErr);
         }
 
         setIsSaved(true);

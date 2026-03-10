@@ -298,6 +298,136 @@ export async function generateAutoTransferPdf(data: AutoTransferPdfData): Promis
 }
 
 /**
+ * 카드 납부 변경 신청서 PDF 생성
+ */
+interface CardPaymentPdfData {
+  custId: string;
+  custNm: string;
+  pymAcntId: string;
+  cardOwnerNm: string;
+  birthDt: string;
+  cardCoNm: string;        // 카드사명
+  cardNo: string;           // 카드번호
+  cardValidYm: string;      // 유효기간 (YYMM)
+  signatureData?: string;
+  createdAt?: string;
+}
+
+function maskCardNo(cardNo: string): string {
+  if (!cardNo) return '-';
+  const cleaned = cardNo.replace(/[-\s]/g, '');
+  if (cleaned.length >= 8) {
+    return cleaned.slice(0, 4) + '-****-****-' + cleaned.slice(-4);
+  }
+  return cleaned;
+}
+
+function formatValidYm(ym: string): string {
+  if (!ym || ym.length < 4) return ym || '-';
+  return ym.slice(2, 4) + '/' + ym.slice(0, 2);
+}
+
+export async function generateCardPaymentPdf(data: CardPaymentPdfData): Promise<Blob> {
+  const doc = new jsPDF('p', 'mm', 'a4');
+
+  const tableLeft = 30;
+  const tableWidth = 150;
+  const labelWidth = 45;
+  const valueLeft = tableLeft + labelWidth;
+  const valueWidth = tableWidth - labelWidth;
+  const rowHeight = 14;
+
+  let y = 35;
+
+  // 타이틀
+  const titleHeight = 16;
+  doc.setFillColor(180, 80, 0);
+  doc.rect(tableLeft, y, tableWidth, titleHeight, 'F');
+  addTextInCell(doc, '신용카드 납부 변경 신청서', 14, 'bold', '#FFFFFF', 'center',
+    tableLeft, y, tableWidth, titleHeight);
+  y += titleHeight;
+
+  const rows = [
+    { label: '납부자명', value: data.custNm || '-' },
+    { label: '납부계정', value: data.pymAcntId || '-' },
+    { label: '카드사', value: data.cardCoNm || '-' },
+    { label: '카드번호', value: maskCardNo(data.cardNo) },
+    { label: '유효기간', value: formatValidYm(data.cardValidYm) },
+    { label: '카드소유주', value: data.cardOwnerNm || '-' },
+    { label: '생년월일', value: maskBirthDt(data.birthDt) },
+    { label: '신청일자', value: formatDate(data.createdAt) },
+  ];
+
+  for (let i = 0; i < rows.length; i++) {
+    const row = rows[i];
+    doc.setFillColor(245, 245, 245);
+    doc.rect(tableLeft, y, labelWidth, rowHeight, 'F');
+    doc.setFillColor(255, 255, 255);
+    doc.rect(valueLeft, y, valueWidth, rowHeight, 'F');
+    doc.setDrawColor(190, 190, 190);
+    doc.setLineWidth(0.3);
+    doc.rect(tableLeft, y, labelWidth, rowHeight);
+    doc.rect(valueLeft, y, valueWidth, rowHeight);
+    addTextInCell(doc, row.label, 9, 'normal', '#333333', 'center',
+      tableLeft, y, labelWidth, rowHeight);
+    addTextInCell(doc, row.value, 10, 'normal', '#000000', 'left',
+      valueLeft, y, valueWidth, rowHeight, 5);
+    y += rowHeight;
+  }
+
+  // 전자서명
+  const signatureRowHeight = 45;
+  doc.setFillColor(245, 245, 245);
+  doc.rect(tableLeft, y, labelWidth, signatureRowHeight, 'F');
+  doc.setDrawColor(190, 190, 190);
+  doc.rect(tableLeft, y, labelWidth, signatureRowHeight);
+  addTextInCell(doc, '전자서명', 10, 'normal', '#333333', 'center',
+    tableLeft, y, labelWidth, signatureRowHeight);
+
+  doc.setFillColor(255, 255, 255);
+  doc.rect(valueLeft, y, valueWidth, signatureRowHeight, 'F');
+  doc.setDrawColor(190, 190, 190);
+  doc.rect(valueLeft, y, valueWidth, signatureRowHeight);
+
+  if (data.signatureData) {
+    try {
+      const sigPad = 6;
+      const sigMaxW = valueWidth - sigPad * 2;
+      const sigMaxH = signatureRowHeight - sigPad * 2;
+      const sigImg = new Image();
+      sigImg.src = data.signatureData;
+      let sigW = sigMaxW;
+      let sigH = sigMaxH;
+      if (sigImg.naturalWidth && sigImg.naturalHeight) {
+        const sigRatio = sigImg.naturalHeight / sigImg.naturalWidth;
+        sigW = sigMaxW;
+        sigH = sigMaxW * sigRatio;
+        if (sigH > sigMaxH) { sigH = sigMaxH; sigW = sigMaxH / sigRatio; }
+      }
+      const sigX = valueLeft + (valueWidth - sigW) / 2;
+      const sigY = y + (signatureRowHeight - sigH) / 2;
+      doc.addImage(data.signatureData, 'PNG', sigX, sigY, sigW, sigH);
+    } catch (e) {
+      addTextInCell(doc, '(서명 없음)', 9, 'normal', '#999999', 'center',
+        valueLeft, y, valueWidth, signatureRowHeight);
+    }
+  } else {
+    addTextInCell(doc, '(서명 없음)', 9, 'normal', '#999999', 'center',
+      valueLeft, y, valueWidth, signatureRowHeight);
+  }
+  y += signatureRowHeight;
+
+  y += 8;
+  addTextInCell(doc, '위와 같이 신용카드 납부 변경을 신청합니다.', 10, 'normal', '#555555', 'center',
+    tableLeft, y, tableWidth, 10);
+  y += 14;
+  addTextInCell(doc, "D'LIVE (주)딜라이브", 12, 'bold', '#333333', 'center',
+    tableLeft, y, tableWidth, 10);
+
+  return doc.output('blob');
+}
+
+/**
  * 날짜 포맷: YYYY.MM.DD
  */
 function formatDate(dateStr?: string): string {
