@@ -784,7 +784,7 @@ router.post('/customer/customer/general/customerPymChgAddManager', handlePayment
 router.post('/customer/customer/general/updatePymAtmtApplAGRPdf', handleProxy);  // AGR PDF update after chgPymMthd_m
 router.post('/customer/customer/general/addCustomerPymInfoChange', handleProxy);
 router.post('/customer/payment/verifyBankAccount', handleBankAccountVerify);  // KSNET bank account verify (.req direct)
-router.post('/customer/payment/verifyCreditCard', handleCardVerify);  // LGU+ card verify (adapter -> JSP, DEV fallback)
+router.post('/customer/payment/verifyCreditCard', handleCardVerify);  // LGU+ card verify (adapter)
 router.post('/customer/payment/savePdf', handleSavePdf);  // PDF save to local directory
 // 6. Consultation/AS
 router.post('/customer/negociation/saveCnslRcptInfo', handleProxy);
