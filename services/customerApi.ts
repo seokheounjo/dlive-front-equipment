@@ -1791,33 +1791,31 @@ export const verifyBankAccount = async (params: AccountVerifyRequest): Promise<A
 
     if (response.success && response.data) {
       const data = response.data;
+      // RSPN_CD: CMCU317 common code (KSNET response)
       const rspnCd = data.RSPN_CD || data.RES_MSG_CD || '';
       const resMsg = data.RES_MSG || data.MESSAGE || data.RESP_MSG || '';
 
-      // RSPN_CD 우선 체크 + RES_MSG 에러 키워드 체크
-      const isErrorMsg = resMsg && /오류|실패|불일치|에러|error/i.test(resMsg);
-
-      if (rspnCd === '0000' && !isErrorMsg) {
-        // RSPN_CD=0000 이고 에러 메시지 아닌 경우만 성공
+      // 1. RSPN_CD 기반 판단 (CMCU317)
+      if (rspnCd === '0000') {
         return { success: true, data: { verified: true, ...data }, message: resMsg || '계좌 인증이 완료되었습니다.' };
-      } else if (rspnCd && rspnCd !== '0000') {
-        // RSPN_CD가 0000이 아닌 경우 실패
-        return { success: false, data, message: resMsg || '계좌 인증에 실패했습니다. (' + rspnCd + ')' };
-      } else if (isErrorMsg) {
-        // RSPN_CD 없지만 RES_MSG에 에러 키워드
+      }
+      if (rspnCd && rspnCd !== '0000') {
+        // CMCU317 실패 코드 (0122=계좌오류, 0116=주민번호불일치 등)
+        return { success: false, data, message: resMsg || '계좌 인증에 실패했습니다. [' + rspnCd + ']' };
+      }
+
+      // 2. RSPN_CD 없음 - RES_MSG로 판단
+      if (resMsg && /오류|실패|불일치|에러|error|존재하지/i.test(resMsg)) {
         return { success: false, data, message: resMsg };
-      } else if (!rspnCd && data.RLNM_CONF_CHECK === 'Y') {
-        // 사전확인에서 이미 인증됨 (RSPN_CD 없이 성공)
+      }
+
+      // 3. 사전확인 성공 (RLNM_CONF_CHECK=Y)
+      if (data.RLNM_CONF_CHECK === 'Y') {
         return { success: true, data: { verified: true, ...data }, message: '계좌 인증이 완료되었습니다.' };
       }
-    }
-    if (response.success && response.data && !response.data.RSPN_CD) {
-      // RSPN_CD 없고 에러 메시지도 없으면 성공 처리
-      const resMsg = response.data?.RES_MSG || '';
-      if (resMsg && /오류|실패|불일치|에러|error/i.test(resMsg)) {
-        return { success: false, data: response.data, message: resMsg };
-      }
-      return { success: true, data: { verified: true, ...response.data }, message: resMsg || '계좌 인증이 완료되었습니다.' };
+
+      // 4. RSPN_CD 없고 에러도 없으면 성공
+      return { success: true, data: { verified: true, ...data }, message: resMsg || '계좌 인증이 완료되었습니다.' };
     }
     return { success: false, message: response.message || '계좌 인증에 실패했습니다.' };
   } catch (error: any) {
@@ -1863,11 +1861,31 @@ export const verifyCard = async (params: CardVerifyRequest): Promise<ApiResponse
 
     if (response.success && response.data) {
       const data = response.data;
-      if (data.success === 'true' || data.RESP_CD === '0000') {
-        return { success: true, data: { verified: true, RESP_CD: data.RESP_CD }, message: '카드 인증이 완료되었습니다.' };
-      } else {
-        return { success: false, data, message: data.RESP_MSG || '카드 인증에 실패했습니다.' };
+      const respCd = data.RESP_CD || data.LGD_RESPCODE || '';
+      const respMsg = data.RESP_MSG || data.LGD_RESPMSG || '';
+
+      // RESP_CD 기반 판단
+      if (respCd === '0000') {
+        return { success: true, data: { verified: true, RESP_CD: respCd }, message: respMsg || '카드 인증이 완료되었습니다.' };
       }
+      if (respCd && respCd !== '0000') {
+        return { success: false, data, message: respMsg || '카드 인증에 실패했습니다. [' + respCd + ']' };
+      }
+
+      // RESP_CD 없음 - RESP_MSG/alert message로 판단
+      if (respMsg && /오류|실패|불일치|에러|error|존재하지/i.test(respMsg)) {
+        return { success: false, data, message: respMsg };
+      }
+
+      // JSP 응답의 경우 success 필드 체크
+      if (data.success === 'true') {
+        return { success: true, data: { verified: true, RESP_CD: respCd }, message: respMsg || '카드 인증이 완료되었습니다.' };
+      }
+      if (data.success === 'false') {
+        return { success: false, data, message: respMsg || '카드 인증에 실패했습니다.' };
+      }
+
+      return { success: false, data, message: respMsg || '카드 인증 응답을 확인할 수 없습니다.' };
     }
     return { success: false, message: response.message || '카드 인증에 실패했습니다.' };
   } catch (error: any) {

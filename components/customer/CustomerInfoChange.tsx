@@ -1590,7 +1590,7 @@ const CustomerInfoChange: React.FC<CustomerInfoChangeProps> = ({
                         </span>
                       </div>
                       <div className="text-xs text-gray-500 space-y-1 ml-6">
-                        <div className="flex justify-between">
+                        <div className="flex gap-1">
                           <span>계약ID:</span>
                           <span className="text-gray-700">{item.CTRT_ID}</span>
                         </div>
@@ -1651,7 +1651,7 @@ const CustomerInfoChange: React.FC<CustomerInfoChangeProps> = ({
                         </span>
                       </div>
                       <div className="text-xs text-gray-500 space-y-1 ml-6">
-                        <div className="flex justify-between">
+                        <div className="flex gap-1">
                           <span>계약ID:</span>
                           <span className="text-gray-700">{item.CTRT_ID}</span>
                         </div>
