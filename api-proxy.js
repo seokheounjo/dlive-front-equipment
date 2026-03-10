@@ -936,6 +936,13 @@ async function handleBankAccountVerify(req, res) {
       timeout: 10000
     };
 
+    let responded = false;
+    const sendResponse = (data) => {
+      if (responded) return;
+      responded = true;
+      res.json(data);
+    };
+
     const proxyReq = http.request(options, (proxyRes) => {
       let chunks = [];
       proxyRes.on('data', (chunk) => chunks.push(chunk));
@@ -946,23 +953,23 @@ async function handleBankAccountVerify(req, res) {
 
         try {
           const jsonResp = JSON.parse(responseText);
-          return res.json(jsonResp);
+          sendResponse(jsonResp);
         } catch (e) {
           console.error('[BankAccountVerify] JSON parse error:', e.message);
-          return res.json({ success: false, code: 'PARSE_ERROR', message: 'Invalid response from adapter', data: {} });
+          sendResponse({ success: false, code: 'PARSE_ERROR', message: 'Invalid response from adapter', data: {} });
         }
       });
     });
 
     proxyReq.on('error', (err) => {
       console.error('[BankAccountVerify] Request error:', err.message);
-      res.json({ success: false, code: 'ERROR', message: err.message, data: {} });
+      sendResponse({ success: false, code: 'ERROR', message: err.message, data: {} });
     });
 
     proxyReq.on('timeout', () => {
       proxyReq.destroy();
       console.error('[BankAccountVerify] Timeout (10s)');
-      res.json({ success: false, code: 'TIMEOUT', message: 'Bank account verification request timed out', data: {} });
+      sendResponse({ success: false, code: 'TIMEOUT', message: 'Bank account verification request timed out', data: {} });
     });
 
     proxyReq.write(postData);
@@ -987,6 +994,13 @@ async function handleCardVerify(req, res) {
     console.log('[CardVerify] Adapter URL:', DLIVE_API_BASE + reqPath);
 
     const http = require('http');
+    let responded = false;
+    const sendResponse = (data) => {
+      if (responded) return;
+      responded = true;
+      res.json(data);
+    };
+
     const options = {
       hostname: '58.143.140.222',
       port: 8080,
@@ -996,7 +1010,7 @@ async function handleCardVerify(req, res) {
         'Content-Type': 'application/json; charset=utf-8',
         'Content-Length': Buffer.byteLength(postData, 'utf-8')
       },
-      timeout: 10000
+      timeout: 15000
     };
 
     const proxyReq = http.request(options, (proxyRes) => {
@@ -1009,23 +1023,23 @@ async function handleCardVerify(req, res) {
 
         try {
           const jsonResp = JSON.parse(responseText);
-          return res.json(jsonResp);
+          sendResponse(jsonResp);
         } catch (e) {
           console.error('[CardVerify] JSON parse error:', e.message);
-          return res.json({ success: false, code: 'PARSE_ERROR', message: 'Invalid response from adapter', data: {} });
+          sendResponse({ success: false, code: 'PARSE_ERROR', message: 'Invalid response from adapter', data: {} });
         }
       });
     });
 
     proxyReq.on('error', (err) => {
       console.error('[CardVerify] Request error:', err.message);
-      res.json({ success: false, code: 'ERROR', message: err.message, data: {} });
+      sendResponse({ success: false, code: 'ERROR', message: err.message, data: {} });
     });
 
     proxyReq.on('timeout', () => {
       proxyReq.destroy();
-      console.error('[CardVerify] Timeout (10s)');
-      res.json({ success: false, code: 'TIMEOUT', message: 'Card verification request timed out', data: {} });
+      console.error('[CardVerify] Timeout (15s)');
+      sendResponse({ success: false, code: 'TIMEOUT', message: 'Card verification request timed out', data: {} });
     });
 
     proxyReq.write(postData);
