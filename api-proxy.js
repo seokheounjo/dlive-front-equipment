@@ -523,6 +523,7 @@ router.post('/auth/login-with-otp', async (req, res) => {
   const disconnYn = req.body.DISCONN_YN || 'N';
   const clientIp = req.headers['x-forwarded-for'] || req.headers['x-real-ip'] || req.connection.remoteAddress || '';
   const userAgent = req.headers['user-agent'] || '';
+  const nwType = req.body.NW_TYPE || req.headers['x-network-type'] || '';
 
   const trxId = generateTrxId(userId);
   console.log('[LoginFlow] Start TRX_ID:', trxId);
@@ -532,6 +533,7 @@ router.post('/auth/login-with-otp', async (req, res) => {
   await callLoginApi('pmobileLoginApi_1', {
     P_LOGIN_TRX_ID: trxId,
     P_USER_ID: userId,
+    P_NW_TYPE: nwType,
     P_CLIENT_IP: clientIp,
     P_USER_AGENT: userAgent.substring(0, 200),
     P_SERVER: 'EC2_MOBILE',
@@ -632,6 +634,7 @@ router.post('/auth/login-with-otp', async (req, res) => {
     await callLoginApi('pmobileLoginApi_1', {
       P_LOGIN_TRX_ID: trxId,
       P_USER_ID: userId,
+      P_NW_TYPE: nwType,
       P_CLIENT_IP: clientIp,
       P_USER_AGENT: userAgent.substring(0, 200),
       P_SERVER: 'EC2_OTP',

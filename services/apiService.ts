@@ -416,19 +416,25 @@ export interface LoginResponse {
 // 로그인 API
 export const login = async (userId: string, password: string, disconnYn: string = 'N'): Promise<LoginResponse> => {
   const origin = typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000';
+  // Collect network type (cellular/wifi/ethernet/none)
+  const nwType = typeof navigator !== 'undefined' && (navigator as any).connection
+    ? ((navigator as any).connection.type || (navigator as any).connection.effectiveType || '')
+    : '';
 
   try {
     const response = await fetchWithRetry(`${API_BASE}/login`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Origin': origin
+        'Origin': origin,
+        'X-Network-Type': nwType
       },
       credentials: 'include',
       body: JSON.stringify({
         USR_ID: userId,
         USR_PWD: password,
-        DISCONN_YN: disconnYn  // Y: 기존 세션 강제 종료, N: 동시접속 체크
+        DISCONN_YN: disconnYn,  // Y: 기존 세션 강제 종료, N: 동시접속 체크
+        NW_TYPE: nwType
       }),
     }, 1); // 로그인은 재시도 1회만
 
