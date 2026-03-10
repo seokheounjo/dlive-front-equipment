@@ -512,12 +512,12 @@ const PaymentChangeModal: React.FC<PaymentChangeModalProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-      {/* 인증 로딩 오버레이 */}
-      {isVerifying && verifyProgress && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40">
+      {/* 인증 진행 중 전체 터치 차단 오버레이 */}
+      {isVerifying && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40" onClick={(e) => e.stopPropagation()}>
           <div className="bg-white rounded-2xl shadow-2xl w-[85vw] max-w-[280px] p-6 flex flex-col items-center">
             <Loader2 className="w-10 h-10 text-blue-500 animate-spin mb-4" />
-            <p className="text-sm text-gray-700 text-center font-medium">{verifyProgress}</p>
+            <p className="text-sm text-gray-700 text-center font-medium">{verifyProgress || '인증 처리 중...'}</p>
           </div>
         </div>
       )}
