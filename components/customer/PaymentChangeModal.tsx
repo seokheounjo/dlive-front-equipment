@@ -214,9 +214,12 @@ const PaymentChangeModal: React.FC<PaymentChangeModalProps> = ({
   }, [isOpen, initialPymAcntId, paymentAccounts]);
 
   // COMMON_CD != '0': ATMT 신청정보로 폼 자동 채움 + 인증상태 반영
+  // initialPymAcntId(prop) 사용 → stale selectedPymAcntId(state) 문제 방지
   useEffect(() => {
-    if (!isOpen || !paymentAccounts.length || !selectedPymAcntId) return;
-    const acct = paymentAccounts.find(p => p.PYM_ACNT_ID === selectedPymAcntId);
+    if (!isOpen || !paymentAccounts.length) return;
+    const pymAcntId = initialPymAcntId || selectedPymAcntId;
+    if (!pymAcntId) return;
+    const acct = paymentAccounts.find(p => p.PYM_ACNT_ID === pymAcntId);
     if (!acct || (acct.COMMON_CD || '0') === '0') return;
 
     setPaymentForm(prev => ({
@@ -232,7 +235,7 @@ const PaymentChangeModal: React.FC<PaymentChangeModalProps> = ({
     if (acct.RLNM_CONF_CHECK === 'Y') {
       setIsVerified(true);
     }
-  }, [isOpen, selectedPymAcntId, paymentAccounts]);
+  }, [isOpen, initialPymAcntId, paymentAccounts]);
 
   const loadPaymentAccounts = async () => {
     setIsLoading(true);
