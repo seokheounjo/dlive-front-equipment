@@ -94,7 +94,7 @@ const ConfirmModal: React.FC<ConfirmModalProps> = ({
       />
 
       {/* Modal */}
-      <div className="relative bg-white rounded-xl shadow-2xl w-[90%] max-w-sm mx-4 overflow-hidden animate-in fade-in zoom-in duration-200">
+      <div className="relative bg-white rounded-xl shadow-2xl w-[90%] max-w-sm min-w-[280px] mx-4 overflow-hidden animate-in fade-in zoom-in duration-200">
         {/* Header with Icon */}
         <div className={`px-4 sm:px-6 py-4 sm:py-5 flex flex-col items-center border-b ${getHeaderColor()}`}>
           {getIcon()}
