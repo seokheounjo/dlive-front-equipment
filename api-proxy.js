@@ -273,8 +273,7 @@ const OTP_SERVER_PORT = 1812;
 const OTP_SHARED_SECRET = '6FA8D9C467D1492E';
 const OTP_TIMEOUT = 5000; // 5s
 
-// OTP 인증용 사용자 ID (당분간 내부 테스트 계정 고정)
-const OTP_AUTH_USER_ID = 'A20250117';
+// OTP 인증: 로그인한 사용자 ID로 인증 (하드코딩 제거)
 
 /**
  * RADIUS Access-Request (RFC 2865)
@@ -428,9 +427,8 @@ router.post('/auth/otp-verify', async (req, res) => {
   }
 
   try {
-    // 당분간 OTP 인증은 내부 테스트 계정(A20250117)으로 고정
-    const otpUserId = OTP_AUTH_USER_ID;
-    console.log('[OTP] Using hardcoded OTP user:', otpUserId, '(original:', userId, ')');
+    const otpUserId = userId;
+    console.log('[OTP] OTP auth user:', otpUserId);
 
     const result = await radiusAccessRequest(
       OTP_SERVER_IP, OTP_SERVER_PORT, OTP_SHARED_SECRET,
@@ -642,7 +640,7 @@ router.post('/auth/login-with-otp', async (req, res) => {
     });
 
     // Call OTP RADIUS
-    const otpUserId = OTP_AUTH_USER_ID;
+    const otpUserId = userId;
     let otpResult;
     try {
       otpResult = await radiusAccessRequest(
