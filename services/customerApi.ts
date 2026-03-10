@@ -1791,16 +1791,33 @@ export const verifyBankAccount = async (params: AccountVerifyRequest): Promise<A
 
     if (response.success && response.data) {
       const data = response.data;
-      // CONA KSNET 응답: RSPN_CD=0000 성공, A002/A005 주민번호 불일치(자동 실명인증 후 0000)
       const rspnCd = data.RSPN_CD || data.RES_MSG_CD || '';
-      if (rspnCd === '0000' || data.success === 'true' || data.RESP_CD === '0000') {
-        return { success: true, data: { verified: true, ...data }, message: data.RES_MSG || '계좌 인증이 완료되었습니다.' };
-      } else if (rspnCd || data.success === 'false') {
-        return { success: false, data, message: data.RES_MSG || data.MESSAGE || data.RESP_MSG || '계좌 인증에 실패했습니다. (' + rspnCd + ')' };
+      const resMsg = data.RES_MSG || data.MESSAGE || data.RESP_MSG || '';
+
+      // RSPN_CD 우선 체크 + RES_MSG 에러 키워드 체크
+      const isErrorMsg = resMsg && /오류|실패|불일치|에러|error/i.test(resMsg);
+
+      if (rspnCd === '0000' && !isErrorMsg) {
+        // RSPN_CD=0000 이고 에러 메시지 아닌 경우만 성공
+        return { success: true, data: { verified: true, ...data }, message: resMsg || '계좌 인증이 완료되었습니다.' };
+      } else if (rspnCd && rspnCd !== '0000') {
+        // RSPN_CD가 0000이 아닌 경우 실패
+        return { success: false, data, message: resMsg || '계좌 인증에 실패했습니다. (' + rspnCd + ')' };
+      } else if (isErrorMsg) {
+        // RSPN_CD 없지만 RES_MSG에 에러 키워드
+        return { success: false, data, message: resMsg };
+      } else if (!rspnCd && data.RLNM_CONF_CHECK === 'Y') {
+        // 사전확인에서 이미 인증됨 (RSPN_CD 없이 성공)
+        return { success: true, data: { verified: true, ...data }, message: '계좌 인증이 완료되었습니다.' };
       }
     }
-    if (response.success) {
-      return { success: true, data: { verified: true }, message: '계좌 인증이 완료되었습니다.' };
+    if (response.success && response.data && !response.data.RSPN_CD) {
+      // RSPN_CD 없고 에러 메시지도 없으면 성공 처리
+      const resMsg = response.data?.RES_MSG || '';
+      if (resMsg && /오류|실패|불일치|에러|error/i.test(resMsg)) {
+        return { success: false, data: response.data, message: resMsg };
+      }
+      return { success: true, data: { verified: true, ...response.data }, message: resMsg || '계좌 인증이 완료되었습니다.' };
     }
     return { success: false, message: response.message || '계좌 인증에 실패했습니다.' };
   } catch (error: any) {
