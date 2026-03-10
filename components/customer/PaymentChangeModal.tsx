@@ -180,6 +180,8 @@ const PaymentChangeModal: React.FC<PaymentChangeModalProps> = ({
       setIsVerified(false);
       setIsSaved(false);
       setSignatureData('');
+      setShowReVerifyConfirm(false);
+      setAlertPopup({ show: false, title: '', message: '', type: 'info' });
       if (initialPymAcntId) {
         setSelectedPymAcntId(initialPymAcntId);
       }
@@ -198,17 +200,18 @@ const PaymentChangeModal: React.FC<PaymentChangeModalProps> = ({
     };
   }, [isOpen]);
 
-  // COMMON_CD=3: 승인신청중 → 메시지 팝업
+  // COMMON_CD=3: 승인신청중 → 메시지 팝업 (initialPymAcntId 사용하여 stale state 방지)
   useEffect(() => {
-    if (isOpen && selectedPymAcntId && paymentForm.pymMthCd === '01' && paymentAccounts.length > 0) {
-      const acct = paymentAccounts.find(p => p.PYM_ACNT_ID === selectedPymAcntId);
-      const cd = acct?.COMMON_CD || '0';
-      if (cd === '3') {
-        const msg = acct?.REF_CODE2 || '승인 신청 중입니다. 납부방법 변경이 불가합니다.';
-        showAlert(msg, 'warning');
-      }
+    if (!isOpen || !paymentAccounts.length) return;
+    const pymAcntId = initialPymAcntId || selectedPymAcntId;
+    if (!pymAcntId) return;
+    const acct = paymentAccounts.find(p => p.PYM_ACNT_ID === pymAcntId);
+    const cd = acct?.COMMON_CD || '0';
+    if (cd === '3') {
+      const msg = acct?.REF_CODE2 || '승인 신청 중입니다. 납부방법 변경이 불가합니다.';
+      showAlert(msg, 'warning');
     }
-  }, [isOpen, selectedPymAcntId, paymentForm.pymMthCd, paymentAccounts]);
+  }, [isOpen, initialPymAcntId, paymentAccounts]);
 
   // COMMON_CD != '0': ATMT 신청정보로 폼 자동 채움 + 인증상태 반영
   useEffect(() => {
