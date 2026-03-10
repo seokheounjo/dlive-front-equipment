@@ -1732,7 +1732,7 @@ export const updatePymAtmtApplAGRPdf = async (params: {
     }
   } catch (e) { /* ignore */ }
 
-  const agrFileName = params.PYM_ACNT_ID + params.NEXT_AGR_FILE_NAME_SEQ + params.UPDATE_DATE;
+  const agrFileName = params.PYM_ACNT_ID + params.NEXT_AGR_FILE_NAME_SEQ + params.UPDATE_DATE + '.pdf';
 
   return apiCall<any>('/customer/customer/general/updatePymAtmtApplAGRPdf', {
     AGR_FILE_GB: params.AGR_FILE_GB || 'A',
