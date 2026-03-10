@@ -1352,6 +1352,8 @@ export interface PaymentAccountInfo {
   RSDTNO?: string;           // 생년월일/등록번호 (ATMT 신청정보)
   RLNM_CONF_CHECK?: string;  // 실명인증 여부 (Y/N)
   PYM_MTHD?: string;         // 납부방법 코드
+  PYR_REL?: string;          // 납부자관계 코드
+  PMC_RESN?: string;         // 변경사유 코드
 }
 
 export const getPaymentAccountsRaw = async (custId: string): Promise<ApiResponse<PaymentAccountInfo[]>> => {
@@ -1397,7 +1399,9 @@ export const getPaymentAccounts = async (custId: string, timeoutMs?: number): Pr
         ACNT_NO: item.ACNT_NO || '',
         RSDTNO: item.RSDTNO || '',
         RLNM_CONF_CHECK: item.RLNM_CONF_CHECK || 'N',
-        PYM_MTHD: item.PYM_MTHD || ''
+        PYM_MTHD: item.PYM_MTHD || '',
+        PYR_REL: item.PYR_REL || '',
+        PMC_RESN: item.PMC_RESN || ''
       }));
 
     return { success: true, data: mapped, code: 'SUCCESS', message: 'OK' } as ApiResponse<PaymentAccountInfo[]>;

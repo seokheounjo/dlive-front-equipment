@@ -225,6 +225,8 @@ const PaymentChangeModal: React.FC<PaymentChangeModalProps> = ({
       bankCd: acct.BNK_CARD_CD || prev.bankCd,
       acntNo: acct.ACNT_NO || prev.acntNo,
       idNumber: acct.RSDTNO || prev.idNumber,
+      pyrRel: acct.PYR_REL || prev.pyrRel,
+      changeReasonL: acct.PMC_RESN || prev.changeReasonL,
     }));
 
     if (acct.RLNM_CONF_CHECK === 'Y') {
