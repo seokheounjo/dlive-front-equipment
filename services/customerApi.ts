@@ -1346,6 +1346,12 @@ export interface PaymentAccountInfo {
   COMMON_CD?: string;        // 자동이체 상태 (0:신규, 1:증빙완료, 2:증빙미완료, 3:승인신청중)
   COMMON_CD_NM?: string;     // 상태명
   REF_CODE2?: string;        // 메시지 (COMMON_CD=3일 때)
+  ACNT_OWNER_NM?: string;    // 예금주명 (ATMT 신청정보)
+  BNK_CARD_CD?: string;      // 은행/카드 코드 (ATMT 신청정보)
+  ACNT_NO?: string;          // 계좌번호 (ATMT 신청정보)
+  RSDTNO?: string;           // 생년월일/등록번호 (ATMT 신청정보)
+  RLNM_CONF_CHECK?: string;  // 실명인증 여부 (Y/N)
+  PYM_MTHD?: string;         // 납부방법 코드
 }
 
 export const getPaymentAccountsRaw = async (custId: string): Promise<ApiResponse<PaymentAccountInfo[]>> => {
@@ -1385,7 +1391,13 @@ export const getPaymentAccounts = async (custId: string, timeoutMs?: number): Pr
         SO_ID: item.SO_ID || undefined,
         COMMON_CD: item.COMMON_CD || '0',
         COMMON_CD_NM: item.COMMON_CD_NM || '',
-        REF_CODE2: item.REF_CODE2 || ''
+        REF_CODE2: item.REF_CODE2 || '',
+        ACNT_OWNER_NM: item.ACNT_OWNER_NM || '',
+        BNK_CARD_CD: item.BNK_CARD_CD || '',
+        ACNT_NO: item.ACNT_NO || '',
+        RSDTNO: item.RSDTNO || '',
+        RLNM_CONF_CHECK: item.RLNM_CONF_CHECK || 'N',
+        PYM_MTHD: item.PYM_MTHD || ''
       }));
 
     return { success: true, data: mapped, code: 'SUCCESS', message: 'OK' } as ApiResponse<PaymentAccountInfo[]>;

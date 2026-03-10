@@ -103,6 +103,7 @@ const PaymentChangeModal: React.FC<PaymentChangeModalProps> = ({
   // 서명
   const [showSignatureModal, setShowSignatureModal] = useState(false);
   const [signatureData, setSignatureData] = useState<string>('');  // base64 서명 이미지
+  const [showReVerifyConfirm, setShowReVerifyConfirm] = useState(false);  // 인증 재확인 팝업
 
   // 알림 팝업
   const [alertPopup, setAlertPopup] = useState<{
@@ -209,6 +210,25 @@ const PaymentChangeModal: React.FC<PaymentChangeModalProps> = ({
     }
   }, [isOpen, selectedPymAcntId, paymentForm.pymMthCd, paymentAccounts]);
 
+  // COMMON_CD != '0': ATMT 신청정보로 폼 자동 채움 + 인증상태 반영
+  useEffect(() => {
+    if (!isOpen || !paymentAccounts.length || !selectedPymAcntId) return;
+    const acct = paymentAccounts.find(p => p.PYM_ACNT_ID === selectedPymAcntId);
+    if (!acct || (acct.COMMON_CD || '0') === '0') return;
+
+    setPaymentForm(prev => ({
+      ...prev,
+      acntHolderNm: acct.ACNT_OWNER_NM || prev.acntHolderNm,
+      bankCd: acct.BNK_CARD_CD || prev.bankCd,
+      acntNo: acct.ACNT_NO || prev.acntNo,
+      idNumber: acct.RSDTNO || prev.idNumber,
+    }));
+
+    if (acct.RLNM_CONF_CHECK === 'Y') {
+      setIsVerified(true);
+    }
+  }, [isOpen, selectedPymAcntId, paymentAccounts]);
+
   const loadPaymentAccounts = async () => {
     setIsLoading(true);
     try {
@@ -233,6 +253,25 @@ const PaymentChangeModal: React.FC<PaymentChangeModalProps> = ({
       message,
       type
     });
+  };
+
+  // 인증된 필드 수정 시 재확인 가드
+  const handleVerifiedEdit = (updateFn: () => void) => {
+    if (isVerified) {
+      setShowReVerifyConfirm(true);
+      return;
+    }
+    updateFn();
+  };
+
+  const handleReVerifyConfirm = () => {
+    setIsVerified(false);
+    setSignatureData('');
+    setShowReVerifyConfirm(false);
+  };
+
+  const handleReVerifyCancel = () => {
+    setShowReVerifyConfirm(false);
   };
 
   // 계좌/카드 인증 (로딩 팝업 + 재시도 로직)
@@ -584,7 +623,10 @@ const PaymentChangeModal: React.FC<PaymentChangeModalProps> = ({
                     </span>
                   </div>
                   <div className="text-sm text-gray-700">
-                    {selectedPayment.BANK_CARD_NM} {selectedPayment.BANK_CARD_NO}
+                    {selectedPayment.ACNT_OWNER_NM || '-'} | {selectedPayment.ACNT_NO || '-'}
+                    {selectedPayment.RLNM_CONF_CHECK === 'Y' && (
+                      <span className="text-xs text-green-600 ml-1">(인증완료)</span>
+                    )}
                   </div>
                   {commonCd === '3' && selectedPayment.REF_CODE2 && (
                     <p className="text-xs text-red-600 mt-1">{selectedPayment.REF_CODE2}</p>
@@ -599,10 +641,9 @@ const PaymentChangeModal: React.FC<PaymentChangeModalProps> = ({
                   <label className="w-20 flex-shrink-0 text-xs text-gray-500">납부방법</label>
                   <select
                     value={paymentForm.pymMthCd}
-                    onChange={(e) => {
+                    onChange={(e) => handleVerifiedEdit(() => {
                       setPaymentForm(prev => ({ ...prev, pymMthCd: e.target.value, bankCd: '', acntNo: '' }));
-                      setIsVerified(false);
-                    }}
+                    })}
                     disabled={isCommonCd3Locked}
                     className="flex-1 px-2 py-1.5 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-orange-500 disabled:bg-gray-100 disabled:text-gray-500"
                   >
@@ -636,14 +677,15 @@ const PaymentChangeModal: React.FC<PaymentChangeModalProps> = ({
                     type="text"
                     value={paymentForm.acntHolderNm}
                     ref={acntHolderRef}
-                    onChange={(e) => {
+                    onChange={(e) => handleVerifiedEdit(() => {
                       setPaymentForm(prev => ({ ...prev, acntHolderNm: e.target.value }));
-                      setIsVerified(false);
-                    }}
+                    })}
                     onCompositionStart={() => { isComposingRef.current = true; }}
                     onCompositionEnd={(e) => {
                       isComposingRef.current = false;
-                      setPaymentForm(prev => ({ ...prev, acntHolderNm: (e.target as HTMLInputElement).value }));
+                      handleVerifiedEdit(() => {
+                        setPaymentForm(prev => ({ ...prev, acntHolderNm: (e.target as HTMLInputElement).value }));
+                      });
                     }}
                     placeholder="이름 입력"
                     disabled={isCommonCd3Locked}
@@ -656,10 +698,9 @@ const PaymentChangeModal: React.FC<PaymentChangeModalProps> = ({
                   <label className="w-20 flex-shrink-0 text-xs text-gray-500">신분유형</label>
                   <select
                     value={paymentForm.idType}
-                    onChange={(e) => {
+                    onChange={(e) => handleVerifiedEdit(() => {
                       setPaymentForm(prev => ({ ...prev, idType: e.target.value, idNumber: '' }));
-                      setIsVerified(false);
-                    }}
+                    })}
                     disabled={isCommonCd3Locked}
                     className="flex-1 px-2 py-1.5 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-orange-500 disabled:bg-gray-100 disabled:text-gray-500"
                   >
@@ -677,10 +718,9 @@ const PaymentChangeModal: React.FC<PaymentChangeModalProps> = ({
                   <input
                     type="text"
                     value={paymentForm.idNumber}
-                    onChange={(e) => {
+                    onChange={(e) => handleVerifiedEdit(() => {
                       setPaymentForm(prev => ({ ...prev, idNumber: e.target.value.replace(/[^0-9]/g, '').slice(0, paymentForm.idType === 'B' ? 10 : 6) }));
-                      setIsVerified(false);
-                    }}
+                    })}
                     placeholder={paymentForm.idType === 'A' ? '생년월일 6자리 (YYMMDD)' : paymentForm.idType === 'B' ? '사업자등록번호 10자리 (- 제외)' : '생년월일 6자리 (YYMMDD)'}
                     maxLength={paymentForm.idType === 'B' ? 10 : 6}
                     disabled={isCommonCd3Locked}
@@ -695,10 +735,9 @@ const PaymentChangeModal: React.FC<PaymentChangeModalProps> = ({
                   </label>
                   <select
                     value={paymentForm.bankCd}
-                    onChange={(e) => {
+                    onChange={(e) => handleVerifiedEdit(() => {
                       setPaymentForm(prev => ({ ...prev, bankCd: e.target.value }));
-                      setIsVerified(false);
-                    }}
+                    })}
                     disabled={isCommonCd3Locked}
                     className="flex-1 px-2 py-1.5 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-orange-500 disabled:bg-gray-100 disabled:text-gray-500"
                   >
@@ -718,10 +757,9 @@ const PaymentChangeModal: React.FC<PaymentChangeModalProps> = ({
                     <input
                       type="text"
                       value={paymentForm.acntNo}
-                      onChange={(e) => {
+                      onChange={(e) => handleVerifiedEdit(() => {
                         setPaymentForm(prev => ({ ...prev, acntNo: e.target.value.replace(/[^0-9]/g, '') }));
-                        setIsVerified(false);
-                      }}
+                      })}
                       placeholder={paymentForm.pymMthCd === '01' ? '계좌번호 (- 제외)' : '카드번호 (- 제외)'}
                       disabled={isCommonCd3Locked}
                       className="flex-1 min-w-0 px-2 py-1.5 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-orange-500 disabled:bg-gray-100 disabled:text-gray-500"
@@ -761,10 +799,9 @@ const PaymentChangeModal: React.FC<PaymentChangeModalProps> = ({
                         <input
                           type="text"
                           value={paymentForm.cardExpMm}
-                          onChange={(e) => {
+                          onChange={(e) => handleVerifiedEdit(() => {
                             setPaymentForm(prev => ({ ...prev, cardExpMm: e.target.value.replace(/[^0-9]/g, '').slice(0, 2) }));
-                            setIsVerified(false);
-                          }}
+                          })}
                           placeholder="MM"
                           maxLength={2}
                           disabled={isCommonCd3Locked}
@@ -774,10 +811,9 @@ const PaymentChangeModal: React.FC<PaymentChangeModalProps> = ({
                         <input
                           type="text"
                           value={paymentForm.cardExpYy}
-                          onChange={(e) => {
+                          onChange={(e) => handleVerifiedEdit(() => {
                             setPaymentForm(prev => ({ ...prev, cardExpYy: e.target.value.replace(/[^0-9]/g, '').slice(0, 2) }));
-                            setIsVerified(false);
-                          }}
+                          })}
                           placeholder="YY"
                           maxLength={2}
                           disabled={isCommonCd3Locked}
@@ -969,6 +1005,38 @@ const PaymentChangeModal: React.FC<PaymentChangeModalProps> = ({
               onSave={handleSignatureComplete}
               onCancel={() => setShowSignatureModal(false)}
             />
+          </div>
+        </div>
+      )}
+
+      {/* 인증 재확인 팝업 */}
+      {showReVerifyConfirm && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[70]">
+          <div className="bg-white rounded-lg p-5 max-w-sm min-w-[280px] mx-4 shadow-xl">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-10 h-10 rounded-full flex items-center justify-center bg-orange-100">
+                <AlertCircle className="w-5 h-5 text-orange-500" />
+              </div>
+              <h3 className="text-base font-medium text-gray-900">인증 확인</h3>
+            </div>
+            <p className="text-sm text-gray-600 mb-5">
+              정보를 수정하면 인증을 다시 해야 합니다.<br />
+              계속하시겠습니까?
+            </p>
+            <div className="flex gap-2">
+              <button
+                onClick={handleReVerifyConfirm}
+                className="flex-1 px-4 py-2 text-sm text-white bg-orange-500 rounded-lg hover:bg-orange-600 transition-colors"
+              >
+                수정하기
+              </button>
+              <button
+                onClick={handleReVerifyCancel}
+                className="flex-1 px-4 py-2 text-sm text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
+              >
+                취소
+              </button>
+            </div>
           </div>
         </div>
       )}
