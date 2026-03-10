@@ -299,21 +299,9 @@ const PaymentChangeModal: React.FC<PaymentChangeModalProps> = ({
         const successMsg = result1.message || (paymentForm.pymMthCd === '01' ? '계좌 인증이 완료되었습니다.' : '카드 인증이 완료되었습니다.');
         showAlert(successMsg, 'success');
       } else {
-        // 1차 실패 → 5초 대기 후 재시도
-        setVerifyProgress('재시도 중... 잠시만 기다려주세요.');
-        await new Promise(r => setTimeout(r, 5000));
-
-        const result2 = await doVerify();
-        if (result2.success) {
-          setIsVerified(true);
-          setVerifyProgress('');
-          const successMsg = result2.message || (paymentForm.pymMthCd === '01' ? '계좌 인증이 완료되었습니다.' : '카드 인증이 완료되었습니다.');
-          showAlert(successMsg, 'success');
-        } else {
-          setVerifyProgress('');
-          const failMsg = result2.message || '인증에 실패했습니다.';
-          showAlert(failMsg, 'error');
-        }
+        setVerifyProgress('');
+        const failMsg = result1.message || '인증에 실패했습니다.';
+        showAlert(failMsg, 'error');
       }
     } catch (error) {
       console.error('Verify error:', error);
