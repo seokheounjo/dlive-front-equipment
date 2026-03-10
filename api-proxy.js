@@ -995,7 +995,7 @@ async function handleCardVerify(req, res) {
         'Content-Type': 'application/json; charset=utf-8',
         'Content-Length': Buffer.byteLength(postData, 'utf-8')
       },
-      timeout: 10000
+      timeout: 35000
     };
 
     const proxyReq = http.request(options, (proxyRes) => {
@@ -1023,7 +1023,7 @@ async function handleCardVerify(req, res) {
 
     proxyReq.on('timeout', () => {
       proxyReq.destroy();
-      console.error('[CardVerify] Timeout (10s)');
+      console.error('[CardVerify] Timeout (35s)');
       res.json({ success: false, code: 'TIMEOUT', message: 'Card verification request timed out', data: {} });
     });
 
