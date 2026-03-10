@@ -331,9 +331,7 @@ const PaymentChangeModal: React.FC<PaymentChangeModalProps> = ({
       showAlert('납부계정을 선택해주세요.', 'warning');
       return;
     }
-    // COMMON_CD=2: 인증 없이도 서명 가능
-    const cd = paymentAccounts.find(p => p.PYM_ACNT_ID === selectedPymAcntId)?.COMMON_CD || '0';
-    if (!isVerified && cd !== '2') {
+    if (!isVerified) {
       showAlert('계좌 인증을 먼저 완료해주세요.', 'warning');
       return;
     }
@@ -513,7 +511,6 @@ const PaymentChangeModal: React.FC<PaymentChangeModalProps> = ({
   // 자동이체 COMMON_CD 상태
   const commonCd = (paymentForm.pymMthCd === '01' && selectedPayment?.COMMON_CD) || '0';
   const isCommonCd3Locked = commonCd === '3';  // 승인신청중 → 전체 잠금
-  const skipVerifyForSave = commonCd === '2';  // 증빙미완료 → 인증 없이 저장 가능
 
   if (!isOpen) return null;
 
@@ -882,16 +879,16 @@ const PaymentChangeModal: React.FC<PaymentChangeModalProps> = ({
                   ) : (
                     <button
                       onClick={handleOpenSignature}
-                      disabled={!isVerified && !skipVerifyForSave}
+                      disabled={!isVerified}
                       className={`w-full py-4 border-2 border-dashed rounded-lg flex flex-col items-center gap-1.5 transition-colors ${
-                        isVerified || skipVerifyForSave
+                        isVerified
                           ? 'border-blue-300 bg-blue-50 hover:bg-blue-100 text-blue-600 cursor-pointer'
                           : 'border-gray-200 bg-gray-50 text-gray-400 cursor-not-allowed'
                       }`}
                     >
                       <PenTool className="w-5 h-5" />
                       <span className="text-sm font-medium">
-                        {isVerified || skipVerifyForSave ? '여기를 눌러 서명하세요' : '인증 완료 후 서명 가능'}
+                        {isVerified ? '여기를 눌러 서명하세요' : '인증 완료 후 서명 가능'}
                       </span>
                     </button>
                   )}
@@ -927,11 +924,11 @@ const PaymentChangeModal: React.FC<PaymentChangeModalProps> = ({
               <div className="flex gap-2">
                 <button
                   onClick={handleSave}
-                  disabled={isSaving || isSaved || (!isVerified && !skipVerifyForSave) || (paymentForm.pymMthCd === '01' && !signatureData)}
+                  disabled={isSaving || isSaved || !isVerified || (paymentForm.pymMthCd === '01' && !signatureData)}
                   className={`flex-1 py-2.5 rounded-lg transition-colors text-sm font-medium flex items-center justify-center gap-2 ${
                     isSaved
                       ? 'bg-green-100 text-green-700 border border-green-300'
-                      : (isVerified || skipVerifyForSave) && (paymentForm.pymMthCd === '02' || signatureData)
+                      : isVerified && (paymentForm.pymMthCd === '02' || signatureData)
                         ? 'bg-orange-500 text-white hover:bg-orange-600'
                         : 'bg-gray-300 text-gray-500 cursor-not-allowed'
                   }`}
