@@ -1824,9 +1824,57 @@ export const verifyBankAccount = async (params: AccountVerifyRequest): Promise<A
   }
 };
 
+// MCONA01 common code mapping (LG U+ card auth response codes)
+const MCONA01_MAP: Record<string, string> = {
+  '001': '결제성공',
+  '003': 'A0:카드번호오류(Invalid card number)',
+  '004': 'A2:유효기간오류',
+  '005': 'A8:고객님의 신용카드 한도가 부족하거나, 체크카드인 경우 통장잔액 부족입니다(한도초과 또는 잔액부족)',
+  '006': 'C4:주민등록번호 오류',
+  '007': 'C6:주민번호 또는 사업자번호 오류',
+  '008': '신용카드가 아니거나, 카드번호를 잘못 입력하셨습니다.(Invalid card number)',
+  '009': 'A1:유효기간만료(Expired card)',
+  '010': 'A9:거래정지카드',
+  '011': '카드 결제 성공',
+  '012': 'B0:해당카드이용불가',
+  '013': '인증이 지원되지 않는 카드이거나 주민등록번호 또는 사업자번호가 없습니다.',
+  '014': 'D5:계좌잔액부족 또는 해지계좌',
+  '015': '해당상점에서 지원하지 않는 카드종류입니다. 다른 카드를 이용해 주시기 바랍니다.',
+  '016': '주민번호/법인번호 자리수 오류입니다.',
+  '017': 'D6:카드 사용등록 요망',
+  '018': '해당 카드 할부 지원안됨',
+  '019': 'B7:할부불가 카드 또는 가맹점',
+  '020': 'A3:할부개월오류',
+  '021': 'C2:인증 오류횟수 초과(비밀번호 또는 주민번호 오류횟수 초과) 카드사로 문의바랍니다.',
+  '022': 'A7:도난/분실위변조카드(Lost card/Stolen card)',
+  '024': 'G0:카드사문의요망(Refer to card issuer)',
+  '027': 'E2:미등록가맹점',
+  '029': 'C3:사업자번호오류',
+  '030': 'B9:할부 거래 한도 초과',
+  '033': 'E7:대표가맹점 PG하위몰 미등록',
+  '037': 'G2:해외카드 승인 거절이 발생하였습니다.',
+  '039': 'C1:비밀번호오류',
+  '042': 'F5:은행마감시간 또는 거래은행 장애입니다. 잠시후 이용해 주시기 바랍니다',
+  '048': 'F0:기타거래불가',
+  '052': 'F2:카드사무응답/지연응답',
+  '053': '카드사와 통신에 문제가 발생했습니다. 잠시후 다시 시도해 주세요.',
+  '054': 'U0:지자체/결제서비스 제한',
+  '055': 'E0:가맹점 정보 확인 요망. 카드사 문의 요망',
+  '059': 'B5:월사용한도액초과',
+  '060': '결제서버오류발생(시스템에러)',
+  '061': '기존 요청을 처리중입니다.',
+  '064': 'E1:거래제한가맹점',
+  '065': 'VAN사 통신에러',
+  '067': '신용카드사와 통신실패입니다. 잠시후 이용해 주십시오.',
+  '068': 'B6:1회사용한도액초과',
+  '900': '결제요청없음',
+  '901': '결제요청 후 처리중',
+  '902': '결제요청 API 호출 중 에러가 발생했습니다, 상담센터로 문의주세요',
+};
+
 /**
  * 카드 인증 (카드번호 유효성 확인)
- * 실제 카드 인증 API가 있으면 연동, 없으면 시뮬레이션
+ * MCONA01 공통코드 기반 응답 메시지 처리
  */
 export const verifyCard = async (params: CardVerifyRequest): Promise<ApiResponse<any>> => {
   // REG_UID from session
@@ -1863,21 +1911,31 @@ export const verifyCard = async (params: CardVerifyRequest): Promise<ApiResponse
       const data = response.data;
       const respCd = data.RESP_CD || data.LGD_RESPCODE || '';
       const respMsg = data.RESP_MSG || data.LGD_RESPMSG || '';
+      const commonCd = data.COMMON_CD || '';
+
+      // MCONA01 공통코드 기반 메시지 결정
+      const mcona01Msg = commonCd ? MCONA01_MAP[commonCd] || '' : '';
 
       // RESP_CD 기반 판단
       if (respCd === '0000') {
-        return { success: true, data: { verified: true, RESP_CD: respCd }, message: respMsg || '카드 인증이 완료되었습니다.' };
+        const msg = mcona01Msg || respMsg || '카드 인증이 완료되었습니다.';
+        return { success: true, data: { verified: true, RESP_CD: respCd, COMMON_CD: commonCd }, message: msg };
       }
       if (respCd && respCd !== '0000') {
-        return { success: false, data, message: respMsg || '카드 인증에 실패했습니다. [' + respCd + ']' };
+        const msg = mcona01Msg || respMsg || '카드 인증에 실패했습니다. [' + respCd + ']';
+        return { success: false, data: { ...data, COMMON_CD: commonCd }, message: msg };
       }
 
-      // RESP_CD 없음 - RESP_MSG/alert message로 판단
+      // RESP_CD 없음 - COMMON_CD or RESP_MSG 판단
+      if (mcona01Msg) {
+        const isSuccess = commonCd === '001' || commonCd === '002' || commonCd === '011';
+        return { success: isSuccess, data: { ...data, COMMON_CD: commonCd }, message: mcona01Msg };
+      }
       if (respMsg && /오류|실패|불일치|에러|error|존재하지/i.test(respMsg)) {
         return { success: false, data, message: respMsg };
       }
 
-      // JSP 응답의 경우 success 필드 체크
+      // success 필드 체크
       if (data.success === 'true') {
         return { success: true, data: { verified: true, RESP_CD: respCd }, message: respMsg || '카드 인증이 완료되었습니다.' };
       }
