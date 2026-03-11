@@ -474,6 +474,7 @@ function callLoginApi(apiPath, params) {
   return new Promise((resolve) => {
     const http = require('http');
     const postData = JSON.stringify(params);
+    console.log(`[LoginLog] ${apiPath} sending:`, postData.substring(0, 500));
     const urlObj = new URL(`${DLIVE_API_BASE}/api/system/pm/${apiPath}`);
     const options = {
       hostname: urlObj.hostname,
