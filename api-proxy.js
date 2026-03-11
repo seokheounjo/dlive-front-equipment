@@ -1058,10 +1058,9 @@ async function handleSavePdf(req, res) {
     const fs = require('fs');
     const path = require('path');
 
-    // OS별 저장 경로 (dlive/mobile-cona-front/public/payment_image)
-    const PDF_SAVE_DIR = process.platform === 'win32'
-      ? 'C:\\bottle\\dlive\\mobile-cona-front\\public\\payment_image'
-      : '/home/ubuntu/dlive/mobile-cona-front/public/payment_image';
+    // 환경변수 PDF_SAVE_DIR 우선, 없으면 앱 상위/mobile-cona-front/public/payment_image
+    const PDF_SAVE_DIR = process.env.PDF_SAVE_DIR
+      || path.resolve(__dirname, '..', 'mobile-cona-front', 'public', 'payment_image');
 
     // 디렉토리 생성
     if (!fs.existsSync(PDF_SAVE_DIR)) {
