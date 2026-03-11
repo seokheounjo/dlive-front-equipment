@@ -1,6 +1,6 @@
 import React, { useState, useRef } from 'react';
 import { Loader2, X, User, AlertCircle } from 'lucide-react';
-import { searchCustomerAll, getContractList, CustomerInfo, maskPhoneNumber } from '../../services/customerApi';
+import { searchCustomerAll, getContractList, getCustCntBySearchCust, CustomerInfo, maskPhoneNumber } from '../../services/customerApi';
 import BarcodeScanner from '../equipment/BarcodeScanner';
 
 // ID 포맷 (3-3-4 형식) - 메인 화면 표시용
@@ -144,6 +144,22 @@ const CustomerSearch: React.FC<CustomerSearchProps> = ({ onCustomerSelect, onCus
     setHasSearched(true);
 
     try {
+      // 고객명 단독 검색 시 건수 제한 체크
+      const isNameOnlySearch = hasCustomerName && !hasCustomerId && !hasContractId && !hasPhoneNumber && !hasEquipmentNo;
+      if (isNameOnlySearch) {
+        const cntRes = await getCustCntBySearchCust(customerName);
+        const cnt = cntRes.data?.CNT ?? cntRes.data?.[0]?.CNT ?? 0;
+        if (cnt > 150) {
+          setWarningPopup({
+            show: true,
+            title: '검색 결과 초과',
+            message: `고객명만으로 조회시 ${cnt}건이 검색되었습니다.\n다른 조건을 더 추가해주세요.`
+          });
+          setIsSearching(false);
+          return;
+        }
+      }
+
       // 모든 파라미터를 한 번에 전송 (getConditionalCustList3 사용)
       const response = await searchCustomerAll({
         custId: hasCustomerId ? customerIdDigits : undefined,

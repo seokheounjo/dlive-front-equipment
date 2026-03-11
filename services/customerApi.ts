@@ -1158,6 +1158,17 @@ export const searchCustomer = async (params: CustomerSearchParams): Promise<ApiR
 };
 
 /**
+ * 고객명 검색 건수 조회 (getCustCntBySearchCust)
+ * 고객명 단독 검색 시 150건 초과 여부 체크용
+ */
+export const getCustCntBySearchCust = async (custNm: string): Promise<ApiResponse<any>> => {
+  return apiCall<any>('/customer/negociation/getCustCntBySearchCust', {
+    CUST_NM: custNm,
+    CHK_FIX_CUST_NM: 'N'
+  });
+};
+
+/**
  * 고객 통합 검색
  * API: /customer/common/customercommon/getConditionalCustList2
  * 내부적으로 SERCH_GB=3 → getConditionalCustList3 SQL 실행
