@@ -918,7 +918,7 @@ const CustomerInfoChange: React.FC<CustomerInfoChangeProps> = ({
         STREET_ID: addressForm.streetId || undefined,
         INSTL_LOC: currentInstallInfo.instlLoc || undefined,
         CUST_FLAG: addressForm.changeCustAddr ? '1' : '0',
-        PYM_FLAG: addressForm.changeBillAddr ? '1' : '0'
+        PYM_FLAG: addressForm.changeCustAddr ? '1' : '0'
       };
 
       const response = await updateInstallAddress(installParams);
