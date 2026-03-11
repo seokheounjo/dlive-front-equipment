@@ -44,8 +44,8 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>, forceDisconnect: boolean = false) => {
     e.preventDefault();
     if (!username || !password) return;
-    if (OTP_ENABLED && (!otpCode || otpCode.length !== 6)) {
-      setError('OTP 6자리를 입력해주세요.');
+    if (OTP_ENABLED && !otpCode) {
+      setError('인증번호를 입력해주세요.');
       return;
     }
 
@@ -122,8 +122,8 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
 
       // OTP 인증 (활성화 시)
       if (OTP_ENABLED) {
-        if (!otpCode || otpCode.length !== 6) {
-          setError('OTP 6자리를 입력해주세요.');
+        if (!otpCode) {
+          setError('인증번호를 입력해주세요.');
           return;
         }
         const otpResult = await verifyOtp(username, otpCode);
@@ -206,11 +206,8 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
             </div>
           </div>
 
-          {/* OTP 입력 (비활성화 상태로 항상 표시, OTP_ENABLED=true 시 활성화) */}
+          {/* OTP 입력 */}
           <div className={OTP_ENABLED ? '' : 'opacity-50'}>
-            <label htmlFor="otpCode" className="block text-xs font-medium text-gray-600 mb-1.5 ml-1">
-              OTP 인증번호
-            </label>
             <div className="relative">
               <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
                 <LockClosedIcon className="h-5 w-5 text-gray-300" />
@@ -221,21 +218,17 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
                 type="text"
                 inputMode="numeric"
                 pattern="[0-9]*"
-                maxLength={6}
                 autoComplete="one-time-code"
                 disabled={!OTP_ENABLED}
                 className={`${inputBaseClasses} pl-10 text-center text-xl tracking-[0.4em] font-mono disabled:bg-gray-100 disabled:cursor-not-allowed`}
-                placeholder={OTP_ENABLED ? '6자리 입력' : '준비 중'}
+                placeholder="인증번호"
                 value={otpCode}
                 onChange={(e) => {
                   const val = e.target.value.replace(/[^0-9]/g, '');
-                  if (val.length <= 6) setOtpCode(val);
+                  setOtpCode(val);
                 }}
               />
             </div>
-            <p className="text-xs text-gray-400 mt-1 ml-1">
-              {OTP_ENABLED ? 'OTP 기기에 표시된 6자리 숫자' : 'OTP 인증 준비 중입니다'}
-            </p>
           </div>
 
           {error && (
