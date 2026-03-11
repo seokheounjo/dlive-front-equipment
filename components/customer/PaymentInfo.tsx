@@ -322,7 +322,6 @@ const PaymentInfo: React.FC<PaymentInfoProps> = ({
                     {/* 납부계정 선택 리스트 */}
                     <div className="space-y-1 mb-3">
                       {paymentAccounts.map((payment, index) => {
-                        const isWorking = currentWorkingPymAcntId === payment.PYM_ACNT_ID;
                         const isSelected = selectedPymAcntId === payment.PYM_ACNT_ID;
                         const acctPending = getPendingPayments(payment.PYM_ACNT_ID);
                         const hasPending = acctPending.length > 0;
@@ -332,13 +331,11 @@ const PaymentInfo: React.FC<PaymentInfoProps> = ({
                             key={payment.PYM_ACNT_ID}
                             onClick={() => handleSelectPaymentAccount(payment.PYM_ACNT_ID)}
                             className={`p-2 rounded-lg border cursor-pointer transition-all ${
-                              isWorking
-                                ? 'bg-orange-50 border-orange-300'
-                                : hasPending
-                                  ? 'bg-amber-50 border-amber-300'
-                                  : isSelected
-                                    ? 'bg-blue-50 border-blue-400'
-                                    : 'bg-gray-50 border-gray-200 hover:border-gray-300'
+                              hasPending
+                                ? 'bg-amber-50 border-amber-300'
+                                : isSelected
+                                  ? 'bg-blue-50 border-blue-400'
+                                  : 'bg-gray-50 border-gray-200 hover:border-gray-300'
                             }`}
                           >
                             <div className="flex items-center justify-between text-sm">
@@ -354,11 +351,6 @@ const PaymentInfo: React.FC<PaymentInfoProps> = ({
                                     'bg-yellow-100 text-yellow-700'
                                   }`}>
                                     {payment.COMMON_CD_NM || ''}
-                                  </span>
-                                )}
-                                {isWorking && (
-                                  <span className="px-1.5 py-0.5 text-xs bg-orange-500 text-white rounded-full animate-pulse">
-                                    작업중
                                   </span>
                                 )}
                                 {hasPending && (
