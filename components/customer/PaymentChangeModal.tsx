@@ -772,6 +772,7 @@ const PaymentChangeModal: React.FC<PaymentChangeModalProps> = ({
                       onChange={(e) => handleVerifiedEdit(() => {
                         setPaymentForm(prev => ({ ...prev, acntNo: e.target.value.replace(/[^0-9]/g, '') }));
                       })}
+                      maxLength={paymentForm.pymMthCd === '01' ? 20 : 16}
                       placeholder={paymentForm.pymMthCd === '01' ? '계좌번호 (- 제외)' : '카드번호 (- 제외)'}
                       disabled={isCommonCd3Locked}
                       className="flex-1 min-w-0 px-2 py-1.5 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-orange-500 disabled:bg-gray-100 disabled:text-gray-500"
