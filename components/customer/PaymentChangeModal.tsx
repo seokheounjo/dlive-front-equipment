@@ -243,8 +243,12 @@ const PaymentChangeModal: React.FC<PaymentChangeModalProps> = ({
       const response = await getPaymentAccounts(custId);
       if (response.success && response.data) {
         setPaymentAccounts(response.data);
-        if (response.data.length > 0 && !selectedPymAcntId) {
-          setSelectedPymAcntId(response.data[0].PYM_ACNT_ID);
+        // initialPymAcntId(prop)를 우선 사용 → stale selectedPymAcntId(closure) 문제 방지
+        if (response.data.length > 0) {
+          const targetId = initialPymAcntId && response.data.some(p => p.PYM_ACNT_ID === initialPymAcntId)
+            ? initialPymAcntId
+            : response.data[0].PYM_ACNT_ID;
+          setSelectedPymAcntId(targetId);
         }
       }
     } catch (error) {
