@@ -695,9 +695,9 @@ router.post('/auth/login-with-otp', async (req, res) => {
   return res.json(loginResult);
 });
 
-// Attendance API
-router.post('/system/attendance/get', handleProxy);
-router.post('/system/attendance/save', handleProxy);
+// Attendance API (OtherController)
+router.post('/other/attendance/get', handleProxy);
+router.post('/other/attendance/save', handleProxy);
 
 // Proxy routes
 router.post('/login', handleProxy);
@@ -746,6 +746,7 @@ router.post('/customer/negociation/getCustomerCtrtInfo', handleProxy);
 // Customer Management APIs (Legacy CONA paths)
 // 1. Customer Search - uses getConditionalCustList2 with SERCH_GB parameter
 router.post('/customer/common/customercommon/getConditionalCustList2', handleProxy);
+router.post('/customer/negociation/getCustCntBySearchCust', handleProxy);
 router.post('/customer/negociation/getCustInfo', handleProxy);
 // 2. Contract Info
 router.post('/customer/negociation/getCustCtrtInfoListCnt_1', handleProxy);

@@ -194,7 +194,7 @@ const AttendanceRegistration: React.FC<AttendanceRegistrationProps> = ({
         ? (location.jibunAddr || location.roadAddr)
         : (location.roadAddr || location.jibunAddr);
 
-      const res = await fetch('/api/system/attendance/save', {
+      const res = await fetch('/api/other/attendance/save', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -290,7 +290,7 @@ const AttendanceRegistration: React.FC<AttendanceRegistrationProps> = ({
       const startDd = searchFrom.replace(/-/g, '');
       const endDd = searchTo.replace(/-/g, '');
 
-      const res = await fetch('/api/system/attendance/get', {
+      const res = await fetch('/api/other/attendance/get', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
