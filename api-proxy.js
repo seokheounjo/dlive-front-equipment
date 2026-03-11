@@ -866,6 +866,10 @@ router.post('/customer/common/customercommon/getStreetAddrList', handleProxy);  
 // System/CM API
 router.post('/system/cm/getFindUsrList3', handleProxy);
 
+// Activity & Debug Log APIs (system/pm -> authController on CONA)
+router.post('/system/pm/insertActivityLog', handleProxy);
+router.post('/system/pm/insertDebugLog', handleProxy);
+
 // Debug endpoints (GET)
 router.get('/debug/equipmentManager/methods', handleProxy);
 router.get('/debug/sigtransManagement/methods', handleProxy);

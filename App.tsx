@@ -25,6 +25,7 @@ import Settings from './components/layout/Settings';
 import { clearAllSessions } from './utils/sessionStorage';
 import { useUIStore } from './stores/uiStore';
 import NoticePopup, { shouldShowNoticePopup } from './components/common/NoticePopup';
+import { initActivityLogger, clearActivityLogger, logActivity } from './services/activityLogger';
 
 export type View = 'today-work' | 'menu' | 'work-management' | 'work-order-detail' | 'work-process-flow' | 'work-complete-form' | 'work-complete-detail' | 'work-item-list' | 'customer-management' | 'equipment-management' | 'other-management' | 'api-explorer' | 'coming-soon' | 'settings';
 
@@ -123,10 +124,18 @@ const App: React.FC = () => {
 
   // 작업 통계 - 폴링 제거 (작업관리 진입/퇴장 시 자연스럽게 갱신됨)
 
-  const handleLogin = (userId?: string, userName?: string, userNameEn?: string, userRole?: string, crrId?: string, soId?: string, mstSoId?: string, telNo2?: string, authSoList?: Array<{SO_ID: string; SO_NM: string; MST_SO_ID: string}>) => {
+  const handleLogin = (userId?: string, userName?: string, userNameEn?: string, userRole?: string, crrId?: string, soId?: string, mstSoId?: string, telNo2?: string, authSoList?: Array<{SO_ID: string; SO_NM: string; MST_SO_ID: string}>, trxId?: string) => {
     setIsAuthenticated(true);
     setCurrentView('today-work');
     if (userId) {
+      // Initialize activity logger with login session data
+      initActivityLogger({
+        loginTrxId: trxId || '',
+        userId: userId,
+        userNm: userName || '',
+        soId: soId || '',
+        crrId: crrId || ''
+      });
       const userInfoData = {
         userId,
         userName: userName || '작업자',
@@ -172,6 +181,7 @@ const App: React.FC = () => {
   };
   
   const handleLogout = () => {
+    clearActivityLogger();
     setIsAuthenticated(false);
     setUserInfo(null);
     // 로그아웃 시 모든 세션 데이터 및 userInfo 삭제
@@ -204,6 +214,7 @@ const App: React.FC = () => {
 
 
   const navigateToView = (view: View, data?: any) => {
+    logActivity(view);
     setCurrentView(view);
 
     // 데이터가 있으면 Store에 저장 (Props Drilling 제거)
@@ -227,6 +238,7 @@ const App: React.FC = () => {
     const parentView = NAVIGATION_HIERARCHY[currentView];
 
     if (parentView) {
+      logActivity(parentView);
       setCurrentView(parentView);
     }
   };
