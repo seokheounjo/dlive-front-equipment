@@ -222,12 +222,16 @@ const PaymentChangeModal: React.FC<PaymentChangeModalProps> = ({
     const acct = paymentAccounts.find(p => p.PYM_ACNT_ID === pymAcntId);
     if (!acct || (acct.COMMON_CD || '0') === '0') return;
 
+    // RSDTNO: CONA에서 13자리(9507030000000)로 올 수 있으므로 앞 6자리만 사용
+    const rsdtno = acct.RSDTNO || '';
+    const idNum = rsdtno.length > 6 ? rsdtno.substring(0, 6) : rsdtno;
+
     setPaymentForm(prev => ({
       ...prev,
       acntHolderNm: acct.ACNT_OWNER_NM || prev.acntHolderNm,
       bankCd: acct.BNK_CARD_CD || prev.bankCd,
       acntNo: acct.ACNT_NO || prev.acntNo,
-      idNumber: acct.RSDTNO || prev.idNumber,
+      idNumber: idNum || prev.idNumber,
       pyrRel: acct.PYR_REL || prev.pyrRel,
       changeReasonL: acct.PMC_RESN || prev.changeReasonL,
     }));
@@ -492,7 +496,10 @@ const PaymentChangeModal: React.FC<PaymentChangeModalProps> = ({
         ACNT_NO: paymentForm.pymMthCd === '01' ? paymentForm.acntNo : undefined,
         CARD_NO: paymentForm.pymMthCd === '02' ? paymentForm.acntNo : undefined,
         ACNT_OWNER_NM: paymentForm.acntHolderNm,
-        RSDTNO: paymentForm.idNumber,
+        // RSDTNO: 6자리 생년월일 → 13자리 패딩 (YYMMDD + 0000000), 사업자번호 10자리는 그대로
+        RSDTNO: paymentForm.idNumber.length === 6
+          ? paymentForm.idNumber + '0000000'
+          : paymentForm.idNumber,
         PAYER_REL_CD: paymentForm.pyrRel,
         CARD_VALID_YM: paymentForm.pymMthCd === '02' ? paymentForm.cardExpYy + paymentForm.cardExpMm : undefined,
         JOIN_CARD_YN: paymentForm.pymMthCd === '02' ? paymentForm.joinCardYn : undefined,
