@@ -481,8 +481,8 @@ function callLoginApi(apiPath, params) {
       path: urlObj.pathname,
       method: 'POST',
       headers: {
-        'Content-Type': 'application/json',
-        'Content-Length': Buffer.byteLength(postData),
+        'Content-Type': 'application/json; charset=utf-8',
+        'Content-Length': Buffer.byteLength(postData, 'utf-8'),
         ...(storedJSessionId ? { 'Cookie': `JSESSIONID=${storedJSessionId}` } : {})
       },
       timeout: 10000
@@ -559,8 +559,8 @@ router.post('/auth/login-with-otp', async (req, res) => {
         path: urlObj.pathname,
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json',
-          'Content-Length': Buffer.byteLength(postData),
+          'Content-Type': 'application/json; charset=utf-8',
+          'Content-Length': Buffer.byteLength(postData, 'utf-8'),
           ...(storedJSessionId ? { 'Cookie': `JSESSIONID=${storedJSessionId}` } : {})
         },
         timeout: 30000
