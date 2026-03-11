@@ -416,23 +416,25 @@ export interface LoginResponse {
 // 로그인 API
 export const login = async (userId: string, password: string, disconnYn: string = 'N'): Promise<LoginResponse> => {
   const origin = typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000';
-  // Collect network type: mobile_cellular / mobile_wifi / mobile_ios / pc
+  // Collect network type: mobile_cellular / mobile_wifi / tablet_cellular / tablet_wifi / mobile_ios / tablet_ios / pc
   const nwType = (() => {
     if (typeof navigator === 'undefined') return 'pc';
     const ua = navigator.userAgent || '';
     const conn = (navigator as any).connection;
     if (conn) {
       const connType = conn.type || conn.effectiveType || '';
-      const isMobile = /Android|Mobile/i.test(ua);
-      if (isMobile) {
-        return connType === 'cellular' ? 'mobile_cellular' : 'mobile_wifi';
+      const isAndroid = /Android/i.test(ua);
+      if (isAndroid) {
+        const isTablet = !/Mobile/i.test(ua);
+        const nw = connType === 'cellular' ? 'cellular' : 'wifi';
+        return isTablet ? `tablet_${nw}` : `mobile_${nw}`;
       }
       return 'pc';
     }
     // connection API not supported: iOS Safari, Mac Safari, Firefox etc.
-    const isIOS = /iPhone|iPad/i.test(ua);
-    const isIPadOS = /Macintosh/i.test(ua) && navigator.maxTouchPoints > 0;
-    if (isIOS || isIPadOS) return 'mobile_ios';
+    if (/iPhone/i.test(ua)) return 'mobile_ios';
+    if (/iPad/i.test(ua)) return 'tablet_ios';
+    if (/Macintosh/i.test(ua) && navigator.maxTouchPoints > 0) return 'tablet_ios';
     return 'pc';
   })();
 
