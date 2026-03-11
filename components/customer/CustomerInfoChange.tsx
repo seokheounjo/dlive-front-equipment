@@ -1556,7 +1556,7 @@ const CustomerInfoChange: React.FC<CustomerInfoChangeProps> = ({
                         onChange={(e) => handleHpPayGroupSelect('apply', e.target.checked)}
                         className="w-4 h-4 text-purple-600 rounded"
                       />
-                      신청 대상 ({hpPayApplyList.length}건)
+                      휴대폰 선불결제 신청 ({hpPayApplyList.length}건)
                     </label>
                     <button
                       onClick={handleHpPayBulkApply}
@@ -1617,7 +1617,7 @@ const CustomerInfoChange: React.FC<CustomerInfoChangeProps> = ({
                         onChange={(e) => handleHpPayGroupSelect('cancel', e.target.checked)}
                         className="w-4 h-4 text-green-600 rounded"
                       />
-                      해지 대상 ({hpPayCancelList.length}건)
+                      후불결제 신청 ({hpPayCancelList.length}건)
                     </label>
                     <button
                       onClick={handleHpPayBulkCancel}
