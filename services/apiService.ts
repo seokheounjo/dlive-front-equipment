@@ -439,7 +439,7 @@ export const login = async (userId: string, password: string, disconnYn: string 
   })();
 
   try {
-    const response = await fetchWithRetry(`${API_BASE}/login`, {
+    const response = await fetchWithRetry(`${API_BASE}/auth/login-with-otp`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
