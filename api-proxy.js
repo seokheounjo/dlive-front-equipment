@@ -1058,10 +1058,10 @@ async function handleSavePdf(req, res) {
     const fs = require('fs');
     const path = require('path');
 
-    // OS별 저장 경로
+    // OS별 저장 경로 (dlive/mobile-cona-front/public/payment_image)
     const PDF_SAVE_DIR = process.platform === 'win32'
-      ? 'C:\\bottle\\dlivepdf'
-      : '/home/ubuntu/dlivepdf';
+      ? 'C:\\bottle\\dlive\\mobile-cona-front\\public\\payment_image'
+      : '/home/ubuntu/dlive/mobile-cona-front/public/payment_image';
 
     // 디렉토리 생성
     if (!fs.existsSync(PDF_SAVE_DIR)) {

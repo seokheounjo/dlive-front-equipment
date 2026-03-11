@@ -16,7 +16,7 @@ import {
   getChangeReasonCodes,
   getCardClassCodes
 } from '../../services/customerApi';
-import { generateAutoTransferPdf, generateCardPaymentPdf, downloadPdf, savePdfToServer } from '../../services/pdfService';
+import { generateAutoTransferPdf, generateCardPaymentPdf, savePdfToServer } from '../../services/pdfService';
 
 // 납부계정ID 포맷 (3-3-4)
 const formatPymAcntId = (pymAcntId: string): string => {
@@ -454,21 +454,15 @@ const PaymentChangeModal: React.FC<PaymentChangeModalProps> = ({
         filename = `자동이체_변경신청_${custId}_${dateStr}.pdf`;
       }
 
-      // 1. 서버 디렉토리에 저장
-      try {
-        const saveResult = await savePdfToServer(blob, filename);
-        if (saveResult.success) {
-          console.log('[PDF] Server save OK:', saveResult.filePath);
-        } else {
-          console.warn('[PDF] Server save failed:', saveResult.message);
-        }
-      } catch (saveErr) {
-        console.warn('[PDF] Server save error:', saveErr);
+      // 서버 디렉토리에 저장 (payment_image)
+      const saveResult = await savePdfToServer(blob, filename);
+      if (saveResult.success) {
+        console.log('[PDF] Server save OK:', saveResult.filePath);
+        showToast?.('PDF 저장 완료', 'success');
+      } else {
+        console.warn('[PDF] Server save failed:', saveResult.message);
+        showToast?.('PDF 저장 실패', 'warning');
       }
-
-      // 2. 브라우저 다운로드
-      downloadPdf(blob, filename);
-      showToast?.('PDF 저장 완료', 'success');
     } catch (error) {
       console.error('PDF generation error:', error);
       showAlert('PDF 생성에 실패했습니다.', 'error');
