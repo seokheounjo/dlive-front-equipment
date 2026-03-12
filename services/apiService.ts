@@ -3568,12 +3568,12 @@ export const processEquipmentLoss = async (params: {
 export const setEquipmentCheckStandby = async (params: {
   EQT_NO: string;
 }): Promise<any> => {
-  console.log('[장비상태변경] API 호출:', params);
+  console.log('[fn:setEquipmentCheckStandby -> req:setEquipmentChkStndByY_ForM] API:', params);
 
   try {
     const origin = typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000';
 
-    const response = await fetchWithRetry(`${API_BASE}/customer/equipment/setEquipmentChkStndByY`, {
+    const response = await fetch(`${API_BASE}/customer/equipment/setEquipmentChkStndByY_ForM`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -3584,15 +3584,34 @@ export const setEquipmentCheckStandby = async (params: {
     });
 
     const result = await response.json();
-    console.log('장비 상태 변경 성공:', result);
 
+    // debugLogs from backend
+    if (result.debugLogs) {
+      console.log('[backend debug logs]');
+      result.debugLogs.forEach((log: string) => console.log(log));
+    }
+
+    // HTTP 400: business rule error
+    if (response.status === 400 && result.code === 'BUSINESS_RULE_ERROR') {
+      console.error('business rule error:', result.message);
+      throw new Error(result.message || 'business rule error');
+    }
+
+    // HTTP 500: technical error
+    if (!response.ok) {
+      console.error('equipment status change failed:', result);
+      const errMsg = result.message || result.error || `server error (HTTP ${response.status})`;
+      throw new Error(errMsg);
+    }
+
+    console.log('equipment status change success:', result);
     return result;
   } catch (error: any) {
-    console.error('장비 상태 변경 실패:', error);
-    if (error instanceof NetworkError) {
+    console.error('equipment status change failed:', error);
+    if (error instanceof Error) {
       throw error;
     }
-    throw new NetworkError('장비 상태 변경에 실패했습니다.');
+    throw new Error('equipment status change failed.');
   }
 };
 
@@ -3625,7 +3644,9 @@ export const getEquipmentHistoryInfo = async (params: {
     const result = await response.json();
     console.log('장비 조회 성공:', result);
 
-    return Array.isArray(result) ? result[0] : result;
+    // 응답 구조: {success, data: [...], count} 또는 직접 배열
+    const data = result?.data || result;
+    return Array.isArray(data) ? data : [data];
   } catch (error: any) {
     console.error('장비 조회 실패:', error);
     if (error instanceof NetworkError) {
@@ -3641,35 +3662,93 @@ export const getEquipmentHistoryInfo = async (params: {
  * @returns 처리 결과
  */
 export const changeEquipmentWorker = async (params: {
+  SO_ID: string;
   EQT_NO: string;
-  FROM_WRKR_ID: string;
-  TO_WRKR_ID: string;
+  EQT_SERNO: string;
+  CHG_UID: string;
+  MV_SO_ID: string;
+  MV_CRR_ID: string;
+  MV_WRKR_ID: string;
 }): Promise<any> => {
-  console.log('👤 [장비인수] API 호출:', params);
+  const apiCallId = `API_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`;
+  const apiStartTime = Date.now();
+
+  // backend compat: add TO_WRKR_ID, WRKR_ID
+  const requestBody = {
+    ...params,
+    TO_WRKR_ID: params.MV_WRKR_ID,
+    WRKR_ID: params.MV_WRKR_ID,
+  };
+
+  console.log(`[fn:changeEquipmentWorker -> req:changeEqtWrkr_3_ForM] ${apiCallId}`);
+  console.log('params:', JSON.stringify(requestBody, null, 2));
 
   try {
-    const origin = typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000';
+    const apiUrl = `${API_BASE}/customer/equipment/changeEqtWrkr_3_ForM`;
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 30000);
 
-    const response = await fetchWithRetry(`${API_BASE}/customer/equipment/changeEqtWrkr_3`, {
+    const response = await fetch(apiUrl, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Origin': origin
-      },
+      headers: { 'Content-Type': 'application/json' },
       credentials: 'include',
-      body: JSON.stringify(params),
+      body: JSON.stringify(requestBody),
+      signal: controller.signal
     });
 
-    const result = await response.json();
-    console.log('장비 인수 성공:', result);
+    clearTimeout(timeoutId);
+    const duration = Date.now() - apiStartTime;
 
-    return result;
-  } catch (error: any) {
-    console.error('장비 인수 실패:', error);
-    if (error instanceof NetworkError) {
-      throw error;
+    console.log(`[${apiCallId}] HTTP ${response.status} (${duration}ms)`);
+
+    const responseText = await response.text();
+    console.log(`[${apiCallId}] RAW:`, responseText);
+
+    let result;
+    try {
+      result = JSON.parse(responseText);
+      console.log(`[${apiCallId}] PARSED:`, JSON.stringify(result, null, 2));
+    } catch (parseError) {
+      console.error(`[${apiCallId}] JSON parse failed`);
+      throw new Error('server response parse failed');
     }
-    throw new NetworkError('장비 인수에 실패했습니다.');
+
+    const msgCode = result?.MSGCODE;
+    const message = result?.MESSAGE || result?.message || '';
+
+    // MSGCODE === "SUCCESS" -> success regardless of HTTP status
+    if (msgCode === 'SUCCESS') {
+      console.log(`[${apiCallId}] SUCCESS (MSGCODE=SUCCESS, ${duration}ms)`);
+      return result;
+    }
+
+    // MSGCODE === "FAIL" -> error
+    if (msgCode === 'FAIL') {
+      throw new Error(message || 'Oracle procedure failed (MSGCODE=FAIL)');
+    }
+
+    // HTTP error
+    if (!response.ok) {
+      const errMsg = message || result?.error || result?.code || `server error (HTTP ${response.status})`;
+      throw new Error(errMsg);
+    }
+
+    // error keywords
+    if (message && (message.includes('ERROR') || message.includes('FAIL'))) {
+      throw new Error(message);
+    }
+
+    console.log(`[${apiCallId}] SUCCESS (${duration}ms)`);
+    return result;
+
+  } catch (error: any) {
+    const duration = Date.now() - apiStartTime;
+    console.error(`[${apiCallId}] FAILED (${duration}ms):`, error.message);
+
+    if (error.name === 'AbortError') {
+      throw new Error('Request timeout (30s).');
+    }
+    throw error instanceof Error ? error : new Error('equipment transfer failed.');
   }
 };
 
@@ -3748,27 +3827,44 @@ export const findUserList = async (params: {
   USR_NM?: string;
   USR_ID?: string;
   SO_ID?: string;
+  CRR_ID?: string;
 }): Promise<any[]> => {
-  console.log('[기사검색] API 호출:', params);
+  console.log('[fn:findUserList -> req:getFindUsrList3] API:', params);
 
   try {
     const origin = typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000';
 
-    const response = await fetchWithRetry(`${API_BASE}/system/cm/getFindUsrList`, {
+    // 파라미터 정리 (trim + 호환 키 추가)
+    const searchParams: any = {};
+    if (params.USR_NM && params.USR_NM.trim()) {
+      searchParams.USR_NM = params.USR_NM.trim();
+      searchParams.WRKR_NM = params.USR_NM.trim();
+    }
+    if (params.USR_ID && params.USR_ID.trim()) {
+      searchParams.USR_ID = params.USR_ID.trim();
+      searchParams.WRKR_ID = params.USR_ID.trim();
+    }
+    if (params.SO_ID) { searchParams.SO_ID = params.SO_ID; }
+    if (params.CRR_ID) { searchParams.CRR_ID = params.CRR_ID; }
+
+    const response = await fetchWithRetry(`${API_BASE}/system/cm/getFindUsrList3`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'Origin': origin
       },
       credentials: 'include',
-      body: JSON.stringify(params),
+      body: JSON.stringify(searchParams),
     });
 
     const result = await response.json();
     console.log('기사 검색 성공:', result);
 
-    // API 응답: {data: [...], count: N} 또는 배열 직접 반환
-    return Array.isArray(result) ? result : (result.data || result.output1 || []);
+    // output1 우선 → data → 빈 배열
+    if (Array.isArray(result)) { return result; }
+    if (result.output1 && Array.isArray(result.output1)) { return result.output1; }
+    if (result.data && Array.isArray(result.data)) { return result.data; }
+    return [];
   } catch (error: any) {
     console.error('기사 검색 실패:', error);
     if (error instanceof NetworkError) {
