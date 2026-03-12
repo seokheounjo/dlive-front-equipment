@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '../ui/tabs';
 import AttendanceRegistration from './AttendanceRegistration';
+import OvertimeWork from './OvertimeWork';
 import LGUConstructionRequest from '../other/LGUConstructionRequest';
 import LGUNetworkFault from '../other/LGUNetworkFault';
 import ComingSoon from '../layout/ComingSoon';
@@ -31,6 +32,7 @@ const OtherManagement: React.FC<OtherManagementProps> = ({
   const otherManagementTabs = [
     { id: 'notice', title: '공지사항' },
     { id: 'attendance', title: '근태등록' },
+    { id: 'overtime', title: '시간외근무' },
     { id: 'lgu-construction', title: '(LGU)공사요청진행정보' },
     { id: 'lgu-network-fault', title: '(LGU)망장애이관리스트' },
   ];
@@ -90,6 +92,10 @@ const OtherManagement: React.FC<OtherManagementProps> = ({
 
         <TabsContent value="attendance" className="px-0 pt-1">
           <AttendanceRegistration onBack={onNavigateToMenu} userInfo={userInfo} showToast={showToast} />
+        </TabsContent>
+
+        <TabsContent value="overtime" className="px-0 pt-1">
+          <OvertimeWork onBack={onNavigateToMenu} userInfo={userInfo} showToast={showToast} />
         </TabsContent>
 
         <TabsContent value="lgu-construction" className="px-3 pt-1">
