@@ -123,7 +123,7 @@ export default function OvertimeWork({ onBack, userInfo, showToast }: OvertimeWo
     if (!userInfo?.userId) return;
     (async () => {
       try {
-        const res = await fetch('/api/customer/etc/chkAppDoc74Auth', {
+        const res = await fetch('/api/other/overtime/checkAuth', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ USR_ID: userInfo.userId })
@@ -149,7 +149,7 @@ export default function OvertimeWork({ onBack, userInfo, showToast }: OvertimeWo
     if (!authorized) return;
     (async () => {
       try {
-        const res = await fetch('/api/customer/etc/getAppDoc74Gubn', {
+        const res = await fetch('/api/other/overtime/getGubn', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({})
@@ -174,7 +174,7 @@ export default function OvertimeWork({ onBack, userInfo, showToast }: OvertimeWo
     if (!userInfo?.userId || !authorized) return;
     setLoading(true);
     try {
-      const res = await fetch('/api/customer/etc/getAppDoc74', {
+      const res = await fetch('/api/other/overtime/list', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -219,7 +219,7 @@ export default function OvertimeWork({ onBack, userInfo, showToast }: OvertimeWo
 
     setSubmitting(true);
     try {
-      const res = await fetch('/api/customer/etc/saveDoc74Plan', {
+      const res = await fetch('/api/other/overtime/savePlan', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -276,7 +276,7 @@ export default function OvertimeWork({ onBack, userInfo, showToast }: OvertimeWo
 
     setSavingActual(true);
     try {
-      const res = await fetch('/api/customer/etc/saveDoc74', {
+      const res = await fetch('/api/other/overtime/saveActual', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

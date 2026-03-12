@@ -34,12 +34,6 @@ const LEGACY_REQ_ROUTES = [
   "/customer/work/getProd_Grp",  // AS접수 콤보상세 (상품그룹)
   // getEquipLossInfo_ForM → PATH_MAPPING으로 어댑터 경유 (레거시 .req CONA 세션 인증 실패)
 
-  // Overtime Work (시간외근무) - ETC Management
-  "/customer/etc/chkAppDoc74Auth",    // 권한체크
-  "/customer/etc/getAppDoc74Gubn",    // 공통코드 조회 (내근/평일_당직/주말_당직)
-  "/customer/etc/getAppDoc74",        // 시간외근무 리스트 조회
-  "/customer/etc/saveDoc74Plan",      // 시간외근무 신청
-  "/customer/etc/saveDoc74",          // 시간외근무 실적저장
 ];
 
 // Parse MiPlatform XML response to JSON
@@ -707,12 +701,12 @@ router.post('/auth/login-with-otp', async (req, res) => {
 router.post('/other/attendance/get', handleProxy);
 router.post('/other/attendance/save', handleProxy);
 
-// Overtime Work API (시간외근무) - LEGACY_REQ_ROUTES -> .req direct
-router.post('/customer/etc/chkAppDoc74Auth', handleProxy);
-router.post('/customer/etc/getAppDoc74Gubn', handleProxy);
-router.post('/customer/etc/getAppDoc74', handleProxy);
-router.post('/customer/etc/saveDoc74Plan', handleProxy);
-router.post('/customer/etc/saveDoc74', handleProxy);
+// Overtime Work API (OtherController adapter)
+router.post('/other/overtime/checkAuth', handleProxy);
+router.post('/other/overtime/getGubn', handleProxy);
+router.post('/other/overtime/list', handleProxy);
+router.post('/other/overtime/savePlan', handleProxy);
+router.post('/other/overtime/saveActual', handleProxy);
 
 // Proxy routes
 router.post('/login', handleProxy);
