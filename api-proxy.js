@@ -1499,7 +1499,9 @@ async function handleProxy(req, res) {
 
         // ============ ADAPTER FALLBACK: .req 자동 폴백 ============
         // 어댑터 서블릿 에러(SRVE0207E/SRVE0255E) 시 .req 엔드포인트로 자동 재시도
-        if (!isLegacyReq && (proxyRes.statusCode === 500 || proxyRes.statusCode === 404) &&
+        // /other/* 경로는 폴백하지 않음 (OtherController 전용, .req 대응 없음)
+        const skipFallback = apiPath.startsWith('/other/');
+        if (!skipFallback && !isLegacyReq && (proxyRes.statusCode === 500 || proxyRes.statusCode === 404) &&
             (responseBody.includes('SRVE0207E') || responseBody.includes('SRVE0255E'))) {
           console.log('[PROXY] ⚠ Adapter servlet error, falling back to .req endpoint');
           const reqPath = apiPath + '.req';
