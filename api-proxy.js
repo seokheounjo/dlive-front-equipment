@@ -1787,14 +1787,24 @@ router.get('/vworld/address', async (req, res) => {
   const url = `https://api.vworld.kr/req/address?service=address&request=getAddress&version=2.0&crs=epsg:4326&point=${point}&format=json&type=${addrType}&zipcode=false&simple=false&key=${key}`;
   try {
     const https = require('https');
-    const fetch = (u) => new Promise((resolve, reject) => {
-      https.get(u, (resp) => {
+    const urlObj = new (require('url').URL)(url);
+    const options = {
+      hostname: urlObj.hostname,
+      path: urlObj.pathname + urlObj.search,
+      method: 'GET',
+      headers: {
+        'Referer': 'https://dlivestore2.store/',
+        'Origin': 'https://dlivestore2.store'
+      }
+    };
+    const fetch = (opts) => new Promise((resolve, reject) => {
+      https.request(opts, (resp) => {
         let data = '';
         resp.on('data', chunk => data += chunk);
         resp.on('end', () => resolve(data));
-      }).on('error', reject);
+      }).on('error', reject).end();
     });
-    const data = await fetch(url);
+    const data = await fetch(options);
     res.setHeader('Content-Type', 'application/json; charset=utf-8');
     res.send(data);
   } catch (e) {
