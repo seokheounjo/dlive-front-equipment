@@ -88,9 +88,10 @@ const AttendanceRegistration: React.FC<AttendanceRegistrationProps> = ({
   const [historyOpen, setHistoryOpen] = useState(true);
   const historyRef = useRef<HTMLDivElement>(null);
 
-  // VWorld reverse geocoding (server proxy to bypass CORS)
+  // VWorld reverse geocoding (direct browser call - domain-restricted key)
   const vworldFetch = async (point: string, key: string, type: string): Promise<any> => {
-    const res = await fetch(`/api/vworld/address?point=${encodeURIComponent(point)}&key=${encodeURIComponent(key)}&type=${type}`);
+    const url = `https://api.vworld.kr/req/address?service=address&request=getAddress&version=2.0&crs=epsg:4326&point=${encodeURIComponent(point)}&format=json&type=${type}&zipcode=false&simple=false&key=${encodeURIComponent(key)}`;
+    const res = await fetch(url);
     return res.json();
   };
 
