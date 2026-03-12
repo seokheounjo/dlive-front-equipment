@@ -258,9 +258,15 @@ const fetchWithRetry = async (
           if (!url.includes('insertActivityLog') && !url.includes('insertDebugLog')) {
             logApiError(url, options.method || 'GET', response.status, getErrorMessage(response.status), Date.now() - reqStartTime);
           }
+          // Parse error response body (for wasName, code, message)
+          let errorDetails: any = null;
+          try {
+            errorDetails = await response.json();
+          } catch (e) { /* ignore parse errors */ }
           throw new NetworkError(
-            getErrorMessage(response.status),
-            response.status
+            errorDetails?.message || getErrorMessage(response.status),
+            response.status,
+            errorDetails
           );
         }
 
@@ -408,6 +414,7 @@ export interface LoginResponse {
   ok: boolean;
   code?: string;
   message?: string;
+  wasName?: string;   // WAS container name (legacy: fn_get_was_name)
   LOGIN_DUP_YN?: string;
   userId?: string;
   userName?: string;

@@ -60,13 +60,14 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
       const result = await login(username, password, forceDisconnect ? 'Y' : 'N');
       console.log('[Login] API 응답:', result);
       console.log('[Login] telNo2:', result.telNo2);
+      console.log('[Login] wasName:', result.wasName);
 
       // Step 2: loginApi2 (LOGIN result)
-      loginApi2({ P_LOGIN_TRX_ID: trxId, P_API_TYPE: 'LOGIN', P_RESULT_CD: result.ok ? 'SUCCESS' : 'FAIL', P_RESULT_MSG: result.ok ? '' : 'Login failed' });
+      loginApi2({ P_LOGIN_TRX_ID: trxId, P_API_TYPE: 'LOGIN', P_RESULT_CD: result.ok ? 'SUCCESS' : 'FAIL', P_RESULT_MSG: result.ok ? '' : 'Login failed', P_RESPONSE_DATA: result.wasName ? `WAS=${result.wasName}` : '' });
 
       // 계정 잠금 감지
       if (result.code === 'LOCK') {
-        loginApi3({ P_LOGIN_TRX_ID: trxId, P_FINAL_RESULT_CD: 'LOCK', P_FINAL_RESULT_MSG: 'Account locked' });
+        loginApi3({ P_LOGIN_TRX_ID: trxId, P_FINAL_RESULT_CD: 'LOCK', P_FINAL_RESULT_MSG: `Account locked,WAS=${result.wasName || ''}` });
         setLockMessage(result.message || '계정이 잠겨있습니다. 관리자에게 문의하세요.');
         setIsLoading(false);
         return;
@@ -74,7 +75,7 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
 
       // 동시접속 감지
       if (result.LOGIN_DUP_YN === 'Y' || result.code === 'LOGIN_DUP') {
-        loginApi3({ P_LOGIN_TRX_ID: trxId, P_FINAL_RESULT_CD: 'DUP', P_FINAL_RESULT_MSG: 'Duplicate login detected' });
+        loginApi3({ P_LOGIN_TRX_ID: trxId, P_FINAL_RESULT_CD: 'DUP', P_FINAL_RESULT_MSG: `Duplicate login,WAS=${result.wasName || ''}` });
         setShowDupConfirm(true);
         setIsLoading(false);
         return;
@@ -86,7 +87,7 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
           const otpResult = await verifyOtp(username, otpCode);
           if (!otpResult.ok) {
             const errorCode = otpResult.code || '';
-            loginApi3({ P_LOGIN_TRX_ID: trxId, P_FINAL_RESULT_CD: 'OTP_FAIL', P_FINAL_RESULT_MSG: `OTP error: ${errorCode}` });
+            loginApi3({ P_LOGIN_TRX_ID: trxId, P_FINAL_RESULT_CD: 'OTP_FAIL', P_FINAL_RESULT_MSG: `OTP error: ${errorCode},WAS=${result.wasName || ''}` });
             setError(otpErrorMessages[errorCode] || otpResult.message || 'OTP 인증에 실패했습니다.');
             setOtpCode('');
             setIsLoading(false);
@@ -95,20 +96,23 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
         }
 
         // Step 5: loginApi3 (final SUCCESS)
-        loginApi3({ P_LOGIN_TRX_ID: trxId, P_FINAL_RESULT_CD: 'SUCCESS' });
+        loginApi3({ P_LOGIN_TRX_ID: trxId, P_FINAL_RESULT_CD: 'SUCCESS', P_FINAL_RESULT_MSG: `WAS=${result.wasName || ''}` });
         completeLogin(result);
       } else {
-        loginApi3({ P_LOGIN_TRX_ID: trxId, P_FINAL_RESULT_CD: 'FAIL', P_FINAL_RESULT_MSG: 'Login failed' });
+        loginApi3({ P_LOGIN_TRX_ID: trxId, P_FINAL_RESULT_CD: 'FAIL', P_FINAL_RESULT_MSG: `Login failed,WAS=${result.wasName || ''}` });
         setError('로그인에 실패했습니다.');
       }
     } catch (err: any) {
-      // Step 2+5: loginApi2 + loginApi3 (error)
-      loginApi2({ P_LOGIN_TRX_ID: trxId, P_API_TYPE: 'LOGIN', P_RESULT_CD: 'ERROR', P_RESULT_MSG: err.message || 'Unknown error' });
-      loginApi3({ P_LOGIN_TRX_ID: trxId, P_FINAL_RESULT_CD: 'FAIL', P_FINAL_RESULT_MSG: err.message || 'Unknown error' });
+      // Step 2+3: loginApi2 + loginApi3 (error - 401 etc.)
+      // Extract wasName from error details (server includes it in error responses)
+      const errWasName = err.details?.wasName || '';
+      const errCode = err.details?.code || '';
+      loginApi2({ P_LOGIN_TRX_ID: trxId, P_API_TYPE: 'LOGIN', P_RESULT_CD: errCode || 'ERROR', P_RESULT_MSG: err.details?.message || err.message || 'Unknown error', P_RESPONSE_DATA: errWasName ? `WAS=${errWasName}` : '' });
+      loginApi3({ P_LOGIN_TRX_ID: trxId, P_FINAL_RESULT_CD: 'FAIL', P_FINAL_RESULT_MSG: `${errCode || err.message || 'Unknown error'},WAS=${errWasName}` });
 
-      if (err.message && err.message.includes('401')) {
+      if (err.statusCode === 401 || (err.message && err.message.includes('401'))) {
         setError('아이디 또는 비밀번호가 잘못되었습니다.');
-      } else if (err.message && err.message.includes('400')) {
+      } else if (err.statusCode === 400 || (err.message && err.message.includes('400'))) {
         setError('아이디와 비밀번호를 모두 입력해주세요.');
       } else {
         setError('아이디 또는 비밀번호가 잘못되었습니다.');
@@ -130,7 +134,7 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
     try {
       const result = await login(username, password, 'Y');
       console.log('[Login] 강제 로그인 응답:', result);
-      loginApi2({ P_LOGIN_TRX_ID: trxId, P_API_TYPE: 'LOGIN', P_RESULT_CD: result.ok ? 'SUCCESS' : 'FAIL' });
+      loginApi2({ P_LOGIN_TRX_ID: trxId, P_API_TYPE: 'LOGIN', P_RESULT_CD: result.ok ? 'SUCCESS' : 'FAIL', P_RESPONSE_DATA: result.wasName ? `WAS=${result.wasName}` : '' });
 
       if (result.ok) {
         // OTP 검증
@@ -138,7 +142,7 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
           const otpResult = await verifyOtp(username, otpCode);
           if (!otpResult.ok) {
             const errorCode = otpResult.code || '';
-            loginApi3({ P_LOGIN_TRX_ID: trxId, P_FINAL_RESULT_CD: 'OTP_FAIL', P_FINAL_RESULT_MSG: `OTP error: ${errorCode}` });
+            loginApi3({ P_LOGIN_TRX_ID: trxId, P_FINAL_RESULT_CD: 'OTP_FAIL', P_FINAL_RESULT_MSG: `OTP error: ${errorCode},WAS=${result.wasName || ''}` });
             setError(otpErrorMessages[errorCode] || otpResult.message || 'OTP 인증에 실패했습니다.');
             setOtpCode('');
             setIsLoading(false);
@@ -146,15 +150,17 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
           }
         }
 
-        loginApi3({ P_LOGIN_TRX_ID: trxId, P_FINAL_RESULT_CD: 'SUCCESS' });
+        loginApi3({ P_LOGIN_TRX_ID: trxId, P_FINAL_RESULT_CD: 'SUCCESS', P_FINAL_RESULT_MSG: `WAS=${result.wasName || ''}` });
         completeLogin(result);
       } else {
-        loginApi3({ P_LOGIN_TRX_ID: trxId, P_FINAL_RESULT_CD: 'FAIL' });
+        loginApi3({ P_LOGIN_TRX_ID: trxId, P_FINAL_RESULT_CD: 'FAIL', P_FINAL_RESULT_MSG: `WAS=${result.wasName || ''}` });
         setError('로그인에 실패했습니다.');
       }
     } catch (err: any) {
-      loginApi2({ P_LOGIN_TRX_ID: trxId, P_API_TYPE: 'LOGIN', P_RESULT_CD: 'ERROR', P_RESULT_MSG: err.message });
-      loginApi3({ P_LOGIN_TRX_ID: trxId, P_FINAL_RESULT_CD: 'FAIL', P_FINAL_RESULT_MSG: err.message });
+      const errWasName = err.details?.wasName || '';
+      const errCode = err.details?.code || '';
+      loginApi2({ P_LOGIN_TRX_ID: trxId, P_API_TYPE: 'LOGIN', P_RESULT_CD: errCode || 'ERROR', P_RESULT_MSG: err.details?.message || err.message, P_RESPONSE_DATA: errWasName ? `WAS=${errWasName}` : '' });
+      loginApi3({ P_LOGIN_TRX_ID: trxId, P_FINAL_RESULT_CD: 'FAIL', P_FINAL_RESULT_MSG: `${err.message || 'Error'},WAS=${errWasName}` });
       setError('로그인 중 오류가 발생했습니다.');
       console.error('강제 로그인 오류:', err);
     } finally {
