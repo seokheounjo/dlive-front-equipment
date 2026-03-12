@@ -63,7 +63,7 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
       console.log('[Login] wasName:', result.wasName);
 
       // Step 2: loginApi2 (LOGIN result)
-      loginApi2({ P_LOGIN_TRX_ID: trxId, P_API_TYPE: 'LOGIN', P_RESULT_CD: result.ok ? 'SUCCESS' : 'FAIL', P_RESULT_MSG: result.ok ? '' : 'Login failed', P_RESPONSE_DATA: result.wasName ? `WAS=${result.wasName}` : '' });
+      loginApi2({ P_LOGIN_TRX_ID: trxId, P_API_TYPE: 'LOGIN', P_RESULT_CD: result.ok ? 'SUCC' : 'FAIL', P_RESULT_MSG: result.ok ? '' : 'Login failed', P_RESPONSE_DATA: result.wasName ? `WAS=${result.wasName}` : '' });
 
       // 계정 잠금 감지
       if (result.code === 'LOCK') {
@@ -134,7 +134,7 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
     try {
       const result = await login(username, password, 'Y');
       console.log('[Login] 강제 로그인 응답:', result);
-      loginApi2({ P_LOGIN_TRX_ID: trxId, P_API_TYPE: 'LOGIN', P_RESULT_CD: result.ok ? 'SUCCESS' : 'FAIL', P_RESPONSE_DATA: result.wasName ? `WAS=${result.wasName}` : '' });
+      loginApi2({ P_LOGIN_TRX_ID: trxId, P_API_TYPE: 'LOGIN', P_RESULT_CD: result.ok ? 'SUCC' : 'FAIL', P_RESPONSE_DATA: result.wasName ? `WAS=${result.wasName}` : '' });
 
       if (result.ok) {
         // OTP 검증
