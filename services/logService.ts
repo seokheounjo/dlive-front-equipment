@@ -80,22 +80,43 @@ function getLoginTrxId(): string {
 
 // ============ Network Type Detection ============
 
-function getNetworkType(): string {
+function getDeviceType(): string {
+  try {
+    const ua = navigator.userAgent || '';
+    if (/iPad/i.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)) return 'IPAD';
+    if (/iPhone/i.test(ua)) return 'IPHONE';
+    if (/Android/i.test(ua)) return 'ANDROID';
+    return 'PC';
+  } catch {
+    return 'PC';
+  }
+}
+
+function getConnectionType(): string {
   try {
     const conn = (navigator as any).connection || (navigator as any).mozConnection || (navigator as any).webkitConnection;
-    if (!conn) return 'UNKNOWN';
-    // effectiveType: '4g', '3g', '2g', 'slow-2g'
-    // type: 'wifi', 'cellular', 'ethernet', 'bluetooth', 'none', 'other', 'unknown'
+    if (!conn) return '';
     if (conn.type) {
-      return conn.type.toUpperCase(); // WIFI, CELLULAR, ETHERNET, etc.
+      const t = conn.type.toUpperCase();
+      if (t === 'CELLULAR') return 'LTE';
+      return t; // WIFI, ETHERNET, BLUETOOTH, NONE
     }
     if (conn.effectiveType) {
-      return conn.effectiveType.toUpperCase(); // 4G, 3G, etc.
+      const e = conn.effectiveType.toUpperCase();
+      if (e === '4G') return 'LTE';
+      return e; // 3G, 2G, SLOW-2G
     }
-    return 'UNKNOWN';
+    return '';
   } catch {
-    return 'UNKNOWN';
+    return '';
   }
+}
+
+function getNetworkType(): string {
+  const device = getDeviceType();
+  const conn = getConnectionType();
+  if (conn) return device + '_' + conn;
+  return device;
 }
 
 // ============ User Info Helper ============
