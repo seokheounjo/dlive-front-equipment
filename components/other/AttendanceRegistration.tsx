@@ -138,15 +138,17 @@ const AttendanceRegistration: React.FC<AttendanceRegistrationProps> = ({
           const { road, jibun } = await reverseGeocode(latitude, longitude);
           const coordsFallback = `위도 ${latitude.toFixed(6)}, 경도 ${longitude.toFixed(6)}`;
           setLocation({
-            roadAddr: road || jibun || coordsFallback,
-            jibunAddr: road ? jibun : '',
+            roadAddr: road || '',
+            jibunAddr: jibun || '',
             lat: latitude,
             lng: longitude,
             checkedAt: formatDateTimeKR(new Date())
           });
-          if (road || jibun) {
-            // 성공 시 팝업 없음
-          } else {
+          // addrType 기본값은 jibun; road만 있으면 road로 전환
+          if (!jibun && road) {
+            setAddrType('road');
+          }
+          if (!road && !jibun) {
             showToast?.('주소 변환 실패 (좌표로 표시)', 'warning');
           }
         } catch {
@@ -190,9 +192,10 @@ const AttendanceRegistration: React.FC<AttendanceRegistrationProps> = ({
 
     setSubmitting(true);
     try {
+      const coordsFallback = `${location.lat.toFixed(6)},${location.lng.toFixed(6)}`;
       const address = addrType === 'jibun'
-        ? (location.jibunAddr || location.roadAddr)
-        : (location.roadAddr || location.jibunAddr);
+        ? (location.jibunAddr || location.roadAddr || coordsFallback)
+        : (location.roadAddr || location.jibunAddr || coordsFallback);
 
       const res = await fetch('/api/other/attendance/save', {
         method: 'POST',
@@ -412,8 +415,8 @@ const AttendanceRegistration: React.FC<AttendanceRegistrationProps> = ({
                     </span>
                     <p className="text-lg font-semibold text-gray-900 leading-snug">
                       {addrType === 'jibun'
-                        ? (location.jibunAddr || location.roadAddr)
-                        : (location.roadAddr || location.jibunAddr)}
+                        ? (location.jibunAddr || location.roadAddr || `위도 ${location.lat.toFixed(6)}, 경도 ${location.lng.toFixed(6)}`)
+                        : (location.roadAddr || location.jibunAddr || `위도 ${location.lat.toFixed(6)}, 경도 ${location.lng.toFixed(6)}`)}
                     </p>
                   </div>
                 </div>
