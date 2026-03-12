@@ -289,7 +289,10 @@ export default function OvertimeWork({ onBack, userInfo, showToast }: OvertimeWo
           TO_MINU: actualForm.toMinu,
           GUBN: selectedRecord.GUBN_S,
           REASON: actualForm.reason,
-          DOC_NO: selectedRecord.DOC_NO
+          DOC_NO: selectedRecord.DOC_NO,
+          DOC_DATE: selectedRecord.DOC_DATE,
+          DOC_COMP: selectedRecord.DOC_COMP,
+          DOC_GBN: selectedRecord.DOC_GBN || '74'
         })
       });
 
