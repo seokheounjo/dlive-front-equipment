@@ -477,15 +477,15 @@ export default function OvertimeWork({ onBack, userInfo, showToast }: OvertimeWo
       {/* ===== New Application Modal ===== */}
       {showApplyModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-end justify-center">
-          <div className="bg-white w-full max-w-lg rounded-t-2xl max-h-[85vh] overflow-y-auto">
-            <div className="sticky top-0 bg-white border-b border-gray-200 px-4 py-3 flex items-center justify-between rounded-t-2xl">
+          <div className="bg-white w-full max-w-lg rounded-t-2xl max-h-[85vh] flex flex-col">
+            <div className="flex-shrink-0 bg-white border-b border-gray-200 px-4 py-3 flex items-center justify-between rounded-t-2xl">
               <h3 className="font-medium text-gray-800">시간외근무 신청</h3>
               <button onClick={() => setShowApplyModal(false)} className="p-1 text-gray-400 hover:text-gray-600">
                 <X className="w-5 h-5" />
               </button>
             </div>
 
-            <div className="p-4 space-y-4">
+            <div className="flex-1 overflow-y-auto p-4 space-y-4">
               {/* 결재선 */}
               <div>
                 <label className="block text-sm text-gray-600 mb-1">결재선</label>
@@ -579,24 +579,24 @@ export default function OvertimeWork({ onBack, userInfo, showToast }: OvertimeWo
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 resize-none"
                 />
               </div>
+            </div>
 
-              {/* Buttons */}
-              <div className="flex gap-3 pt-2">
-                <button
-                  onClick={() => setShowApplyModal(false)}
-                  className="flex-1 py-2.5 border border-gray-300 text-gray-700 rounded-lg text-sm hover:bg-gray-50 transition-colors"
-                >
-                  닫기
-                </button>
-                <button
-                  onClick={handleApply}
-                  disabled={submitting}
-                  className="flex-1 py-2.5 bg-primary-500 text-white rounded-lg text-sm hover:bg-primary-600 disabled:bg-gray-400 transition-colors flex items-center justify-center gap-1"
-                >
-                  {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
-                  상신
-                </button>
-              </div>
+            {/* Buttons - fixed at bottom */}
+            <div className="flex-shrink-0 border-t border-gray-200 bg-white px-4 py-3 flex gap-3 rounded-b-none">
+              <button
+                onClick={() => setShowApplyModal(false)}
+                className="flex-1 py-2.5 border border-gray-300 text-gray-700 rounded-lg text-sm hover:bg-gray-50 transition-colors"
+              >
+                닫기
+              </button>
+              <button
+                onClick={handleApply}
+                disabled={submitting}
+                className="flex-1 py-2.5 bg-primary-500 text-white rounded-lg text-sm hover:bg-primary-600 disabled:bg-gray-400 transition-colors flex items-center justify-center gap-1"
+              >
+                {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+                상신
+              </button>
             </div>
           </div>
         </div>
@@ -605,15 +605,15 @@ export default function OvertimeWork({ onBack, userInfo, showToast }: OvertimeWo
       {/* ===== Actual Input Modal ===== */}
       {showActualModal && selectedRecord && (
         <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-end justify-center">
-          <div className="bg-white w-full max-w-lg rounded-t-2xl max-h-[85vh] overflow-y-auto">
-            <div className="sticky top-0 bg-white border-b border-gray-200 px-4 py-3 flex items-center justify-between rounded-t-2xl">
+          <div className="bg-white w-full max-w-lg rounded-t-2xl max-h-[85vh] flex flex-col">
+            <div className="flex-shrink-0 bg-white border-b border-gray-200 px-4 py-3 flex items-center justify-between rounded-t-2xl">
               <h3 className="font-medium text-gray-800">실적 입력</h3>
               <button onClick={() => setShowActualModal(false)} className="p-1 text-gray-400 hover:text-gray-600">
                 <X className="w-5 h-5" />
               </button>
             </div>
 
-            <div className="p-4 space-y-4">
+            <div className="flex-1 overflow-y-auto p-4 space-y-4">
               {/* 결재선 */}
               <div>
                 <label className="block text-sm text-gray-600 mb-1">결재선</label>
@@ -706,24 +706,24 @@ export default function OvertimeWork({ onBack, userInfo, showToast }: OvertimeWo
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 resize-none"
                 />
               </div>
+            </div>
 
-              {/* Buttons */}
-              <div className="flex gap-3 pt-2">
-                <button
-                  onClick={() => setShowActualModal(false)}
-                  className="flex-1 py-2.5 border border-gray-300 text-gray-700 rounded-lg text-sm hover:bg-gray-50 transition-colors"
-                >
-                  닫기
-                </button>
-                <button
-                  onClick={handleSaveActual}
-                  disabled={savingActual}
-                  className="flex-1 py-2.5 bg-primary-500 text-white rounded-lg text-sm hover:bg-primary-600 disabled:bg-gray-400 transition-colors flex items-center justify-center gap-1"
-                >
-                  {savingActual ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
-                  저장
-                </button>
-              </div>
+            {/* Buttons - fixed at bottom */}
+            <div className="flex-shrink-0 border-t border-gray-200 bg-white px-4 py-3 flex gap-3">
+              <button
+                onClick={() => setShowActualModal(false)}
+                className="flex-1 py-2.5 border border-gray-300 text-gray-700 rounded-lg text-sm hover:bg-gray-50 transition-colors"
+              >
+                닫기
+              </button>
+              <button
+                onClick={handleSaveActual}
+                disabled={savingActual}
+                className="flex-1 py-2.5 bg-primary-500 text-white rounded-lg text-sm hover:bg-primary-600 disabled:bg-gray-400 transition-colors flex items-center justify-center gap-1"
+              >
+                {savingActual ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+                저장
+              </button>
             </div>
           </div>
         </div>
