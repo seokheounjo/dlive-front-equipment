@@ -479,7 +479,7 @@ export default function OvertimeWork({ onBack, userInfo, showToast }: OvertimeWo
 
       {/* ===== New Application Modal ===== */}
       {showApplyModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-end justify-center">
+        <div className="fixed inset-0 bg-black bg-opacity-50 z-[60] flex items-end justify-center">
           <div className="bg-white w-full max-w-lg rounded-t-2xl max-h-[85vh] flex flex-col">
             <div className="flex-shrink-0 bg-white border-b border-gray-200 px-4 py-3 flex items-center justify-between rounded-t-2xl">
               <h3 className="font-medium text-gray-800">시간외근무 신청</h3>
@@ -585,7 +585,7 @@ export default function OvertimeWork({ onBack, userInfo, showToast }: OvertimeWo
             </div>
 
             {/* Buttons - fixed at bottom */}
-            <div className="flex-shrink-0 border-t border-gray-200 bg-white px-4 py-3 flex gap-3 rounded-b-none">
+            <div className="flex-shrink-0 border-t border-gray-200 bg-white px-4 py-3 flex gap-3" style={{ paddingBottom: 'max(12px, env(safe-area-inset-bottom, 12px))' }}>
               <button
                 onClick={() => setShowApplyModal(false)}
                 className="flex-1 py-2.5 border border-gray-300 text-gray-700 rounded-lg text-sm hover:bg-gray-50 transition-colors"
@@ -607,7 +607,7 @@ export default function OvertimeWork({ onBack, userInfo, showToast }: OvertimeWo
 
       {/* ===== Actual Input Modal ===== */}
       {showActualModal && selectedRecord && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-end justify-center">
+        <div className="fixed inset-0 bg-black bg-opacity-50 z-[60] flex items-end justify-center">
           <div className="bg-white w-full max-w-lg rounded-t-2xl max-h-[85vh] flex flex-col">
             <div className="flex-shrink-0 bg-white border-b border-gray-200 px-4 py-3 flex items-center justify-between rounded-t-2xl">
               <h3 className="font-medium text-gray-800">실적 입력</h3>
@@ -712,7 +712,7 @@ export default function OvertimeWork({ onBack, userInfo, showToast }: OvertimeWo
             </div>
 
             {/* Buttons - fixed at bottom */}
-            <div className="flex-shrink-0 border-t border-gray-200 bg-white px-4 py-3 flex gap-3">
+            <div className="flex-shrink-0 border-t border-gray-200 bg-white px-4 py-3 flex gap-3" style={{ paddingBottom: 'max(12px, env(safe-area-inset-bottom, 12px))' }}>
               <button
                 onClick={() => setShowActualModal(false)}
                 className="flex-1 py-2.5 border border-gray-300 text-gray-700 rounded-lg text-sm hover:bg-gray-50 transition-colors"
