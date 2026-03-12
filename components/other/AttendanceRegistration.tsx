@@ -3,7 +3,7 @@ import {
   MapPin, Clock, Send, Search, ChevronDown, ChevronUp,
   Loader2, CalendarDays, LogIn, LogOut, RefreshCw, AlertTriangle
 } from 'lucide-react';
-import { loadMapApiKeys, pickRandomKey } from '../../services/navigationService';
+import { ensureKakaoGeocoderPublic } from '../../services/navigationService';
 
 interface AttendanceRegistrationProps {
   onBack: () => void;
@@ -88,37 +88,29 @@ const AttendanceRegistration: React.FC<AttendanceRegistrationProps> = ({
   const [historyOpen, setHistoryOpen] = useState(true);
   const historyRef = useRef<HTMLDivElement>(null);
 
-  // VWorld reverse geocoding (server proxy to bypass CORS)
-  const vworldFetch = async (point: string, key: string, type: string): Promise<any> => {
-    const res = await fetch(`/api/vworld/address?point=${encodeURIComponent(point)}&key=${encodeURIComponent(key)}&type=${type}`);
-    return res.json();
-  };
-
+  // Kakao reverse geocoding (coord2Address - no CORS issues, uses loaded SDK)
   const reverseGeocode = async (lat: number, lng: number): Promise<{ road: string; jibun: string }> => {
-    const mapKeys = await loadMapApiKeys();
-    const vworldKey = pickRandomKey(mapKeys.vworld);
-    if (!vworldKey) {
-      console.warn('[Attendance] MOMP001 VWorld key not found');
-      return { road: '', jibun: '' };
-    }
     try {
-      const point = `${lng},${lat}`;
-      // parcel + road parallel request
-      const [parcelData, roadData] = await Promise.all([
-        vworldFetch(point, vworldKey, 'parcel'),
-        vworldFetch(point, vworldKey, 'road'),
-      ]);
-      let jibun = '';
-      let road = '';
-      if (parcelData?.response?.status === 'OK' && parcelData.response.result) {
-        jibun = parcelData.response.result[0]?.text || '';
+      const ready = await ensureKakaoGeocoderPublic();
+      if (!ready) {
+        console.warn('[Attendance] Kakao Geocoder not available');
+        return { road: '', jibun: '' };
       }
-      if (roadData?.response?.status === 'OK' && roadData.response.result) {
-        road = roadData.response.result[0]?.text || '';
-      }
-      return { road, jibun };
+      const kakao = (window as any).kakao;
+      const geocoder = new kakao.maps.services.Geocoder();
+      return new Promise((resolve) => {
+        geocoder.coord2Address(lng, lat, (result: any, status: any) => {
+          if (status === kakao.maps.services.Status.OK && result[0]) {
+            const jibun = result[0].address?.address_name || '';
+            const road = result[0].road_address?.address_name || '';
+            resolve({ road, jibun });
+          } else {
+            resolve({ road: '', jibun: '' });
+          }
+        });
+      });
     } catch (e) {
-      console.warn('[Attendance] VWorld reverse geocode failed:', e);
+      console.warn('[Attendance] Kakao reverse geocode failed:', e);
       return { road: '', jibun: '' };
     }
   };

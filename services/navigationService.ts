@@ -183,4 +183,7 @@ export async function geocodeAndNavigate(address: string, app: NavApp): Promise<
   return true;
 }
 
+// Export ensureKakaoGeocoder for external use (attendance reverse geocoding)
+export { ensureKakaoGeocoder as ensureKakaoGeocoderPublic };
+
 export type { NavApp, NavigationTarget };
