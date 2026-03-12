@@ -85,7 +85,7 @@ function getDeviceType(): string {
     const ua = navigator.userAgent || '';
     if (/iPad/i.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)) return 'IPAD';
     if (/iPhone/i.test(ua)) return 'IPHONE';
-    if (/Android/i.test(ua)) return 'ANDROID';
+    if (/Android/i.test(ua)) return /Mobile/i.test(ua) ? 'ANDROID' : 'ANDROID_TAB';
     return 'PC';
   } catch {
     return 'PC';
