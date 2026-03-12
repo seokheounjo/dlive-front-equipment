@@ -10,10 +10,30 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import dayjs from 'dayjs';
 
-type View = 'today-work' | 'menu' | 'work-management' | 'work-order-detail' | 'work-process-flow' | 'work-complete-form' | 'work-complete-detail' | 'work-item-list' | 'customer-management' | 'equipment-management' | 'other-management' | 'coming-soon' | 'settings';
+type View = 'today-work' | 'menu' | 'work-management' | 'work-order-detail' | 'work-process-flow' | 'work-complete-form' | 'work-complete-detail' | 'work-item-list' | 'customer-management' | 'equipment-management' | 'other-management' | 'coming-soon' | 'settings' | 'api-explorer';
 
-type FontScale = 'small' | 'medium' | 'large' | 'xlarge';
+interface SignalNavigationContext {
+  ctrtId: string;
+  custId: string;
+  workType: string;       // WRK_CD: 01=설치, 02=철거, 03=A/S, 04=정지, 05=상품변경, 06=댁내이전, 07=이전설치, 08=이전철거
+  wrkDtlTcd?: string;     // 작업상세코드 (정지: 0410~0480)
+  prodCd?: string;        // PROD_CD (signalType 감지용)
+  prodNm?: string;        // 상품명 (검색조건 영역 표시용)
+  soId?: string;          // SO_ID (signalType 감지용)
+  equipmentData?: any;
+  returnView: View;
+}
+
+type ToastType = 'info' | 'success' | 'warning' | 'error';
+
+interface GlobalToast {
+  message: string;
+  type: ToastType;
+  timestamp: number;
+}
+
 type NavAppPreference = 'kakao' | 'tmap' | 'naver';
+type FontScale = 'small' | 'medium' | 'large' | 'xlarge';
 // FilterType은 WorkOrderStatus enum 값과 일치해야 함 (진행중, 완료, 취소)
 type FilterType = '진행중' | '완료' | '취소' | '전체';
 
@@ -38,10 +58,6 @@ interface UIStore {
   currentView: View;
   setCurrentView: (view: View) => void;
 
-  // 지도 뷰 표시 여부
-  showMapView: boolean;
-  setShowMapView: (show: boolean) => void;
-
   // 작업 필터
   workFilters: WorkFilters;
   setWorkFilters: (filters: WorkFilters) => void;
@@ -54,13 +70,29 @@ interface UIStore {
   selectedWorkDirection: any | null;
   setSelectedWorkDirection: (direction: any | null) => void;
 
+  // 재약정 대상 맵 (direction.id → boolean)
+  recontractMap: Record<string, boolean>;
+  setRecontractMap: (map: Record<string, boolean>) => void;
+
+  // 지도 보기
+  showMapView: boolean;
+  setShowMapView: (show: boolean) => void;
+
+  // 네비게이션 앱 선호도
+  preferredNavApp: NavAppPreference;
+  setPreferredNavApp: (app: NavAppPreference) => void;
+
   // 글자 크기 설정
   fontScale: FontScale;
   setFontScale: (scale: FontScale) => void;
 
-  // 길찾기 앱 설정
-  preferredNavApp: NavAppPreference;
-  setPreferredNavApp: (app: NavAppPreference) => void;
+  // 신호연동 네비게이션 컨텍스트 (세션 한정, persist 대상 아님)
+  signalNavContext: SignalNavigationContext | null;
+  setSignalNavContext: (ctx: SignalNavigationContext | null) => void;
+
+  // 글로벌 Toast (showToast prop 없는 컴포넌트에서 사용)
+  globalToast: GlobalToast | null;
+  showGlobalToast: (message: string, type?: ToastType) => void;
 }
 
 // dayjs로 현재 월 기간 계산
@@ -82,9 +114,12 @@ export const useUIStore = create<UIStore>()(
       },
       selectedWorkItem: null,
       selectedWorkDirection: null,
-      fontScale: 'medium' as FontScale,
-      preferredNavApp: 'kakao' as NavAppPreference,
+      recontractMap: {},
       showMapView: false,
+      preferredNavApp: 'kakao' as NavAppPreference,
+      fontScale: 'medium' as FontScale,
+      signalNavContext: null,
+      globalToast: null,
 
       // Actions
       openDrawer: () => set({ isDrawerOpen: true }),
@@ -92,11 +127,14 @@ export const useUIStore = create<UIStore>()(
       setActiveTab: (tab: string) => set({ activeTab: tab }),
       setCurrentView: (view: View) => set({ currentView: view, showMapView: false }),
       setShowMapView: (show: boolean) => set({ showMapView: show }),
+      setPreferredNavApp: (app: NavAppPreference) => set({ preferredNavApp: app }),
       setWorkFilters: (filters: WorkFilters) => set({ workFilters: filters }),
       setSelectedWorkItem: (item: any | null) => set({ selectedWorkItem: item }),
       setSelectedWorkDirection: (direction: any | null) => set({ selectedWorkDirection: direction }),
+      setRecontractMap: (map: Record<string, boolean>) => set({ recontractMap: map }),
       setFontScale: (scale: FontScale) => set({ fontScale: scale }),
-      setPreferredNavApp: (app: NavAppPreference) => set({ preferredNavApp: app }),
+      setSignalNavContext: (ctx: SignalNavigationContext | null) => set({ signalNavContext: ctx }),
+      showGlobalToast: (message: string, type: ToastType = 'info') => set({ globalToast: { message, type, timestamp: Date.now() } }),
     }),
     {
       name: 'dlive-ui-storage', // localStorage 키

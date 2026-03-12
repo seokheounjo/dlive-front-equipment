@@ -26,7 +26,7 @@
   width: 2.5rem;
   height: 2.5rem;
   border: 0.25rem solid #f3f3f3;
-  border-top: 0.25rem solid #007bff;
+  border-top: 0.25rem solid #00B0C8;
   border-radius: 50%;
   animation: spin 1s linear infinite;
 }
@@ -125,7 +125,7 @@
 
 .count-input:focus {
   outline: none;
-  border-color: #007bff;
+  border-color: #00B0C8;
   box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.1);
 }
 
@@ -137,7 +137,7 @@
 
 .add-btn {
   padding: 0.5rem 0.75rem;
-  background: #007bff;
+  background: #00B0C8;
   color: white;
   border: none;
   border-radius: 0.375rem;
@@ -149,7 +149,7 @@
 }
 
 .add-btn:hover {
-  background: #0056b3;
+  background: #009DB3;
 }
 
 .add-btn:active {
@@ -209,7 +209,7 @@
 }
 
 .equipment-item.selected {
-  border-color: #007bff;
+  border-color: #00B0C8;
   background: #eff6ff;
   box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.1);
 }
@@ -248,7 +248,7 @@
 
 .equipment-title .badge {
   padding: 0.125rem 0.375rem;
-  background: #007bff;
+  background: #00B0C8;
   color: white;
   font-size: 0.625rem;
   font-weight: 500;

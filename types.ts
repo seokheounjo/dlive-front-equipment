@@ -169,6 +169,10 @@ export interface WorkItem {
   WRKR_ID?: string;        // 작업자 ID (장비이관에 필요)
 
   // A/S 작업 관련 (WRK_CD = '03')
+  FMS_AS_WRK_STAT_CD?: string; // 망이관 중복 체크용
+  WORK_REQ_TEL_NO?: string;    // 전화번호 (작업요청)
+  CUST_TEL_NO1?: string;       // 고객 전화번호1
+  CUST_TEL_NO2?: string;       // 고객 전화번호2
   asHistory?: ASHistory[];   // A/S 이력
   asReasonCode?: string;     // A/S 접수 유형 (WRK_RCPT_CL)
   asDetailCode?: string;     // A/S 접수 상세 유형 (WRK_RCPT_CL_DTL)
@@ -436,6 +440,7 @@ export interface CommonCodeItem {
   ref_code?: string;        // 참조코드 (상품그룹코드 등)
   ref_code2?: string;       // 참조코드2 (설치유형 등)
   ref_code3?: string;       // 참조코드3 (날짜 등)
+  ref_code6?: string;       // 참조코드6 (LGCT001: network type N=optical etc)
   ref_code8?: string;       // 참조코드8 (LGCT001: OP_LNKD_CD 통신방식 F/FG/Z/ZG=FTTH)
   ref_code12?: string;      // 참조코드12 (LGCT001: Wide 여부)
 }

@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import dayjs from 'dayjs';
 import { WorkOrder, WorkDirection, WorkOrderStatus, SmsSendData } from '../../types';
 import WorkDirectionRow from './WorkDirectionRow';
@@ -14,7 +15,7 @@ import SignalIntegration from '../other/SignalIntegration';
 import FloatingMapButton from '../common/FloatingMapButton';
 import WorkMapView from './WorkMapView';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '../ui/tabs';
-import { cancelWork, checkDemoMode, parseWorkStatusFromStrings, WorkStatusCounts, NetworkError, getSafetyCheckResultInfo } from '../../services/apiService';
+import { cancelWork, checkDemoMode, parseWorkStatusFromStrings, WorkStatusCounts, NetworkError, getSafetyCheckResultInfo, getAfterProcInfo } from '../../services/apiService';
 import LoadingSpinner from '../common/LoadingSpinner';
 import ErrorMessage from '../common/ErrorMessage';
 import { AlertTriangle, X, ChevronLeft, ChevronRight, ClipboardList } from 'lucide-react';
@@ -63,9 +64,13 @@ const Dashboard: React.FC<DashboardProps> = ({
   const [isStatusCountsLoading, setIsStatusCountsLoading] = useState<boolean>(false);
 
   // UI Store 사용 (Zustand)
-  const { activeTab, setActiveTab, workFilters, setWorkFilters } = useUIStore();
+  const { activeTab, setActiveTab, workFilters, setWorkFilters, recontractMap, setRecontractMap } = useUIStore();
 
-  const [isFilterExpanded, setIsFilterExpanded] = useState<boolean>(false);
+  const [isDatePickerOpen, setIsDatePickerOpen] = useState<boolean>(false);
+  const [tempStartDate, setTempStartDate] = useState<string>('');
+  const [tempEndDate, setTempEndDate] = useState<string>('');
+  const [calendarMonth, setCalendarMonth] = useState<dayjs.Dayjs>(dayjs()); // calendar view month
+  const [selectingPhase, setSelectingPhase] = useState<'start' | 'end'>('start'); // start or end date selecting
   const [isFilterVisible, setIsFilterVisible] = useState<boolean>(true);
   const tabListRef = useRef<HTMLDivElement>(null);
   const tabButtonRefs = useRef<(HTMLButtonElement | null)[]>([]);
@@ -84,7 +89,7 @@ const Dashboard: React.FC<DashboardProps> = ({
     }
     return false;
   });
-  const { showMapView, setShowMapView } = useUIStore();
+  const [showMapView, setShowMapView] = useState<boolean>(false);
 
   // 작업관리 하위 메뉴 탭 데이터
   const workManagementTabs = [
@@ -113,7 +118,7 @@ const Dashboard: React.FC<DashboardProps> = ({
   }, [activeTab]);
 
   // React Query로 작업 목록 조회
-  const { data: directions = [], isLoading, error: queryError, refetch } = useWorkOrders({ startDate, endDate });
+  const { data: directions = [], isLoading, isFetching, error: queryError, refetch } = useWorkOrders({ startDate, endDate });
   const error = queryError?.message || null;
 
   // 필터 업데이트 헬퍼 함수
@@ -137,6 +142,75 @@ const Dashboard: React.FC<DashboardProps> = ({
       startDate: d.startOf('month').format(DATE_FORMAT),
       endDate: d.endOf('month').format(DATE_FORMAT)
     });
+  };
+
+  // 날짜 피커 열기
+  const openDatePicker = () => {
+    setTempStartDate(startDate);
+    setTempEndDate(endDate);
+    setCalendarMonth(dayjs(startDate));
+    setSelectingPhase('start');
+    setIsDatePickerOpen(true);
+  };
+
+  // 캘린더 날짜 클릭
+  const handleCalendarDayClick = (dateStr: string) => {
+    if (selectingPhase === 'start') {
+      setTempStartDate(dateStr);
+      setTempEndDate('');
+      setSelectingPhase('end');
+    } else {
+      // end phase
+      if (dayjs(dateStr).isBefore(dayjs(tempStartDate))) {
+        // clicked before start → reset start
+        setTempStartDate(dateStr);
+        setTempEndDate('');
+        setSelectingPhase('end');
+      } else {
+        setTempEndDate(dateStr);
+        setSelectingPhase('start');
+      }
+    }
+  };
+
+  // 캘린더 그리드 생성
+  const calendarDays = useMemo(() => {
+    const first = calendarMonth.startOf('month');
+    const last = calendarMonth.endOf('month');
+    const startDay = first.day(); // 0=Sun
+    const daysInMonth = last.date();
+
+    const days: { date: string; day: number; isCurrentMonth: boolean }[] = [];
+
+    // prev month padding
+    const prevMonth = first.subtract(1, 'month');
+    const prevDays = prevMonth.daysInMonth();
+    for (let i = startDay - 1; i >= 0; i--) {
+      const d = prevDays - i;
+      days.push({ date: prevMonth.date(d).format(DATE_FORMAT), day: d, isCurrentMonth: false });
+    }
+
+    // current month
+    for (let d = 1; d <= daysInMonth; d++) {
+      days.push({ date: first.date(d).format(DATE_FORMAT), day: d, isCurrentMonth: true });
+    }
+
+    // next month padding (fill to 42 = 6 rows)
+    const remaining = 42 - days.length;
+    const nextMonth = first.add(1, 'month');
+    for (let d = 1; d <= remaining; d++) {
+      days.push({ date: nextMonth.date(d).format(DATE_FORMAT), day: d, isCurrentMonth: false });
+    }
+
+    return days;
+  }, [calendarMonth]);
+
+  // 날짜 피커 적용
+  const applyDateRange = () => {
+    if (tempStartDate && tempEndDate) {
+      updateFilters({ startDate: tempStartDate, endDate: tempEndDate });
+    }
+    setIsDatePickerOpen(false);
   };
 
   // 이전 달로 이동
@@ -189,6 +263,18 @@ const Dashboard: React.FC<DashboardProps> = ({
       setIsStatusCountsLoading(false);
     }
   }, [directions]);
+
+  // 재약정 대상 맵 (directions의 CLOSE_DANGER 필드에서 직접 생성)
+  useEffect(() => {
+    if (directions.length === 0) return;
+    const map: Record<string, boolean> = {};
+    directions.forEach((d: any) => {
+      if (d.CLOSE_DANGER === 'Y') {
+        map[d.id] = true;
+      }
+    });
+    setRecontractMap(map);
+  }, [directions, setRecontractMap]);
 
   // Zustand persist가 자동으로 workFilters를 localStorage에 저장
   // SESSION_KEYS.WORK_FILTERS 수동 저장 불필요
@@ -496,9 +582,9 @@ const Dashboard: React.FC<DashboardProps> = ({
     return count;
   };
 
-  // 모든 필터 초기화
-  const clearAllFilters = () => {
-    updateFilters({ filter: '전체', workTypeFilter: '전체' });
+  // 작업 목록 새로고침
+  const refreshDirections = () => {
+    refetch();
   };
 
   // 모든 데이터 표시
@@ -612,7 +698,7 @@ const Dashboard: React.FC<DashboardProps> = ({
 
 
   return (
-    <div className="h-[calc(100vh-64px)] flex flex-col overflow-hidden">
+    <div className="h-[calc(100dvh-64px)] flex flex-col overflow-hidden">
       {/* Shadcn Tabs */}
       <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full flex flex-col h-full overflow-hidden">
         <div className="flex-shrink-0 bg-white border-b border-gray-200">
@@ -622,7 +708,7 @@ const Dashboard: React.FC<DashboardProps> = ({
                 key={tab.id} 
                 value={tab.id}
                 ref={(el) => (tabButtonRefs.current[idx] = el)}
-                className="data-[state=active]:bg-blue-500 data-[state=active]:text-white data-[state=inactive]:text-gray-600 rounded-full px-4 py-2 text-sm font-medium flex-shrink-0 mx-1 transition-colors"
+                className="data-[state=active]:bg-primary-500 data-[state=active]:text-white data-[state=inactive]:text-gray-600 rounded-full px-4 py-2 text-sm font-medium flex-shrink-0 mx-1 transition-colors"
               >
                 {tab.title}
               </TabsTrigger>
@@ -648,20 +734,29 @@ const Dashboard: React.FC<DashboardProps> = ({
             {safetyCheckWarning && !dismissedSafetyWarning && (
               <div className="mb-3 bg-yellow-50 border-l-4 border-yellow-400 p-3 rounded-lg shadow-sm">
                 <div className="flex items-start justify-between">
-                  <div className="flex items-start gap-3">
+                  <button
+                    className="flex items-start gap-3 flex-1 text-left"
+                    onClick={() => {
+                      setActiveTab('safety-check');
+                      setDismissedSafetyWarning(true);
+                      localStorage.setItem('safety_warning_dismissed', new Date().toISOString());
+                    }}
+                  >
                     <AlertTriangle className="w-5 h-5 text-yellow-600 flex-shrink-0 mt-0.5" />
                     <div>
                       <h3 className="text-sm font-semibold text-yellow-800">
                         오늘의 안전점검이 완료되지 않았습니다.
                       </h3>
+                      <p className="text-xs text-yellow-600 mt-0.5">터치하여 안전점검으로 이동</p>
                     </div>
-                  </div>
+                  </button>
                   <button
-                    onClick={() => {
+                    onClick={(e) => {
+                      e.stopPropagation();
                       setDismissedSafetyWarning(true);
                       localStorage.setItem('safety_warning_dismissed', new Date().toISOString());
                     }}
-                    className="text-yellow-600 hover:text-yellow-800 transition-colors"
+                    className="text-yellow-600 hover:text-yellow-800 transition-colors flex-shrink-0 ml-2"
                     title="닫기"
                   >
                     <X className="w-4 h-4" />
@@ -671,125 +766,77 @@ const Dashboard: React.FC<DashboardProps> = ({
             )}
 
 
-            {/* 토스 스타일 날짜/필터 섹션 */}
+            {/* 날짜 + 필터 한 줄 */}
             <div className="bg-white rounded-2xl shadow-sm border border-gray-100 mb-3 overflow-hidden">
-        {/* 날짜 선택 - 토스 스타일 */}
-        <div className="p-3">
-          <div className="flex items-center gap-1.5">
-            <button
-              onClick={goToPreviousMonth}
-              className="p-2 rounded-full hover:bg-gray-100 active:bg-gray-200 transition-colors"
-            >
-              <ChevronLeft className="w-5 h-5 text-gray-500" />
-            </button>
+              <div className="px-2 py-2 flex items-center gap-1">
+                {/* 이전 달 */}
+                <button
+                  onClick={goToPreviousMonth}
+                  className="p-1.5 rounded-full hover:bg-gray-100 active:bg-gray-200 transition-colors flex-shrink-0"
+                >
+                  <ChevronLeft className="w-4 h-4 text-gray-400" />
+                </button>
 
-            <div className="flex-1 flex items-center justify-center gap-2">
-              <div className="relative">
-                <input
-                  type="date"
-                  value={startDate}
-                  onChange={(e) => handleStartDateChange(e.target.value)}
-                  className="absolute inset-0 opacity-0 cursor-pointer"
-                  style={{ colorScheme: 'light' }}
-                />
-                <span className="text-sm font-semibold text-gray-800">
-                  {new Date(startDate).toLocaleDateString('ko-KR', { month: 'short', day: 'numeric' })}
-                </span>
-              </div>
-              <span className="text-gray-300">—</span>
-              <div className="relative">
-                <input
-                  type="date"
-                  value={endDate}
-                  onChange={(e) => handleEndDateChange(e.target.value)}
-                  className="absolute inset-0 opacity-0 cursor-pointer"
-                  style={{ colorScheme: 'light' }}
-                />
-                <span className="text-sm font-semibold text-gray-800">
-                  {new Date(endDate).toLocaleDateString('ko-KR', { month: 'short', day: 'numeric' })}
-                </span>
-              </div>
-            </div>
+                {/* 날짜 범위 버튼 */}
+                <button
+                  onClick={openDatePicker}
+                  className="px-2 py-1.5 rounded-lg hover:bg-gray-50 active:bg-gray-100 transition-colors flex-shrink-0"
+                >
+                  <span className="text-xs font-semibold text-gray-800 whitespace-nowrap">
+                    {dayjs(startDate).format('M/D')}~{dayjs(endDate).format('M/D')}
+                  </span>
+                </button>
 
-            <button
-              onClick={goToNextMonth}
-              className="p-2 rounded-full hover:bg-gray-100 active:bg-gray-200 transition-colors"
-            >
-              <ChevronRight className="w-5 h-5 text-gray-500" />
-            </button>
-          </div>
-        </div>
+                {/* 다음 달 */}
+                <button
+                  onClick={goToNextMonth}
+                  className="p-1.5 rounded-full hover:bg-gray-100 active:bg-gray-200 transition-colors flex-shrink-0"
+                >
+                  <ChevronRight className="w-4 h-4 text-gray-400" />
+                </button>
 
-        {/* 필터 토글 - 컴팩트 */}
-        <button
-          onClick={() => setIsFilterExpanded(!isFilterExpanded)}
-          className="w-full px-4 py-2.5 flex items-center justify-between border-t border-gray-100 hover:bg-gray-50 transition-colors"
-        >
-          <div className="flex items-center gap-2">
-            <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
-            </svg>
-            <span className="text-sm text-gray-600">필터</span>
-            {getActiveFilterCount() > 0 && (
-              <span className="px-1.5 py-0.5 bg-blue-500 text-white text-xs font-medium rounded-full">
-                {getActiveFilterCount()}
-              </span>
-            )}
-          </div>
-          <svg
-            className={`w-4 h-4 text-gray-400 transition-transform duration-200 ${isFilterExpanded ? 'rotate-180' : ''}`}
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-          </svg>
-        </button>
+                {/* 구분선 */}
+                <div className="w-px h-5 bg-gray-200 flex-shrink-0" />
 
-        {/* 확장 필터 - 컴팩트 */}
-        {isFilterExpanded && (
-          <div className="px-4 py-3 bg-gray-50 border-t border-gray-100">
-            {/* 상태 & 작업유형 - 한 줄에 2개 + 초기화 아이콘 */}
-            <div className="flex items-end gap-2">
-              <div className="flex-1 min-w-0">
-                <label className="block text-xs font-medium text-gray-500 mb-1">상태</label>
-                <Select
-                  value={filter}
-                  onValueChange={(val) => updateFilters({ filter: val as FilterType })}
-                  options={statusOptions}
-                />
+                {/* 상태 필터 */}
+                <div className="flex-1 min-w-0">
+                  <Select
+                    value={filter}
+                    onValueChange={(val) => updateFilters({ filter: val as FilterType })}
+                    options={statusOptions}
+                    className="[&_button]:p-1.5 [&_button]:text-xs [&_button]:border-0 [&_button]:bg-transparent [&_button]:rounded-lg [&_button]:hover:bg-gray-50"
+                  />
+                </div>
+
+                {/* 작업유형 필터 */}
+                <div className="flex-1 min-w-0">
+                  <Select
+                    value={workTypeFilter}
+                    onValueChange={(val) => updateFilters({ workTypeFilter: val })}
+                    options={workTypeOptions}
+                    className="[&_button]:p-1.5 [&_button]:text-xs [&_button]:border-0 [&_button]:bg-transparent [&_button]:rounded-lg [&_button]:hover:bg-gray-50"
+                  />
+                </div>
+
+                {/* 새로고침 */}
+                <button
+                  onClick={refreshDirections}
+                  disabled={isFetching}
+                  className="p-1.5 rounded-full text-primary-600 hover:bg-primary-50 active:bg-primary-100 transition-colors flex-shrink-0 disabled:text-gray-400 disabled:cursor-not-allowed"
+                  title="목록 새로고침"
+                >
+                  <svg className={`w-3.5 h-3.5 ${isFetching ? 'animate-spin' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                  </svg>
+                </button>
               </div>
-              <div className="flex-1 min-w-0">
-                <label className="block text-xs font-medium text-gray-500 mb-1">작업유형</label>
-                <Select
-                  value={workTypeFilter}
-                  onValueChange={(val) => updateFilters({ workTypeFilter: val })}
-                  options={workTypeOptions}
-                />
-              </div>
-              <button
-                onClick={clearAllFilters}
-                className={`p-2 rounded-lg transition-colors flex-shrink-0 ${
-                  getActiveFilterCount() > 0
-                    ? 'text-blue-600 bg-blue-50 hover:bg-blue-100'
-                    : 'text-gray-400 bg-gray-100'
-                }`}
-                title="필터 초기화"
-              >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                </svg>
-              </button>
-            </div>
-          </div>
-        )}
             </div>
             </div>
           </div>
 
           {/* 스크롤 가능한 작업 목록 영역 */}
           <div ref={scrollContainerRef} className="flex-1 overflow-y-auto px-3 pb-4">
-            {isLoading || isStatusCountsLoading ? (
+            {(isLoading || isStatusCountsLoading || (isFetching && !isLoading)) ? (
               <LoadingSpinner size="medium" message={isLoading ? "작업 목록을 불러오는 중..." : "작업 상태를 불러오는 중..."} />
             ) : error ? (
               <ErrorMessage
@@ -811,6 +858,7 @@ const Dashboard: React.FC<DashboardProps> = ({
                         onSms={handleSmsDirection}
                         onWorkerAdjust={handleWorkerAdjust}
                         workStatusCounts={workStatusCounts[order.id]}
+                        isRecontract={recontractMap[order.id]}
                       />
                     ))}
                   </div>
@@ -893,13 +941,160 @@ const Dashboard: React.FC<DashboardProps> = ({
       {/* 지도 뷰 */}
       {showMapView && (
         <WorkMapView
-          workOrders={filteredDirections}
+          directions={filteredDirections}
           onBack={() => setShowMapView(false)}
           onSelectWork={(work) => {
             setShowMapView(false);
             handleSelectDirection(work);
           }}
         />
+      )}
+
+      {/* 날짜 범위 선택 바텀시트 */}
+      {isDatePickerOpen && createPortal(
+        <>
+          <div
+            className="fixed inset-0 bg-black/50"
+            style={{ zIndex: 99999 }}
+            onClick={() => setIsDatePickerOpen(false)}
+          />
+          <div
+            className="fixed bottom-0 left-0 right-0 bg-white rounded-t-xl shadow-2xl"
+            style={{ zIndex: 100000 }}
+          >
+            <div className="flex justify-center py-2">
+              <div className="w-8 h-1 bg-gray-300 rounded-full" />
+            </div>
+            <div className="px-4 pb-2">
+              {/* 선택된 범위 표시 */}
+              <div className="flex items-center justify-center gap-2 mb-3">
+                <button
+                  onClick={() => { setSelectingPhase('start'); }}
+                  className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
+                    selectingPhase === 'start' ? 'bg-primary-500 text-white' : 'bg-gray-100 text-gray-700'
+                  }`}
+                >
+                  {tempStartDate ? `${dayjs(tempStartDate).format('M/D')}(${['일','월','화','수','목','금','토'][dayjs(tempStartDate).day()]})` : '시작일'}
+                </button>
+                <span className="text-gray-400">~</span>
+                <button
+                  onClick={() => { if (tempStartDate) setSelectingPhase('end'); }}
+                  className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
+                    selectingPhase === 'end' ? 'bg-primary-500 text-white' : 'bg-gray-100 text-gray-700'
+                  }`}
+                >
+                  {tempEndDate ? `${dayjs(tempEndDate).format('M/D')}(${['일','월','화','수','목','금','토'][dayjs(tempEndDate).day()]})` : '종료일'}
+                </button>
+              </div>
+
+              {/* 월 네비게이션 */}
+              <div className="flex items-center justify-between mb-2">
+                <button
+                  onClick={() => setCalendarMonth(calendarMonth.subtract(1, 'month'))}
+                  className="p-2 rounded-full hover:bg-gray-100 active:bg-gray-200 transition-colors"
+                >
+                  <ChevronLeft className="w-5 h-5 text-gray-600" />
+                </button>
+                <span className="text-base font-bold text-gray-800">
+                  {calendarMonth.format('YYYY년 M월')}
+                </span>
+                <button
+                  onClick={() => setCalendarMonth(calendarMonth.add(1, 'month'))}
+                  className="p-2 rounded-full hover:bg-gray-100 active:bg-gray-200 transition-colors"
+                >
+                  <ChevronRight className="w-5 h-5 text-gray-600" />
+                </button>
+              </div>
+
+              {/* 요일 헤더 */}
+              <div className="grid grid-cols-7 mb-1">
+                {['일','월','화','수','목','금','토'].map((d, i) => (
+                  <div key={d} className={`text-center text-xs font-medium py-1 ${i === 0 ? 'text-red-400' : i === 6 ? 'text-blue-400' : 'text-gray-400'}`}>
+                    {d}
+                  </div>
+                ))}
+              </div>
+
+              {/* 날짜 그리드 */}
+              <div className="grid grid-cols-7">
+                {calendarDays.map((cell, idx) => {
+                  const isStart = tempStartDate === cell.date;
+                  const isEnd = tempEndDate === cell.date;
+                  const isInRange = tempStartDate && tempEndDate &&
+                    dayjs(cell.date).isAfter(dayjs(tempStartDate)) &&
+                    dayjs(cell.date).isBefore(dayjs(tempEndDate));
+                  const isToday = cell.date === dayjs().format(DATE_FORMAT);
+                  const dow = idx % 7;
+
+                  return (
+                    <button
+                      key={cell.date}
+                      onClick={() => handleCalendarDayClick(cell.date)}
+                      className={`relative h-10 flex items-center justify-center text-sm transition-colors
+                        ${!cell.isCurrentMonth ? 'text-gray-300' : dow === 0 ? 'text-red-500' : dow === 6 ? 'text-blue-500' : 'text-gray-700'}
+                        ${isStart || isEnd ? 'bg-primary-500 text-white font-bold rounded-full z-10' : ''}
+                        ${isInRange ? 'bg-primary-50' : ''}
+                        ${!isStart && !isEnd && cell.isCurrentMonth ? 'hover:bg-gray-100 active:bg-gray-200 rounded-full' : ''}
+                      `}
+                    >
+                      {isToday && !isStart && !isEnd && (
+                        <span className="absolute bottom-0.5 left-1/2 -translate-x-1/2 w-1 h-1 bg-primary-500 rounded-full" />
+                      )}
+                      {cell.day}
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* 빠른 선택 */}
+              <div className="flex gap-2 mt-3">
+                {[
+                  { label: '이번 달', fn: () => {
+                    const s = dayjs().startOf('month').format(DATE_FORMAT);
+                    const e = dayjs().endOf('month').format(DATE_FORMAT);
+                    setTempStartDate(s); setTempEndDate(e); setCalendarMonth(dayjs()); setSelectingPhase('start');
+                  }},
+                  { label: '지난 달', fn: () => {
+                    const p = dayjs().subtract(1, 'month');
+                    setTempStartDate(p.startOf('month').format(DATE_FORMAT)); setTempEndDate(p.endOf('month').format(DATE_FORMAT));
+                    setCalendarMonth(p); setSelectingPhase('start');
+                  }},
+                  { label: '최근 7일', fn: () => {
+                    setTempStartDate(dayjs().subtract(6, 'day').format(DATE_FORMAT)); setTempEndDate(dayjs().format(DATE_FORMAT));
+                    setCalendarMonth(dayjs()); setSelectingPhase('start');
+                  }},
+                ].map((btn) => (
+                  <button
+                    key={btn.label}
+                    onClick={btn.fn}
+                    className="flex-1 py-2 text-xs font-medium text-gray-600 bg-gray-100 rounded-lg hover:bg-gray-200 active:bg-gray-300 transition-colors"
+                  >
+                    {btn.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div
+              className="px-5 py-3 border-t border-gray-200 flex gap-3"
+              style={{ paddingBottom: 'calc(0.75rem + env(safe-area-inset-bottom))' }}
+            >
+              <button
+                onClick={() => setIsDatePickerOpen(false)}
+                className="flex-1 py-2.5 text-sm font-medium text-gray-600 bg-gray-100 rounded-lg"
+              >
+                취소
+              </button>
+              <button
+                onClick={applyDateRange}
+                disabled={!tempStartDate || !tempEndDate}
+                className={`flex-1 py-2.5 text-sm font-medium rounded-lg ${tempStartDate && tempEndDate ? 'text-white bg-primary-500 active:bg-primary-600' : 'text-gray-400 bg-gray-200 cursor-not-allowed'}`}
+              >
+                적용
+              </button>
+            </div>
+          </div>
+        </>,
+        document.body
       )}
     </div>
   );

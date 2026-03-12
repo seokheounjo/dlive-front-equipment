@@ -5,6 +5,7 @@ import { ChevronDown, Check } from 'lucide-react';
 interface SelectOption {
   value: string;
   label: string;
+  shortLabel?: string;  // 선택 버튼에 표시될 짧은 라벨 (없으면 label 사용)
 }
 
 interface SelectProps {
@@ -64,10 +65,10 @@ const Select: React.FC<SelectProps> = ({
         onClick={() => !disabled && setIsOpen(!isOpen)}
         disabled={disabled}
         className={`
-          w-full p-3 text-left border border-gray-300 rounded-lg
+          w-full p-2.5 sm:p-3 text-left border border-gray-300 rounded-lg
           transition-colors duration-200 flex items-center justify-between
           ${disabled
-            ? 'bg-gray-100 cursor-not-allowed opacity-60'
+            ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
             : 'bg-white hover:border-gray-400 focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500'
           }
           ${isOpen && !disabled ? 'ring-2 ring-cyan-500 border-cyan-500' : ''}
@@ -76,8 +77,8 @@ const Select: React.FC<SelectProps> = ({
         aria-haspopup="listbox"
         required={required}
       >
-        <span className={`text-base ${selectedOption ? 'text-gray-900' : 'text-gray-500'}`}>
-          {selectedOption ? selectedOption.label : placeholder}
+        <span className={`text-sm sm:text-base truncate ${selectedOption ? 'text-gray-900' : 'text-gray-500'}`}>
+          {selectedOption ? (selectedOption.shortLabel || selectedOption.label) : placeholder}
         </span>
         <ChevronDown
           className={`w-4 h-4 text-gray-400 transition-transform duration-200 ${
@@ -107,7 +108,7 @@ const Select: React.FC<SelectProps> = ({
             }}
           >
             {/* 핸들 */}
-            <div className="flex justify-center py-3 bg-white rounded-t-xl" style={{ flexShrink: 0 }}>
+            <div className="flex justify-center py-2 sm:py-3 bg-white rounded-t-xl" style={{ flexShrink: 0 }}>
               <div className="w-8 h-1 bg-gray-300 rounded-full"></div>
             </div>
 
@@ -127,7 +128,7 @@ const Select: React.FC<SelectProps> = ({
                     type="button"
                     onClick={() => handleSelect(option.value)}
                     className={`
-                      w-full px-4 py-3 text-left text-base hover:bg-gray-50
+                      w-full px-3 sm:px-4 py-2.5 sm:py-3 text-left text-sm sm:text-base hover:bg-gray-50
                       transition-colors duration-150 flex items-center justify-between
                       ${value === option.value ? 'bg-cyan-50 text-cyan-700' : 'text-gray-900'}
                     `}
@@ -149,16 +150,16 @@ const Select: React.FC<SelectProps> = ({
 
             {/* 취소 버튼 - 항상 하단 고정 */}
             <div
-              className="p-4 border-t border-gray-200 bg-white"
+              className="p-3 sm:p-4 border-t border-gray-200 bg-white"
               style={{
                 flexShrink: 0,
-                paddingBottom: 'calc(1rem + env(safe-area-inset-bottom))',
+                paddingBottom: 'calc(0.75rem + env(safe-area-inset-bottom))',
               }}
             >
               <button
                 type="button"
                 onClick={() => setIsOpen(false)}
-                className="w-full py-3 text-center text-gray-600 font-medium"
+                className="w-full py-2.5 sm:py-3 text-center text-gray-600 font-medium text-sm sm:text-base"
               >
                 취소
               </button>

@@ -4,6 +4,7 @@ import {
   RefreshCw, CheckCircle, XCircle, FileText, ChevronDown, ChevronUp, PenTool,
   MessageSquare
 } from 'lucide-react';
+import Select from '../ui/Select';
 import {
   getPromOfContract,
   saveCtrtAgreeInfo,
@@ -569,30 +570,30 @@ const ReContractModule: React.FC<ReContractModuleProps> = ({
 
                 <div className="flex items-center gap-2">
                   <label className="text-xs text-gray-600 flex-shrink-0 w-16">변경 구분</label>
-                  <select
+                  <Select
                     value={batchForm.promChgCd}
-                    onChange={(e) => setBatchForm(prev => ({ ...prev, promChgCd: e.target.value }))}
-                    className="flex-1 px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
-                  >
-                    <option value="">선택</option>
-                    {promChangeCodes.map(c => (
-                      <option key={c.CODE} value={c.CODE}>{c.CODE_NM}</option>
-                    ))}
-                  </select>
+                    onValueChange={(val) => setBatchForm(prev => ({ ...prev, promChgCd: val }))}
+                    options={[
+                      { value: '', label: '선택' },
+                      ...promChangeCodes.map(c => ({ value: c.CODE, label: c.CODE_NM }))
+                    ]}
+                    placeholder="선택"
+                    className="flex-1"
+                  />
                 </div>
 
                 <div className="flex items-center gap-2">
                   <label className="text-xs text-gray-600 flex-shrink-0 w-16">변경사유</label>
-                  <select
+                  <Select
                     value={batchForm.promChgrsnCd}
-                    onChange={(e) => setBatchForm(prev => ({ ...prev, promChgrsnCd: e.target.value }))}
-                    className="flex-1 px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
-                  >
-                    <option value="">선택</option>
-                    {promChangeReasonCodes.filter(c => c.CODE !== '0').map(c => (
-                      <option key={c.CODE} value={c.CODE}>{c.CODE_NM}</option>
-                    ))}
-                  </select>
+                    onValueChange={(val) => setBatchForm(prev => ({ ...prev, promChgrsnCd: val }))}
+                    options={[
+                      { value: '', label: '선택' },
+                      ...promChangeReasonCodes.filter(c => c.CODE !== '0').map(c => ({ value: c.CODE, label: c.CODE_NM }))
+                    ]}
+                    placeholder="선택"
+                    className="flex-1"
+                  />
                 </div>
 
                 <div className="flex items-center gap-2">

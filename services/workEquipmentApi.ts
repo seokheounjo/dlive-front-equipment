@@ -21,6 +21,7 @@ export interface EquipmentQueryResponse {
   prodChgGb?: string;             // 제품 변경 구분 (01=업그레이드, 02=다운그레이드)
   chgKpiProdGrpCd?: string;       // 변경 후 KPI 제품 그룹 코드
   prodGrp?: string;               // 제품 그룹 (V, I, C)
+  prodPromoInfo?: any[];          // output1 전체: 프로모션 상품 정보 (CL-04 ADD_ON 파라미터용)
 }
 
 export interface STBServerConnectionResult {
@@ -61,7 +62,6 @@ export const getEquipmentForWork = async (params: {
   const isDemoMode = checkDemoMode();
 
   if (isDemoMode) {
-    console.log('[작업장비 API] 더미 모드: 장비 데이터 반환');
     await new Promise(resolve => setTimeout(resolve, 500));
     return {
       contractEquipments: [
@@ -130,6 +130,9 @@ export const getEquipmentForWork = async (params: {
     console.log('  └─ 회수장비:', result?.output5?.length || 0, '개');
 
     const promotionInfo = result?.output1?.[0] || {};
+    const prodPromoInfo = result?.output1 || [];
+
+    console.log('[작업장비 API] 프로모션 정보:', prodPromoInfo.length, '개');
 
     return {
       contractEquipments: result?.output2 || [],
@@ -140,6 +143,7 @@ export const getEquipmentForWork = async (params: {
       prodChgGb: promotionInfo.PROD_CHG_GB,
       chgKpiProdGrpCd: promotionInfo.CHG_KPI_PROD_GRP_CD,
       prodGrp: promotionInfo.PROD_GRP,
+      prodPromoInfo: prodPromoInfo, // CL-04 ADD_ON 파라미터 생성용
     };
   } catch (error) {
     console.error('[작업장비 API] 장비 조회 실패:', error);

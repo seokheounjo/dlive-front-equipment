@@ -45,7 +45,7 @@ const ConfirmModal: React.FC<ConfirmModalProps> = ({
       case 'error':
         return <XCircle className="w-12 h-12 text-red-500" />;
       case 'info':
-        return <Info className="w-12 h-12 text-blue-500" />;
+        return <Info className="w-12 h-12 text-primary-700" />;
       case 'confirm':
       default:
         return <CheckCircle className="w-12 h-12 text-green-500" />;
@@ -59,7 +59,7 @@ const ConfirmModal: React.FC<ConfirmModalProps> = ({
       case 'error':
         return 'bg-red-50 border-red-200';
       case 'info':
-        return 'bg-blue-50 border-blue-200';
+        return 'bg-primary-50 border-primary-200';
       case 'confirm':
       default:
         return 'bg-green-50 border-green-200';
@@ -73,10 +73,10 @@ const ConfirmModal: React.FC<ConfirmModalProps> = ({
       case 'error':
         return 'bg-red-500 hover:bg-red-600';
       case 'info':
-        return 'bg-blue-500 hover:bg-blue-600';
+        return 'bg-primary-500 hover:bg-primary-500';
       case 'confirm':
       default:
-        return 'bg-blue-500 hover:bg-blue-600';
+        return 'bg-primary-500 hover:bg-primary-500';
     }
   };
 
@@ -94,7 +94,7 @@ const ConfirmModal: React.FC<ConfirmModalProps> = ({
       />
 
       {/* Modal */}
-      <div className="relative bg-white rounded-xl shadow-2xl w-[90%] max-w-sm min-w-[280px] mx-4 overflow-hidden animate-in fade-in zoom-in duration-200">
+      <div className="relative bg-white rounded-xl shadow-2xl w-[90%] max-w-sm mx-4 overflow-hidden animate-in fade-in zoom-in duration-200">
         {/* Header with Icon */}
         <div className={`px-4 sm:px-6 py-4 sm:py-5 flex flex-col items-center border-b ${getHeaderColor()}`}>
           {getIcon()}

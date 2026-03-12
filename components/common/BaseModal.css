@@ -3,28 +3,33 @@
 /* 오버레이 */
 .base-modal-overlay {
   position: fixed;
-  inset: 0;
+  top: -100px;
+  right: 0;
+  bottom: 0;
+  left: 0;
   background-color: rgba(0, 0, 0, 0.5);
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: center;
-  z-index: 100; /* Lower than Select dropdown (z-index: 10000-10001) */
-  padding: 3vw; /* 뷰포트 너비의 3% */
+  z-index: 200; /* Above header (z-index: 100), below Select dropdown (z-index: 10000-10001) */
+  padding: calc(100px + 5vh) 3vw 5vh 3vw; /* top: -100px 보정 + 5vh */
+  overflow-y: auto; /* 모달이 화면보다 클 때 스크롤 */
 }
 
 /* 모달 컨테이너 */
 .base-modal-container {
   background: white;
   border-radius: 0.75rem; /* 12px */
+  margin: auto;
   box-shadow: 0 1.25rem 1.5625rem -0.3125rem rgba(0, 0, 0, 0.1), 0 0.625rem 0.625rem -0.3125rem rgba(0, 0, 0, 0.04);
   width: 95%;
   max-width: 95vw;
-  max-height: 90vh;
+  max-height: 88vh;
   display: flex;
   flex-direction: column;
   overflow: hidden; /* Keep modal structure intact */
   position: relative;
-  z-index: 101; /* Above overlay but below Select dropdown */
+  z-index: 201; /* Above overlay but below Select dropdown */
 }
 
 /* 모달 크기 - 상대적 최대 너비 */
@@ -46,7 +51,7 @@
   align-items: center;
   justify-content: space-between;
   padding: 0.75rem 1rem; /* 12px 16px */
-  background: linear-gradient(135deg, #007bff 0%, #0056b3 100%);
+  background: linear-gradient(135deg, #00B0C8 0%, #009DB3 100%);
   border-bottom: 1px solid #e5e7eb;
   flex-shrink: 0;
 }
@@ -96,6 +101,11 @@
   overflow-x: hidden;
   padding: 1rem; /* 16px */
   -webkit-overflow-scrolling: touch;
+  /* iOS Safari 스크롤 버그 수정 */
+  overscroll-behavior: contain;
+  min-height: 0; /* flex 컨테이너 내 스크롤 활성화 */
+  position: relative;
+  touch-action: pan-y;
 }
 
 /* 푸터 (선택적) */
@@ -128,11 +138,11 @@
 /* 모바일 (< 640px) */
 @media (max-width: 640px) {
   .base-modal-overlay {
-    padding: 2vw;
+    padding: calc(100px + 4vh) 2vw 4vh 2vw;
   }
 
   .base-modal-container {
-    max-height: 92vh;
+    max-height: 90vh;
     width: 96%;
   }
 
@@ -161,11 +171,11 @@
 /* 매우 작은 화면 (< 375px, 아이폰 SE 등) */
 @media (max-width: 375px) {
   .base-modal-overlay {
-    padding: 1vw;
+    padding: calc(100px + 3vh) 1vw 3vh 1vw;
   }
 
   .base-modal-container {
-    max-height: 94vh;
+    max-height: 92vh;
     width: 98%;
   }
 

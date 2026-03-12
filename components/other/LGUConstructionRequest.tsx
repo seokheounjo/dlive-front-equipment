@@ -68,9 +68,9 @@ const LGUConstructionRequest: React.FC<LGUConstructionRequestProps> = ({ onBack,
         setSelectedItem(data[0]);
       }
 
-      console.log('✅ LGU 공사요청 목록 조회 성공:', data.length);
+      console.log('LGU 공사요청 목록 조회 성공:', data.length);
     } catch (err) {
-      console.error('❌ LGU 공사요청 목록 조회 실패:', err);
+      console.error('LGU 공사요청 목록 조회 실패:', err);
       setError('공사요청 목록을 불러오는데 실패했습니다.');
     } finally {
       setIsLoading(false);
@@ -115,7 +115,7 @@ const LGUConstructionRequest: React.FC<LGUConstructionRequestProps> = ({ onBack,
         <button
           onClick={fetchList}
           disabled={isLoading}
-          className="flex items-center gap-1 px-2.5 sm:px-3 py-1 sm:py-1.5 bg-gray-100 hover:bg-gray-200 rounded text-xs sm:text-sm text-gray-700 disabled:opacity-50"
+          className="flex items-center gap-1 px-2.5 sm:px-3 py-1 sm:py-1.5 bg-gray-100 hover:bg-gray-200 rounded text-xs sm:text-sm text-gray-700 disabled:bg-gray-300 disabled:text-gray-400 disabled:cursor-not-allowed"
         >
           <RefreshCw className={`w-3.5 h-3.5 sm:w-4 sm:h-4 ${isLoading ? 'animate-spin' : ''}`} />
           새로고침
@@ -309,7 +309,7 @@ const LGUConstructionRequest: React.FC<LGUConstructionRequestProps> = ({ onBack,
           <div className="mt-3 sm:mt-4 grid grid-cols-3 gap-1.5 sm:gap-2">
             <button
               onClick={handleRequest}
-              className="px-3 sm:px-4 py-2 sm:py-2.5 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white rounded-lg font-medium text-xs sm:text-sm shadow-md transition-all"
+              className="px-3 sm:px-4 py-2 sm:py-2.5 bg-gradient-to-r from-primary-500 to-primary-500 hover:from-primary-500 hover:to-primary-600 text-white rounded-lg font-medium text-xs sm:text-sm shadow-md transition-all"
             >
               요청
             </button>

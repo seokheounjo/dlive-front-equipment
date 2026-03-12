@@ -1,32 +1,93 @@
+import React from 'react';
+import { WorkItem } from '../../../../types';
+import { useProductType } from '../../../../hooks/useProductType';
+import { ProductType } from './shared/types';
+
 /**
- * 장비정보 라우터 (WRK_CD별 컴포넌트 분기)
+ * WRK_CD × ProductType 라우터
  *
- * Complete 폴더와 1:1 매칭되는 구조
+ * 진입 시점에서 ProductTypeContext로부터 상품유형을 가져와
+ * productType + WRK_CD 조합으로 적절한 컴포넌트를 선택.
  *
- * | WRK_CD | 작업유형 | Equipment 컴포넌트 | Complete 컴포넌트 |
- * |--------|----------|-------------------|-------------------|
- * | 01 | 설치 | EquipmentInstall | CompleteInstall |
- * | 02 | 철거 | EquipmentTerminate | CompleteTerminate |
- * | 03 | A/S | EquipmentAS | CompleteAS |
- * | 04 | 정지 | EquipmentSuspend | CompleteSuspend |
- * | 05 | 상품변경 | EquipmentChange | CompleteChange |
- * | 06 | 댁내이전 | EquipmentInternalMove | CompleteInternalMove |
- * | 07 | 이전설치 | EquipmentRelocate | CompleteRelocate |
- * | 08 | 이전철거 | EquipmentRelocateTerminate | CompleteRelocateTerminate |
- * | 09 | 부가상품 | EquipmentRemoval | CompleteRemoval |
+ * 구조:
+ *   equipment/
+ *   ├── shared/     → 공유 폼 컴포넌트 (Equipment*Form.tsx)
+ *   ├── basic/      → 딜라이브 일반
+ *   ├── ftth/       → FTTH 인증상품
+ *   └── lguplus/    → LGU+ 재판매
  */
 
-import React from 'react';
+// basic/ (딜라이브 일반)
+import BasicInstall from './basic/EquipmentInstall';
+import BasicTerminate from './basic/EquipmentTerminate';
+import BasicAS from './basic/EquipmentAS';
+import BasicSuspend from './basic/EquipmentSuspend';
+import BasicChange from './basic/EquipmentChange';
+import BasicInternalMove from './basic/EquipmentInternalMove';
+import BasicRelocate from './basic/EquipmentRelocate';
+import BasicRelocateTerminate from './basic/EquipmentRelocateTerminate';
+import BasicRemoval from './basic/EquipmentRemoval';
+
+// ftth/ (FTTH 인증상품)
+import FtthInstall from './ftth/EquipmentInstall';
+import FtthTerminate from './ftth/EquipmentTerminate';
+import FtthAS from './ftth/EquipmentAS';
+import FtthSuspend from './ftth/EquipmentSuspend';
+import FtthChange from './ftth/EquipmentChange';
+import FtthInternalMove from './ftth/EquipmentInternalMove';
+import FtthRelocate from './ftth/EquipmentRelocate';
+import FtthRelocateTerminate from './ftth/EquipmentRelocateTerminate';
+import FtthRemoval from './ftth/EquipmentRemoval';
+
+// lguplus/ (LGU+ 재판매)
+import LguplusInstall from './lguplus/EquipmentInstall';
+import LguplusTerminate from './lguplus/EquipmentTerminate';
+import LguplusAS from './lguplus/EquipmentAS';
+import LguplusSuspend from './lguplus/EquipmentSuspend';
+import LguplusChange from './lguplus/EquipmentChange';
+import LguplusInternalMove from './lguplus/EquipmentInternalMove';
+import LguplusRelocate from './lguplus/EquipmentRelocate';
+import LguplusRelocateTerminate from './lguplus/EquipmentRelocateTerminate';
+import LguplusRemoval from './lguplus/EquipmentRemoval';
+
+/** productType × WRK_CD 라우팅 테이블 */
+const router: Record<ProductType, Record<string, React.FC<any>>> = {
+  basic: {
+    '01': BasicInstall,
+    '02': BasicTerminate,
+    '03': BasicAS,
+    '04': BasicSuspend,
+    '05': BasicChange,
+    '06': BasicInternalMove,
+    '07': BasicRelocate,
+    '08': BasicRelocateTerminate,
+    '09': BasicRemoval,
+  },
+  ftth: {
+    '01': FtthInstall,
+    '02': FtthTerminate,
+    '03': FtthAS,
+    '04': FtthSuspend,
+    '05': FtthChange,
+    '06': FtthInternalMove,
+    '07': FtthRelocate,
+    '08': FtthRelocateTerminate,
+    '09': FtthRemoval,
+  },
+  lguplus: {
+    '01': LguplusInstall,
+    '02': LguplusTerminate,
+    '03': LguplusAS,
+    '04': LguplusSuspend,
+    '05': LguplusChange,
+    '06': LguplusInternalMove,
+    '07': LguplusRelocate,
+    '08': LguplusRelocateTerminate,
+    '09': LguplusRemoval,
+  },
+};
+
 import { EquipmentComponentProps } from './shared/types';
-import EquipmentInstall from './EquipmentInstall';       // 01: 설치
-import EquipmentTerminate from './EquipmentTerminate';   // 02: 철거
-import EquipmentAS from './EquipmentAS';                 // 03: A/S
-import EquipmentSuspend from './EquipmentSuspend';       // 04: 정지
-import EquipmentChange from './EquipmentChange';         // 05: 상품변경
-import EquipmentInternalMove from './EquipmentInternalMove'; // 06: 댁내이전
-import EquipmentRelocate from './EquipmentRelocate';     // 07: 이전설치
-import EquipmentRelocateTerminate from './EquipmentRelocateTerminate'; // 08: 이전철거
-import EquipmentRemoval from './EquipmentRemoval';       // 09: 부가상품
 
 interface EquipmentRouterProps extends EquipmentComponentProps {
   // 추가 props 없음 - EquipmentComponentProps 그대로 사용
@@ -34,54 +95,16 @@ interface EquipmentRouterProps extends EquipmentComponentProps {
 
 /**
  * WRK_CD별 장비정보 페이지 라우터
+ * ProductTypeContext에서 상품유형을 가져와 productType × WRK_CD 조합으로 라우팅
  */
 const EquipmentRouter: React.FC<EquipmentRouterProps> = (props) => {
   const { workItem } = props;
   const wrkCd = workItem.WRK_CD;
+  const { productType } = useProductType();
 
-  // WRK_CD에 따라 적절한 컴포넌트 반환
-  switch (wrkCd) {
-    case '01':
-      // 설치
-      return <EquipmentInstall {...props} />;
+  const Component = router[productType]?.[wrkCd] || router.basic[wrkCd] || BasicInstall;
 
-    case '02':
-      // 철거
-      return <EquipmentTerminate {...props} />;
-
-    case '03':
-      // A/S
-      return <EquipmentAS {...props} />;
-
-    case '04':
-      // 정지
-      return <EquipmentSuspend {...props} />;
-
-    case '05':
-      // 상품변경
-      return <EquipmentChange {...props} />;
-
-    case '06':
-      // 댁내이전
-      return <EquipmentInternalMove {...props} />;
-
-    case '07':
-      // 이전설치
-      return <EquipmentRelocate {...props} />;
-
-    case '08':
-      // 이전철거 (재사용 체크박스 있음)
-      return <EquipmentRelocateTerminate {...props} />;
-
-    case '09':
-      // 부가상품
-      return <EquipmentRemoval {...props} />;
-
-    default:
-      // 기본값: 설치 컴포넌트 사용
-      console.warn(`[EquipmentRouter] Unknown WRK_CD: ${wrkCd}, using default (Install)`);
-      return <EquipmentInstall {...props} />;
-  }
+  return <Component {...props} />;
 };
 
 // 작업유형명 반환 함수

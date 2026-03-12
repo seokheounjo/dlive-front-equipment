@@ -34,12 +34,12 @@ const ErrorMessage: React.FC<ErrorMessageProps> = ({
       buttonBg: 'bg-yellow-500 hover:bg-yellow-600'
     },
     info: {
-      bg: 'bg-blue-50',
-      border: 'border-blue-200',
-      text: 'text-blue-800',
-      iconBg: 'bg-blue-100',
-      iconColor: 'text-blue-500',
-      buttonBg: 'bg-blue-500 hover:bg-blue-600'
+      bg: 'bg-primary-50',
+      border: 'border-primary-200',
+      text: 'text-primary-700',
+      iconBg: 'bg-primary-100',
+      iconColor: 'text-primary-700',
+      buttonBg: 'bg-primary-500 hover:bg-primary-500'
     }
   };
 

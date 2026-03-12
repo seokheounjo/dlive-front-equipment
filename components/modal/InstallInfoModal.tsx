@@ -1,11 +1,13 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import './InstallInfoModal.css';
-import { saveInstallInfo, getCommonCodes } from '../../services/apiService';
+import { saveInstallInfo, getCommonCodes, getChkWorkFee } from '../../services/apiService';
 import { CommonCodeItem } from '../../types';
 import Select from '../ui/Select';
 import BaseModal from '../common/BaseModal';
+import ConfirmModal from '../common/ConfirmModal';
 import { formatId } from '../../utils/dateFormatter';
 import '../../styles/buttons.css';
+import { useUIStore } from '../../stores/uiStore';
 
 interface InstallInfoModalProps {
   isOpen: boolean;
@@ -24,7 +26,9 @@ interface InstallInfoModalProps {
   chgKpiProdGrpCd?: string;    // Changed KPI product group code
   prodGrp?: string;            // Product group (V, I, C)
   wrkDtlTcd?: string;          // Work detail type code
+  soId?: string;               // SO ID (단가 존재여부 체크용)
   readOnly?: boolean;          // 읽기 전용 모드 (완료된 작업)
+  isCertifyProd?: boolean;     // LGU+ 인증 상품 여부 (망구분 기본값 LGU+)
 }
 
 export interface InstallInfoData {
@@ -65,7 +69,9 @@ const InstallInfoModal: React.FC<InstallInfoModalProps> = ({
   chgKpiProdGrpCd,
   prodGrp,
   wrkDtlTcd,
-  readOnly = false
+  soId,
+  readOnly = false,
+  isCertifyProd = false
 }) => {
   const [formData, setFormData] = useState<InstallInfoData>({
     NET_CL: '',
@@ -97,6 +103,16 @@ const InstallInfoModal: React.FC<InstallInfoModalProps> = ({
 
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
+
+  // 확인 팝업 상태 (토스트 대신 확인 버튼 필요한 알림)
+  const [alertModal, setAlertModal] = useState<{ message: string; type: 'warning' | 'success' | 'error'; onConfirm?: () => void } | null>(null);
+
+  // 확인 팝업을 Promise로 사용 (순차적으로 확인 후 진행)
+  const showAlert = useCallback((message: string, type: 'warning' | 'success' | 'error' = 'warning'): Promise<void> => {
+    return new Promise((resolve) => {
+      setAlertModal({ message, type, onConfirm: resolve });
+    });
+  }, []);
 
   useEffect(() => {
     if (isOpen && workId) {
@@ -146,37 +162,25 @@ const InstallInfoModal: React.FC<InstallInfoModalProps> = ({
     const PROD_GRP = prodGrp;
     const WRK_DTL_TCD = wrkDtlTcd;
 
-    console.log('🔍 [Filter] 초기 필터링 시작:', { WRK_CD, KPI_PROD_GRP_CD, PROD_CHG_GB, PROD_GRP, WRK_DTL_TCD });
-    console.log('🔍 [Filter] 필터링 전 항목 개수:', {
-      instlTpList: instlTpList.length,
-      wrngTpList: wrngTpList.length,
-      cbInstlTpList: cbInstlTpList.length,
-      cbWrngTpList: cbWrngTpList.length
-    });
-
     let filteredInstlTp = instlTpList;
     let filteredCbInstlTp = cbInstlTpList;
     let filteredCbWrngTp = cbWrngTpList;
 
     // Legacy filter logic (line 512-579)
     if (WRK_CD === '01' || WRK_CD === '03' || WRK_CD === '06' || WRK_CD === '07' || WRK_CD === '09') {
-      console.log('🔍 [Filter] 작업유형:', WRK_CD, '- 신규/AS/장애 등');
       if (WRK_DTL_TCD === '0920') {
-        console.log('🔍 [Filter] 작업세부:', WRK_DTL_TCD, '- code=77만 필터링');
         filteredInstlTp = instlTpList.filter(item =>
           pos(item.ref_code, KPI_PROD_GRP_CD || '') > -1 &&
           (item.ref_code3 || '') >= '20090901' &&
           item.code === '77'
         );
       } else {
-        console.log('🔍 [Filter] 작업세부:', WRK_DTL_TCD, '- code!=77 필터링');
         filteredInstlTp = instlTpList.filter(item =>
           pos(item.ref_code, KPI_PROD_GRP_CD || '') > -1 &&
           (item.ref_code3 || '') >= '20090901' &&
           item.code !== '77'
         );
       }
-      console.log('🔍 [Filter] 설치유형 필터링 결과:', filteredInstlTp.length, '개');
 
       if (PROD_GRP === 'C') {
         if (WRK_DTL_TCD === '0920') {
@@ -308,13 +312,6 @@ const InstallInfoModal: React.FC<InstallInfoModalProps> = ({
       (item.ref_code3 || '') >= '20090901'
     );
 
-    console.log('✅ [Filter] 초기 필터링 완료:', {
-      instlTp: filteredInstlTp.length,
-      wrngTp: filteredWrngTp.length,
-      cbInstlTp: filteredCbInstlTp.length,
-      cbWrngTp: filteredCbWrngTp.length,
-    });
-
     return {
       filteredInstlTp,
       filteredWrngTp,
@@ -326,16 +323,6 @@ const InstallInfoModal: React.FC<InstallInfoModalProps> = ({
   const loadData = async () => {
     setLoading(true);
     try {
-      console.log('🔄 [InstallInfoModal] 공통코드 로드 시작');
-      console.log('🔍 [InstallInfoModal] 필터링 파라미터:', {
-        workType,
-        kpiProdGrpCd,
-        prodChgGb,
-        chgKpiProdGrpCd,
-        prodGrp,
-        wrkDtlTcd
-      });
-
       const [netCl, wrngTp, instlTp, cbWrngTp, cbInstlTp] = await Promise.all([
         getCommonCodes('CMCU048'),
         getCommonCodes('BLST014'),
@@ -343,36 +330,6 @@ const InstallInfoModal: React.FC<InstallInfoModalProps> = ({
         getCommonCodes('CMCU030'),
         getCommonCodes('CMCU046'),
       ]);
-
-      console.log('📦 [InstallInfoModal] 받은 공통코드:', {
-        netCl: netCl.length,
-        wrngTp: wrngTp.length,
-        instlTp: instlTp.length,
-        cbWrngTp: cbWrngTp.length,
-        cbInstlTp: cbInstlTp.length,
-      });
-
-      // 첫 번째 항목의 REF_CODE 구조 확인
-      if (instlTp.length > 0) {
-        console.log('🔍 [InstallInfoModal] 설치유형(BLST010) 첫 번째 항목 (선택):', instlTp[0]);
-        console.log('🔍 [InstallInfoModal] 첫 번째 ref_code 필드들:', {
-          ref_code: instlTp[0].ref_code,
-          ref_code2: instlTp[0].ref_code2,
-          ref_code3: instlTp[0].ref_code3,
-        });
-      }
-      if (instlTp.length > 1) {
-        console.log('🔍 [InstallInfoModal] 설치유형(BLST010) 두 번째 항목 (실제 데이터):', instlTp[1]);
-        console.log('🔍 [InstallInfoModal] 두 번째 ref_code 필드들:', {
-          ref_code: instlTp[1].ref_code,
-          ref_code2: instlTp[1].ref_code2,
-          ref_code3: instlTp[1].ref_code3,
-        });
-        console.log('🔍 [InstallInfoModal] 두 번째 항목의 모든 키:', Object.keys(instlTp[1]));
-      }
-      if (wrngTp.length > 1) {
-        console.log('🔍 [InstallInfoModal] 배선형태(BLST014) 두 번째 항목:', wrngTp[1]);
-      }
 
       // Apply initial filters
       // 철거 작업(WRK_CD='02', '04', '08')은 kpiProdGrpCd 없이도 code='77' 필터링 적용
@@ -389,7 +346,6 @@ const InstallInfoModal: React.FC<InstallInfoModalProps> = ({
         setInstlTpCodes(filtered.filteredInstlTp);
         setCbWrngTpCodes(filtered.filteredCbWrngTp);
         setCbInstlTpCodes(filtered.filteredCbInstlTp);
-        console.log('✅ [Filter] 초기 필터 적용 - instlTp:', filtered.filteredInstlTp.length, '개');
       } else {
         // No filtering data available, show all
         setNetClCodes(netCl);
@@ -398,45 +354,37 @@ const InstallInfoModal: React.FC<InstallInfoModalProps> = ({
         setInstlTpCodes(instlTp);
         setCbWrngTpCodes(cbWrngTp);
         setCbInstlTpCodes(cbInstlTp);
-        console.log('⚠️ [Filter] 필터링 데이터 없음 - 전체 목록 표시');
       }
 
-      console.log('✅ [InstallInfoModal] 공통코드 state 설정 완료');
-
-      // 철거 작업(02, 04, 08)이면 기본값 설정 (레거시와 동일)
-      if (isRemovalWork) {
-        const hasNetCl = initialData?.NET_CL && initialData.NET_CL.trim() !== '';
-        const hasInstlTp = initialData?.INSTL_TP && initialData.INSTL_TP.trim() !== '';
-
-        console.log('🔧 [InstallInfoModal] 철거 작업 기본값 체크 - hasNetCl:', hasNetCl, 'hasInstlTp:', hasInstlTp);
-
-        // 기본값 설정할 항목 준비
-        const defaults: Partial<InstallInfoData> = {};
-
-        // NET_CL이 없으면 "DLIVE 자가"를 기본값으로 (레거시 동일)
-        if (!hasNetCl && netCl.length > 0) {
-          console.log('🔧 [InstallInfoModal] netCl 전체:', netCl.map(item => ({ code: item.code, name: item.name })));
-          // "DLIVE 자가" 또는 "DLIVE자가" 찾기
-          const defaultNetCl = netCl.find(item =>
+      // 망구분 기본값 설정 - 모든 작업 유형에서 NET_CL 없으면 기본값 설정
+      // LGU+ 인증 상품이면 "LGU+" 기본값, 그 외는 "DLIVE 자가" 기본값
+      const hasNetCl = initialData?.NET_CL && initialData.NET_CL.trim() !== '';
+      if (!hasNetCl && netCl.length > 0) {
+        let defaultNetCl;
+        if (isCertifyProd) {
+          defaultNetCl = netCl.find(item => item.name?.includes('LGU'));
+        }
+        if (!defaultNetCl) {
+          defaultNetCl = netCl.find(item =>
             item.name && (item.name.includes('DLIVE') || item.name.includes('자가'))
           );
-          console.log('🔧 [InstallInfoModal] 찾은 기본 NET_CL:', defaultNetCl);
-          if (defaultNetCl) {
-            defaults.NET_CL = defaultNetCl.code;
-            defaults.NET_CL_NM = defaultNetCl.name;
-            console.log('🔧 [InstallInfoModal] NET_CL 기본값 설정:', defaultNetCl.code, defaultNetCl.name);
-          }
         }
+        if (defaultNetCl) {
+          setFormData(prev => ({
+            ...prev,
+            NET_CL: defaultNetCl.code,
+            NET_CL_NM: defaultNetCl.name
+          }));
+        }
+      }
+
+      // 철거 작업(02, 04, 08)이면 추가 기본값 설정 (레거시와 동일)
+      if (isRemovalWork) {
+        const hasInstlTp = initialData?.INSTL_TP && initialData.INSTL_TP.trim() !== '';
 
         // INSTL_TP가 없으면 '77'(철거) 기본값
         if (!hasInstlTp) {
-          defaults.INSTL_TP = '77';
-          console.log('🔧 [InstallInfoModal] INSTL_TP 기본값 설정: 77(철거)');
-        }
-
-        // 기본값이 있으면 formData에 적용
-        if (Object.keys(defaults).length > 0) {
-          setFormData(prev => ({ ...prev, ...defaults }));
+          setFormData(prev => ({ ...prev, INSTL_TP: '77' }));
         }
 
         // 배선형태 필터링 (INSTL_TP='77' 기준)
@@ -445,12 +393,11 @@ const InstallInfoModal: React.FC<InstallInfoModalProps> = ({
           const wrngTpFiltered = wrngTp.filter(item =>
             pos(item.ref_code2, '77') > -1
           );
-          console.log('🔧 [InstallInfoModal] 철거 기본값 - 배선형태 필터링:', wrngTpFiltered.length, '개');
           setWrngTpCodes(wrngTpFiltered);
         }
       }
     } catch (error: any) {
-      console.error('❌ [InstallInfoModal] Failed to load common codes:', error);
+      console.error('[InstallInfoModal] Failed to load common codes:', error);
     } finally {
       setLoading(false);
     }
@@ -514,8 +461,6 @@ const InstallInfoModal: React.FC<InstallInfoModalProps> = ({
 
   // 설치유형에 따른 배선형태 필터링 (레거시 line 285-299)
   const filterWrngTpByInstlTp = (instlTpValue: string) => {
-    console.log('🔍 [Filter] 배선형태 필터링:', { instlTpValue, workType, prodChgGb, kpiProdGrpCd, chgKpiProdGrpCd });
-
     if (!instlTpValue || wrngTpCodesOriginal.length === 0) {
       setWrngTpCodes(wrngTpCodesOriginal);
       return;
@@ -523,11 +468,9 @@ const InstallInfoModal: React.FC<InstallInfoModalProps> = ({
 
     // If no filtering data available, just filter by instlTpValue (ref_code2 only)
     if (!kpiProdGrpCd && !chgKpiProdGrpCd) {
-      console.log('⚠️ [Filter] KPI_PROD_GRP_CD 없음 - ref_code2만 필터링');
       const filtered = wrngTpCodesOriginal.filter(item =>
         pos(item.ref_code2, instlTpValue) > -1
       );
-      console.log('✅ [Filter] 배선형태 필터링 완료:', filtered.length, '개');
       setWrngTpCodes(filtered);
       return;
     }
@@ -563,7 +506,6 @@ const InstallInfoModal: React.FC<InstallInfoModalProps> = ({
       );
     }
 
-    console.log('✅ [Filter] 배선형태 필터링 완료:', filtered.length, '개');
     setWrngTpCodes(filtered);
 
     // Reset selected value if filtered out
@@ -574,8 +516,6 @@ const InstallInfoModal: React.FC<InstallInfoModalProps> = ({
 
   // 콤보설치유형에 따른 콤보배선형태 필터링 (레거시 line 323-331)
   const filterCbWrngTpByCbInstlTp = (cbInstlTpValue: string) => {
-    console.log('🔍 [Filter] 콤보배선형태 필터링:', cbInstlTpValue);
-
     if (!cbInstlTpValue) {
       return;
     }
@@ -586,26 +526,91 @@ const InstallInfoModal: React.FC<InstallInfoModalProps> = ({
       pos(item.ref_code, 'I') > -1
     );
 
-    console.log('✅ [Filter] 콤보배선형태 필터링 완료:', filtered.length, '개');
     setCbWrngTpCodes(filtered);
   };
 
   const handleSave = async () => {
-    if (!formData.NET_CL) {
-      alert('망구분을 선택해주세요.');
+    // 필수값 검증 (레거시: mowoa03p04.xml btn_save_OnClick lines 336-367)
+    if (!formData.NET_CL || !formData.INSTL_TP) {
+      useUIStore.getState().showGlobalToast('네트워크,설치유형 필수항목을 입력하세요.', 'warning');
       return;
     }
-    if (!formData.INSTL_TP) {
-      alert('설치유형을 선택해주세요.');
-      return;
-    }
-    if (!formData.WRNG_TP) {
-      alert('배선형태를 선택해주세요.');
-      return;
+
+    // REF_CODE="*" 체크 - 와일드카드면 배선형태 검증 스킵 (레거시 line 343)
+    const selectedInstlTp = instlTpCodes.find(c => c.code === formData.INSTL_TP);
+    const refCode = selectedInstlTp?.ref_code || '';
+    const skipWrngTpCheck = refCode === '*';
+
+    if (!skipWrngTpCheck) {
+      if (prodGrp === 'C') {
+        // 케이블 상품: 배선유형 + 분기케이블배선유형 필수 (레거시 lines 345-352)
+        if (!formData.WRNG_TP || !formData.CB_WRNG_TP) {
+          useUIStore.getState().showGlobalToast('배선유형,분기케이블배선유형 필수항목을 입력하세요.', 'warning');
+          return;
+        }
+        // 분기점설치유형 필수 (레거시 lines 354-358)
+        if (!formData.CB_INSTL_TP) {
+          useUIStore.getState().showGlobalToast('분기점설치유형 필수항목을 입력하세요.', 'warning');
+          return;
+        }
+      } else {
+        // 비케이블 상품: 배선유형만 필수 (레거시 lines 359-366)
+        if (!formData.WRNG_TP) {
+          useUIStore.getState().showGlobalToast('배선유형 필수항목을 입력하세요.', 'warning');
+          return;
+        }
+      }
     }
 
     setSaving(true);
     try {
+      // 단가 존재여부 체크 (확인 팝업, 레거시 lines 397-451)
+      // 1차: WRNG_TP != "N" 이면 FEE_TYPE="N"으로 호출
+      if (formData.WRNG_TP && formData.WRNG_TP !== 'N') {
+        try {
+          const feeResult = await getChkWorkFee({
+            FEE_TYPE: 'N',
+            WRK_ID: workId,
+            ADDR_ORD: addrOrd || '',
+            WRK_DTL_TCD: wrkDtlTcd || '',
+            CTRT_ID: contractId || '',
+            SO_ID: soId || '',
+            INSTL_TP: formData.INSTL_TP || '',
+            WRNG_TP: formData.WRNG_TP || '',
+            INOUT_LEN: formData.INOUT_LEN || '',
+            WRK_CD: workType || '',
+          });
+          if (!feeResult?.data || feeResult.data.length === 0) {
+            await showAlert('설치정보에 해당하는 공사비가 존재하지 않습니다. 작업예정자료와 설정정보를 다시 확인하시기 바랍니다.', 'warning');
+          }
+        } catch (e) {
+          console.error('단가 체크 실패 (N):', e);
+        }
+      }
+
+      // 2차: 콤보상품군인 경우 CB_WRNG_TP 단가 체크
+      if (prodGrp === 'C' && formData.CB_WRNG_TP && formData.CB_WRNG_TP !== 'N') {
+        try {
+          const cbFeeResult = await getChkWorkFee({
+            FEE_TYPE: 'C',
+            WRK_ID: workId,
+            ADDR_ORD: addrOrd || '',
+            WRK_DTL_TCD: wrkDtlTcd || '',
+            CTRT_ID: contractId || '',
+            SO_ID: soId || '',
+            INSTL_TP: formData.CB_INSTL_TP || '',
+            WRNG_TP: formData.CB_WRNG_TP || '',
+            INOUT_LEN: formData.INOUT_LEN || '',
+            WRK_CD: workType || '',
+          });
+          if (!cbFeeResult?.data || cbFeeResult.data.length === 0) {
+            await showAlert('분기점설치정보 설정가격이 존재하지 않습니다. 작업예정자료와 설정정보를 다시 확인하시기 바랍니다.', 'warning');
+          }
+        } catch (e) {
+          console.error('단가 체크 실패 (C):', e);
+        }
+      }
+
       // 망구분 이름 찾기
       const netClName = netClCodes.find(code => code.code === formData.NET_CL)?.name || '';
 
@@ -624,14 +629,15 @@ const InstallInfoModal: React.FC<InstallInfoModalProps> = ({
       });
 
       if (result.code === 'SUCCESS') {
-        onSave(dataWithNames); // 이름 포함된 데이터 전달
+        onSave(dataWithNames);
+        await showAlert('설치 정보가 저장되었습니다.', 'success');
         onClose();
       } else {
-        alert(result.message || '저장에 실패했습니다.');
+        await showAlert(result.message || '저장에 실패했습니다.', 'error');
       }
     } catch (error: any) {
       console.error('Save failed:', error);
-      alert(error.message || '설치 정보 저장 중 오류가 발생했습니다.');
+      await showAlert(error.message || '설치 정보 저장 중 오류가 발생했습니다.', 'error');
     } finally {
       setSaving(false);
     }
@@ -674,6 +680,7 @@ const InstallInfoModal: React.FC<InstallInfoModalProps> = ({
   );
 
   return (
+    <>
     <BaseModal
       isOpen={isOpen}
       onClose={onClose}
@@ -734,27 +741,36 @@ const InstallInfoModal: React.FC<InstallInfoModalProps> = ({
                   />
                 </div>
 
-                <div className="install-form-row">
-                  <label className="install-label">콤보설치형태</label>
-                  <Select
-                    value={formData.CB_INSTL_TP || ''}
-                    onValueChange={(val) => handleChange('CB_INSTL_TP', val)}
-                    options={cbInstlTpOptions}
-                    placeholder="선택"
-                    disabled={true}
-                  />
-                </div>
+                {/* 콤보설치형태/콤보배선형태 - PROD_GRP="C" (케이블)인 경우만 활성화 (레거시 동일) */}
+                {prodGrp === 'C' && (
+                  <>
+                    <div className="install-form-row">
+                      <label className="install-label">
+                        분기점설치유형 {!readOnly && <span className="required">*</span>}
+                      </label>
+                      <Select
+                        value={formData.CB_INSTL_TP || ''}
+                        onValueChange={(val) => handleChange('CB_INSTL_TP', val)}
+                        options={cbInstlTpOptions}
+                        placeholder="선택"
+                        disabled={readOnly}
+                      />
+                    </div>
 
-                <div className="install-form-row">
-                  <label className="install-label">콤보배선형태</label>
-                  <Select
-                    value={formData.CB_WRNG_TP || ''}
-                    onValueChange={(val) => handleChange('CB_WRNG_TP', val)}
-                    options={cbWrngTpOptions}
-                    placeholder="선택"
-                    disabled={true}
-                  />
-                </div>
+                    <div className="install-form-row">
+                      <label className="install-label">
+                        분기케이블배선유형 {!readOnly && <span className="required">*</span>}
+                      </label>
+                      <Select
+                        value={formData.CB_WRNG_TP || ''}
+                        onValueChange={(val) => handleChange('CB_WRNG_TP', val)}
+                        options={cbWrngTpOptions}
+                        placeholder={formData.CB_INSTL_TP ? "선택" : "분기점설치유형을 먼저 선택하세요"}
+                        disabled={readOnly || !formData.CB_INSTL_TP}
+                      />
+                    </div>
+                  </>
+                )}
 
                 {/* 인입관통여부 + 인입선길이 (같은 줄) */}
                 <div className="install-form-row-inline">
@@ -818,6 +834,28 @@ const InstallInfoModal: React.FC<InstallInfoModalProps> = ({
           )}
       </div>
     </BaseModal>
+
+      {/* 확인 팝업 (단가 체크 경고, 저장 성공/실패) */}
+      {alertModal && (
+        <ConfirmModal
+          isOpen={true}
+          message={alertModal.message}
+          type={alertModal.type === 'success' ? 'info' : 'warning'}
+          showCancel={false}
+          confirmText="확인"
+          onConfirm={() => {
+            const cb = alertModal.onConfirm;
+            setAlertModal(null);
+            cb?.();
+          }}
+          onClose={() => {
+            const cb = alertModal.onConfirm;
+            setAlertModal(null);
+            cb?.();
+          }}
+        />
+      )}
+    </>
   );
 };
 

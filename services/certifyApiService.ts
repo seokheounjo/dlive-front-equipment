@@ -632,6 +632,72 @@ export const getUplsLdapRslt = async (ctrtId: string): Promise<{ exists: boolean
   }
 };
 
+/**
+ * LDAP 현황 조회 (LGU+ LDAP 상세 정보)
+ * Legacy: /customer/etc/getUplsLdapInfo.req (mowou04p07.xml)
+ * 검색구분: A=가입자번호, B=AP MAC, C=ONT MAC
+ */
+interface LdapInfoRecord {
+  RESULT_CD: string;
+  RESULT_MSG: string;
+  LDAP_DATE: string;
+  ENTR_NO: string;
+  AP_MAC: string;
+  ONT_MAC: string;
+  L2_INFO: string;
+  OLT_INFO: string;
+}
+
+export const getUplsLdapInfo = async (params: {
+  searchMode: 'A' | 'B' | 'C';
+  searchValue: string;
+  ctrtId: string;
+  entrNo: string;
+}): Promise<{ success: boolean; data: LdapInfoRecord | null; message?: string }> => {
+  console.log('[Certify API] getUplsLdapInfo params:', params);
+
+  try {
+    const { searchMode, searchValue, ctrtId, entrNo } = params;
+
+    // 레거시 파라미터 변환 (mowou04p07.xml line 252-255)
+    const INPUT_DV = '2';
+    const TYPE = searchMode + searchValue;
+    const CTRT_ID = searchMode === 'A' ? ctrtId : 'XXXXXXXXXX';
+    const ENTR_NO = searchMode === 'A' ? entrNo : 'XXXXXXXXXXXX';
+
+    const response = await fetch(`${API_BASE}/customer/etc/getUplsLdapInfo`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify({ INPUT_DV, TYPE, CTRT_ID, entrNo: ENTR_NO }),
+    });
+
+    if (!response.ok) {
+      console.error('[Certify API] getUplsLdapInfo HTTP error:', response.status);
+      return { success: false, data: null, message: `HTTP 오류: ${response.status}` };
+    }
+
+    const result = await response.json();
+    console.log('[Certify API] getUplsLdapInfo response:', result);
+
+    const output = result.output || result.data || [];
+    if (!output || (Array.isArray(output) && output.length === 0)) {
+      return { success: false, data: null, message: 'LDAP 정보가 존재하지 않습니다' };
+    }
+
+    const record: LdapInfoRecord = Array.isArray(output) ? output[0] : output;
+
+    if (record.RESULT_CD && record.RESULT_CD !== 'Y') {
+      return { success: false, data: null, message: record.RESULT_MSG || 'LDAP 조회 실패' };
+    }
+
+    return { success: true, data: record };
+  } catch (error) {
+    console.error('[Certify API] getUplsLdapInfo error:', error);
+    return { success: false, data: null, message: '네트워크 오류가 발생했습니다' };
+  }
+};
+
 // ============ 인증 API 이력 ============
 
 /**
@@ -1072,6 +1138,306 @@ export const setUplsRqstConsReq = async (params: {
 /**
  * LGU 망장애이관리스트 (엔트 처리 취소)
  */
+// ============ 망이관 (Network Transfer) APIs ============
+
+/**
+ * LGU+ 망장애 요청목록 조회 (getLguMangReq)
+ * Legacy: /customer/etc/getLguMangReq.req
+ */
+export const getLguMangReq = async (params: { ENTR_NO: string }): Promise<any[]> => {
+  console.log('[LGU API] getLguMangReq params:', params);
+  try {
+    const response = await fetch(`${API_BASE}/customer/etc/getLguMangReq`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify(params),
+    });
+    if (!response.ok) {
+      console.error('[LGU API] getLguMangReq HTTP error:', response.status);
+      return [];
+    }
+    const result = await response.json();
+    console.log('[LGU API] getLguMangReq response:', result);
+    return Array.isArray(result) ? result : (result.output || result.data || []);
+  } catch (error) {
+    console.error('[LGU API] getLguMangReq error:', error);
+    return [];
+  }
+};
+
+/**
+ * LGU+ 망장애 처리결과 조회 (getLguMangRslt)
+ * Legacy: /customer/etc/getLguMangRslt.req
+ */
+export const getLguMangRslt = async (params: { ENTR_NO: string; TLRCPTID: string }): Promise<any[]> => {
+  console.log('[LGU API] getLguMangRslt params:', params);
+  try {
+    const response = await fetch(`${API_BASE}/customer/etc/getLguMangRslt`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify(params),
+    });
+    if (!response.ok) {
+      console.error('[LGU API] getLguMangRslt HTTP error:', response.status);
+      return [];
+    }
+    const result = await response.json();
+    console.log('[LGU API] getLguMangRslt response:', result);
+    return Array.isArray(result) ? result : (result.output || result.data || []);
+  } catch (error) {
+    console.error('[LGU API] getLguMangRslt error:', error);
+    return [];
+  }
+};
+
+/**
+ * LGU+ 망장애 요청 상세정보 (getUplsNwtbDetail)
+ * Legacy: /customer/etc/getUplsNwtbDetail.req
+ */
+export const getUplsNwtbDetail = async (params: { WRK_ID: string; WRK_CD: string }): Promise<any | null> => {
+  console.log('[LGU API] getUplsNwtbDetail params:', params);
+  try {
+    const response = await fetch(`${API_BASE}/customer/etc/getUplsNwtbDetail`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify(params),
+    });
+    if (!response.ok) {
+      console.error('[LGU API] getUplsNwtbDetail HTTP error:', response.status);
+      return null;
+    }
+    const result = await response.json();
+    console.log('[LGU API] getUplsNwtbDetail response:', result);
+    if (Array.isArray(result) && result.length > 0) return result[0];
+    if (result.data && Array.isArray(result.data) && result.data.length > 0) return result.data[0];
+    return result || null;
+  } catch (error) {
+    console.error('[LGU API] getUplsNwtbDetail error:', error);
+    return null;
+  }
+};
+
+/**
+ * LGU+ NTOSS API 요청 (getUplsApiReq) - 망장애신고 등
+ * Legacy: /customer/etc/getUplsApiReq.req
+ */
+export const getUplsApiReq = async (params: {
+  COMMAND: string;
+  CTRT_ID: string;
+  entrNo: string;
+  memo: string;
+}): Promise<any> => {
+  console.log('[LGU API] getUplsApiReq params:', params);
+  try {
+    const response = await fetch(`${API_BASE}/customer/etc/getUplsApiReq`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify(params),
+    });
+    if (!response.ok) {
+      throw new Error(`LGU+ NTOSS API 요청 실패: ${response.status}`);
+    }
+    const result = await response.json();
+    console.log('[LGU API] getUplsApiReq response:', result);
+    return result;
+  } catch (error) {
+    console.error('[LGU API] getUplsApiReq error:', error);
+    throw error;
+  }
+};
+
+/**
+ * LGU+ 망이관 요청 저장 (saveLguMangReq)
+ * Legacy: /customer/etc/saveLguMangReq.req
+ */
+export const saveLguMangReq = async (params: {
+  RCPT_ID?: string;
+  CTRT_ID: string;
+  WRK_ID: string;
+  ENTR_NO: string;
+  ENTR_RQST_NO?: string;
+  REQ_TEXT?: string;
+  TLRCPTID: string;
+  PRSSRSLTCD?: string;
+  LOGID?: string;
+  ERRCD?: string;
+  RES_MSG?: string;
+  API_SEQ: string;
+  REG_UID?: string;
+  BIGO?: string;
+  NOTE?: string;
+  API_MEMO: string;
+}): Promise<any> => {
+  console.log('[LGU API] saveLguMangReq params:', params);
+  try {
+    const response = await fetch(`${API_BASE}/customer/etc/saveLguMangReq`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify(params),
+    });
+    if (!response.ok) {
+      throw new Error(`망이관 요청 저장 실패: ${response.status}`);
+    }
+    const result = await response.json();
+    console.log('[LGU API] saveLguMangReq response:', result);
+    return result;
+  } catch (error) {
+    console.error('[LGU API] saveLguMangReq error:', error);
+    throw error;
+  }
+};
+
+// ============ 장비상태정보 (Equipment Status) APIs ============
+
+/**
+ * AS 접수 장비상태정보 조회 (getAsRcptEqtStatInfo)
+ * Legacy: customer/equipment/getAsRcptEqtStatInfo.req
+ */
+export const getAsRcptEqtStatInfo = async (params: {
+  CTRT_ID: string;
+  RCPT_ID: string;
+}): Promise<any[]> => {
+  console.log('[Equipment API] getAsRcptEqtStatInfo params:', params);
+  try {
+    const response = await fetch(`${API_BASE}/customer/equipment/getAsRcptEqtStatInfo`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify({
+        CTRT_ID: (params.CTRT_ID || '').substring(0, 10),
+        RCPT_ID: (params.RCPT_ID || '').substring(0, 10),
+      }),
+    });
+    if (!response.ok) {
+      console.error('[Equipment API] getAsRcptEqtStatInfo HTTP error:', response.status);
+      return [];
+    }
+    const result = await response.json();
+    console.log('[Equipment API] getAsRcptEqtStatInfo response:', result);
+    return Array.isArray(result) ? result : (result.output || result.data || []);
+  } catch (error) {
+    console.error('[Equipment API] getAsRcptEqtStatInfo error:', error);
+    return [];
+  }
+};
+
+/**
+ * FMS 세션 수 조회 (getCntFMSSession)
+ * Legacy: customer/equipment/getCntFMSSession.req
+ */
+export const getCntFMSSession = async (): Promise<number> => {
+  try {
+    const response = await fetch(`${API_BASE}/customer/equipment/getCntFMSSession`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify({}),
+    });
+    if (!response.ok) return 0;
+    const result = await response.json();
+    const data = Array.isArray(result) ? result[0] : (result.output?.[0] || result.data?.[0] || result);
+    return parseInt(data?.S_CNT || '0', 10);
+  } catch (error) {
+    console.error('[Equipment API] getCntFMSSession error:', error);
+    return 0;
+  }
+};
+
+/**
+ * FMS 락 수 조회 (getCntFMSSession2)
+ * Legacy: customer/equipment/getCntFMSSession2.req
+ */
+export const getCntFMSSession2 = async (): Promise<number> => {
+  try {
+    const response = await fetch(`${API_BASE}/customer/equipment/getCntFMSSession2`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify({}),
+    });
+    if (!response.ok) return 0;
+    const result = await response.json();
+    const data = Array.isArray(result) ? result[0] : (result.output?.[0] || result.data?.[0] || result);
+    return parseInt(data?.S_CNT || '0', 10);
+  } catch (error) {
+    console.error('[Equipment API] getCntFMSSession2 error:', error);
+    return 0;
+  }
+};
+
+/**
+ * AS 접수 장비상태 요청/리셋 (callEqtStatReqIns4ASRcpt)
+ * Legacy: customer/equipment/callEqtStatReqIns4ASRcpt.req
+ * RESET_YN=' ': initial query, RESET_YN='Y': reset request
+ */
+export const callEqtStatReqIns4ASRcpt = async (params: {
+  USER_ID: string;
+  WRK_ACT_CL: string;
+  RCPT_ID: string;
+  CTRT_ID: string;
+  RESET_YN: string;
+  CM_IP_ADDRESS: string;
+  REQ_PING_YN: string;
+  SVC_GRP: string;
+}): Promise<any[]> => {
+  console.log('[Equipment API] callEqtStatReqIns4ASRcpt params:', params);
+  try {
+    const response = await fetch(`${API_BASE}/customer/equipment/callEqtStatReqIns4ASRcpt`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify({
+        ...params,
+        RCPT_ID: (params.RCPT_ID || '').substring(0, 10),
+        CTRT_ID: (params.CTRT_ID || '').substring(0, 10),
+      }),
+    });
+    if (!response.ok) {
+      throw new Error(`장비상태 요청 실패: ${response.status}`);
+    }
+    const result = await response.json();
+    console.log('[Equipment API] callEqtStatReqIns4ASRcpt response:', result);
+    return Array.isArray(result) ? result : (result.output || result.data || []);
+  } catch (error) {
+    console.error('[Equipment API] callEqtStatReqIns4ASRcpt error:', error);
+    throw error;
+  }
+};
+
+/**
+ * 장비상태정보 조회 (getEqtStatInfo)
+ * Legacy: customer/equipment/getEqtStatInfo.req
+ */
+export const getEqtStatInfo = async (params: {
+  CTRT_ID: string;
+  USER_ID: string;
+}): Promise<any[]> => {
+  console.log('[Equipment API] getEqtStatInfo params:', params);
+  try {
+    const response = await fetch(`${API_BASE}/customer/equipment/getEqtStatInfo`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify(params),
+    });
+    if (!response.ok) {
+      console.error('[Equipment API] getEqtStatInfo HTTP error:', response.status);
+      return [];
+    }
+    const result = await response.json();
+    console.log('[Equipment API] getEqtStatInfo response:', result);
+    return Array.isArray(result) ? result : (result.output || result.data || []);
+  } catch (error) {
+    console.error('[Equipment API] getEqtStatInfo error:', error);
+    return [];
+  }
+};
+
 export const requestLGUNetworkFault = async (data: LGUNetworkFault): Promise<any> => {
   // 더미 모드 체크
   if (checkDemoMode()) {

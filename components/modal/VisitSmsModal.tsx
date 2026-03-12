@@ -1,8 +1,9 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { Send } from 'lucide-react';
 import BaseModal from '../common/BaseModal';
 import Select from '../ui/Select';
 import { sendVisitSms, getFullContractInfo } from '../../services/apiService';
+import { useUIStore } from '../../stores/uiStore';
 import { SmsSendData, SMS_MESSAGE_TYPES, VisitSmsRequest } from '../../types';
 import '../../styles/buttons.css';
 
@@ -94,9 +95,19 @@ const VisitSmsModal: React.FC<VisitSmsModalProps> = ({
     return phoneStr.trim();
   };
 
+  // 모달 초기화 중복 실행 방지
+  const initializingRef = useRef(false);
+  const lastSmsDataIdRef = useRef<string | null>(null);
+
   // Initialize form when modal opens
   useEffect(() => {
     if (isOpen && smsData) {
+      // 같은 데이터로 이미 초기화 중이면 스킵 (레이스 컨디션 방지)
+      const smsDataId = `${smsData.CUST_ID}_${smsData.WRK_DRCTN_ID}`;
+      if (initializingRef.current && lastSmsDataIdRef.current === smsDataId) return;
+      initializingRef.current = true;
+      lastSmsDataIdRef.current = smsDataId;
+
       const initModal = async () => {
         setLoading(true);
         setError(null);
@@ -166,9 +177,14 @@ const VisitSmsModal: React.FC<VisitSmsModalProps> = ({
         setMessageType('020');
         generateMessage('020', smsData);
         setLoading(false);
+        initializingRef.current = false;
       };
 
       initModal();
+    } else if (!isOpen) {
+      // 모달 닫힐 때 ref 초기화
+      initializingRef.current = false;
+      lastSmsDataIdRef.current = null;
     }
   }, [isOpen, smsData]);
 
@@ -363,7 +379,7 @@ const VisitSmsModal: React.FC<VisitSmsModalProps> = ({
       const result = await sendVisitSms(request);
 
       if (result.code === 'SUCCESS') {
-        alert('문자 발송이 완료되었습니다.');
+        useUIStore.getState().showGlobalToast('문자 발송이 완료되었습니다.', 'success');
         onClose();
       } else {
         setError(result.message || '문자 발송에 실패했습니다.');
@@ -389,7 +405,7 @@ const VisitSmsModal: React.FC<VisitSmsModalProps> = ({
       <button
         onClick={handleSend}
         disabled={sending || isOverLimit}
-        className="flex-1 px-4 py-3 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition-colors disabled:bg-gray-300 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+        className="flex-1 px-4 py-3 bg-primary-500 text-white rounded-lg font-medium hover:bg-primary-600 transition-colors disabled:bg-gray-300 disabled:cursor-not-allowed flex items-center justify-center gap-2"
       >
         {sending ? (
           <>
@@ -416,7 +432,7 @@ const VisitSmsModal: React.FC<VisitSmsModalProps> = ({
     >
       {loading ? (
         <div className="flex flex-col items-center justify-center py-12">
-          <div className="w-10 h-10 border-4 border-blue-500 border-t-transparent rounded-full animate-spin" />
+          <div className="w-10 h-10 border-4 border-primary-500 border-t-transparent rounded-full animate-spin" />
           <p className="mt-4 text-gray-500 text-sm">정보를 불러오는 중...</p>
         </div>
       ) : (
@@ -471,7 +487,7 @@ const VisitSmsModal: React.FC<VisitSmsModalProps> = ({
                 type="tel"
                 value={receiverPhone}
                 onChange={(e) => setReceiverPhone(e.target.value)}
-                className="flex-1 px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none text-sm"
+                className="flex-1 px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none text-sm"
               />
             </div>
           ) : (
@@ -481,7 +497,7 @@ const VisitSmsModal: React.FC<VisitSmsModalProps> = ({
               value={receiverPhone}
               onChange={(e) => setReceiverPhone(e.target.value)}
               placeholder="010-1234-5678"
-              className="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+              className="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none"
             />
           )}
         </div>
@@ -496,7 +512,7 @@ const VisitSmsModal: React.FC<VisitSmsModalProps> = ({
             value={senderPhone}
             onChange={(e) => setSenderPhone(e.target.value)}
             placeholder="010-1234-5678"
-            className="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+            className="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none"
           />
         </div>
 
@@ -535,7 +551,7 @@ const VisitSmsModal: React.FC<VisitSmsModalProps> = ({
             value={messageContent}
             onChange={(e) => setMessageContent(e.target.value)}
             rows={8}
-            className="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none resize-none"
+            className="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none resize-none"
             placeholder="메시지 내용을 입력하세요"
           />
           <div className={`mt-1 text-right text-sm ${isOverLimit ? 'text-red-600 font-medium' : 'text-gray-500'}`}>

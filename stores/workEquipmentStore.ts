@@ -40,6 +40,10 @@ interface WorkEquipmentState {
   pendingLossStatusList: LossStatusData[];       // 분실 상태 목록 (작업완료 시 API 호출용)
   reuseAll: boolean;                             // 전체 재사용 체크 (이전철거 - 레거시 chk_reuse_yn)
 
+  // 이전설치(07) 장비철거 상태 (WorkProcessFlow step 검증용)
+  mvRemoveEquipmentCount: number;                 // 이전철거 장비 수 (getMVRemoveEqtInfo 결과)
+  transferredEquipmentCount: number;              // 이관 완료된 장비 수 (getEqtSoMoveInfo SUCCESS)
+
   // 선택 상태 (UI 상태)
   selectedContract: ContractEquipment | null;
   selectedStock: ExtendedEquipment | null;
@@ -108,6 +112,9 @@ interface WorkEquipmentStore {
   setPendingLossStatusList: (workId: string, list: LossStatusData[]) => void;
   clearPendingLossStatusList: (workId: string) => void;
 
+  // Actions - 이전설치(07) 장비철거 카운트 관리
+  setMvRemoveStats: (workId: string, mvCount: number, trCount: number) => void;
+
   // Actions - 전체 재사용 체크 (이전철거)
   setReuseAll: (workId: string, value: boolean) => void;
 
@@ -139,6 +146,8 @@ const createDefaultState = (): WorkEquipmentState => ({
   markedForRemoval: [],
   pendingLossStatusList: [],
   reuseAll: false,
+  mvRemoveEquipmentCount: 0,
+  transferredEquipmentCount: 0,
   selectedContract: null,
   selectedStock: null,
   signalStatus: 'idle',
@@ -661,6 +670,25 @@ export const useWorkEquipmentStore = create<WorkEquipmentStore>()(
         });
       },
 
+      // 이전설치(07) 장비철거 카운트 관리
+      setMvRemoveStats: (workId, mvCount, trCount) => {
+        set((state) => {
+          const currentWs = state.workStates[workId] || createDefaultState();
+          return {
+            ...state,
+            workStates: {
+              ...state.workStates,
+              [workId]: {
+                ...currentWs,
+                mvRemoveEquipmentCount: mvCount,
+                transferredEquipmentCount: trCount,
+                lastUpdated: new Date().toISOString(),
+              },
+            },
+          };
+        });
+      },
+
       // 전체 재사용 체크 (이전철거)
       setReuseAll: (workId, value) => {
         set((state) => {
@@ -812,6 +840,8 @@ export const useWorkEquipmentStore = create<WorkEquipmentStore>()(
               markedForRemoval: ws.markedForRemoval,
               pendingLossStatusList: ws.pendingLossStatusList,
               reuseAll: ws.reuseAll,
+              mvRemoveEquipmentCount: ws.mvRemoveEquipmentCount,
+              transferredEquipmentCount: ws.transferredEquipmentCount,
               signalStatus: ws.signalStatus,
               signalResult: ws.signalResult,
               filteringData: ws.filteringData,

@@ -137,7 +137,7 @@ const RemovalLineManageModal: React.FC<RemovalLineManageModalProps> = ({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center">
+    <div className="fixed inset-0 z-[200] flex items-center justify-center">
       {/* 오버레이 */}
       <div
         className="absolute inset-0 bg-black/50"
@@ -195,7 +195,7 @@ const RemovalLineManageModal: React.FC<RemovalLineManageModalProps> = ({
                     className={`py-2 sm:py-3 px-3 sm:px-4 rounded-lg font-bold text-sm sm:text-base transition-colors border-2 ${
                       removeGb === opt.value
                         ? opt.value === '4'
-                          ? 'bg-blue-100 border-blue-500 text-blue-700'
+                          ? 'bg-primary-100 border-primary-500 text-primary-600'
                           : 'bg-red-100 border-red-500 text-red-700'
                         : 'bg-gray-100 border-gray-300 text-gray-700 hover:bg-gray-200'
                     }`}
@@ -240,7 +240,7 @@ const RemovalLineManageModal: React.FC<RemovalLineManageModalProps> = ({
             disabled={!removeLineType || !removeGb || removeGb === '1'}
             className={`flex-1 py-2 sm:py-3 rounded-lg font-bold transition-colors text-sm sm:text-base ${
               removeLineType && removeGb === '4'
-                ? 'bg-blue-600 hover:bg-blue-700 text-white'
+                ? 'bg-primary-500 hover:bg-primary-600 text-white'
                 : 'bg-gray-300 text-gray-500 cursor-not-allowed'
             }`}
           >

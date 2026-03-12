@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { QueryClientProvider } from '@tanstack/react-query';
 import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
 import { queryClient } from './lib/queryClient';
@@ -23,9 +23,13 @@ import ApiExplorer from './components/equipment/ApiExplorer';
 import OtherManagement from './components/other/OtherManagement';
 import Settings from './components/layout/Settings';
 import { clearAllSessions } from './utils/sessionStorage';
+import { logLogout, logNavigation, flushAll as flushLogs, generateLoginTrxId, clearLoginTrxId } from './services/logService';
 import { useUIStore } from './stores/uiStore';
+import { useWorkEquipmentStore } from './stores/workEquipmentStore';
+import { useWorkProcessStore } from './stores/workProcessStore';
+import { useCertifyStore } from './stores/certifyStore';
+import { useEquipmentStore } from './stores/equipmentStore';
 import NoticePopup, { shouldShowNoticePopup } from './components/common/NoticePopup';
-import { initActivityLogger, clearActivityLogger, logActivity } from './services/activityLogger';
 
 export type View = 'today-work' | 'menu' | 'work-management' | 'work-order-detail' | 'work-process-flow' | 'work-complete-form' | 'work-complete-detail' | 'work-item-list' | 'customer-management' | 'equipment-management' | 'other-management' | 'api-explorer' | 'coming-soon' | 'settings';
 
@@ -83,6 +87,7 @@ const App: React.FC = () => {
     setSelectedWorkItem,
     selectedWorkDirection,
     setSelectedWorkDirection,
+    recontractMap,
     fontScale
   } = useUIStore();
 
@@ -91,6 +96,32 @@ const App: React.FC = () => {
     const sizeMap: Record<string, string> = { small: '14px', medium: '16px', large: '18px', xlarge: '20px' };
     document.documentElement.style.fontSize = sizeMap[fontScale] || '16px';
   }, [fontScale]);
+
+  // 세션 타임아웃 (60분 무조작 시 자동 로그아웃)
+  const SESSION_TIMEOUT_MS = 60 * 60 * 1000; // 60분
+  const sessionTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const logoutRef = useRef<() => void>(() => {});
+  const resetSessionTimer = useCallback(() => {
+    if (sessionTimerRef.current) clearTimeout(sessionTimerRef.current);
+    if (!isAuthenticated) return;
+    sessionTimerRef.current = setTimeout(() => {
+      console.log('[세션] 60분 무조작 - 자동 로그아웃');
+      logoutRef.current();
+    }, SESSION_TIMEOUT_MS);
+  }, [isAuthenticated]);
+
+  useEffect(() => {
+    if (!isAuthenticated) return;
+    const events = ['mousedown', 'touchstart', 'keydown', 'scroll'];
+    const handler = () => resetSessionTimer();
+    events.forEach(e => window.addEventListener(e, handler, { passive: true }));
+    resetSessionTimer();
+    return () => {
+      events.forEach(e => window.removeEventListener(e, handler));
+      if (sessionTimerRef.current) clearTimeout(sessionTimerRef.current);
+    };
+  }, [isAuthenticated, resetSessionTimer]);
 
   // 전역 에러 핸들러 설정
   useEffect(() => {
@@ -124,18 +155,12 @@ const App: React.FC = () => {
 
   // 작업 통계 - 폴링 제거 (작업관리 진입/퇴장 시 자연스럽게 갱신됨)
 
-  const handleLogin = (userId?: string, userName?: string, userNameEn?: string, userRole?: string, crrId?: string, soId?: string, mstSoId?: string, telNo2?: string, authSoList?: Array<{SO_ID: string; SO_NM: string; MST_SO_ID: string}>, trxId?: string) => {
+  const handleLogin = (userId?: string, userName?: string, userNameEn?: string, userRole?: string, crrId?: string, soId?: string, mstSoId?: string, telNo2?: string, authSoList?: Array<{SO_ID: string; SO_NM: string; MST_SO_ID: string}>, soYn?: string, deptCd?: string) => {
     setIsAuthenticated(true);
     setCurrentView('today-work');
+    // Generate login transaction ID for all log entries during this session
+    generateLoginTrxId(userId || 'unknown');
     if (userId) {
-      // Initialize activity logger with login session data
-      initActivityLogger({
-        loginTrxId: trxId || '',
-        userId: userId,
-        userNm: userName || '',
-        soId: soId || '',
-        crrId: crrId || ''
-      });
       const userInfoData = {
         userId,
         userName: userName || '작업자',
@@ -145,7 +170,9 @@ const App: React.FC = () => {
         soId,
         mstSoId,
         telNo2,  // SMS 발신번호
-        authSoList: authSoList || []  // 지점 목록
+        authSoList: authSoList || [],  // 지점 목록
+        soYn: soYn || '',
+        deptCd: deptCd || ''
       };
       setUserInfo(userInfoData);
       // localStorage에도 저장 (EquipmentManagement에서 사용)
@@ -174,14 +201,16 @@ const App: React.FC = () => {
       filter: '전체'
     });
 
-    // 로그인 후 공지사항 팝업 표시 (하루동안 안보기 체크 확인)
-    if (shouldShowNoticePopup()) {
-      setShowNoticePopup(true);
-    }
+    // // 로그인 후 공지사항 팝업 표시 (하루동안 안보기 체크 확인)
+    // if (shouldShowNoticePopup()) {
+    //   setShowNoticePopup(true);
+    // }
   };
   
   const handleLogout = () => {
-    clearActivityLogger();
+    logLogout();
+    flushLogs();
+    clearLoginTrxId();
     setIsAuthenticated(false);
     setUserInfo(null);
     // 로그아웃 시 모든 세션 데이터 및 userInfo 삭제
@@ -195,11 +224,34 @@ const App: React.FC = () => {
     setSelectedWorkDirection(null);
     setCurrentView('today-work');
 
+    // Zustand 스토어 전체 초기화 (작업 프로세스, 장비, 인증 등)
+    useWorkEquipmentStore.getState().clearAllWorkStates();
+    useWorkProcessStore.getState().reset();
+    useCertifyStore.getState().reset();
+    useEquipmentStore.getState().reset();
+
     // React Query 캐시 초기화
     queryClient.clear();
   };
 
+  // logoutRef 업데이트 (세션 타임아웃용)
+  logoutRef.current = () => {
+    handleLogout();
+    // showToast is defined later, use alert-style notification
+    setTimeout(() => {
+      const toastEl = document.createElement('div');
+      toastEl.textContent = '세션이 만료되었습니다. 다시 로그인해주세요.';
+      toastEl.style.cssText = 'position:fixed;top:20px;left:50%;transform:translateX(-50%);background:#F59E0B;color:#fff;padding:12px 24px;border-radius:8px;z-index:9999;font-size:14px;';
+      document.body.appendChild(toastEl);
+      setTimeout(() => toastEl.remove(), 4000);
+    }, 100);
+  };
+
   const navigateToMenu = () => {
+    if (currentView === 'today-work') {
+      // Already on today-work: force immediate re-fetch of directions
+      queryClient.refetchQueries({ queryKey: ['workOrders'] });
+    }
     setCurrentView('today-work');
   };
 
@@ -212,9 +264,17 @@ const App: React.FC = () => {
     setToast({ message, type, persistent });
   }, []);
 
+  // 글로벌 Toast 구독 (showToast prop 없는 컴포넌트에서 사용)
+  const globalToast = useUIStore((s) => s.globalToast);
+  useEffect(() => {
+    if (globalToast) {
+      setToast({ message: globalToast.message, type: globalToast.type as ToastType });
+    }
+  }, [globalToast]);
+
 
   const navigateToView = (view: View, data?: any) => {
-    logActivity(view);
+    logNavigation(currentView, view);
     setCurrentView(view);
 
     // 데이터가 있으면 Store에 저장 (Props Drilling 제거)
@@ -238,7 +298,6 @@ const App: React.FC = () => {
     const parentView = NAVIGATION_HIERARCHY[currentView];
 
     if (parentView) {
-      logActivity(parentView);
       setCurrentView(parentView);
     }
   };
@@ -319,7 +378,7 @@ const App: React.FC = () => {
           />
         ) : <div>작업 정보를 찾을 수 없습니다.</div>;
       case 'work-item-list':
-        return selectedWorkDirection ? <WorkItemList direction={selectedWorkDirection} onBack={navigateBack} onNavigateToView={navigateToView} userId={userInfo?.userId} showToast={showToast} /> : <div>작업 목록을 찾을 수 없습니다.</div>;
+        return selectedWorkDirection ? <WorkItemList direction={selectedWorkDirection} onBack={navigateBack} onNavigateToView={navigateToView} userId={userInfo?.userId} showToast={showToast} isRecontract={recontractMap[selectedWorkDirection.id]} /> : <div>작업 목록을 찾을 수 없습니다.</div>;
       case 'customer-management':
         return null;
       case 'equipment-management':
@@ -389,7 +448,7 @@ const App: React.FC = () => {
             </div>
             {/* 장비관리 - 상태 유지를 위해 항상 렌더링, display로 숨김 */}
             <div style={{ display: currentView === 'equipment-management' ? 'contents' : 'none' }}>
-              <EquipmentManagementMenu onNavigateToMenu={navigateToMenu} showToast={showToast} />
+              <EquipmentManagementMenu onNavigateToMenu={navigateToMenu} />
             </div>
           </main>
           <BottomNavigation currentView={currentView} onSelectMenu={navigateToView} />
@@ -401,11 +460,11 @@ const App: React.FC = () => {
               onClose={() => setToast(null)}
             />
           )}
-          {/* 공지사항 팝업 */}
-          <NoticePopup
+          {/* 공지사항 팝업 (주석처리) */}
+          {/* <NoticePopup
             isOpen={showNoticePopup}
             onClose={() => setShowNoticePopup(false)}
-          />
+          /> */}
         </div>
       </ErrorBoundary>
       {/* React Query DevTools - 개발 환경에서만 표시 */}

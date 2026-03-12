@@ -196,7 +196,7 @@ const WorkerAdjustment: React.FC<WorkerAdjustmentProps> = ({
       CHG_UID: '' // Should be filled with actual user ID
     };
 
-    console.log('🔍 일정 조정 전송 데이터:', adjustmentData);
+    console.log('일정 조정 전송 데이터:', adjustmentData);
 
     // Simulate API call
     setTimeout(() => {
@@ -229,7 +229,7 @@ const WorkerAdjustment: React.FC<WorkerAdjustmentProps> = ({
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
-      <div className="bg-gradient-to-r from-blue-500 to-cyan-600 text-white p-4 shadow-lg">
+      <div className="bg-gradient-to-r from-primary-500 to-cyan-600 text-white p-4 shadow-lg">
         <div className="flex items-center gap-3">
           <button
             onClick={onBack}
@@ -239,7 +239,7 @@ const WorkerAdjustment: React.FC<WorkerAdjustmentProps> = ({
           </button>
           <div className="flex-1">
             <h1 className="text-xl font-bold">작업 일정 조정</h1>
-            <p className="text-sm text-blue-100 mt-0.5">일정 변경 및 작업자 재배정</p>
+            <p className="text-sm text-primary-100 mt-0.5">일정 변경 및 작업자 재배정</p>
           </div>
         </div>
       </div>
@@ -249,7 +249,7 @@ const WorkerAdjustment: React.FC<WorkerAdjustmentProps> = ({
         {/* Current Info Card */}
         <div className="bg-white rounded-xl shadow-md p-5 mb-6">
           <div className="flex items-center gap-2 mb-4 pb-3 border-b border-gray-200">
-            <AlertCircle className="w-5 h-5 text-blue-600" />
+            <AlertCircle className="w-5 h-5 text-primary-700" />
             <h2 className="font-bold text-gray-800">현재 작업 정보</h2>
           </div>
 
@@ -270,15 +270,15 @@ const WorkerAdjustment: React.FC<WorkerAdjustmentProps> = ({
 
             <div className="flex justify-between items-center">
               <span className="text-sm text-gray-600">작업 유형</span>
-              <span className="text-sm font-semibold text-blue-600">
+              <span className="text-sm font-semibold text-primary-700">
                 {workDirection.typeDisplay}
               </span>
             </div>
 
-            <div className="bg-blue-50 rounded-lg p-3 mt-3">
+            <div className="bg-primary-50 rounded-lg p-3 mt-3">
               <div className="flex items-center gap-2 mb-2">
-                <Calendar className="w-4 h-4 text-blue-600" />
-                <span className="text-xs font-semibold text-blue-800">현재 일정</span>
+                <Calendar className="w-4 h-4 text-primary-700" />
+                <span className="text-xs font-semibold text-primary-700">현재 일정</span>
               </div>
               <div className="text-sm font-semibold text-gray-900">
                 {formatDate(workDirection.scheduledAt)}
@@ -305,7 +305,7 @@ const WorkerAdjustment: React.FC<WorkerAdjustmentProps> = ({
           {/* Date and Time Section */}
           <div className="bg-white rounded-xl shadow-md p-5">
             <div className="flex items-center gap-2 mb-4 pb-3 border-b border-gray-200">
-              <Calendar className="w-5 h-5 text-blue-600" />
+              <Calendar className="w-5 h-5 text-primary-700" />
               <h3 className="font-bold text-gray-800">새로운 일정</h3>
             </div>
 
@@ -319,7 +319,7 @@ const WorkerAdjustment: React.FC<WorkerAdjustmentProps> = ({
                 value={newDate}
                 onChange={(e) => setNewDate(e.target.value)}
                 min={new Date().toISOString().split('T')[0]}
-                className={`w-full p-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors ${
+                className={`w-full p-3 border rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors ${
                   errors.date ? 'border-red-500' : 'border-gray-300'
                 }`}
                 required
@@ -362,8 +362,8 @@ const WorkerAdjustment: React.FC<WorkerAdjustmentProps> = ({
 
             {/* Preview */}
             {newDate && (
-              <div className="mt-4 p-3 bg-blue-50 rounded-lg">
-                <div className="text-xs text-blue-600 font-semibold mb-1">선택된 일정</div>
+              <div className="mt-4 p-3 bg-primary-50 rounded-lg">
+                <div className="text-xs text-primary-700 font-semibold mb-1">선택된 일정</div>
                 <div className="text-sm font-semibold text-gray-900">
                   {formatDate(newDate)} {newHour}:{newMinute}
                 </div>
@@ -374,7 +374,7 @@ const WorkerAdjustment: React.FC<WorkerAdjustmentProps> = ({
           {/* Worker Selection Section */}
           <div className="bg-white rounded-xl shadow-md p-5">
             <div className="flex items-center gap-2 mb-4 pb-3 border-b border-gray-200">
-              <User className="w-5 h-5 text-blue-600" />
+              <User className="w-5 h-5 text-primary-700" />
               <h3 className="font-bold text-gray-800">작업자 배정</h3>
             </div>
 
@@ -395,7 +395,7 @@ const WorkerAdjustment: React.FC<WorkerAdjustmentProps> = ({
                   }}
                   onFocus={() => setShowWorkerSearch(true)}
                   placeholder="이름, 사번, 팀, 지역으로 검색"
-                  className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
                 />
               </div>
 
@@ -413,7 +413,7 @@ const WorkerAdjustment: React.FC<WorkerAdjustmentProps> = ({
                         key={worker.id}
                         type="button"
                         onClick={() => handleWorkerSelect(worker)}
-                        className="w-full p-3 text-left hover:bg-blue-50 transition-colors border-b border-gray-100 last:border-b-0"
+                        className="w-full p-3 text-left hover:bg-primary-50 transition-colors border-b border-gray-100 last:border-b-0"
                       >
                         <div className="flex items-center justify-between">
                           <div>
@@ -424,7 +424,7 @@ const WorkerAdjustment: React.FC<WorkerAdjustmentProps> = ({
                               {worker.id} | {worker.team} | {worker.area}
                             </div>
                           </div>
-                          <CheckCircle className="w-5 h-5 text-blue-600" />
+                          <CheckCircle className="w-5 h-5 text-primary-700" />
                         </div>
                       </button>
                     ))
@@ -473,7 +473,7 @@ const WorkerAdjustment: React.FC<WorkerAdjustmentProps> = ({
           {/* Reason Section */}
           <div className="bg-white rounded-xl shadow-md p-5">
             <div className="flex items-center gap-2 mb-4 pb-3 border-b border-gray-200">
-              <AlertCircle className="w-5 h-5 text-blue-600" />
+              <AlertCircle className="w-5 h-5 text-primary-700" />
               <h3 className="font-bold text-gray-800">변경 사유</h3>
             </div>
 
@@ -485,7 +485,7 @@ const WorkerAdjustment: React.FC<WorkerAdjustmentProps> = ({
                 value={adjustmentReason}
                 onChange={(e) => setAdjustmentReason(e.target.value)}
                 placeholder="일정 변경 또는 작업자 재배정 사유를 상세히 입력해주세요. (최소 10자)"
-                className={`w-full p-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 min-h-[120px] resize-y transition-colors ${
+                className={`w-full p-3 border rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 min-h-[120px] resize-y transition-colors ${
                   errors.reason ? 'border-red-500' : 'border-gray-300'
                 }`}
                 maxLength={500}
@@ -495,7 +495,7 @@ const WorkerAdjustment: React.FC<WorkerAdjustmentProps> = ({
                 <p className="text-xs text-gray-500">
                   {adjustmentReason.length}/500자
                 </p>
-                <p className="text-xs text-blue-600">
+                <p className="text-xs text-primary-700">
                   (최소 10자 필수)
                 </p>
               </div>
@@ -526,13 +526,13 @@ const WorkerAdjustment: React.FC<WorkerAdjustmentProps> = ({
                 adjustmentReason.trim().length < 10 ||
                 Object.keys(errors).length > 0
               }
-              className={`flex-1 px-6 py-4 bg-gradient-to-r from-blue-500 to-cyan-600 hover:from-blue-600 hover:to-cyan-700 text-white rounded-lg font-semibold transition-all duration-200 shadow-lg ${
+              className={`flex-1 px-6 py-4 bg-gradient-to-r from-primary-500 to-cyan-600 hover:from-primary-500 hover:to-cyan-700 text-white rounded-lg font-semibold transition-all duration-200 shadow-lg ${
                 isSubmitting ||
                 !newDate ||
                 !selectedWorker ||
                 adjustmentReason.trim().length < 10 ||
                 Object.keys(errors).length > 0
-                  ? 'opacity-50 cursor-not-allowed'
+                  ? 'bg-gray-400 !from-gray-400 !to-gray-400 text-white cursor-not-allowed'
                   : ''
               }`}
             >
@@ -544,9 +544,9 @@ const WorkerAdjustment: React.FC<WorkerAdjustmentProps> = ({
 
       {/* Confirmation Dialog */}
       {showConfirmDialog && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-[200]">
           <div className="bg-white rounded-2xl shadow-xl max-w-md w-full">
-            <div className="bg-gradient-to-r from-blue-500 to-cyan-600 text-white p-6 rounded-t-2xl">
+            <div className="bg-gradient-to-r from-primary-500 to-cyan-600 text-white p-6 rounded-t-2xl">
               <h3 className="text-xl font-bold flex items-center gap-2">
                 <CheckCircle className="w-6 h-6" />
                 일정 조정 확인
@@ -590,7 +590,7 @@ const WorkerAdjustment: React.FC<WorkerAdjustmentProps> = ({
                 <button
                   type="button"
                   onClick={handleConfirmSave}
-                  className="flex-1 px-4 py-3 bg-gradient-to-r from-blue-500 to-cyan-600 hover:from-blue-600 hover:to-cyan-700 text-white rounded-lg font-semibold transition-all"
+                  className="flex-1 px-4 py-3 bg-gradient-to-r from-primary-500 to-cyan-600 hover:from-primary-500 hover:to-cyan-700 text-white rounded-lg font-semibold transition-all"
                 >
                   확인
                 </button>

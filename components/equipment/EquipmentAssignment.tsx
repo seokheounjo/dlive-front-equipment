@@ -7,6 +7,7 @@ import {
   addEquipmentQuota
 } from '../../services/apiService';
 import BaseModal from '../common/BaseModal';
+import Select from '../ui/Select';
 import { debugApiCall } from './equipmentDebug';
 
 interface UserInfo {
@@ -569,16 +570,16 @@ const EquipmentAssignment: React.FC<EquipmentAssignmentProps> = ({ onBack, showT
             {/* 지점 선택 */}
             <div className="flex items-center gap-2">
               <label className="text-xs font-medium text-gray-600 w-14 flex-shrink-0">지점</label>
-              <select
+              <Select
                 value={selectedSoId}
-                onChange={(e) => setSelectedSoId(e.target.value)}
-                className="flex-1 px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
-              >
-                <option value="">전체</option>
-                {soList.map((item) => (
-                  <option key={item.SO_ID} value={item.SO_ID}>{item.SO_NM}</option>
-                ))}
-              </select>
+                onValueChange={(val) => setSelectedSoId(val)}
+                options={[
+                  { value: '', label: '전체' },
+                  ...soList.map((item) => ({ value: item.SO_ID, label: item.SO_NM }))
+                ]}
+                placeholder="전체"
+                className="flex-1"
+              />
             </div>
 
             {/* 조회 버튼 */}

@@ -1,4 +1,4 @@
-import { WorkOrder, WorkOrderStatus, WorkOrderType, WorkCompleteData, InstallInfo, CommonCodeItem } from '../types';
+import { WorkOrder, WorkOrderStatus, WorkOrderType, WorkCompleteData } from '../types';
 import { getMockWorkItems } from '../utils/mockData';
 
 // ============ 에러 타입 정의 ============
@@ -58,7 +58,7 @@ class CircuitBreaker {
     if (state.state === 'OPEN') {
       // OPEN 상태: 일정 시간 후 HALF_OPEN으로 전환
       if (now - state.lastFailureTime >= this.openDuration) {
-        console.log(`[Circuit Breaker] ${url} - OPEN → HALF_OPEN (재시도 허용)`);
+        console.log(`🔄 Circuit Breaker: ${url} - OPEN → HALF_OPEN (재시도 허용)`);
         state.state = 'HALF_OPEN';
         return true;
       }
@@ -77,7 +77,7 @@ class CircuitBreaker {
   recordSuccess(url: string): void {
     const state = this.getState(url);
     if (state.state === 'HALF_OPEN') {
-      console.log(`[Circuit Breaker] ${url} - HALF_OPEN → CLOSED (복구됨)`);
+      console.log(`✅ Circuit Breaker: ${url} - HALF_OPEN → CLOSED (복구됨)`);
     }
     state.failureCount = 0;
     state.state = 'CLOSED';
@@ -94,7 +94,7 @@ class CircuitBreaker {
       }
       state.state = 'OPEN';
     } else if (state.state === 'HALF_OPEN') {
-      console.warn(`[Circuit Breaker] ${url} - HALF_OPEN → OPEN (재시도 실패)`);
+      console.warn(`⚠️ Circuit Breaker: ${url} - HALF_OPEN → OPEN (재시도 실패)`);
       state.state = 'OPEN';
     }
   }
@@ -121,7 +121,7 @@ class RequestDeduplicator {
 
     const existing = this.pendingRequests.get(key);
     if (existing) {
-      console.log(`[Request Dedup] 중복 요청 차단: ${key} (이전 요청 재사용)`);
+      console.log(`🔄 중복 요청 차단: ${key} (이전 요청 재사용)`);
       return existing.promise;
     }
 
@@ -162,7 +162,7 @@ if (typeof window !== 'undefined') {
   (window as any).resetCircuitBreaker = () => {
     circuitBreaker.reset();
     requestDeduplicator.reset();
-    console.log('[API 초기화] Circuit Breaker 및 Request Deduplicator 초기화됨');
+    console.log('✅ Circuit Breaker 및 Request Deduplicator 초기화됨');
   };
 }
 
@@ -194,42 +194,9 @@ const getErrorMessage = (statusCode: number, defaultMessage: string = '오류가
   }
 };
 
-// ============ API 로깅 통합 ============
-
-// API 로그 타입 (apiDebugger.ts와 동기화)
-interface ApiLogEntry {
-  api: string;
-  method: string;
-  request: any;
-  response: any;
-  status: 'success' | 'error' | 'timeout';
-  duration: number;
-  error?: string;
-}
-
-// 글로벌 로그 저장소 (apiDebugger.ts에서 관리)
-const emitApiLog = (log: ApiLogEntry) => {
-  // apiDebugger.ts의 addApiLog 함수 호출 (동적 import 방지를 위해 이벤트 사용)
-  if (typeof window !== 'undefined') {
-    try {
-      // 직접 import하면 순환 참조 문제가 생길 수 있으므로 이벤트로 전달
-      window.dispatchEvent(new CustomEvent('api-call-complete', { detail: log }));
-
-      // 콘솔에도 간략히 출력
-      const emoji = log.status === 'success' ? '✅' : log.status === 'timeout' ? '⏱️' : '❌';
-      console.log(
-        `%c${emoji} [${log.method}] ${log.api} (${log.duration}ms)`,
-        `color: ${log.status === 'success' ? '#10B981' : log.status === 'timeout' ? '#F59E0B' : '#EF4444'}; font-weight: bold`
-      );
-    } catch (e) {
-      // 로깅 실패는 무시
-    }
-  }
-};
-
 // ============ API 호출 헬퍼 (재시도 로직 포함) ============
 
-export const fetchWithRetry = async (
+const fetchWithRetry = async (
   url: string,
   options: RequestInit,
   maxRetries: number = 3,
@@ -243,18 +210,10 @@ export const fetchWithRetry = async (
     );
   }
 
-  // 요청 중복 방지 (GET 요청만 - POST는 body stream 문제로 중복 방지 비활성화)
-  const isGetRequest = options.method === 'GET' || !options.method;
+  // 요청 중복 방지 (GET 요청만)
+  const requestKey = options.method === 'GET' ? `${url}` : `${url}-${Date.now()}`;
 
-  // POST 요청은 중복 방지 없이 바로 실행
-  if (!isGetRequest) {
-    return executeRequest();
-  }
-
-  // GET 요청만 중복 방지
-  return requestDeduplicator.getOrCreate(url, executeRequest);
-
-  async function executeRequest(): Promise<Response> {
+  return requestDeduplicator.getOrCreate(requestKey, async () => {
     let lastError: Error | null = null;
 
     for (let attempt = 0; attempt < maxRetries; attempt++) {
@@ -280,72 +239,15 @@ export const fetchWithRetry = async (
         if (response.status >= 400 && response.status < 500) {
           // 404, 401 등 클라이언트 에러는 Circuit Breaker에 실패 기록
           circuitBreaker.recordFailure(url);
-
-          // 4xx 에러에서도 디버그 로그를 추출하여 표시
-          try {
-            const errorBody = await response.clone().json();
-            if (errorBody?.debugLogs && Array.isArray(errorBody.debugLogs)) {
-              console.group(`🔧 [백엔드 디버그 로그 - ${response.status} 에러]`);
-              errorBody.debugLogs.forEach((log: string) => {
-                if (log.includes('SUCCESS')) {
-                  console.log('%c' + log, 'color: #22c55e; font-weight: bold;');
-                } else if (log.includes('ERROR') || log.includes('FAILED')) {
-                  console.log('%c' + log, 'color: #ef4444;');
-                } else if (log.includes('FALLBACK') || log.includes('SKIP')) {
-                  console.log('%c' + log, 'color: #f59e0b;');
-                } else {
-                  console.log('%c' + log, 'color: #6b7280;');
-                }
-              });
-              console.groupEnd();
-            }
-            if (errorBody?.error) {
-              console.error('❌ [백엔드 에러 메시지]:', errorBody.error);
-            }
-          } catch (parseError) {
-            // JSON 파싱 실패 시 무시
-          }
-
           throw new NetworkError(
             getErrorMessage(response.status),
             response.status
           );
         }
 
-        // 5xx 에러는 재시도 (하지만 먼저 디버그 로그 추출 시도)
+        // 5xx 에러는 재시도
         if (response.status >= 500) {
           circuitBreaker.recordFailure(url);
-
-          // 500 에러에서도 디버그 로그를 추출하여 표시
-          try {
-            const errorBody = await response.clone().json();
-            if (errorBody?.debugLogs && Array.isArray(errorBody.debugLogs)) {
-              console.group('🔧 [백엔드 디버그 로그 - 500 에러]');
-              errorBody.debugLogs.forEach((log: string) => {
-                if (log.includes('SUCCESS')) {
-                  console.log('%c' + log, 'color: #22c55e; font-weight: bold;');
-                } else if (log.includes('ERROR') || log.includes('FAILED')) {
-                  console.log('%c' + log, 'color: #ef4444;');
-                } else if (log.includes('FALLBACK') || log.includes('SKIP')) {
-                  console.log('%c' + log, 'color: #f59e0b;');
-                } else {
-                  console.log('%c' + log, 'color: #6b7280;');
-                }
-              });
-              console.groupEnd();
-            }
-            // 에러 메시지도 표시
-            if (errorBody?.error) {
-              console.error('❌ [백엔드 에러 메시지]:', errorBody.error);
-            }
-            if (errorBody?.message) {
-              console.error('❌ [백엔드 메시지]:', errorBody.message);
-            }
-          } catch (parseError) {
-            // JSON 파싱 실패 시 무시 (HTML 응답 등)
-            console.warn('⚠️ 500 에러 응답 파싱 실패:', parseError);
-          }
-
           throw new NetworkError(
             getErrorMessage(response.status),
             response.status
@@ -407,7 +309,7 @@ export const fetchWithRetry = async (
 
     // 모든 재시도 실패
     throw lastError || new NetworkError('서버와 통신 중 오류가 발생했습니다.');
-  }
+  });
 };
 
 // 더미 데이터 생성 함수 (실제 딜라이브 데이터 기반)
@@ -470,14 +372,11 @@ export const login = async (userId: string, password: string): Promise<{
   userName?: string;
   userRole?: string;
   crrId?: string;
-  crrNm?: string;
-  corpNm?: string;  // 협력업체명 (crrNm이 없을 때 사용)
   soId?: string;
-  soNm?: string;
   mstSoId?: string;
-  AUTH_SO_List?: Array<{ SO_ID: string; SO_NM: string }>;
 }> => {
   const origin = typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000';
+  console.log('🔍 로그인 API 호출 - Origin:', origin, 'API_BASE:', API_BASE);
 
   try {
     const response = await fetchWithRetry(`${API_BASE}/login`, {
@@ -501,41 +400,6 @@ export const login = async (userId: string, password: string): Promise<{
       throw error;
     }
     throw new NetworkError('로그인 중 오류가 발생했습니다. 다시 시도해주세요.');
-  }
-};
-
-// 로그인 후 추가 사용자 정보 조회 API (AUTH_SO_List, soNm, crrNm)
-// TaskAuthController 수정 없이 equipment 컨트롤러에서 처리
-export const getUserExtendedInfo = async (userId: string): Promise<{
-  ok: boolean;
-  soId?: string;
-  soNm?: string;
-  crrNm?: string;
-  AUTH_SO_List?: Array<{ SO_ID: string; SO_NM: string }>;
-}> => {
-  const origin = typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000';
-
-  try {
-    // /customer/equipment/* 는 레거시 equipmentController로 라우팅됨
-    // /statistics/equipment/* 는 EquipmentManagementController로 라우팅됨
-    const response = await fetchWithRetry(`${API_BASE}/statistics/equipment/getUserExtendedInfo`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Origin': origin
-      },
-      credentials: 'include',
-      body: JSON.stringify({
-        USR_ID: userId
-      }),
-    }, 1);
-
-    const result = await response.json();
-    return result;
-  } catch (error) {
-    console.error('getUserExtendedInfo API 호출 실패:', error);
-    // 실패해도 로그인은 유지 - 빈 결과 반환
-    return { ok: false };
   }
 };
 
@@ -735,58 +599,21 @@ export const getWorkCountForDirection = async (directionId: string): Promise<num
   }
 };
 
-// 작업지시서별 상태별 작업개수 조회
-export interface WorkStatusCounts {
-  total: number;
-  pending: number;   // 진행중
-  completed: number; // 완료
-  cancelled: number; // 취소
-}
-
-export const getWorkStatusCountsForDirection = async (directionId: string): Promise<WorkStatusCounts> => {
-  try {
-    const items = await getWorkReceipts(directionId);
-    const counts: WorkStatusCounts = {
-      total: items.length,
-      pending: 0,
-      completed: 0,
-      cancelled: 0
-    };
-
-    items.forEach((item: any) => {
-      // WRK_STAT_CD: 1:접수, 2:할당, 3:취소, 4:완료, 7:부분완료, 9:삭제
-      const statCd = item.WRK_STAT_CD || item.status;
-      if (statCd === '4' || statCd === '완료') {
-        counts.completed++;
-      } else if (statCd === '3' || statCd === '취소') {
-        counts.cancelled++;
-      } else {
-        counts.pending++; // 그 외는 진행중
-      }
-    });
-
-    return counts;
-  } catch (error) {
-    console.error('상태별 작업개수 조회 실패:', error);
-    return { total: 0, pending: 0, completed: 0, cancelled: 0 };
-  }
-};
-
 // 작업 상세 목록 조회 API (receipts + directionId)
 export const getWorkReceipts = async (directionId: string): Promise<any[]> => {
   console.log(`📋 Fetching work receipts for direction: ${directionId}...`);
-  console.log('[작업목록 API] 현재 더미 모드:', checkDemoMode() ? 'ON' : 'OFF');
+  console.log('🔍 현재 더미 모드:', checkDemoMode() ? 'ON' : 'OFF');
 
   // 더미 모드 체크
   const isDemoMode = checkDemoMode();
 
   if (isDemoMode) {
-    console.log('[작업목록 API] 더미 모드 활성화: 실제 API 대신 더미 작업 데이터 반환');
+    console.log('⚠️ 더미 모드 활성화: 실제 API 대신 더미 작업 데이터 반환');
     return getMockWorkItems(directionId);
   }
 
-  console.log('[작업목록 API] 실제 receipts API 호출 시작');
-  console.log('[작업목록 API] API_BASE:', API_BASE);
+  console.log('🚀 실제 receipts API 호출 시작');
+  console.log('📡 API_BASE:', API_BASE);
   console.log('📋 요청 파라미터 (receipts + directionId):', { WRK_DRCTN_ID: directionId });
 
   try {
@@ -803,12 +630,12 @@ export const getWorkReceipts = async (directionId: string): Promise<any[]> => {
       }),
     });
 
-    console.log('[작업목록 API] receipts API 응답 상태:', response.status, response.statusText);
+    console.log('📡 receipts API 응답 상태:', response.status, response.statusText);
 
     const apiData = await response.json();
-    console.log('[작업목록 API] Receipts API 성공 - 작업 개수:', apiData.length);
-    console.log('[작업목록 API] 첫 번째 작업:', apiData[0]?.WRK_ID, apiData[0]?.WRK_CD_NM, apiData[0]?.CUST_NM);
-    console.log('[작업목록 API] 전체 작업 목록:', apiData.map(item => ({
+    console.log('✅ Receipts API 성공 - 작업 개수:', apiData.length);
+    console.log('📊 첫 번째 작업:', apiData[0]?.WRK_ID, apiData[0]?.WRK_CD_NM, apiData[0]?.CUST_NM);
+    console.log('📊 전체 작업 목록:', apiData.map(item => ({
       WRK_ID: item.WRK_ID,
       WRK_CD_NM: item.WRK_CD_NM,
       PROD_NM: item.PROD_NM,
@@ -817,7 +644,7 @@ export const getWorkReceipts = async (directionId: string): Promise<any[]> => {
     return apiData;
 
   } catch (error) {
-    console.error('[작업목록 API] receipts API 호출 실패:', error);
+    console.error('❌ receipts API 호출 실패:', error);
     if (error instanceof NetworkError) {
       throw error;
     }
@@ -862,22 +689,19 @@ export const cancelWork = async (cancelData: any): Promise<{ code: string; messa
 };
 
 // API 엔드포인트: 환경별 최적화
-// 모든 환경에서 EC2 프록시를 통해 API 호출 (세션 쿠키 공유를 위해)
-export const API_BASE = typeof window !== 'undefined' ? (() => {
+const API_BASE = typeof window !== 'undefined' ? (() => {
   const hostname = window.location.hostname;
   const protocol = window.location.protocol;
-
-  console.log('[API] 현재 환경:', { hostname, protocol });
-
+  
+  console.log('🔍 현재 환경:', { hostname, protocol });
+  
   if (hostname === 'localhost' || hostname === '127.0.0.1') {
-    // 로컬 개발 → EC2 프록시 서버 사용 (레거시 서버 직접 호출 시 세션 문제)
-    return '/api';
-  } else if (hostname === '52.63.232.141') {
-    // EC2 환경: 상대 경로로 같은 서버의 프록시 사용
-    return '/api';
+    return 'http://58.143.140.222:8080/api';  // 로컬 → 딜라이브 내부서버
+  } else if (hostname === '52.63.131.157') {
+    // EC2 환경: Express 프록시 사용 (딜라이브 내부에서도 8080 포트 접근 문제)
+    return '/api';  // EC2 Express 서버의 프록시 사용
   } else {
-    // 기타 환경 (Vercel 등)
-    return '/api';
+    return '/api';  // Vercel 프록시
   }
 })() : '/api';
 
@@ -911,7 +735,7 @@ export const getWorkOrders = async ({ startDate, endDate }: { startDate: string,
   const isDemoMode = checkDemoMode();
 
   if (isDemoMode) {
-    console.log('[작업상세 API] 더미 모드 활성화: 실제 API 대신 더미 데이터 반환');
+    console.log('⚠️ 더미 모드 활성화: 실제 API 대신 더미 데이터 반환');
     return getDummyWorkOrders(startDate, endDate);
   }
 
@@ -928,7 +752,7 @@ export const getWorkOrders = async ({ startDate, endDate }: { startDate: string,
     "WRK_DTL_TCD": "%",
     "HOPE_DT_STRT": formattedStartDate,
     "HOPE_DT_END": formattedEndDate,
-    "PDA_WORK_STATUS": "%",
+    "PDA_WORK_STATUS": "2",
     "EMRG_YN": "",
     "WRK_CD": "",
     "DATE_GBN": ""
@@ -973,31 +797,7 @@ export const getWorkOrders = async ({ startDate, endDate }: { startDate: string,
         },
         details: apiOrder.REQ_CTX,
         assignedEquipment: [],
-        directionId: apiOrder.WRK_DRCTN_ID,
-        // 설치상세위치 (거실, 안방 등) - 레거시 TCMCT_CTRT_INFO.INSTL_LOC에서 파싱
-        installLocation: apiOrder.INSTL_LOC || '',
-        // 필터링을 위한 작업 코드 추가
-        WRK_CD: apiOrder.WRK_CD,              // 작업 코드 (예: '01', '02', '03')
-        WRK_CD_NM: apiOrder.WRK_CD_NM,        // 작업 코드명 (예: '설치', '해지')
-        WRK_DTL_TCD: apiOrder.WRK_DTL_TCD,    // 작업 상세 유형 코드
-        // 상품/계약 정보 (장비정보변경 모달에서 사용)
-        PROD_CD: apiOrder.PROD_CD,            // 상품 코드
-        PROD_NM: apiOrder.PROD_NM,            // 상품명
-        PROD_GRP: apiOrder.PROD_GRP,          // 상품 그룹 (D:DTV, V:VoIP, I:Internet 등)
-        CTRT_ID: apiOrder.CTRT_ID,            // 계약 ID
-        CTRT_STAT: apiOrder.CTRT_STAT,        // 계약 상태 코드 (10:설치예정, 20:정상, 30:일시정지, 90:해지완료)
-        CTRT_STAT_NM: apiOrder.CTRT_STAT_NM,  // 계약 상태명
-        SO_ID: apiOrder.SO_ID,                // 지점 ID
-        SO_NM: apiOrder.SO_NM,                // 지점명
-        CRR_ID: apiOrder.CRR_ID,              // 권역 ID
-        // 작업완료 시 저장된 정보 (완료된 작업 조회용)
-        CUST_REL: apiOrder.CUST_REL || '',           // 고객과의 관계
-        UP_CTRL_CL: apiOrder.UP_CTRL_CL || '',       // 상향제어
-        PSN_USE_CORP: apiOrder.PSN_USE_CORP || '',   // 인터넷 이용
-        VOIP_USE_CORP: apiOrder.VOIP_USE_CORP || '', // VoIP 이용
-        DTV_USE_CORP: apiOrder.DTV_USE_CORP || '',   // DTV 이용
-        VIEW_MOD_CD: apiOrder.VIEW_MOD_CD || '',     // 시청모드 코드
-        VIEW_MOD_NM: apiOrder.VIEW_MOD_NM || '',     // 시청모드 이름
+        directionId: apiOrder.WRK_DRCTN_ID
       };
     });
 
@@ -1036,7 +836,7 @@ export interface SafetyCheck {
 export const getSafetyChecks = async (params: { SO_ID: string; CRR_ID: string; INSP_DT_FROM?: string; INSP_DT_TO?: string; INSP_ID?: string }): Promise<SafetyCheck[]> => {
   // 더미 모드 체크
   if (checkDemoMode()) {
-    console.log('[안전점검 API] 더미 모드: 안전점검 더미 데이터 반환');
+    console.log('⚠️ 더미 모드: 안전점검 더미 데이터 반환');
     await new Promise(resolve => setTimeout(resolve, 500)); // 로딩 시뮬레이션
     return getDummySafetyChecks();
   }
@@ -1075,14 +875,14 @@ export const getSafetyChecks = async (params: { SO_ID: string; CRR_ID: string; I
     });
 
     if (!response.ok) {
-      console.warn(`[안전점검 API] 안전점검 조회 실패: ${response.status} - 기능이 서버에서 지원되지 않습니다`);
+      console.warn(`⚠️ 안전점검 조회 실패: ${response.status} - 기능이 서버에서 지원되지 않습니다`);
       return []; // 빈 배열 반환
     }
 
     const result = await response.json();
     return result;
   } catch (error) {
-    console.warn('[안전점검 API] 안전점검 조회 실패 - 빈 결과 반환:', error);
+    console.warn('⚠️ 안전점검 조회 실패 - 빈 결과 반환:', error);
     return []; // 에러 시 빈 배열 반환
   }
 };
@@ -1099,7 +899,7 @@ export const saveSafetyCheck = async (data: {
 }): Promise<{ code: string; message: string }> => {
   // 더미 모드 체크
   if (checkDemoMode()) {
-    console.log('[안전점검 API] 더미 모드: 안전점검 등록 시뮬레이션');
+    console.log('⚠️ 더미 모드: 안전점검 등록 시뮬레이션');
     await new Promise(resolve => setTimeout(resolve, 1000));
     return { code: 'SUCCESS', message: '안전점검이 등록되었습니다 (더미)' };
   }
@@ -1175,7 +975,7 @@ export const getENSHistory = async (params: {
 }): Promise<ENSHistory[]> => {
   // 더미 모드 체크
   if (checkDemoMode()) {
-    console.log('[ENS API] 더미 모드: ENS 이력 더미 데이터 반환');
+    console.log('⚠️ 더미 모드: ENS 이력 더미 데이터 반환');
     await new Promise(resolve => setTimeout(resolve, 500));
     return getDummyENSHistory();
   }
@@ -1197,14 +997,14 @@ export const getENSHistory = async (params: {
     });
 
     if (!response.ok) {
-      console.warn(`[ENS API] ENS 이력 조회 실패: ${response.status} - 기능이 서버에서 지원되지 않습니다`);
+      console.warn(`⚠️ ENS 이력 조회 실패: ${response.status} - 기능이 서버에서 지원되지 않습니다`);
       return []; // 빈 배열 반환
     }
 
     const result = await response.json();
     return result;
   } catch (error) {
-    console.warn('[ENS API] ENS 이력 조회 실패 - 빈 결과 반환:', error);
+    console.warn('⚠️ ENS 이력 조회 실패 - 빈 결과 반환:', error);
     return []; // 에러 시 빈 배열 반환
   }
 };
@@ -1244,7 +1044,7 @@ export const getWorkResultSignals = async (params: {
 }): Promise<WorkResultSignal[]> => {
   // 더미 모드 체크
   if (checkDemoMode()) {
-    console.log('[작업신호 API] 더미 모드: 작업결과신호 더미 데이터 반환');
+    console.log('⚠️ 더미 모드: 작업결과신호 더미 데이터 반환');
     await new Promise(resolve => setTimeout(resolve, 500));
     return getDummyWorkResultSignals();
   }
@@ -1266,14 +1066,14 @@ export const getWorkResultSignals = async (params: {
     });
 
     if (!response.ok) {
-      console.warn(`[작업신호 API] 작업결과신호 조회 실패: ${response.status} - 기능이 서버에서 지원되지 않습니다`);
+      console.warn(`⚠️ 작업결과신호 조회 실패: ${response.status} - 기능이 서버에서 지원되지 않습니다`);
       return []; // 빈 배열 반환
     }
 
     const result = await response.json();
     return result;
   } catch (error) {
-    console.warn('[작업신호 API] 작업결과신호 조회 실패 - 빈 결과 반환:', error);
+    console.warn('⚠️ 작업결과신호 조회 실패 - 빈 결과 반환:', error);
     return []; // 에러 시 빈 배열 반환
   }
 };
@@ -1307,7 +1107,7 @@ export interface LGUNetworkFault {
 export const requestLGUConstruction = async (data: LGUConstructionRequest): Promise<any> => {
   // 더미 모드 체크
   if (checkDemoMode()) {
-    console.log('[LGU API] 더미 모드: LGU 공사요청 시뮬레이션');
+    console.log('⚠️ 더미 모드: LGU 공사요청 시뮬레이션');
     await new Promise(resolve => setTimeout(resolve, 1500));
     return [{ 
       code: 'SUCCESS', 
@@ -1342,88 +1142,12 @@ export const requestLGUConstruction = async (data: LGUConstructionRequest): Prom
 };
 
 /**
- * LGU 공사요청 목록 조회
- */
-export const getLGUConstructionList = async (params: any): Promise<any[]> => {
-  // 더미 모드 체크
-  if (checkDemoMode()) {
-    console.log('[LGU API] 더미 모드: LGU 공사요청 목록 시뮬레이션');
-    await new Promise(resolve => setTimeout(resolve, 1000));
-
-    // 더미 데이터
-    return [
-      {
-        CONSREQNO: '20240101001',
-        CTRT_ID: 'CTRT001',
-        CONSCHRRNM: '김철수',
-        CONSCHRRTLNO: '010-1234-5678',
-        CONSCHRRMAKRMKS: 'LGU+ 인터넷 회선 공사요청',
-        CONSFNSHSCDLDT: '20240115',
-        CONSFNSHDT: '20240114',
-        CONSNEEDDIVSNM: '신규설치',
-        CONSDLYRSNNM: '',
-        CONSIPSBPRSSDT: '',
-        CONSIPSBRSNNM: '',
-        CONSNREQPRSSDT: '',
-        CONSNREQRSNNM: '',
-        ENTR_NO: '500030621784',
-        ENTR_RQST_NO: '300241327941',
-        MSTR_FL: 'Y',
-        SBGNEGNRNM: 'LGU+'
-      },
-      {
-        CONSREQNO: '20240102002',
-        CTRT_ID: 'CTRT002',
-        CONSCHRRNM: '이영희',
-        CONSCHRRTLNO: '010-2345-6789',
-        CONSCHRRMAKRMKS: '속도 업그레이드 요청',
-        CONSFNSHSCDLDT: '20240120',
-        CONSFNSHDT: '',
-        CONSNEEDDIVSNM: '회선변경',
-        CONSDLYRSNNM: '장비 부족',
-        CONSIPSBPRSSDT: '',
-        CONSIPSBRSNNM: '',
-        CONSNREQPRSSDT: '',
-        CONSNREQRSNNM: '',
-        ENTR_NO: '500030621785',
-        ENTR_RQST_NO: '300241327942',
-        MSTR_FL: 'Y',
-        SBGNEGNRNM: 'LGU+'
-      }
-    ];
-  }
-
-  try {
-    const origin = typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000';
-    const response = await fetch(`${API_BASE}/customer/etc/getUplsRqstConsList.req`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Origin': origin
-      },
-      credentials: 'include',
-      body: JSON.stringify(params),
-    });
-
-    if (!response.ok) {
-      throw new Error(`LGU 공사요청 목록 조회 실패: ${response.status}`);
-    }
-
-    const result = await response.json();
-    return result;
-  } catch (error) {
-    console.error('LGU 공사요청 목록 조회 실패:', error);
-    throw error;
-  }
-};
-
-/**
  * LGU 망장애이관리스트 (엔트 처리 취소)
  */
 export const requestLGUNetworkFault = async (data: LGUNetworkFault): Promise<any> => {
   // 더미 모드 체크
   if (checkDemoMode()) {
-    console.log('[LGU API] 더미 모드: LGU 망장애 처리 시뮬레이션');
+    console.log('⚠️ 더미 모드: LGU 망장애 처리 시뮬레이션');
     await new Promise(resolve => setTimeout(resolve, 1500));
     return [{
       code: 'SUCCESS',
@@ -1485,11 +1209,6 @@ export interface EquipmentQueryResponse {
   technicianEquipments: any[];    // output3: 기사 재고 장비
   customerEquipments: any[];      // output4: 고객 설치 장비
   removedEquipments: any[];       // output5: 회수 장비
-  // output1: 프로모션/제품 정보 (설치정보 모달 필터링용)
-  kpiProdGrpCd?: string;          // KPI 제품 그룹 코드 (V, I, C 등)
-  prodChgGb?: string;             // 제품 변경 구분 (01=업그레이드, 02=다운그레이드)
-  chgKpiProdGrpCd?: string;       // 변경 후 KPI 제품 그룹 코드
-  prodGrp?: string;               // 제품 그룹 (V, I, C)
 }
 
 /**
@@ -1513,13 +1232,13 @@ export const getTechnicianEquipments = async (params: {
   WRK_DRCTN_ID?: string;    // 작업지시 ID
   BLD_ID?: string;          // 건물 ID
 }): Promise<EquipmentQueryResponse> => {
-  console.log('[장비조회 API] 기사 보유 장비 조회 API 호출:', params);
+  console.log('📦 기사 보유 장비 조회 API 호출:', params);
 
   // 더미 모드 체크 또는 실제 장비가 없을 때 테스트 데이터 사용
   const isDemoMode = checkDemoMode();
 
-  console.log('[장비조회 API] 더미 모드:', isDemoMode ? 'ON' : 'OFF');
-  console.log('[장비조회 API] SQL 조건 요약:');
+  console.log('🔍 더미 모드:', isDemoMode ? 'ON' : 'OFF');
+  console.log('📊 SQL 조건 요약:');
   console.log('  - WRKR_ID =', params.WRKR_ID);
   console.log('  - SO_ID =', params.SO_ID);
   console.log('  - EQT_LOC_TP_CD = 3 (작업기사 위치)');
@@ -1528,7 +1247,7 @@ export const getTechnicianEquipments = async (params: {
   console.log('  - NOT EXISTS (이미 고객에 할당된 장비 제외)');
 
   if (isDemoMode) {
-    console.log('[장비조회 API] 더미 모드: 기사 장비 더미 데이터 반환');
+    console.log('⚠️ 더미 모드: 기사 장비 더미 데이터 반환');
     await new Promise(resolve => setTimeout(resolve, 500));
     return {
       contractEquipments: [
@@ -1592,13 +1311,13 @@ export const getTechnicianEquipments = async (params: {
       EQT_CL: 'ALL'      // 레거시 필수 파라미터
     };
 
-    console.log('\n[장비조회 API] ==========================================');
-    console.log('[장비조회 API] 장비 조회 API 호출 시작');
-    console.log('[장비조회 API] ==========================================');
-    console.log('\n[장비조회 API] 전송할 파라미터 (JSON):');
+    console.log('\n🚀 ==========================================');
+    console.log('🚀 장비 조회 API 호출 시작');
+    console.log('🚀 ==========================================');
+    console.log('\n📤 전송할 파라미터 (JSON):');
     console.log(JSON.stringify(requestParams, null, 2));
 
-    console.log('\n[장비조회 API] 핵심 파라미터 확인:');
+    console.log('\n🔍 핵심 파라미터 확인:');
     console.log('  ├─ WRKR_ID (기사ID):', requestParams.WRKR_ID);
     console.log('  ├─ SO_ID (지점ID):', requestParams.SO_ID);
     console.log('  ├─ CRR_TSK_CL (작업분류):', requestParams.CRR_TSK_CL);
@@ -1610,13 +1329,13 @@ export const getTechnicianEquipments = async (params: {
     console.log('  ├─ PROD_CD (상품코드):', requestParams.PROD_CD);
     console.log('  └─ EQT_CL (장비분류):', requestParams.EQT_CL);
 
-    console.log('\n[장비조회 API] 레거시 로직 분석:');
+    console.log('\n⚠️ 레거시 로직 분석:');
     console.log(`  CRR_TSK_CL="${requestParams.CRR_TSK_CL}" 일 때:`);
     if (['01','05','07','09'].includes(requestParams.CRR_TSK_CL || '')) {
-      console.log('  [장비조회 API] output3 (기사장비)가 반환되어야 함');
-      console.log('  [장비조회 API] SQL: workmanAssignDao.getWrkrEqtInfo(map) 실행');
+      console.log('  ✅ output3 (기사장비)가 반환되어야 함');
+      console.log('  ✅ SQL: workmanAssignDao.getWrkrEqtInfo(map) 실행');
     } else {
-      console.log('  [장비조회 API] output3 (기사장비)가 반환되지 않을 수 있음');
+      console.log('  ⚠️ output3 (기사장비)가 반환되지 않을 수 있음');
     }
     console.log('==========================================\n');
 
@@ -1632,10 +1351,10 @@ export const getTechnicianEquipments = async (params: {
 
     const result = await response.json();
 
-    console.log('\n[장비조회 API] ==========================================');
-    console.log('[장비조회 API] 프론트엔드 수신 응답');
-    console.log('[장비조회 API] ==========================================');
-    console.log('[장비조회 API] 응답 데이터 개수:');
+    console.log('\n📥 ==========================================');
+    console.log('📥 프론트엔드 수신 응답');
+    console.log('📥 ==========================================');
+    console.log('📊 응답 데이터 개수:');
     console.log('  ├─ output1 (프로모션):', result?.output1?.length || 0, '개');
     console.log('  ├─ output2 (계약장비):', result?.output2?.length || 0, '개');
     console.log('  ├─ output3 (기사장비):', result?.output3?.length || 0, '개');
@@ -1650,42 +1369,19 @@ export const getTechnicianEquipments = async (params: {
     // output4 = 고객 설치 장비 (getCustInstlEqtInfo with CUST_EQT='USE')
     // output5 = 고객 회수 장비 (getCustInstlEqtInfo with CUST_EQT='REMOVE')
 
-    // ⚠️ 중요: 레거시 로직
-    // - 설치 작업(CRR_TSK_CL='01','05','07','09'): output2(계약장비) + output3(기사재고) + output4(고객장비) + output5(회수장비)
-    // - 철거 작업(CRR_TSK_CL='02'): output4가 회수장비! (output2,3,5는 없음)
-    //   → 레거시: "ds_prod_promo_info=output1 ds_rmv_eqt_info=output4"
-
-    // output1의 첫 번째 항목에서 필터링 데이터 추출 (설치정보 모달 필터링용)
-    const promotionInfo = result?.output1?.[0] || {};
-    console.log('[장비조회 API] 📋 필터링 데이터 추출:', {
-      KPI_PROD_GRP_CD: promotionInfo.KPI_PROD_GRP_CD,
-      PROD_CHG_GB: promotionInfo.PROD_CHG_GB,
-      CHG_KPI_PROD_GRP_CD: promotionInfo.CHG_KPI_PROD_GRP_CD,
-      PROD_GRP: promotionInfo.PROD_GRP,
-    });
-
-    // 철거 작업 여부 확인 (CRR_TSK_CL='02' 또는 WRK_CD='02','08')
-    const isRemovalWork = requestParams.CRR_TSK_CL === '02' ||
-                          ['02', '08'].includes(requestParams.WRK_CD || '');
-
-    if (isRemovalWork) {
-      console.log('[장비조회 API] 🔴 철거 작업 감지 - output4를 회수장비로 처리');
-    }
+    // ⚠️ 중요: 니마이플랫폼 로직
+    // - output2 (계약장비): 계약에 등록된 "설치해야 할" 장비 목록
+    // - output3 (기사재고): 기사가 보유한 "실제 재고" 장비
+    // - 화면에서는 output2 + output3을 모두 표시해야 함!
 
     return {
       contractEquipments: result?.output2 || [],    // 계약 장비 (설치 대상)
       technicianEquipments: result?.output3 || [],  // 기사 재고
-      // 철거 작업: output4가 회수장비, 그 외: output4가 고객장비
-      customerEquipments: isRemovalWork ? [] : (result?.output4 || []),
-      removedEquipments: isRemovalWork ? (result?.output4 || []) : (result?.output5 || []),
-      // 설치정보 모달 필터링용 데이터 (output1에서 추출)
-      kpiProdGrpCd: promotionInfo.KPI_PROD_GRP_CD,
-      prodChgGb: promotionInfo.PROD_CHG_GB,
-      chgKpiProdGrpCd: promotionInfo.CHG_KPI_PROD_GRP_CD,
-      prodGrp: promotionInfo.PROD_GRP,
+      customerEquipments: result?.output4 || [],    // 고객 설치 장비
+      removedEquipments: result?.output5 || []      // 회수 장비
     };
   } catch (error) {
-    console.error('[장비조회 API] 장비 정보 조회 실패:', error);
+    console.error('❌ 장비 정보 조회 실패:', error);
     if (error instanceof NetworkError) {
       throw error;
     }
@@ -1704,7 +1400,7 @@ export const getContractEquipments = async (params: {
 
   // 더미 모드 체크
   if (checkDemoMode()) {
-    console.log('[장비구성 API] 더미 모드: 계약 장비 더미 데이터 반환');
+    console.log('⚠️ 더미 모드: 계약 장비 더미 데이터 반환');
     await new Promise(resolve => setTimeout(resolve, 500));
     return [];
   }
@@ -1725,10 +1421,10 @@ export const getContractEquipments = async (params: {
     });
 
     const result = await response.json();
-    console.log('[장비구성 API] 장비 구성 정보 조회 성공:', result);
+    console.log('✅ 장비 구성 정보 조회 성공:', result);
     return result;
   } catch (error) {
-    console.error('[장비구성 API] 장비 구성 정보 조회 실패:', error);
+    console.error('❌ 장비 구성 정보 조회 실패:', error);
     if (error instanceof NetworkError) {
       throw error;
     }
@@ -1762,18 +1458,18 @@ export const updateEquipmentComposition = async (data: {
   PROM_CNT?: string; // 모달에서 선택한 약정 개월
   CUST_ID?: string;  // 레거시 기준 불필요(옵션으로 전환)
 }): Promise<{ code: string; message: string }> => {
-  console.log('[장비구성변경 API] 장비 구성 정보 변경 API 호출:', data);
+  console.log('🔄 장비 구성 정보 변경 API 호출:', data);
 
   // 더미 모드 체크
   if (checkDemoMode()) {
-    console.log('[장비구성변경 API] 더미 모드: 장비 구성 변경 시뮬레이션');
+    console.log('⚠️ 더미 모드: 장비 구성 변경 시뮬레이션');
     await new Promise(resolve => setTimeout(resolve, 1000));
     return { code: 'SUCCESS', message: '장비 구성이 변경되었습니다 (더미)' };
   }
 
   try {
     console.log('=====================================================');
-    console.log('[장비구성변경 API] [modifyEquipmentComposition] 시작');
+    console.log('🚀 [modifyEquipmentComposition] 시작');
     console.log('  전달받은 data:', data);
     console.log('  data.equipments:', data.equipments);
     console.log('=====================================================');
@@ -1810,14 +1506,14 @@ export const updateEquipmentComposition = async (data: {
       .map((eq: any, idx: number) => ({ eq, order: Number((eq as any).EQUIP_SEQ || (eq as any).SVC_CMPS_ID || (idx + 1)), idx }))
       .sort((a, b) => (a.order || 0) - (b.order || 0));
 
-    console.log('[장비구성변경 API] 선택된 장비:', selectedOrdered.length, '개');
+    console.log('✅ 선택된 장비:', selectedOrdered.length, '개');
     console.log('-----------------------------------------------------');
 
     for (let i = 0; i < selectedOrdered.length; i++) {
       const { eq, idx } = selectedOrdered[i];
       console.log(`\n[장비 ${i + 1}/${selectedOrdered.length}]`);
       // 선택된 장비(SEL === '1')만 누적 - 레거시 팝업 저장과 동일
-      console.log('[장비구성변경 API] 장비 데이터:', {
+      console.log('🔍 장비 데이터:', {
         PROD_GRP: (eq as any).PROD_GRP,
         PROD_TYP: (eq as any).PROD_TYP,
         EQUIP_SEQ: (eq as any).EQUIP_SEQ,
@@ -1854,7 +1550,7 @@ export const updateEquipmentComposition = async (data: {
 
       const beforeCmps = PROD_CMPS_CLS;
       PROD_CMPS_CLS += prodTyp + equipSeq;
-      console.log(`  [장비구성변경 API] PROD_CMPS_CLS: "${beforeCmps}" + "${prodTyp}${equipSeq}" = "${PROD_CMPS_CLS}"`);
+      console.log(`  ✅ PROD_CMPS_CLS: "${beforeCmps}" + "${prodTyp}${equipSeq}" = "${PROD_CMPS_CLS}"`);
 
       PROD_CDS += String((eq as any).PROD_CD || '');
       SVC_CDS += String((eq as any).SVC_CD || '');
@@ -1888,7 +1584,7 @@ export const updateEquipmentComposition = async (data: {
     }
 
     console.log('\n=====================================================');
-    console.log('[장비구성변경 API] 파라미터 생성 완료');
+    console.log('📦 파라미터 생성 완료');
     console.log('  SERVICE_CNT:', SERVICE_CNT);
     console.log('  PROD_GRPS:', PROD_GRPS);
     console.log('  PROD_CMPS_CLS:', PROD_CMPS_CLS, '(길이:', PROD_CMPS_CLS.length, ')');
@@ -1919,7 +1615,7 @@ export const updateEquipmentComposition = async (data: {
       PROM_CNT: data.PROM_CNT || '',
     };
 
-    console.log('\n[장비구성변경 API] ========== 최종 전송 파라미터 ==========');
+    console.log('\n🚀🚀🚀 최종 전송 파라미터 🚀🚀🚀');
     console.log('parameters:', JSON.stringify(parameters, null, 2));
     console.log('각 필드 상세:');
     console.log('  PROD_CMPS_CLS:', `"${PROD_CMPS_CLS}"`, '(길이:', PROD_CMPS_CLS.length, ')');
@@ -1931,7 +1627,7 @@ export const updateEquipmentComposition = async (data: {
     console.log('=====================================================\n');
 
     // 재시도 없이 1회 호출 (fetchWithRetry 제거)
-    console.log('[장비구성변경 API] API 호출 시작:', `${API_BASE}/customer/work/eqtCmpsInfoChg`);
+    console.log('📡 API 호출 시작:', `${API_BASE}/customer/work/eqtCmpsInfoChg`);
     const response = await fetch(`${API_BASE}/customer/work/eqtCmpsInfoChg`, {
       method: 'POST',
       headers: {
@@ -1959,10 +1655,10 @@ export const updateEquipmentComposition = async (data: {
     }
 
     const result = await response.json();
-    console.log('[장비구성변경 API] 장비 구성 정보 변경 성공:', result);
+    console.log('✅ 장비 구성 정보 변경 성공:', result);
     return result;
   } catch (error) {
-    console.error('[장비구성변경 API] 장비 구성 정보 변경 실패:', error);
+    console.error('❌ 장비 구성 정보 변경 실패:', error);
     if (error instanceof NetworkError) {
       throw error;
     }
@@ -1985,13 +1681,13 @@ export const getEquipmentModelsForProduct = async (
   EQT_CL_CD: string;   // 장비 클래스 코드 (모델 코드)
   EQT_CL_NM: string;   // 장비 클래스명 (모델명)
 }>> => {
-  console.log('[장비모델 API] 상품별 장비 모델 리스트 조회 API 호출:');
+  console.log('🔍 상품별 장비 모델 리스트 조회 API 호출:');
   console.log('  - PROD_CD:', prodCd);
   console.log('  - CTRT_ID:', ctrtId);
 
   // 더미 모드 체크
   if (checkDemoMode()) {
-    console.log('[장비모델 API] 더미 모드: 장비 모델 리스트 시뮬레이션');
+    console.log('⚠️ 더미 모드: 장비 모델 리스트 시뮬레이션');
     await new Promise(resolve => setTimeout(resolve, 500));
     return [
       { EQT_CD: '05', EQT_CL_CD: 'STB001', EQT_CL_NM: 'STB-HD' },
@@ -2013,7 +1709,7 @@ export const getEquipmentModelsForProduct = async (
       requestBody.CTRT_ID = ctrtId;
     }
 
-    console.log('[장비모델 API] 요청 데이터 (레거시 4개 파라미터):', requestBody);
+    console.log('📤 요청 데이터 (레거시 4개 파라미터):', requestBody);
 
     const response = await fetch(`${API_BASE}/customer/receipt/contract/getEquipmentNmListOfProd`, {
       method: 'POST',
@@ -2028,12 +1724,12 @@ export const getEquipmentModelsForProduct = async (
     }
 
     const data = await response.json();
-    console.log('[장비모델 API] getEquipmentNmListOfProd 응답 데이터:', data);
-    console.log('[장비모델 API] 응답 타입:', typeof data, 'isArray:', Array.isArray(data));
+    console.log('📥 getEquipmentNmListOfProd 응답 데이터:', data);
+    console.log('📥 응답 타입:', typeof data, 'isArray:', Array.isArray(data));
 
     // 백엔드에서 List를 직접 반환하므로 data 자체가 배열
     if (Array.isArray(data)) {
-      console.log('[장비모델 API] 장비 모델 리스트:', data.length, '개');
+      console.log('✅ 장비 모델 리스트:', data.length, '개');
       return data;
     }
 
@@ -2044,7 +1740,7 @@ export const getEquipmentModelsForProduct = async (
 
     throw new Error('장비 모델 리스트 조회 실패: 잘못된 응답 형식');
   } catch (error) {
-    console.error('[장비모델 API] 장비 모델 리스트 조회 API 에러:', error);
+    console.error('❌ 장비 모델 리스트 조회 API 에러:', error);
     throw error;
   }
 };
@@ -2115,12 +1811,12 @@ export const getContractEquipmentList = async (
   prodCd: string,
   ctrtId?: string
 ): Promise<ContractEquipmentListResponse> => {
-  console.log('[계약장비 API] 계약 장비 리스트 조회 API 호출:');
+  console.log('🔍 계약 장비 리스트 조회 API 호출:');
   console.log('  - PROD_CD:', prodCd);
   console.log('  - CTRT_ID:', ctrtId);
 
   if (checkDemoMode()) {
-    console.log('[계약장비 API] 더미 모드: 계약 장비 리스트 시뮬레이션');
+    console.log('⚠️ 더미 모드: 계약 장비 리스트 시뮬레이션');
     await new Promise(resolve => setTimeout(resolve, 500));
     return {
       output1: [{
@@ -2188,7 +1884,7 @@ export const getContractEquipmentList = async (
       requestBody.CTRT_ID = ctrtId;
     }
 
-    console.log('[계약장비 API] 요청 데이터:', requestBody);
+    console.log('📤 요청 데이터:', requestBody);
 
     const response = await fetch(`${API_BASE}/customer/receipt/contract/getContractEqtList`, {
       method: 'POST',
@@ -2203,11 +1899,11 @@ export const getContractEquipmentList = async (
     }
 
     const data = await response.json();
-    console.log('[계약장비 API] getContractEqtList 응답 데이터:', data);
+    console.log('📥 getContractEqtList 응답 데이터:', data);
 
     return data;
   } catch (error) {
-    console.error('[계약장비 API] 계약 장비 리스트 조회 API 에러:', error);
+    console.error('❌ 계약 장비 리스트 조회 API 에러:', error);
     throw error;
   }
 };
@@ -2218,10 +1914,10 @@ export const getContractEquipmentList = async (
 export const getCommonCodeList = async (
   codeIds: string[]  // ['CMCU027', 'CMEP314', 'CMCU064']
 ): Promise<{ [key: string]: CommonCode[] }> => {
-  console.log('[공통코드 API] 공통코드 조회 API 호출:', codeIds);
+  console.log('🔍 공통코드 조회 API 호출:', codeIds);
 
   if (checkDemoMode()) {
-    console.log('[공통코드 API] 더미 모드: 공통코드 시뮬레이션');
+    console.log('⚠️ 더미 모드: 공통코드 시뮬레이션');
     await new Promise(resolve => setTimeout(resolve, 300));
 
     const result: { [key: string]: CommonCode[] } = {};
@@ -2255,52 +1951,6 @@ export const getCommonCodeList = async (
       ];
     }
 
-    if (codeIds.includes('CMCU057')) {
-      // 인터넷 이용 구분
-      result['CMCU057'] = [
-        { COMMON_CD: '1', COMMON_CD_NM: '없음' },
-        { COMMON_CD: '2', COMMON_CD_NM: '개인' },
-        { COMMON_CD: '3', COMMON_CD_NM: '법인' },
-      ];
-    }
-
-    if (codeIds.includes('CMCU110')) {
-      // VoIP 이용 구분
-      result['CMCU110'] = [
-        { COMMON_CD: '1', COMMON_CD_NM: '없음' },
-        { COMMON_CD: '2', COMMON_CD_NM: '개인' },
-        { COMMON_CD: '3', COMMON_CD_NM: '법인' },
-      ];
-    }
-
-    if (codeIds.includes('CMCU148')) {
-      // 디지털방송 이용 구분
-      result['CMCU148'] = [
-        { COMMON_CD: '1', COMMON_CD_NM: '없음' },
-        { COMMON_CD: '2', COMMON_CD_NM: '개인' },
-        { COMMON_CD: '3', COMMON_CD_NM: '법인' },
-      ];
-    }
-
-    if (codeIds.includes('CMCU005')) {
-      // 고객관계
-      result['CMCU005'] = [
-        { COMMON_CD: '1', COMMON_CD_NM: '본인' },
-        { COMMON_CD: '2', COMMON_CD_NM: '배우자' },
-        { COMMON_CD: '3', COMMON_CD_NM: '자녀' },
-        { COMMON_CD: '4', COMMON_CD_NM: '부모' },
-        { COMMON_CD: '5', COMMON_CD_NM: '기타' },
-      ];
-    }
-
-    if (codeIds.includes('CMCT015')) {
-      // 상향제어
-      result['CMCT015'] = [
-        { COMMON_CD: '1', COMMON_CD_NM: '단독' },
-        { COMMON_CD: '2', COMMON_CD_NM: '공용' },
-      ];
-    }
-
     return result;
   }
 
@@ -2308,7 +1958,7 @@ export const getCommonCodeList = async (
     const requestBody = {
       CODE_IDS: codeIds.join(',')  // "CMCU027,CMEP314,CMCU064" (JSON body)
     };
-    console.log('[계약장비 API] 요청 데이터:', requestBody);
+    console.log('📤 요청 데이터:', requestBody);
 
     const response = await fetch(`${API_BASE}/common/getCommonCodeList`, {
       method: 'POST',
@@ -2323,11 +1973,11 @@ export const getCommonCodeList = async (
     }
 
     const data = await response.json();
-    console.log('[공통코드 API] getCommonCodeList 응답 데이터:', data);
+    console.log('📥 getCommonCodeList 응답 데이터:', data);
 
     return data;
   } catch (error) {
-    console.error('[공통코드 API] 공통코드 조회 API 에러:', error);
+    console.error('❌ 공통코드 조회 API 에러:', error);
     throw error;
   }
 };
@@ -2349,7 +1999,7 @@ export const getCommonCodeListByGroups = async (
     const data = await response.json();
     return data;
   } catch (error) {
-    console.error('[공통코드 API] 그룹 공통코드 조회 API 에러:', error);
+    console.error('❌ 그룹 공통코드 조회 API 에러:', error);
     throw error;
   }
 };
@@ -2418,12 +2068,6 @@ export const checkStbServerConnection = async (
     const data = await response.json();
     console.log('[STB API] 응답 데이터:', data);
 
-    // 백엔드가 배열로 응답하므로 첫 번째 요소 추출
-    if (Array.isArray(data) && data.length > 0) {
-      console.log('[STB API] 배열 응답 첫 번째 요소 추출:', data[0]);
-      return data[0];
-    }
-
     return data;
   } catch (error) {
     console.error('[STB API] STB 서버 연결 체크 API 에러:', error);
@@ -2452,14 +2096,14 @@ export const changeEquipmentModel = async (
   workId: string,
   custId?: string
 ): Promise<{ MSGCODE: string; MESSAGE: string }> => {
-  console.log('[장비모델변경 API] 장비 모델 정보 변경 API 호출:');
+  console.log('🔄 장비 모델 정보 변경 API 호출:');
   console.log('  - 장비 개수:', equipments.length);
   console.log('  - WRK_ID:', workId);
   console.log('  - CUST_ID:', custId);
 
   // 더미 모드 체크
   if (checkDemoMode()) {
-    console.log('[장비모델변경 API] 더미 모드: 장비 모델 변경 시뮬레이션');
+    console.log('⚠️ 더미 모드: 장비 모델 변경 시뮬레이션');
     await new Promise(resolve => setTimeout(resolve, 1000));
     return { MSGCODE: 'SUCCESS', MESSAGE: '장비 모델이 변경되었습니다 (더미)' };
   }
@@ -2473,9 +2117,9 @@ export const changeEquipmentModel = async (
       equipments: equipments
     };
 
-    console.log('\n[장비조회 API] ==========================================');
-    console.log('[장비모델변경 API] 장비 모델 변경 API 호출 시작');
-    console.log('[장비조회 API] ==========================================');
+    console.log('\n🚀 ==========================================');
+    console.log('🚀 장비 모델 변경 API 호출 시작');
+    console.log('🚀 ==========================================');
     console.log('\n📤 전송할 데이터:');
     console.log(JSON.stringify(requestBody, null, 2));
     console.log('==========================================\n');
@@ -2492,9 +2136,9 @@ export const changeEquipmentModel = async (
 
     const result = await response.json();
 
-    console.log('\n[장비조회 API] ==========================================');
+    console.log('\n📥 ==========================================');
     console.log('📥 장비 모델 변경 API 응답');
-    console.log('[장비조회 API] ==========================================');
+    console.log('📥 ==========================================');
     console.log('  ├─ MSGCODE:', result.MSGCODE);
     console.log('  └─ MESSAGE:', result.MESSAGE);
     console.log('==========================================\n');
@@ -2645,7 +2289,6 @@ export const completeWork = async (data: WorkCompleteData): Promise<{ code: stri
     const origin = typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000';
     console.log('📡 실제 작업 완료 API 호출:', `${API_BASE}/customer/work/workComplete`);
 
-    // 재시도 없이 1번만 호출 (maxRetries = 1)
     const response = await fetchWithRetry(`${API_BASE}/customer/work/workComplete`, {
       method: 'POST',
       headers: {
@@ -2654,24 +2297,13 @@ export const completeWork = async (data: WorkCompleteData): Promise<{ code: stri
       },
       credentials: 'include',
       body: JSON.stringify(data),
-    }, 1); // 재시도 없음
+    });
 
     console.log('📡 작업 완료 API 응답 상태:', response.status, response.statusText);
 
     const result = await response.json();
     console.log('✅ 작업 완료 API 성공:', result);
 
-    // 서버가 배열을 반환하는 경우 (성공으로 간주)
-    if (Array.isArray(result)) {
-      console.log('✅ 배열 응답 감지 - 성공으로 처리');
-      return {
-        code: 'SUCCESS',
-        message: '작업이 완료되었습니다.',
-        data: result
-      };
-    }
-
-    // 객체 응답인 경우 그대로 반환
     return result;
   } catch (error: any) {
     console.error('❌ 작업 완료 API 실패:', error);
@@ -2680,1457 +2312,4 @@ export const completeWork = async (data: WorkCompleteData): Promise<{ code: stri
     }
     throw new NetworkError(error.message || '작업 완료 처리 중 오류가 발생했습니다.');
   }
-};
-
-/**
- * 고객 계약 정보 조회
- * @param ctrtId 계약 ID
- * @returns 계약 정보
- */
-export const getCustomerCtrtInfo = async (ctrtId: string): Promise<any> => {
-  console.log('🔍 [고객 계약 정보] API 호출:', ctrtId);
-
-  // 더미 모드 체크
-  if (checkDemoMode()) {
-    console.log('⚠️ 더미 모드: 고객 계약 정보 시뮬레이션');
-    await new Promise(resolve => setTimeout(resolve, 500));
-    return {
-      code: 'SUCCESS',
-      data: [{
-        CTRT_ID: ctrtId,
-        CUST_ID: 'CUST001',
-        CUST_NM: '홍길동',
-        ADDR: '서울시 강남구 테헤란로 123',
-        INSTL_LOC: '101동 1001호',
-        BASIC_PROD_CD_NM: '인터넷+IPTV 결합',
-        PROD_NM: '기가인터넷+IPTV',
-        SO_NM: '강남지사',
-        SO_CALL_NO: '02-1234-5678',
-        PROM_YN: 'Y',
-        CTRT_CL: '1'
-      }]
-    };
-  }
-
-  try {
-    const origin = typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000';
-    console.log('📡 실제 고객 계약 정보 API 호출:', `${API_BASE}/customer/negociation/getCustomerCtrtInfo`);
-
-    const response = await fetchWithRetry(`${API_BASE}/customer/negociation/getCustomerCtrtInfo`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Origin': origin
-      },
-      credentials: 'include',
-      body: JSON.stringify({ CTRT_ID: ctrtId }),
-    });
-
-    console.log('📡 고객 계약 정보 API 응답 상태:', response.status, response.statusText);
-
-    const result = await response.json();
-    console.log('✅ 고객 계약 정보 API 성공:', result);
-
-    return result;
-  } catch (error: any) {
-    console.error('❌ 고객 계약 정보 API 실패:', error);
-    if (error instanceof NetworkError) {
-      throw error;
-    }
-    throw new NetworkError(error.message || '고객 계약 정보 조회 중 오류가 발생했습니다.');
-  }
-};
-
-// ============ 설치 정보 관련 API ============
-
-/**
- * 설치 정보 저장
- * @param installInfo 설치 정보
- * @returns 저장 결과
- */
-export const saveInstallInfo = async (installInfo: InstallInfo): Promise<any> => {
-  console.log('💾 [설치 정보 저장] API 호출:', installInfo);
-
-  // 더미 모드 체크
-  if (checkDemoMode()) {
-    console.log('⚠️ 더미 모드: 설치 정보 저장 시뮬레이션');
-    await new Promise(resolve => setTimeout(resolve, 500));
-    return {
-      code: 'SUCCESS',
-      message: '설치 정보가 저장되었습니다.'
-    };
-  }
-
-  try {
-    const origin = typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000';
-    console.log('📡 실제 설치 정보 저장 API 호출:', `${API_BASE}/customer/work/saveInstallInfo`);
-
-    const response = await fetchWithRetry(`${API_BASE}/customer/work/saveInstallInfo`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Origin': origin
-      },
-      credentials: 'include',
-      body: JSON.stringify(installInfo),
-    }, 1); // 재시도 없음
-
-    console.log('📡 설치 정보 저장 API 응답 상태:', response.status, response.statusText);
-
-    const result = await response.json();
-    console.log('✅ 설치 정보 저장 API 성공:', result);
-
-    return result;
-  } catch (error: any) {
-    console.error('❌ 설치 정보 저장 API 실패:', error);
-    if (error instanceof NetworkError) {
-      throw error;
-    }
-    throw new NetworkError(error.message || '설치 정보 저장 중 오류가 발생했습니다.');
-  }
-};
-
-/**
- * 공통 코드 조회
- * @param codeGroup 코드 그룹 (예: CMCU048 - 망구분, BLST010 - 설치유형)
- * @returns 공통 코드 목록
- */
-export const getCommonCodes = async (codeGroup: string): Promise<CommonCodeItem[]> => {
-  console.log('🔍 [공통 코드 조회] API 호출:', codeGroup);
-
-  // 더미 모드 체크
-  if (checkDemoMode()) {
-    console.log('⚠️ 더미 모드: 공통 코드 시뮬레이션');
-    await new Promise(resolve => setTimeout(resolve, 300));
-
-    // 코드 그룹별 더미 데이터
-    const dummyData: { [key: string]: CommonCodeItem[] } = {
-      'CMCU048': [ // 망구분
-        { code: '1', name: 'HFC' },
-        { code: '2', name: 'FTTH' },
-        { code: '3', name: 'FTTB' }
-      ],
-      'BLST010': [ // 설치유형
-        { code: '1', name: '신규' },
-        { code: '2', name: '이전' },
-        { code: '3', name: '재설치' }
-      ],
-      'BLST014': [ // 배선유형
-        { code: '1', name: '단독' },
-        { code: '2', name: '공용' },
-        { code: '3', name: '기타' }
-      ],
-      'CMCU030': [ // 케이블배선유형
-        { code: '1', name: '동축' },
-        { code: '2', name: '광케이블' },
-        { code: '3', name: 'UTP' }
-      ],
-      'BLST016': [ // 인입관통
-        { code: '1', name: '관통' },
-        { code: '2', name: '비관통' }
-      ],
-      'CMCU046': [ // 케이블설치유형
-        { code: '1', name: '노출' },
-        { code: '2', name: '은폐' },
-        { code: '3', name: '반은폐' }
-      ],
-      'CMCU050': [ // AV접속유형
-        { code: '1', name: 'HDMI' },
-        { code: '2', name: 'Component' },
-        { code: '3', name: 'Composite' }
-      ],
-      'CMCU051': [ // RF접속유형
-        { code: '1', name: '동축' },
-        { code: '2', name: '광' }
-      ],
-      'CMCU049': [ // 상향제어구분
-        { code: '1', name: '양방향' },
-        { code: '2', name: '단방향' }
-      ]
-    };
-
-    return dummyData[codeGroup] || [];
-  }
-
-  try {
-    const origin = typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000';
-    console.log('📡 실제 공통 코드 조회 API 호출:', `${API_BASE}/common/getCommonCodes`);
-
-    const response = await fetchWithRetry(`${API_BASE}/common/getCommonCodes`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Origin': origin
-      },
-      credentials: 'include',
-      body: JSON.stringify({ CODE_GROUP: codeGroup }),
-    });
-
-    console.log('📡 공통 코드 조회 API 응답 상태:', response.status, response.statusText);
-
-    const result = await response.json();
-    console.log('✅ 공통 코드 조회 API 성공:', result);
-    console.log('  - Type:', Array.isArray(result) ? 'Array' : typeof result);
-    console.log('  - Length:', Array.isArray(result) ? result.length : 'N/A');
-
-    // 백엔드가 배열을 직접 반환 (다른 API와 동일)
-    if (Array.isArray(result)) {
-      console.log('  - 첫 항목:', result[0]);
-      return result;
-    }
-
-    console.warn('⚠️ 예상치 못한 응답 형식:', result);
-    return [];
-  } catch (error: any) {
-    console.error('❌ 공통 코드 조회 API 실패:', error);
-    // 공통 코드 조회 실패 시 빈 배열 반환 (화면은 계속 동작하도록)
-    return [];
-  }
-};
-
-// ==================== 장비 할당/반납 처리 API ====================
-
-/**
- * 기사 할당 장비 조회 (출고 리스트)
- * @param params 검색 조건
- * @returns 출고 리스트
- */
-export const getEquipmentOutList = async (params: {
-  FROM_OUT_REQ_DT: string;
-  TO_OUT_REQ_DT: string;
-  SO_ID?: string;
-  OUT_REQ_NO?: string;
-  PROC_STAT?: string;
-}): Promise<any[]> => {
-  console.log('📦 [장비할당조회] API 호출:', params);
-
-  try {
-    const origin = typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000';
-
-    const response = await fetchWithRetry(`${API_BASE}/customer/equipment/getEquipmentOutList`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Origin': origin
-      },
-      credentials: 'include',
-      body: JSON.stringify(params),
-    });
-
-    const result = await response.json();
-    console.log('✅ 기사 할당 장비 조회 성공:', result);
-
-    if (!result) return [];
-    return Array.isArray(result) ? result : result.output1 || [];
-  } catch (error: any) {
-    console.error('❌ 기사 할당 장비 조회 실패:', error);
-    if (error instanceof NetworkError) {
-      throw error;
-    }
-    throw new NetworkError('기사 할당 장비 조회에 실패했습니다.');
-  }
-};
-
-/**
- * 장비 할당 처리 확인
- * @param params 확인 조건
- * @returns 확인 결과
- */
-export const checkEquipmentProc = async (params: {
-  OUT_REQ_NO: string;
-}): Promise<any> => {
-  console.log('✔️ [장비할당확인] API 호출:', params);
-
-  try {
-    const origin = typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000';
-
-    const response = await fetchWithRetry(`${API_BASE}/customer/equipment/getEquipmentProcYnCheck`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Origin': origin
-      },
-      credentials: 'include',
-      body: JSON.stringify(params),
-    });
-
-    const result = await response.json();
-    console.log('✅ 장비 할당 확인 성공:', result);
-
-    return result;
-  } catch (error: any) {
-    console.error('❌ 장비 할당 확인 실패:', error);
-    if (error instanceof NetworkError) {
-      throw error;
-    }
-    throw new NetworkError('장비 할당 확인에 실패했습니다.');
-  }
-};
-
-/**
- * 장비 할당 처리 (입고)
- * @param params 할당 정보
- * @returns 처리 결과
- */
-export const addEquipmentQuota = async (params: {
-  OUT_REQ_NO: string;
-  equipmentList: any[];
-}): Promise<any> => {
-  console.log('💼 [장비할당처리] API 호출:', params);
-
-  try {
-    const origin = typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000';
-
-    const response = await fetchWithRetry(`${API_BASE}/customer/equipment/addCorporationEquipmentQuota`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Origin': origin
-      },
-      credentials: 'include',
-      body: JSON.stringify(params),
-    });
-
-    const result = await response.json();
-    console.log('✅ 장비 할당 처리 성공:', result);
-
-    return result;
-  } catch (error: any) {
-    console.error('❌ 장비 할당 처리 실패:', error);
-    if (error instanceof NetworkError) {
-      throw error;
-    }
-    throw new NetworkError('장비 할당 처리에 실패했습니다.');
-  }
-};
-
-/**
- * 기사 보유 장비 조회 (반납용)
- * @param params 검색 조건
- * @returns 기사 보유 장비 리스트
- */
-export const getEquipmentReturnRequestList = async (params: {
-  WRKR_ID: string;
-  SO_ID?: string;
-}): Promise<any[]> => {
-  console.log('📋 [기사장비조회] API 호출:', params);
-
-  try {
-    const origin = typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000';
-
-    const response = await fetchWithRetry(`${API_BASE}/customer/equipment/getEquipmentReturnRequestList`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Origin': origin
-      },
-      credentials: 'include',
-      body: JSON.stringify(params),
-    });
-
-    const result = await response.json();
-    console.log('✅ 기사 장비 조회 성공:', result);
-
-    if (!result) return [];
-    return Array.isArray(result) ? result : result.output1 || [];
-  } catch (error: any) {
-    console.error('❌ 기사 장비 조회 실패:', error);
-    if (error instanceof NetworkError) {
-      throw error;
-    }
-    throw new NetworkError('기사 장비 조회에 실패했습니다.');
-  }
-};
-
-/**
- * 장비 반납 요청 확인
- * @param params 확인 조건
- * @returns 확인 결과
- */
-export const checkEquipmentReturn = async (params: {
-  EQT_NO: string;
-  WRKR_ID: string;
-}): Promise<any> => {
-  console.log('✔️ [반납확인] API 호출:', params);
-
-  try {
-    const origin = typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000';
-
-    const response = await fetchWithRetry(`${API_BASE}/customer/equipment/getEquipmentReturnRequestCheck`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Origin': origin
-      },
-      credentials: 'include',
-      body: JSON.stringify(params),
-    });
-
-    const result = await response.json();
-    console.log('✅ 반납 확인 성공:', result);
-
-    return result;
-  } catch (error: any) {
-    console.error('❌ 반납 확인 실패:', error);
-    if (error instanceof NetworkError) {
-      throw error;
-    }
-    throw new NetworkError('반납 확인에 실패했습니다.');
-  }
-};
-
-/**
- * 장비 반납 요청
- * @param params 반납 정보
- * @returns 처리 결과
- */
-export const addEquipmentReturnRequest = async (params: {
-  WRKR_ID: string;
-  equipmentList: any[];
-}): Promise<any> => {
-  console.log('📤 [반납요청] API 호출:', params);
-
-  try {
-    const origin = typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000';
-
-    const response = await fetchWithRetry(`${API_BASE}/customer/equipment/addEquipmentReturnRequest`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Origin': origin
-      },
-      credentials: 'include',
-      body: JSON.stringify(params),
-    });
-
-    const result = await response.json();
-    console.log('✅ 반납 요청 성공:', result);
-
-    return result;
-  } catch (error: any) {
-    console.error('❌ 반납 요청 실패:', error);
-    if (error instanceof NetworkError) {
-      throw error;
-    }
-    throw new NetworkError('반납 요청에 실패했습니다.');
-  }
-};
-
-/**
- * 작업자(기사) 보유 장비 조회
- * @param params 검색 조건
- * @returns 장비 리스트
- */
-export const getWorkerEquipmentList = async (params: {
-  WRKR_ID: string;
-  SO_ID?: string;
-  ITEM_MID_CD?: string;
-  EQT_SERNO?: string;
-}): Promise<any[]> => {
-  console.log('🔧 [작업자장비조회] API 호출:', params);
-
-  try {
-    const origin = typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000';
-
-    const response = await fetchWithRetry(`${API_BASE}/customer/equipment/getWrkrHaveEqtList`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Origin': origin
-      },
-      credentials: 'include',
-      body: JSON.stringify(params),
-    });
-
-    const result = await response.json();
-    console.log('✅ 작업자 장비 조회 성공:', result);
-
-    if (!result) return [];
-    return Array.isArray(result) ? result : result.output1 || [];
-  } catch (error: any) {
-    console.error('❌ 작업자 장비 조회 실패:', error);
-    if (error instanceof NetworkError) {
-      throw error;
-    }
-    throw new NetworkError('작업자 장비 조회에 실패했습니다.');
-  }
-};
-
-/**
- * 장비 분실 처리
- * @param params 분실 정보
- * @returns 처리 결과
- */
-export const processEquipmentLoss = async (params: {
-  EQT_NO: string;
-  WRKR_ID: string;
-  LOSS_REASON?: string;
-}): Promise<any> => {
-  console.log('⚠️ [분실처리] API 호출:', params);
-
-  try {
-    const origin = typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000';
-
-    const response = await fetchWithRetry(`${API_BASE}/customer/equipment/cmplEqtCustLossIndem`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Origin': origin
-      },
-      credentials: 'include',
-      body: JSON.stringify(params),
-    });
-
-    const result = await response.json();
-    console.log('✅ 분실 처리 성공:', result);
-
-    return result;
-  } catch (error: any) {
-    console.error('❌ 분실 처리 실패:', error);
-    if (error instanceof NetworkError) {
-      throw error;
-    }
-    throw new NetworkError('분실 처리에 실패했습니다.');
-  }
-};
-
-/**
- * 장비 상태 변경 (검사대기 → 사용가능)
- * @param params 변경 정보
- * @returns 처리 결과
- */
-export const setEquipmentCheckStandby = async (params: {
-  EQT_NO: string;
-}): Promise<any> => {
-  console.log('🔄 [장비상태변경] API 호출:', params);
-
-  try {
-    const origin = typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000';
-
-    const response = await fetchWithRetry(`${API_BASE}/customer/equipment/setEquipmentChkStndByY`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Origin': origin
-      },
-      credentials: 'include',
-      body: JSON.stringify(params),
-    });
-
-    const result = await response.json();
-    console.log('✅ 장비 상태 변경 성공:', result);
-
-    return result;
-  } catch (error: any) {
-    console.error('❌ 장비 상태 변경 실패:', error);
-    if (error instanceof NetworkError) {
-      throw error;
-    }
-    throw new NetworkError('장비 상태 변경에 실패했습니다.');
-  }
-};
-
-// ==================== 장비 상태 조회 API ====================
-
-/**
- * 장비 히스토리 정보 조회 (S/N 또는 MAC으로 조회)
- * @param params 검색 조건
- * @returns 장비 정보
- */
-export const getEquipmentHistoryInfo = async (params: {
-  EQT_SERNO?: string;
-  MAC_ADDRESS?: string;
-  SO_ID?: string;
-  WRKR_ID?: string;
-}): Promise<any> => {
-  console.log('🔍 [장비조회] API 호출:', params);
-
-  try {
-    const origin = typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000';
-
-    // localStorage에서 사용자 정보 가져오기 (SO_ID, WRKR_ID 자동 추가)
-    const requestParams: Record<string, string | undefined> = { ...params };
-    if (!requestParams.SO_ID || !requestParams.WRKR_ID) {
-      try {
-        const userInfo = localStorage.getItem('userInfo');
-        if (userInfo) {
-          const user = JSON.parse(userInfo);
-          if (!requestParams.SO_ID && user.soId) {
-            requestParams.SO_ID = user.soId;
-          }
-          if (!requestParams.WRKR_ID && user.userId) {
-            requestParams.WRKR_ID = user.userId;
-          }
-          console.log('🔍 [장비조회] 사용자 정보 추가:', { SO_ID: requestParams.SO_ID, WRKR_ID: requestParams.WRKR_ID });
-        }
-      } catch (e) {
-        console.warn('🔍 [장비조회] 사용자 정보 파싱 실패:', e);
-      }
-    }
-
-    console.log('🔍 [장비조회] 최종 파라미터:', requestParams);
-
-    const response = await fetchWithRetry(`${API_BASE}/statistics/equipment/getEquipmentHistoryInfo`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Origin': origin
-      },
-      credentials: 'include',
-      body: JSON.stringify(requestParams),
-    });
-
-    const result = await response.json();
-
-    // 백엔드 디버그 로그 출력
-    if (result?.debugLogs && Array.isArray(result.debugLogs)) {
-      console.group('🔧 [백엔드 디버그 로그]');
-      result.debugLogs.forEach((log: string) => {
-        if (log.includes('SUCCESS')) {
-          console.log('%c' + log, 'color: #22c55e; font-weight: bold;');
-        } else if (log.includes('ERROR') || log.includes('FAILED')) {
-          console.log('%c' + log, 'color: #ef4444;');
-        } else if (log.includes('NULL') || log.includes('NOT_FOUND')) {
-          console.log('%c' + log, 'color: #f59e0b;');
-        } else {
-          console.log(log);
-        }
-      });
-      console.groupEnd();
-    }
-
-    // 성공 여부 확인
-    if (result?.success === true) {
-      console.log('✅ 장비 조회 성공 - 사용된 메소드:', result.method);
-      console.log('📦 데이터:', result.data);
-      return result.data;
-    }
-
-    // 에러 응답 처리
-    if (result?.code === 'EQT_HISTORY_ERROR') {
-      console.error('❌ 장비 조회 실패:', result.message);
-      console.log('시도한 메소드 수:', result.triedMethods, '빈 수:', result.triedBeans);
-      throw new NetworkError(result.message);
-    }
-
-    console.log('✅ 장비 조회 완료:', result);
-    return Array.isArray(result) ? result[0] : result;
-  } catch (error: any) {
-    console.error('❌ 장비 조회 실패:', error);
-    if (error instanceof NetworkError) {
-      throw error;
-    }
-    throw new NetworkError('장비 조회에 실패했습니다.');
-  }
-};
-
-/**
- * 장비 작업자 변경 (나에게 인수)
- * @param params 변경 정보
- * @returns 처리 결과
- */
-export const changeEquipmentWorker = async (params: {
-  EQT_NO: string;
-  FROM_WRKR_ID: string;
-  TO_WRKR_ID: string;
-}): Promise<any> => {
-  console.log('👤 [장비인수] API 호출:', params);
-
-  try {
-    const origin = typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000';
-
-    const response = await fetchWithRetry(`${API_BASE}/customer/equipment/changeEqtWrkr_3`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Origin': origin
-      },
-      credentials: 'include',
-      body: JSON.stringify(params),
-    });
-
-    const result = await response.json();
-    console.log('✅ 장비 인수 성공:', result);
-
-    return result;
-  } catch (error: any) {
-    console.error('❌ 장비 인수 실패:', error);
-    if (error instanceof NetworkError) {
-      throw error;
-    }
-    throw new NetworkError('장비 인수에 실패했습니다.');
-  }
-};
-
-// ==================== 기사 간 장비 이동 API ====================
-
-/**
- * 작업자(기사) 검색
- * @param params 검색 조건
- * @returns 작업자 리스트
- */
-export const findUserList = async (params: {
-  USR_NM?: string;
-  USR_ID?: string;
-  SO_ID?: string;
-}): Promise<any[]> => {
-  console.log('🔍 [기사검색] API 호출:', params);
-
-  try {
-    const origin = typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000';
-
-    const response = await fetchWithRetry(`${API_BASE}/system/cm/getFindUsrList3`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Origin': origin
-      },
-      credentials: 'include',
-      body: JSON.stringify(params),
-    });
-
-    const result = await response.json();
-    console.log('✅ 기사 검색 성공:', result);
-
-    // null 체크 추가
-    if (!result) {
-      console.log('⚠️ 기사 검색 결과 없음 (null 반환)');
-      return [];
-    }
-
-    return Array.isArray(result) ? result : result.output1 || [];
-  } catch (error: any) {
-    console.error('❌ 기사 검색 실패:', error);
-    if (error instanceof NetworkError) {
-      throw error;
-    }
-    throw new NetworkError('기사 검색에 실패했습니다.');
-  }
-};
-
-/**
- * 문자 발송 (장비 인수 알림)
- * @param params 문자 정보
- * @returns 처리 결과
- */
-export const sendSmsNotification = async (params: {
-  RECV_PHONE_NO: string;
-  MSG_CONTENT: string;
-  SEND_UID: string;
-}): Promise<any> => {
-  console.log('📱 [문자발송] API 호출:', params);
-
-  try {
-    const origin = typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000';
-
-    const response = await fetchWithRetry(`${API_BASE}/customer/sigtrans/saveENSSendHist`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Origin': origin
-      },
-      credentials: 'include',
-      body: JSON.stringify(params),
-    });
-
-    const result = await response.json();
-    console.log('✅ 문자 발송 성공:', result);
-
-    return result;
-  } catch (error: any) {
-    console.error('❌ 문자 발송 실패:', error);
-    if (error instanceof NetworkError) {
-      throw error;
-    }
-    throw new NetworkError('문자 발송에 실패했습니다.');
-  }
-};
-
-// ==================== 문자발송이력 조회 API ====================
-
-/**
- * 문자발송이력 조회
- * @param custId 고객 ID
- * @param startDate 시작일 (yyyyMMdd)
- * @param endDate 종료일 (yyyyMMdd)
- * @returns 문자발송이력 목록
- */
-export interface SmsHistoryItem {
-  EML_SMS_SND_TP_NM?: string;  // SMS유형 (작업완료, 작업예정 등)
-  CELL_PHN?: string;           // 수신번호
-  SMS_RCV_NO?: string;         // 발신번호
-  RESULT?: string;             // 발송결과
-  TM_RSLT?: string;            // 통화결과
-  MSG_TYP?: string;            // 메시지타입 (KKO, SMS, LMS)
-  MESSAGE?: string;            // 전송메시지
-  SEND_TYPE?: string;          // 발송타입
-  SEND_TIME?: string;          // 전송요청시간
-  REG_NM?: string;             // 등록자명
-  REG_DTTM?: string;           // 등록일시
-}
-
-export const getSmsHistory = async (
-  custId: string,
-  startDate?: string,
-  endDate?: string
-): Promise<SmsHistoryItem[]> => {
-  console.log('📱 [문자발송이력] API 호출:', { custId, startDate, endDate });
-
-  try {
-    // 기본값: 최근 7일
-    const today = new Date();
-    const defaultEndDate = today.toISOString().slice(0, 10).replace(/-/g, '');
-    const weekAgo = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
-    const defaultStartDate = weekAgo.toISOString().slice(0, 10).replace(/-/g, '');
-
-    const params = {
-      CUST_ID: custId,
-      SMS_PROCESS: 'ALL',
-      REG_DATE1: startDate || defaultStartDate,
-      REG_DATE2: endDate || defaultEndDate,
-    };
-
-    const origin = typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000';
-
-    const response = await fetchWithRetry(`${API_BASE}/customer/sigtrans/getENSSendHist`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Origin': origin
-      },
-      credentials: 'include',
-      body: JSON.stringify(params),
-    });
-
-    const result = await response.json();
-    console.log('✅ 문자발송이력 조회 성공:', result);
-
-    // 결과 파싱
-    if (Array.isArray(result)) {
-      return result;
-    }
-    if (result.output && Array.isArray(result.output)) {
-      return result.output;
-    }
-    if (result.data && Array.isArray(result.data)) {
-      return result.data;
-    }
-
-    return [];
-  } catch (error: any) {
-    console.error('❌ 문자발송이력 조회 실패:', error);
-    if (error instanceof NetworkError) {
-      throw error;
-    }
-    throw new NetworkError('문자발송이력 조회에 실패했습니다.');
-  }
-};
-
-// ==================== 미회수 장비 회수처리 API ====================
-
-/**
- * 미회수 장비 조회
- * @param params 검색 조건
- * @returns 미회수 장비 리스트
- */
-export const getUnreturnedEquipmentList = async (params: {
-  FROM_DT?: string;
-  TO_DT?: string;
-  CUST_ID?: string;
-  CUST_NM?: string;
-  EQT_SERNO?: string;
-}): Promise<any[]> => {
-  console.log('📦 [미회수장비조회] API 호출:', params);
-
-  try {
-    const origin = typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000';
-
-    const response = await fetchWithRetry(`${API_BASE}/customer/work/getEquipLossInfo`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Origin': origin
-      },
-      credentials: 'include',
-      body: JSON.stringify(params),
-    });
-
-    const result = await response.json();
-    console.log('✅ 미회수 장비 조회 성공:', result);
-
-    if (!result) return [];
-    return Array.isArray(result) ? result : result.output1 || [];
-  } catch (error: any) {
-    console.error('❌ 미회수 장비 조회 실패:', error);
-    if (error instanceof NetworkError) {
-      throw error;
-    }
-    throw new NetworkError('미회수 장비 조회에 실패했습니다.');
-  }
-};
-
-/**
- * 미회수 장비 회수 처리
- * @param params 회수 정보
- * @returns 처리 결과
- */
-export const processEquipmentRecovery = async (params: {
-  EQT_NO: string;
-  CTRT_ID: string;
-  WRK_ID?: string;
-}): Promise<any> => {
-  console.log('✅ [회수처리] API 호출:', params);
-
-  try {
-    const origin = typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000';
-
-    const response = await fetchWithRetry(`${API_BASE}/customer/work/modEquipLoss`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Origin': origin
-      },
-      credentials: 'include',
-      body: JSON.stringify(params),
-    });
-
-    const result = await response.json();
-    console.log('✅ 회수 처리 성공:', result);
-
-    return result;
-  } catch (error: any) {
-    console.error('❌ 회수 처리 실패:', error);
-    if (error instanceof NetworkError) {
-      throw error;
-    }
-    throw new NetworkError('회수 처리에 실패했습니다.');
-  }
-};
-
-// ============================================================
-// 계약정보 관련 API (Contract Info APIs)
-// 레거시 negociationManagement 서비스 연동
-// ============================================================
-
-/**
- * 계약정보 통합 조회 (계약상세 + 청구/미납정보)
- *
- * 레거시 API 통합:
- * - getCustCtrtAll (계약 상세)
- * - getCustCtrtInfoListCnt_1 (청구/미납 정보)
- *
- * @param params.CUST_ID 고객ID (필수)
- * @param params.CTRT_ID 계약ID (선택 - 특정 계약만 필터링)
- * @returns 통합 계약 정보
- */
-export const getFullContractInfo = async (params: {
-  CUST_ID: string;
-  CTRT_ID?: string;
-}): Promise<{
-  contracts: any[];
-  billing: any;
-  currentContract: any;
-}> => {
-  console.log('✅ [계약정보 통합] API 호출:', params);
-
-  try {
-    const origin = typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000';
-
-    const response = await fetchWithRetry(`${API_BASE}/customer/contract/getFullContractInfo`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Origin': origin
-      },
-      credentials: 'include',
-      body: JSON.stringify(params),
-    });
-
-    const result = await response.json();
-    console.log('✅ 계약정보 통합 조회 성공:', result);
-
-    return {
-      contracts: result.contracts || [],
-      billing: result.billing || null,
-      currentContract: result.currentContract || null
-    };
-  } catch (error: any) {
-    console.error('❌ 계약정보 통합 조회 실패:', error);
-    if (error instanceof NetworkError) {
-      throw error;
-    }
-    throw new NetworkError('계약정보 조회에 실패했습니다.');
-  }
-};
-
-/**
- * 계약 상세 정보 조회 (getCustCtrtAll)
- *
- * 응답 필드:
- * - CTRT_ID, CUST_ID, PYM_ACNT_ID (계약 기본정보)
- * - RATE_STRT_DT, RATE_END_DT (약정 시작/종료일)
- * - PROM_CNT, CTRT_APLY_STRT_DT, CTRT_APLY_END_DT (약정 정보)
- * - GRP_ID, GRP_NM, SUBS_MOT, SUBS_MOT_NM (단체 정보)
- * - CUST_CL_DC_APLY_YN, PNTY_EXMP_YN, TERM_CALC_YN (신분할인/위약금)
- * - IP_CNT, VOIP_TEL_NO (VoIP 정보)
- * - BILL_AMT_NOW, BILL_AMT_BEFORE (청구금액)
- *
- * @param params.CUST_ID 고객ID (필수)
- * @param params.CTRT_ID 계약ID (선택)
- * @returns 계약 상세 정보 목록
- */
-export const getCustomerContractInfo = async (params: {
-  CUST_ID: string;
-  CTRT_ID?: string;
-}): Promise<any[]> => {
-  console.log('✅ [계약상세] API 호출:', params);
-
-  try {
-    const origin = typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000';
-
-    const response = await fetchWithRetry(`${API_BASE}/customer/contract/getContractInfo`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Origin': origin
-      },
-      credentials: 'include',
-      body: JSON.stringify(params),
-    });
-
-    const result = await response.json();
-    console.log('✅ 계약상세 조회 성공:', result);
-
-    return Array.isArray(result) ? result : [];
-  } catch (error: any) {
-    console.error('❌ 계약상세 조회 실패:', error);
-    if (error instanceof NetworkError) {
-      throw error;
-    }
-    throw new NetworkError('계약상세 조회에 실패했습니다.');
-  }
-};
-
-/**
- * 청구/미납 정보 조회 (getCustCtrtInfoListCnt_1)
- *
- * 응답 필드:
- * - DTV_CNT, DTV_LIV_CNT, DTV_DIE_CNT (DTV 계약 수)
- * - ISP_CNT, ISP_LIV_CNT, ISP_DIE_CNT (ISP 계약 수)
- * - VOIP_CNT, VOIP_LIV_CNT, VOIP_DIE_CNT (VoIP 계약 수)
- * - ACC_1 (선불금 잔액)
- * - ACC_2 (선결제 잔액 - 환불액)
- * - ACC_3 (선불료 잔액)
- * - ACC_4 (미납 청구액) ← 총 미납금
- *
- * @param params.CUST_ID 고객ID (필수)
- * @returns 청구/미납 정보
- */
-export const getCustomerBillingInfo = async (params: {
-  CUST_ID: string;
-}): Promise<any> => {
-  console.log('✅ [청구/미납] API 호출:', params);
-
-  try {
-    const origin = typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000';
-
-    const response = await fetchWithRetry(`${API_BASE}/customer/contract/getBillingInfo`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Origin': origin
-      },
-      credentials: 'include',
-      body: JSON.stringify(params),
-    });
-
-    const result = await response.json();
-    console.log('✅ 청구/미납 조회 성공:', result);
-
-    // 보통 첫 번째 항목에 집계 정보가 있음
-    if (Array.isArray(result) && result.length > 0) {
-      return result[0];
-    }
-    return result;
-  } catch (error: any) {
-    console.error('❌ 청구/미납 조회 실패:', error);
-    if (error instanceof NetworkError) {
-      throw error;
-    }
-    throw new NetworkError('청구/미납 조회에 실패했습니다.');
-  }
-};
-
-// ============ 신호 전송 API (Signal Transmission) ============
-
-/**
- * 신호 전송 결과 타입
- */
-export interface SignalResult {
-  code: 'SUCCESS' | 'PARTIAL' | 'ERROR';
-  message: string;
-  IF_DTL_ID?: string;
-  MSG_ID?: string;
-  WRK_ID?: string;
-  resultCode1?: string;
-  resultCode2?: string;
-  rawResult?: string;
-}
-
-/**
- * 범용 신호 전송 파라미터 (modIfSvc)
- */
-export interface SignalParams {
-  MSG_ID: string;           // 신호 ID (SMR90:설치, SMR91:철거)
-  CUST_ID: string;          // 고객 ID (필수)
-  CTRT_ID: string;          // 계약 ID (필수)
-  SO_ID: string;            // SO ID (필수)
-  EQT_NO?: string;          // 장비 번호
-  EQT_PROD_CMPS_ID?: string;// 장비 상품 구성 ID
-  PROD_CD?: string;         // 상품 코드
-  ITV_USR_ID?: string;      // ITV 사용자 ID
-  IP_CNT?: string;          // IP 개수
-  ETC_1?: string;           // 케이블모뎀 장비번호
-  ETC_2?: string;           // 추가 장비번호
-  ETC_3?: string;           // 추가 장비번호
-  ETC_4?: string;           // WiFi 장비번호
-  SUB_PROD_CD?: string;     // 부 상품 코드
-  WRK_ID?: string;          // 작업 ID
-  IF_DTL_ID?: string;       // IF 상세 ID
-  NET_CL?: string;          // 망 구분
-  REG_UID?: string;         // 등록자 ID
-  VOIP_JOIN_CTRT_ID?: string; // VoIP 조인 계약 ID
-  NEW_VOIP_TEL_NO?: string; // 신규 VoIP 전화번호
-}
-
-/**
- * 광랜 신호 전송 파라미터 (callMetroEqtStatusSearch)
- */
-export interface MetroSignalParams {
-  msg_id: string;           // 신호 ID (SMR82:포트정지, SMR83:포트개통, SMR87:포트리셋)
-  cust_id: string;          // 고객 ID (필수)
-  ctrt_id: string;          // 계약 ID (필수)
-  so_id: string;            // SO ID (필수)
-  eqt_no?: string;          // 장비 번호
-  ip_cnt?: string;          // IP 개수
-  wrk_id?: string;          // 작업 ID
-  reg_uid?: string;         // 등록자 ID
-}
-
-/**
- * 범용 신호 전송 API (modIfSvc)
- * SMR90(설치), SMR91(철거) 등 일반 신호 전송
- *
- * @param params 신호 파라미터
- * @returns 신호 전송 결과
- */
-export const sendSignal = async (params: SignalParams): Promise<SignalResult> => {
-  console.log('📡 [신호전송] sendSignal 호출:', params.MSG_ID, params);
-
-  try {
-    const origin = typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000';
-
-    const response = await fetchWithRetry(`${API_BASE}/signal/send`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Origin': origin
-      },
-      credentials: 'include',
-      body: JSON.stringify(params),
-    });
-
-    const result = await response.json();
-    console.log('📡 [신호전송] 응답:', result);
-
-    return result as SignalResult;
-  } catch (error: any) {
-    console.error('❌ [신호전송] 실패:', error);
-    return {
-      code: 'ERROR',
-      message: error.message || '신호 전송에 실패했습니다.',
-      MSG_ID: params.MSG_ID
-    };
-  }
-};
-
-/**
- * 광랜 신호 전송 API (callMetroEqtStatusSearch)
- * SMR82(포트정지), SMR83(포트개통), SMR87(포트리셋)
- *
- * @param params 광랜 신호 파라미터
- * @returns 신호 전송 결과
- */
-export const sendMetroSignal = async (params: MetroSignalParams): Promise<SignalResult> => {
-  console.log('📡 [광랜신호] sendMetroSignal 호출:', params.msg_id, params);
-
-  try {
-    const origin = typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000';
-
-    const response = await fetchWithRetry(`${API_BASE}/signal/metro`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Origin': origin
-      },
-      credentials: 'include',
-      body: JSON.stringify(params),
-    });
-
-    const result = await response.json();
-    console.log('📡 [광랜신호] 응답:', result);
-
-    return result as SignalResult;
-  } catch (error: any) {
-    console.error('❌ [광랜신호] 실패:', error);
-    return {
-      code: 'ERROR',
-      message: error.message || '광랜 신호 전송에 실패했습니다.',
-      MSG_ID: params.msg_id
-    };
-  }
-};
-
-/**
- * 포트 정지 API (SMR82)
- * 광랜 포트 정지 시 사용
- */
-export const sendPortCloseSignal = async (params: Omit<MetroSignalParams, 'msg_id'>): Promise<SignalResult> => {
-  console.log('📡 [포트정지] sendPortCloseSignal 호출:', params);
-
-  try {
-    const origin = typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000';
-
-    const response = await fetchWithRetry(`${API_BASE}/signal/port-close`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Origin': origin
-      },
-      credentials: 'include',
-      body: JSON.stringify(params),
-    });
-
-    const result = await response.json();
-    console.log('📡 [포트정지] 응답:', result);
-
-    return result as SignalResult;
-  } catch (error: any) {
-    console.error('❌ [포트정지] 실패:', error);
-    return {
-      code: 'ERROR',
-      message: error.message || '포트 정지에 실패했습니다.',
-      MSG_ID: 'SMR82'
-    };
-  }
-};
-
-/**
- * 포트 개통 API (SMR83)
- * 광랜 포트 개통 시 사용
- */
-export const sendPortOpenSignal = async (params: Omit<MetroSignalParams, 'msg_id'>): Promise<SignalResult> => {
-  console.log('📡 [포트개통] sendPortOpenSignal 호출:', params);
-
-  try {
-    const origin = typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000';
-
-    const response = await fetchWithRetry(`${API_BASE}/signal/port-open`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Origin': origin
-      },
-      credentials: 'include',
-      body: JSON.stringify(params),
-    });
-
-    const result = await response.json();
-    console.log('📡 [포트개통] 응답:', result);
-
-    return result as SignalResult;
-  } catch (error: any) {
-    console.error('❌ [포트개통] 실패:', error);
-    return {
-      code: 'ERROR',
-      message: error.message || '포트 개통에 실패했습니다.',
-      MSG_ID: 'SMR83'
-    };
-  }
-};
-
-/**
- * 포트 리셋 API (SMR87)
- * 광랜 포트 리셋 시 사용
- */
-export const sendPortResetSignal = async (params: Omit<MetroSignalParams, 'msg_id'>): Promise<SignalResult> => {
-  console.log('📡 [포트리셋] sendPortResetSignal 호출:', params);
-
-  try {
-    const origin = typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000';
-
-    const response = await fetchWithRetry(`${API_BASE}/signal/port-reset`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Origin': origin
-      },
-      credentials: 'include',
-      body: JSON.stringify(params),
-    });
-
-    const result = await response.json();
-    console.log('📡 [포트리셋] 응답:', result);
-
-    return result as SignalResult;
-  } catch (error: any) {
-    console.error('❌ [포트리셋] 실패:', error);
-    return {
-      code: 'ERROR',
-      message: error.message || '포트 리셋에 실패했습니다.',
-      MSG_ID: 'SMR87'
-    };
-  }
-};
-
-/**
- * 설치위치 정보 업데이트 (updateInstlLocFrWrk)
- * - 레거시 customer/equipment/updateInstlLocFrWrk.req 호출
- * - INSTL_LOC 형식: "설치위치텍스트¶시청모드코드" (DTV일 경우) 또는 "설치위치텍스트" (기타)
- */
-export const updateInstallLocation = async (params: {
-  WRK_ID: string;
-  CTRT_ID: string;
-  INSTL_LOC: string;
-}): Promise<{ code: string; message: string }> => {
-  console.log('[설치위치 API] updateInstallLocation 호출:', params);
-
-  // 더미 모드 체크
-  if (checkDemoMode()) {
-    console.log('[설치위치 API] 더미 모드: 설치위치 저장 시뮬레이션');
-    await new Promise(resolve => setTimeout(resolve, 500));
-    return { code: 'SUCCESS', message: '설치위치가 저장되었습니다 (더미)' };
-  }
-
-  try {
-    const userInfo = localStorage.getItem('userInfo');
-    const user = userInfo ? JSON.parse(userInfo) : {};
-    const userId = user.userId || 'SYSTEM';
-
-    const requestData = {
-      WRK_ID: params.WRK_ID,
-      CTRT_ID: params.CTRT_ID,
-      INSTL_LOC: params.INSTL_LOC,
-      REG_UID: userId,
-    };
-
-    console.log('[설치위치 API] 요청 데이터:', requestData);
-
-    const response = await fetch(`${API_BASE}/customer/equipment/updateInstlLocFrWrk`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      credentials: 'include',
-      body: JSON.stringify(requestData),
-    });
-
-    const result = await response.json();
-    console.log('[설치위치 API] 응답:', result);
-
-    if (result.code === 'SUCCESS' || result.success === true) {
-      return { code: 'SUCCESS', message: '저장되었습니다.' };
-    } else {
-      return {
-        code: 'ERROR',
-        message: result.message || result.msg || '설치위치 저장에 실패했습니다.'
-      };
-    }
-  } catch (error: any) {
-    console.error('[설치위치 API] 오류:', error);
-    return {
-      code: 'ERROR',
-      message: error.message || '설치위치 저장 중 오류가 발생했습니다.',
-    };
-  }
-};
-// Alias exports for backward compatibility
-export const getWrkrHaveEqtList = getWorkerEquipmentList;
-
-// ==================== 범용 API 요청 함수 ====================
-
-/**
- * 범용 API 요청 함수 (직접 호출용)
- * @param endpoint API 엔드포인트 (예: '/customer/equipment/getStatus')
- * @param method HTTP 메서드
- * @param body 요청 본문
- * @returns API 응답
- */
-export const apiRequest = async (endpoint: string, method: 'GET' | 'POST' = 'POST', body?: any): Promise<any> => {
-  console.log(`📡 [API 직접호출] ${method} ${endpoint}`, body);
-
-  try {
-    const origin = typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000';
-    const url = endpoint.startsWith('http') ? endpoint : `${API_BASE}${endpoint}`;
-
-    const options: RequestInit = {
-      method,
-      headers: {
-        'Content-Type': 'application/json',
-        'Origin': origin
-      },
-      credentials: 'include',
-    };
-
-    if (body && method !== 'GET') {
-      options.body = JSON.stringify(body);
-    }
-
-    const response = await fetch(url, options);
-    const result = await response.json();
-
-    // 백엔드 디버그 로그 콘솔 출력 (성공/실패 모두)
-    printBackendDebugLogs(endpoint, result, response.ok);
-
-    console.log(`📡 [API 직접호출] ${endpoint} 응답:`, result);
-    return result;
-  } catch (error: any) {
-    console.error(`❌ [API 직접호출] ${endpoint} 실패:`, error);
-    throw error;
-  }
-};
-
-/**
- * 백엔드 디버그 로그를 콘솔에 출력하는 헬퍼 함수
- * 서버 로그 파일에는 쓰지 않고 프론트엔드 콘솔에서만 확인 가능
- */
-const printBackendDebugLogs = (endpoint: string, result: any, isSuccess: boolean): void => {
-  if (!result?.debugLogs || !Array.isArray(result.debugLogs) || result.debugLogs.length === 0) {
-    return;
-  }
-
-  const status = isSuccess ? '✅ 성공' : '❌ 실패';
-  console.group(`🔧 [백엔드 디버그 로그 - ${status}] ${endpoint}`);
-
-  result.debugLogs.forEach((log: string) => {
-    if (log.includes('SUCCESS') || log.includes('API_CALL_SUCCESS')) {
-      console.log('%c' + log, 'color: #22c55e; font-weight: bold;');
-    } else if (log.includes('ERROR') || log.includes('FAILED') || log.includes('Exception')) {
-      console.log('%c' + log, 'color: #ef4444; font-weight: bold;');
-    } else if (log.includes('FALLBACK') || log.includes('SKIP') || log.includes('Warning')) {
-      console.log('%c' + log, 'color: #f97316;');
-    } else if (log.includes('API_CALL_START') || log.includes('========')) {
-      console.log('%c' + log, 'color: #3b82f6; font-weight: bold;');
-    } else if (log.includes('[METHOD]') || log.includes('[URI]') || log.includes('[TIMESTAMP]')) {
-      console.log('%c' + log, 'color: #8b5cf6;');
-    } else if (log.includes('PARAMETER') || log.includes('Required:') || log.includes('Optional:')) {
-      console.log('%c' + log, 'color: #6366f1;');
-    } else if (log.includes('invokeFlexible') || log.includes('findMethod')) {
-      console.log('%c' + log, 'color: #0891b2;');
-    } else {
-      console.log(log);
-    }
-  });
-
-  console.groupEnd();
 };

@@ -58,9 +58,9 @@ const OtherManagement: React.FC<OtherManagementProps> = ({
   };
 
   return (
-    <div className="h-full overflow-y-auto bg-gray-50">
+    <div className="w-full">
       <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
-        <div className="bg-white border-b border-gray-200 sticky top-0 z-10">
+        <div className="bg-white border-b border-gray-200">
           <div
             ref={tabListRef}
             className="w-full overflow-x-auto scrollbar-hide"
@@ -71,7 +71,7 @@ const OtherManagement: React.FC<OtherManagementProps> = ({
                   key={tab.id}
                   value={tab.id}
                   ref={(el) => (tabButtonRefs.current[idx] = el)}
-                  className="data-[state=active]:bg-blue-500 data-[state=active]:text-white data-[state=inactive]:text-gray-600 rounded-full px-4 py-2 text-sm font-medium flex-shrink-0 mx-1 transition-colors whitespace-nowrap"
+                  className="data-[state=active]:bg-primary-500 data-[state=active]:text-white data-[state=inactive]:text-gray-600 rounded-full px-4 py-2 text-sm font-medium flex-shrink-0 mx-1 transition-colors whitespace-nowrap"
                 >
                   {tab.title}
                 </TabsTrigger>

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import Select from '../ui/Select';
 import BaseModal from '../common/BaseModal';
+import { useUIStore } from '../../stores/uiStore';
 
 interface PoleCheckModalProps {
   isOpen: boolean;
@@ -33,7 +34,7 @@ const PoleCheckModal: React.FC<PoleCheckModalProps> = ({
 
   const handleSave = () => {
     if (!poleYn) {
-      alert('전주실태조사 항목을 선택하십시오.');
+      useUIStore.getState().showGlobalToast('전주실태조사 항목을 선택하십시오.', 'warning');
       return;
     }
     onSave({ POLE_YN: poleYn, LAN_GB: '' });

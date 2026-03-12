@@ -160,7 +160,7 @@ const RemovalASAssignModal: React.FC<RemovalASAssignModalProps> = ({
     // 사용자 정보 가져오기
     const userInfo = localStorage.getItem('userInfo');
     const user = userInfo ? JSON.parse(userInfo) : {};
-    const workerId = user.userId || 'A20130708';
+    const workerId = user.userId || '';
     const crrId = user.crrId || '01';
 
     // AS접수상세 매핑
@@ -216,7 +216,7 @@ const RemovalASAssignModal: React.FC<RemovalASAssignModalProps> = ({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center">
+    <div className="fixed inset-0 z-[200] flex items-center justify-center">
       {/* 오버레이 */}
       <div
         className="absolute inset-0 bg-black/50"
@@ -242,7 +242,7 @@ const RemovalASAssignModal: React.FC<RemovalASAssignModalProps> = ({
           <div className="bg-gray-50 rounded-lg p-2.5 sm:p-3 space-y-1.5 sm:space-y-2">
             <div className="flex">
               <span className="text-xs sm:text-sm text-gray-500 w-16 sm:w-20">고객번호</span>
-              <span className="text-xs sm:text-sm font-medium">{custId} / {custNm}</span>
+              <span className="text-xs sm:text-sm font-medium">{custId.replace(/(\d{3})(\d{3})(\d{4})/, '$1-$2-$3')} / {custNm}</span>
             </div>
             <div className="flex">
               <span className="text-xs sm:text-sm text-gray-500 w-16 sm:w-20">주소</span>

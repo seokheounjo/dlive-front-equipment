@@ -11,9 +11,10 @@ interface WorkDirectionRowProps {
   onWorkerAdjust?: (direction: WorkOrder) => void;
   workStatusCounts?: WorkStatusCounts;
   index?: number;
+  isRecontract?: boolean;
 }
 
-const WorkDirectionRow: React.FC<WorkDirectionRowProps> = ({ direction, onSelect, onSms, onWorkerAdjust, workStatusCounts, index }) => {
+const WorkDirectionRow: React.FC<WorkDirectionRowProps> = ({ direction, onSelect, onSms, onWorkerAdjust, workStatusCounts, index, isRecontract }) => {
   const statusCounts = workStatusCounts || {
     total: 1,
     pending: 1,
@@ -114,7 +115,7 @@ const WorkDirectionRow: React.FC<WorkDirectionRowProps> = ({ direction, onSelect
               <div className="flex items-center justify-between gap-2 mb-2">
                 <div className="flex items-center gap-2 min-w-0">
                   {index !== undefined && (
-                    <div className="flex-shrink-0 w-7 h-7 flex items-center justify-center rounded-full bg-blue-500 text-white text-sm font-bold">
+                    <div className="flex-shrink-0 w-7 h-7 flex items-center justify-center rounded-full bg-primary-500 text-white text-sm font-bold">
                       {index}
                     </div>
                   )}
@@ -124,7 +125,7 @@ const WorkDirectionRow: React.FC<WorkDirectionRowProps> = ({ direction, onSelect
                       <span className="font-normal ml-1">({direction.customer.id.replace(/(\d{3})(\d{3})(\d{4})/, '$1-$2-$3')})</span>
                     )}
                   </h3>
-                  <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-50 text-blue-700 border border-blue-200 flex-shrink-0">
+                  <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-primary-50 text-primary-600 border border-primary-200 flex-shrink-0">
                     {direction.typeDisplay}
                   </span>
                   {direction.WRK_CD === '04' && direction.WRK_DTL_TCD === '0440' && (
@@ -138,7 +139,7 @@ const WorkDirectionRow: React.FC<WorkDirectionRowProps> = ({ direction, onSelect
                 </div>
               </div>
 
-              {/* 2행: 날짜 + VIP (왼쪽) / 서비스건수 (오른쪽) */}
+              {/* 2행: 날짜 + VIP + 재약정 (왼쪽) / 서비스건수 (오른쪽) */}
               <div className="flex items-center justify-between gap-2 mb-3">
                 <div className="flex items-center gap-2">
                   <svg className="w-4 h-4 text-gray-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -146,6 +147,11 @@ const WorkDirectionRow: React.FC<WorkDirectionRowProps> = ({ direction, onSelect
                   </svg>
                   <span className="text-sm text-gray-600">{formatDateTimeFromISO(direction.scheduledAt)}</span>
                   <VipBadge customer={direction.customer} />
+                  {isRecontract && (
+                    <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-bold bg-yellow-50 text-yellow-700 border border-yellow-300 flex-shrink-0">
+                      재약정
+                    </span>
+                  )}
                 </div>
                 <div className="flex-shrink-0">
                   {serviceBadge}
@@ -168,7 +174,7 @@ const WorkDirectionRow: React.FC<WorkDirectionRowProps> = ({ direction, onSelect
         <div className="flex items-center gap-2 pt-3 border-t border-gray-100">
           <button
             onClick={handleCall}
-            className="flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg bg-blue-500 text-white hover:bg-blue-600 transition-colors text-sm font-medium flex-1"
+            className="flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg bg-primary-500 text-white hover:bg-primary-500 transition-colors text-sm font-medium flex-1"
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />

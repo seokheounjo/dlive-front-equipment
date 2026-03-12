@@ -60,7 +60,7 @@ const WorkResultSignalList: React.FC<WorkResultSignalListProps> = ({ onBack }) =
           <button
             onClick={fetchSignals}
             disabled={isLoading}
-            className="w-full bg-orange-500 hover:bg-orange-600 text-white py-2 rounded font-medium text-sm shadow-md transition-all disabled:opacity-50"
+            className="w-full bg-orange-500 hover:bg-orange-600 text-white py-2 rounded font-medium text-sm shadow-md transition-all disabled:bg-gray-400 disabled:text-white disabled:cursor-not-allowed"
           >
             조회
           </button>

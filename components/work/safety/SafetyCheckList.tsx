@@ -61,11 +61,15 @@ const SafetyCheckList: React.FC<SafetyCheckListProps> = ({ onBack, userInfo, sho
           }
         }
 
-        // Create a map of item answers for quick lookup
+        // Create maps for answers and saved image paths
         const answerMap = new Map<string, string>();
+        const imagePathMap = new Map<string, string>();
         todayResults.forEach(r => {
           if (r.ITEM_ID) {
-            answerMap.set(r.ITEM_ID, r.ANSWER_VALUE || 'N');
+            answerMap.set(String(r.ITEM_ID), r.ANSWER_VALUE || 'N');
+            if (r.IMAGE_PATH) {
+              imagePathMap.set(String(r.ITEM_ID), r.IMAGE_PATH);
+            }
           }
         });
 
@@ -77,7 +81,7 @@ const SafetyCheckList: React.FC<SafetyCheckListProps> = ({ onBack, userInfo, sho
             required: item.IS_REQUIRED === 'Y',
             imageRequired: item.IMAGE_REQUIRED_YN === 'Y',
             checked: answerMap.get(String(item.ITEM_ID)) === 'Y',
-            photo: undefined,
+            photo: imagePathMap.get(String(item.ITEM_ID)) || undefined,
           }));
 
         console.log('[SafetyCheckList] Mapped items:', mappedItems);
@@ -246,6 +250,50 @@ const SafetyCheckList: React.FC<SafetyCheckListProps> = ({ onBack, userInfo, sho
     return true;
   };
 
+  const uploadSafeImages = async (userId: string): Promise<{ imgPaths: string; perItemPaths: string[] }> => {
+    // Per-item 이미지 경로 (ANS_ITEM_IDS 순서와 동일)
+    const perItemPaths: string[] = [];
+    const newBase64Entries: { itemIndex: number; data: string }[] = [];
+
+    for (let i = 0; i < checklistItems.length; i++) {
+      const item = checklistItems[i];
+      if (item.photo && item.photo.startsWith('data:image/')) {
+        // 새 사진 (Base64) → 업로드 필요
+        newBase64Entries.push({ itemIndex: i, data: item.photo });
+        perItemPaths.push(''); // placeholder
+      } else if (item.photo) {
+        // 기존 서버 경로 → 그대로 유지
+        perItemPaths.push(item.photo);
+      } else {
+        perItemPaths.push('');
+      }
+    }
+
+    // 새 Base64 사진 업로드
+    if (newBase64Entries.length > 0) {
+      const response = await fetch('/upload/safe-image', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ images: newBase64Entries.map(e => e.data), userId }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`Upload failed: ${response.status}`);
+      }
+
+      const result = await response.json();
+      if (result.success && result.paths) {
+        console.log('[SafetyCheckList] 새 이미지 업로드 완료:', result.paths);
+        for (let j = 0; j < newBase64Entries.length; j++) {
+          perItemPaths[newBase64Entries[j].itemIndex] = result.paths[j] || '';
+        }
+      }
+    }
+
+    const imgPaths = perItemPaths.filter(p => p).join(',') || 'N';
+    return { imgPaths, perItemPaths };
+  };
+
   const handleSubmit = async () => {
     if (!validateInspection()) {
       return;
@@ -265,14 +313,23 @@ const SafetyCheckList: React.FC<SafetyCheckListProps> = ({ onBack, userInfo, sho
       const ansItemIds = checklistItems.map(item => String(item.id)).join(',');
       const ansValues = checklistItems.map(item => item.checked ? 'Y' : 'N').join(',');
 
-      // IMG_PATHS: 이미지 없으면 'N'으로 저장 (백엔드 요구사항)
-      const imgPaths = 'N';
+      // 이미지 업로드 후 경로 받기
+      let imgPaths = 'N';
+      let perItemPaths: string[] = [];
+      try {
+        const uploadResult = await uploadSafeImages(userId);
+        imgPaths = uploadResult.imgPaths;
+        perItemPaths = uploadResult.perItemPaths;
+      } catch (uploadErr) {
+        console.error('[SafetyCheckList] 이미지 업로드 실패, N으로 진행:', uploadErr);
+        if (showToast) showToast('이미지 업로드 실패. 점검 내용만 저장합니다.', 'warning');
+      }
 
-      console.log('📋 안전점검 저장 요청:', {
+      console.log('[SafetyCheckList] 안전점검 저장 요청:', {
         USR_ID: userId,
         ANS_ITEM_IDS: ansItemIds,
         ANS_VALUES: ansValues,
-        IMG_PATHS: '(empty - image upload not implemented)'
+        IMG_PATHS: imgPaths,
       });
 
       const result = await saveSafetyChecklist({
@@ -286,8 +343,14 @@ const SafetyCheckList: React.FC<SafetyCheckListProps> = ({ onBack, userInfo, sho
 
       if (result.code === 'SUCCESS' || result.code === 'OK') {
         if (showToast) showToast('안전점검이 완료되었습니다.', 'success');
-        // 완료 후 전체 데이터 재로딩 (체크 상태 + 점검이력 + 제출여부 반영)
-        await loadChecklistItems();
+        setAlreadySubmittedToday(true);
+        // Base64 사진을 서버 경로로 교체 (썸네일 유지)
+        if (perItemPaths.length > 0) {
+          setChecklistItems(prev => prev.map((item, i) => ({
+            ...item,
+            photo: perItemPaths[i] || item.photo || undefined,
+          })));
+        }
         await checkLastInspection();
       } else {
         if (showToast) showToast(`안전점검 등록 실패: ${result.message || '알 수 없는 오류'}`, 'error', true);
@@ -349,7 +412,7 @@ const SafetyCheckList: React.FC<SafetyCheckListProps> = ({ onBack, userInfo, sho
   return (
     <div className="max-w-4xl mx-auto pb-6">
       {/* Header with Safety Character */}
-      <div className="bg-gradient-to-r from-blue-600 to-cyan-500 text-white p-4 sm:p-5 rounded-xl shadow-lg mb-6 relative">
+      <div className="bg-gradient-to-r from-primary-500 to-cyan-500 text-white p-4 sm:p-5 rounded-xl shadow-lg mb-6 relative">
         <div className="flex items-start gap-2 sm:gap-4">
           <div className="flex-1 z-10 min-w-0 flex flex-col justify-between h-36 sm:h-44">
             <div className="flex items-center gap-2 sm:gap-3">
@@ -409,12 +472,12 @@ const SafetyCheckList: React.FC<SafetyCheckListProps> = ({ onBack, userInfo, sho
 
       {/* Already submitted today notice */}
       {alreadySubmittedToday && (
-        <div className="bg-blue-50 border-l-4 border-blue-500 p-4 mb-6 rounded-lg">
+        <div className="bg-primary-50 border-l-4 border-primary-500 p-4 mb-6 rounded-lg">
           <div className="flex items-start gap-3">
-            <CheckCircle className="w-6 h-6 text-blue-500 flex-shrink-0 mt-0.5" />
+            <CheckCircle className="w-6 h-6 text-primary-700 flex-shrink-0 mt-0.5" />
             <div>
-              <h4 className="text-blue-800 font-bold mb-1">오늘 안전점검 제출 완료</h4>
-              <p className="text-sm text-blue-700">
+              <h4 className="text-primary-700 font-bold mb-1">오늘 안전점검 제출 완료</h4>
+              <p className="text-sm text-primary-600">
                 이미 오늘 안전점검을 제출하셨습니다. 수정이 필요한 경우 다시 제출해주세요.
               </p>
             </div>
@@ -424,7 +487,7 @@ const SafetyCheckList: React.FC<SafetyCheckListProps> = ({ onBack, userInfo, sho
 
       {/* Checklist Items */}
       <div className="bg-white rounded-xl shadow-md border border-gray-200 overflow-hidden mb-4">
-        <div className="bg-gradient-to-r from-blue-600 to-blue-500 p-3 sm:p-4 flex items-center gap-2 sm:gap-3">
+        <div className="bg-gradient-to-r from-primary-500 to-primary-500 p-3 sm:p-4 flex items-center gap-2 sm:gap-3">
           <Shield className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
           <h3 className="text-base sm:text-lg font-bold text-white">안전점검 항목</h3>
           <span className="ml-auto text-white/80 text-sm">{checklistItems.length}개 항목</span>
@@ -441,7 +504,7 @@ const SafetyCheckList: React.FC<SafetyCheckListProps> = ({ onBack, userInfo, sho
                   type="checkbox"
                   checked={item.checked}
                   onChange={() => handleCheckboxChange(item.id)}
-                  className="mt-1 w-5 h-5 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                  className="mt-1 w-5 h-5 text-primary-700 border-gray-300 rounded focus:ring-primary-500"
                 />
                 <div className="flex-1">
                   <span className="text-sm font-medium text-gray-900 whitespace-pre-line">
@@ -476,6 +539,16 @@ const SafetyCheckList: React.FC<SafetyCheckListProps> = ({ onBack, userInfo, sho
                       >
                         <X className="w-3 h-3" />
                       </button>
+                      <label className="absolute -bottom-2 -right-2 p-1.5 bg-blue-500 text-white rounded-full hover:bg-blue-600 cursor-pointer">
+                        <Camera className="w-3 h-3" />
+                        <input
+                          type="file"
+                          accept="image/*"
+                          capture="environment"
+                          onChange={(e) => handlePhotoUpload(item.id, e)}
+                          className="hidden"
+                        />
+                      </label>
                     </div>
                   ) : (
                     <label className="inline-flex items-center gap-2 px-4 py-2 border-2 border-dashed border-orange-300 rounded-lg hover:border-orange-500 hover:bg-orange-50 cursor-pointer transition-all">
@@ -502,7 +575,7 @@ const SafetyCheckList: React.FC<SafetyCheckListProps> = ({ onBack, userInfo, sho
         <button
           onClick={handleSubmit}
           disabled={isSaving || getRequiredCompletionPercentage() < 100}
-          className="w-full py-3 sm:py-4 bg-gradient-to-r from-blue-600 to-cyan-500 text-white rounded-xl font-bold text-base sm:text-lg shadow-lg hover:from-blue-700 hover:to-cyan-600 active:scale-[0.98] transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+          className="w-full py-3 sm:py-4 bg-gradient-to-r from-primary-500 to-cyan-500 text-white rounded-xl font-bold text-base sm:text-lg shadow-lg hover:from-primary-600 hover:to-cyan-600 active:scale-[0.98] transition-all disabled:bg-gray-400 disabled:from-gray-400 disabled:to-gray-400 disabled:text-white disabled:cursor-not-allowed"
         >
           {isSaving ? (
             <span className="flex items-center justify-center gap-2">
@@ -522,8 +595,8 @@ const SafetyCheckList: React.FC<SafetyCheckListProps> = ({ onBack, userInfo, sho
       </div>
 
       {/* Required Items Legend */}
-      <div className="mt-3 p-2.5 bg-blue-50 rounded-lg">
-        <p className="text-xs text-blue-800">
+      <div className="mt-3 p-2.5 bg-primary-50 rounded-lg">
+        <p className="text-xs text-primary-700">
           <span className="text-red-500 font-bold">*</span> 표시된 항목은 필수 점검 항목입니다
         </p>
       </div>

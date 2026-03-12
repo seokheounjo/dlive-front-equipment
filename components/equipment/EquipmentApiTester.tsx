@@ -3,6 +3,7 @@ import {
   CheckCircle2, XCircle, AlertCircle, Play, Download, ChevronDown, ChevronUp,
   RefreshCw, Search, Filter, Zap, List, Terminal, Settings, Activity
 } from 'lucide-react';
+import Select from '../ui/Select';
 
 // ============ 타입 정의 ============
 interface ApiDefinition {
@@ -595,17 +596,13 @@ const EquipmentApiTester: React.FC = () => {
           <div className="grid grid-cols-2 gap-6">
             <div className="bg-white rounded-lg shadow p-4">
               <h3 className="font-bold mb-4">API 선택 및 파라미터</h3>
-              <select
+              <Select
                 value={selectedApi}
-                onChange={(e) => setSelectedApi(e.target.value)}
-                className="w-full p-2 border rounded mb-4"
-              >
-                {EQUIPMENT_APIS.map(api => (
-                  <option key={api.path} value={api.path}>
-                    {api.name} - {api.path}
-                  </option>
-                ))}
-              </select>
+                onValueChange={(val) => setSelectedApi(val)}
+                options={EQUIPMENT_APIS.map(api => ({ value: api.path, label: `${api.name} - ${api.path}` }))}
+                placeholder="API 선택"
+                className="mb-4"
+              />
 
               <div className="space-y-3">
                 {EQUIPMENT_APIS.find(a => a.path === selectedApi)?.required.map(key => (

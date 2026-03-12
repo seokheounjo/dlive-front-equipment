@@ -20,7 +20,7 @@ interface WorkCompletionResultProps {
 
 const TableRow: React.FC<{ label: string; value?: string; children?: React.ReactNode }> = ({ label, value, children }) => (
   <tr className="border-b border-gray-200">
-    <td className="px-2 py-2 text-xs sm:text-sm font-medium text-gray-700 bg-blue-100 border-r border-gray-200 w-1/3">
+    <td className="px-2 py-2 text-xs sm:text-sm font-medium text-gray-700 bg-primary-100 border-r border-gray-200 w-1/3">
       {label}
     </td>
     <td className="px-2 py-2 text-xs sm:text-sm text-gray-900 w-2/3">
@@ -81,7 +81,7 @@ const WorkCompletionResult: React.FC<WorkCompletionResultProps> = ({ order, onBa
       {/* 메인 카드 */}
       <div className="bg-white rounded-lg shadow-lg border border-gray-200 overflow-hidden">
         {/* 제목 헤더 - 작업 유형별 동적 제목 */}
-        <div className="bg-blue-600 text-white px-3 py-2 text-sm sm:text-base font-semibold">
+        <div className="bg-primary-500 text-white px-3 py-2 text-sm sm:text-base font-semibold">
           {getCompleteButtonText(order.WRK_CD)} [1.작업정보]
         </div>
 
@@ -171,12 +171,12 @@ const WorkCompletionResult: React.FC<WorkCompletionResultProps> = ({ order, onBa
             )}
 
             {isRelocationWork(order.WRK_CD) && (
-              <div className="bg-blue-50 border border-blue-300 rounded-lg p-3 mb-3">
-                <h4 className="text-xs sm:text-sm font-semibold text-blue-800 mb-2 flex items-center gap-1">
+              <div className="bg-primary-50 border border-primary-300 rounded-lg p-3 mb-3">
+                <h4 className="text-xs sm:text-sm font-semibold text-primary-700 mb-2 flex items-center gap-1">
                   <MapPin size={16} />
                   이전 작업 완료 체크리스트
                 </h4>
-                <ul className="text-xs text-blue-700 space-y-1">
+                <ul className="text-xs text-primary-600 space-y-1">
                   <li>• 기존 위치 철거 완료</li>
                   <li>• 새 위치 설치 완료</li>
                   <li>• 장비 상태 점검 완료</li>
@@ -205,12 +205,12 @@ const WorkCompletionResult: React.FC<WorkCompletionResultProps> = ({ order, onBa
             )}
 
             {isSuspensionReleaseWork(order.WRK_CD, order.WRK_DTL_TCD) && (
-              <div className="bg-blue-50 border border-blue-300 rounded-lg p-3 mb-3">
-                <h4 className="text-xs sm:text-sm font-semibold text-blue-800 mb-2 flex items-center gap-1">
+              <div className="bg-primary-50 border border-primary-300 rounded-lg p-3 mb-3">
+                <h4 className="text-xs sm:text-sm font-semibold text-primary-700 mb-2 flex items-center gap-1">
                   <CheckCircle size={16} />
                   일시정지 해제 완료 체크리스트
                 </h4>
-                <ul className="text-xs text-blue-700 space-y-1">
+                <ul className="text-xs text-primary-600 space-y-1">
                   <li>• 해제 사유 입력 완료</li>
                   <li>• 해제 처리일 입력 완료</li>
                   <li>• 계약 상태 확인 (정지:30/37)</li>
@@ -282,7 +282,7 @@ const WorkCompletionResult: React.FC<WorkCompletionResultProps> = ({ order, onBa
           <div className="mt-4">
             <button
               onClick={onBack}
-              className="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-lg transition-colors text-sm sm:text-base"
+              className="w-full py-3 bg-primary-500 hover:bg-primary-600 text-white font-bold rounded-lg transition-colors text-sm sm:text-base"
             >
               확인
             </button>

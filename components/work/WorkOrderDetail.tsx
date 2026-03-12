@@ -7,7 +7,7 @@ import { PackageIcon } from '../icons/PackageIcon';
 import { CalendarIcon } from '../icons/CalendarIcon';
 import { InformationCircleIcon } from '../icons/InformationCircleIcon';
 import { ChevronDownIcon } from '../icons/ChevronDownIcon';
-import { cancelWork, getTechnicianEquipments } from '../../services/apiService';
+import { cancelWork, getTechnicianEquipments, getAfterProcInfo } from '../../services/apiService';
 import WorkCancelModal from '../work/WorkCancelModal';
 import { getWorkTypeIcon, getWorkTypeIconColor } from '../../utils/workTypeIcons';
 import { formatDate, formatTime, formatDateTimeFromISO, formatId } from '../../utils/dateFormatter';
@@ -66,6 +66,9 @@ const WorkOrderDetail: React.FC<WorkOrderDetailProps> = ({
   const [isLoading, setIsLoading] = useState(false);
   const [showCancelModal, setShowCancelModal] = useState(false);
 
+  // 재약정 대상 여부
+  const [isRecontract, setIsRecontract] = useState(false);
+
   // 안전점검 완료 여부 (작업 완료 시 true)
   const safetyInspectionCompleted = isWorkCompleted;
 
@@ -103,6 +106,23 @@ const WorkOrderDetail: React.FC<WorkOrderDetailProps> = ({
 
     preloadEquipmentData();
   }, [order.id]);
+
+  // 재약정 대상 체크 - 비활성화 (추후 작업 예정)
+  // useEffect(() => {
+  //   const checkRecontract = async () => {
+  //     const wrkDrctnId = order.WRK_DRCTN_ID || order.directionId;
+  //     if (!wrkDrctnId) return;
+  //     try {
+  //       const result = await getAfterProcInfo(wrkDrctnId);
+  //       if (result && result.CLOSE_DANGER === 'Y') {
+  //         setIsRecontract(true);
+  //       }
+  //     } catch (error) {
+  //       // ignore
+  //     }
+  //   };
+  //   checkRecontract();
+  // }, [order.WRK_DRCTN_ID, order.directionId]);
 
   const handleStartWork = () => {
     // 계약 상태 검증
@@ -168,14 +188,14 @@ const WorkOrderDetail: React.FC<WorkOrderDetailProps> = ({
         onClick={() => setActiveTab(tabId)}
         className={`relative px-4 sm:px-6 py-3 sm:py-3.5 text-sm sm:text-base font-semibold transition-all duration-200 flex items-center gap-2 ${
           isActive
-            ? 'text-blue-600 bg-blue-50'
+            ? 'text-primary-700 bg-primary-50'
             : isWorkCompleted
             ? 'text-green-600 bg-green-50 hover:text-green-700 hover:bg-green-100'
             : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'
         }`}
       >
         {showCheck ? (
-          <svg className={`w-5 h-5 ${isActive ? 'text-blue-600' : 'text-green-600'}`} fill="currentColor" viewBox="0 0 20 20">
+          <svg className={`w-5 h-5 ${isActive ? 'text-primary-700' : 'text-green-600'}`} fill="currentColor" viewBox="0 0 20 20">
             <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
           </svg>
         ) : (
@@ -183,7 +203,7 @@ const WorkOrderDetail: React.FC<WorkOrderDetailProps> = ({
         )}
         {title}
         {isActive && (
-          <div className={`absolute bottom-0 left-0 right-0 h-1 rounded-t-lg ${isWorkCompleted ? 'bg-blue-600' : 'bg-blue-600'}`}></div>
+          <div className={`absolute bottom-0 left-0 right-0 h-1 rounded-t-lg ${isWorkCompleted ? 'bg-primary-500' : 'bg-primary-500'}`}></div>
         )}
       </button>
     );
@@ -194,26 +214,26 @@ const WorkOrderDetail: React.FC<WorkOrderDetailProps> = ({
 
   // 작업 유형별 색상 가져오기
   const getWorkTypeColor = (wrkCd?: string) => {
-    if (!wrkCd) return 'bg-blue-500';
+    if (!wrkCd) return 'bg-primary-500';
 
     if (isInstallWork(wrkCd)) return 'bg-green-600';
     if (isASWork(wrkCd)) return 'bg-orange-500';
     if (isRemovalWork(wrkCd)) return 'bg-red-600';  // WRK_CD='02' 철거
-    if (isRelocationWork(wrkCd)) return 'bg-blue-600';  // WRK_CD='07','08' 이전설치/이전철거
+    if (isRelocationWork(wrkCd)) return 'bg-primary-500';  // WRK_CD='07','08' 이전설치/이전철거
     if (isProductChangeWork(wrkCd)) return 'bg-purple-600';
     if (isSuspensionWork(wrkCd)) return 'bg-gray-600';
 
-    return 'bg-blue-500';
+    return 'bg-primary-500';
   };
 
   return (
     <div className="max-w-4xl mx-auto">
       {/* 스크롤 가능한 콘텐츠 영역 */}
-      <div className="pb-40" style={{ minHeight: 'calc(100vh - 80px)' }}>
+      <div className="pb-40" style={{ minHeight: 'calc(100dvh - 80px)' }}>
       {/* 메인 카드 */}
       <div className="bg-white overflow-hidden">
         {/* 상단 헤더 - 심플한 블루 디자인 */}
-        <div className="bg-blue-600 px-4 py-4 text-white">
+        <div className="bg-primary-500 px-4 py-4 text-white">
 
           {/* 첫번째 줄: 고객명과 상태 */}
           <div className="flex items-center justify-between gap-3 mb-3">
@@ -226,6 +246,11 @@ const WorkOrderDetail: React.FC<WorkOrderDetailProps> = ({
                 {order.customer.isVip && (
                   <span className="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-bold bg-yellow-400 text-yellow-900 flex-shrink-0">
                     {order.customer.vipLevel || 'VIP'}
+                  </span>
+                )}
+                {isRecontract && (
+                  <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-bold bg-yellow-50 text-yellow-700 border border-yellow-300 flex-shrink-0">
+                    재약정
                   </span>
                 )}
               </div>
@@ -241,9 +266,11 @@ const WorkOrderDetail: React.FC<WorkOrderDetailProps> = ({
 
           {/* 두번째 줄: 작업 타입과 일정 */}
           <div className="flex items-center justify-between text-sm">
-            <span className="inline-flex items-center px-3 py-1 rounded-md font-semibold bg-white/20 border border-white/30">
-              {order.typeDisplay}
-            </span>
+            <div className="flex items-center gap-2">
+              <span className="inline-flex items-center px-3 py-1 rounded-md font-semibold bg-white/20 border border-white/30">
+                {order.typeDisplay}
+              </span>
+            </div>
             <div className="text-right flex items-center gap-1.5">
               <CalendarIcon className="w-4 h-4 text-white/80" />
               <span className="font-semibold">
@@ -285,7 +312,7 @@ const WorkOrderDetail: React.FC<WorkOrderDetailProps> = ({
               {/* 기본 정보 섹션 */}
               <div className="space-y-3">
                 <h3 className="text-base font-bold text-gray-700 mb-3 flex items-center gap-2 px-1">
-                  <div className="w-1 h-5 bg-blue-600 rounded-full"></div>
+                  <div className="w-1 h-5 bg-primary-500 rounded-full"></div>
                   기본 정보
                 </h3>
 
@@ -323,7 +350,7 @@ const WorkOrderDetail: React.FC<WorkOrderDetailProps> = ({
                     <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-bold ${
                       isInstallWork(order.WRK_CD) ? 'bg-red-100 text-red-800' :
                       isASWork(order.WRK_CD) ? 'bg-yellow-100 text-yellow-800' :
-                      'bg-blue-100 text-blue-800'
+                      'bg-primary-100 text-primary-700'
                     }`}>
                       {isInstallWork(order.WRK_CD) ? '높음 (신규개통)' :
                        isASWork(order.WRK_CD) ? '중간 (A/S)' : '보통'}
@@ -339,7 +366,7 @@ const WorkOrderDetail: React.FC<WorkOrderDetailProps> = ({
                   >
                     <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-bold ${
                       order.CTRT_STAT === '20' ? 'bg-green-100 text-green-800' :
-                      order.CTRT_STAT === '10' ? 'bg-blue-100 text-blue-800' :
+                      order.CTRT_STAT === '10' ? 'bg-primary-100 text-primary-700' :
                       order.CTRT_STAT === '30' ? 'bg-yellow-100 text-yellow-800' :
                       'bg-gray-100 text-gray-800'
                     }`}>
@@ -363,7 +390,7 @@ const WorkOrderDetail: React.FC<WorkOrderDetailProps> = ({
               {/* 고객 정보 섹션 */}
               <div className="space-y-3 mt-6">
                 <h3 className="text-base font-bold text-gray-700 mb-3 flex items-center gap-2 px-1">
-                  <div className="w-1 h-5 bg-blue-600 rounded-full"></div>
+                  <div className="w-1 h-5 bg-primary-500 rounded-full"></div>
                   고객 정보
                 </h3>
 
@@ -380,7 +407,7 @@ const WorkOrderDetail: React.FC<WorkOrderDetailProps> = ({
                         <span className="text-gray-900 font-medium flex-1 min-w-0 break-all">{order.customer.phone || '정보 없음'}</span>
                         <button
                             onClick={() => { if (showToast) showToast('전화 기능은 준비 중입니다.', 'info'); }}
-                            className="flex-shrink-0 w-full xs:w-9 py-2 xs:py-0 xs:h-9 rounded-full bg-blue-600 hover:bg-blue-700 active:bg-blue-800 transition-all duration-200 shadow-sm hover:shadow-md disabled:opacity-50 disabled:cursor-not-allowed active:scale-95 flex items-center justify-center gap-1.5"
+                            className="flex-shrink-0 w-full xs:w-9 py-2 xs:py-0 xs:h-9 rounded-full bg-primary-500 hover:bg-primary-600 active:bg-primary-700 transition-all duration-200 shadow-sm hover:shadow-md disabled:bg-gray-400 disabled:text-white disabled:cursor-not-allowed active:scale-95 flex items-center justify-center gap-1.5"
                             disabled={!order.customer.phone}
                         >
                             <PhoneIcon className="h-4 w-4 text-white"/>
@@ -396,7 +423,7 @@ const WorkOrderDetail: React.FC<WorkOrderDetailProps> = ({
                         <span className="text-gray-900 flex-1 min-w-0 leading-relaxed break-all">{order.customer.address}</span>
                         <button
                             onClick={() => { if (showToast) showToast('지도 보기 기능은 준비 중입니다.', 'info'); }}
-                            className="flex-shrink-0 w-full xs:w-9 py-2 xs:py-0 xs:h-9 rounded-full bg-blue-600 hover:bg-blue-700 active:bg-blue-800 transition-all duration-200 shadow-sm hover:shadow-md active:scale-95 xs:mt-0.5 flex items-center justify-center gap-1.5"
+                            className="flex-shrink-0 w-full xs:w-9 py-2 xs:py-0 xs:h-9 rounded-full bg-primary-500 hover:bg-primary-600 active:bg-primary-700 transition-all duration-200 shadow-sm hover:shadow-md active:scale-95 xs:mt-0.5 flex items-center justify-center gap-1.5"
                         >
                             <MapPinIcon className="h-4 w-4 text-white"/>
                             <span className="xs:hidden text-white text-sm font-medium">지도 보기</span>
@@ -424,7 +451,7 @@ const WorkOrderDetail: React.FC<WorkOrderDetailProps> = ({
               {/* 일정 정보 섹션 */}
               <div className="space-y-3 mt-6">
                 <h3 className="text-base font-bold text-gray-700 mb-3 flex items-center gap-2 px-1">
-                  <div className="w-1 h-5 bg-blue-600 rounded-full"></div>
+                  <div className="w-1 h-5 bg-primary-500 rounded-full"></div>
                   일정 정보
                 </h3>
 
@@ -445,7 +472,7 @@ const WorkOrderDetail: React.FC<WorkOrderDetailProps> = ({
                   label="작업 상세"
                   icon={<InformationCircleIcon className="w-4 h-4" />}
                 >
-                  <div className="bg-gray-50 p-4 rounded-lg border-l-4 border-blue-600 w-full">
+                  <div className="bg-gray-50 p-4 rounded-lg border-l-4 border-primary-500 w-full">
                     <p className="text-gray-800 whitespace-pre-wrap leading-relaxed">{order.details}</p>
                   </div>
                 </InfoRow>
@@ -457,7 +484,7 @@ const WorkOrderDetail: React.FC<WorkOrderDetailProps> = ({
                 isRelocationWork(order.WRK_CD)) && (
                 <div className="mt-6 pt-6 border-t-2 border-gray-200">
                   <h3 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
-                    <div className="w-1 h-6 bg-blue-600 rounded-full"></div>
+                    <div className="w-1 h-6 bg-primary-500 rounded-full"></div>
                     작업 상세 정보
                   </h3>
                   {isASWork(order.WRK_CD) && <ASWorkDetails order={order} />}
@@ -472,10 +499,10 @@ const WorkOrderDetail: React.FC<WorkOrderDetailProps> = ({
               {/* 작업 안내 메시지 */}
               {order.status === WorkOrderStatus.Pending && (
                 <div className="mt-8 pt-6 border-t-2 border-gray-200">
-                  <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border-l-4 border-blue-600 p-5 rounded-lg shadow-sm">
+                  <div className="bg-gradient-to-r from-primary-50 to-indigo-50 border-l-4 border-primary-500 p-5 rounded-lg shadow-sm">
                     <div className="flex items-start gap-4">
                       <div className="flex-shrink-0">
-                        <div className="w-12 h-12 bg-blue-600 rounded-full flex items-center justify-center">
+                        <div className="w-12 h-12 bg-primary-500 rounded-full flex items-center justify-center">
                           <svg className="w-7 h-7 text-white" fill="currentColor" viewBox="0 0 20 20">
                             <path fillRule="evenodd" d="M11.3 1.046A1 1 0 0112 2v5h4a1 1 0 01.82 1.573l-7 10A1 1 0 018 18v-5H4a1 1 0 01-.82-1.573l7-10a1 1 0 011.12-.38z" clipRule="evenodd" />
                           </svg>
@@ -490,19 +517,19 @@ const WorkOrderDetail: React.FC<WorkOrderDetailProps> = ({
                         </p>
                         <div className="flex flex-col sm:flex-row gap-2 text-xs text-gray-600">
                           <div className="flex items-center gap-1.5">
-                            <svg className="w-4 h-4 text-blue-600" fill="currentColor" viewBox="0 0 20 20">
+                            <svg className="w-4 h-4 text-primary-700" fill="currentColor" viewBox="0 0 20 20">
                               <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
                             </svg>
                             <span>계약 정보 확인</span>
                           </div>
                           <div className="flex items-center gap-1.5">
-                            <svg className="w-4 h-4 text-blue-600" fill="currentColor" viewBox="0 0 20 20">
+                            <svg className="w-4 h-4 text-primary-700" fill="currentColor" viewBox="0 0 20 20">
                               <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
                             </svg>
                             <span>장비 등록/설치</span>
                           </div>
                           <div className="flex items-center gap-1.5">
-                            <svg className="w-4 h-4 text-blue-600" fill="currentColor" viewBox="0 0 20 20">
+                            <svg className="w-4 h-4 text-primary-700" fill="currentColor" viewBox="0 0 20 20">
                               <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
                             </svg>
                             <span>작업 완료</span>
@@ -519,7 +546,7 @@ const WorkOrderDetail: React.FC<WorkOrderDetailProps> = ({
           {activeTab === 'equipment' && (
             <div>
               <h3 className="text-base font-bold text-gray-700 mb-4 flex items-center gap-2 px-1">
-                <div className="w-1 h-5 bg-blue-600 rounded-full"></div>
+                <div className="w-1 h-5 bg-primary-500 rounded-full"></div>
                 할당 장비 목록
               </h3>
 
@@ -529,7 +556,7 @@ const WorkOrderDetail: React.FC<WorkOrderDetailProps> = ({
                         {order.assignedEquipment.map(eq => {
                           // 장비 유형별 아이콘 색상 및 레이블
                           const getEquipmentInfo = (itemMidCd?: string) => {
-                            if (itemMidCd === '04') return { color: 'bg-blue-600', label: '모뎀', status: '정상' };
+                            if (itemMidCd === '04') return { color: 'bg-primary-500', label: '모뎀', status: '정상' };
                             if (itemMidCd === '05') return { color: 'bg-purple-600', label: '셋톱박스', status: '정상' };
                             if (itemMidCd === '07') return { color: 'bg-orange-500', label: '특수장비', status: '정상' };
                             if (itemMidCd === '03') return { color: 'bg-green-600', label: '추가장비', status: '정상' };
@@ -541,7 +568,7 @@ const WorkOrderDetail: React.FC<WorkOrderDetailProps> = ({
                           return (
                             <div
                               key={eq.id}
-                              className="bg-white rounded-lg shadow-sm hover:shadow-md transition-all duration-200 p-4 border border-gray-200 hover:border-blue-300"
+                              className="bg-white rounded-lg shadow-sm hover:shadow-md transition-all duration-200 p-4 border border-gray-200 hover:border-primary-300"
                             >
                               <div className="flex items-start gap-3">
                                 <div className={`flex-shrink-0 w-10 h-10 rounded-lg ${eqInfo.color} flex items-center justify-center`}>
@@ -582,15 +609,15 @@ const WorkOrderDetail: React.FC<WorkOrderDetailProps> = ({
           {activeTab === 'workflow' && (
             <div>
               <h3 className="text-base font-bold text-gray-700 mb-3 flex items-center gap-2 px-1">
-                <div className="w-1 h-5 bg-blue-600 rounded-full"></div>
+                <div className="w-1 h-5 bg-primary-500 rounded-full"></div>
                 작업 진행 현황
               </h3>
 
               {/* 전체 진행률 요약 - 상단으로 이동 */}
-              <div className="mb-4 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg p-4 border border-blue-200">
+              <div className="mb-4 bg-gradient-to-r from-primary-50 to-indigo-50 rounded-lg p-4 border border-primary-200">
                 <div className="flex items-center justify-between mb-2">
                   <p className="text-sm font-bold text-gray-800">전체 진행률</p>
-                  <p className="text-lg font-bold text-blue-600">
+                  <p className="text-lg font-bold text-primary-700">
                     {isWorkCompleted ? '100%' :
                      safetyInspectionCompleted && order.assignedEquipment.length > 0 ? '50%' :
                      safetyInspectionCompleted ? '25%' : '0%'}
@@ -598,7 +625,7 @@ const WorkOrderDetail: React.FC<WorkOrderDetailProps> = ({
                 </div>
                 <div className="w-full bg-gray-200 rounded-full h-2.5">
                   <div
-                    className="bg-gradient-to-r from-blue-600 to-indigo-600 h-2.5 rounded-full transition-all duration-500 shadow-sm"
+                    className="bg-gradient-to-r from-primary-500 to-indigo-600 h-2.5 rounded-full transition-all duration-500 shadow-sm"
                     style={{
                       width: `${
                         isWorkCompleted ? 100 :
@@ -622,14 +649,14 @@ const WorkOrderDetail: React.FC<WorkOrderDetailProps> = ({
                   safetyInspectionCompleted
                     ? 'bg-green-50 border-green-500 shadow-sm'
                     : !safetyInspectionCompleted && !order.assignedEquipment.length && order.status !== WorkOrderStatus.Completed
-                    ? 'bg-blue-50 border-blue-500 shadow-md ring-2 ring-blue-200'
+                    ? 'bg-primary-50 border-primary-500 shadow-md ring-2 ring-primary-200'
                     : 'bg-gray-50 border-gray-300'
                 }`}>
                   <div className="flex items-start gap-3">
                     <div className={`flex-shrink-0 w-9 h-9 rounded-full flex items-center justify-center shadow-sm ${
                       safetyInspectionCompleted ? 'bg-green-500' :
                       !safetyInspectionCompleted && !order.assignedEquipment.length && order.status !== WorkOrderStatus.Completed
-                      ? 'bg-blue-500 animate-pulse' : 'bg-gray-400'
+                      ? 'bg-primary-500 animate-pulse' : 'bg-gray-400'
                     }`}>
                       {safetyInspectionCompleted ? (
                         <svg className="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 20 20">
@@ -644,14 +671,14 @@ const WorkOrderDetail: React.FC<WorkOrderDetailProps> = ({
                         <p className={`font-bold text-sm ${
                           safetyInspectionCompleted ? 'text-green-800' :
                           !safetyInspectionCompleted && !order.assignedEquipment.length && order.status !== WorkOrderStatus.Completed
-                          ? 'text-blue-800' : 'text-gray-700'
+                          ? 'text-primary-700' : 'text-gray-700'
                         }`}>
                           안전점검
                         </p>
                         {safetyInspectionCompleted ? (
                           <span className="text-xs font-semibold text-green-700 bg-green-100 px-2 py-0.5 rounded-full">완료</span>
                         ) : !safetyInspectionCompleted && !order.assignedEquipment.length && order.status !== WorkOrderStatus.Completed ? (
-                          <span className="text-xs font-semibold text-blue-700 bg-blue-100 px-2 py-0.5 rounded-full animate-pulse">진행 필요</span>
+                          <span className="text-xs font-semibold text-primary-600 bg-primary-100 px-2 py-0.5 rounded-full animate-pulse">진행 필요</span>
                         ) : (
                           <span className="text-xs font-semibold text-gray-500 bg-gray-100 px-2 py-0.5 rounded-full">대기</span>
                         )}
@@ -668,14 +695,14 @@ const WorkOrderDetail: React.FC<WorkOrderDetailProps> = ({
                   isWorkCompleted || order.assignedEquipment.length > 0
                     ? 'bg-green-50 border-green-500 shadow-sm'
                     : safetyInspectionCompleted && !order.assignedEquipment.length && order.status !== WorkOrderStatus.Completed
-                    ? 'bg-blue-50 border-blue-500 shadow-md ring-2 ring-blue-200'
+                    ? 'bg-primary-50 border-primary-500 shadow-md ring-2 ring-primary-200'
                     : 'bg-gray-50 border-gray-300'
                 }`}>
                   <div className="flex items-start gap-3">
                     <div className={`flex-shrink-0 w-9 h-9 rounded-full flex items-center justify-center shadow-sm ${
                       isWorkCompleted || order.assignedEquipment.length > 0 ? 'bg-green-500' :
                       safetyInspectionCompleted && !order.assignedEquipment.length && order.status !== WorkOrderStatus.Completed
-                      ? 'bg-blue-500 animate-pulse' : 'bg-gray-400'
+                      ? 'bg-primary-500 animate-pulse' : 'bg-gray-400'
                     }`}>
                       {isWorkCompleted || order.assignedEquipment.length > 0 ? (
                         <svg className="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 20 20">
@@ -690,14 +717,14 @@ const WorkOrderDetail: React.FC<WorkOrderDetailProps> = ({
                         <p className={`font-bold text-sm ${
                           isWorkCompleted || order.assignedEquipment.length > 0 ? 'text-green-800' :
                           safetyInspectionCompleted && !order.assignedEquipment.length && order.status !== WorkOrderStatus.Completed
-                          ? 'text-blue-800' : 'text-gray-700'
+                          ? 'text-primary-700' : 'text-gray-700'
                         }`}>
                           장비 설치
                         </p>
                         {isWorkCompleted || order.assignedEquipment.length > 0 ? (
                           <span className="text-xs font-semibold text-green-700 bg-green-100 px-2 py-0.5 rounded-full">완료</span>
                         ) : safetyInspectionCompleted && !order.assignedEquipment.length && order.status !== WorkOrderStatus.Completed ? (
-                          <span className="text-xs font-semibold text-blue-700 bg-blue-100 px-2 py-0.5 rounded-full animate-pulse">진행 필요</span>
+                          <span className="text-xs font-semibold text-primary-600 bg-primary-100 px-2 py-0.5 rounded-full animate-pulse">진행 필요</span>
                         ) : (
                           <span className="text-xs font-semibold text-gray-500 bg-gray-100 px-2 py-0.5 rounded-full">대기</span>
                         )}
@@ -752,14 +779,14 @@ const WorkOrderDetail: React.FC<WorkOrderDetailProps> = ({
                   isWorkCompleted
                     ? 'bg-green-50 border-green-500 shadow-sm'
                     : safetyInspectionCompleted && order.assignedEquipment.length > 0 && order.status !== WorkOrderStatus.Completed
-                    ? 'bg-blue-50 border-blue-500 shadow-md ring-2 ring-blue-200'
+                    ? 'bg-primary-50 border-primary-500 shadow-md ring-2 ring-primary-200'
                     : 'bg-gray-50 border-gray-300'
                 }`}>
                   <div className="flex items-start gap-3">
                     <div className={`flex-shrink-0 w-9 h-9 rounded-full flex items-center justify-center shadow-sm ${
                       isWorkCompleted ? 'bg-green-500' :
                       safetyInspectionCompleted && order.assignedEquipment.length > 0 && order.status !== WorkOrderStatus.Completed
-                      ? 'bg-blue-500 animate-pulse' : 'bg-gray-400'
+                      ? 'bg-primary-500 animate-pulse' : 'bg-gray-400'
                     }`}>
                       {isWorkCompleted ? (
                         <svg className="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 20 20">
@@ -774,14 +801,14 @@ const WorkOrderDetail: React.FC<WorkOrderDetailProps> = ({
                         <p className={`font-bold text-sm ${
                           isWorkCompleted ? 'text-green-800' :
                           safetyInspectionCompleted && order.assignedEquipment.length > 0 && order.status !== WorkOrderStatus.Completed
-                          ? 'text-blue-800' : 'text-gray-700'
+                          ? 'text-primary-700' : 'text-gray-700'
                         }`}>
                           작업 완료 처리
                         </p>
                         {isWorkCompleted ? (
                           <span className="text-xs font-semibold text-green-700 bg-green-100 px-2 py-0.5 rounded-full">완료</span>
                         ) : safetyInspectionCompleted && order.assignedEquipment.length > 0 && order.status !== WorkOrderStatus.Completed ? (
-                          <span className="text-xs font-semibold text-blue-700 bg-blue-100 px-2 py-0.5 rounded-full animate-pulse">진행 필요</span>
+                          <span className="text-xs font-semibold text-primary-600 bg-primary-100 px-2 py-0.5 rounded-full animate-pulse">진행 필요</span>
                         ) : (
                           <span className="text-xs font-semibold text-gray-500 bg-gray-100 px-2 py-0.5 rounded-full">대기</span>
                         )}
@@ -821,7 +848,7 @@ const WorkOrderDetail: React.FC<WorkOrderDetailProps> = ({
               <button
                 onClick={handleCancelClick}
                 disabled={isLoading}
-                className="flex-shrink-0 w-24 px-4 py-3 bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-white rounded-xl font-bold transition-all duration-200 flex flex-col items-center justify-center gap-0.5 shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed active:scale-95"
+                className="flex-shrink-0 w-24 px-4 py-3 bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-white rounded-xl font-bold transition-all duration-200 flex flex-col items-center justify-center gap-0.5 shadow-lg hover:shadow-xl disabled:bg-gray-400 disabled:from-gray-400 disabled:to-gray-400 disabled:text-white disabled:cursor-not-allowed active:scale-95"
               >
                 <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
                   <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
@@ -832,7 +859,7 @@ const WorkOrderDetail: React.FC<WorkOrderDetailProps> = ({
               {/* 작업진행 버튼 - 메인 */}
               <button
                 onClick={handleStartWork}
-                className="flex-1 px-6 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white rounded-xl font-bold transition-all duration-200 flex items-center justify-center gap-2 shadow-lg hover:shadow-xl active:scale-[0.98]"
+                className="flex-1 px-6 py-3 bg-gradient-to-r from-primary-500 to-indigo-600 hover:from-primary-600 hover:to-indigo-700 text-white rounded-xl font-bold transition-all duration-200 flex items-center justify-center gap-2 shadow-lg hover:shadow-xl active:scale-[0.98]"
               >
                 <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 20 20">
                   <path fillRule="evenodd" d="M11.3 1.046A1 1 0 0112 2v5h4a1 1 0 01.82 1.573l-7 10A1 1 0 018 18v-5H4a1 1 0 01-.82-1.573l7-10a1 1 0 011.12-.38z" clipRule="evenodd" />

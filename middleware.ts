@@ -1,6 +1,6 @@
 // Vercel Edge Runtime용 간단한 middleware
 export function middleware(request: Request): Response | undefined {
-  console.log('🔍 Middleware 실행됨 - URL:', request.url);
+  console.log('Middleware 실행됨 - URL:', request.url);
   
   // 허용된 IP 목록
   const ALLOWED_IPS = [
@@ -15,11 +15,11 @@ export function middleware(request: Request): Response | undefined {
   try {
     // URL 파싱
     const url = new URL(request.url);
-    console.log('🔍 요청 경로:', url.pathname);
+    console.log('요청 경로:', url.pathname);
     
     // API 경로는 IP 체크 제외
     if (url.pathname.startsWith('/api/')) {
-      console.log('✅ API 경로 - IP 체크 제외');
+      console.log('API 경로 - IP 체크 제외');
       return undefined;
     }
     
@@ -30,7 +30,7 @@ export function middleware(request: Request): Response | undefined {
     
     const clientIP = cfConnectingIP || realIP || (forwardedFor ? forwardedFor.split(',')[0].trim() : 'unknown');
     
-    console.log('🔍 IP 헤더들:', {
+    console.log('IP 헤더들:', {
       'x-forwarded-for': forwardedFor,
       'x-real-ip': realIP,
       'cf-connecting-ip': cfConnectingIP,
@@ -39,20 +39,20 @@ export function middleware(request: Request): Response | undefined {
     
     // 허용된 IP인지 확인 (디버깅: 일시적으로 모든 IP 허용)
     if (clientIP !== 'unknown' && !ALLOWED_IPS.includes(clientIP)) {
-      console.log(`⚠️ 새로운 IP 접근 시도: ${clientIP} - 임시 허용 중`);
+      console.log(`새로운 IP 접근 시도: ${clientIP} - 임시 허용 중`);
       
       // 임시: 딜라이브 IP 대역 허용 (58.143.140.x)
       if (clientIP.startsWith('58.143.140.')) {
-        console.log(`✅ 딜라이브 IP 대역 임시 허용: ${clientIP}`);
+        console.log(`딜라이브 IP 대역 임시 허용: ${clientIP}`);
         return undefined; // 허용
       }
       
-      console.log(`❌ 접근 차단: ${clientIP}`);
+      console.log(`접근 차단: ${clientIP}`);
       return new Response(`
         <html>
           <head><title>접근 거부</title></head>
           <body style="font-family: Arial, sans-serif; text-align: center; margin-top: 100px;">
-            <h1 style="color: #dc2626;">🚫 접근 거부</h1>
+            <h1 style="color: #dc2626;">접근 거부</h1>
             <p>허가되지 않은 IP에서의 접근입니다.</p>
             <p>현재 IP: <strong>${clientIP}</strong></p>
             <p>허용된 IP: ${ALLOWED_IPS.join(', ')}</p>

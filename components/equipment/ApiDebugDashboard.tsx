@@ -7,6 +7,7 @@
  */
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
+import Select from '../ui/Select';
 import {
   runFullApiCheck,
   getApiLogs,
@@ -511,17 +512,13 @@ const ManualTestTab: React.FC = () => {
       {/* 입력 영역 */}
       <div>
         <h3 className="font-bold text-gray-700 mb-2">API 선택</h3>
-        <select
+        <Select
           value={selectedApi}
-          onChange={e => setSelectedApi(e.target.value)}
-          className="w-full p-2 border rounded-lg mb-4"
-        >
-          {EQUIPMENT_TEST_CASES.map(tc => (
-            <option key={tc.api} value={tc.api}>
-              {tc.name} - {tc.api}
-            </option>
-          ))}
-        </select>
+          onValueChange={(val) => setSelectedApi(val)}
+          options={EQUIPMENT_TEST_CASES.map(tc => ({ value: tc.api, label: `${tc.name} - ${tc.api}` }))}
+          placeholder="API 선택"
+          className="mb-4"
+        />
 
         <h3 className="font-bold text-gray-700 mb-2">파라미터 (JSON)</h3>
         <textarea

@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Play, Download, CheckCircle2, XCircle, Loader2, AlertCircle } from 'lucide-react';
+import Select from '../ui/Select';
 
 interface TestCase {
   caseId: string;
@@ -206,16 +207,17 @@ const EquipmentAutoTester: React.FC = () => {
           {/* 우선순위 필터 */}
           <div className="flex items-center gap-4 mb-4">
             <label className="font-medium">우선순위:</label>
-            <select
+            <Select
               value={selectedPriority}
-              onChange={(e) => setSelectedPriority(e.target.value)}
+              onValueChange={(val) => setSelectedPriority(val)}
+              options={[
+                { value: 'ALL', label: '전체 (P0 + P1)' },
+                { value: 'P0', label: 'P0 필수만 (9개 API, 68개 케이스)' },
+                { value: 'P1', label: 'P1 중요만 (1개 API, 3개 케이스)' },
+              ]}
+              placeholder="우선순위 선택"
               disabled={isRunning}
-              className="border border-gray-300 rounded px-3 py-2"
-            >
-              <option value="ALL">전체 (P0 + P1)</option>
-              <option value="P0">P0 필수만 (9개 API, 68개 케이스)</option>
-              <option value="P1">P1 중요만 (1개 API, 3개 케이스)</option>
-            </select>
+            />
           </div>
 
           {/* 실행 버튼 */}

@@ -34,17 +34,17 @@ const ASWorkDetails: React.FC<ASWorkDetailsProps> = ({ order }) => {
       {order.asHistory && order.asHistory.length > 0 && (
         <div className="bg-white border border-gray-200 rounded-lg p-4">
           <h3 className="text-sm font-semibold text-gray-800 mb-3 flex items-center">
-            <svg className="w-4 h-4 mr-2 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="w-4 h-4 mr-2 text-primary-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
             이전 A/S 이력
           </h3>
           <div className="space-y-2">
             {order.asHistory.map((history, index) => (
-              <div key={index} className="border-l-2 border-blue-300 pl-3 py-2 hover:bg-blue-50 transition-colors rounded">
+              <div key={index} className="border-l-2 border-primary-300 pl-3 py-2 hover:bg-primary-50 transition-colors rounded">
                 <div className="flex justify-between items-start mb-1">
                   <span className="text-xs font-medium text-gray-700">{history.asDate}</span>
-                  <span className="text-xs px-2 py-0.5 bg-blue-100 text-blue-800 rounded-full">{history.asResult}</span>
+                  <span className="text-xs px-2 py-0.5 bg-primary-100 text-primary-700 rounded-full">{history.asResult}</span>
                 </div>
                 <div className="text-sm text-gray-600">{history.asReason}</div>
                 <div className="text-xs text-gray-500 mt-1">처리자: {history.asWorker}</div>
@@ -55,9 +55,9 @@ const ASWorkDetails: React.FC<ASWorkDetailsProps> = ({ order }) => {
       )}
 
       {/* AS 작업 안내 */}
-      <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
-        <h4 className="text-xs font-semibold text-blue-800 mb-2">📋 A/S 작업 완료 시 필수 입력 사항</h4>
-        <ul className="text-xs text-blue-700 space-y-1">
+      <div className="bg-primary-50 border border-primary-200 rounded-lg p-3">
+        <h4 className="text-xs font-semibold text-primary-700 mb-2">📋 A/S 작업 완료 시 필수 입력 사항</h4>
+        <ul className="text-xs text-primary-600 space-y-1">
           <li className="flex items-start">
             <span className="mr-2">•</span>
             <span>교체/수리한 장비 정보 입력 필수</span>

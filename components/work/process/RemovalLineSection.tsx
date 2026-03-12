@@ -222,7 +222,7 @@ const RemovalLineSection: React.FC<RemovalLineSectionProps> = ({
               </div>
               <div className="flex items-center gap-2 text-sm">
                 <span className="text-gray-500">철거상태:</span>
-                <span className={`font-semibold ${savedData.REMOVE_GB === '4' ? 'text-blue-600' : 'text-red-600'}`}>
+                <span className={`font-semibold ${savedData.REMOVE_GB === '4' ? 'text-primary-700' : 'text-red-600'}`}>
                   {REMOVE_GB_LABELS[savedData.REMOVE_GB] || savedData.REMOVE_GB}
                 </span>
                 {savedData.REMOVE_GB === '1' && savedData.REMOVE_STAT && (
@@ -285,7 +285,7 @@ const RemovalLineSection: React.FC<RemovalLineSectionProps> = ({
                     className={`min-h-10 sm:min-h-12 py-2 sm:py-3 px-3 sm:px-4 rounded-lg font-bold text-sm sm:text-base transition-colors border-2 ${
                       removeGb === opt.value
                         ? opt.value === '4'
-                          ? 'bg-blue-100 border-blue-500 text-blue-700'
+                          ? 'bg-primary-100 border-primary-500 text-primary-600'
                           : 'bg-red-100 border-red-500 text-red-700'
                         : 'bg-gray-100 border-gray-300 text-gray-700 hover:bg-gray-200'
                     }`}
@@ -332,7 +332,7 @@ const RemovalLineSection: React.FC<RemovalLineSectionProps> = ({
                 disabled={!removeLineType || !removeGb || removeGb === '1'}
                 className={`flex-1 min-h-12 py-2 sm:py-3 rounded-lg font-bold text-sm sm:text-base transition-colors ${
                   removeLineType && removeGb === '4'
-                    ? 'bg-blue-600 hover:bg-blue-700 text-white'
+                    ? 'bg-primary-500 hover:bg-primary-600 text-white'
                     : 'bg-gray-300 text-gray-500 cursor-not-allowed'
                 }`}
               >

@@ -346,9 +346,6 @@ const AttendanceRegistration: React.FC<AttendanceRegistrationProps> = ({
     }
   };
 
-
-
-
   return (
     <div className="p-4 space-y-4">
       {/* 출근/퇴근 탭 */}
@@ -357,7 +354,7 @@ const AttendanceRegistration: React.FC<AttendanceRegistrationProps> = ({
           onClick={() => setActiveTab('in')}
           className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg transition-colors text-sm ${
             activeTab === 'in'
-              ? 'bg-blue-500 text-white'
+              ? 'bg-primary-500 text-white'
               : 'text-gray-600 hover:bg-gray-100'
           }`}
         >
@@ -368,7 +365,7 @@ const AttendanceRegistration: React.FC<AttendanceRegistrationProps> = ({
           onClick={() => setActiveTab('out')}
           className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg transition-colors text-sm ${
             activeTab === 'out'
-              ? 'bg-blue-500 text-white'
+              ? 'bg-primary-500 text-white'
               : 'text-gray-600 hover:bg-gray-100'
           }`}
         >
@@ -382,16 +379,16 @@ const AttendanceRegistration: React.FC<AttendanceRegistrationProps> = ({
         <div className="flex items-center justify-between">
           <h3 className="font-medium text-gray-800 flex items-center gap-2">
             {activeTab === 'in' ? (
-              <LogIn className="w-5 h-5 text-blue-500" />
+              <LogIn className="w-5 h-5 text-primary-500" />
             ) : (
-              <LogOut className="w-5 h-5 text-blue-500" />
+              <LogOut className="w-5 h-5 text-primary-500" />
             )}
             {activeTab === 'in' ? '출근' : '퇴근'} 등록
           </h3>
           <button
             onClick={handleCheckLocation}
             disabled={locationLoading}
-            className="flex items-center gap-1 px-3 py-1.5 bg-blue-50 text-blue-600 border border-blue-200 rounded-lg text-sm hover:bg-blue-100 transition-colors disabled:opacity-50"
+            className="flex items-center gap-1 px-3 py-1.5 bg-primary-50 text-primary-600 border border-primary-200 rounded-lg text-sm hover:bg-primary-100 transition-colors disabled:opacity-50"
           >
             {locationLoading ? (
               <Loader2 className="w-4 h-4 animate-spin" />
@@ -404,14 +401,13 @@ const AttendanceRegistration: React.FC<AttendanceRegistrationProps> = ({
 
         {/* 위치 확인 */}
         <div>
-
           {location && (
-            <div className="p-3 bg-blue-50 rounded-lg border border-blue-200 space-y-2">
+            <div className="p-3 bg-primary-50 rounded-lg border border-primary-200 space-y-2">
               <div className="flex items-start justify-between gap-2">
                 <div className="flex items-start gap-1.5 flex-1">
-                  <MapPin className="w-5 h-5 flex-shrink-0 text-blue-500 mt-0.5" />
+                  <MapPin className="w-5 h-5 flex-shrink-0 text-primary-500 mt-0.5" />
                   <div>
-                    <span className="text-xs text-blue-500 font-medium">
+                    <span className="text-xs text-primary-500 font-medium">
                       {addrType === 'jibun' ? '지번' : '도로명'}
                     </span>
                     <p className="text-lg font-semibold text-gray-900 leading-snug">
@@ -424,14 +420,14 @@ const AttendanceRegistration: React.FC<AttendanceRegistrationProps> = ({
                 {location.roadAddr && location.jibunAddr && (
                   <button
                     onClick={() => setAddrType(prev => prev === 'jibun' ? 'road' : 'jibun')}
-                    className="flex items-center gap-1 px-2.5 py-1.5 text-blue-600 border border-blue-300 rounded-lg text-xs hover:bg-blue-100 transition-colors flex-shrink-0"
+                    className="flex items-center gap-1 px-2.5 py-1.5 text-primary-600 border border-primary-300 rounded-lg text-xs hover:bg-primary-100 transition-colors flex-shrink-0"
                   >
                     <RefreshCw className="w-3.5 h-3.5" />
                     {addrType === 'jibun' ? '도로명' : '지번'}
                   </button>
                 )}
               </div>
-              <div className="flex items-center gap-1.5 text-xs text-blue-600 pt-1.5 border-t border-blue-200">
+              <div className="flex items-center gap-1.5 text-xs text-primary-600 pt-1.5 border-t border-primary-200">
                 <Clock className="w-3.5 h-3.5 flex-shrink-0" />
                 <span className="text-sm font-medium">{location.checkedAt}</span>
               </div>
@@ -447,7 +443,7 @@ const AttendanceRegistration: React.FC<AttendanceRegistrationProps> = ({
             rows={3}
             value={memo}
             onChange={(e) => setMemo(e.target.value)}
-            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none"
+            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 resize-none"
           />
         </div>
 
@@ -455,7 +451,7 @@ const AttendanceRegistration: React.FC<AttendanceRegistrationProps> = ({
         <button
           onClick={handleSubmit}
           disabled={submitting || !location}
-          className="w-full flex items-center justify-center gap-2 py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:bg-gray-400 transition-colors"
+          className="w-full flex items-center justify-center gap-2 py-3 bg-primary-500 text-white rounded-lg hover:bg-primary-600 disabled:bg-gray-400 transition-colors"
         >
           {submitting ? (
             <Loader2 className="w-5 h-5 animate-spin" />
@@ -494,14 +490,14 @@ const AttendanceRegistration: React.FC<AttendanceRegistrationProps> = ({
                 type="date"
                 value={searchFrom}
                 onChange={(e) => setSearchFrom(e.target.value)}
-                className="flex-1 min-w-0 px-1.5 py-1.5 border border-gray-300 rounded-lg text-xs focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                className="flex-1 min-w-0 px-1.5 py-1.5 border border-gray-300 rounded-lg text-xs focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
               />
               <span className="text-gray-400 text-xs flex-shrink-0">~</span>
               <input
                 type="date"
                 value={searchTo}
                 onChange={(e) => setSearchTo(e.target.value)}
-                className="flex-1 min-w-0 px-1.5 py-1.5 border border-gray-300 rounded-lg text-xs focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                className="flex-1 min-w-0 px-1.5 py-1.5 border border-gray-300 rounded-lg text-xs focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
               />
               <button
                 onClick={handleSearch}
@@ -535,7 +531,7 @@ const AttendanceRegistration: React.FC<AttendanceRegistrationProps> = ({
                       <div key={idx} className="bg-gray-50 rounded-lg border border-gray-100 px-3 py-2.5">
                         <div className="flex items-center gap-2 text-sm">
                           <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium ${
-                            isIn ? 'bg-blue-100 text-blue-700' : 'bg-orange-100 text-orange-700'
+                            isIn ? 'bg-primary-100 text-primary-700' : 'bg-orange-100 text-orange-700'
                           }`}>
                             {isIn ? '출근' : '퇴근'}
                           </span>
@@ -577,7 +573,7 @@ const AttendanceRegistration: React.FC<AttendanceRegistrationProps> = ({
               </button>
               <button
                 onClick={confirmPopup.onConfirm}
-                className="flex-1 py-2.5 bg-blue-500 text-white rounded-lg text-sm hover:bg-blue-600 transition-colors"
+                className="flex-1 py-2.5 bg-primary-500 text-white rounded-lg text-sm hover:bg-primary-600 transition-colors"
               >
                 등록
               </button>

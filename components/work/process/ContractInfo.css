@@ -30,7 +30,7 @@
   background: white;
   border-radius: 6px;
   border: 1px solid #e0e0e0;
-  border-left: 3px solid #007bff;
+  border-left: 3px solid #00B0C8;
 }
 
 .subsection-title {
@@ -168,7 +168,7 @@
 }
 
 .equipment-card:hover {
-  border-color: #007bff;
+  border-color: #00B0C8;
   box-shadow: 0 2px 8px rgba(0, 123, 255, 0.1);
 }
 
@@ -229,12 +229,12 @@
 }
 
 .btn-primary {
-  background: #007bff;
+  background: #00B0C8;
   color: white;
 }
 
 .btn-primary:hover {
-  background: #0056b3;
+  background: #009DB3;
   transform: translateY(-2px);
   box-shadow: 0 4px 12px rgba(0, 123, 255, 0.3);
 }

@@ -271,7 +271,7 @@ const CustomerManagementMenu: React.FC<CustomerManagementMenuProps> = ({ onNavig
   };
 
   return (
-    <div className="h-[calc(100vh-64px)] flex flex-col bg-gray-50 overflow-hidden">
+    <div className="h-[calc(100dvh-64px)] flex flex-col bg-gray-50 overflow-hidden">
       {/* 탭 메뉴 - 장비관리와 동일한 패턴 */}
       <div className="flex-shrink-0 bg-white border-b border-gray-200 z-40">
         <div className="flex items-center">

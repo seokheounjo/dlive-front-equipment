@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { X, Search } from 'lucide-react';
+import { useUIStore } from '../../stores/uiStore';
 import {
   searchCustByPhone,
   searchCustById,
@@ -53,7 +54,7 @@ const CustomerSearchModal: React.FC<CustomerSearchModalProps> = ({
       } else if (eqtNo.trim()) {
         data = await searchCustByEqtNo(eqtNo.trim());
       } else {
-        alert('검색 조건을 입력하세요.');
+        useUIStore.getState().showGlobalToast('검색 조건을 입력하세요.', 'warning');
         setIsLoading(false);
         return;
       }
@@ -82,7 +83,7 @@ const CustomerSearchModal: React.FC<CustomerSearchModalProps> = ({
     <div className="fixed inset-0 z-50 flex items-start justify-center pt-12 bg-black/40">
       <div className="bg-white rounded-xl shadow-2xl w-[90%] max-w-md max-h-[85vh] flex flex-col">
         {/* Header */}
-        <div className="flex items-center justify-between px-4 py-3 bg-blue-500 rounded-t-xl">
+        <div className="flex items-center justify-between px-4 py-3 bg-primary-500 rounded-t-xl">
           <h3 className="text-white font-bold text-base">고객 검색</h3>
           <div className="flex gap-2">
             <button
@@ -148,7 +149,7 @@ const CustomerSearchModal: React.FC<CustomerSearchModalProps> = ({
             <button
               onClick={handleSearch}
               disabled={isLoading}
-              className="flex-1 flex items-center justify-center gap-1 bg-blue-500 hover:bg-blue-600 text-white py-2.5 rounded-lg font-medium text-sm disabled:opacity-50"
+              className="flex-1 flex items-center justify-center gap-1 bg-primary-500 hover:bg-primary-500 text-white py-2.5 rounded-lg font-medium text-sm disabled:bg-gray-400 disabled:text-white disabled:cursor-not-allowed"
             >
               <Search className="h-4 w-4" />
               조회
@@ -166,7 +167,7 @@ const CustomerSearchModal: React.FC<CustomerSearchModalProps> = ({
         <div className="flex-1 overflow-y-auto p-3">
           {isLoading ? (
             <div className="text-center py-8">
-              <div className="inline-block animate-spin rounded-full h-6 w-6 border-3 border-blue-500 border-t-transparent"></div>
+              <div className="inline-block animate-spin rounded-full h-6 w-6 border-3 border-primary-500 border-t-transparent"></div>
               <p className="mt-2 text-sm text-gray-500">검색 중...</p>
             </div>
           ) : results.length > 0 ? (
@@ -176,7 +177,7 @@ const CustomerSearchModal: React.FC<CustomerSearchModalProps> = ({
                 <button
                   key={idx}
                   onClick={() => handleSelect(item)}
-                  className="w-full text-left p-3 bg-gray-50 hover:bg-blue-50 border border-gray-200 rounded-lg transition-colors"
+                  className="w-full text-left p-3 bg-gray-50 hover:bg-primary-50 border border-gray-200 rounded-lg transition-colors"
                 >
                   <div className="flex justify-between items-start">
                     <div>
@@ -194,7 +195,7 @@ const CustomerSearchModal: React.FC<CustomerSearchModalProps> = ({
                     </div>
                     <div className="text-right">
                       {item.CTRT_STAT_NM && (
-                        <span className="text-xs px-2 py-0.5 rounded-full bg-blue-100 text-blue-700">
+                        <span className="text-xs px-2 py-0.5 rounded-full bg-primary-100 text-primary-600">
                           {item.CTRT_STAT_NM}
                         </span>
                       )}

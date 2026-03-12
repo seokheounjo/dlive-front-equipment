@@ -4,6 +4,7 @@ import {
   Loader2, AlertCircle, Send, Calendar, Clock,
   RefreshCw, ArrowLeft, FileText, CheckCircle, XCircle
 } from 'lucide-react';
+import Select from '../ui/Select';
 import {
   getConsultationHistory,
   getWorkHistory,
@@ -735,16 +736,15 @@ const ConsultationAS: React.FC<ConsultationASProps> = ({
             <div className="space-y-3">
               <div>
                 <label className="block text-sm text-gray-600 mb-1">상담세분류 *</label>
-                <select
+                <Select
                   value={consultationForm.cnslSClCd}
-                  onChange={(e) => handleCnslSChange(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                >
-                  <option value="">선택</option>
-                  {mobileSmallCodes.map(item => (
-                    <option key={item.code} value={item.code}>{item.name}</option>
-                  ))}
-                </select>
+                  onValueChange={(val) => handleCnslSChange(val)}
+                  options={[
+                    { value: '', label: '선택' },
+                    ...mobileSmallCodes.map(item => ({ value: item.code, label: item.name }))
+                  ]}
+                  placeholder="선택"
+                />
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
@@ -909,48 +909,45 @@ const ConsultationAS: React.FC<ConsultationASProps> = ({
                 {/* AS구분 */}
                 <div>
                   <label className="block text-sm text-gray-600 mb-1">AS구분 *</label>
-                  <select
+                  <Select
                     value={asForm.asClCd}
-                    onChange={(e) => setASForm(prev => ({ ...prev, asClCd: e.target.value }))}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
-                  >
-                    <option value="">선택</option>
-                    {asClCodes.map(code => (
-                      <option key={code.CODE} value={code.CODE}>{code.CODE_NM}</option>
-                    ))}
-                  </select>
+                    onValueChange={(val) => setASForm(prev => ({ ...prev, asClCd: val }))}
+                    options={[
+                      { value: '', label: '선택' },
+                      ...asClCodes.map(code => ({ value: code.CODE, label: code.CODE_NM }))
+                    ]}
+                    placeholder="선택"
+                  />
                 </div>
 
                 {/* AS접수사유 (대/중) */}
                 <div className="grid grid-cols-2 gap-3">
                   <div>
                     <label className="block text-sm text-gray-600 mb-1">AS접수사유(대) *</label>
-                    <select
+                    <Select
                       value={asForm.asResnLCd}
-                      onChange={(e) => handleAsResnLChange(e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
-                    >
-                      <option value="">선택</option>
-                      {filteredAsResnLCodes.map(code => (
-                        <option key={code.CODE} value={code.CODE}>{code.CODE_NM}</option>
-                      ))}
-                    </select>
+                      onValueChange={(val) => handleAsResnLChange(val)}
+                      options={[
+                        { value: '', label: '선택' },
+                        ...filteredAsResnLCodes.map(code => ({ value: code.CODE, label: code.CODE_NM }))
+                      ]}
+                      placeholder="선택"
+                    />
                   </div>
                   <div>
                     <label className="block text-sm text-gray-600 mb-1">
                       AS접수사유(중) {asResnMCodes.length > 0 ? '*' : ''}
                     </label>
-                    <select
+                    <Select
                       value={asForm.asResnMCd}
-                      onChange={(e) => setASForm(prev => ({ ...prev, asResnMCd: e.target.value }))}
+                      onValueChange={(val) => setASForm(prev => ({ ...prev, asResnMCd: val }))}
                       disabled={!asForm.asResnLCd || asResnMCodes.length === 0}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 disabled:bg-gray-100"
-                    >
-                      <option value="">{asResnMCodes.length === 0 ? '해당없음' : '선택'}</option>
-                      {asResnMCodes.map(code => (
-                        <option key={code.CODE} value={code.CODE}>{code.CODE_NM}</option>
-                      ))}
-                    </select>
+                      options={[
+                        { value: '', label: asResnMCodes.length === 0 ? '해당없음' : '선택' },
+                        ...asResnMCodes.map(code => ({ value: code.CODE, label: code.CODE_NM }))
+                      ]}
+                      placeholder={asResnMCodes.length === 0 ? '해당없음' : '선택'}
+                    />
                   </div>
                 </div>
 
@@ -977,24 +974,18 @@ const ConsultationAS: React.FC<ConsultationASProps> = ({
                       min={new Date().toISOString().split('T')[0]}
                       className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
                     />
-                    <select
+                    <Select
                       value={asForm.schdHour}
-                      onChange={(e) => setASForm(prev => ({ ...prev, schdHour: e.target.value }))}
-                      className="w-20 px-2 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
-                    >
-                      {hourOptions.map(opt => (
-                        <option key={opt.value} value={opt.value}>{opt.label}</option>
-                      ))}
-                    </select>
-                    <select
+                      onValueChange={(val) => setASForm(prev => ({ ...prev, schdHour: val }))}
+                      options={hourOptions.map(opt => ({ value: opt.value, label: opt.label }))}
+                      className="w-20"
+                    />
+                    <Select
                       value={asForm.schdMin}
-                      onChange={(e) => setASForm(prev => ({ ...prev, schdMin: e.target.value }))}
-                      className="w-20 px-2 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
-                    >
-                      {minOptions.map(opt => (
-                        <option key={opt.value} value={opt.value}>{opt.label}</option>
-                      ))}
-                    </select>
+                      onValueChange={(val) => setASForm(prev => ({ ...prev, schdMin: val }))}
+                      options={minOptions.map(opt => ({ value: opt.value, label: opt.label }))}
+                      className="w-20"
+                    />
                   </div>
                 </div>
 

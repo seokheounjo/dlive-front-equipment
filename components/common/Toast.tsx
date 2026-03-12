@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { CheckCircle, XCircle, AlertCircle, Info } from 'lucide-react';
 
 export type ToastType = 'success' | 'error' | 'warning' | 'info';
@@ -7,66 +7,74 @@ interface ToastProps {
   message: string;
   type?: ToastType;
   duration?: number;
-  persistent?: boolean;
+  persistent?: boolean; // true면 확인 버튼 눌러야 닫힘
   onClose: () => void;
 }
 
-const Toast: React.FC<ToastProps> = ({ message, type = 'info', onClose }) => {
+const Toast: React.FC<ToastProps> = ({ message, type = 'info', duration = 3000, persistent = false, onClose }) => {
+  // error 타입은 항상 persistent (사용자가 X 눌러야 닫힘)
+  const isPersistent = persistent || type === 'error';
+
+  useEffect(() => {
+    if (isPersistent) return;
+
+    const timer = setTimeout(() => {
+      onClose();
+    }, duration);
+
+    return () => clearTimeout(timer);
+  }, [duration, onClose, isPersistent]);
+
   const getIcon = () => {
     switch (type) {
       case 'success':
-        return <CheckCircle className="w-8 h-8 text-green-500" />;
+        return <CheckCircle className="w-5 h-5 text-green-500" />;
       case 'error':
-        return <XCircle className="w-8 h-8 text-red-500" />;
+        return <XCircle className="w-5 h-5 text-red-500" />;
       case 'warning':
-        return <AlertCircle className="w-8 h-8 text-yellow-500" />;
+        return <AlertCircle className="w-5 h-5 text-yellow-500" />;
       default:
-        return <Info className="w-8 h-8 text-blue-500" />;
+        return <Info className="w-5 h-5 text-primary-700" />;
     }
   };
 
-  const getButtonColor = () => {
+  const getBackgroundColor = () => {
     switch (type) {
       case 'success':
-        return 'bg-green-500 hover:bg-green-600 active:bg-green-700';
+        return 'bg-green-50 border-green-200';
       case 'error':
-        return 'bg-red-500 hover:bg-red-600 active:bg-red-700';
+        return 'bg-red-50 border-red-200';
       case 'warning':
-        return 'bg-yellow-500 hover:bg-yellow-600 active:bg-yellow-700';
+        return 'bg-yellow-50 border-yellow-200';
       default:
-        return 'bg-blue-500 hover:bg-blue-600 active:bg-blue-700';
-    }
-  };
-
-  const getTitle = () => {
-    switch (type) {
-      case 'success': return '완료';
-      case 'error': return '오류';
-      case 'warning': return '주의';
-      default: return '알림';
+        return 'bg-primary-50 border-primary-200';
     }
   };
 
   return (
-    <div className="fixed inset-0 flex items-center justify-center" style={{ zIndex: 9999 }}>
-      <div className="fixed inset-0 bg-black/40" onClick={onClose} />
-      <div className="relative bg-white rounded-2xl shadow-2xl w-[85vw] max-w-[320px] overflow-hidden">
-        <div className="flex flex-col items-center px-6 pt-6 pb-4">
-          {getIcon()}
-          <h3 className="mt-3 text-base font-bold text-gray-900">{getTitle()}</h3>
-          <p className="mt-2 text-sm text-gray-600 text-center leading-relaxed whitespace-pre-line">{message}</p>
-        </div>
-        <div className="px-6 pb-6">
+    <div className="fixed top-20 left-1/2 transform -translate-x-1/2 animate-slide-down" style={{ zIndex: 9999 }}>
+      <div className={`flex items-center gap-3 px-4 py-3 rounded-lg shadow-lg border ${getBackgroundColor()} min-w-[300px] max-w-[90vw]`}>
+        {getIcon()}
+        <p className="text-sm font-medium text-gray-900 flex-1">{message}</p>
+        {persistent && type !== 'error' ? (
           <button
             onClick={onClose}
-            className={`w-full py-3 text-sm font-semibold text-white rounded-xl transition-colors ${getButtonColor()}`}
+            className="px-3 py-1 bg-gray-800 text-white text-xs font-semibold rounded hover:bg-gray-700 transition-colors"
           >
             확인
           </button>
-        </div>
+        ) : (
+          <button
+            onClick={onClose}
+            className="text-gray-400 hover:text-gray-600 transition-colors"
+          >
+            <XCircle className="w-4 h-4" />
+          </button>
+        )}
       </div>
     </div>
   );
 };
 
 export default Toast;
+

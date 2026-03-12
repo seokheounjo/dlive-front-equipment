@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { X, AlertTriangle } from 'lucide-react';
 import { WorkOrder, WorkOrderType } from '../../types';
 import Select from '../ui/Select';
+import ConfirmModal from '../common/ConfirmModal';
 import { validateWorkCancel, isCancellable } from '../../utils/workValidation';
 import { isValidMemo } from '../../utils/formValidation';
 import { getCommonCodes, getWorkCancelInfo, getOSTInfo, modOstWorkCancel, WorkCancelInfo, OSTInfo } from '../../services/apiService';
@@ -56,6 +57,9 @@ const WorkCancelModal: React.FC<WorkCancelModalProps> = ({
   const [isOstChecking, setIsOstChecking] = useState(false);
   const [showHotbillWarning, setShowHotbillWarning] = useState(false);
 
+  // 내부 알림 모달 (에러/경고용)
+  const [alertModal, setAlertModal] = useState<{ isOpen: boolean; message: string; title?: string; type?: 'error' | 'warning' }>({ isOpen: false, message: '' });
+
   // 콜센터 지점 코드 목록 (레거시 _CALL_CENTER_SO 변수 + 하드코딩)
   // cm_lib.js: var _CALL_CENTER_SO = "600,700,701,710,800";
   // mowoa10m01.xml: indexOf("802,803,804", s_so_id)
@@ -69,10 +73,11 @@ const WorkCancelModal: React.FC<WorkCancelModalProps> = ({
       if (!isOpen) return;
 
       if (workOrder.WRK_STAT_CD && !isCancellable(workOrder.WRK_STAT_CD)) {
-        if (showToast) {
-          showToast('접수 또는 할당 상태에서만 작업을 취소할 수 있습니다.', 'error');
-        }
-        onClose();
+        setAlertModal({
+          isOpen: true, title: '작업 취소 불가',
+          message: '접수 또는 할당 상태에서만 작업을 취소할 수 있습니다.',
+          type: 'error',
+        });
         return;
       }
 
@@ -110,10 +115,11 @@ const WorkCancelModal: React.FC<WorkCancelModalProps> = ({
             } else {
               msg = '원스톱전환 관련 건으로 작업취소가 불가능한 상태입니다.';
             }
-            if (showToast) {
-              showToast(msg, 'error');
-            }
-            onClose();
+            setAlertModal({
+              isOpen: true, title: '작업 취소 불가',
+              message: msg,
+              type: 'error',
+            });
             return;
           }
         }
@@ -236,47 +242,30 @@ const WorkCancelModal: React.FC<WorkCancelModalProps> = ({
     });
 
     // AS(03) 작업인 경우 추가 필터링
+    // 레거시 mowoa10m01.xml cmb_cncl_resn_OnDropDown 동일 구현
     if (refCode === '03') {
       console.log('[AS 필터] AS 작업 추가 필터링 시작');
       console.log('[AS 필터] WRK_RCPT_CL:', wrkRcptCl);
 
-      // CS접수(JJ)건: 033G만 (레거시: sFilter = "COMMON_CD=='033G'")
       if (wrkRcptCl === 'JJ') {
+        // CS접수(JJ)건: 033G만 (레거시: sFilter = "COMMON_CD=='033G'")
         console.log('[AS 필터] CS접수(JJ) - 033G만 허용');
         filtered = filtered.filter(r => r.value === '033G');
-      }
-      // 일반해지(JH)건: 033H만 (레거시: sFilter = "COMMON_CD=='033H'")
-      else if (wrkRcptCl === 'JH') {
+      } else if (wrkRcptCl === 'JH') {
+        // 일반해지(JH)건: 033H만 (레거시: sFilter = "COMMON_CD=='033H'")
         console.log('[AS 필터] 일반해지(JH) - 033H만 허용');
         filtered = filtered.filter(r => r.value === '033H');
-      }
-      // 그 외
-      else {
-        console.log('[AS 필터] 일반 AS - 복잡한 필터링 적용');
+      } else {
+        // 그 외: 콜센터전용/033H 제외 (033G는 포함)
+        console.log('[AS 필터] 일반 AS 필터링');
         filtered = filtered.filter(r => {
-          // 033G 제외
-          if (r.value === '033G') {
-            console.log(`    [${r.value}] 033G 제외`);
-            return false;
-          }
-
-          // 콜센터가 아닌 경우 콜센터 전용(refCode2 = 'Y') 코드 제외
+          // 콜센터가 아닌 경우 콜센터전용(REF_CODE2='Y') 제외
           if (r.refCode2 === 'Y') {
             const isCallCenter = CALL_CENTER_SO_LIST.includes(soId || '');
-            console.log(`    🏢 [${r.value}] refCode2='Y' (콜센터전용), isCallCenter=${isCallCenter}`);
-            if (!isCallCenter) {
-              console.log(`    [${r.value}] 콜센터 아니므로 제외`);
-              return false;
-            }
+            if (!isCallCenter) return false;
           }
-
-          // REF_CODE12 = 'JH'인 것 제외 (033H)
-          if (r.refCode12 === 'JH') {
-            console.log(`    [${r.value}] refCode12='JH' (033H) 제외`);
-            return false;
-          }
-
-          console.log(`    [${r.value}] 통과`);
+          // REF_CODE12='JH' 제외 (033H)
+          if (r.refCode12 === 'JH') return false;
           return true;
         });
       }
@@ -354,7 +343,11 @@ const WorkCancelModal: React.FC<WorkCancelModalProps> = ({
               if (showToast) showToast('작업이 취소되었습니다.', 'success');
               onClose();
             } else {
-              if (showToast) showToast(result.message || '작업 취소에 실패했습니다.', 'error');
+              setAlertModal({
+                isOpen: true, title: '작업 취소 실패',
+                message: result.message || '작업 취소에 실패했습니다.',
+                type: 'error',
+              });
             }
             setIsSubmitting(false);
             return;
@@ -363,7 +356,11 @@ const WorkCancelModal: React.FC<WorkCancelModalProps> = ({
         // OST 연동이 필요 없으면 일반 취소로 진행
       } catch (error) {
         console.error('[작업취소] OST 연동 에러:', error);
-        if (showToast) showToast('OST 연동 중 오류가 발생했습니다.', 'error');
+        setAlertModal({
+          isOpen: true, title: '작업 취소 오류',
+          message: 'OST 연동 중 오류가 발생했습니다.',
+          type: 'error',
+        });
         setIsSubmitting(false);
         return;
       }
@@ -404,22 +401,30 @@ const WorkCancelModal: React.FC<WorkCancelModalProps> = ({
     if (!validation.valid) {
       // 검증 실패 시 에러 메시지 표시
       const errorMessage = validation.errors.join('\n');
-      if (showToast) {
-        showToast(errorMessage, 'error', true);
-      }
+      setAlertModal({
+        isOpen: true, title: '입력 오류',
+        message: errorMessage,
+        type: 'error',
+      });
       return;
     }
 
     // 기타 사유인 경우 상세 내용 필수
     if (cancelReason !== '[]' && cancelReason.endsWith('Z') && procCt.trim().length < 10) {
-      if (showToast) {
-        showToast('기타 사유 선택 시 상세 내용을 10자 이상 입력해주세요.', 'error');
-      }
+      setAlertModal({
+        isOpen: true, title: '입력 오류',
+        message: '기타 사유 선택 시 상세 내용을 10자 이상 입력해주세요.',
+        type: 'error',
+      });
       return;
     }
 
     if (!userId) {
-      if (showToast) showToast('사용자 정보(사번)가 없습니다. 다시 로그인해주세요.', 'error');
+      setAlertModal({
+        isOpen: true, title: '로그인 필요',
+        message: '사용자 정보(사번)가 없습니다. 다시 로그인해주세요.',
+        type: 'error',
+      });
       return;
     }
 
@@ -527,7 +532,7 @@ const WorkCancelModal: React.FC<WorkCancelModalProps> = ({
                   {procCt.length}/200자
                 </p>
                 {cancelReason !== '[]' && cancelReason.endsWith('Z') && (
-                  <p className="text-xs text-blue-600">
+                  <p className="text-xs text-primary-700">
                     (최소 10자 필수)
                   </p>
                 )}
@@ -553,7 +558,7 @@ const WorkCancelModal: React.FC<WorkCancelModalProps> = ({
               type="submit"
               disabled={isSubmitting || isOstChecking || (cancelReason && cancelReason.endsWith('Z') && procCt.trim().length < 10)}
               className={`flex-1 px-4 py-3 bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-white rounded-lg font-semibold transition-all duration-200 ${
-                (isSubmitting || isOstChecking || (cancelReason && cancelReason.endsWith('Z') && procCt.trim().length < 10)) ? 'opacity-50 cursor-not-allowed' : ''
+                (isSubmitting || isOstChecking || (cancelReason && cancelReason.endsWith('Z') && procCt.trim().length < 10)) ? 'bg-gray-400 !from-gray-400 !to-gray-400 text-white cursor-not-allowed' : ''
               }`}
             >
               {isOstChecking ? '확인중...' : isSubmitting ? '처리중...' : '작업 취소 확정'}
@@ -561,6 +566,27 @@ const WorkCancelModal: React.FC<WorkCancelModalProps> = ({
           </div>
         </form>
       </div>
+
+      {/* 에러/경고 알림 모달 */}
+      <ConfirmModal
+        isOpen={alertModal.isOpen}
+        onClose={() => {
+          setAlertModal(prev => ({ ...prev, isOpen: false }));
+          // 취소 불가 알림 후 모달 닫기
+          if (alertModal.title === '작업 취소 불가') {
+            onClose();
+          }
+        }}
+        onConfirm={() => {
+          if (alertModal.title === '작업 취소 불가') {
+            onClose();
+          }
+        }}
+        title={alertModal.title}
+        message={alertModal.message}
+        type={alertModal.type}
+        showCancel={false}
+      />
 
       {/* Hotbill (단말반환대금) 경고 모달 */}
       {showHotbillWarning && (

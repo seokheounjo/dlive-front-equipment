@@ -175,11 +175,11 @@ const SuspensionPeriodModal: React.FC<SuspensionPeriodModalProps> = ({
         if (showToast) showToast(result.message, 'success');
         onClose();
       } else {
-        if (showToast) showToast(result.message, 'error');
+        if (showToast) showToast(result.message, 'error', true);
       }
     } catch (err: any) {
       console.error('[SuspensionPeriodModal] 정지기간 수정 실패:', err);
-      if (showToast) showToast(err.message || '정지기간 수정에 실패했습니다.', 'error');
+      if (showToast) showToast(err.message || '정지기간 수정에 실패했습니다.', 'error', true);
     } finally {
       setSaving(false);
     }
@@ -191,7 +191,7 @@ const SuspensionPeriodModal: React.FC<SuspensionPeriodModalProps> = ({
         <button
           onClick={handleSave}
           disabled={saving || !!error}
-          className="flex-1 px-4 py-2.5 bg-blue-500 hover:bg-blue-600 text-white rounded-lg font-medium text-sm shadow-md transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+          className="flex-1 px-4 py-2.5 bg-primary-500 hover:bg-primary-500 text-white rounded-lg font-medium text-sm shadow-md transition-all disabled:bg-gray-400 disabled:text-white disabled:cursor-not-allowed"
         >
           {saving ? '저장 중...' : '저장'}
         </button>
@@ -215,7 +215,7 @@ const SuspensionPeriodModal: React.FC<SuspensionPeriodModalProps> = ({
     >
       {loading ? (
         <div className="flex items-center justify-center py-8">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-500"></div>
           <span className="ml-2 text-gray-600">정보 조회 중...</span>
         </div>
       ) : susInfo ? (
@@ -245,8 +245,8 @@ const SuspensionPeriodModal: React.FC<SuspensionPeriodModalProps> = ({
 
           {/* 수정 가능한 경우 - 새 정지기간 설정 */}
           {canEdit && (
-            <div className="bg-blue-50 rounded-lg p-3 border border-blue-200">
-              <div className="text-sm font-medium text-blue-700 mb-2 flex items-center gap-1">
+            <div className="bg-primary-50 rounded-lg p-3 border border-primary-200">
+              <div className="text-sm font-medium text-primary-600 mb-2 flex items-center gap-1">
                 <Calendar size={16} />
                 정지기간 (수정)
               </div>
@@ -263,11 +263,11 @@ const SuspensionPeriodModal: React.FC<SuspensionPeriodModalProps> = ({
                   value={newEndDate}
                   onChange={handleEndDateChange}
                   min={formatDateForInput(susInfo.SUS_HOPE_DD)}
-                  className="flex-1 px-2 py-1.5 border border-blue-300 rounded bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="flex-1 px-2 py-1.5 border border-primary-300 rounded bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-primary-500"
                 />
               </div>
               {newEndDate && (
-                <div className="mt-2 text-xs text-blue-600">
+                <div className="mt-2 text-xs text-primary-700">
                   정지일수: {calculateDays(susInfo.SUS_HOPE_DD, formatDateForApi(newEndDate))}일
                 </div>
               )}

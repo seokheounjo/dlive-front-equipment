@@ -17,6 +17,7 @@ import ConfirmModal from '../../common/ConfirmModal';
 import { useWorkProcessStore } from '../../../stores/workProcessStore';
 import { useWorkEquipmentStore } from '../../../stores/workEquipmentStore';
 import { useCertifyStore } from '../../../stores/certifyStore';
+import { useProductType } from '../../../hooks/useProductType';
 import { useLdapConnect } from '../../../hooks/useLdapConnect';
 import {
   getUplsCtrtInfo,
@@ -33,12 +34,10 @@ interface WorkEquipmentManagementProps {
   workItem: WorkItem;
   onSave: (data: EquipmentData) => void;
   onBack: () => void;
-  showToast?: (message: string, type: 'success' | 'error' | 'warning' | 'info') => void;
+  showToast?: (message: string, type: 'success' | 'error' | 'warning' | 'info', persistent?: boolean) => void;
   preloadedApiData?: any; // WorkProcessFlow에서 Pre-load한 데이터
   onPreloadedDataUpdate?: (newData: any) => void; // Pre-load 데이터 업데이트 콜백
   readOnly?: boolean; // 완료된 작업 - 읽기 전용 모드
-  isCertifyProd?: boolean; // LGU+ 인증 상품 여부
-  certifyOpLnkdCd?: string; // 통신방식 (F/FG/Z/ZG=FTTH, N/NG=와이드)
 }
 
 interface EquipmentData {
@@ -48,6 +47,8 @@ interface EquipmentData {
 
 // 청약신청이 필요한 작업유형 (A/S, 철거는 제외)
 const SUBSCRIPTION_WORK_TYPES = ['01', '05', '06', '07']; // 설치, 상품변경, 댁내이전, 이전설치
+// 포트현황조회가 필요한 작업유형 (A/S 포함, 레거시 PPT 플로우 기준)
+const PORT_STATUS_WORK_TYPES = ['01', '03', '05', '06', '07']; // 설치, A/S, 상품변경, 댁내이전, 이전설치
 
 /**
  * 포트현황 팝업 모달 (레거시: mowou04p04.xml(광랜) / mowou04p05.xml(FTTH) 동일구현)
@@ -62,7 +63,7 @@ const PortStatusModal: React.FC<{
   onEquipChange: (eqipId: string) => void;
   selectedEqipId: string;
   onClose: () => void;
-  showToast?: (message: string, type: 'success' | 'error' | 'warning' | 'info') => void;
+  showToast?: (message: string, type: 'success' | 'error' | 'warning' | 'info', persistent?: boolean) => void;
   entrNo?: string;
   entrRqstNo?: string;
   workItem?: any;
@@ -85,6 +86,7 @@ const PortStatusModal: React.FC<{
 
   // Port공사요청 상태 (레거시: mowou04p01/02/03)
   const [showConsReq, setShowConsReq] = useState(false);
+  const [showConsReqConfirm, setShowConsReqConfirm] = useState(false);
   const [consReqReasonCodes, setConsReqReasonCodes] = useState<any[]>([]);
   const [consReqReason, setConsReqReason] = useState('');
   const [consReqDetail, setConsReqDetail] = useState('');
@@ -105,8 +107,14 @@ const PortStatusModal: React.FC<{
     }
   };
 
+  // Port공사요청 확인 후 화면 열기 (레거시: cfn_SetMsg("W","Y","포트가 모두 사용중인 경우 공사요청이 필요합니다..."))
+  const handleOpenConsReqConfirm = () => {
+    setShowConsReqConfirm(true);
+  };
+
   // Port공사요청 화면 열기 (LGWO001 공통코드 로드)
   const handleOpenConsReq = async () => {
+    setShowConsReqConfirm(false);
     setShowConsReq(true);
     if (consReqReasonCodes.length > 0) return;
     try {
@@ -147,16 +155,17 @@ const PortStatusModal: React.FC<{
       });
 
       if (result.RESULT_CD && !result.RESULT_CD.startsWith('N')) {
-        showToast?.('공사청약이 처리되었습니다.', 'success');
+        showToast?.('공사청약등록이 처리되었습니다.', 'success');
         setShowConsReq(false);
         setConsReqReason('');
         setConsReqDetail('');
       } else {
-        showToast?.(result.RESULT_MSG || '공사청약 처리에 실패했습니다.', 'error');
+        // 레거시 동일: "LGU+ 커버리지 공사청약등록 실패\n RESULT_MSG"
+        showToast?.(`LGU+ 커버리지 공사청약등록 실패: ${result.RESULT_MSG || '알 수 없는 오류'}`, 'error', true);
       }
     } catch (error: any) {
       console.error('[PortStatusModal] Port공사요청 실패:', error);
-      showToast?.(error.message || '공사청약 등록에 실패했습니다.', 'error');
+      showToast?.(`LGU+ 커버리지 공사청약등록 실패: ${error.message || '알 수 없는 오류'}`, 'error', true);
     } finally {
       setConsReqLoading(false);
     }
@@ -250,7 +259,7 @@ const PortStatusModal: React.FC<{
               <label className="text-xs font-semibold text-gray-600 mb-1 block">청약사유 <span className="text-red-500">*</span></label>
               <Select
                 value={consReqReason}
-                onChange={(val) => setConsReqReason(val)}
+                onValueChange={(val) => setConsReqReason(val)}
                 placeholder="선택하세요"
                 options={consReqReasonCodes.map((code: any, idx: number) => ({
                   value: code.COMMON_CD || code.code || '',
@@ -303,6 +312,41 @@ const PortStatusModal: React.FC<{
     );
   }
 
+  // Port공사요청 확인 팝업 (레거시: cfn_SetMsg("W","Y","포트가 모두 사용중인 경우 공사요청이 필요합니다.\n 공사요청을 진행하시겠습니까?",""))
+  if (showConsReqConfirm) {
+    return (
+      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+        <div className="bg-white rounded-xl w-full max-w-sm shadow-2xl">
+          <div className="p-5 text-center">
+            <div className="w-12 h-12 bg-amber-100 rounded-full flex items-center justify-center mx-auto mb-3">
+              <svg className="w-6 h-6 text-amber-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z" />
+              </svg>
+            </div>
+            <p className="text-sm text-gray-700 leading-relaxed whitespace-pre-line">
+              포트가 모두 사용중인 경우{'\n'}공사요청이 필요합니다.{'\n'}공사요청을 진행하시겠습니까?
+            </p>
+          </div>
+          <div className="flex border-t border-gray-200">
+            <button
+              onClick={() => setShowConsReqConfirm(false)}
+              className="flex-1 py-3 text-sm font-medium text-gray-600 hover:bg-gray-50 rounded-bl-xl"
+            >
+              아니오
+            </button>
+            <div className="w-px bg-gray-200" />
+            <button
+              onClick={handleOpenConsReq}
+              className="flex-1 py-3 text-sm font-semibold text-orange-600 hover:bg-orange-50 rounded-br-xl"
+            >
+              예
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-xl w-full max-w-lg max-h-[85vh] flex flex-col">
@@ -340,7 +384,7 @@ const PortStatusModal: React.FC<{
 
               {/* 장비 상세 - 광랜(L2) vs FTTH(RN) 분기 (세로 배치) */}
               {selectedEquip && (
-                <div className="bg-blue-50 rounded-lg p-3">
+                <div className="bg-primary-50 rounded-lg p-3">
                   {isFtth ? (
                     /* FTTH(RN): 모델명, 설치장소 (레거시: mowou04p05) */
                     <div className="space-y-1.5 text-xs">
@@ -413,7 +457,7 @@ const PortStatusModal: React.FC<{
             )}
             {/* Port공사요청 버튼 (광랜/FTTH 모두, 레거시: mowou04p01) */}
             <button
-              onClick={handleOpenConsReq}
+              onClick={handleOpenConsReqConfirm}
               className="flex-1 py-2 bg-orange-500 text-white rounded-lg font-semibold text-sm hover:bg-orange-600 transition-colors whitespace-nowrap"
             >
               Port공사요청
@@ -437,9 +481,9 @@ const WorkEquipmentManagement: React.FC<WorkEquipmentManagementProps> = ({
   preloadedApiData,
   onPreloadedDataUpdate,
   readOnly = false,
-  isCertifyProd = false,
-  certifyOpLnkdCd = '',
 }) => {
+  // ProductTypeContext에서 상품유형 정보 가져오기 (Phase 4: props drilling 제거)
+  const { isLguProd: isCertifyProd, needsLineRegistration: isCertifyForLineReg, opLnkdCd: certifyOpLnkdCd } = useProductType();
   // Work Process Store
   const { setEquipmentData } = useWorkProcessStore();
 
@@ -487,6 +531,7 @@ const WorkEquipmentManagement: React.FC<WorkEquipmentManagementProps> = ({
   const wrkCd = workItem.WRK_CD || '';
   const ctrtId = (workItem as any).DTL_CTRT_ID || workItem.CTRT_ID || '';
   const needsSubscription = SUBSCRIPTION_WORK_TYPES.includes(wrkCd);
+  const needsPortStatus = PORT_STATUS_WORK_TYPES.includes(wrkCd);
 
   // LDAP 연동 가드: 청약필요 작업유형은 청약신청 선행 필수
   const ldapBlocked = needsSubscription && !isSubscriptionDone;
@@ -538,16 +583,17 @@ const WorkEquipmentManagement: React.FC<WorkEquipmentManagementProps> = ({
 
   // 재신청 시 기존 가입자번호 프리페치
   useEffect(() => {
-    if (!isCertifyProd || !needsSubscription || !ctrtId) return;
+    if (!isCertifyProd || !needsPortStatus || !ctrtId) return;
     if (entrNo || isSubscriptionDone) return; // 이미 세팅됨
 
     const prefetchEntrNo = async () => {
       try {
         const ctrtResult = await getUplsCtrtInfo({ CTRT_ID: ctrtId });
         const existingEntrNo = ctrtResult?.[0]?.ENTR_NO || '';
+        const existingEntrRqstNo = ctrtResult?.[0]?.ENTR_RQST_NO || '';
         if (existingEntrNo) {
-          console.log('[LGU+] 기존 가입자번호 프리페치:', existingEntrNo);
-          setEntrNo(existingEntrNo, null);
+          console.log('[LGU+] 기존 가입자번호 프리페치:', existingEntrNo, 'ENTR_RQST_NO:', existingEntrRqstNo);
+          setEntrNo(existingEntrNo, existingEntrRqstNo || null);
           setIsSubscriptionDone(true);
         }
       } catch (error) {
@@ -555,7 +601,7 @@ const WorkEquipmentManagement: React.FC<WorkEquipmentManagementProps> = ({
       }
     };
     prefetchEntrNo();
-  }, [isCertifyProd, needsSubscription, ctrtId, entrNo, isSubscriptionDone]);
+  }, [isCertifyProd, needsPortStatus, ctrtId, entrNo, isSubscriptionDone]);
 
   /**
    * 청약 실행 (기존 ENTR_NO가 있으면 취소 후 재등록)
@@ -813,39 +859,46 @@ const WorkEquipmentManagement: React.FC<WorkEquipmentManagementProps> = ({
   return (
     <div className="work-equipment-management">
       {/* ========== LGU+ 청약신청 + 포트현황 섹션 (최상단) ========== */}
-      {isCertifyProd && !readOnly && needsSubscription && (
+      {isCertifyProd && !readOnly && needsPortStatus && (
         <div className="mx-3 mt-2 mb-1">
-          <div className={`rounded-lg border p-3 ${isSubscriptionDone ? 'bg-green-50 border-green-200' : 'bg-orange-50 border-orange-200'}`}>
-            <div className="flex items-center justify-between gap-2 flex-wrap">
-              <div className="flex items-center gap-2 min-w-0">
-                <FileText className={`w-5 h-5 flex-shrink-0 ${isSubscriptionDone ? 'text-green-600' : 'text-orange-600'}`} />
-                <div className="min-w-0">
-                  <div className={`text-sm font-semibold whitespace-nowrap ${isSubscriptionDone ? 'text-green-800' : 'text-orange-800'}`}>
-                    U+ 청약신청
-                  </div>
-                  {entrNo && (
-                    <div className="text-xs text-gray-600 truncate">
-                      가입자번호: <span className="font-mono font-semibold">{entrNo}</span>
-                    </div>
-                  )}
-                </div>
+          <div className={`rounded-lg border p-3 ${
+            needsSubscription
+              ? (isSubscriptionDone ? 'bg-green-50 border-green-200' : 'bg-orange-50 border-orange-200')
+              : 'bg-blue-50 border-blue-200'
+          }`}>
+            <div className="flex items-center justify-between gap-2">
+              <div className="flex items-center gap-2">
+                {needsSubscription ? (
+                  <FileText className={`w-5 h-5 flex-shrink-0 ${isSubscriptionDone ? 'text-green-600' : 'text-orange-600'}`} />
+                ) : (
+                  <Search className="w-5 h-5 flex-shrink-0 text-blue-600" />
+                )}
+                <span className={`text-sm font-semibold whitespace-nowrap ${
+                  needsSubscription
+                    ? (isSubscriptionDone ? 'text-green-800' : 'text-orange-800')
+                    : 'text-blue-800'
+                }`}>
+                  {needsSubscription ? 'U+ 청약신청' : 'U+ 포트현황'}
+                </span>
               </div>
               <div className="flex items-center gap-2 flex-shrink-0">
-                {/* 청약신청 버튼 */}
-                <button
-                  onClick={handleSubscriptionRequest}
-                  disabled={subscriptionLoading}
-                  className={`px-4 py-2 rounded-lg text-sm font-semibold whitespace-nowrap transition-colors bg-orange-500 text-white hover:bg-orange-600 ${subscriptionLoading ? 'opacity-50' : ''}`}
-                >
-                  {subscriptionLoading ? (
-                    <span className="flex items-center gap-1">
-                      <Loader2 className="w-4 h-4 animate-spin" />
-                      처리중...
-                    </span>
-                  ) : (
-                    '청약신청'
-                  )}
-                </button>
+                {/* 청약신청 버튼 - 필요한 작업유형만 (설치, 상품변경, 댁내이전, 이전설치) */}
+                {needsSubscription && (
+                  <button
+                    onClick={handleSubscriptionRequest}
+                    disabled={subscriptionLoading}
+                    className={`px-4 py-2 rounded-lg text-sm font-semibold whitespace-nowrap transition-colors bg-orange-500 text-white hover:bg-orange-600 ${subscriptionLoading ? 'bg-gray-400 !text-white cursor-not-allowed' : ''}`}
+                  >
+                    {subscriptionLoading ? (
+                      <span className="flex items-center gap-1">
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        처리중...
+                      </span>
+                    ) : (
+                      '청약신청'
+                    )}
+                  </button>
+                )}
                 {/* 포트현황조회 버튼 */}
                 <button
                   onClick={handlePortStatusQuery}
@@ -866,6 +919,12 @@ const WorkEquipmentManagement: React.FC<WorkEquipmentManagementProps> = ({
                 </button>
               </div>
             </div>
+            {entrNo && (
+              <div className="mt-1.5 pt-1.5 border-t border-gray-200/60 flex items-center gap-1.5">
+                <span className="text-xs text-gray-500">가입자번호</span>
+                <span className="text-xs font-mono font-semibold text-gray-700">{entrNo}</span>
+              </div>
+            )}
           </div>
         </div>
       )}
@@ -892,8 +951,6 @@ const WorkEquipmentManagement: React.FC<WorkEquipmentManagementProps> = ({
         preloadedApiData={preloadedApiData}
         onPreloadedDataUpdate={onPreloadedDataUpdate}
         readOnly={readOnly}
-        isCertifyProd={isCertifyProd}
-        certifyOpLnkdCd={certifyOpLnkdCd}
         onLdapConnect={wrappedLdapConnect}
         isLdapDone={isLdapDone}
         ldapLoading={ldapLoading}

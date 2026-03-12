@@ -4,6 +4,7 @@ import { debugApiCall } from './equipmentDebug';
 import { Search, ChevronDown, ChevronUp, Check, X, User, RotateCcw, AlertTriangle } from 'lucide-react';
 import BarcodeScanner from './BarcodeScanner';
 import BaseModal from '../common/BaseModal';
+import Select from '../ui/Select';
 
 // 장비 중분류 코드 (ITEM_MID_CD) - 장비조회와 동일
 const ITEM_MID_OPTIONS = [
@@ -1222,31 +1223,27 @@ const EquipmentMovement: React.FC<EquipmentMovementProps> = ({ onBack, showToast
           {/* 2. 장비종류 (라벨 + select 2개) */}
           <div className="flex items-center gap-2 overflow-hidden">
             <label className="text-xs font-medium text-gray-600 w-14 flex-shrink-0">장비종류</label>
-            <select
+            <Select
               value={selectedItemMidCd}
-              onChange={(e) => setSelectedItemMidCd(e.target.value)}
-              className="flex-1 min-w-0 px-2 py-2.5 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent truncate"
-            >
-              <option value="">전체</option>
-              {ITEM_MID_OPTIONS.filter(opt => opt.code !== '').map(opt => (
-                <option key={opt.code} value={opt.code}>{opt.name}</option>
-              ))}
-            </select>
-            <select
+              onValueChange={(val) => setSelectedItemMidCd(val)}
+              options={[
+                { value: '', label: '전체' },
+                ...ITEM_MID_OPTIONS.filter(opt => opt.code !== '').map(opt => ({ value: opt.code, label: opt.name }))
+              ]}
+              placeholder="전체"
+              className="flex-1 min-w-0"
+            />
+            <Select
               value={selectedEqtClCd}
-              onChange={(e) => setSelectedEqtClCd(e.target.value)}
+              onValueChange={(val) => setSelectedEqtClCd(val)}
+              options={[
+                { value: '', label: !selectedItemMidCd ? '-' : isLoadingEqtCl ? '...' : (eqtClOptions.length === 0 ? '-' : '전체') },
+                ...eqtClOptions.map(opt => ({ value: opt.code, label: opt.name }))
+              ]}
+              placeholder={!selectedItemMidCd ? '-' : isLoadingEqtCl ? '...' : (eqtClOptions.length === 0 ? '-' : '전체')}
               disabled={!selectedItemMidCd || isLoadingEqtCl || eqtClOptions.length === 0}
-              className="flex-1 min-w-0 px-2 py-2.5 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-100 disabled:cursor-not-allowed truncate"
-            >
-              <option value="">
-                {!selectedItemMidCd ? '-' :
-                 isLoadingEqtCl ? '...' :
-                 (eqtClOptions.length === 0 ? '-' : '전체')}
-              </option>
-              {eqtClOptions.map(opt => (
-                <option key={opt.code} value={opt.code}>{opt.name}</option>
-              ))}
-            </select>
+              className="flex-1 min-w-0"
+            />
           </div>
 
           {/* 4. S/N + 스캔 버튼 */}
@@ -1644,17 +1641,12 @@ const EquipmentMovement: React.FC<EquipmentMovementProps> = ({ onBack, showToast
             </label>
             {userAuthSoList.length > 1 ? (
               <>
-                <select
+                <Select
                   value={targetSoId}
-                  onChange={(e) => setTargetSoId(e.target.value)}
-                  className="w-full px-4 py-3 border border-blue-300 rounded-xl text-sm bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                >
-                  {userAuthSoList.map((so) => (
-                    <option key={so.SO_ID} value={so.SO_ID}>
-                      {so.SO_NM} ({so.SO_ID})
-                    </option>
-                  ))}
-                </select>
+                  onValueChange={(val) => setTargetSoId(val)}
+                  options={userAuthSoList.map((so) => ({ value: so.SO_ID, label: `${so.SO_NM} (${so.SO_ID})` }))}
+                  placeholder="지점 선택"
+                />
                 <p className="text-xs text-blue-600 mt-2">
                   장비가 선택한 지점으로 이관됩니다
                 </p>
@@ -1826,22 +1818,21 @@ const EquipmentMovement: React.FC<EquipmentMovementProps> = ({ onBack, showToast
               <div className="px-4 py-2 border-b border-gray-100 bg-gray-50">
                 <div className="flex items-center gap-2">
                   <span className="text-xs text-gray-600 font-medium">모델:</span>
-                  <select
+                  <Select
                     value={modalModelFilter}
-                    onChange={(e) => setModalModelFilter(e.target.value)}
-                    className="flex-1 text-xs border border-gray-200 rounded-lg px-2 py-1.5 bg-white focus:outline-none focus:ring-1 focus:ring-blue-500"
-                  >
-                    <option value="">전체 ({modalEquipmentList.length}건)</option>
-                    {Array.from(new Set(modalEquipmentList.map(item => item.ITEM_MID_NM || item.EQT_CL_NM || '기타')))
-                      .sort()
-                      .map(model => {
-                        const count = modalEquipmentList.filter(item => (item.ITEM_MID_NM || item.EQT_CL_NM || '기타') === model).length;
-                        return (
-                          <option key={model} value={model}>{model} ({count}건)</option>
-                        );
-                      })
-                    }
-                  </select>
+                    onValueChange={(val) => setModalModelFilter(val)}
+                    options={[
+                      { value: '', label: `전체 (${modalEquipmentList.length}건)` },
+                      ...Array.from(new Set(modalEquipmentList.map(item => item.ITEM_MID_NM || item.EQT_CL_NM || '기타')))
+                        .sort()
+                        .map(model => {
+                          const count = modalEquipmentList.filter(item => (item.ITEM_MID_NM || item.EQT_CL_NM || '기타') === model).length;
+                          return { value: model, label: `${model} (${count}건)` };
+                        })
+                    ]}
+                    placeholder={`전체 (${modalEquipmentList.length}건)`}
+                    className="flex-1"
+                  />
                 </div>
               </div>
               {/* 장비 목록 */}

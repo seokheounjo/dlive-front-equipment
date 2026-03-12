@@ -4,48 +4,46 @@ import { LockClosedIcon } from '../icons/LockClosedIcon';
 import { EyeIcon } from '../icons/EyeIcon';
 import { EyeSlashIcon } from '../icons/EyeSlashIcon';
 import { TestTube } from 'lucide-react';
-import { login, verifyOtp } from '../../services/apiService';
 
-// OTP 기능 ON/OFF (서버 연동 완료, 필요시 true로 전환)
+import { login, verifyOtp } from '../../services/apiService';
+import { logLogin, generateLoginTrxId, loginApi1, loginApi2, loginApi3 } from '../../services/logService';
+
 const OTP_ENABLED = false;
 
+const otpErrorMessages: Record<string, string> = {
+  '6000': 'OTP 인증에 실패했습니다. 다시 입력해주세요.',
+  '6001': '이미 사용된 OTP입니다. 새 코드를 입력해주세요.',
+  '6010': 'OTP는 숫자 6자리를 입력해주세요.',
+  '6025': '인증 실패 횟수를 초과했습니다. 관리자에게 문의하세요.',
+  '6040': 'OTP 서버에 연결할 수 없습니다. 잠시 후 다시 시도해주세요.',
+  '6041': 'OTP 서버 통신 오류가 발생했습니다.',
+};
+
 interface LoginProps {
-  onLogin: (userId?: string, userName?: string, userNameEn?: string, userRole?: string, crrId?: string, soId?: string, mstSoId?: string, telNo2?: string, authSoList?: Array<{SO_ID: string; SO_NM: string; MST_SO_ID: string}>, trxId?: string) => void;
+  onLogin: (userId?: string, userName?: string, userNameEn?: string, userRole?: string, crrId?: string, soId?: string, mstSoId?: string, telNo2?: string, authSoList?: Array<{SO_ID: string; SO_NM: string; MST_SO_ID: string}>, soYn?: string, deptCd?: string) => void;
 }
 
 const Login: React.FC<LoginProps> = ({ onLogin }) => {
-  const [username, setUsername] = useState('A20117965');
-  const [password, setPassword] = useState('dlive12!@#$');
-  const [otpCode, setOtpCode] = useState('');
+  const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showDupConfirm, setShowDupConfirm] = useState(false);
+  const [otpCode, setOtpCode] = useState('');
   const [lockMessage, setLockMessage] = useState<string | null>(null);
 
-  const inputBaseClasses = "w-full py-3 bg-white border border-gray-200 rounded-lg text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition";
-
-  // 로그인 완료 처리
   const completeLogin = (result: any) => {
     localStorage.removeItem('demoMode');
-    onLogin(result.userId, result.userName, result.userNameEn, result.userRole, result.crrId, result.soId, result.mstSoId, result.telNo2, result.AUTH_SO_List, result.trxId);
-  };
-
-  // OTP 에러코드별 메시지
-  const otpErrorMessages: Record<string, string> = {
-    '6000': 'OTP 인증에 실패했습니다. 다시 입력해주세요.',
-    '6001': '이미 사용된 OTP입니다. 새 코드를 입력해주세요.',
-    '6010': 'OTP는 숫자 6자리를 입력해주세요.',
-    '6025': '인증 실패 횟수를 초과했습니다. 관리자에게 문의하세요.',
-    '6040': 'OTP 서버에 연결할 수 없습니다. 잠시 후 다시 시도해주세요.',
-    '6041': 'OTP 서버 통신 오류가 발생했습니다.',
+    onLogin(result.userId, result.userName, result.userNameEn, result.userRole, result.crrId, result.soId, result.mstSoId, result.telNo2, result.AUTH_SO_List, result.soYn, result.deptCd);
+    logLogin();
   };
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>, forceDisconnect: boolean = false) => {
     e.preventDefault();
     if (!username || !password) return;
     if (OTP_ENABLED && !otpCode) {
-      setError('인증번호를 입력해주세요.');
+      setError('OTP 인증번호를 입력해주세요.');
       return;
     }
 
@@ -54,13 +52,21 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
     setShowDupConfirm(false);
     setLockMessage(null);
 
+    // Step 1: Generate trxId + loginApi1 (LOGIN start)
+    const trxId = generateLoginTrxId(username);
+    loginApi1({ P_LOGIN_TRX_ID: trxId, P_USER_ID: username, P_API_TYPE: 'LOGIN' });
+
     try {
-      // 1단계: ID/PW 인증
       const result = await login(username, password, forceDisconnect ? 'Y' : 'N');
       console.log('[Login] API 응답:', result);
+      console.log('[Login] telNo2:', result.telNo2);
+
+      // Step 2: loginApi2 (LOGIN result)
+      loginApi2({ P_LOGIN_TRX_ID: trxId, P_API_TYPE: 'LOGIN', P_RESULT_CD: result.ok ? 'SUCCESS' : 'FAIL', P_RESULT_MSG: result.ok ? '' : 'Login failed' });
 
       // 계정 잠금 감지
       if (result.code === 'LOCK') {
+        loginApi3({ P_LOGIN_TRX_ID: trxId, P_FINAL_RESULT_CD: 'LOCK', P_FINAL_RESULT_MSG: 'Account locked' });
         setLockMessage(result.message || '계정이 잠겨있습니다. 관리자에게 문의하세요.');
         setIsLoading(false);
         return;
@@ -68,33 +74,38 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
 
       // 동시접속 감지
       if (result.LOGIN_DUP_YN === 'Y' || result.code === 'LOGIN_DUP') {
+        loginApi3({ P_LOGIN_TRX_ID: trxId, P_FINAL_RESULT_CD: 'DUP', P_FINAL_RESULT_MSG: 'Duplicate login detected' });
         setShowDupConfirm(true);
         setIsLoading(false);
         return;
       }
 
-      if (!result.ok) {
-        setError('로그인에 실패했습니다.');
-        return;
-      }
-
-      // 2단계: OTP 인증 (활성화 시)
-      if (OTP_ENABLED) {
-        console.log('[Login] ID/PW 성공, OTP 검증 시작...');
-        const otpResult = await verifyOtp(username, otpCode);
-        console.log('[Login] OTP 검증 응답:', otpResult);
-
-        if (!otpResult.ok) {
-          const errorCode = otpResult.code || '';
-          setError(otpErrorMessages[errorCode] || otpResult.message || 'OTP 인증에 실패했습니다.');
-          setOtpCode('');
-          return;
+      if (result.ok) {
+        // OTP 검증
+        if (OTP_ENABLED) {
+          const otpResult = await verifyOtp(username, otpCode);
+          if (!otpResult.ok) {
+            const errorCode = otpResult.code || '';
+            loginApi3({ P_LOGIN_TRX_ID: trxId, P_FINAL_RESULT_CD: 'OTP_FAIL', P_FINAL_RESULT_MSG: `OTP error: ${errorCode}` });
+            setError(otpErrorMessages[errorCode] || otpResult.message || 'OTP 인증에 실패했습니다.');
+            setOtpCode('');
+            setIsLoading(false);
+            return;
+          }
         }
-      }
 
-      // 모든 인증 통과 → 로그인 완료
-      completeLogin(result);
+        // Step 5: loginApi3 (final SUCCESS)
+        loginApi3({ P_LOGIN_TRX_ID: trxId, P_FINAL_RESULT_CD: 'SUCCESS' });
+        completeLogin(result);
+      } else {
+        loginApi3({ P_LOGIN_TRX_ID: trxId, P_FINAL_RESULT_CD: 'FAIL', P_FINAL_RESULT_MSG: 'Login failed' });
+        setError('로그인에 실패했습니다.');
+      }
     } catch (err: any) {
+      // Step 2+5: loginApi2 + loginApi3 (error)
+      loginApi2({ P_LOGIN_TRX_ID: trxId, P_API_TYPE: 'LOGIN', P_RESULT_CD: 'ERROR', P_RESULT_MSG: err.message || 'Unknown error' });
+      loginApi3({ P_LOGIN_TRX_ID: trxId, P_FINAL_RESULT_CD: 'FAIL', P_FINAL_RESULT_MSG: err.message || 'Unknown error' });
+
       if (err.message && err.message.includes('401')) {
         setError('아이디 또는 비밀번호가 잘못되었습니다.');
       } else if (err.message && err.message.includes('400')) {
@@ -112,31 +123,38 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
   const handleForceLogin = async () => {
     setIsLoading(true);
     setShowDupConfirm(false);
+
+    const trxId = generateLoginTrxId(username);
+    loginApi1({ P_LOGIN_TRX_ID: trxId, P_USER_ID: username, P_API_TYPE: 'LOGIN', P_REQUEST_DATA: 'FORCE_DISCONNECT=Y' });
+
     try {
       const result = await login(username, password, 'Y');
       console.log('[Login] 강제 로그인 응답:', result);
-      if (!result.ok) {
+      loginApi2({ P_LOGIN_TRX_ID: trxId, P_API_TYPE: 'LOGIN', P_RESULT_CD: result.ok ? 'SUCCESS' : 'FAIL' });
+
+      if (result.ok) {
+        // OTP 검증
+        if (OTP_ENABLED) {
+          const otpResult = await verifyOtp(username, otpCode);
+          if (!otpResult.ok) {
+            const errorCode = otpResult.code || '';
+            loginApi3({ P_LOGIN_TRX_ID: trxId, P_FINAL_RESULT_CD: 'OTP_FAIL', P_FINAL_RESULT_MSG: `OTP error: ${errorCode}` });
+            setError(otpErrorMessages[errorCode] || otpResult.message || 'OTP 인증에 실패했습니다.');
+            setOtpCode('');
+            setIsLoading(false);
+            return;
+          }
+        }
+
+        loginApi3({ P_LOGIN_TRX_ID: trxId, P_FINAL_RESULT_CD: 'SUCCESS' });
+        completeLogin(result);
+      } else {
+        loginApi3({ P_LOGIN_TRX_ID: trxId, P_FINAL_RESULT_CD: 'FAIL' });
         setError('로그인에 실패했습니다.');
-        return;
       }
-
-      // OTP 인증 (활성화 시)
-      if (OTP_ENABLED) {
-        if (!otpCode) {
-          setError('인증번호를 입력해주세요.');
-          return;
-        }
-        const otpResult = await verifyOtp(username, otpCode);
-        if (!otpResult.ok) {
-          const errorCode = otpResult.code || '';
-          setError(otpErrorMessages[errorCode] || otpResult.message || 'OTP 인증에 실패했습니다.');
-          setOtpCode('');
-          return;
-        }
-      }
-
-      completeLogin(result);
     } catch (err: any) {
+      loginApi2({ P_LOGIN_TRX_ID: trxId, P_API_TYPE: 'LOGIN', P_RESULT_CD: 'ERROR', P_RESULT_MSG: err.message });
+      loginApi3({ P_LOGIN_TRX_ID: trxId, P_FINAL_RESULT_CD: 'FAIL', P_FINAL_RESULT_MSG: err.message });
       setError('로그인 중 오류가 발생했습니다.');
       console.error('강제 로그인 오류:', err);
     } finally {
@@ -144,19 +162,19 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
     }
   };
 
+  const inputBaseClasses = "w-full py-3 bg-white border border-gray-200 rounded-lg text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent transition";
+
   return (
     <div className="min-h-screen flex items-center justify-center p-4 font-sans bg-gray-100">
       <div className="w-full max-w-sm mx-auto bg-white rounded-2xl shadow-xl p-8 space-y-8">
-
+        
         <div className="text-center space-y-4">
-          <div className="space-y-2">
-            <h1 className="text-4xl font-bold tracking-wider text-blue-600">D'LIVE</h1>
-            <h2 className="text-xl font-semibold text-gray-700">CONA</h2>
+          <div className="flex justify-center">
+            <img src="/recona/360X120px.png" alt="D'LIVE CONA" className="h-30" />
           </div>
         </div>
-
-        <form onSubmit={handleSubmit} className="space-y-5">
-          {/* 사용자 ID */}
+        
+        <form onSubmit={handleSubmit} className="space-y-6">
           <div>
             <label htmlFor="username" className="sr-only">사용자 ID</label>
             <div className="relative">
@@ -176,7 +194,6 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
             </div>
           </div>
 
-          {/* 비밀번호 */}
           <div>
             <label htmlFor="password" className="sr-only">비밀번호</label>
             <div className="relative">
@@ -205,9 +222,9 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
               </div>
             </div>
           </div>
-
-          {/* OTP 입력 */}
+          
           <div className={OTP_ENABLED ? '' : 'opacity-50'}>
+            <label htmlFor="otpCode" className="sr-only">OTP 인증번호</label>
             <div className="relative">
               <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
                 <LockClosedIcon className="h-5 w-5 text-gray-300" />
@@ -236,20 +253,21 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
               {error}
             </div>
           )}
-
+          
           <div className="space-y-3">
             <button
               type="submit"
               disabled={isLoading}
-              className="w-full flex justify-center py-3 px-4 border border-transparent text-base font-bold rounded-lg text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full flex justify-center py-3 px-4 border border-transparent text-base font-bold rounded-lg text-white bg-primary-500 hover:bg-primary-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 transition-colors shadow-md disabled:bg-gray-400 disabled:text-white disabled:cursor-not-allowed"
             >
               {isLoading ? '로그인 중...' : '로그인'}
             </button>
-
+            
             {/* 더미 계정 로그인 버튼 */}
             <button
               type="button"
               onClick={() => {
+                // 더미 로그인 (API 호출 없이 바로 성공)
                 localStorage.setItem('demoMode', 'true');
                 onLogin('demo', 'demo', 'demo');
               }}
@@ -260,40 +278,19 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
             </button>
           </div>
         </form>
-
+        
         <div className="mt-8 text-center">
+          {/* 슬로건 - 카피라이트 위에 */}
           <div className="mb-3">
-            <p className="text-sm font-medium tracking-wide text-blue-600">
+            <p className="text-sm font-medium tracking-wide text-primary-700">
               Smart Life Coordinator
             </p>
           </div>
-          <p className="text-xs font-semibold text-blue-600">COPYRIGHT 2025. D'LIVE CO. LTD</p>
+
+          <p className="text-xs font-semibold text-primary-700">COPYRIGHT 2025. D'LIVE CO. LTD</p>
         </div>
 
       </div>
-
-      {/* 계정 잠금 팝업 */}
-      {lockMessage && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-2xl max-w-sm w-full p-6 space-y-4">
-            <div className="text-center">
-              <div className="mx-auto w-12 h-12 bg-red-100 rounded-full flex items-center justify-center mb-4">
-                <LockClosedIcon className="w-6 h-6 text-red-600" />
-              </div>
-              <h3 className="text-lg font-bold text-gray-900 mb-2">계정 잠금</h3>
-              <p className="text-sm text-gray-600 whitespace-pre-line">
-                {lockMessage}
-              </p>
-            </div>
-            <button
-              onClick={() => setLockMessage(null)}
-              className="w-full py-2.5 px-4 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 transition"
-            >
-              확인
-            </button>
-          </div>
-        </div>
-      )}
 
       {/* 동시접속 확인 모달 */}
       {showDupConfirm && (
@@ -321,11 +318,33 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
               <button
                 onClick={handleForceLogin}
                 disabled={isLoading}
-                className="flex-1 py-2.5 px-4 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 transition disabled:opacity-50"
+                className="flex-1 py-2.5 px-4 bg-primary-500 text-white font-medium rounded-lg hover:bg-primary-600 transition disabled:bg-gray-400 disabled:text-white disabled:cursor-not-allowed"
               >
                 {isLoading ? '처리 중...' : '강제 로그인'}
               </button>
             </div>
+          </div>
+        </div>
+      )}
+      {/* 계정 잠금 모달 */}
+      {lockMessage && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-2xl max-w-sm w-full p-6 space-y-4">
+            <div className="text-center">
+              <div className="mx-auto w-12 h-12 bg-red-100 rounded-full flex items-center justify-center mb-4">
+                <LockClosedIcon className="w-6 h-6 text-red-600" />
+              </div>
+              <h3 className="text-lg font-bold text-gray-900 mb-2">계정 잠금</h3>
+              <p className="text-sm text-gray-600 whitespace-pre-line">
+                {lockMessage}
+              </p>
+            </div>
+            <button
+              onClick={() => setLockMessage(null)}
+              className="w-full py-2.5 px-4 bg-primary-500 text-white font-medium rounded-lg hover:bg-primary-600 transition"
+            >
+              확인
+            </button>
           </div>
         </div>
       )}

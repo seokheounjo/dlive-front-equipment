@@ -1,7 +1,7 @@
 .work-process-flow {
   background: white;
-  min-height: 100dvh; /* iOS 동적 뷰포트 */
-  min-height: 100vh; /* 폴백 */
+  min-height: 100vh;
+  min-height: 100dvh;
   position: relative;
 }
 
@@ -80,24 +80,24 @@
 
 /* 이전 버튼 - 파란색 */
 .process-nav .btn-secondary {
-  background: #007bff;
+  background: #00B0C8;
   color: white;
   flex: 1;
 }
 
 .process-nav .btn-secondary:hover:not(:disabled) {
-  background: #0056b3;
+  background: #009DB3;
 }
 
 /* 다음 단계 버튼 */
 .process-nav .btn-primary {
-  background: #007bff;
+  background: #00B0C8;
   color: white;
   flex: 1;
 }
 
 .process-nav .btn-primary:hover:not(:disabled) {
-  background: #0056b3;
+  background: #009DB3;
 }
 
 .process-header {
@@ -115,7 +115,7 @@
 
 .work-type-badge {
   padding: 8px 16px;
-  background: #007bff;
+  background: #00B0C8;
   color: white;
   border-radius: 20px;
   font-size: 14px;
@@ -150,7 +150,7 @@
 
 /* 활성 단계 - 파란색 (completed보다 우선) */
 .step.active .step-number {
-  background: #007bff;
+  background: #00B0C8;
   color: white;
   transform: scale(1.1);
   box-shadow: 0 4px 12px rgba(0, 123, 255, 0.3);
@@ -185,7 +185,7 @@
 
 /* 활성 단계 타이틀 - 파란색 (completed보다 우선) */
 .step.active .step-title {
-  color: #007bff;
+  color: #00B0C8;
   font-weight: 600;
 }
 
@@ -206,8 +206,8 @@
 .process-content {
   background: white;
   padding: 15px;
-  min-height: calc(100dvh - 200px); /* iOS 동적 뷰포트 */
-  min-height: calc(100vh - 200px); /* 폴백 */
+  min-height: calc(100vh - 200px);
+  min-height: calc(100dvh - 200px);
   padding-bottom: 100px;
 }
 

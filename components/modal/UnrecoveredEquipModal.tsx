@@ -68,7 +68,7 @@ const UnrecoveredEquipModal: React.FC<UnrecoveredEquipModalProps> = ({
       setEquipmentList(result || []);
     } catch (error: any) {
       console.error('미회수 장비 조회 실패:', error);
-      showToast?.(error.message || '미회수 장비 조회에 실패했습니다.', 'error');
+      showToast?.(error.message || '미회수 장비 조회에 실패했습니다.', 'error', true);
     } finally {
       setIsLoading(false);
     }
@@ -155,17 +155,17 @@ const UnrecoveredEquipModal: React.FC<UnrecoveredEquipModalProps> = ({
         setRecoveryType('');
         onSuccess?.();
       } else {
-        showToast?.('처리에 실패했습니다.', 'error');
+        showToast?.('처리에 실패했습니다.', 'error', true);
       }
     } catch (error: any) {
-      showToast?.(error.message || '처리 중 오류가 발생했습니다.', 'error');
+      showToast?.(error.message || '처리 중 오류가 발생했습니다.', 'error', true);
     } finally {
       setIsSaving(false);
     }
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center">
+    <div className="fixed inset-0 z-[200] flex items-center justify-center">
       {/* Backdrop */}
       <div
         className="absolute inset-0 bg-black/50"
@@ -210,7 +210,7 @@ const UnrecoveredEquipModal: React.FC<UnrecoveredEquipModalProps> = ({
                     onClick={() => setRecoveryType(opt.value)}
                     className={`px-2 sm:px-3 py-2 sm:py-2.5 rounded-lg text-xs sm:text-sm font-medium transition-colors ${
                       recoveryType === opt.value
-                        ? opt.value === '2' ? 'bg-red-600 text-white' : 'bg-blue-600 text-white'
+                        ? opt.value === '2' ? 'bg-red-600 text-white' : 'bg-primary-500 text-white'
                         : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                     }`}
                   >
@@ -230,7 +230,7 @@ const UnrecoveredEquipModal: React.FC<UnrecoveredEquipModalProps> = ({
           <div className="p-4 overflow-y-auto max-h-[45vh]">
             {isLoading ? (
               <div className="flex items-center justify-center py-8">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-500"></div>
                 <span className="ml-2 text-gray-600">조회 중...</span>
               </div>
             ) : equipmentList.length === 0 ? (
@@ -247,11 +247,11 @@ const UnrecoveredEquipModal: React.FC<UnrecoveredEquipModalProps> = ({
                   <button
                     type="button"
                     onClick={toggleSelectAll}
-                    className="flex items-center gap-2 text-sm text-blue-600 font-medium"
+                    className="flex items-center gap-2 text-sm text-primary-700 font-medium"
                   >
                     <div className={`w-5 h-5 rounded border-2 flex items-center justify-center transition-colors ${
                       selectedEquipNos.size === equipmentList.length
-                        ? 'bg-blue-600 border-blue-600'
+                        ? 'bg-primary-500 border-primary-500'
                         : 'border-gray-300'
                     }`}>
                       {selectedEquipNos.size === equipmentList.length && (
@@ -264,7 +264,7 @@ const UnrecoveredEquipModal: React.FC<UnrecoveredEquipModalProps> = ({
                   </button>
                   <span className="text-sm text-gray-500">
                     {selectedEquipNos.size > 0 ? (
-                      <span className="text-blue-600 font-medium">{selectedEquipNos.size}건 선택</span>
+                      <span className="text-primary-700 font-medium">{selectedEquipNos.size}건 선택</span>
                     ) : (
                       `총 ${equipmentList.length}건`
                     )}
@@ -281,7 +281,7 @@ const UnrecoveredEquipModal: React.FC<UnrecoveredEquipModalProps> = ({
                         onClick={() => toggleEquipSelection(eq.EQT_NO)}
                         className={`p-3 rounded-lg border-2 cursor-pointer transition-colors ${
                           isSelected
-                            ? 'border-blue-500 bg-blue-50'
+                            ? 'border-primary-500 bg-primary-50'
                             : 'border-gray-200 hover:border-gray-300'
                         }`}
                       >
@@ -289,7 +289,7 @@ const UnrecoveredEquipModal: React.FC<UnrecoveredEquipModalProps> = ({
                           {/* Checkbox */}
                           <div className={`mt-0.5 w-5 h-5 rounded border-2 flex-shrink-0 flex items-center justify-center transition-colors ${
                             isSelected
-                              ? 'bg-blue-600 border-blue-600'
+                              ? 'bg-primary-500 border-primary-500'
                               : 'border-gray-300'
                           }`}>
                             {isSelected && (
@@ -347,7 +347,7 @@ const UnrecoveredEquipModal: React.FC<UnrecoveredEquipModalProps> = ({
               <button
                 onClick={handleRecovery}
                 disabled={isSaving || !recoveryType || selectedEquipNos.size === 0}
-                className="flex-1 px-3 sm:px-4 py-2 sm:py-3 bg-red-600 text-white rounded-lg font-semibold hover:bg-red-700 transition-colors disabled:opacity-50 text-sm sm:text-base"
+                className="flex-1 px-3 sm:px-4 py-2 sm:py-3 bg-red-600 text-white rounded-lg font-semibold hover:bg-red-700 transition-colors disabled:bg-gray-400 disabled:text-white disabled:cursor-not-allowed text-sm sm:text-base"
               >
                 {isSaving ? '처리 중...' : `회수처리${selectedEquipNos.size > 0 ? ` (${selectedEquipNos.size})` : ''}`}
               </button>

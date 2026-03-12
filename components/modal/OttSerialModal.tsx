@@ -200,14 +200,14 @@ const OttSerialModal: React.FC<OttSerialModalProps> = ({
               onChange={(e) => setSerialNo(e.target.value)}
               onKeyDown={handleKeyDown}
               placeholder="시리얼번호 입력"
-              className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
               readOnly={readOnly}
               disabled={readOnly}
             />
             <button
               onClick={handleSearch}
               disabled={isSearching || readOnly}
-              className="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg flex items-center gap-2 disabled:bg-gray-300"
+              className="px-4 py-2 bg-primary-500 hover:bg-primary-500 text-white rounded-lg flex items-center gap-2 disabled:bg-gray-300"
             >
               {isSearching ? (
                 <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
@@ -247,7 +247,7 @@ const OttSerialModal: React.FC<OttSerialModalProps> = ({
                   onClick={() => !readOnly && handleSelectSerial(item)}
                   className={`px-4 py-3 border-b last:border-b-0 cursor-pointer transition-colors ${
                     serialNo === item.EQT_SERNO
-                      ? 'bg-blue-50 text-blue-700'
+                      ? 'bg-primary-50 text-primary-600'
                       : 'hover:bg-gray-50'
                   } ${readOnly ? 'cursor-not-allowed' : ''}`}
                 >
@@ -271,7 +271,7 @@ const OttSerialModal: React.FC<OttSerialModalProps> = ({
             <button
               onClick={handleSave}
               disabled={isLoading || !serialNo.trim()}
-              className="flex-1 py-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg disabled:bg-gray-300 disabled:cursor-not-allowed"
+              className="flex-1 py-3 bg-primary-500 hover:bg-primary-600 text-white font-semibold rounded-lg disabled:bg-gray-300 disabled:cursor-not-allowed"
             >
               {isLoading ? '저장 중...' : '저장'}
             </button>

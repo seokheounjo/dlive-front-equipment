@@ -93,7 +93,7 @@ const NoticePopup: React.FC<NoticePopupProps> = ({ isOpen, onClose }) => {
               type="checkbox"
               checked={dontShowToday}
               onChange={(e) => setDontShowToday(e.target.checked)}
-              className="w-4 h-4 rounded border-white/50 bg-white/20 text-blue-500 focus:ring-0"
+              className="w-4 h-4 rounded border-white/50 bg-white/20 text-primary-700 focus:ring-0"
             />
             <span className="text-sm text-white/90">오늘 하루 보지 않기</span>
           </label>

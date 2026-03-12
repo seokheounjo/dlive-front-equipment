@@ -99,14 +99,7 @@ export async function loadMapApiKeys(): Promise<{ kakao: string[]; vworld: strin
       .map((c: any) => c.COMMON_CD_NM);
     const vworldKeys = list
       .filter((c: any) => (c.REF_CODE === 'VWORLD' || c.REF_CODE === 'V-world') && c.COMMON_CD_NM)
-      .map((c: any) => {
-        // VWorld API requires UUID format (with hyphens): 8-4-4-4-12
-        const k = c.COMMON_CD_NM.replace(/-/g, '');
-        if (k.length === 32 && !c.COMMON_CD_NM.includes('-')) {
-          return `${k.slice(0,8)}-${k.slice(8,12)}-${k.slice(12,16)}-${k.slice(16,20)}-${k.slice(20)}`;
-        }
-        return c.COMMON_CD_NM;
-      });
+      .map((c: any) => c.COMMON_CD_NM);
     cachedMapKeys = { kakao: kakaoKeys, vworld: vworldKeys };
     console.log(`[MapKeys] MOMP001 로드 완료 - 카카오:${kakaoKeys.length}개, 국토부:${vworldKeys.length}개`);
     return cachedMapKeys;

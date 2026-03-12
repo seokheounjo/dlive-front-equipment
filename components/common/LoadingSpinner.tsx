@@ -24,7 +24,7 @@ const LoadingSpinner: React.FC<LoadingSpinnerProps> = ({
 
   // 색상별 클래스
   const colorClasses = {
-    blue: 'border-blue-500 border-t-transparent',
+    blue: 'border-primary-500 border-t-transparent',
     cyan: 'border-cyan-500 border-t-transparent',
     gray: 'border-gray-500 border-t-transparent',
     white: 'border-white border-t-transparent'

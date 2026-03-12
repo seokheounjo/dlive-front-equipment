@@ -165,8 +165,6 @@ export interface PendingPaymentInfo {
   selectedTotal: number;
   timestamp: number;
   pendingBillYms: string[];  // 이 결제에 포함된 BILL_YM 목록
-  payResultText?: string;  // PAY_RESULT 코드 (backend response as-is)
-  payResultMsg?: string;   // PAY_RESULT_NM 텍스트 (CONA 한글 표시용)
 }
 
 // ============ Pending Payment sessionStorage 헬퍼 ============
@@ -219,16 +217,6 @@ export function removePendingPayment(pymAcntId: string, orderNo: string): void {
     }
   } catch (e) {
     console.error('[PendingPayment] removePendingPayment error:', e);
-  }
-}
-
-export function updatePendingPayment(pymAcntId: string, orderNo: string, updates: Partial<PendingPaymentInfo>): void {
-  try {
-    const existing = getPendingPayments(pymAcntId);
-    const updated = existing.map(p => p.orderNo === orderNo ? { ...p, ...updates } : p);
-    sessionStorage.setItem(`pendingPayments_${pymAcntId}`, JSON.stringify(updated));
-  } catch (e) {
-    console.error('[PendingPayment] updatePendingPayment error:', e);
   }
 }
 
@@ -511,7 +499,7 @@ export interface CustomerCreateRequest {
 export interface PaymentMethodChangeRequest {
   // 공통 필수
   PYM_ACNT_ID: string;       // 납부계정ID
-  CUST_ID?: string;          // 고객ID (chgPymMthd_m에서는 불필요)
+  CUST_ID: string;           // 고객ID
   ACNT_NM?: string;          // 납부자명
   PYM_MTHD?: string;         // 납부방법 (BLIV005) - 02: 자동이체, 04: 신용카드
   PMC_RESN?: string;         // 납부방법변경사유 (CMCU079)
@@ -552,7 +540,6 @@ export interface PaymentMethodChangeRequest {
   PAY_DAY_CD?: string;       // -> PYM_CARD_DATE로 매핑
   ID_TYPE_CD?: string;       // 신분유형
   BIRTH_DT?: string;         // -> PYM_CUST_CRRNO/CARD_RSDT_CRRNO로 매핑
-  RSDTNO?: string;            // 주민등록번호 (chgPymMthd_m용)
   // 청구주소 상세필드
   DONG_NM?: string;          // 읍/면/동
   ROAD_ADDR?: string;        // 도로명주소
@@ -570,6 +557,9 @@ export interface PaymentMethodChangeRequest {
   ATRT_CRR_ID?: string;     // 접속 사용자 CRR_ID
   ATRT_EMP_ID?: string;     // 접속 사용자 EMP_ID
   // 기존 납부계정 데이터 (상세 조회 API 필요)
+  ACNT_NM?: string;          // 기존 납부자명
+  BILL_POST_ID?: string;     // 기존 청구주소ID
+  BILL_ZIP_CD?: string;      // 기존 우편번호
   BILL_MDM_GIRO_YN?: string; // 지로고지 여부
   BILL_MDM_EML_YN?: string;  // 이메일고지 여부
   BILL_MDM_SMS_YN?: string;  // SMS고지 여부
@@ -580,6 +570,7 @@ export interface PaymentMethodChangeRequest {
   TBR_FLG?: string;          // 세금계산서 여부
   OLD_PYM_MTHD?: string;     // 기존 납부방법
   RCPT_YN?: string;          // 수납ID 유무
+  CORP_CD?: string;          // 법인코드
   COLLECT_SO_ID?: string;    // 모집지점
   COLLECT_DT?: string;       // 모집일자
 }
@@ -1158,17 +1149,6 @@ export const searchCustomer = async (params: CustomerSearchParams): Promise<ApiR
 };
 
 /**
- * 고객명 검색 건수 조회 (getCustCntBySearchCust)
- * 고객명 단독 검색 시 150건 초과 여부 체크용
- */
-export const getCustCntBySearchCust = async (custNm: string): Promise<ApiResponse<any>> => {
-  return apiCall<any>('/customer/negociation/getCustCntBySearchCust', {
-    CUST_NM: custNm,
-    CHK_FIX_CUST_NM: 'N'
-  });
-};
-
-/**
  * 고객 통합 검색
  * API: /customer/common/customercommon/getConditionalCustList2
  * 내부적으로 SERCH_GB=3 → getConditionalCustList3 SQL 실행
@@ -1354,17 +1334,6 @@ export interface PaymentAccountInfo {
   BILL_MTHD: string;         // 청구방법 (실물+이메일+SMS 등)
   UPYM_AMT_ACNT: number;     // 미납금액
   SO_ID?: string;            // SO ID (계약 기반 매핑)
-  COMMON_CD?: string;        // 자동이체 상태 (0:신규, 1:증빙완료, 2:증빙미완료, 3:승인신청중)
-  COMMON_CD_NM?: string;     // 상태명
-  REF_CODE2?: string;        // 메시지 (COMMON_CD=3일 때)
-  ACNT_OWNER_NM?: string;    // 예금주명 (ATMT 신청정보)
-  BNK_CARD_CD?: string;      // 은행/카드 코드 (ATMT 신청정보)
-  ACNT_NO?: string;          // 계좌번호 (ATMT 신청정보)
-  RSDTNO?: string;           // 생년월일/등록번호 (ATMT 신청정보)
-  RLNM_CONF_CHECK?: string;  // 실명인증 여부 (Y/N)
-  PYM_MTHD?: string;         // 납부방법 코드
-  PYR_REL?: string;          // 납부자관계 코드
-  PMC_RESN?: string;         // 변경사유 코드
 }
 
 export const getPaymentAccountsRaw = async (custId: string): Promise<ApiResponse<PaymentAccountInfo[]>> => {
@@ -1401,18 +1370,7 @@ export const getPaymentAccounts = async (custId: string, timeoutMs?: number): Pr
         BANK_CARD_NO: item.BANK_CARD_NO || null,
         BILL_MTHD: item.BILL_MTHD || '',
         UPYM_AMT_ACNT: item.UPYM_AMT ?? item.UPYM_AMT_ACNT ?? 0,
-        SO_ID: item.SO_ID || undefined,
-        COMMON_CD: item.COMMON_CD || '0',
-        COMMON_CD_NM: item.COMMON_CD_NM || '',
-        REF_CODE2: item.REF_CODE2 || '',
-        ACNT_OWNER_NM: item.ACNT_OWNER_NM || '',
-        BNK_CARD_CD: item.BNK_CARD_CD || '',
-        ACNT_NO: item.ACNT_NO || '',
-        RSDTNO: item.RSDTNO || '',
-        RLNM_CONF_CHECK: item.RLNM_CONF_CHECK || 'N',
-        PYM_MTHD: item.PYM_MTHD || '',
-        PYR_REL: item.PYR_REL || '',
-        PMC_RESN: item.PMC_RESN || ''
+        SO_ID: item.SO_ID || undefined
       }));
 
     return { success: true, data: mapped, code: 'SUCCESS', message: 'OK' } as ApiResponse<PaymentAccountInfo[]>;
@@ -1456,7 +1414,22 @@ export const getHPPayList = async (custId: string): Promise<ApiResponse<HPPayInf
 };
 
 /**
- * 휴대폰결제(선불) 신청/해제
+ * 휴대폰결제(선불) 신청/해지
+ * API: customer/negociation/saveHPPayInfo
+ */
+export const saveHPPayInfo = async (params: {
+  CUST_ID: string;
+  CTRT_ID: string;
+  HP_PAY_STAT: string;  // 'Y'=신청, 'N'=해지
+  SO_ID?: string;
+  MST_SO_ID?: string;
+  USR_ID?: string;
+}): Promise<ApiResponse<any>> => {
+  return apiCall<any>('/customer/negociation/saveHPPayInfo', params);
+};
+
+/**
+ * 휴대폰결제(선결제) 신청/해제 - modIfSvc_m 호출
  * API: customer/work/modIfSvc_m.req
  * MSG_ID: SMR74(신청), SMR75(해제)
  * Flow: ctrtEqtInfo(PMOBILE_IFSVC_HP_SETTING) -> modIfSvc(pcmif_ifsvc_set_cona)
@@ -1702,21 +1675,24 @@ export const updateInstlLoc = async (params: {
 
 /**
  * 납부방법 변경
- * API: customer/customer/general/customerPymChgAddManager
- * Backend: chgPymMthd_m (PCMCU_PYM_MTHD_CHG_m procedure)
+ * API: customer/customer/general/customerPymChgAddManager.req
  *
- * Required params (chgPymMthd_m):
- * - PYM_ACNT_ID, PYM_MTH_CD (01:자동이체, 02:카드 → CONA 02, 04),
- * - ACNT_OWNER_NM, RSDTNO (주민번호/사업자번호),
- * - BANK_CD/CARD_CO_CD (은행/카드 코드), ACNT_NO/CARD_NO,
- * - PYR_REL, CDTCD_EXP_DT, JOIN_CARD_YN, CARD_CL,
- * - CHG_RESN_L_CD (변경사유), SO_ID, USR_ID
- *
- * Returns: UPDATE_DATE, NEXT_AGR_FILE_NAME_SEQ (for updatePymAtmtApplAGRPdf)
+ * Backend params:
+ * - CUST_ID: 고객ID
+ * - PYM_ACNT_ID: 납부계정ID
+ * - PYM_MTH_CD: 납부방법코드 (01: 자동이체, 02: 신용카드)
+ * - BANK_CD: 은행코드 (자동이체 시)
+ * - ACNT_NO: 계좌번호 (자동이체 시)
+ * - CARD_NO: 카드번호 (신용카드 시)
+ * - CARD_VALID_YM: 카드유효기간 YYMM (신용카드 시)
+ * - ACNT_OWNER_NM: 예금주/카드소유자명
+ * - USR_ID: 처리자ID
  */
 export const updatePaymentMethod = async (params: PaymentMethodChangeRequest): Promise<ApiResponse<any>> => {
+  // 세션에서 사용자 ID, SO_ID, MST_SO_ID, CRR_ID 가져오기
   let usrId = params.USR_ID || 'MOBILE_USER';
   let soId = params.SO_ID || '';
+  let mstSoId = params.MST_SO_ID || '';
   let crrId = '';
   try {
     const userInfoStr = sessionStorage.getItem('userInfo') || localStorage.getItem('userInfo');
@@ -1731,6 +1707,9 @@ export const updatePaymentMethod = async (params: PaymentMethodChangeRequest): P
         }
         if (!soId) soId = userInfo.soId || userInfo.SO_ID || '';
       }
+      if (!mstSoId) {
+        mstSoId = userInfo.mstSoId || userInfo.MST_SO_ID || soId;
+      }
     }
   } catch (e) {
     console.log('[CustomerAPI] Failed to get session info for payment change');
@@ -1740,40 +1719,11 @@ export const updatePaymentMethod = async (params: PaymentMethodChangeRequest): P
     ...params,
     USR_ID: usrId,
     SO_ID: soId,
+    PYM_SO_ID: soId,
+    MST_SO_ID: mstSoId,
     ATRT_CRR_ID: crrId,
     ATRT_EMP_ID: usrId,
-  });
-};
-
-/**
- * 납부방법 변경 후 AGR PDF 정보 업데이트
- * API: customer/customer/general/updatePymAtmtApplAGRPdf
- * chgPymMthd_m 성공 후 호출 (UPDATE_DATE, NEXT_AGR_FILE_NAME_SEQ 필요)
- */
-export const updatePymAtmtApplAGRPdf = async (params: {
-  PYM_ACNT_ID: string;
-  UPDATE_DATE: string;
-  NEXT_AGR_FILE_NAME_SEQ: string;
-  AGR_FILE_GB?: string;
-}): Promise<ApiResponse<any>> => {
-  let usrId = 'MOBILE_USER';
-  try {
-    const userInfoStr = sessionStorage.getItem('userInfo') || localStorage.getItem('userInfo');
-    if (userInfoStr) {
-      const userInfo = JSON.parse(userInfoStr);
-      usrId = userInfo.userId || userInfo.USR_ID || usrId;
-    }
-  } catch (e) { /* ignore */ }
-
-  const agrFileName = params.PYM_ACNT_ID + params.NEXT_AGR_FILE_NAME_SEQ + params.UPDATE_DATE + '.pdf';
-
-  return apiCall<any>('/customer/customer/general/updatePymAtmtApplAGRPdf', {
-    AGR_FILE_GB: params.AGR_FILE_GB || 'A',
-    AGR_FILE_NAME: agrFileName,
-    AGR_CTI_UID: usrId,
-    USER_ID: usrId,
-    PYM_ACNT_ID: params.PYM_ACNT_ID,
-    UPDATE_DATE: params.UPDATE_DATE,
+    INSERT_YN: 'N',
   });
 };
 
@@ -1824,31 +1774,16 @@ export const verifyBankAccount = async (params: AccountVerifyRequest): Promise<A
 
     if (response.success && response.data) {
       const data = response.data;
-      // RSPN_CD: CMCU317 common code (KSNET response)
+      // CONA KSNET 응답: RSPN_CD=0000 성공, A002/A005 주민번호 불일치(자동 실명인증 후 0000)
       const rspnCd = data.RSPN_CD || data.RES_MSG_CD || '';
-      const resMsg = data.RES_MSG || data.MESSAGE || data.RESP_MSG || '';
-
-      // 1. RSPN_CD 기반 판단 (CMCU317)
-      if (rspnCd === '0000') {
-        return { success: true, data: { verified: true, ...data }, message: resMsg || '계좌 인증이 완료되었습니다.' };
+      if (rspnCd === '0000' || data.success === 'true' || data.RESP_CD === '0000') {
+        return { success: true, data: { verified: true, ...data }, message: data.RES_MSG || '계좌 인증이 완료되었습니다.' };
+      } else if (rspnCd || data.success === 'false') {
+        return { success: false, data, message: data.RES_MSG || data.MESSAGE || data.RESP_MSG || '계좌 인증에 실패했습니다. (' + rspnCd + ')' };
       }
-      if (rspnCd && rspnCd !== '0000') {
-        // CMCU317 실패 코드 (0122=계좌오류, 0116=주민번호불일치 등)
-        return { success: false, data, message: resMsg || '계좌 인증에 실패했습니다. [' + rspnCd + ']' };
-      }
-
-      // 2. RSPN_CD 없음 - RES_MSG로 판단
-      if (resMsg && /오류|실패|불일치|에러|error|존재하지/i.test(resMsg)) {
-        return { success: false, data, message: resMsg };
-      }
-
-      // 3. 사전확인 성공 (RLNM_CONF_CHECK=Y)
-      if (data.RLNM_CONF_CHECK === 'Y') {
-        return { success: true, data: { verified: true, ...data }, message: '계좌 인증이 완료되었습니다.' };
-      }
-
-      // 4. RSPN_CD 없고 에러도 없으면 성공
-      return { success: true, data: { verified: true, ...data }, message: resMsg || '계좌 인증이 완료되었습니다.' };
+    }
+    if (response.success) {
+      return { success: true, data: { verified: true }, message: '계좌 인증이 완료되었습니다.' };
     }
     return { success: false, message: response.message || '계좌 인증에 실패했습니다.' };
   } catch (error: any) {
@@ -1857,109 +1792,30 @@ export const verifyBankAccount = async (params: AccountVerifyRequest): Promise<A
   }
 };
 
-// MCONA01 cache
-let mcona01Cache: Record<string, { COMMON_CD_NM: string; REF_CODE: string; RMRK: string }> | null = null;
-
-const fetchMCONA01 = async (): Promise<Record<string, { COMMON_CD_NM: string; REF_CODE: string; RMRK: string }>> => {
-  if (mcona01Cache) return mcona01Cache;
-  try {
-    const res = await apiCall<any[]>('/common/getCommonCodes', { CODE_GROUP: 'MCONA01' });
-    if (res.success && res.data) {
-      const map: Record<string, { COMMON_CD_NM: string; REF_CODE: string; RMRK: string }> = {};
-      for (const item of res.data) {
-        const cd = item.COMMON_CD || item.code || '';
-        if (cd) {
-          map[cd] = {
-            COMMON_CD_NM: item.COMMON_CD_NM || item.name || '',
-            REF_CODE: item.REF_CODE || item.ref_code || '',
-            RMRK: item.RMRK || item.rmrk || item.ref_code5 || '',
-          };
-        }
-      }
-      mcona01Cache = map;
-      return map;
-    }
-  } catch (e) { console.error('[MCONA01] fetch failed:', e); }
-  return {};
-};
-
-// MCONA01 success codes (REF_CODE=0000)
-const MCONA01_SUCCESS_CODES = new Set(['001', '002', '011', '040', '903', '904']);
-
 /**
  * 카드 인증 (카드번호 유효성 확인)
- * MCONA01 공통코드 기반 응답 메시지 처리
+ * 실제 카드 인증 API가 있으면 연동, 없으면 시뮬레이션
  */
 export const verifyCard = async (params: CardVerifyRequest): Promise<ApiResponse<any>> => {
-  // REG_UID from session
-  let regUid = '';
-  try {
-    const userInfoStr = sessionStorage.getItem('userInfo') || localStorage.getItem('userInfo');
-    if (userInfoStr) {
-      const userInfo = JSON.parse(userInfoStr);
-      regUid = userInfo.userId || userInfo.USR_ID || '';
-    }
-  } catch (e) { /* ignore */ }
-
-  const custNm = params.CUST_NM || params.CARD_OWNER_NM || '';
-  // RSDT_CRRNO: birth date 6 digits (YYMMDD)
-  let rsdtCrrno = (params.KOR_ID || '').replace(/-/g, '');
-  if (rsdtCrrno.length > 6) rsdtCrrno = rsdtCrrno.substring(0, 6);
-
   try {
     const response = await apiCall<any>('/customer/payment/verifyCreditCard', {
       SO_ID: params.SO_ID || '',
       PYM_ACNT_ID: params.PYM_ACNT_ID || '',
       CUST_ID: params.CUST_ID || '',
-      CUST_NM: custNm,
+      CUST_NM: params.CUST_NM || params.CARD_OWNER_NM || '',
       CARD_NO: params.CARD_NO,
       CARD_EXPYEAR: params.CARD_EXPYEAR || (params.CARD_VALID_YM ? params.CARD_VALID_YM.substring(0, 2) : ''),
       CARD_EXPMON: params.CARD_EXPMON || (params.CARD_VALID_YM ? params.CARD_VALID_YM.substring(2, 4) : ''),
-      KOR_ID: params.KOR_ID || '',
-      BUYER: custNm,
-      RSDT_CRRNO: rsdtCrrno,
-      REG_UID: regUid || params.CUST_ID || 'MOBILE'
+      KOR_ID: params.KOR_ID || ''
     });
 
     if (response.success && response.data) {
       const data = response.data;
-      const respCd = data.RESP_CD || data.LGD_RESPCODE || '';
-      const respMsg = data.RESP_MSG || data.LGD_RESPMSG || '';
-      const commonCd = data.COMMON_CD || '';
-
-      // MCONA01 공통코드 조회
-      let mcona01Msg = '';
-      if (commonCd) {
-        const codeMap = await fetchMCONA01();
-        const codeInfo = codeMap[commonCd];
-        if (codeInfo) {
-          mcona01Msg = codeInfo.RMRK || codeInfo.COMMON_CD_NM || '';
-        }
+      if (data.success === 'true' || data.RESP_CD === '0000') {
+        return { success: true, data: { verified: true, RESP_CD: data.RESP_CD }, message: '카드 인증이 완료되었습니다.' };
+      } else {
+        return { success: false, data, message: data.RESP_MSG || '카드 인증에 실패했습니다.' };
       }
-
-      // 성공/실패 분류: MCONA01 SUCCESS 코드 or RESP_CD=0000
-      const isSuccess = MCONA01_SUCCESS_CODES.has(commonCd) || respCd === '0000';
-
-      if (isSuccess) {
-        const msg = mcona01Msg || respMsg || '카드 인증이 완료되었습니다.';
-        return { success: true, data: { verified: true, RESP_CD: respCd, COMMON_CD: commonCd }, message: msg };
-      }
-
-      // 실패
-      if (commonCd || respCd) {
-        const msg = mcona01Msg || respMsg || '카드 인증에 실패했습니다. [' + (respCd || commonCd) + ']';
-        return { success: false, data: { ...data, COMMON_CD: commonCd }, message: msg };
-      }
-
-      // RESP_CD/COMMON_CD 없음 - RESP_MSG 판단
-      if (respMsg && /오류|실패|불일치|에러|error|존재하지/i.test(respMsg)) {
-        return { success: false, data, message: respMsg };
-      }
-      if (data.success === 'true') {
-        return { success: true, data: { verified: true, RESP_CD: respCd }, message: respMsg || '카드 인증이 완료되었습니다.' };
-      }
-
-      return { success: false, data, message: respMsg || '카드 인증 응답을 확인할 수 없습니다.' };
     }
     return { success: false, message: response.message || '카드 인증에 실패했습니다.' };
   } catch (error: any) {
@@ -2696,7 +2552,6 @@ export const insertDpstAndDTL = async (params: {
   OID: string;
   CUST_NM?: string;
   BILL_YM_LIST?: string;
-  DTL_LIST?: Array<{BILL_SEQ_NO: string; SO_ID: string; BILL_AMT: number; PRE_RCPT_AMT: number; RCPT_AMT: number}>;
 }): Promise<ApiResponse<any>> => {
   return apiCall<any>('/billing/payment/anony/insertDpstAndDTL', params);
 };
@@ -2865,25 +2720,22 @@ export const checkPaymentResult = async (params: {
     }, 'POST', timeoutMs);
   }
 
-  // API call succeeded (HTTP 200) - PAY_RESULT based judgment
+  // API call succeeded (HTTP 200) but need to check actual payment status via RESP_CD
   if (res.success && res.data) {
-    const payResult = (res.data.PAY_RESULT || '').trim();
-    const payResultMsg = (res.data.PAY_RESULT_NM || '').trim();
+    const respCd = res.data.RESP_CD || '';
+    const stage = res.data.STAGE || '';
+    const respMsg = res.data.RESP_MSG || '';
 
-    // SUCCESS: 903 or legacy SUCCESS_DEPOSITED
-    if (payResult === '903' || payResult === 'SUCCESS_DEPOSITED') {
+    // 0000 = payment completed
+    if (respCd === '0000' || res.data.success === 'true') {
       return { success: true, data: res.data };
     }
-
-    // PENDING: 900(no order yet), 901(processing), 904(deposit pending), empty, or legacy codes
-    if (payResult === '' || payResult === '900'
-        || payResult === '901' || payResult === '904'
-        || payResult === 'PENDING_PROCESSING' || payResult === 'SUCCESS_PROCESSING') {
-      return { success: false, data: res.data, message: payResultMsg || payResult || 'PENDING', errorCode: 'PENDING' };
+    // PENDING / NOT_FOUND / empty = still processing
+    if (respCd === 'PENDING' || respCd === 'NOT_FOUND' || respCd === '' || stage === '03' || stage === '04') {
+      return { success: false, data: res.data, message: respMsg || 'PENDING', errorCode: 'PENDING' };
     }
-
-    // FAIL: 902(API error), PG error codes(001~070), 999(unmapped), or legacy FAIL/NO_ORDER
-    return { success: false, data: res.data, message: payResultMsg || payResult, errorCode: 'FAIL' };
+    // Other codes = payment failed
+    return { success: false, data: res.data, message: respMsg || respCd, errorCode: respCd };
   }
 
   return res;
@@ -2971,6 +2823,17 @@ export const getPromChangeCodes = async (): Promise<ApiResponse<any[]>> => {
   return apiCall<any[]>('/common/getCommonCodes', { CODE_GROUP: 'CMCU252' });
 };
 
+/**
+ * 고객명 검색 건수 조회 (getCustCntBySearchCust)
+ * 고객명 단독 검색 시 150건 초과 여부 체크용
+ */
+export const getCustCntBySearchCust = async (custNm: string): Promise<ApiResponse<any>> => {
+  return apiCall<any>('/customer/negociation/getCustCntBySearchCust', {
+    CUST_NM: custNm,
+    CHK_FIX_CUST_NM: 'N'
+  });
+};
+
 export default {
   // 기본조회
   searchCustomer,
@@ -3052,5 +2915,6 @@ export default {
   maskPhoneNumber,
   formatCurrency,
   formatDate,
-  maskString
+  maskString,
+  getCustCntBySearchCust
 };

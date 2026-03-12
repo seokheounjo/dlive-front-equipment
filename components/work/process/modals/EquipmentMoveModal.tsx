@@ -5,7 +5,7 @@ import {
   getTechnicianEquipments,
   excuteSoMoveEqtChg,
   custEqtInfoDel,
-  checkStbServerConnection,
+  sendSignal,
   RemovalEquipmentInfo,
   EqtSoMoveInfo,
 } from '../../../../services/apiService';
@@ -86,6 +86,10 @@ interface EquipmentMoveModalProps {
   wrkCd?: string; // 작업코드 (07=이전설치, 05=상품변경 등)
   hideTransfer?: boolean; // true면 이관 기능 숨기고 분실처리만 가능
   deferLossProcessing?: boolean; // true면 분실처리 API 호출하지 않고 상태만 저장 (작업완료 시 호출)
+  isCertifyProd?: boolean; // LGU+ 인증상품 여부 (true면 SMR05 호출 안 함)
+  oldCtrtId?: string; // 이전계약ID (이전설치 분실처리 시 사용)
+  oldSoId?: string; // 이전SO ID (이전설치 분실처리 시 사용)
+  oldMstSoId?: string; // 이전마스터SO ID (이전설치 분실처리 시 사용)
   showToast?: (message: string, type: 'success' | 'error' | 'warning' | 'info') => void;
   onSuccess?: (transferredSerials: string[]) => void; // Called when equipment transfer succeeds - passes list of transferred equipment serial numbers
   onSaveLossStatus?: (lossStatusList: LossStatusData[]) => void; // deferLossProcessing=true일 때 분실 상태 저장
@@ -113,6 +117,10 @@ export const EquipmentMoveModal: React.FC<EquipmentMoveModalProps> = ({
   wrkCd = '07',
   hideTransfer = false,
   deferLossProcessing = false,
+  isCertifyProd = false,
+  oldCtrtId,
+  oldSoId,
+  oldMstSoId,
   showToast,
   onSuccess,
   onSaveLossStatus,
@@ -235,6 +243,16 @@ export const EquipmentMoveModal: React.FC<EquipmentMoveModalProps> = ({
         }
       });
       setEquipmentNameMap((prev) => new Map([...prev, ...nameMap]));
+
+      // 미처리 장비 전체 자동선택
+      const movedSernos = new Set([
+        ...resultList.filter((r: any) => r.SUCCESS_GUBN === 'SUCCESS').map((r: any) => r.EQT_SERNO),
+        ...alreadyProcessedSerials,
+      ]);
+      const allUnprocessedSernos = finalEquipmentList
+        .filter((eq: any) => eq.EQT_SERNO && !movedSernos.has(eq.EQT_SERNO))
+        .map((eq: any) => eq.EQT_SERNO!);
+      setSelectedEquipments(new Set(allUnprocessedSernos));
 
       // Check if no equipment found
       if (finalEquipmentList.length === 0) {
@@ -410,15 +428,17 @@ export const EquipmentMoveModal: React.FC<EquipmentMoveModalProps> = ({
           const lossResult = await custEqtInfoDel({
             WRK_ID: wrkId,
             CUST_ID: custId,
-            CTRT_ID: ctrtId,
-            MST_SO_ID: mstSoId,
-            SO_ID: soId,
+            CTRT_ID: oldCtrtId || eq.CTRT_ID || ctrtId,
+            MST_SO_ID: oldMstSoId || mstSoId,
+            SO_ID: oldSoId || soId,
             EQT_NO: eqtNo,
+            EQT_SERNO: eqtSerno,
             ITEM_MID_CD: itemMidCd,
             EQT_CL_CD: eqtClCd,
             EQT_CL: eqtClCd,
             EQT_CL_NM: eqtClNm,
             REG_UID: chgUid,
+            IF_DTL_ID: '',
             WRK_CD: wrkCd,
             CRR_ID: crrId,
             WRKR_ID: wrkrId,
@@ -428,6 +448,7 @@ export const EquipmentMoveModal: React.FC<EquipmentMoveModalProps> = ({
             OLD_LENT_YN: lentYn,
             EQT_CHG_GB: '02',
             REUSE_YN: '0',
+            LANCD_SALE_YN: '0',
             EQT_LOSS_YN: eqLossStatus.EQT_LOSS_YN || '0',
             PART_LOSS_BRK_YN: eqLossStatus.PART_LOSS_BRK_YN || '0',
             EQT_BRK_YN: eqLossStatus.EQT_BRK_YN || '0',
@@ -441,11 +462,25 @@ export const EquipmentMoveModal: React.FC<EquipmentMoveModalProps> = ({
             // 분실처리 완료 즉시 추적 (UI에서 바로 사라지게)
             setLossProcessedSerials(prev => new Set([...prev, eqtSerno]));
 
-            // 철거 신호(SMR05) 호출
-            try {
-              await checkStbServerConnection(chgUid || wrkrId || '', ctrtId, wrkId, 'SMR05', eqtNo, '');
-            } catch (signalError) {
-              console.log(`[장비이관] 철거 신호 실패 (무시):`, signalError);
+            // 기본 딜라이브일 때만 철거 신호(SMR05) 호출 (LGU+ 인증상품은 제외)
+            if (!isCertifyProd) {
+              try {
+                console.log(`[신호연동] 이전설치 장비철거(WRK_CD=${wrkCd}) | 상품: 딜라이브 일반 | 분실처리 후 SMR05(철거신호) 전송 | EQT_SERNO=${eqtSerno}, EQT_NO=${eqtNo}, CTRT_ID=${ctrtId}, WRK_ID=${wrkId}`);
+                const signalResult = await sendSignal({
+                  MSG_ID: 'SMR05',
+                  CUST_ID: custId,
+                  CTRT_ID: ctrtId,
+                  SO_ID: soId,
+                  EQT_NO: eqtNo,
+                  WRK_ID: wrkId,
+                  REG_UID: chgUid || wrkrId || '',
+                });
+                console.log(`[장비이관] 분실처리 SMR05 완료 - ${eqtSerno}:`, signalResult);
+              } catch (signalError) {
+                console.log(`[장비이관] 분실처리 SMR05 실패 (무시):`, signalError);
+              }
+            } else {
+              console.log(`[신호연동] 이전설치 장비철거(WRK_CD=${wrkCd}) | 상품: LGU+ 인증상품 | 분실처리 SMR05 호출 생략 (인증상품은 CL신호 사용) | EQT_SERNO=${eqtSerno}`);
             }
           } else {
             lossFailCount++;
@@ -476,6 +511,31 @@ export const EquipmentMoveModal: React.FC<EquipmentMoveModalProps> = ({
           if (result?.MSGCODE === 'SUCCESS') {
             successCount++;
             successfulSerials.push(eqtSerno);
+            // 기본 딜라이브일 때만 이관 철거 신호(SMR05) 호출 (LGU+ 인증상품은 제외)
+            if (!isCertifyProd) {
+              try {
+                const eqData = internalRemovedData.find(r => r.EQT_SERNO === eqtSerno)
+                  || removedEquipmentsData.find(r => r.EQT_SERNO === eqtSerno);
+                const eqtNo = eqData?.EQT_NO || eq?.EQT_NO || '';
+                if (eqtNo) {
+                  console.log(`[신호연동] 이전설치 장비철거(WRK_CD=${wrkCd}) | 상품: 딜라이브 일반 | 이관처리 후 SMR05(철거신호) 전송 | EQT_SERNO=${eqtSerno}, EQT_NO=${eqtNo}, CTRT_ID=${ctrtId}, WRK_ID=${wrkId}`);
+                  const signalResult = await sendSignal({
+                    MSG_ID: 'SMR05',
+                    CUST_ID: custId,
+                    CTRT_ID: ctrtId,
+                    SO_ID: soId,
+                    EQT_NO: eqtNo,
+                    WRK_ID: wrkId,
+                    REG_UID: chgUid || wrkrId || '',
+                  });
+                  console.log(`[장비이관] 이관 SMR05 완료 - ${eqtSerno}:`, signalResult);
+                } else {
+                  console.log(`[장비이관] 이관 SMR05 호출 생략 - EQT_NO 없음 - ${eqtSerno}`);
+                }
+              } catch (signalError) {
+                console.log(`[장비이관] 이관 SMR05 실패 (무시):`, signalError);
+              }
+            }
           } else if (result?.MSGCODE === 'CHARGE') {
             chargedEquipments.push(eqtSerno);
           } else {
@@ -548,11 +608,13 @@ export const EquipmentMoveModal: React.FC<EquipmentMoveModalProps> = ({
   // Footer 버튼
   const footerContent = (
     <>
-      {!hideTransfer && (
+      {!hideTransfer && (() => {
+        const unprocessedEquipments = removalEquipments.filter(eq => !isEquipmentMoved(eq.EQT_SERNO || ''));
+        return (
         <button
           onClick={handleExecuteMove}
-          disabled={processing || selectedEquipments.size === 0}
-          className="flex-1 px-3 sm:px-4 py-2 sm:py-2.5 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white rounded-lg text-sm sm:text-base font-semibold transition-colors flex items-center justify-center gap-2"
+          disabled={processing || selectedEquipments.size === 0 || selectedEquipments.size < unprocessedEquipments.length}
+          className="flex-1 px-3 sm:px-4 py-2 sm:py-2.5 bg-primary-500 hover:bg-primary-600 disabled:bg-gray-400 text-white rounded-lg text-sm sm:text-base font-semibold transition-colors flex items-center justify-center gap-2"
         >
           {processing ? (
             <>
@@ -568,7 +630,8 @@ export const EquipmentMoveModal: React.FC<EquipmentMoveModalProps> = ({
             </>
           )}
         </button>
-      )}
+        );
+      })()}
       <button
         onClick={() => {
           if (hideTransfer && deferLossProcessing && onSaveLossStatus && selectedEquipments.size > 0) {
@@ -608,9 +671,9 @@ export const EquipmentMoveModal: React.FC<EquipmentMoveModalProps> = ({
         disabled={processing}
         className={`${hideTransfer ? 'flex-1' : ''} px-3 sm:px-4 py-2 sm:py-2.5 ${
           hideTransfer
-            ? 'bg-blue-600 hover:bg-blue-700 text-white'
+            ? 'bg-primary-500 hover:bg-primary-600 text-white'
             : 'bg-gray-200 hover:bg-gray-300 text-gray-700'
-        } rounded-lg text-sm sm:text-base font-semibold transition-colors disabled:opacity-50`}
+        } rounded-lg text-sm sm:text-base font-semibold transition-colors disabled:bg-gray-400 disabled:text-white disabled:cursor-not-allowed`}
       >
         {hideTransfer ? '확인' : '닫기'}
       </button>
@@ -628,7 +691,7 @@ export const EquipmentMoveModal: React.FC<EquipmentMoveModalProps> = ({
       >
           {loading || !isDataLoaded ? (
             <div className="flex items-center justify-center py-8">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-500"></div>
               <span className="ml-3 text-gray-600">장비 정보 조회 중...</span>
             </div>
           ) : error && removalEquipments.length === 0 && moveResults.length === 0 ? (
@@ -639,7 +702,7 @@ export const EquipmentMoveModal: React.FC<EquipmentMoveModalProps> = ({
                   setIsDataLoaded(false);
                   loadData();
                 }}
-                className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm hover:bg-blue-700"
+                className="px-4 py-2 bg-primary-500 text-white rounded-lg text-sm hover:bg-primary-600"
               >
                 다시 시도
               </button>
@@ -652,7 +715,7 @@ export const EquipmentMoveModal: React.FC<EquipmentMoveModalProps> = ({
                   <h3 className="text-sm font-semibold text-gray-700">철거장비 목록</h3>
                   <button
                     onClick={handleSelectAll}
-                    className="text-xs text-blue-600 hover:underline"
+                    className="text-xs text-primary-700 hover:underline"
                   >
                     {selectedEquipments.size === removalEquipments.length ? '전체해제' : '전체선택'}
                   </button>
@@ -682,7 +745,7 @@ export const EquipmentMoveModal: React.FC<EquipmentMoveModalProps> = ({
                               : hasLossChecked
                               ? 'bg-orange-50 border-orange-300'
                               : isSelected
-                              ? 'bg-blue-50 border-blue-300'
+                              ? 'bg-primary-50 border-primary-300'
                               : 'bg-gray-50 border-gray-200'
                           }`}
                         >
@@ -692,7 +755,7 @@ export const EquipmentMoveModal: React.FC<EquipmentMoveModalProps> = ({
                               checked={isSelected}
                               onChange={() => eqtSerno && handleCheckboxChange(eqtSerno)}
                               disabled={isMoved || processing}
-                              className="mt-1 w-5 h-5 text-blue-600 rounded border-gray-300 focus:ring-blue-500 disabled:opacity-50"
+                              className="mt-1 w-5 h-5 text-primary-700 rounded border-gray-300 focus:ring-primary-500 disabled:bg-gray-200 disabled:cursor-not-allowed"
                             />
                             <div className="flex-1">
                               <div className="flex items-center gap-2">
@@ -705,11 +768,6 @@ export const EquipmentMoveModal: React.FC<EquipmentMoveModalProps> = ({
                                 {hasLossChecked && !isMoved && (
                                   <span className="px-2 py-0.5 text-xs bg-orange-100 text-orange-700 rounded-full">
                                     분실
-                                  </span>
-                                )}
-                                {isSelected && !hasLossChecked && !isMoved && (
-                                  <span className="px-2 py-0.5 text-xs bg-blue-100 text-blue-700 rounded-full">
-                                    재사용
                                   </span>
                                 )}
                               </div>

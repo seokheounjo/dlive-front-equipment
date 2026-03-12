@@ -5,7 +5,7 @@
  * 실제 API로 전송되는 파라미터를 컴팩트하게 보여줌
  */
 import React from 'react';
-import { CheckCircle, AlertTriangle, Package, MapPin, User, Wifi, FileText, Wrench } from 'lucide-react';
+import { CheckCircle, AlertTriangle, Package, MapPin, User, Wifi, FileText, Wrench, RefreshCw } from 'lucide-react';
 
 interface SummaryItem {
   label: string;
@@ -64,6 +64,7 @@ interface WorkCompleteSummaryProps {
   equipmentData?: {
     installedEquipments?: any[];
     removedEquipments?: any[];
+    removalStatus?: Record<string, any>;
   };
   installInfoData?: {
     networkType?: string;
@@ -159,7 +160,22 @@ const WorkCompleteSummary: React.FC<WorkCompleteSummaryProps> = ({
   const _upCtrlCl = upCtrlCl || installInfoData?.upCtrlCl;
   const _upCtrlClName = upCtrlClName || installInfoData?.upCtrlClName;
   const _installedEquipments = installedEquipments || equipmentData?.installedEquipments || [];
-  const _removedEquipments = removedEquipments || equipmentData?.removedEquipments || [];
+  const _allRemovedEquipments = removedEquipments || equipmentData?.removedEquipments || [];
+  const _removalStatus = equipmentData?.removalStatus || {};
+
+  // 재사용 vs 철거 분리
+  const getEqId = (eq: any): string =>
+    eq.id || eq.EQT_NO || eq.actualEquipment?.id || eq.actualEquipment?.EQT_NO || '';
+  const _reuseEquipments = _allRemovedEquipments.filter((eq: any) => {
+    const eqId = getEqId(eq);
+    const status = _removalStatus[eqId] || _removalStatus[eq.id] || _removalStatus[eq.EQT_NO] || {};
+    return status.REUSE_YN === '1' || eq.REUSE_YN === '1';
+  });
+  const _removedEquipments = _allRemovedEquipments.filter((eq: any) => {
+    const eqId = getEqId(eq);
+    const status = _removalStatus[eqId] || _removalStatus[eq.id] || _removalStatus[eq.EQT_NO] || {};
+    return status.REUSE_YN !== '1' && eq.REUSE_YN !== '1';
+  });
 
   // 설치위치 처리
   const _installLocation = installLocation || (installInfoData ? {
@@ -209,11 +225,11 @@ const WorkCompleteSummary: React.FC<WorkCompleteSummaryProps> = ({
     : '-');
 
   return (
-    <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4">
-      <div className="flex items-center gap-2 mb-3 pb-2 border-b border-blue-200">
-        <CheckCircle className="w-4 h-4 text-blue-600" />
-        <span className="font-bold text-blue-800 text-sm">최종 점검</span>
-        <span className="text-xs text-blue-600 ml-auto">{_workTypeName}</span>
+    <div className="bg-primary-50 border border-primary-200 rounded-lg p-3 mb-4">
+      <div className="flex items-center gap-2 mb-3 pb-2 border-b border-primary-200">
+        <CheckCircle className="w-4 h-4 text-primary-700" />
+        <span className="font-bold text-primary-700 text-sm">최종 점검</span>
+        <span className="text-xs text-primary-700 ml-auto">{_workTypeName}</span>
       </div>
 
       <div className="space-y-2 text-xs">
@@ -292,8 +308,8 @@ const WorkCompleteSummary: React.FC<WorkCompleteSummaryProps> = ({
         )}
 
         {/* 장비 목록 */}
-        {(_installedEquipments.length > 0 || _removedEquipments.length > 0) && (
-          <div className="mt-2 pt-2 border-t border-blue-200">
+        {(_installedEquipments.length > 0 || _removedEquipments.length > 0 || _reuseEquipments.length > 0) && (
+          <div className="mt-2 pt-2 border-t border-primary-200">
             <div className="flex items-center gap-2 mb-2">
               <Package className="w-3.5 h-3.5 text-gray-500" />
               <span className="text-gray-600 font-medium">장비</span>
@@ -314,6 +330,30 @@ const WorkCompleteSummary: React.FC<WorkCompleteSummaryProps> = ({
                         </div>
                         {getEquipmentSerial(eq) && (
                           <div className="ml-4 text-green-600/70 text-[0.625rem] break-all">
+                            S/N: {getEquipmentSerial(eq)}
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+              {/* 재사용장비 섹션 */}
+              {_reuseEquipments.length > 0 && (
+                <div className="bg-sky-50 border border-sky-200 rounded-lg p-2">
+                  <div className="mb-1.5 flex items-center gap-1">
+                    <RefreshCw className="w-3 h-3 text-sky-600" />
+                    <span className="text-sky-600 font-semibold text-xs">재사용장비</span>
+                  </div>
+                  <div className="space-y-1">
+                    {_reuseEquipments.map((eq: any, idx: number) => (
+                      <div key={`reuse-${idx}`} className="text-sky-700">
+                        <div className="flex items-center gap-1">
+                          <span className="text-sky-500 font-bold">↻</span>
+                          <span className="font-medium text-xs">{getEquipmentName(eq)}</span>
+                        </div>
+                        {getEquipmentSerial(eq) && (
+                          <div className="ml-4 text-sky-600/70 text-[0.625rem] break-all">
                             S/N: {getEquipmentSerial(eq)}
                           </div>
                         )}
@@ -362,7 +402,7 @@ const WorkCompleteSummary: React.FC<WorkCompleteSummaryProps> = ({
 
         {/* 메모 */}
         {memo && (
-          <div className="mt-2 pt-2 border-t border-blue-200">
+          <div className="mt-2 pt-2 border-t border-primary-200">
             <div className="flex items-start gap-2">
               <FileText className="w-3.5 h-3.5 text-gray-500 mt-0.5" />
               <span className="text-gray-600 w-16">메모</span>

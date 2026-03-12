@@ -65,7 +65,7 @@ const VipCounter: React.FC<VipCounterProps> = ({ workOrders, className = "" }) =
 
       {/* 전체 VIP 카운터 */}
       {totalVipCount > 1 && (
-        <div className="flex items-center bg-blue-50 text-blue-700 px-3 py-2 rounded-lg text-sm font-semibold border border-blue-200 shadow-sm">
+        <div className="flex items-center bg-primary-50 text-primary-600 px-3 py-2 rounded-lg text-sm font-semibold border border-primary-200 shadow-sm">
           <Star className="w-4 h-4 mr-2" />
           <span>총 {animatedTotalCount}건</span>
         </div>

@@ -63,6 +63,7 @@ interface OltInfo {
   OLT_MDL_NM: string;
   OLT_PORT_NO: string;
   ESTB_PLC_NM: string;
+  EQIP_IP: string;
 }
 
 const EMPTY_EQUIPMENTS: any[] = [];
@@ -100,6 +101,8 @@ const LineRegistration: React.FC<LineRegistrationProps> = ({
   const [selectedPortIdx, setSelectedPortIdx] = useState<number>(-1);
   const [isRnLoading, setIsRnLoading] = useState(false);
   const [isPortLoading, setIsPortLoading] = useState(false);
+  const [isRnDropdownOpen, setIsRnDropdownOpen] = useState(false);
+  const rnDropdownRef = useRef<HTMLDivElement>(null);
 
   // ENTR_NO (from getUplsCtrtInfo)
   const [entrNo, setEntrNo] = useState<string>('');
@@ -118,13 +121,22 @@ const LineRegistration: React.FC<LineRegistrationProps> = ({
   const {
     certifyRegconfInfo, setCertifyRegconfInfo,
     certifyOpLnkdCd,
+    isCertifyProd,
     isLineRegistrationDone, setIsLineRegistrationDone,
+    isSubscriptionDone,
+    ldapResult,
     entrNo: storeEntrNo,
+    setEntrNo: storeSetEntrNo,
     lguMarketCd,
+    certifyProdList,
   } = useCertifyStore();
 
   // 광랜(N/NG) vs FTTH(F/FG/Z/ZG)
   const isFtthProd = ['F', 'FG', 'Z', 'ZG'].includes(certifyOpLnkdCd);
+
+  // 단말인증 대상 상품 여부 (레거시 mowoc01m01: ds_certify_prod.FindRow)
+  const prodCd = workItem.PROD_CD || '';
+  const isCertifyTarget = !prodCd || certifyProdList.length === 0 || certifyProdList.includes(prodCd);
   const eqipDivs = isFtthProd ? 'OLT' : 'L2';
 
   // Command mapping (레거시: cm_lib.js fn_get_CommondForEqip)
@@ -151,6 +163,19 @@ const LineRegistration: React.FC<LineRegistrationProps> = ({
   );
   const prevFingerprintRef = useRef(equipmentFingerprint);
 
+  // RN 드롭다운 외부 클릭 닫기
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (rnDropdownRef.current && !rnDropdownRef.current.contains(e.target as Node)) {
+        setIsRnDropdownOpen(false);
+      }
+    };
+    if (isRnDropdownOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+      return () => document.removeEventListener('mousedown', handleClickOutside);
+    }
+  }, [isRnDropdownOpen]);
+
   // Restore on mount
   useEffect(() => {
     if (certifyRegconfInfo) {
@@ -164,10 +189,14 @@ const LineRegistration: React.FC<LineRegistrationProps> = ({
     }
   }, []);
 
-  // Fetch ENTR_NO on mount
+  // Fetch ENTR_NO on mount (U+ 전용 - getUplsCtrtInfo)
   useEffect(() => {
+    if (!isCertifyProd) return; // 일반 FTTH는 ENTR_NO 불필요
     const fetchEntrNo = async () => {
-      const ctrtId = workItem.CTRT_ID || '';
+      // 상품변경(05)/이전설치(07): 변경후 계약ID(DTL_CTRT_ID) 사용
+      const ctrtId = (['05', '07'].includes(workItem.WRK_CD || ''))
+        ? ((workItem as any).DTL_CTRT_ID || workItem.CTRT_ID || '')
+        : (workItem.CTRT_ID || '');
       if (!ctrtId) return;
       setIsEntrLoading(true);
       try {
@@ -176,15 +205,28 @@ const LineRegistration: React.FC<LineRegistrationProps> = ({
           const info = result[0];
           setEntrNo(info.ENTR_NO || '');
           setEntrRqstNo(info.ENTR_RQST_NO || '');
+          // 스토어에도 ENTR_RQST_NO 동기화 (작업완료 시 executeUplsWorkComplete에서 사용)
+          if (info.ENTR_RQST_NO) {
+            storeSetEntrNo(storeEntrNo || info.ENTR_NO || '', info.ENTR_RQST_NO);
+          }
+        } else if (storeEntrNo) {
+          // Fallback: 청약 단계에서 이미 확보한 ENTR_NO 사용
+          console.log('[집선등록] getUplsCtrtInfo 결과 없음 → storeEntrNo 사용:', storeEntrNo);
+          setEntrNo(storeEntrNo);
         }
       } catch (e) {
         console.error('[집선등록] ENTR_NO 조회 실패:', e);
+        // 에러 시에도 storeEntrNo fallback
+        if (storeEntrNo) {
+          console.log('[집선등록] ENTR_NO 조회 실패 → storeEntrNo 사용:', storeEntrNo);
+          setEntrNo(storeEntrNo);
+        }
       } finally {
         setIsEntrLoading(false);
       }
     };
     fetchEntrNo();
-  }, [workItem.CTRT_ID]);
+  }, [workItem.CTRT_ID, (workItem as any).DTL_CTRT_ID]);
 
   // Equipment change detection
   useEffect(() => {
@@ -363,6 +405,7 @@ const LineRegistration: React.FC<LineRegistrationProps> = ({
         OLT_MDL_NM: nwcsResult.MDL_NM || '',
         OLT_PORT_NO: nwcsResult.PRT_INDX_NM || '',
         ESTB_PLC_NM: nwcsResult.ESTB_PLC_NM || '',
+        EQIP_IP: nwcsResult.EQIP_IP || '',
       };
       setOltInfo(olt);
 
@@ -420,9 +463,10 @@ const LineRegistration: React.FC<LineRegistrationProps> = ({
     }
   }, [entrNo, entrRqstNo, workItem.CTRT_ID, readOnly, certifyOpLnkdCd, showToast]);
 
-  // 자동현황조회 - 페이지 진입 시 자동 호출 (entrNo 확보되면)
+  // 자동현황조회 - 페이지 진입 시 자동 호출 (U+ 전용, entrNo 확보되면)
   const autoQueryDoneRef = useRef(false);
   useEffect(() => {
+    if (!isCertifyProd) return; // 일반 FTTH는 L2/FTTH 자동조회 불필요
     if (autoQueryDoneRef.current || readOnly || !entrNo || isEntrLoading) return;
     autoQueryDoneRef.current = true;
     if (isFtthProd) {
@@ -551,7 +595,15 @@ const LineRegistration: React.FC<LineRegistrationProps> = ({
         setCertifyInfo(certifyData);
         setCertifyRegconfInfo(certifyData);
         setIsQueried(true);
-        showToast?.('집선정보 조회가 완료되었습니다.', 'success');
+
+        // 비U+ FTTH: CL-03 조회 성공 시 집선등록 자동 완료 (별도 집선등록 버튼 없으므로)
+        if (!isCertifyProd) {
+          setIsLineRegistrationDone(true);
+          console.log('[집선등록] 비U+ 자동 완료 - isLineRegistrationDone=true');
+          showToast?.('집선등록이 완료되었습니다.', 'success');
+        } else {
+          showToast?.('집선정보 조회가 완료되었습니다.', 'success');
+        }
       } else {
         setError('집선정보 조회 실패');
         showToast?.('집선정보 조회 실패', 'error');
@@ -568,20 +620,80 @@ const LineRegistration: React.FC<LineRegistrationProps> = ({
   const handleLineRegistration = async () => {
     if (readOnly) return;
 
-    // Check 1: 포트 선택 여부
-    const regconf = certifyRegconfInfo;
-    if (!regconf?.EQIP_PORT_NO) {
-      showToast?.('집선정보가 없습니다. 집선정보 조회 버튼을 클릭하세요.', 'warning');
+    console.log('[집선등록] 버튼 클릭 - 검증 시작', {
+      storeEntrNo, entrNo,
+      ldapResult: !!ldapResult,
+      certifyRegconfInfo: certifyRegconfInfo ? {
+        EQIP_ID: certifyRegconfInfo.EQIP_ID,
+        EQIP_PORT_NO: certifyRegconfInfo.EQIP_PORT_NO,
+        EQIP_DIVS: certifyRegconfInfo.EQIP_DIVS,
+        EQIP_PORT_USE: certifyRegconfInfo.EQIP_PORT_USE,
+        PORT_ENTR_NO: certifyRegconfInfo.PORT_ENTR_NO,
+        OLT_ID: certifyRegconfInfo.OLT_ID,
+        OLT_PORT: certifyRegconfInfo.OLT_PORT,
+      } : null,
+      isFtthProd,
+      certifyOpLnkdCd,
+      isLineRegistrationDone,
+      isCertifyProd,
+    });
+
+    // === 일반 FTTH 인증상품 모드 (비U+) ===
+    // CL-03 결과만 확인 (청약/LDAP/포트/DuplicationMember 불필요)
+    if (!isCertifyProd) {
+      if (!certifyRegconfInfo) {
+        showToast?.('집선정보 조회를 먼저 실행하세요.', 'warning');
+        return;
+      }
+      setIsLineRegistrationDone(true);
+      console.log('[집선등록] 일반 FTTH 완료 - isLineRegistrationDone=true');
+      showToast?.('단말인증 집선정보등록이 완료되었습니다.', 'success');
       return;
     }
 
+    // Check 0-A, 0-B: U+ 전용 선행 체크 (청약/LDAP은 LGU+ 재판매 상품만 필요)
+    // 일반 FTTH 인증상품(IS_CERTIFY_PROD+CMIF006)은 U+ 작업 불필요
+    if (isCertifyProd) {
+      // 청약신청 확인 (레거시: LGU_ENTR_NO 존재 여부)
+      if (!storeEntrNo && !entrNo) {
+        console.log('[집선등록] 실패 - 청약신청 미완료 (ENTR_NO 없음)');
+        showToast?.('청약신청 버튼을 먼저 클릭하세요.', 'warning');
+        return;
+      }
+      // LDAP연동 확인 (레거시: LGU_LDAP_INPUT == "Y")
+      if (!ldapResult) {
+        console.log('[집선등록] 실패 - LDAP연동 미완료');
+        showToast?.('LDAP연동 버튼을 먼저 클릭하세요.', 'warning');
+        return;
+      }
+    }
+
+    // Check 1: 포트 선택 여부
+    const regconf = certifyRegconfInfo;
+    if (!regconf?.EQIP_PORT_NO) {
+      console.log('[집선등록] 실패 - 포트 미선택', { isFtthProd, regconf });
+      if (isFtthProd) {
+        showToast?.('RN 포트를 선택하세요. (포트 목록에서 행을 터치)', 'warning');
+      } else {
+        showToast?.('L2 자동정보조회가 완료되지 않았습니다. 잠시 후 다시 시도하세요.', 'warning');
+      }
+      return;
+    }
+
+    console.log('[집선등록] 검증 통과 - 처리 시작');
     setIsRegistering(true);
     setError(null);
 
     try {
       // Check 2: FTTH - EQIP_PORT_USE validation (레거시 동일)
       if (isFtthProd) {
+        console.log('[집선등록] FTTH 포트 사용여부 확인:', {
+          EQIP_PORT_USE: regconf.EQIP_PORT_USE,
+          PORT_ENTR_NO: regconf.PORT_ENTR_NO,
+          currentEntrNo: storeEntrNo || entrNo,
+        });
         if (regconf.EQIP_PORT_USE === 'Y' && regconf.PORT_ENTR_NO !== (storeEntrNo || entrNo)) {
+          console.log('[집선등록] 실패 - FTTH 포트 다른 가입자 사용중');
           showToast?.('다른 가입자 사용중입니다. 다른 포트로 변경해 주세요.', 'error');
           setIsRegistering(false);
           return;
@@ -591,6 +703,12 @@ const LineRegistration: React.FC<LineRegistrationProps> = ({
       // Check 3: 광랜 - DuplicationMember (레거시: fn_upls_DuplicationMember)
       if (!isFtthProd && (certifyOpLnkdCd === 'N' || certifyOpLnkdCd === 'NG')) {
         const portNm = (regconf.EQIP_PORT_NO || '').replace(/\//g, '__');
+        console.log('[집선등록] 광랜 중복가입자 조회:', {
+          ENTR_NO: storeEntrNo || entrNo,
+          EQIP_ID: regconf.EQIP_ID,
+          PORT_NM: portNm,
+          CTRT_ID: workItem.CTRT_ID,
+        });
         const dupResult = await getUplsDuplicationMember({
           ENTR_NO: storeEntrNo || entrNo,
           EQIP_ID: regconf.EQIP_ID || '',
@@ -598,13 +716,17 @@ const LineRegistration: React.FC<LineRegistrationProps> = ({
           CTRT_ID: workItem.CTRT_ID || '',
         });
 
+        console.log('[집선등록] 중복가입자 조회 결과:', dupResult);
+
         if (!dupResult.success) {
+          console.log('[집선등록] 실패 - 중복가입자 조회 API 에러');
           showToast?.(`LGU+ 중복가입자 조회 실패\n${dupResult.RESULT_MSG}`, 'error');
           setIsRegistering(false);
           return;
         }
 
         if (dupResult.ENTR_EXIST === 'Y') {
+          console.log('[집선등록] 실패 - 중복가입자 존재');
           showToast?.('LGU+ 중복가입자가 존재합니다. 포트를 변경하여 주세요.', 'error');
           setCertifyRegconfInfo(null as any);
           setIsRegistering(false);
@@ -613,7 +735,9 @@ const LineRegistration: React.FC<LineRegistrationProps> = ({
       }
 
       // 성공: 집선등록 완료 플래그 (레거시: LGU_LINE_INPUT = "Y")
+      // NOTE: 실제 API 호출(setUplsWorkComplete)은 작업완료 시 실행됨
       setIsLineRegistrationDone(true);
+      console.log('[집선등록] 완료 - isLineRegistrationDone=true (실제 API는 작업완료 시 호출)');
       showToast?.('LGU+ 집선등록이 처리되었습니다.', 'success');
     } catch (err) {
       console.error('[집선등록] 등록 에러:', err);
@@ -663,8 +787,8 @@ const LineRegistration: React.FC<LineRegistrationProps> = ({
         </div>
       )}
 
-      {/* ============ 광랜: 개통장비정보(광랜) (mowouDivF01) ============ */}
-      {!isFtthProd && (
+      {/* ============ 광랜: 개통장비정보(광랜) (mowouDivF01) — U+ 전용 ============ */}
+      {isCertifyProd && !isFtthProd && (
         <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-3 sm:p-4">
           <div className="flex items-center justify-between mb-2">
             <h5 className="text-xs sm:text-sm font-bold text-gray-900 flex items-center gap-1.5">
@@ -702,8 +826,8 @@ const LineRegistration: React.FC<LineRegistrationProps> = ({
         </div>
       )}
 
-      {/* ============ FTTH: 개통장비정보(OLT) (mowouDivG01) ============ */}
-      {isFtthProd && (
+      {/* ============ FTTH: 개통장비정보(OLT) (mowouDivG01) — U+ 전용 ============ */}
+      {isCertifyProd && isFtthProd && (
         <>
           {/* 개통장비정보(OLT) 섹션 */}
           <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-3 sm:p-4">
@@ -727,8 +851,8 @@ const LineRegistration: React.FC<LineRegistrationProps> = ({
             <div className="space-y-0">
               <InfoRow label="장비형명" value="OLT" />
               <InfoRow label="모델" value={oltInfo?.OLT_MDL_NM || '-'} />
-              <InfoRow label="광포트" value={oltInfo?.OLT_PORT_NO || '-'} />
-              <InfoRow label="설치장소" value={oltInfo?.ESTB_PLC_NM || '-'} />
+              <InfoRow label="개통포트" value={oltInfo?.OLT_PORT_NO || '-'} />
+              <InfoRow label="IP주소" value={oltInfo?.EQIP_IP || '-'} />
             </div>
           </div>
 
@@ -743,25 +867,50 @@ const LineRegistration: React.FC<LineRegistrationProps> = ({
             {rnList.length > 0 && (
               <div className="mb-3">
                 <div className="text-xs font-semibold text-gray-700 mb-1.5">RN 장비 선택</div>
-                <div className="relative">
-                  <select
-                    value={selectedRnId}
-                    onChange={(e) => handleRnChange(e.target.value)}
-                    className="w-full px-3 py-2 text-xs border border-gray-300 rounded-lg bg-white appearance-none pr-8 focus:border-orange-400 focus:outline-none"
+                <div className="relative" ref={rnDropdownRef}>
+                  <button
+                    type="button"
+                    onClick={() => setIsRnDropdownOpen(!isRnDropdownOpen)}
+                    className={`w-full px-3 py-2.5 text-xs border rounded-lg bg-white text-left flex items-center justify-between transition-colors ${
+                      isRnDropdownOpen ? 'border-orange-400 ring-1 ring-orange-200' : 'border-gray-300'
+                    }`}
                   >
-                    {rnList.map((rn) => (
-                      <option key={rn.EQIP_ID} value={rn.EQIP_ID}>
-                        {rn.EQIP_ID} - {rn.MDL_NM || rn.EQIP_NM || ''}
-                      </option>
-                    ))}
-                  </select>
-                  <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400 pointer-events-none" />
+                    <span className="truncate text-gray-900">
+                      {selectedRn ? (selectedRn.ESTB_PLC_NM || `${selectedRn.EQIP_ID} - ${selectedRn.MDL_NM || selectedRn.EQIP_NM || ''}`) : '장비를 선택하세요'}
+                    </span>
+                    <ChevronDown className={`w-3.5 h-3.5 text-gray-400 flex-shrink-0 ml-2 transition-transform ${isRnDropdownOpen ? 'rotate-180' : ''}`} />
+                  </button>
+
+                  {isRnDropdownOpen && (
+                    <div className="absolute z-20 mt-1 w-full bg-white border border-gray-200 rounded-lg shadow-lg max-h-52 overflow-y-auto">
+                      {rnList.map((rn) => (
+                        <button
+                          key={rn.EQIP_ID}
+                          type="button"
+                          onClick={() => {
+                            handleRnChange(rn.EQIP_ID);
+                            setIsRnDropdownOpen(false);
+                          }}
+                          className={`w-full text-left px-3 py-2.5 text-xs transition-colors border-b border-gray-50 last:border-b-0 ${
+                            selectedRnId === rn.EQIP_ID
+                              ? 'bg-orange-50 text-orange-700 font-semibold'
+                              : 'text-gray-700 hover:bg-gray-50 active:bg-gray-100'
+                          }`}
+                        >
+                          <div className="font-medium">{rn.ESTB_PLC_NM || rn.EQIP_ID}</div>
+                          <div className="text-[0.65rem] text-gray-500 mt-0.5">
+                            {rn.EQIP_ID} · {rn.MDL_NM || rn.EQIP_NM || '-'} · {rn.EQIP_ESTB_FLOO_NM || '-'}
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  )}
                 </div>
 
                 {selectedRn && (
-                  <div className="mt-1.5 grid grid-cols-2 gap-x-4 gap-y-1">
+                  <div className="mt-1.5 space-y-1">
                     <InfoRow label="모델" value={selectedRn.MDL_NM || '-'} />
-                    <InfoRow label="설치층" value={selectedRn.EQIP_ESTB_FLOO_NM || '-'} />
+                    <InfoRow label="설치장소" value={selectedRn.EQIP_ESTB_FLOO_NM || '-'} />
                   </div>
                 )}
               </div>
@@ -819,20 +968,92 @@ const LineRegistration: React.FC<LineRegistrationProps> = ({
         </>
       )}
 
-      {/* 집선등록 버튼 (레거시: btn_LGU_Line_Req_OnClick) */}
-      {!readOnly && (
+      {/* ============ 단말인증 집선등록 (비U+ 모드, 레거시 mowoc01m01.xml 동일) ============ */}
+      {!isCertifyProd && !isCertifyTarget && (
+        <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-3 sm:p-4 flex items-start gap-2">
+          <AlertCircle className="w-5 h-5 text-yellow-500 flex-shrink-0 mt-0.5" />
+          <p className="text-xs sm:text-sm text-yellow-700">단말인증 상품일 경우만 처리 가능합니다.</p>
+        </div>
+      )}
+      {!isCertifyProd && isCertifyTarget && (
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-3 sm:p-4">
+          <h5 className="text-xs sm:text-sm font-bold text-gray-900 mb-3 flex items-center gap-1.5">
+            <Wifi className="w-4 h-4 text-blue-500" />
+            단말인증 집선등록
+            {isQueried && <CheckCircle className="w-3.5 h-3.5 text-green-500 ml-1" />}
+            {isLoading && <div className="w-3.5 h-3.5 border-2 border-blue-500 border-t-transparent rounded-full animate-spin ml-1" />}
+          </h5>
+
+          {/* 레거시 mowoc01m01 필드 순서 동일 (ds_certify_cl03 바인딩) */}
+          <div className="space-y-0 mb-3">
+            <InfoRow label="장비유형" value={(certifyInfo as any)?.T || '-'} />
+            <InfoRow label="ONT MAC" value={(certifyInfo as any)?.ONT_MAC || ontMac || '-'} />
+            <InfoRow label="AP MAC" value={(certifyInfo as any)?.AP_MAC || apMac || '-'} />
+            <InfoRow label="ONT_SERIAL" value={(certifyInfo as any)?.ONT_SERIAL || ontSerial || '-'} />
+            <InfoRow label="장비 ID" value={(certifyInfo as any)?.DEV_ID || '-'} />
+            <InfoRow label="장비 IP" value={(certifyInfo as any)?.IP || '-'} />
+            <InfoRow label="포트번호" value={(certifyInfo as any)?.PORT || '-'} />
+            <InfoRow label="최고속도" value={(certifyInfo as any)?.MAX_SPEED || '-'} />
+            <InfoRow label="속도" value={(certifyInfo as any)?.SPEED || '-'} />
+            <InfoRow label="장비상태" value={(certifyInfo as any)?.ST || '-'} />
+            <InfoRow label="위치" value={(certifyInfo as any)?.ADDR || '-'} />
+            <InfoRow label="집선시간" value={(certifyInfo as any)?.LAST_FOUND || '-'} />
+            <InfoRow label="집선계약아이디" value={(certifyInfo as any)?.CONT_ID || '-'} />
+          </div>
+
+          {error && (
+            <div className="bg-red-50 border border-red-200 rounded-lg p-2 mb-3 flex items-start gap-1.5">
+              <AlertCircle className="w-3.5 h-3.5 text-red-500 flex-shrink-0 mt-0.5" />
+              <p className="text-xs text-red-700">{error}</p>
+            </div>
+          )}
+
+          {/* 자동정보조회 버튼 (레거시 btn_auto_info_search) */}
+          {!readOnly && (
+            <button
+              onClick={handleQuery}
+              disabled={isLoading || !hasMacInfo}
+              className={`w-full py-2.5 rounded-lg font-semibold text-sm flex items-center justify-center gap-2 transition-colors ${
+                isLoading ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                : !hasMacInfo ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                : 'bg-blue-500 hover:bg-blue-600 text-white'
+              }`}
+            >
+              {isLoading ? (
+                <>
+                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  조회 중...
+                </>
+              ) : (
+                <>
+                  <Database className="w-4 h-4" />
+                  집선등록
+                </>
+              )}
+            </button>
+          )}
+        </div>
+      )}
+
+      {/* 집선등록 버튼 (레거시: btn_LGU_Line_Req_OnClick) - U+ 전용 */}
+      {!readOnly && isCertifyProd && (
         <button
           onClick={handleLineRegistration}
-          disabled={isRegistering || isLineRegistrationDone}
+          disabled={isRegistering || isLineRegistrationDone || isL2Loading || isLoading || isRnLoading}
           className={`w-full py-3 sm:py-4 rounded-xl font-semibold text-sm sm:text-base flex items-center justify-center gap-2 transition-colors ${
             isLineRegistrationDone
               ? 'bg-green-500 text-white cursor-default'
-              : isRegistering
+              : (isRegistering || isL2Loading || isLoading || isRnLoading)
               ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
-              : 'bg-emerald-500 hover:bg-emerald-600 text-white'
+              : 'bg-orange-500 hover:bg-orange-600 text-white'
           }`}
         >
-          {isLineRegistrationDone ? (
+          {(isL2Loading || isLoading || isRnLoading) && !isRegistering ? (
+            <>
+              <div className="w-5 h-5 border-2 border-gray-400 border-t-transparent rounded-full animate-spin" />
+              자동정보조회 중...
+            </>
+          ) : isLineRegistrationDone ? (
             <>
               <CheckCircle className="w-4 h-4 sm:w-5 sm:h-5" />
               집선등록 완료
@@ -891,7 +1112,7 @@ const LineRegistration: React.FC<LineRegistrationProps> = ({
                     <thead>
                       <tr className="bg-gray-100">
                         <th className="px-2 py-2 text-left font-semibold text-gray-700 whitespace-nowrap">모델명</th>
-                        <th className="px-2 py-2 text-left font-semibold text-gray-700 whitespace-nowrap">최고속도</th>
+                        <th className="px-2 py-2 text-left font-semibold text-gray-700 whitespace-nowrap">제공속도</th>
                         <th className="px-2 py-2 text-left font-semibold text-gray-700 whitespace-nowrap">제조사</th>
                         <th className="px-2 py-2 text-left font-semibold text-gray-700 whitespace-nowrap">비고</th>
                       </tr>

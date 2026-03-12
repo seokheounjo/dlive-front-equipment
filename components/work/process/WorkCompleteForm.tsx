@@ -4,12 +4,12 @@ import { getCompleteButtonText } from '../../../utils/workValidation';
 import { getCommonCodeList, CommonCode, insertWorkRemoveStat, modAsPdaReceipt } from '../../../services/apiService';
 import Select from '../../ui/Select';
 import InstallInfoModal, { InstallInfoData } from '../../modal/InstallInfoModal';
-import IntegrationHistoryModal from '../../modal/IntegrationHistoryModal';
 import InstallLocationModal, { InstallLocationData } from '../../modal/InstallLocationModal';
 import RemovalLineManageModal, { RemovalLineData } from '../../modal/RemovalLineManageModal';
 import RemovalASAssignModal, { ASAssignData } from '../../modal/RemovalASAssignModal';
 import ConfirmModal from '../../common/ConfirmModal';
 import { useWorkProcessStore } from '../../../stores/workProcessStore';
+import { useCertifyStore } from '../../../stores/certifyStore';
 import { useCompleteWork } from '../../../hooks/mutations/useCompleteWork';
 import '../../../styles/buttons.css';
 
@@ -68,9 +68,6 @@ const WorkCompleteForm: React.FC<WorkCompleteFormProps> = ({ order, onBack, onSu
   const [networkType, setNetworkType] = useState(''); // 망구분 코드 (NET_CL)
   const [networkTypeName, setNetworkTypeName] = useState(''); // 망구분 이름 (NET_CL_NM)
   const [installInfoData, setInstallInfoData] = useState<InstallInfoData | undefined>(undefined);
-
-  // 연동이력 모달 관련
-  const [showIntegrationHistoryModal, setShowIntegrationHistoryModal] = useState(false);
 
   // 설치위치 모달 관련
   const [showInstallLocationModal, setShowInstallLocationModal] = useState(false);
@@ -370,7 +367,7 @@ const WorkCompleteForm: React.FC<WorkCompleteFormProps> = ({ order, onBack, onSu
       // insertWorkRemoveStat API 호출 (레거시 mowoa03p05.fn_insertWorkRemoveStat)
       const userInfo = localStorage.getItem('userInfo');
       const user = userInfo ? JSON.parse(userInfo) : {};
-      const workerId = user.userId || 'A20130708';
+      const workerId = user.userId || '';
 
       const result = await insertWorkRemoveStat({
         WRK_ID: order.id,
@@ -419,7 +416,7 @@ const WorkCompleteForm: React.FC<WorkCompleteFormProps> = ({ order, onBack, onSu
       // 1. insertWorkRemoveStat API 호출 (미철거 상태 저장)
       const userInfo = localStorage.getItem('userInfo');
       const user = userInfo ? JSON.parse(userInfo) : {};
-      const workerId = user.userId || 'A20130708';
+      const workerId = user.userId || '';
 
       const removeStatResult = await insertWorkRemoveStat({
         WRK_ID: order.id,
@@ -853,7 +850,7 @@ const WorkCompleteForm: React.FC<WorkCompleteFormProps> = ({ order, onBack, onSu
                 value={memo}
                 onChange={(e) => setMemo(e.target.value)}
                 placeholder="작업 내용을 입력하세요..."
-                className={`w-full px-4 py-3 border border-gray-300 rounded-lg text-base resize-none ${isWorkCompleted ? 'bg-gray-100 text-gray-600 cursor-not-allowed' : 'focus:ring-2 focus:ring-blue-500 focus:border-blue-500'}`}
+                className={`w-full px-4 py-3 border border-gray-300 rounded-lg text-base resize-none ${isWorkCompleted ? 'bg-gray-100 text-gray-600 cursor-not-allowed' : 'focus:ring-2 focus:ring-primary-500 focus:border-primary-500'}`}
                 rows={4}
                 readOnly={isWorkCompleted}
                 disabled={isWorkCompleted}
@@ -906,47 +903,19 @@ const WorkCompleteForm: React.FC<WorkCompleteFormProps> = ({ order, onBack, onSu
               </div>
             )}
 
-            {/* 디지털이용 + 연동이력 버튼 - 철거 작업에서는 연동이력만 표시 (레거시 동일) */}
-            {!isRemovalWork ? (
+            {/* 디지털이용 - 철거 작업에서는 표시 안함 (신호연동은 후처리로 이동) */}
+            {!isRemovalWork && (
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-2">
                   디지털이용
                 </label>
-                <div className="flex gap-2">
-                  <div className="flex-1">
-                    <Select
-                      value={dtvUse}
-                      onValueChange={setDtvUse}
-                      options={dtvOptions}
-                      placeholder="선택"
-                      disabled={isWorkCompleted}
-                    />
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => setShowIntegrationHistoryModal(true)}
-                    className="min-h-[48px] px-4 bg-purple-600 hover:bg-purple-700 text-white rounded-lg font-bold transition-colors flex items-center gap-2"
-                  >
-                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-                    </svg>
-                    <span>연동이력</span>
-                  </button>
-                </div>
-              </div>
-            ) : (
-              /* 철거 작업: 연동이력 버튼만 표시 (레거시 btn_signal_hist) */
-              <div>
-                <button
-                  type="button"
-                  onClick={() => setShowIntegrationHistoryModal(true)}
-                  className="w-full min-h-[48px] px-4 bg-purple-600 hover:bg-purple-700 text-white rounded-lg font-bold transition-colors flex items-center justify-center gap-2"
-                >
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-                  </svg>
-                  <span>연동이력</span>
-                </button>
+                <Select
+                  value={dtvUse}
+                  onValueChange={setDtvUse}
+                  options={dtvOptions}
+                  placeholder="선택"
+                  disabled={isWorkCompleted}
+                />
               </div>
             )}
           </div>
@@ -1002,14 +971,7 @@ const WorkCompleteForm: React.FC<WorkCompleteFormProps> = ({ order, onBack, onSu
         prodGrp={equipmentData?.prodGrp || equipmentData?.PROD_GRP}
         wrkDtlTcd={order.WRK_DTL_TCD}
         readOnly={isWorkCompleted}
-      />
-
-      {/* 연동이력 모달 */}
-      <IntegrationHistoryModal
-        isOpen={showIntegrationHistoryModal}
-        onClose={() => setShowIntegrationHistoryModal(false)}
-        ctrtId={order.CTRT_ID}
-        custId={order.customer.id}
+        isCertifyProd={useCertifyStore.getState().isCertifyProd}
       />
 
       {/* 설치위치 모달 */}

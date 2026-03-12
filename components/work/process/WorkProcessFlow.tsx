@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { WorkItem, WorkOrder } from '../../../types';
 import ContractInfo from './ContractInfo';
 import ReceptionInfo from './ReceptionInfo';
@@ -8,7 +8,10 @@ import WorkCompleteRouter, { getWorkTypeName } from './complete';
 import PostProcess from './postprocess';
 import { getTechnicianEquipments, getCommonCodes, getWorkCancelInfo } from '../../../services/apiService';
 import { useWorkProcessStore } from '../../../stores/workProcessStore';
-import { useCertifyDetection } from '../../../hooks/useCertifyDetection';
+import { ProductTypeProvider } from '../../../contexts/ProductTypeContext';
+import { useProductType } from '../../../hooks/useProductType';
+import { use2PairCheck, TWO_PAIR_WARNING_MSG } from '../../../hooks/use2PairCheck';
+import ConfirmModal from '../../common/ConfirmModal';
 import { useWorkEquipmentStore } from '../../../stores/workEquipmentStore';
 import { useCertifyStore } from '../../../stores/certifyStore';
 import { Check, ArrowLeft, ArrowRight } from 'lucide-react';
@@ -23,7 +26,24 @@ interface WorkProcessFlowProps {
 
 type ProcessStep = 1 | 2 | 3 | 4 | 5 | 6;
 
-const WorkProcessFlow: React.FC<WorkProcessFlowProps> = ({ workItem, onComplete, onBack, showToast }) => {
+/**
+ * WorkProcessFlow - 외부 래퍼 (ProductTypeProvider 제공)
+ * 실제 로직은 WorkProcessFlowInner에서 처리
+ */
+const WorkProcessFlow: React.FC<WorkProcessFlowProps> = (props) => {
+  const { workItem } = props;
+  return (
+    <ProductTypeProvider
+      prodCd={workItem.PROD_CD || ''}
+      soId={workItem.SO_ID || ''}
+      isCertifyProdField={workItem.IS_CERTIFY_PROD}
+    >
+      <WorkProcessFlowInner {...props} />
+    </ProductTypeProvider>
+  );
+};
+
+const WorkProcessFlowInner: React.FC<WorkProcessFlowProps> = ({ workItem, onComplete, onBack, showToast }) => {
   // 작업 완료 여부 확인 (WRK_STAT_CD: '3'=작업완료, '4'=후처리완료, '7'=기타완료)
   const isWorkCompleted = workItem.WRK_STAT_CD === '3' || workItem.WRK_STAT_CD === '4' || workItem.WRK_STAT_CD === '7' || workItem.status === '완료';
 
@@ -36,11 +56,39 @@ const WorkProcessFlow: React.FC<WorkProcessFlowProps> = ({ workItem, onComplete,
   // 장비 API 데이터 (미리 로드) - 로컬 상태로 유지
   const [preloadedEquipmentApiData, setPreloadedEquipmentApiData] = useState<any>(null);
 
-  // FTTH/LGU+ 인증상품 감지 (useCertifyDetection 훅)
-  const { isCertifyProd, certifyOpLnkdCd, isLoaded: isFtthCheckLoaded } = useCertifyDetection({
+  // 후처리 이탈 경고 상태
+  const [afterProcWarning, setAfterProcWarning] = useState<string | null>(null);
+  const [showAfterProcModal, setShowAfterProcModal] = useState(false);
+  const pendingNavigation = useRef<ProcessStep | null>(null);
+
+  // 집선등록 완료 여부 (스텝 색상용)
+  const isLineRegistrationDone = useCertifyStore((s) => s.isLineRegistrationDone);
+
+  // ProductTypeContext로부터 상품유형 정보 (Phase 0에서 생성한 Context)
+  const {
+    productType,
+    isLguProd,
+    isFtthProd,
+    needsLineRegistration,
+    opLnkdCd,
+    uplsProdList,
+    isLoaded: isFtthCheckLoaded,
+  } = useProductType();
+
+  // 하위 컴포넌트 호환용 별칭 (과도기 - Phase 4에서 제거)
+  const isCertifyProd = isLguProd;
+  const isCertifyForLineReg = needsLineRegistration;
+  const certifyOpLnkdCd = opLnkdCd;
+
+  // 2Pair UTP area check (legacy: fn_opt_typ - 2024.10.30 added)
+  // Install(01), Product Change(05), Relocation Install(07) only
+  const { showWarning: show2PairWarning, setShowWarning: setShow2PairWarning } = use2PairCheck({
+    bldId: workItem.BLD_ID || '',
     prodCd: workItem.PROD_CD || '',
-    soId: workItem.SO_ID || '',
-    isCertifyProdField: workItem.IS_CERTIFY_PROD,
+    prodGrp: workItem.PROD_GRP || '',
+    wrkCd: workItem.WRK_CD || '',
+    uplsProdList,
+    isLoaded: isFtthCheckLoaded,
   });
 
   // 작업 진행 화면 진입 시: 현재 작업 ID 설정 + 스크롤 맨 위로 초기화
@@ -115,10 +163,11 @@ const WorkProcessFlow: React.FC<WorkProcessFlowProps> = ({ workItem, onComplete,
         const userInfo = localStorage.getItem('userInfo');
         const user = userInfo ? JSON.parse(userInfo) : {};
 
-        console.log('[WorkProcessFlow] 장비 프리로드 - WRK_CD:', workItem.WRK_CD, 'CTRT_ID:', ctrtIdToUse || '(없음)');
+        const wrkrId = user.workerId || user.userId || workItem.WRKR_ID || '';
+        console.log('[WorkProcessFlow] 장비 프리로드 - WRK_CD:', workItem.WRK_CD, 'CTRT_ID:', ctrtIdToUse || '(없음)', 'WRKR_ID:', wrkrId);
 
         const response = await getTechnicianEquipments({
-          WRKR_ID: user.workerId || 'A20130708',
+          WRKR_ID: wrkrId,
           SO_ID: workItem.SO_ID || user.soId,
           WRK_ID: workItem.id,  // 레거시와 동일하게 WRK_ID 사용
           CUST_ID: workItem.customer?.id || workItem.CUST_ID,
@@ -145,6 +194,8 @@ const WorkProcessFlow: React.FC<WorkProcessFlowProps> = ({ workItem, onComplete,
           upCtrlCl: response.upCtrlCl,
           prodPromoInfo: response.prodPromoInfo || [],  // 부가서비스 정보 (FTTH CL-04 ADD_ON용)
         };
+
+        console.log('[WorkProcessFlow] 프리로드 응답 - 계약장비:', response.contractEquipments?.length || 0, '기사재고:', response.technicianEquipments?.length || 0, '고객장비:', response.customerEquipments?.length || 0);
 
         // 전체 API response 저장 (3단계에서 재사용)
         setPreloadedEquipmentApiData(response);
@@ -364,7 +415,7 @@ const WorkProcessFlow: React.FC<WorkProcessFlowProps> = ({ workItem, onComplete,
   // 작업완료 상태에서는 집선정보가 저장되지 않으므로 4단계로 표시
   // 이전철거(08), 일반철거(02)는 레거시에 집선등록 탭 없음 (CL-06은 작업완료 내부에서 자동 호출)
   const wrkCd = workItem.WRK_CD || '';
-  const showLineRegistration = isCertifyProd && !isWorkCompleted && wrkCd !== '08' && wrkCd !== '02';
+  const showLineRegistration = isCertifyForLineReg && !isWorkCompleted && wrkCd !== '08' && wrkCd !== '02';
 
   // 총 스텝 수 (FTTH 진행중: 6단계, 일반: 5단계)
   // 일반: 계약→접수→장비→작업완료→후처리
@@ -377,24 +428,24 @@ const WorkProcessFlow: React.FC<WorkProcessFlowProps> = ({ workItem, onComplete,
     if (showLineRegistration) {
       // FTTH 6단계 (작업 진행 중)
       return [
-        { id: 1, title: '계약 정보', completed: isWorkCompleted || currentStep > 1 },
-        { id: 2, title: '접수 정보', completed: isWorkCompleted || currentStep > 2 },
-        { id: 3, title: '장비 정보', completed: isWorkCompleted || currentStep > 3 },
-        { id: 4, title: '집선 등록', completed: isWorkCompleted || currentStep > 4 },
-        { id: 5, title: '작업 완료', completed: isWorkCompleted || currentStep > 5 },
-        { id: 6, title: '후처리', completed: currentStep > 6 },
+        { id: 1, title: '계약 정보', completed: isWorkCompleted || currentStep > 1, pending: false },
+        { id: 2, title: '접수 정보', completed: isWorkCompleted || currentStep > 2, pending: false },
+        { id: 3, title: '장비 정보', completed: isWorkCompleted || currentStep > 3, pending: false },
+        { id: 4, title: '집선 등록', completed: isWorkCompleted || isLineRegistrationDone || currentStep > 4, pending: currentStep === 4 && !isLineRegistrationDone && !isWorkCompleted },
+        { id: 5, title: '작업 완료', completed: isWorkCompleted || currentStep > 5, pending: false },
+        { id: 6, title: '후처리', completed: currentStep > 6, pending: false },
       ];
     } else {
       // 일반 5단계 또는 FTTH 완료 조회 시
       return [
-        { id: 1, title: '계약 정보', completed: isWorkCompleted || currentStep > 1 },
-        { id: 2, title: '접수 정보', completed: isWorkCompleted || currentStep > 2 },
-        { id: 3, title: '장비 정보', completed: isWorkCompleted || currentStep > 3 },
-        { id: 4, title: '작업 완료', completed: isWorkCompleted || currentStep > 4 },
-        { id: 5, title: '후처리', completed: currentStep > 5 },
+        { id: 1, title: '계약 정보', completed: isWorkCompleted || currentStep > 1, pending: false },
+        { id: 2, title: '접수 정보', completed: isWorkCompleted || currentStep > 2, pending: false },
+        { id: 3, title: '장비 정보', completed: isWorkCompleted || currentStep > 3, pending: false },
+        { id: 4, title: '작업 완료', completed: isWorkCompleted || currentStep > 4, pending: false },
+        { id: 5, title: '후처리', completed: currentStep > 5, pending: false },
       ];
     }
-  }, [showLineRegistration, isWorkCompleted, currentStep]);
+  }, [showLineRegistration, isWorkCompleted, currentStep, isLineRegistrationDone]);
 
   // FTTH 6단계 → 완료 후 5단계 전환 시 currentStep이 totalSteps 초과하지 않도록 보정
   useEffect(() => {
@@ -402,6 +453,35 @@ const WorkProcessFlow: React.FC<WorkProcessFlowProps> = ({ workItem, onComplete,
       setCurrentStep(totalSteps as ProcessStep);
     }
   }, [currentStep, totalSteps]);
+
+  // 후처리 스텝 번호 (FTTH: 6, 일반: 5)
+  const postProcessStep = totalSteps;
+
+  // 후처리 상태 콜백
+  const handleAfterProcStatus = useCallback((status: { hasWarning: boolean; message: string | null }) => {
+    setAfterProcWarning(status.hasWarning ? status.message : null);
+  }, []);
+
+  // 후처리 이탈 시 경고 체크 후 이동 실행
+  const tryNavigateFromPostProcess = (targetStep: ProcessStep) => {
+    if (currentStep === postProcessStep && afterProcWarning) {
+      pendingNavigation.current = targetStep;
+      setShowAfterProcModal(true);
+      return true; // 이동 보류됨
+    }
+    return false; // 정상 이동
+  };
+
+  // 모달 닫기 후 보류된 이동 실행
+  const handleAfterProcModalClose = () => {
+    setShowAfterProcModal(false);
+    const target = pendingNavigation.current;
+    pendingNavigation.current = null;
+    if (target !== null) {
+      setCurrentStep(target);
+      requestAnimationFrame(() => scrollToTop());
+    }
+  };
 
   // 스크롤을 맨 위로 이동 (모바일 환경)
   const scrollToTop = () => {
@@ -453,14 +533,17 @@ const WorkProcessFlow: React.FC<WorkProcessFlowProps> = ({ workItem, onComplete,
     const certifyState = useCertifyStore.getState();
     const isWide = ['N', 'NG'].includes(certifyOpLnkdCd);
 
-    // Step 4(집선등록) 이상으로 이동: 와이드이면 LDAP 필수
-    if (targetStep >= 4 && isWide && !certifyState.ldapResult) {
+    // Step 4(집선등록) 이상으로 이동: U+ 상품 + 와이드이면 LDAP 필수
+    if (targetStep >= 4 && isCertifyProd && isWide && !certifyState.ldapResult) {
       showToast?.('LDAP 연동을 먼저 완료해주세요.', 'warning');
       return false;
     }
 
-    // Step 5(작업완료) 이상으로 이동: 집선조회(CL-03) 완료 필수
-    if (targetStep >= 5 && !certifyState.certifyRegconfInfo) {
+    // Step 5(작업완료) 이상으로 이동: 집선등록 완료 필수 (CL-03 + 집선등록 버튼 클릭)
+    if (targetStep >= 5 && (!certifyState.certifyRegconfInfo || !certifyState.isLineRegistrationDone)) {
+      console.log('[validateCertifyStepGuard] BLOCKED step', targetStep,
+        '| certifyRegconfInfo:', !!certifyState.certifyRegconfInfo,
+        '| isLineRegistrationDone:', certifyState.isLineRegistrationDone);
       showToast?.('집선등록을 먼저 완료해주세요.', 'warning');
       return false;
     }
@@ -478,6 +561,17 @@ const WorkProcessFlow: React.FC<WorkProcessFlowProps> = ({ workItem, onComplete,
           return;
         }
         if (!validateCertifyStepGuard(nextStep)) {
+          return;
+        }
+      }
+
+      // 이전설치(07): step 3→4 이동 시 장비철거 작업 완료 필수 체크
+      if (currentStep === 3 && nextStep >= 4 && workItem.WRK_CD === '07' && !isWorkCompleted) {
+        const eqState = useWorkEquipmentStore.getState().getWorkState(workItem.id);
+        const mvCount = eqState?.mvRemoveEquipmentCount || 0;
+        const trCount = eqState?.transferredEquipmentCount || 0;
+        if (mvCount > 0 && trCount < mvCount) {
+          showToast?.('장비철거를 먼저 완료해주세요.', 'error');
           return;
         }
       }
@@ -563,6 +657,8 @@ const WorkProcessFlow: React.FC<WorkProcessFlowProps> = ({ workItem, onComplete,
 
   const handlePrevious = () => {
     if (currentStep > 1) {
+      // 후처리 스텝에서 이탈 시 경고
+      if (tryNavigateFromPostProcess((currentStep - 1) as ProcessStep)) return;
       setCurrentStep((prev) => (prev - 1) as ProcessStep);
       // 단계 변경 시 스크롤 맨 위로
       requestAnimationFrame(() => scrollToTop());
@@ -575,6 +671,9 @@ const WorkProcessFlow: React.FC<WorkProcessFlowProps> = ({ workItem, onComplete,
     : ['계약정보', '접수정보', '장비정보', '작업완료'];
 
   const handleStepClick = (stepId: ProcessStep) => {
+    // 후처리 스텝에서 다른 스텝으로 이동 시 경고
+    if (stepId !== currentStep && tryNavigateFromPostProcess(stepId)) return;
+
     // FTTH 작업 진행 중: 4단계(집선등록) 이상으로 이동 시 장비 등록 체크
     // 어느 단계에서든 4단계 이상으로 가려면 장비 등록이 필요함
     if (showLineRegistration && stepId >= 4) {
@@ -582,6 +681,17 @@ const WorkProcessFlow: React.FC<WorkProcessFlowProps> = ({ workItem, onComplete,
         return;
       }
       if (!validateCertifyStepGuard(stepId)) {
+        return;
+      }
+    }
+
+    // 이전설치(07): step 3 이하에서 step 4+ 클릭 시 장비철거 완료 필수 체크
+    if (stepId >= 4 && currentStep <= 3 && workItem.WRK_CD === '07' && !isWorkCompleted) {
+      const eqState = useWorkEquipmentStore.getState().getWorkState(workItem.id);
+      const mvCount = eqState?.mvRemoveEquipmentCount || 0;
+      const trCount = eqState?.transferredEquipmentCount || 0;
+      if (mvCount > 0 && trCount < mvCount) {
+        showToast?.('장비철거를 먼저 완료해주세요.', 'error');
         return;
       }
     }
@@ -691,7 +801,7 @@ const WorkProcessFlow: React.FC<WorkProcessFlowProps> = ({ workItem, onComplete,
           w-8 h-8 sm:w-10 sm:h-10 flex items-center justify-center rounded-full transition-all flex-shrink-0
           ${currentStep <= 1
             ? 'text-gray-300 cursor-not-allowed'
-            : 'text-blue-600 hover:bg-blue-50 active:bg-blue-100'}
+            : 'text-primary-700 hover:bg-primary-50 active:bg-primary-100'}
         `}
         style={{ marginBottom: '18px' }}
       >
@@ -710,20 +820,24 @@ const WorkProcessFlow: React.FC<WorkProcessFlowProps> = ({ workItem, onComplete,
               <div
                 className={`
                   w-8 h-8 sm:w-10 sm:h-10 rounded-full flex items-center justify-center font-bold text-xs sm:text-sm transition-all
-                  ${currentStep === step.id
-                    ? 'bg-blue-500 text-white shadow-lg scale-110'
+                  ${step.pending
+                    ? (currentStep === step.id ? 'bg-orange-500 text-white shadow-lg scale-110' : 'bg-orange-400 text-white')
+                    : currentStep === step.id
+                    ? 'bg-primary-500 text-white shadow-lg scale-110'
                     : step.completed
                       ? 'bg-green-500 text-white'
                       : 'bg-gray-200 text-gray-500'}
                 `}
               >
-                {step.completed ? <Check className="w-4 h-4 sm:w-5 sm:h-5" /> : step.id}
+                {step.completed && !step.pending ? <Check className="w-4 h-4 sm:w-5 sm:h-5" /> : step.id}
               </div>
               <div
                 className={`
                   text-[0.5625rem] sm:text-[0.625rem] font-medium text-center transition-all whitespace-nowrap
-                  ${currentStep === step.id
-                    ? 'text-blue-600 font-bold'
+                  ${step.pending
+                    ? 'text-orange-600 font-bold'
+                    : currentStep === step.id
+                    ? 'text-primary-700 font-bold'
                     : step.completed
                       ? 'text-green-600'
                       : 'text-gray-500'}
@@ -735,7 +849,7 @@ const WorkProcessFlow: React.FC<WorkProcessFlowProps> = ({ workItem, onComplete,
             {/* 연결선 */}
             {index < steps.length - 1 && (
               <div
-                className={`flex-1 h-0.5 mx-1 rounded-full ${step.completed ? 'bg-green-400' : 'bg-gray-200'}`}
+                className={`flex-1 h-0.5 mx-1 rounded-full ${step.pending ? 'bg-orange-300' : step.completed ? 'bg-green-400' : 'bg-gray-200'}`}
                 style={{ marginBottom: '18px', maxWidth: '24px' }}
               />
             )}
@@ -751,7 +865,7 @@ const WorkProcessFlow: React.FC<WorkProcessFlowProps> = ({ workItem, onComplete,
           w-8 h-8 sm:w-10 sm:h-10 flex items-center justify-center rounded-full transition-all flex-shrink-0
           ${currentStep >= totalSteps
             ? 'text-gray-300 cursor-not-allowed'
-            : 'text-blue-600 hover:bg-blue-50 active:bg-blue-100'}
+            : 'text-primary-700 hover:bg-primary-50 active:bg-primary-100'}
         `}
         style={{ marginBottom: '18px' }}
       >
@@ -789,8 +903,6 @@ const WorkProcessFlow: React.FC<WorkProcessFlowProps> = ({ workItem, onComplete,
             preloadedApiData={preloadedEquipmentApiData}
             onPreloadedDataUpdate={setPreloadedEquipmentApiData}
             readOnly={isWorkCompleted}
-            isCertifyProd={isCertifyProd}
-            certifyOpLnkdCd={certifyOpLnkdCd}
           />
         );
       case 4:
@@ -814,7 +926,6 @@ const WorkProcessFlow: React.FC<WorkProcessFlowProps> = ({ workItem, onComplete,
               showToast={showToast}
               equipmentData={equipmentData || filteringData}
               readOnly={isWorkCompleted}
-              isCertifyProd={isCertifyProd}
               onEquipmentRefreshNeeded={() => {
                 console.log('[WorkProcessFlow] 장비이전 성공 - 장비 캐시 무효화');
                 setPreloadedEquipmentApiData(null);
@@ -833,7 +944,6 @@ const WorkProcessFlow: React.FC<WorkProcessFlowProps> = ({ workItem, onComplete,
               showToast={showToast}
               equipmentData={equipmentData || filteringData}
               readOnly={isWorkCompleted}
-              isCertifyProd={isCertifyProd}
               onEquipmentRefreshNeeded={() => {
                 console.log('[WorkProcessFlow] 장비이전 성공 - 장비 캐시 무효화');
                 setPreloadedEquipmentApiData(null);
@@ -847,6 +957,7 @@ const WorkProcessFlow: React.FC<WorkProcessFlowProps> = ({ workItem, onComplete,
               onBack={handlePrevious}
               onComplete={onComplete}
               showToast={showToast}
+              onAfterProcStatus={handleAfterProcStatus}
             />
           );
         }
@@ -858,6 +969,7 @@ const WorkProcessFlow: React.FC<WorkProcessFlowProps> = ({ workItem, onComplete,
             onBack={handlePrevious}
             onComplete={onComplete}
             showToast={showToast}
+            onAfterProcStatus={handleAfterProcStatus}
           />
         );
       default:
@@ -869,7 +981,7 @@ const WorkProcessFlow: React.FC<WorkProcessFlowProps> = ({ workItem, onComplete,
   if (!isFtthCheckLoaded) {
     return (
       <div className="flex-1 flex flex-col items-center justify-center bg-gray-50">
-        <div className="w-10 h-10 border-4 border-blue-500 border-t-transparent rounded-full animate-spin" />
+        <div className="w-10 h-10 border-4 border-primary-500 border-t-transparent rounded-full animate-spin" />
         <p className="mt-4 text-sm text-gray-500">작업 정보 확인 중...</p>
       </div>
     );
@@ -877,6 +989,18 @@ const WorkProcessFlow: React.FC<WorkProcessFlowProps> = ({ workItem, onComplete,
 
   return (
     <div className="flex-1 flex flex-col bg-gray-50 overflow-hidden">
+      {/* 2Pair UTP 경고 모달 (info-only) */}
+      <ConfirmModal
+        isOpen={show2PairWarning}
+        onClose={() => setShow2PairWarning(false)}
+        onConfirm={() => setShow2PairWarning(false)}
+        title="구내회선 2Pair 안내"
+        message={TWO_PAIR_WARNING_MSG}
+        type="warning"
+        confirmText="확인"
+        showCancel={false}
+      />
+
       {/* 고정 헤더 영역 - 완료 배너 + 단계 인디케이터 */}
       <div className="flex-shrink-0 bg-white border-b border-gray-200 shadow-sm">
         {/* 완료된 작업 안내 배너 */}
@@ -898,6 +1022,30 @@ const WorkProcessFlow: React.FC<WorkProcessFlowProps> = ({ workItem, onComplete,
       <div className="flex-1 overflow-y-auto overflow-x-hidden">
         {renderCurrentStep()}
       </div>
+
+      {/* 후처리 이탈 경고 모달 */}
+      {showAfterProcModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          <div className="absolute inset-0 bg-black/50" />
+          <div className="relative bg-white rounded-2xl shadow-2xl mx-6 max-w-sm w-full p-6">
+            <div className="flex flex-col items-center text-center">
+              <div className="w-12 h-12 bg-amber-100 rounded-full flex items-center justify-center mb-4">
+                <svg className="w-6 h-6 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.34 16.5c-.77.833.192 2.5 1.732 2.5z" />
+                </svg>
+              </div>
+              <h3 className="text-lg font-bold text-gray-900 mb-2">후처리 확인</h3>
+              <p className="text-sm text-gray-600 mb-6">{afterProcWarning}</p>
+              <button
+                onClick={handleAfterProcModalClose}
+                className="w-full px-4 py-3 bg-primary-500 hover:bg-primary-600 active:bg-primary-700 text-white rounded-xl font-bold text-sm transition-colors"
+              >
+                닫기
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

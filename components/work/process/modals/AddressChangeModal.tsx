@@ -64,7 +64,7 @@ export const AddressChangeModal: React.FC<AddressChangeModalProps> = ({
       {!readOnly && (
         <button
           onClick={handleSave}
-          className="flex-1 px-3 sm:px-4 py-2 sm:py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm sm:text-base font-semibold transition-colors"
+          className="flex-1 px-3 sm:px-4 py-2 sm:py-2.5 bg-primary-500 hover:bg-primary-600 text-white rounded-lg text-sm sm:text-base font-semibold transition-colors"
         >
           저장
         </button>
@@ -120,7 +120,7 @@ export const AddressChangeModal: React.FC<AddressChangeModalProps> = ({
             onChange={(e) => setAddrDtl(e.target.value)}
             disabled={readOnly}
             placeholder="상세주소 입력 (예: 101동 1201호)"
-            className="w-full h-11 px-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100 disabled:text-gray-500"
+            className="w-full h-11 px-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 disabled:bg-gray-100 disabled:text-gray-500"
           />
         </div>
 
@@ -135,7 +135,7 @@ export const AddressChangeModal: React.FC<AddressChangeModalProps> = ({
             onChange={(e) => setInstlLoc(e.target.value)}
             disabled={readOnly}
             placeholder="설치위치 입력 (예: 거실, 안방)"
-            className="w-full h-11 px-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100 disabled:text-gray-500"
+            className="w-full h-11 px-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 disabled:bg-gray-100 disabled:text-gray-500"
           />
         </div>
       </div>

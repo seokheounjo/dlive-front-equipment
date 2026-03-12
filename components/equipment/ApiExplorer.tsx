@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import Select from '../ui/Select';
 
 interface ApiCall {
   id: string;
@@ -879,17 +880,12 @@ const ApiExplorer: React.FC = () => {
               {/* Category Filter */}
               <div className="mb-4">
                 <label className="block text-sm font-medium text-gray-700 mb-2">카테고리</label>
-                <select
+                <Select
                   value={categoryFilter}
-                  onChange={(e) => setCategoryFilter(e.target.value)}
-                  className="w-full border border-gray-300 rounded px-3 py-2"
-                >
-                  {categories.map((cat) => (
-                    <option key={cat} value={cat}>
-                      {cat}
-                    </option>
-                  ))}
-                </select>
+                  onValueChange={(val) => setCategoryFilter(val)}
+                  options={categories.map((cat) => ({ value: cat, label: cat }))}
+                  placeholder="카테고리 선택"
+                />
               </div>
 
               {/* Search */}

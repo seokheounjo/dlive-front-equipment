@@ -19,6 +19,7 @@ import {
   setCertifyCL06,
   getCertifyCL08,
   getCertifyProdMap,
+  setUplsWorkComplete,
 } from '../services/certifyApiService';
 import { useCertifyStore } from '../stores/certifyStore';
 
@@ -49,6 +50,79 @@ interface CL06TerminationResult {
   certifyTg: string;  // 'Y' | 'N'
   error?: string;
 }
+
+/**
+ * LGU+ 집선정보 등록 (레거시: fn_upls_WorkComplete → setUplsWorkComplete.req)
+ * 작업완료 저장 시 CL-04 호출 전에 실행
+ */
+export const executeUplsWorkComplete = async (params: {
+  order: WorkOrder;
+  workerId: string;
+  certifyRegconfInfo: any;
+  bizType: string;   // '01'=설치/상품변경/이전, '02'=A/S
+}): Promise<{ success: boolean; message: string }> => {
+  const { order, workerId, certifyRegconfInfo } = params;
+  const store = useCertifyStore.getState();
+
+  console.log('[집선등록-API] executeUplsWorkComplete 호출 (작업완료 시 실행)', {
+    bizType: params.bizType,
+    CTRT_ID: order.CTRT_ID,
+    WRK_CD: order.WRK_CD,
+    workerId,
+    certifyOpLnkdCd: store.certifyOpLnkdCd,
+    entrNo: store.entrNo,
+    entrRqstNo: store.entrRqstNo,
+    lguMarketCd: store.lguMarketCd,
+    certifyRegconfInfo: {
+      EQIP_ID: certifyRegconfInfo?.EQIP_ID,
+      EQIP_PORT_NO: certifyRegconfInfo?.EQIP_PORT_NO,
+      EQIP_DIVS: certifyRegconfInfo?.EQIP_DIVS,
+      OLT_ID: certifyRegconfInfo?.OLT_ID,
+      OLT_PORT: certifyRegconfInfo?.OLT_PORT,
+    },
+  });
+
+  if (!certifyRegconfInfo) {
+    console.log('[집선등록-API] 실패 - certifyRegconfInfo 없음');
+    return { success: false, message: '집선정보가 없습니다.' };
+  }
+
+  try {
+    const apiParams = {
+      OPLN_KD_CD: store.certifyOpLnkdCd || '',
+      ENTR_NO: store.entrNo || '',
+      ENTR_RQST_NO: store.entrRqstNo || '',
+      BIZ_TYPE: params.bizType,
+      OLT_ID: certifyRegconfInfo.OLT_ID || '',
+      OLT_PORT: certifyRegconfInfo.OLT_PORT || certifyRegconfInfo.OLT_PORT_NO || '',
+      EQIP_ID: certifyRegconfInfo.EQIP_ID || '',
+      EQIP_PORT_NO: certifyRegconfInfo.EQIP_PORT_NO || '',
+      SYS_DIVS: store.lguMarketCd || '',
+      PRSS_KD: '기가설변',
+      CUST_DIVS: 'HS',
+      EQIP_DIVS: certifyRegconfInfo.EQIP_DIVS || (['F','FG','Z','ZG'].includes(store.certifyOpLnkdCd) ? 'OLT' : 'L2'),
+      DVIC_DIVS: 'X',
+      USR_ID: workerId,
+      DEL_YN: certifyRegconfInfo.DEL_YN || 'N',
+      CTRT_ID: (['05', '07'].includes(order.WRK_CD || '') ? (order.DTL_CTRT_ID || order.CTRT_ID) : order.CTRT_ID) || '',
+    };
+
+    console.log('[집선등록-API] setUplsWorkComplete 파라미터:', apiParams);
+    const result = await setUplsWorkComplete(apiParams);
+    console.log('[집선등록-API] setUplsWorkComplete 결과:', result);
+
+    if (!result.success) {
+      console.log('[집선등록-API] 실패 - RESULT_CD:', result.RESULT_CD, 'RESULT_MSG:', result.RESULT_MSG);
+      return { success: false, message: result.RESULT_MSG || '집선등록 실패' };
+    }
+
+    console.log('[집선등록-API] 성공');
+    return { success: true, message: result.RESULT_MSG || '' };
+  } catch (error: any) {
+    console.error('[집선등록-API] setUplsWorkComplete 에러:', error);
+    return { success: false, message: error.message || 'setUplsWorkComplete 호출 실패' };
+  }
+};
 
 /**
  * CL-04 서비스 개통 등록 실행

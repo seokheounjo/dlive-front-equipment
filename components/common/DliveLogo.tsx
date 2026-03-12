@@ -1,14 +1,20 @@
 import React from 'react';
 
 /**
- * A styled text component to represent the D'LIVE logo,
- * reflecting the branding provided in the image.
- * Uses a bold, sans-serif font for a modern look.
+ * D'LIVE logo component using PNG image.
+ * Uses /dlive_logo.png (teal colored logo).
  */
-export const DliveLogo: React.FC<{ className?: string }> = ({ className }) => {
+export const DliveLogo: React.FC<{ className?: string; height?: number }> = ({ className, height = 22 }) => {
   return (
-    <div className={`font-extrabold tracking-tight ${className}`} style={{ fontFamily: `system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif` }}>
-      D'LIVE
-    </div>
+    <img
+      src="/dlive_logo.png"
+      alt="D'LIVE"
+      className={className}
+      style={{
+        height: `${height}px`,
+        width: 'auto',
+        objectFit: 'contain',
+      }}
+    />
   );
 };

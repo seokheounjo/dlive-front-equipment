@@ -4,6 +4,7 @@ import { searchCustomer, CustomerInfo } from '../../services/customerApi';
 import { debugApiCall } from './equipmentDebug';
 import { Check, ChevronDown, ChevronUp, Search, User, X, Loader2, Phone, FileText, Cpu } from 'lucide-react';
 import BarcodeScanner from './BarcodeScanner';
+import Select from '../ui/Select';
 
 // SO (jijum) info type
 interface SoInfo {
@@ -171,19 +172,16 @@ const RecoveryModal: React.FC<{
           </div>
           <div className="space-y-2">
             <label className="text-xs font-medium text-gray-700">회수 지점 선택</label>
-            <select
+            <Select
               value={selectedSoId}
-              onChange={(e) => setSelectedSoId(e.target.value)}
-              className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
+              onValueChange={(val) => setSelectedSoId(val)}
+              options={[
+                { value: '', label: '지점 선택' },
+                ...soList.map((so) => ({ value: so.SO_ID, label: `${so.SO_NM} (${so.SO_ID})` }))
+              ]}
+              placeholder="지점 선택"
               disabled={isProcessing}
-            >
-              <option value="">지점 선택</option>
-              {soList.map((so) => (
-                <option key={so.SO_ID} value={so.SO_ID}>
-                  {so.SO_NM} ({so.SO_ID})
-                </option>
-              ))}
-            </select>
+            />
           </div>
           <button
             onClick={handleProcess}

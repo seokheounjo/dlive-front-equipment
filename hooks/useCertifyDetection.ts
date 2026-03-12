@@ -13,10 +13,13 @@
 import { useState, useEffect, useMemo } from 'react';
 import { getCommonCodes } from '../services/apiService';
 import { getCertifyProdMap } from '../services/certifyApiService';
+import { useCertifyStore } from '../stores/certifyStore';
 
-interface UplsProdItem {
+export interface UplsProdItem {
   code: string;
   opLnkdCd: string;
+  refCode2: string;  // speed (500M etc) - REF_CODE2
+  refCode6: string;  // network type (N=optical etc) - REF_CODE6
 }
 
 interface UseCertifyDetectionParams {
@@ -26,7 +29,8 @@ interface UseCertifyDetectionParams {
 }
 
 interface UseCertifyDetectionResult {
-  isCertifyProd: boolean;
+  isCertifyProd: boolean;       // LGCT001 기반 (LGU+ 재판매) → U+ 전용 기능 (청약, LDAP, 포트)
+  isCertifyForLineReg: boolean; // LGCT001 OR (IS_CERTIFY_PROD+CMIF006) → 집선등록 표시용
   certifyOpLnkdCd: string;
   isLoaded: boolean;
   certifyProdList: string[];
@@ -89,6 +93,8 @@ export const useCertifyDetection = ({
         const uplsList = codes.map((item: any) => ({
           code: item.code || item.COMMON_CD,
           opLnkdCd: item.ref_code8 || '',
+          refCode2: item.ref_code2 || item.REF_CODE2 || '',
+          refCode6: item.ref_code6 || item.REF_CODE6 || '',
         }));
         setUplsProdList(uplsList);
         console.log('[useCertifyDetection] LGCT001 UPLS 상품:', uplsList.length, '개');
@@ -100,24 +106,70 @@ export const useCertifyDetection = ({
     load();
   }, []);
 
-  // isCertifyProd 판별: LGCT001에 상품이 있으면 LGU+ (레거시 동일)
+  // isCertifyProd: LGCT001 기반 (LGU+ 재판매 상품만)
+  // → U+ 전용 기능 (청약신청, LDAP연동, 포트현황 등) 제어용
   const isCertifyProd = useMemo(() => {
     const uplsItem = uplsProdList.find(item => item.code === prodCd);
     const result = !!uplsItem;
     console.log('[useCertifyDetection] PROD_CD:', prodCd, '| SO_ID:', soId,
       '| LGCT001:', uplsItem ? uplsItem.opLnkdCd : 'N/A',
-      '| result:', result);
+      '| isCertifyProd(U+):', result);
     return result;
   }, [prodCd, soId, uplsProdList]);
 
+  // isCertifyForLineReg: 집선등록 표시 판별 (레거시 mowoa03m05 CERTIFY_TG 동일)
+  // LGCT001(U+재판매) OR (IS_CERTIFY_PROD + CMIF006 SO)(일반 FTTH 인증상품)
+  const isCertifyForLineReg = useMemo(() => {
+    const uplsItem = uplsProdList.find(item => item.code === prodCd);
+    const byUpls = !!uplsItem;
+    const byField = (isCertifyProdField == 1 || isCertifyProdField == '1') &&
+      certifySoList.includes(soId);
+    const result = byUpls || byField;
+    if (result !== byUpls) {
+      console.log('[useCertifyDetection] isCertifyForLineReg:', result,
+        '| IS_CERTIFY_PROD:', isCertifyProdField, '| SO_in_CMIF006:', certifySoList.includes(soId));
+    }
+    return result;
+  }, [prodCd, soId, uplsProdList, isCertifyProdField, certifySoList]);
+
   // certifyOpLnkdCd (F/FG/Z/ZG=FTTH, N/NG=와이드)
+  // LGCT001에서 우선 조회, 없으면 빈값 (일반 인증상품은 opLnkdCd 없을 수 있음)
   const certifyOpLnkdCd = useMemo(() => {
     const uplsItem = uplsProdList.find(item => item.code === prodCd);
     return uplsItem?.opLnkdCd || '';
   }, [prodCd, uplsProdList]);
 
+  // 두 데이터셋 교차 비교 디버그 로그
+  useEffect(() => {
+    if (isLoaded && certifyProdList.length > 0 && uplsProdList.length > 0) {
+      const uplsCodes = uplsProdList.map(item => item.code);
+      const overlap = certifyProdList.filter(code => uplsCodes.includes(code));
+      const onlyCertify = certifyProdList.filter(code => !uplsCodes.includes(code));
+      const onlyUpls = uplsCodes.filter(code => !certifyProdList.includes(code));
+      console.log('[useCertifyDetection] === 데이터셋 비교 ===');
+      console.log(`  getCertifyProdMap(FTTH인증): ${certifyProdList.length}개 →`, certifyProdList);
+      console.log(`  LGCT001(LGU+재판매): ${uplsProdList.length}개 →`, uplsCodes);
+      console.log(`  교집합: ${overlap.length}개 →`, overlap);
+      console.log(`  getCertifyProdMap에만: ${onlyCertify.length}개 →`, onlyCertify);
+      console.log(`  LGCT001에만: ${onlyUpls.length}개 →`, onlyUpls);
+      console.log(`  현재 PROD_CD=${prodCd} → getCertifyProdMap: ${certifyProdList.includes(prodCd)}, LGCT001: ${!!uplsProdList.find(i => i.code === prodCd)}`);
+    }
+  }, [isLoaded, certifyProdList, uplsProdList, prodCd]);
+
+  // certifyStore에 동기화 (LineRegistration 등에서 store를 통해 참조)
+  const { setCertifyOpLnkdCd, setIsCertifyProd, setCertifyProdList: storeSetCertifyProdList } = useCertifyStore();
+  useEffect(() => {
+    if (isLoaded) {
+      setCertifyOpLnkdCd(certifyOpLnkdCd);
+      setIsCertifyProd(isCertifyProd);
+      storeSetCertifyProdList(certifyProdList);
+      console.log('[useCertifyDetection] Store 동기화: certifyOpLnkdCd=', certifyOpLnkdCd, 'isCertifyProd=', isCertifyProd, 'certifyProdList=', certifyProdList.length);
+    }
+  }, [isLoaded, certifyOpLnkdCd, isCertifyProd, certifyProdList, setCertifyOpLnkdCd, setIsCertifyProd, storeSetCertifyProdList]);
+
   return {
     isCertifyProd,
+    isCertifyForLineReg,
     certifyOpLnkdCd,
     isLoaded,
     certifyProdList,

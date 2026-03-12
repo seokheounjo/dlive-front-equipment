@@ -1,5 +1,7 @@
 import { WorkOrder, WorkOrderStatus, WorkOrderType, WorkCompleteData, InstallInfo, CommonCodeItem, WorkAlarmInfo, Vod6MonUseDateInfo, SpecialCustVod5kInfo, CustSpecialBigoInfo, AllAlarmInfo, CustomerInfoSmsRecvInfo } from '../types';
 import { getMockWorkItems } from '../utils/mockData';
+import { logApiError, logSlowApi } from './logService';
+import { Capacitor } from '@capacitor/core';
 
 // ============ 에러 타입 정의 ============
 
@@ -223,6 +225,7 @@ const fetchWithRetry = async (
 
   async function executeRequest(): Promise<Response> {
     let lastError: Error | null = null;
+    const reqStartTime = Date.now();
 
     for (let attempt = 0; attempt < maxRetries; attempt++) {
       try {
@@ -240,6 +243,11 @@ const fetchWithRetry = async (
         // 성공하면 Circuit Breaker 성공 기록
         if (response.ok) {
           circuitBreaker.recordSuccess(url);
+          // Slow API logging (5s+)
+          const elapsed = Date.now() - reqStartTime;
+          if (elapsed > 5000 && !url.includes('insertActivityLog') && !url.includes('insertDebugLog')) {
+            logSlowApi(url, options.method || 'GET', response.status, elapsed);
+          }
           return response;
         }
 
@@ -247,6 +255,9 @@ const fetchWithRetry = async (
         if (response.status >= 400 && response.status < 500) {
           // 404, 401 등 클라이언트 에러는 Circuit Breaker에 실패 기록
           circuitBreaker.recordFailure(url);
+          if (!url.includes('insertActivityLog') && !url.includes('insertDebugLog')) {
+            logApiError(url, options.method || 'GET', response.status, getErrorMessage(response.status), Date.now() - reqStartTime);
+          }
           throw new NetworkError(
             getErrorMessage(response.status),
             response.status
@@ -266,6 +277,9 @@ const fetchWithRetry = async (
           } catch (e) {
             // JSON 파싱 실패 시 기본 메시지 사용
           }
+          if (!url.includes('insertActivityLog') && !url.includes('insertDebugLog')) {
+            logApiError(url, options.method || 'GET', response.status, errorMessage, Date.now() - reqStartTime);
+          }
           throw new NetworkError(
             errorMessage,
             response.status
@@ -283,6 +297,9 @@ const fetchWithRetry = async (
           circuitBreaker.recordFailure(url);
 
           if (attempt === maxRetries - 1) {
+            if (!url.includes('insertActivityLog') && !url.includes('insertDebugLog')) {
+              logApiError(url, options.method || 'GET', 408, 'Timeout', Date.now() - reqStartTime);
+            }
             throw new NetworkError('요청 시간이 초과되었습니다. 다시 시도해주세요.', 408);
           }
         }
@@ -292,6 +309,9 @@ const fetchWithRetry = async (
           circuitBreaker.recordFailure(url);
 
           if (attempt === maxRetries - 1) {
+            if (!url.includes('insertActivityLog') && !url.includes('insertDebugLog')) {
+              logApiError(url, options.method || 'GET', 0, error.message, Date.now() - reqStartTime);
+            }
             throw new NetworkError('인터넷 연결을 확인해주세요.', undefined, error);
           }
         }
@@ -386,6 +406,9 @@ const getDummyWorkOrders = (startDate: string, endDate: string): WorkOrder[] => 
 // 로그인 API 응답 타입 (레거시 gds_user 필드 + AUTH_SO_List)
 export interface LoginResponse {
   ok: boolean;
+  code?: string;
+  message?: string;
+  LOGIN_DUP_YN?: string;
   userId?: string;
   userName?: string;
   userNameEn?: string;
@@ -416,42 +439,19 @@ export interface LoginResponse {
 // 로그인 API
 export const login = async (userId: string, password: string, disconnYn: string = 'N'): Promise<LoginResponse> => {
   const origin = typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000';
-  // Collect network type: mobile_cellular / mobile_wifi / tablet_cellular / tablet_wifi / mobile_ios / tablet_ios / pc
-  const nwType = (() => {
-    if (typeof navigator === 'undefined') return 'pc';
-    const ua = navigator.userAgent || '';
-    const conn = (navigator as any).connection;
-    if (conn) {
-      const connType = conn.type || conn.effectiveType || '';
-      const isAndroid = /Android/i.test(ua);
-      if (isAndroid) {
-        const isTablet = !/Mobile/i.test(ua);
-        const nw = connType === 'cellular' ? 'cellular' : 'wifi';
-        return isTablet ? `tablet_${nw}` : `mobile_${nw}`;
-      }
-      return 'pc';
-    }
-    // connection API not supported: iOS Safari, Mac Safari, Firefox etc.
-    if (/iPhone/i.test(ua)) return 'mobile_ios';
-    if (/iPad/i.test(ua)) return 'tablet_ios';
-    if (/Macintosh/i.test(ua) && navigator.maxTouchPoints > 0) return 'tablet_ios';
-    return 'pc';
-  })();
 
   try {
-    const response = await fetchWithRetry(`${API_BASE}/auth/login-with-otp`, {
+    const response = await fetchWithRetry(`${API_BASE}/login`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Origin': origin,
-        'X-Network-Type': nwType
+        'Origin': origin
       },
       credentials: 'include',
       body: JSON.stringify({
         USR_ID: userId,
         USR_PWD: password,
-        DISCONN_YN: disconnYn,  // Y: 기존 세션 강제 종료, N: 동시접속 체크
-        NW_TYPE: nwType
+        DISCONN_YN: disconnYn  // Y: 기존 세션 강제 종료, N: 동시접속 체크
       }),
     }, 1); // 로그인은 재시도 1회만
 
@@ -467,7 +467,7 @@ export const login = async (userId: string, password: string, disconnYn: string 
 };
 
 
-// OTP 검증 API
+// OTP 검증 응답
 export interface OtpVerifyResponse {
   ok: boolean;
   code?: string;
@@ -475,6 +475,7 @@ export interface OtpVerifyResponse {
   errorCount?: number;
 }
 
+// OTP 검증 API
 export const verifyOtp = async (userId: string, otpCode: string): Promise<OtpVerifyResponse> => {
   const origin = typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000';
 
@@ -913,11 +914,17 @@ export const cancelWork = async (cancelData: any): Promise<{ code: string; messa
       body: JSON.stringify(cancelData),
     });
 
+    const result = await response.json();
+
     if (!response.ok) {
-      throw new Error(`작업취소 실패: ${response.status}`);
+      // 서버 응답 body에서 에러 메시지 추출
+      const serverMsg = result.message || result.MESSAGE || result.msg || '';
+      if (serverMsg) {
+        return { code: 'ERROR', message: serverMsg };
+      }
+      return { code: 'ERROR', message: `작업취소 실패 (${response.status})` };
     }
 
-    const result = await response.json();
     return result;
   } catch (error) {
     console.error('작업취소 API 호출 실패:', error);
@@ -988,7 +995,7 @@ export const getWorkCancelInfo = async (params: {
         'Origin': origin
       },
       credentials: 'include',
-      body: JSON.stringify(params),
+      body: JSON.stringify({ ...params, PROC_CL: 'A10' }),
     });
 
     const result = await response.json();
@@ -1123,6 +1130,11 @@ export const modOstWorkCancel = async (params: {
 
 // API 엔드포인트: 환경별 최적화
 export const API_BASE = typeof window !== 'undefined' ? (() => {
+  // Capacitor 네이티브 앱이면 EC2 프록시 경유 (외부망에서도 동작)
+  if (Capacitor.isNativePlatform()) {
+    return 'http://52.63.131.157/api';
+  }
+
   const hostname = window.location.hostname;
   const protocol = window.location.protocol;
 
@@ -1280,6 +1292,8 @@ export const getWorkOrders = async ({ startDate, endDate }: { startDate: string,
         WRK_STATS: apiOrder.WRK_STATS || '',         // 작업상태 목록 (진행중/완료/취소, "/" 구분)
         // 원스톱 작업 가능 상태 (0:불가, 1:철거만가능, 2:철거완료, 3:완료, 4:화면접수불가/설치불가, X:OST아님)
         OST_WORKABLE_STAT: apiOrder.OST_WORKABLE_STAT || '',
+        // 재약정 대상 여부 (TCMCU_CUST_CLOSE_DANGER 테이블에서 조회)
+        CLOSE_DANGER: apiOrder.CLOSE_DANGER || 'N',
       };
     });
 
@@ -1530,6 +1544,7 @@ export interface SafetyCheckResult {
   ANSWER_VALUE?: string;
   DISPLAY_ORDER?: number;
   REG_DATE?: string;
+  IMAGE_PATH?: string | null;
 }
 
 export const getSafetyCheckResultInfo = async (wrkrId: string): Promise<SafetyCheckResult[]> => {
@@ -2629,21 +2644,15 @@ export const checkStbServerConnection = async (
     console.log('[STB API] 요청 데이터:', requestBody);
     console.log('[STB API] fetch 호출 시작...');
 
-    const response = await fetch(url, {
+    const response = await fetchWithRetry(url, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify(requestBody),
-    });
+    }, 1, 60000);
 
     console.log('[STB API] 응답 상태:', response.status, response.statusText);
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error('[STB API] HTTP 에러 응답:', errorText);
-      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-    }
 
     const data = await response.json();
     console.log('[STB API] 응답 데이터:', data);
@@ -3016,6 +3025,55 @@ export const saveInstallInfo = async (installInfo: InstallInfo): Promise<any> =>
 };
 
 /**
+ * 설치구분 단가 존재여부 체크
+ * Legacy: /customer/work/getChkWorkFee.req
+ * @param params 단가 체크 파라미터
+ * @returns 단가 존재여부 (data 배열이 비어있으면 미등록)
+ */
+export const getChkWorkFee = async (params: {
+  FEE_TYPE: string;
+  WRK_ID: string;
+  ADDR_ORD: string;
+  WRK_DTL_TCD: string;
+  CTRT_ID: string;
+  SO_ID: string;
+  INSTL_TP: string;
+  WRNG_TP: string;
+  INOUT_LEN: string;
+  WRK_CD: string;
+}): Promise<any> => {
+  console.log('[단가 존재여부 체크] API 호출:', params);
+
+  if (checkDemoMode()) {
+    await new Promise(resolve => setTimeout(resolve, 300));
+    return { code: 'SUCCESS', data: [], count: '0' };
+  }
+
+  try {
+    const origin = typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000';
+    const response = await fetchWithRetry(`${API_BASE}/customer/work/getChkWorkFee`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Origin': origin
+      },
+      credentials: 'include',
+      body: JSON.stringify(params),
+    }, 1);
+
+    const result = await response.json();
+    console.log('[단가 존재여부 체크] API 응답:', result);
+    return result;
+  } catch (error: any) {
+    console.error('[단가 존재여부 체크] API 실패:', error);
+    if (error instanceof NetworkError) {
+      throw error;
+    }
+    throw new NetworkError(error.message || '단가 존재여부 체크 중 오류가 발생했습니다.');
+  }
+};
+
+/**
  * 공통 코드 조회
  * @param codeGroup 코드 그룹 (예: CMCU048 - 망구분, BLST010 - 설치유형)
  * @returns 공통 코드 목록
@@ -3101,6 +3159,7 @@ export const getCommonCodes = async (codeGroup: string): Promise<CommonCodeItem[
         ref_code: item.REF_CODE || item.ref_code || '',
         ref_code2: item.REF_CODE2 || item.ref_code2 || '',
         ref_code3: item.REF_CODE3 || item.ref_code3 || '',
+        ref_code6: item.REF_CODE6 || item.ref_code6 || '',
         ref_code8: item.REF_CODE8 || item.ref_code8 || '',
         ref_code12: item.REF_CODE12 || item.ref_code12 || '',
       }));
@@ -3500,12 +3559,12 @@ export const processEquipmentLoss = async (params: {
 export const setEquipmentCheckStandby = async (params: {
   EQT_NO: string;
 }): Promise<any> => {
-  console.log('[fn:setEquipmentCheckStandby -> req:setEquipmentChkStndByY_ForM] API:', params);
+  console.log('[장비상태변경] API 호출:', params);
 
   try {
     const origin = typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000';
 
-    const response = await fetch(`${API_BASE}/customer/equipment/setEquipmentChkStndByY_ForM`, {
+    const response = await fetchWithRetry(`${API_BASE}/customer/equipment/setEquipmentChkStndByY`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -3516,34 +3575,15 @@ export const setEquipmentCheckStandby = async (params: {
     });
 
     const result = await response.json();
+    console.log('장비 상태 변경 성공:', result);
 
-    // debugLogs from backend
-    if (result.debugLogs) {
-      console.log('[backend debug logs]');
-      result.debugLogs.forEach((log: string) => console.log(log));
-    }
-
-    // HTTP 400: business rule error
-    if (response.status === 400 && result.code === 'BUSINESS_RULE_ERROR') {
-      console.error('business rule error:', result.message);
-      throw new Error(result.message || 'business rule error');
-    }
-
-    // HTTP 500: technical error
-    if (!response.ok) {
-      console.error('equipment status change failed:', result);
-      const errMsg = result.message || result.error || `server error (HTTP ${response.status})`;
-      throw new Error(errMsg);
-    }
-
-    console.log('equipment status change success:', result);
     return result;
   } catch (error: any) {
-    console.error('equipment status change failed:', error);
-    if (error instanceof Error) {
+    console.error('장비 상태 변경 실패:', error);
+    if (error instanceof NetworkError) {
       throw error;
     }
-    throw new Error('equipment status change failed.');
+    throw new NetworkError('장비 상태 변경에 실패했습니다.');
   }
 };
 
@@ -3576,9 +3616,7 @@ export const getEquipmentHistoryInfo = async (params: {
     const result = await response.json();
     console.log('장비 조회 성공:', result);
 
-    // 응답 구조: {success, data: [...], count} 또는 직접 배열
-    const data = result?.data || result;
-    return Array.isArray(data) ? data : [data];
+    return Array.isArray(result) ? result[0] : result;
   } catch (error: any) {
     console.error('장비 조회 실패:', error);
     if (error instanceof NetworkError) {
@@ -3594,93 +3632,35 @@ export const getEquipmentHistoryInfo = async (params: {
  * @returns 처리 결과
  */
 export const changeEquipmentWorker = async (params: {
-  SO_ID: string;
   EQT_NO: string;
-  EQT_SERNO: string;
-  CHG_UID: string;
-  MV_SO_ID: string;
-  MV_CRR_ID: string;
-  MV_WRKR_ID: string;
+  FROM_WRKR_ID: string;
+  TO_WRKR_ID: string;
 }): Promise<any> => {
-  const apiCallId = `API_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`;
-  const apiStartTime = Date.now();
-
-  // backend compat: add TO_WRKR_ID, WRKR_ID
-  const requestBody = {
-    ...params,
-    TO_WRKR_ID: params.MV_WRKR_ID,
-    WRKR_ID: params.MV_WRKR_ID,
-  };
-
-  console.log(`[fn:changeEquipmentWorker -> req:changeEqtWrkr_3_ForM] ${apiCallId}`);
-  console.log('params:', JSON.stringify(requestBody, null, 2));
+  console.log('👤 [장비인수] API 호출:', params);
 
   try {
-    const apiUrl = `${API_BASE}/customer/equipment/changeEqtWrkr_3_ForM`;
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 30000);
+    const origin = typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000';
 
-    const response = await fetch(apiUrl, {
+    const response = await fetchWithRetry(`${API_BASE}/customer/equipment/changeEqtWrkr_3`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        'Origin': origin
+      },
       credentials: 'include',
-      body: JSON.stringify(requestBody),
-      signal: controller.signal
+      body: JSON.stringify(params),
     });
 
-    clearTimeout(timeoutId);
-    const duration = Date.now() - apiStartTime;
+    const result = await response.json();
+    console.log('장비 인수 성공:', result);
 
-    console.log(`[${apiCallId}] HTTP ${response.status} (${duration}ms)`);
-
-    const responseText = await response.text();
-    console.log(`[${apiCallId}] RAW:`, responseText);
-
-    let result;
-    try {
-      result = JSON.parse(responseText);
-      console.log(`[${apiCallId}] PARSED:`, JSON.stringify(result, null, 2));
-    } catch (parseError) {
-      console.error(`[${apiCallId}] JSON parse failed`);
-      throw new Error('server response parse failed');
-    }
-
-    const msgCode = result?.MSGCODE;
-    const message = result?.MESSAGE || result?.message || '';
-
-    // MSGCODE === "SUCCESS" -> success regardless of HTTP status
-    if (msgCode === 'SUCCESS') {
-      console.log(`[${apiCallId}] SUCCESS (MSGCODE=SUCCESS, ${duration}ms)`);
-      return result;
-    }
-
-    // MSGCODE === "FAIL" -> error
-    if (msgCode === 'FAIL') {
-      throw new Error(message || 'Oracle procedure failed (MSGCODE=FAIL)');
-    }
-
-    // HTTP error
-    if (!response.ok) {
-      const errMsg = message || result?.error || result?.code || `server error (HTTP ${response.status})`;
-      throw new Error(errMsg);
-    }
-
-    // error keywords
-    if (message && (message.includes('ERROR') || message.includes('FAIL'))) {
-      throw new Error(message);
-    }
-
-    console.log(`[${apiCallId}] SUCCESS (${duration}ms)`);
     return result;
-
   } catch (error: any) {
-    const duration = Date.now() - apiStartTime;
-    console.error(`[${apiCallId}] FAILED (${duration}ms):`, error.message);
-
-    if (error.name === 'AbortError') {
-      throw new Error('Request timeout (30s).');
+    console.error('장비 인수 실패:', error);
+    if (error instanceof NetworkError) {
+      throw error;
     }
-    throw error instanceof Error ? error : new Error('equipment transfer failed.');
+    throw new NetworkError('장비 인수에 실패했습니다.');
   }
 };
 
@@ -3759,61 +3739,33 @@ export const findUserList = async (params: {
   USR_NM?: string;
   USR_ID?: string;
   SO_ID?: string;
-  CRR_ID?: string;
 }): Promise<any[]> => {
-  console.log('[fn:findUserList -> req:getFindUsrList3] API:', params);
+  console.log('[기사검색] API 호출:', params);
 
   try {
     const origin = typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000';
 
-    // Clean params + backend compat (WRKR_NM, WRKR_ID)
-    const searchParams: any = {};
-    if (params.USR_NM && params.USR_NM.trim()) {
-      searchParams.USR_NM = params.USR_NM.trim();
-      searchParams.WRKR_NM = params.USR_NM.trim();
-    }
-    if (params.USR_ID && params.USR_ID.trim()) {
-      searchParams.USR_ID = params.USR_ID.trim();
-      searchParams.WRKR_ID = params.USR_ID.trim();
-    }
-    if (params.SO_ID) {
-      searchParams.SO_ID = params.SO_ID;
-    }
-    if (params.CRR_ID) {
-      searchParams.CRR_ID = params.CRR_ID;
-    }
-
-    console.log('[findUserList] cleaned params:', searchParams);
-
-    const response = await fetchWithRetry(`${API_BASE}/system/cm/getFindUsrList3`, {
+    const response = await fetchWithRetry(`${API_BASE}/system/cm/getFindUsrList`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'Origin': origin
       },
       credentials: 'include',
-      body: JSON.stringify(searchParams),
+      body: JSON.stringify(params),
     });
 
     const result = await response.json();
-    console.log('findUserList result:', result);
+    console.log('기사 검색 성공:', result);
 
-    if (Array.isArray(result)) {
-      return result;
-    }
-    if (result.output1 && Array.isArray(result.output1)) {
-      return result.output1;
-    }
-    if (result.data && Array.isArray(result.data)) {
-      return result.data;
-    }
-    return [];
+    // API 응답: {data: [...], count: N} 또는 배열 직접 반환
+    return Array.isArray(result) ? result : (result.data || result.output1 || []);
   } catch (error: any) {
-    console.error('findUserList failed:', error);
+    console.error('기사 검색 실패:', error);
     if (error instanceof NetworkError) {
       throw error;
     }
-    throw new NetworkError('findUserList failed.');
+    throw new NetworkError('기사 검색에 실패했습니다.');
   }
 };
 
@@ -4033,7 +3985,7 @@ export const getUnreturnedEquipmentList = async (params: {
   try {
     const origin = typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000';
 
-    const response = await fetchWithRetry(`${API_BASE}/customer/work/getEquipLossInfo_ForM`, {
+    const response = await fetchWithRetry(`${API_BASE}/customer/work/getEquipLossInfo`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -4080,7 +4032,7 @@ export const processEquipmentRecovery = async (params: {
   try {
     const origin = typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000';
 
-    const response = await fetchWithRetry(`${API_BASE}/customer/work/modEquipLoss_ForM`, {
+    const response = await fetchWithRetry(`${API_BASE}/customer/work/modEquipLoss`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -4368,7 +4320,7 @@ export const sendSignal = async (params: SignalParams): Promise<SignalResult> =>
       },
       credentials: 'include',
       body: JSON.stringify(params),
-    });
+    }, 1, 60000);
 
     const result = await response.json();
     console.log('📡 [신호전송] 응답:', result);
@@ -4405,7 +4357,7 @@ export const sendMetroSignal = async (params: MetroSignalParams): Promise<Signal
       },
       credentials: 'include',
       body: JSON.stringify(params),
-    });
+    }, 1, 60000);
 
     const result = await response.json();
     console.log('📡 [광랜신호] 응답:', result);
@@ -4439,7 +4391,7 @@ export const sendPortCloseSignal = async (params: Omit<MetroSignalParams, 'msg_i
       },
       credentials: 'include',
       body: JSON.stringify(params),
-    });
+    }, 1, 60000);
 
     const result = await response.json();
     console.log('📡 [포트정지] 응답:', result);
@@ -4473,7 +4425,7 @@ export const sendPortOpenSignal = async (params: Omit<MetroSignalParams, 'msg_id
       },
       credentials: 'include',
       body: JSON.stringify(params),
-    });
+    }, 1, 60000);
 
     const result = await response.json();
     console.log('📡 [포트개통] 응답:', result);
@@ -4507,7 +4459,7 @@ export const sendPortResetSignal = async (params: Omit<MetroSignalParams, 'msg_i
       },
       credentials: 'include',
       body: JSON.stringify(params),
-    });
+    }, 1, 60000);
 
     const result = await response.json();
     console.log('📡 [포트리셋] 응답:', result);
@@ -4555,7 +4507,7 @@ export const insertWorkRemoveStat = async (params: {
   try {
     const userInfo = localStorage.getItem('userInfo');
     const user = userInfo ? JSON.parse(userInfo) : {};
-    const userId = params.REG_UID || user.userId || 'A20130708';
+    const userId = params.REG_UID || user.userId || '';
 
     const requestData = {
       WRK_ID: params.WRK_ID,
@@ -4598,6 +4550,58 @@ export const insertWorkRemoveStat = async (params: {
 };
 
 /**
+ * insertRcptProcInfo - A/S 망이관 (망관리보관 처리창 등록)
+ * Legacy: mowoDivA.xml btn_net_OnClick -> negociationDao.insertRcptProcInfo
+ */
+export const insertRcptProcInfo = async (params: {
+  SO_ID?: string;
+  CRR_ID?: string;
+  DEPT_CD?: string;
+  RCPT_ID: string;
+  PROC_CT: string;
+  PROC_PSN_ID: string;
+  USER_ID: string;
+  CTRT_ID: string;
+  WRK_ID: string;
+  TEL_NO: string;
+  KKO_MSG_ID: string;
+}): Promise<{ code: string; message: string }> => {
+  console.log('[망이관 API] insertRcptProcInfo 호출:', params);
+
+  if (checkDemoMode()) {
+    await new Promise(resolve => setTimeout(resolve, 500));
+    return { code: 'SUCCESS', message: '작업처리정보 저장되었습니다 (더미)' };
+  }
+
+  try {
+    const response = await fetch(`${API_BASE}/customer/negociation/insertRcptProcInfo`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify(params),
+    });
+
+    const result = await response.json();
+    console.log('[망이관 API] 응답:', result);
+
+    if (response.ok || result.code === 'SUCCESS' || result.success === true) {
+      return { code: 'SUCCESS', message: '작업처리정보 저장되었습니다.' };
+    } else {
+      return {
+        code: 'ERROR',
+        message: result.message || result.msg || '망이관 처리에 실패했습니다.',
+      };
+    }
+  } catch (error: any) {
+    console.error('[망이관 API] 오류:', error);
+    return {
+      code: 'ERROR',
+      message: error.message || '망이관 처리 중 오류가 발생했습니다.',
+    };
+  }
+};
+
+/**
  * AS할당 (modAsPdaReceipt)
  * - 레거시 customer/work/modAsPdaReceipt.req 호출
  * - 미철거 시 AS작업 할당
@@ -4631,6 +4635,7 @@ export const modAsPdaReceipt = async (params: {
   ADDR?: string;
   ADDR_DTL?: string;
 }): Promise<{ code: string; message: string }> => {
+  console.log('[AS할당 API] modAsPdaReceipt 호출:', params);
 
   // 더미 모드 체크
   if (checkDemoMode()) {
@@ -4641,7 +4646,7 @@ export const modAsPdaReceipt = async (params: {
   try {
     const userInfo = localStorage.getItem('userInfo');
     const user = userInfo ? JSON.parse(userInfo) : {};
-    const userId = params.REG_UID || user.userId || 'A20130708';
+    const userId = params.REG_UID || user.userId || '';
     const crrId = params.CRR_ID || user.crrId || '01';
 
     const requestData = {
@@ -4673,6 +4678,7 @@ export const modAsPdaReceipt = async (params: {
       ADDR_DTL: params.ADDR_DTL || '',
     };
 
+    console.log('[AS할당 API] 요청 데이터:', requestData);
 
     const response = await fetch(`${API_BASE}/customer/work/modAsPdaReceipt`, {
       method: 'POST',
@@ -4684,6 +4690,7 @@ export const modAsPdaReceipt = async (params: {
     });
 
     const result = await response.json();
+    console.log('[AS할당 API] 응답:', result);
 
     // 서버 응답이 배열이거나 성공 코드인 경우 성공으로 처리
     if (Array.isArray(result) || result.code === 'SUCCESS' || result.success === true) {
@@ -5517,6 +5524,85 @@ export const getCtrtDetailInfo = async (ctrtId: string, custId?: string): Promis
 };
 
 /**
+ * Contract Equipment List (getCtrtDetailInfo3)
+ * Legacy: /customer/negociation/getCtrtDetailInfo3.req
+ * Returns: ds_eqt_cust (EQT_NO, ITEM_MID_CD, EQT_CL, EQT_PROD_CMPS_ID, etc.)
+ */
+export interface CtrtEquipment {
+  EQT_NO?: string;
+  EQT_CL?: string;
+  ITEM_MID_CD?: string;
+  EQT_PROD_CMPS_ID?: string;
+  EQT_NM?: string;
+  EQT_SERNO?: string;
+  MAC_ADDR?: string;
+  EQT_STAT_CD?: string;
+  [key: string]: any;
+}
+
+export const getCtrtEquipmentList = async (ctrtId: string): Promise<CtrtEquipment[]> => {
+  console.log('[Contract API] getCtrtEquipmentList:', ctrtId);
+  try {
+    const response = await fetch(`${API_BASE}/customer/contract/getCtrtDetailInfo3`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify({ CTRT_ID: ctrtId }),
+    });
+    if (!response.ok) return [];
+    const result = await response.json();
+    const outputData = result.output?.output || result.output;
+    if (Array.isArray(outputData)) return outputData;
+    if (Array.isArray(result)) return result;
+    return [];
+  } catch (error) {
+    console.error('[Contract API] getCtrtEquipmentList error:', error);
+    return [];
+  }
+};
+
+/**
+ * Product Promo Info (getCtrtDetailInfo2)
+ * Legacy: /customer/negociation/getCtrtDetailInfo2.req
+ * Returns: ds_prod_promo_info (PROD_CMPS_CL, PROD_CD, PROD_GRP, PROD_TYP, VOIP_JOIN_ID, etc.)
+ */
+export interface ProdPromoInfo {
+  PROD_CMPS_ID?: string;
+  PROD_CMPS_CL?: string;
+  PROD_CD?: string;
+  PROD_NM?: string;
+  PROD_GRP?: string;
+  PROD_TYP?: string;
+  VOIP_JOIN_ID?: string;
+  VOIP_TEL_NO?: string;
+  UP_PROD_CD?: string;
+  BASIC_PROD_FL?: string;
+  IP_CNT?: string;
+  [key: string]: any;
+}
+
+export const getProdPromoInfo = async (ctrtId: string): Promise<ProdPromoInfo[]> => {
+  console.log('[Contract API] getProdPromoInfo:', ctrtId);
+  try {
+    const response = await fetch(`${API_BASE}/customer/contract/getCtrtDetailInfo2`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify({ CTRT_ID: ctrtId }),
+    });
+    if (!response.ok) return [];
+    const result = await response.json();
+    const outputData = result.output?.output || result.output;
+    if (Array.isArray(outputData)) return outputData;
+    if (Array.isArray(result)) return result;
+    return [];
+  } catch (error) {
+    console.error('[Contract API] getProdPromoInfo error:', error);
+    return [];
+  }
+};
+
+/**
  * After Process Info (작업완료 후 추가 처리 정보)
  * - WRK_DRCTN_PRNT_YN: 전자청약 진행 여부
  * - CLOSE_DANGER: 재약정 대상 여부
@@ -6033,9 +6119,11 @@ export interface CustEqtInfoDelParams {
   SO_ID?: string;
   BASIC_PROD_CMPS_ID?: string;
   EQT_NO: string;
+  EQT_SERNO?: string;
   ITEM_MID_CD?: string;
   EQT_CL_CD?: string;
   EQT_CL?: string;
+  EQT_CL_NM?: string;
   REG_UID?: string;
   IF_DTL_ID?: string;
   OLD_LENT_YN?: string;
@@ -6133,6 +6221,11 @@ export const getLghvProdMap = async (): Promise<LghvProdMapItem[]> => {
 
     if (Array.isArray(result)) {
       return result;
+    }
+    // Legacy service wraps result in {output: [...]} or {output: {output: [...]}}
+    const outputData = result.output?.output || result.output;
+    if (outputData && Array.isArray(outputData)) {
+      return outputData;
     }
     if (result.data && Array.isArray(result.data)) {
       return result.data;
@@ -6830,6 +6923,12 @@ export interface LghvSendHistory {
   PROC_RSLT_CD: string;
   PROC_RSLT_CD_NM: string;
   REG_UID: string;
+  STATUS_DATE: string;
+  STATUS: string;
+  RS_FMSG: string;
+  SMS_TAG: string;
+  HOST_MAC: string;
+  SO_NM: string;
 }
 
 export interface LghvSvcResult {
@@ -6864,6 +6963,7 @@ export const getLghvSendHist = async (params: {
   CALL_GB?: string;
 }): Promise<LghvSendHistory[]> => {
   try {
+    console.log('[LGHV API] getLghvSendHist 요청:', JSON.stringify(params));
     const response = await fetch(`${API_BASE}/customer/sigtrans/getLghvSendHist`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -6872,14 +6972,15 @@ export const getLghvSendHist = async (params: {
     });
 
     if (!response.ok) {
-      console.error('[Signal API] getLghvSendHist HTTP error:', response.status);
+      console.error('[LGHV API] getLghvSendHist HTTP error:', response.status, await response.text().catch(() => ''));
       return [];
     }
 
     const result = await response.json();
+    console.log('[LGHV API] getLghvSendHist 응답:', result.output?.length ?? 0, '건', result);
     return result.output || [];
   } catch (error) {
-    console.error('[Signal API] getLghvSendHist error:', error);
+    console.error('[LGHV API] getLghvSendHist error:', error);
     return [];
   }
 };
@@ -7123,6 +7224,123 @@ export const getSvcMsgInfo = async (): Promise<SvcMsgInfo[]> => {
   }
 };
 
+// ============ Signal Re-send / Error Resend APIs (moifa01m04 action buttons) ============
+
+/**
+ * Replay existing signal (re-send)
+ * Legacy: replayShinho.req -> sigtransManagement.replayShinho
+ */
+export const replayShinho = async (params: { REG_UID: string; IF_DTL_ID: string }): Promise<{ RSLT_MSG?: string }> => {
+  try {
+    const response = await fetch(`${API_BASE}/customer/sigtrans/replayShinho`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify(params),
+    });
+    if (!response.ok) {
+      console.error('[Signal API] replayShinho HTTP error:', response.status);
+      return {};
+    }
+    return await response.json();
+  } catch (error) {
+    console.error('[Signal API] replayShinho error:', error);
+    return {};
+  }
+};
+
+/**
+ * Error resend (modSvcDtlErrResend)
+ * Legacy: modSvcDtlErrResend.req -> sigtransManagement.modSvcDtlErrResend
+ */
+export const modSvcDtlErrResend = async (ifDtlId: string): Promise<{ RSLT_MSG?: string }> => {
+  try {
+    const response = await fetch(`${API_BASE}/customer/sigtrans/modSvcDtlErrResend`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify({ IF_DTL_ID: ifDtlId }),
+    });
+    if (!response.ok) {
+      console.error('[Signal API] modSvcDtlErrResend HTTP error:', response.status);
+      return {};
+    }
+    return await response.json();
+  } catch (error) {
+    console.error('[Signal API] modSvcDtlErrResend error:', error);
+    return {};
+  }
+};
+
+/**
+ * iTV init resend (modSvcDtlErrResend_2)
+ * Legacy: modSvcDtlErrResend_2.req -> sigtransManagement.modSvcDtlErrResend_2
+ */
+export const modSvcDtlErrResend_2 = async (ifDtlId: string): Promise<{ RSLT_MSG?: string }> => {
+  try {
+    const response = await fetch(`${API_BASE}/customer/sigtrans/modSvcDtlErrResend_2`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify({ IF_DTL_ID: ifDtlId }),
+    });
+    if (!response.ok) {
+      console.error('[Signal API] modSvcDtlErrResend_2 HTTP error:', response.status);
+      return {};
+    }
+    return await response.json();
+  } catch (error) {
+    console.error('[Signal API] modSvcDtlErrResend_2 error:', error);
+    return {};
+  }
+};
+
+/**
+ * VoIP resend - phone number / RCF in use (reProc4VoipShinho_1)
+ * Legacy: reProc4VoipShinho_1.req -> sigtransManagement.reProc4VoipShinho_1
+ */
+export const reProc4VoipShinho_1 = async (params: { VOIP_TEL_NO: string; CTRT_ID: string }): Promise<{ MESSAGE?: string }> => {
+  try {
+    const response = await fetch(`${API_BASE}/customer/sigtrans/reProc4VoipShinho_1`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify(params),
+    });
+    if (!response.ok) {
+      console.error('[Signal API] reProc4VoipShinho_1 HTTP error:', response.status);
+      return {};
+    }
+    return await response.json();
+  } catch (error) {
+    console.error('[Signal API] reProc4VoipShinho_1 error:', error);
+    return {};
+  }
+};
+
+/**
+ * VoIP resend - MACADDR in use (reProc4VoipShinho_2)
+ * Legacy: reProc4VoipShinho_2.req -> sigtransManagement.reProc4VoipShinho_2
+ */
+export const reProc4VoipShinho_2 = async (params: { VOIP_TEL_NO: string; CTRT_ID: string }): Promise<{ MESSAGE?: string }> => {
+  try {
+    const response = await fetch(`${API_BASE}/customer/sigtrans/reProc4VoipShinho_2`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify(params),
+    });
+    if (!response.ok) {
+      console.error('[Signal API] reProc4VoipShinho_2 HTTP error:', response.status);
+      return {};
+    }
+    return await response.json();
+  } catch (error) {
+    console.error('[Signal API] reProc4VoipShinho_2 error:', error);
+    return {};
+  }
+};
+
 // ============ Customer Search APIs (for Signal Integration) ============
 
 export interface CustomerSearchResult {
@@ -7215,9 +7433,94 @@ export const getContractList = async (custId: string): Promise<any[]> => {
   }
 };
 
-// ============================================================
-// Equipment-only functions (from equipment frontend)
-// ============================================================
+// ==================== 2Pair Area Check APIs ====================
+
+/**
+ * Building ETC Info Query (2Pair area check)
+ * Returns OPT_TYP, LGU_NET_YN, DLV_NET_YN etc.
+ */
+export const getBldEtcInfo = async (bldId: string): Promise<any[]> => {
+  try {
+    const response = await fetch(`${API_BASE}/customer/etc/getBldEtcInfo`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify({ BLD_ID: bldId }),
+    });
+    if (!response.ok) return [];
+    const result = await response.json();
+    return Array.isArray(result) ? result : (result.records || result.output || []);
+  } catch (error) {
+    console.error('[2Pair] getBldEtcInfo error:', error);
+    return [];
+  }
+};
+
+/**
+ * NB Guide - Check if already guided today
+ * Returns list of records (count > 0 means already guided today)
+ */
+export const getNBGuide = async (custId: string, regUid: string): Promise<any[]> => {
+  try {
+    const response = await fetch(`${API_BASE}/customer/receipt/getNBGuide`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify({ CUST_ID: custId, REG_UID: regUid }),
+    });
+    if (!response.ok) return [];
+    const result = await response.json();
+    return Array.isArray(result) ? result : (result.records || result.output || []);
+  } catch (error) {
+    console.error('[NB Guide] getNBGuide error:', error);
+    return [];
+  }
+};
+
+/**
+ * NB Guide - Save guide result
+ * GUIDE_CDS: concatenated check values (e.g. "A00NNN" or "NB01NC01N")
+ */
+export const saveNBGuide = async (wrkId: string, guideCds: string, regUid: string, noGuideCds?: string): Promise<any> => {
+  try {
+    const response = await fetch(`${API_BASE}/customer/receipt/saveNBGuide`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify({ WRK_ID: wrkId, GUIDE_CDS: guideCds, NO_GUIDE_CDS: noGuideCds || '', REG_UID: regUid }),
+    });
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+    }
+    return await response.json();
+  } catch (error) {
+    console.error('[NB Guide] saveNBGuide error:', error);
+    throw error;
+  }
+};
+
+/**
+ * Product Service Info Query (2Pair own-product check)
+ * Returns KPI_SVC_GRP_CD etc.
+ */
+export const getTpProdSvc = async (prodCd: string): Promise<any[]> => {
+  try {
+    const response = await fetch(`${API_BASE}/customer/etc/getTpProdSvc`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify({ PROD_TYP: '11', PROD_CD: prodCd, SVC_CD: '', KPI_SVC_GRP_CD: '' }),
+    });
+    if (!response.ok) return [];
+    const result = await response.json();
+    return Array.isArray(result) ? result : (result.records || result.output || []);
+  } catch (error) {
+    console.error('[2Pair] getTpProdSvc error:', error);
+    return [];
+  }
+};
+
+// ============ 석현 머지: 추가 함수들 ============
 
 export const getOwnEqtLstForMobile3 = async (params: {
   WRKR_ID: string;
@@ -7227,33 +7530,21 @@ export const getOwnEqtLstForMobile3 = async (params: {
   EQT_CL_CD?: string;
 }): Promise<any[]> => {
   console.log('[getOwnEqtLstForMobile3] API call:', params);
-
   try {
     const origin = typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000';
-
     const response = await fetchWithRetry(`${API_BASE}/customer/equipment/getOwnEqtLstForMobile_3`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Origin': origin
-      },
+      headers: { 'Content-Type': 'application/json', 'Origin': origin },
       credentials: 'include',
       body: JSON.stringify(params),
     });
-
     const result = await response.json();
-    console.log('[getOwnEqtLstForMobile3] success:', result);
-
     if (!result) return [];
-    if (result.data && Array.isArray(result.data)) {
-      return result.data;
-    }
+    if (result.data && Array.isArray(result.data)) return result.data;
     return Array.isArray(result) ? result : result.output1 || [];
   } catch (error: any) {
     console.error('[getOwnEqtLstForMobile3] failed:', error);
-    if (error instanceof NetworkError) {
-      throw error;
-    }
+    if (error instanceof NetworkError) throw error;
     throw new NetworkError('Equipment return list query failed.');
   }
 };
@@ -7266,22 +7557,15 @@ export const getWrkrListDetail = async (params: {
   EQT_SERNO: string;
 }): Promise<any> => {
   console.log('[getWrkrListDetail] API call:', params);
-
   try {
     const origin = typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000';
-
     const response = await fetchWithRetry(`${API_BASE}/customer/equipment/getWrkrListDetail`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Origin': origin
-      },
+      headers: { 'Content-Type': 'application/json', 'Origin': origin },
       credentials: 'include',
       body: JSON.stringify(params),
     });
-
     const result = await response.json();
-    console.log('[getWrkrListDetail] Result:', result);
     return result;
   } catch (error: any) {
     console.error('[getWrkrListDetail] Failed:', error);
@@ -7294,7 +7578,6 @@ export const searchWorkersByName = async (params: {
   CRR_ID?: string;
 }): Promise<any[]> => {
   console.log('[searchWorkersByName] search:', params);
-
   try {
     const response = await fetchWithRetry(`${API_BASE}/customer/equipment/searchWorkersByName`, {
       method: 'POST',
@@ -7305,9 +7588,7 @@ export const searchWorkersByName = async (params: {
       body: JSON.stringify(params),
       credentials: 'include'
     });
-
     const result = await response.json();
-    console.log('[searchWorkersByName] result:', result.length);
     return Array.isArray(result) ? result : [];
   } catch (error: any) {
     console.error('[searchWorkersByName] failed:', error);
@@ -7317,17 +7598,10 @@ export const searchWorkersByName = async (params: {
 
 export const getWrkrHaveEqtList = getWorkerEquipmentList;
 
-/**
- * Backend debug log helper
- */
 const printBackendDebugLogs = (endpoint: string, result: any, isSuccess: boolean): void => {
-  if (!result?.debugLogs || !Array.isArray(result.debugLogs) || result.debugLogs.length === 0) {
-    return;
-  }
-
+  if (!result?.debugLogs || !Array.isArray(result.debugLogs) || result.debugLogs.length === 0) return;
   const status = isSuccess ? 'SUCCESS' : 'FAILED';
   console.group(`[Backend Debug - ${status}] ${endpoint}`);
-
   result.debugLogs.forEach((log: string) => {
     if (log.includes('SUCCESS') || log.includes('API_CALL_SUCCESS')) {
       console.log('%c' + log, 'color: #22c55e; font-weight: bold;');
@@ -7337,46 +7611,27 @@ const printBackendDebugLogs = (endpoint: string, result: any, isSuccess: boolean
       console.log('%c' + log, 'color: #f97316;');
     } else if (log.includes('API_CALL_START') || log.includes('========')) {
       console.log('%c' + log, 'color: #3b82f6; font-weight: bold;');
-    } else if (log.includes('[METHOD]') || log.includes('[URI]') || log.includes('[TIMESTAMP]')) {
-      console.log('%c' + log, 'color: #8b5cf6;');
-    } else if (log.includes('PARAMETER') || log.includes('Required:') || log.includes('Optional:')) {
-      console.log('%c' + log, 'color: #6366f1;');
-    } else if (log.includes('invokeFlexible') || log.includes('findMethod')) {
-      console.log('%c' + log, 'color: #0891b2;');
     } else {
       console.log(log);
     }
   });
-
   console.groupEnd();
 };
 
 export const apiRequest = async (endpoint: string, method: 'GET' | 'POST' = 'POST', body?: any): Promise<any> => {
   console.log(`[API Direct] ${method} ${endpoint}`, body);
-
   try {
     const origin = typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000';
     const url = endpoint.startsWith('http') ? endpoint : `${API_BASE}${endpoint}`;
-
     const options: RequestInit = {
       method,
-      headers: {
-        'Content-Type': 'application/json',
-        'Origin': origin
-      },
+      headers: { 'Content-Type': 'application/json', 'Origin': origin },
       credentials: 'include',
     };
-
-    if (body && method !== 'GET') {
-      options.body = JSON.stringify(body);
-    }
-
+    if (body && method !== 'GET') options.body = JSON.stringify(body);
     const response = await fetch(url, options);
     const result = await response.json();
-
     printBackendDebugLogs(endpoint, result, response.ok);
-
-    console.log(`[API Direct] ${endpoint} response:`, result);
     return result;
   } catch (error: any) {
     console.error(`[API Direct] ${endpoint} failed:`, error);

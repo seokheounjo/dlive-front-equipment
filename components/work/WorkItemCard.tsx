@@ -1,21 +1,21 @@
-import React, { useState } from 'react';
-import { MapPin, Loader2 } from 'lucide-react';
+import React from 'react';
 import { WorkItem, WorkOrderStatus } from '../../types';
-import { useUIStore } from '../../stores/uiStore';
-import { geocodeAndNavigate } from '../../services/navigationService';
-import ConfirmModal from '../common/ConfirmModal';
 
 interface WorkItemCardProps {
   item: any; // 실제 API 데이터 구조 사용
   onSelect: (item: any) => void;
   onComplete: (item: any) => void;
   onCancel: (item: any) => void;
+  onNetworkTransfer?: (item: any) => void;
+  onEquipmentStatus?: (item: any) => void;
+  uplsProdCodes?: string[];
+  uplsProdMap?: Record<string, string>;
   index?: number; // 시퀀스 번호 (1부터 시작)
 }
 
 const getStatusColor = (status: string) => {
   if (status === '할당' || status === '진행중') {
-    return 'bg-blue-50 text-blue-700';
+    return 'bg-primary-50 text-primary-600';
   } else if (status === '완료') {
     return 'bg-green-50 text-green-700';
   } else if (status === '취소') {
@@ -30,7 +30,7 @@ const getProductGroupStyle = (prodGrp: string | undefined) => {
     case 'D': // DTV
       return 'bg-purple-100 text-purple-700 border-purple-200';
     case 'I': // Internet/ISP
-      return 'bg-blue-100 text-blue-700 border-blue-200';
+      return 'bg-primary-100 text-primary-600 border-primary-200';
     case 'V': // VoIP
       return 'bg-green-100 text-green-700 border-green-200';
     case 'C': // Cable/번들
@@ -40,32 +40,13 @@ const getProductGroupStyle = (prodGrp: string | undefined) => {
   }
 };
 
-const WorkItemCard: React.FC<WorkItemCardProps> = ({ item, onSelect, onComplete, onCancel, index }) => {
-  const [navLoading, setNavLoading] = useState(false);
-  const [modalMsg, setModalMsg] = useState('');
-  const preferredNavApp = useUIStore((s) => s.preferredNavApp);
-
+const WorkItemCard: React.FC<WorkItemCardProps> = ({ item, onSelect, onComplete, onCancel, onNetworkTransfer, onEquipmentStatus, uplsProdCodes = [], uplsProdMap = {}, index }) => {
   // 실제 API 데이터 매핑
   const status = item.WRK_STAT_CD_NM || item.status || '진행중';
   const isPending = status === '할당' || status === '진행중' || status === WorkOrderStatus.Pending;
-  const address = item.ADDR || item.address || '';
 
   // 상품군 (D:DTV, I:ISP, V:VoIP, C:번들)
   const prodGrp = item.PROD_GRP || item.KPI_PROD_GRP_CD;
-
-  const handleNavClick = async (e: React.MouseEvent) => {
-    e.stopPropagation();
-    if (!address || navLoading) return;
-    setNavLoading(true);
-    try {
-      const ok = await geocodeAndNavigate(address, preferredNavApp);
-      if (!ok) setModalMsg('주소를 찾을 수 없습니다.');
-    } catch {
-      setModalMsg('길찾기 실행에 실패했습니다.');
-    } finally {
-      setNavLoading(false);
-    }
-  };
 
   const handleActionClick = (e: React.MouseEvent, action: 'complete' | 'cancel') => {
     e.stopPropagation();
@@ -88,7 +69,7 @@ const WorkItemCard: React.FC<WorkItemCardProps> = ({ item, onSelect, onComplete,
         <div className="flex items-center justify-between mb-2">
           {/* 시퀀스 번호 */}
           {index !== undefined && (
-            <div className="flex-shrink-0 w-6 h-6 flex items-center justify-center rounded-full bg-blue-500 text-white text-xs font-bold">
+            <div className="flex-shrink-0 w-6 h-6 flex items-center justify-center rounded-full bg-primary-500 text-white text-xs font-bold">
               {index}
             </div>
           )}
@@ -123,43 +104,47 @@ const WorkItemCard: React.FC<WorkItemCardProps> = ({ item, onSelect, onComplete,
           <div className="flex gap-2 mt-2 pt-2 border-t border-gray-100">
             <button
               onClick={(e) => handleActionClick(e, 'complete')}
-              className="flex-1 py-2 rounded-md bg-blue-500 hover:bg-blue-600 text-white text-xs font-semibold transition-colors"
+              className="flex-1 py-2 rounded-md bg-primary-500 hover:bg-primary-500 text-white text-xs font-semibold transition-colors"
             >
               진행
             </button>
+            {/* 망이관/장비상태정보 버튼 - A/S(WRK_CD='03')만 표시 */}
+            {item.WRK_CD === '03' && item.WRK_DTL_TCD !== '0380' && onNetworkTransfer && (
+              <button
+                onClick={(e) => { e.stopPropagation(); onNetworkTransfer(item); }}
+                className="flex-1 py-2 rounded-md bg-indigo-500 hover:bg-indigo-600 text-white text-xs font-semibold transition-colors"
+              >
+                망이관
+              </button>
+            )}
+            {item.WRK_CD === '03' && onEquipmentStatus && (() => {
+              // FTTH 인증상품(IS_CERTIFY_PROD=1) OR LGU+(LGCT001) → 장비상태 비활성화
+              const isCertifyProd = item.IS_CERTIFY_PROD == 1 || item.IS_CERTIFY_PROD == '1';
+              const isUpls = uplsProdCodes.includes(item.PROD_CD) || !!uplsProdMap[item.PROD_CD];
+              const isDisabled = isCertifyProd || isUpls;
+              return (
+                <button
+                  onClick={(e) => { e.stopPropagation(); if (!isDisabled) onEquipmentStatus(item); }}
+                  disabled={isDisabled}
+                  className={`flex-1 py-2 rounded-md text-xs font-semibold transition-colors ${
+                    isDisabled
+                      ? 'bg-gray-300 text-gray-400 cursor-not-allowed'
+                      : 'bg-teal-500 hover:bg-teal-600 text-white'
+                  }`}
+                >
+                  장비상태
+                </button>
+              );
+            })()}
             <button
               onClick={(e) => handleActionClick(e, 'cancel')}
               className="flex-1 py-2 rounded-md bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs font-semibold transition-colors"
             >
               취소
             </button>
-            <button
-              onClick={handleNavClick}
-              disabled={!address || navLoading}
-              className={`flex-shrink-0 w-10 py-2 rounded-md flex items-center justify-center transition-colors ${
-                address
-                  ? 'bg-orange-500 hover:bg-orange-600 text-white shadow-sm shadow-orange-200'
-                  : 'bg-gray-100 text-gray-400 cursor-not-allowed'
-              }`}
-              title="길찾기"
-            >
-              {navLoading
-                ? <Loader2 className="w-4 h-4 animate-spin" />
-                : <MapPin className="w-5 h-5" fill="currentColor" />
-              }
-            </button>
           </div>
         )}
       </div>
-
-      <ConfirmModal
-        isOpen={!!modalMsg}
-        onClose={() => setModalMsg('')}
-        onConfirm={() => setModalMsg('')}
-        message={modalMsg}
-        type="warning"
-        showCancel={false}
-      />
     </div>
   );
 };

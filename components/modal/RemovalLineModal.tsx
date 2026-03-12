@@ -90,17 +90,17 @@ const RemovalLineModal: React.FC<RemovalLineModalProps> = ({
         onSuccess?.();
         onClose();
       } else {
-        showToast?.(result.message || '저장에 실패했습니다.', 'error');
+        showToast?.(result.message || '저장에 실패했습니다.', 'error', true);
       }
     } catch (error: any) {
-      showToast?.(error.message || '저장 중 오류가 발생했습니다.', 'error');
+      showToast?.(error.message || '저장 중 오류가 발생했습니다.', 'error', true);
     } finally {
       setIsLoading(false);
     }
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center">
+    <div className="fixed inset-0 z-[200] flex items-center justify-center">
       {/* Backdrop */}
       <div
         className="absolute inset-0 bg-black/50"
@@ -140,7 +140,7 @@ const RemovalLineModal: React.FC<RemovalLineModalProps> = ({
                     onClick={() => setRemoveLineType(opt.value)}
                     className={`px-2 sm:px-3 py-2 sm:py-3 rounded-lg text-xs sm:text-sm font-medium transition-colors ${
                       removeLineType === opt.value
-                        ? 'bg-blue-600 text-white'
+                        ? 'bg-primary-500 text-white'
                         : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                     }`}
                   >
@@ -220,7 +220,7 @@ const RemovalLineModal: React.FC<RemovalLineModalProps> = ({
             <button
               onClick={handleSave}
               disabled={isLoading}
-              className="flex-1 px-3 sm:px-4 py-2 sm:py-3 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 transition-colors disabled:opacity-50 text-sm sm:text-base"
+              className="flex-1 px-3 sm:px-4 py-2 sm:py-3 bg-primary-500 text-white rounded-lg font-semibold hover:bg-primary-600 transition-colors disabled:bg-gray-400 disabled:text-white disabled:cursor-not-allowed text-sm sm:text-base"
             >
               {isLoading ? '저장 중...' : '저장'}
             </button>

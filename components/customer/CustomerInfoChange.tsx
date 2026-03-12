@@ -4,6 +4,7 @@ import {
   ChevronDown, ChevronUp, AlertCircle, Check, Search,
   Smartphone, RefreshCw, CreditCard, Building2, Shield, PenTool
 } from 'lucide-react';
+import Select from '../ui/Select';
 import SignaturePad from '../common/SignaturePad';
 import ConfirmModal, { UseConfirmState, useConfirmInitialState } from '../common/ConfirmModal';
 import {
@@ -14,7 +15,6 @@ import {
   updateInstallAddress,
   getTelecomCodes,
   getHPPayList,
-  modIfSvcHP,
   formatPhoneNumber,
   PhoneChangeRequest,
   AddressChangeRequest,
@@ -31,6 +31,8 @@ import {
   StreetAddressInfo,
   registerConsultation,
   ConsultationRequest,
+  saveHPPayInfo,
+  modIfSvcHP,
   getBankCodesDLive,
   getCardCompanyCodes,
   getPayerRelationCodes,
@@ -182,9 +184,6 @@ const CustomerInfoChange: React.FC<CustomerInfoChangeProps> = ({
   const [hpPayList, setHpPayList] = useState<HPPayInfo[]>([]);
   const [isLoadingHpPay, setIsLoadingHpPay] = useState(false);
   const [hpPayLoaded, setHpPayLoaded] = useState(false);
-  const [hpPaySelectedApply, setHpPaySelectedApply] = useState<Set<string>>(new Set());
-  const [hpPaySelectedCancel, setHpPaySelectedCancel] = useState<Set<string>>(new Set());
-  const [isProcessingHpPay, setIsProcessingHpPay] = useState(false);
 
   // 납부방법 변경
   const [paymentInfoList, setPaymentInfoList] = useState<PaymentAccountInfo[]>([]);
@@ -1278,25 +1277,19 @@ const CustomerInfoChange: React.FC<CustomerInfoChangeProps> = ({
               {/* 통신사 선택 */}
               <div>
                 <label className="block text-sm text-gray-600 mb-1">통신사</label>
-                <select
+                <Select
                   value={phoneForm.telTpCd}
-                  onChange={(e) => setPhoneForm(prev => ({
+                  onValueChange={(val) => setPhoneForm(prev => ({
                     ...prev,
-                    telTpCd: e.target.value
+                    telTpCd: val
                   }))}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                >
-                  <option value="">선택</option>
-                  {telecomCodes.map(code => (
-                    <option key={code.CODE} value={code.CODE}>
-                      {code.CODE_NM}
-                    </option>
-                  ))}
-                  {/* 기본 통신사 옵션 (코드 로드 실패 시) */}
-                  {telecomCodes.length === 0 && isLoadingCodes && (
-                    <option value="" disabled>로딩중...</option>
-                  )}
-                </select>
+                  options={[
+                    { value: '', label: '선택' },
+                    ...telecomCodes.map(code => ({ value: code.CODE, label: code.CODE_NM })),
+                    ...(telecomCodes.length === 0 && isLoadingCodes ? [{ value: '', label: '로딩중...' }] : [])
+                  ]}
+                  placeholder="선택"
+                />
               </div>
 
               {/* 저장 버튼 */}
@@ -1556,7 +1549,7 @@ const CustomerInfoChange: React.FC<CustomerInfoChangeProps> = ({
                         onChange={(e) => handleHpPayGroupSelect('apply', e.target.checked)}
                         className="w-4 h-4 text-purple-600 rounded"
                       />
-                      휴대폰 선불결제 신청 ({hpPayApplyList.length}건)
+                      신청 대상 ({hpPayApplyList.length}건)
                     </label>
                     <button
                       onClick={handleHpPayBulkApply}
@@ -1590,7 +1583,7 @@ const CustomerInfoChange: React.FC<CustomerInfoChangeProps> = ({
                         </span>
                       </div>
                       <div className="text-xs text-gray-500 space-y-1 ml-6">
-                        <div className="flex gap-1">
+                        <div className="flex justify-between">
                           <span>계약ID:</span>
                           <span className="text-gray-700">{item.CTRT_ID}</span>
                         </div>
@@ -1617,7 +1610,7 @@ const CustomerInfoChange: React.FC<CustomerInfoChangeProps> = ({
                         onChange={(e) => handleHpPayGroupSelect('cancel', e.target.checked)}
                         className="w-4 h-4 text-green-600 rounded"
                       />
-                      후불결제 신청 ({hpPayCancelList.length}건)
+                      해지 대상 ({hpPayCancelList.length}건)
                     </label>
                     <button
                       onClick={handleHpPayBulkCancel}
@@ -1651,7 +1644,7 @@ const CustomerInfoChange: React.FC<CustomerInfoChangeProps> = ({
                         </span>
                       </div>
                       <div className="text-xs text-gray-500 space-y-1 ml-6">
-                        <div className="flex gap-1">
+                        <div className="flex justify-between">
                           <span>계약ID:</span>
                           <span className="text-gray-700">{item.CTRT_ID}</span>
                         </div>

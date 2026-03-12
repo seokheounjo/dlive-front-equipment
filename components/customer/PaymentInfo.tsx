@@ -322,20 +322,22 @@ const PaymentInfo: React.FC<PaymentInfoProps> = ({
                     {/* 납부계정 선택 리스트 */}
                     <div className="space-y-1 mb-3">
                       {paymentAccounts.map((payment, index) => {
+                        const isWorking = currentWorkingPymAcntId === payment.PYM_ACNT_ID;
                         const isSelected = selectedPymAcntId === payment.PYM_ACNT_ID;
-                        const acctPending = getPendingPayments(payment.PYM_ACNT_ID);
-                        const hasPending = acctPending.length > 0;
+                        const hasPending = isSelected && pendingPaymentInfo && pendingPaymentInfo.length > 0;
 
                         return (
                           <div
                             key={payment.PYM_ACNT_ID}
                             onClick={() => handleSelectPaymentAccount(payment.PYM_ACNT_ID)}
                             className={`p-2 rounded-lg border cursor-pointer transition-all ${
-                              hasPending
-                                ? 'bg-amber-50 border-amber-300'
-                                : isSelected
-                                  ? 'bg-blue-50 border-blue-400'
-                                  : 'bg-gray-50 border-gray-200 hover:border-gray-300'
+                              isWorking
+                                ? 'bg-orange-50 border-orange-300'
+                                : hasPending
+                                  ? 'bg-amber-50 border-amber-300'
+                                  : isSelected
+                                    ? 'bg-blue-50 border-blue-400'
+                                    : 'bg-gray-50 border-gray-200 hover:border-gray-300'
                             }`}
                           >
                             <div className="flex items-center justify-between text-sm">
@@ -344,13 +346,9 @@ const PaymentInfo: React.FC<PaymentInfoProps> = ({
                                 <span className="text-gray-800">{formatPymAcntId(payment.PYM_ACNT_ID)}</span>
                                 <span className="text-gray-400">|</span>
                                 <span className="text-gray-600">{payment.PYM_MTHD_NM || '-'}</span>
-                                {payment.COMMON_CD && payment.COMMON_CD !== '0' && (
-                                  <span className={`px-1.5 py-0.5 text-xs rounded-full ${
-                                    payment.COMMON_CD === '3' ? 'bg-red-100 text-red-700' :
-                                    payment.COMMON_CD === '1' ? 'bg-green-100 text-green-700' :
-                                    'bg-yellow-100 text-yellow-700'
-                                  }`}>
-                                    {payment.COMMON_CD_NM || ''}
+                                {isWorking && (
+                                  <span className="px-1.5 py-0.5 text-xs bg-orange-500 text-white rounded-full animate-pulse">
+                                    작업중
                                   </span>
                                 )}
                                 {hasPending && (
@@ -406,8 +404,8 @@ const PaymentInfo: React.FC<PaymentInfoProps> = ({
                   </>
                 )}
 
-                {/* 미납금 수납 버튼 - 선택된 납부계정에 미납이 있거나 진행중일 때만 */}
-                {(selectedPayment && selectedPayment.UPYM_AMT_ACNT > 0 || pendingPaymentInfo) && (
+                {/* 미납금 수납 버튼 - 미납 계정이 있을 때 */}
+                {paymentAccounts.some(p => p.UPYM_AMT_ACNT > 0) && (
                   <button
                     onClick={handleUnpaymentClick}
                     disabled={needsRefresh || isLoadingUnpayment || !selectedPymAcntId}

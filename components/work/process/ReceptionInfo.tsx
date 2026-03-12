@@ -99,7 +99,7 @@ const ReceptionInfo: React.FC<ReceptionInfoProps> = ({ workItem, onNext, onBack,
           </div>
           <div className="flex items-center justify-between">
             <span className="text-[0.625rem] sm:text-xs text-gray-500">작업유형</span>
-            <span className="text-xs sm:text-sm font-medium text-blue-600 whitespace-nowrap">{workItem.typeDisplay}</span>
+            <span className="text-xs sm:text-sm font-medium text-primary-700 whitespace-nowrap">{workItem.typeDisplay}</span>
           </div>
           <div className="flex items-center justify-between">
             <span className="text-[0.625rem] sm:text-xs text-gray-500">작업상태</span>
@@ -107,7 +107,7 @@ const ReceptionInfo: React.FC<ReceptionInfoProps> = ({ workItem, onNext, onBack,
           </div>
           <div className="flex items-center justify-between pt-1.5 sm:pt-2 mt-1.5 sm:mt-2 border-t border-gray-100">
             <span className="text-[0.625rem] sm:text-xs text-gray-500">예정일시</span>
-            <span className="text-xs sm:text-sm font-semibold text-blue-600 whitespace-nowrap">{formatDateTime(workItem.scheduledAt)}</span>
+            <span className="text-xs sm:text-sm font-semibold text-primary-700 whitespace-nowrap">{formatDateTime(workItem.scheduledAt)}</span>
           </div>
         </div>
       </div>
@@ -160,7 +160,7 @@ const ReceptionInfo: React.FC<ReceptionInfoProps> = ({ workItem, onNext, onBack,
           className="w-full p-3 sm:p-5 flex items-center justify-between hover:bg-gray-50 transition-colors"
         >
           <div className="flex items-center gap-2 sm:gap-3">
-            <svg className="w-4 h-4 sm:w-5 sm:h-5 text-blue-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="w-4 h-4 sm:w-5 sm:h-5 text-primary-700 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
             </svg>
             <h4 className="text-sm sm:text-base font-bold text-gray-900">문자발송이력</h4>
@@ -169,7 +169,7 @@ const ReceptionInfo: React.FC<ReceptionInfoProps> = ({ workItem, onNext, onBack,
                 조회중...
               </span>
             ) : smsLoaded && (
-              <span className="px-1.5 sm:px-2 py-0.5 bg-blue-100 text-blue-700 text-[0.625rem] sm:text-xs font-medium rounded-full whitespace-nowrap">
+              <span className="px-1.5 sm:px-2 py-0.5 bg-primary-100 text-primary-600 text-[0.625rem] sm:text-xs font-medium rounded-full whitespace-nowrap">
                 {smsHistory.length}건
               </span>
             )}
@@ -188,7 +188,7 @@ const ReceptionInfo: React.FC<ReceptionInfoProps> = ({ workItem, onNext, onBack,
           <div className="border-t border-gray-100 p-3 sm:p-5">
             {smsLoading ? (
               <div className="flex items-center justify-center py-6 sm:py-8">
-                <div className="animate-spin rounded-full h-5 w-5 sm:h-6 sm:w-6 border-b-2 border-blue-500"></div>
+                <div className="animate-spin rounded-full h-5 w-5 sm:h-6 sm:w-6 border-b-2 border-primary-500"></div>
                 <span className="ml-2 sm:ml-3 text-xs sm:text-sm text-gray-500">조회 중...</span>
               </div>
             ) : smsHistory.length === 0 ? (
@@ -204,7 +204,7 @@ const ReceptionInfo: React.FC<ReceptionInfoProps> = ({ workItem, onNext, onBack,
                         <span className={`px-1.5 sm:px-2 py-0.5 text-[0.625rem] sm:text-xs font-medium rounded whitespace-nowrap ${
                           item.MSG_TYP === 'KKO' ? 'bg-yellow-100 text-yellow-700' :
                           item.MSG_TYP === 'LMS' ? 'bg-purple-100 text-purple-700' :
-                          'bg-blue-100 text-blue-700'
+                          'bg-primary-100 text-primary-600'
                         }`}>
                           {item.MSG_TYP || 'SMS'}
                         </span>
@@ -224,8 +224,8 @@ const ReceptionInfo: React.FC<ReceptionInfoProps> = ({ workItem, onNext, onBack,
                       {item.REG_NM && <div className="col-span-2">등록자: {item.REG_NM}</div>}
                     </div>
                     {item.MESSAGE && (
-                      <div className="mt-1.5 sm:mt-2 p-2 bg-white rounded border border-gray-200 text-xs sm:text-sm text-gray-700 whitespace-pre-wrap">
-                        {item.MESSAGE}
+                      <div className="mt-1.5 sm:mt-2 p-2 bg-white rounded border border-gray-200 text-xs sm:text-sm text-gray-700 whitespace-pre-line">
+                        {item.MESSAGE?.replace(/  /g, '\n')}
                       </div>
                     )}
                   </div>
@@ -336,13 +336,13 @@ const ReceptionInfo: React.FC<ReceptionInfoProps> = ({ workItem, onNext, onBack,
                     {item.REQ_CTX && (
                       <div className="mt-1.5 sm:mt-2 p-2 bg-white rounded border border-gray-200 text-xs sm:text-sm text-gray-700">
                         <div className="text-[0.625rem] sm:text-xs text-gray-500 mb-1">요청내용</div>
-                        <div className="whitespace-pre-wrap">{item.REQ_CTX}</div>
+                        <div className="whitespace-pre-line">{item.REQ_CTX?.replace(/  /g, '\n')}</div>
                       </div>
                     )}
                     {item.PROC_CT && (
-                      <div className="mt-1.5 sm:mt-2 p-2 bg-blue-50 rounded border border-blue-100 text-xs sm:text-sm text-gray-700">
-                        <div className="text-[0.625rem] sm:text-xs text-blue-600 mb-1">처리내용</div>
-                        <div className="whitespace-pre-wrap">{item.PROC_CT}</div>
+                      <div className="mt-1.5 sm:mt-2 p-2 bg-primary-50 rounded border border-primary-100 text-xs sm:text-sm text-gray-700">
+                        <div className="text-[0.625rem] sm:text-xs text-primary-700 mb-1">처리내용</div>
+                        <div className="whitespace-pre-line">{item.PROC_CT?.replace(/  /g, '\n')}</div>
                       </div>
                     )}
                   </div>
@@ -387,7 +387,7 @@ const renderWorkTypeDetails = (workItem: WorkItem) => {
           {workItem.termDays && (
             <div className="space-y-1 col-span-2">
               <span className="text-xs text-gray-500">누적 정지 일수</span>
-              <p className="text-sm font-medium text-blue-600">{workItem.termDays}일</p>
+              <p className="text-sm font-medium text-primary-700">{workItem.termDays}일</p>
             </div>
           )}
         </div>

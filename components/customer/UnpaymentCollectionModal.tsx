@@ -4,6 +4,7 @@ import {
   CheckCircle, ChevronDown, ChevronUp, RefreshCw
 } from 'lucide-react';
 
+import Select from '../ui/Select';
 import {
   UnpaymentInfo,
   PendingPaymentInfo,
@@ -15,7 +16,6 @@ import {
   getPendingPayments,
   savePendingPayment,
   removePendingPayment,
-  updatePendingPayment,
   getPendingInfoForBillYm
 } from '../../services/customerApi';
 
@@ -198,9 +198,6 @@ const UnpaymentCollectionModal: React.FC<UnpaymentCollectionModalProps> = ({
     setIsRefreshing(true);
 
     let anyCompleted = false;
-    let anyFailed = false;
-    let lastPendingMsg = '';
-    let lastPayResultMsg = '';
 
     try {
       for (const pendingInfo of [...pendingPayments]) {
@@ -213,35 +210,23 @@ const UnpaymentCollectionModal: React.FC<UnpaymentCollectionModalProps> = ({
             PYM_ACNT_ID: pymAcntId
           });
 
-          const payResult = (res.data?.PAY_RESULT || '').trim();
-          const payResultMsg = (res.data?.PAY_RESULT_NM || '').trim();
           if (res.success) {
-            // SUCCESS: 903 / SUCCESS_DEPOSITED
             removePendingPayment(pymAcntId, pendingInfo.orderNo);
             setCompletedBillYms(prev => {
               const next = new Set(prev);
               pendingInfo.pendingBillYms.forEach(ym => next.add(ym));
               return next;
             });
-            showToast?.(`${formatCurrency(pendingInfo.selectedTotal)}원 수납 완료`, 'success');
+            showToast?.(`${formatCurrency(pendingInfo.selectedTotal)}원 결제 완료 확인`, 'success');
             anyCompleted = true;
           } else if (res.errorCode === 'TIMEOUT') {
             showToast?.('결과 조회 시간 초과. 잠시 후 다시 시도해주세요.', 'warning');
-          } else if (res.errorCode === 'PENDING') {
-            // PENDING: 900/901/904 / PENDING_PROCESSING / SUCCESS_PROCESSING
-            const updates: Partial<PendingPaymentInfo> = {};
-            if (payResult && payResult !== 'PENDING') updates.payResultText = payResult;
-            if (payResultMsg) updates.payResultMsg = payResultMsg;
-            if (Object.keys(updates).length > 0) {
-              updatePendingPayment(pymAcntId, pendingInfo.orderNo, updates);
-            }
-            lastPendingMsg = payResult || 'PENDING';
-            lastPayResultMsg = payResultMsg;
+          } else if (res.errorCode === 'NOT_FOUND' || res.errorCode === 'PENDING') {
+            // Still pending - keep
           } else {
-            // FAIL: 902 / PG error codes / FAIL / NO_ORDER
+            // Failed - remove pending
             removePendingPayment(pymAcntId, pendingInfo.orderNo);
-            showToast?.(`결제 실패: ${payResultMsg || payResult || res.message || '알 수 없는 오류'}`, 'error');
-            anyFailed = true;
+            showToast?.(`결제 실패 확인: ${res.message || '알 수 없는 오류'}`, 'error');
           }
         } catch (error) {
           console.error('[UnpaymentModal] Refresh check error:', error);
@@ -251,12 +236,8 @@ const UnpaymentCollectionModal: React.FC<UnpaymentCollectionModalProps> = ({
       setPendingPayments(getPendingPayments(pymAcntId));
       if (anyCompleted) {
         onSuccess?.();
-      }
-      if (!anyCompleted && !anyFailed && lastPendingMsg) {
-        // PAY_RESULT_NM (CONA Korean text) takes priority over raw code
-        const displayMsg = lastPendingMsg === 'PENDING' ? '처리 대기중'
-          : lastPayResultMsg || lastPendingMsg;
-        showToast?.(`결제 상태: ${displayMsg}`, 'info');
+      } else {
+        showToast?.('아직 처리중입니다. 잠시 후 다시 시도해주세요.', 'info');
       }
     } finally {
       setIsRefreshing(false);
@@ -352,23 +333,6 @@ const UnpaymentCollectionModal: React.FC<UnpaymentCollectionModalProps> = ({
         (now.getMonth() + 1).toString().padStart(2, '0') +
         now.getDate().toString().padStart(2, '0');
 
-      // Step 2: Build DTL_LIST from selected items
-      const dtlList: Array<{BILL_SEQ_NO: string; SO_ID: string; BILL_AMT: number; PRE_RCPT_AMT: number; RCPT_AMT: number}> = [];
-      for (const item of nonPendingSelected) {
-        const seqNos = (item.BILL_SEQ_NO || '').split(',').map(s => s.trim()).filter(s => s);
-        if (seqNos.length > 0) {
-          for (const seq of seqNos) {
-            dtlList.push({
-              BILL_SEQ_NO: seq,
-              SO_ID: item.SO_ID || soId,
-              BILL_AMT: item.BILL_AMT || 0,
-              PRE_RCPT_AMT: (item.BILL_AMT || 0) - (item.UNPAY_AMT || 0),
-              RCPT_AMT: item.UNPAY_AMT || 0,
-            });
-          }
-        }
-      }
-
       // Step 2: Insert DPST & DTL
       const dpstRes = await insertDpstAndDTL({
         CUST_ID: custId,
@@ -380,7 +344,6 @@ const UnpaymentCollectionModal: React.FC<UnpaymentCollectionModalProps> = ({
         OID: orderNo,
         CUST_NM: custNm || custId || 'Mobile',
         BILL_YM_LIST: billYmList.join(','),
-        DTL_LIST: dtlList,
       });
 
       if (!dpstRes.success) {
@@ -390,11 +353,6 @@ const UnpaymentCollectionModal: React.FC<UnpaymentCollectionModalProps> = ({
         return;
       }
 
-      // Use actual ORDER_NO/ORDER_DT/MID from backend response (DB sequence may differ from frontend-generated values)
-      const actualOrderNo = dpstRes.data?.ORDER_NO || orderNo;
-      const actualOrderDt = dpstRes.data?.ORDER_DT || orderDt;
-      const actualMid = dpstRes.data?.MID || mid;
-
       // Step 3: Save pending BEFORE PG call
       const pendingInfo: PendingPaymentInfo = {
         cardNo: cleanCardNo.slice(-4),
@@ -402,9 +360,9 @@ const UnpaymentCollectionModal: React.FC<UnpaymentCollectionModalProps> = ({
         expYear,
         installment,
         korId: korId.slice(0, 2) + '****',
-        mid: actualMid,
-        orderNo: actualOrderNo,
-        orderDt: actualOrderDt,
+        mid,
+        orderNo,
+        orderDt,
         selectedTotal,
         timestamp: Date.now(),
         pendingBillYms: billYmList
@@ -421,9 +379,9 @@ const UnpaymentCollectionModal: React.FC<UnpaymentCollectionModalProps> = ({
 
       // Step 4: Process card payment (may timeout)
       const pgRes = await processCardPayment({
-        mid: actualMid,
-        oid: actualOrderNo,
-        order_dt: actualOrderDt,
+        mid,
+        oid: orderNo,
+        order_dt: orderDt,
         amount: String(selectedTotal),
         buyer: custNm || '',
         productinfo: 'DLIVE_UNPAY',
@@ -439,7 +397,7 @@ const UnpaymentCollectionModal: React.FC<UnpaymentCollectionModalProps> = ({
       });
 
       if (pgRes.success) {
-        removePendingPayment(pymAcntId, actualOrderNo);
+        removePendingPayment(pymAcntId, orderNo);
         setPendingPayments(getPendingPayments(pymAcntId));
         setCompletedBillYms(prev => {
           const next = new Set(prev);
@@ -454,7 +412,7 @@ const UnpaymentCollectionModal: React.FC<UnpaymentCollectionModalProps> = ({
         setPaymentPopup({ visible: true, status: 'pending', message: '' });
       } else {
         // Explicit failure - remove pending
-        removePendingPayment(pymAcntId, actualOrderNo);
+        removePendingPayment(pymAcntId, orderNo);
         setPendingPayments(getPendingPayments(pymAcntId));
         setPaymentPopup({ visible: true, status: 'fail', message: pgRes.message || '서버 오류' });
       }
@@ -541,7 +499,7 @@ const UnpaymentCollectionModal: React.FC<UnpaymentCollectionModalProps> = ({
                 {selectableItems.length > 0 && (
                   <button
                     onClick={toggleAll}
-                    disabled={isCardInputDisabled}
+                    disabled={isProcessing}
                     className="text-xs text-blue-500 hover:text-blue-600 disabled:opacity-50"
                   >
                     {allSelectableSelected ? '전체 해제' : '전체 선택'}
@@ -590,8 +548,8 @@ const UnpaymentCollectionModal: React.FC<UnpaymentCollectionModalProps> = ({
                               type="checkbox"
                               checked={isSelected}
                               onChange={() => toggleBillYm(item.BILL_YM)}
-                              className="w-5 h-5 rounded border-gray-300 text-red-600 focus:ring-red-500 disabled:opacity-40"
-                              disabled={isCardInputDisabled}
+                              className="w-5 h-5 rounded border-gray-300 text-red-600 focus:ring-red-500"
+                              disabled={isProcessing}
                             />
                           )}
                         </div>
@@ -603,9 +561,9 @@ const UnpaymentCollectionModal: React.FC<UnpaymentCollectionModalProps> = ({
                               <span className="text-sm font-medium text-gray-900">
                                 {formatBillYm(item.BILL_YM)}
                               </span>
-                              {isPending && pendingInfo && (
+                              {isPending && (
                                 <span className="px-1.5 py-0.5 text-xs font-medium bg-amber-200 text-amber-800 rounded">
-                                  {pendingInfo.payResultMsg || pendingInfo.payResultText || '진행중'}
+                                  진행중
                                 </span>
                               )}
                               {isCompleted && (
@@ -630,7 +588,7 @@ const UnpaymentCollectionModal: React.FC<UnpaymentCollectionModalProps> = ({
                             {item.UNPAY_DAYS > 0 && ` | 미납 ${item.UNPAY_DAYS}일`}
                           </div>
 
-                          {/* Pending detail */}
+                          {/* Pending detail (no check button) */}
                           {isPending && pendingInfo && (
                             <div className="mt-1">
                               <span className="text-xs text-amber-600">
@@ -717,32 +675,35 @@ const UnpaymentCollectionModal: React.FC<UnpaymentCollectionModalProps> = ({
                   <div className="grid grid-cols-2 gap-3">
                     <div>
                       <label className="block text-xs text-gray-500 mb-1">유효기간 (월)</label>
-                      <select
+                      <Select
                         value={expMonth}
-                        onChange={(e) => setExpMonth(e.target.value)}
-                        className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-red-500 focus:border-transparent disabled:bg-gray-100 disabled:text-gray-400"
+                        onValueChange={(val) => setExpMonth(val)}
+                        options={[
+                          { value: '', label: 'MM' },
+                          ...Array.from({ length: 12 }, (_, i) => {
+                            const m = (i + 1).toString().padStart(2, '0');
+                            return { value: m, label: m };
+                          })
+                        ]}
+                        placeholder="MM"
                         disabled={isCardInputDisabled}
-                      >
-                        <option value="">MM</option>
-                        {Array.from({ length: 12 }, (_, i) => (i + 1).toString().padStart(2, '0')).map(m => (
-                          <option key={m} value={m}>{m}</option>
-                        ))}
-                      </select>
+                      />
                     </div>
                     <div>
                       <label className="block text-xs text-gray-500 mb-1">유효기간 (년)</label>
-                      <select
+                      <Select
                         value={expYear}
-                        onChange={(e) => setExpYear(e.target.value)}
-                        className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-red-500 focus:border-transparent disabled:bg-gray-100 disabled:text-gray-400"
+                        onValueChange={(val) => setExpYear(val)}
+                        options={[
+                          { value: '', label: 'YY' },
+                          ...Array.from({ length: 10 }, (_, i) => {
+                            const y = (new Date().getFullYear() % 100 + i).toString().padStart(2, '0');
+                            return { value: y, label: y };
+                          })
+                        ]}
+                        placeholder="YY"
                         disabled={isCardInputDisabled}
-                      >
-                        <option value="">YY</option>
-                        {Array.from({ length: 10 }, (_, i) => {
-                          const y = (new Date().getFullYear() % 100 + i).toString().padStart(2, '0');
-                          return <option key={y} value={y}>{y}</option>;
-                        })}
-                      </select>
+                      />
                     </div>
                   </div>
 
@@ -765,18 +726,18 @@ const UnpaymentCollectionModal: React.FC<UnpaymentCollectionModalProps> = ({
                   {/* 할부 */}
                   <div>
                     <label className="block text-xs text-gray-500 mb-1">할부</label>
-                    <select
+                    <Select
                       value={installment}
-                      onChange={(e) => setInstallment(e.target.value)}
-                      className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-red-500 focus:border-transparent disabled:bg-gray-100 disabled:text-gray-400"
+                      onValueChange={(val) => setInstallment(val)}
+                      options={[
+                        { value: '00', label: '일시불' },
+                        { value: '02', label: '2개월' },
+                        { value: '03', label: '3개월' },
+                        { value: '06', label: '6개월' },
+                        { value: '12', label: '12개월' }
+                      ]}
                       disabled={isCardInputDisabled}
-                    >
-                      <option value="00">일시불</option>
-                      <option value="02">2개월</option>
-                      <option value="03">3개월</option>
-                      <option value="06">6개월</option>
-                      <option value="12">12개월</option>
-                    </select>
+                    />
                   </div>
                 </div>
               )}

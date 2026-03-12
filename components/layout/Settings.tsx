@@ -38,20 +38,20 @@ const Settings: React.FC<SettingsProps> = ({ onBack }) => {
                 onClick={() => setFontScale(opt.key)}
                 className={`flex flex-col items-center justify-center py-3 px-2 rounded-lg border-2 transition-all ${
                   fontScale === opt.key
-                    ? 'border-blue-500 bg-blue-50'
+                    ? 'border-primary-500 bg-primary-50'
                     : 'border-gray-200 bg-white'
                 }`}
               >
                 <span
                   className={`font-bold mb-1 ${
-                    fontScale === opt.key ? 'text-blue-600' : 'text-gray-700'
+                    fontScale === opt.key ? 'text-primary-700' : 'text-gray-700'
                   }`}
                   style={{ fontSize: opt.size }}
                 >
                   가
                 </span>
                 <span className={`text-xs ${
-                  fontScale === opt.key ? 'text-blue-600 font-semibold' : 'text-gray-500'
+                  fontScale === opt.key ? 'text-primary-700 font-semibold' : 'text-gray-500'
                 }`}>
                   {opt.label}
                 </span>

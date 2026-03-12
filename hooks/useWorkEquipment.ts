@@ -175,7 +175,7 @@ export const useWorkEquipmentQuery = (
       const wrkDtlTcd = workItem.WRK_DTL_TCD || '';
 
       const requestPayload = {
-        WRKR_ID: user.workerId || 'A20130708',
+        WRKR_ID: user.workerId || '',
         SO_ID: workItem.SO_ID || user.soId,
         WORK_ID: workItem.id,
         CUST_ID: workItem.customer?.id || workItem.CUST_ID,
@@ -259,8 +259,8 @@ export const useEquipmentModelChangeMutation = () => {
           CTRT_ID: workItem.CTRT_ID || '',
           RCPT_ID: workItem.RCPT_ID || '',
           CRR_ID: workItem.CRR_ID || user.crrId || '',
-          WRKR_ID: user.workerId || 'A20130708',
-          REG_UID: user.userId || user.workerId || 'A20130708',
+          WRKR_ID: user.workerId || '',
+          REG_UID: user.userId || user.workerId || '',
           ITEM_MID_CD: itemMidCd,
           EQT_CL: modelCode,
           SVC_CMPS_ID: svcCmpsId,

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { API_BASE } from '../../services/apiService';
 import BaseModal from '../common/BaseModal';
 import { formatId } from '../../utils/dateFormatter';
@@ -58,12 +58,13 @@ const IntegrationHistoryModal: React.FC<IntegrationHistoryModalProps> = ({
   };
 
   // 연동이력 조회
-  const fetchHistory = async () => {
+  const fetchHistory = useCallback(async () => {
     if (!ctrtId) {
       console.error('[연동이력] 계약ID가 없습니다');
       return;
     }
 
+    setHistory([]);
     setLoading(true);
     setError(null);
 
@@ -117,19 +118,19 @@ const IntegrationHistoryModal: React.FC<IntegrationHistoryModalProps> = ({
     } finally {
       setLoading(false);
     }
-  };
+  }, [ctrtId, custId]);
 
   // 모달이 열릴 때 조회
   useEffect(() => {
     if (isOpen && ctrtId) {
       fetchHistory();
     }
-  }, [isOpen, ctrtId]);
+  }, [isOpen, ctrtId, fetchHistory]);
 
   // SubHeader 컨텐츠
   const subHeader = (
     <div className="text-xs text-gray-700 space-y-0.5">
-      <div className="whitespace-nowrap"><span className="text-gray-600">계약ID:</span> <span className="font-medium text-blue-700">{formatId(ctrtId)}</span></div>
+      <div className="whitespace-nowrap"><span className="text-gray-600">계약ID:</span> <span className="font-medium text-primary-600">{formatId(ctrtId)}</span></div>
       <div className="text-gray-600">조회기간: 최근 7일</div>
     </div>
   );

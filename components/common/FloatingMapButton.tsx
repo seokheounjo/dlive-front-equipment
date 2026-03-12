@@ -10,7 +10,7 @@ const FloatingMapButton: React.FC<FloatingMapButtonProps> = ({ onClick, workCoun
   return (
     <button
       onClick={onClick}
-      className="fixed bottom-24 right-4 z-40 w-14 h-14 bg-blue-500 hover:bg-blue-600 active:bg-blue-700 text-white rounded-full shadow-lg flex items-center justify-center transition-all duration-200 hover:scale-105 active:scale-95"
+      className="fixed bottom-24 right-4 z-40 w-14 h-14 bg-primary-500 hover:bg-primary-500 active:bg-primary-600 text-white rounded-full shadow-lg flex items-center justify-center transition-all duration-200 hover:scale-105 active:scale-95"
       style={{
         boxShadow: '0 4px 14px rgba(59, 130, 246, 0.4)'
       }}

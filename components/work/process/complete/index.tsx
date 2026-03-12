@@ -1,44 +1,91 @@
 import React from 'react';
 import { WorkOrder } from '../../../../types';
+import { useProductType } from '../../../../hooks/useProductType';
+import { ProductType } from './shared/types';
 
 /**
- * WRK_CD별 분리된 컴포넌트 (레거시 mowoa02m01.xml 기준)
+ * WRK_CD × ProductType 라우터
  *
- * | WRK_CD | 작업유형 | 레거시 파일 | 컴포넌트 |
- * |--------|----------|-------------|----------|
- * | 01 | 설치 | mowoa03m01 | CompleteInstall |
- * | 02 | 철거 | mowoa03m02 | CompleteTerminate |
- * | 03 | A/S | mowoa03m03 | CompleteAS |
- * | 04 | 정지 | mowoa03m04 | CompleteSuspend |
- * | 05 | 상품변경 | mowoa03m05 | CompleteChange |
- * | 06 | 댁내이전 | mowoa03m06 | CompleteInternalMove |
- * | 07 | 이전설치 | mowoa03m07 | CompleteRelocate |
- * | 08 | 이전철거 | mowoa03m08 | CompleteRelocateTerminate |
- * | 09 | 부가상품 | mowoa03m09 | CompleteRemoval |
+ * 진입 시점에서 ProductTypeContext로부터 상품유형을 가져와
+ * productType + WRK_CD 조합으로 적절한 컴포넌트를 선택.
  *
- * LGU+ Certify (isCertifyProd=true) 상품은 전용 래퍼 컴포넌트로 라우팅:
- * | WRK_CD | LGU+ 컴포넌트 | Certify 플로우 |
- * |--------|---------------|---------------|
- * | 01,06,07 | CompleteLGUInstall | LDAP -> CL-04 |
- * | 02,08 | CompleteLGUTerminate | CL-08 -> CL-06 |
- * | 03 | CompleteLGUAS | CL-08 -> CL-04 |
- * | 05 | CompleteLGUChange | CL-08 -> CL-06/CL-04 |
+ * 구조:
+ *   complete/
+ *   ├── shared/     → 공유 폼 컴포넌트 (CompleteXXXForm.tsx)
+ *   ├── basic/      → 딜라이브 일반
+ *   ├── ftth/       → FTTH 인증상품
+ *   └── lguplus/    → LGU+ 재판매
  */
-import CompleteInstall from './CompleteInstall';           // 01: 설치
-import CompleteTerminate from './CompleteTerminate';       // 02: 철거
-import CompleteAS from './CompleteAS';                     // 03: A/S
-import CompleteSuspend from './CompleteSuspend';           // 04: 정지
-import CompleteChange from './CompleteChange';             // 05: 상품변경
-import CompleteInternalMove from './CompleteInternalMove'; // 06: 댁내이전
-import CompleteRelocate from './CompleteRelocate';         // 07: 이전설치
-import CompleteRelocateTerminate from './CompleteRelocateTerminate'; // 08: 이전철거
-import CompleteRemoval from './CompleteRemoval';           // 09: 부가상품
 
-// LGU+ Certify 전용 래퍼 컴포넌트
-import CompleteLGUInstall from './CompleteLGUInstall';           // 01,06,07 certify
-import CompleteLGUTerminate from './CompleteLGUTerminate';       // 02,08 certify
-import CompleteLGUAS from './CompleteLGUAS';                     // 03 certify
-import CompleteLGUChange from './CompleteLGUChange';             // 05 certify
+// basic/ (딜라이브 일반)
+import BasicInstall from './basic/CompleteInstall';
+import BasicTerminate from './basic/CompleteTerminate';
+import BasicAS from './basic/CompleteAS';
+import BasicSuspend from './basic/CompleteSuspend';
+import BasicChange from './basic/CompleteChange';
+import BasicInternalMove from './basic/CompleteInternalMove';
+import BasicRelocate from './basic/CompleteRelocate';
+import BasicRelocateTerminate from './basic/CompleteRelocateTerminate';
+import BasicRemoval from './basic/CompleteRemoval';
+
+// ftth/ (FTTH 인증상품)
+import FtthInstall from './ftth/CompleteInstall';
+import FtthTerminate from './ftth/CompleteTerminate';
+import FtthAS from './ftth/CompleteAS';
+import FtthSuspend from './ftth/CompleteSuspend';
+import FtthChange from './ftth/CompleteChange';
+import FtthInternalMove from './ftth/CompleteInternalMove';
+import FtthRelocate from './ftth/CompleteRelocate';
+import FtthRelocateTerminate from './ftth/CompleteRelocateTerminate';
+import FtthRemoval from './ftth/CompleteRemoval';
+
+// lguplus/ (LGU+ 재판매)
+import LguplusInstall from './lguplus/CompleteInstall';
+import LguplusTerminate from './lguplus/CompleteTerminate';
+import LguplusAS from './lguplus/CompleteAS';
+import LguplusSuspend from './lguplus/CompleteSuspend';
+import LguplusChange from './lguplus/CompleteChange';
+import LguplusInternalMove from './lguplus/CompleteInternalMove';
+import LguplusRelocate from './lguplus/CompleteRelocate';
+import LguplusRelocateTerminate from './lguplus/CompleteRelocateTerminate';
+import LguplusRemoval from './lguplus/CompleteRemoval';
+
+/** productType × WRK_CD 라우팅 테이블 */
+const router: Record<ProductType, Record<string, React.FC<any>>> = {
+  basic: {
+    '01': BasicInstall,
+    '02': BasicTerminate,
+    '03': BasicAS,
+    '04': BasicSuspend,
+    '05': BasicChange,
+    '06': BasicInternalMove,
+    '07': BasicRelocate,
+    '08': BasicRelocateTerminate,
+    '09': BasicRemoval,
+  },
+  ftth: {
+    '01': FtthInstall,
+    '02': FtthTerminate,
+    '03': FtthAS,
+    '04': FtthSuspend,
+    '05': FtthChange,
+    '06': FtthInternalMove,
+    '07': FtthRelocate,
+    '08': FtthRelocateTerminate,
+    '09': FtthRemoval,
+  },
+  lguplus: {
+    '01': LguplusInstall,
+    '02': LguplusTerminate,
+    '03': LguplusAS,
+    '04': LguplusSuspend,
+    '05': LguplusChange,
+    '06': LguplusInternalMove,
+    '07': LguplusRelocate,
+    '08': LguplusRelocateTerminate,
+    '09': LguplusRemoval,
+  },
+};
 
 interface WorkCompleteRouterProps {
   order: WorkOrder;
@@ -47,77 +94,21 @@ interface WorkCompleteRouterProps {
   showToast?: (message: string, type: 'success' | 'error' | 'warning' | 'info') => void;
   equipmentData?: any;
   readOnly?: boolean;
-  onEquipmentRefreshNeeded?: () => void; // Called when equipment transfer succeeds (WRK_CD=07)
-  isCertifyProd?: boolean; // LGU+ certify product -> route to LGU+ components
+  onEquipmentRefreshNeeded?: () => void;
 }
 
 /**
- * WRK_CD별 작업완료 페이지 라우터 (레거시 mowoa02m01.xml 기준)
- * isCertifyProd=true이면 LGU+ 전용 컴포넌트로 라우팅
+ * WRK_CD별 작업완료 페이지 라우터
+ * ProductTypeContext에서 상품유형을 가져와 productType × WRK_CD 조합으로 라우팅
  */
 const WorkCompleteRouter: React.FC<WorkCompleteRouterProps> = (props) => {
-  const { order, isCertifyProd } = props;
+  const { order } = props;
   const wrkCd = order.WRK_CD;
+  const { productType } = useProductType();
 
-  // LGU+ Certify 상품: 전용 컴포넌트로 라우팅
-  // 04(정지), 09(부가상품)은 certify 플로우 없음 -> 기존 컴포넌트 사용
-  if (isCertifyProd) {
-    switch (wrkCd) {
-      case '01': case '06': case '07':
-        return <CompleteLGUInstall {...props} />;
-      case '02': case '08':
-        return <CompleteLGUTerminate {...props} />;
-      case '03':
-        return <CompleteLGUAS {...props} />;
-      case '05':
-        return <CompleteLGUChange {...props} />;
-      // 04, 09: certify 플로우 없음, fall through to default routing
-    }
-  }
+  const Component = router[productType]?.[wrkCd] || router.basic[wrkCd] || BasicInstall;
 
-  // WRK_CD에 따라 적절한 컴포넌트 반환 (비-certify 또는 certify 플로우 없는 작업유형)
-  switch (wrkCd) {
-    case '01':
-      // 설치 (mowoa03m01)
-      return <CompleteInstall {...props} />;
-
-    case '02':
-      // 철거 (mowoa03m02)
-      return <CompleteTerminate {...props} />;
-
-    case '03':
-      // A/S (mowoa03m03)
-      return <CompleteAS {...props} />;
-
-    case '04':
-      // 정지 (mowoa03m04)
-      return <CompleteSuspend {...props} />;
-
-    case '05':
-      // 상품변경 (mowoa03m05)
-      return <CompleteChange {...props} />;
-
-    case '06':
-      // 댁내이전 (mowoa03m06)
-      return <CompleteInternalMove {...props} />;
-
-    case '07':
-      // 이전설치 (mowoa03m07)
-      return <CompleteRelocate {...props} />;
-
-    case '08':
-      // 이전철거 (mowoa03m08)
-      return <CompleteRelocateTerminate {...props} />;
-
-    case '09':
-      // 부가상품 (mowoa03m09)
-      return <CompleteRemoval {...props} />;
-
-    default:
-      // 기본값: 설치 컴포넌트 사용
-      console.warn(`[WorkCompleteRouter] Unknown WRK_CD: ${wrkCd}, using default form`);
-      return <CompleteInstall {...props} />;
-  }
+  return <Component {...props} />;
 };
 
 // 작업유형명 반환 함수 (레거시 CMWT000 코드 테이블)

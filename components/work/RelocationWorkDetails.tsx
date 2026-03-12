@@ -101,12 +101,12 @@ const RelocationWorkDetails: React.FC<RelocationWorkDetailsProps> = ({ order }) 
         </h4>
         <div className="space-y-3">
           {/* 1단계 */}
-          <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+          <div className="bg-primary-50 border border-primary-200 rounded-lg p-3">
             <div className="flex items-center mb-2">
-              <span className="bg-blue-600 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs font-bold mr-2">1</span>
-              <h5 className="text-xs font-semibold text-blue-800">기존 위치 철거</h5>
+              <span className="bg-primary-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs font-bold mr-2">1</span>
+              <h5 className="text-xs font-semibold text-primary-700">기존 위치 철거</h5>
             </div>
-            <ul className="text-xs text-blue-700 space-y-1 ml-8">
+            <ul className="text-xs text-primary-600 space-y-1 ml-8">
               <li>• 기존 위치에서 장비를 안전하게 철거합니다</li>
               <li>• 철거한 장비의 상태를 점검합니다</li>
               <li>• 철거 완료 사진을 촬영합니다</li>
@@ -170,8 +170,8 @@ const RelocationWorkDetails: React.FC<RelocationWorkDetailsProps> = ({ order }) 
             <li>• <span className="font-semibold">철거(이전)</span> WRK_CD='07': 이전하기 전에 기존 위치에서 장비 철거</li>
             <li>• <span className="font-semibold">철거(해지)</span> WRK_CD='08': 해지를 위한 장비 철거</li>
           </ul>
-          <div className="mt-2 p-2 bg-blue-50 border border-blue-200 rounded">
-            <p className="text-xs text-blue-700">
+          <div className="mt-2 p-2 bg-primary-50 border border-primary-200 rounded">
+            <p className="text-xs text-primary-600">
               철거 작업이 먼저 완료되어야 이전 설치 작업을 진행할 수 있습니다.
             </p>
           </div>

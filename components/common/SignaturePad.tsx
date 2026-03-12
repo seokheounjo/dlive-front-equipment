@@ -1,6 +1,5 @@
 import React, { useRef, useEffect, useState, useCallback } from 'react';
 import { Trash2, Check, RotateCcw } from 'lucide-react';
-import ConfirmModal, { ConfirmModalType } from './ConfirmModal';
 
 interface SignaturePadProps {
   onSave: (signatureData: string) => void;
@@ -25,12 +24,6 @@ const SignaturePad: React.FC<SignaturePadProps> = ({
   const [isDrawing, setIsDrawing] = useState(false);
   const [hasSignature, setHasSignature] = useState(false);
   const lastPointRef = useRef<{ x: number; y: number } | null>(null);
-  const [modalState, setModalState] = useState<{
-    isOpen: boolean;
-    type: ConfirmModalType;
-    message: string;
-    onConfirm: () => void;
-  }>({ isOpen: false, type: 'warning', message: '', onConfirm: () => {} });
 
   // Canvas 초기화
   useEffect(() => {
@@ -129,60 +122,21 @@ const SignaturePad: React.FC<SignaturePadProps> = ({
     setHasSignature(false);
   }, [backgroundColor]);
 
-  // 서명 저장 (레거시 검증 로직 적용)
+  // 서명 저장
   const saveSignature = useCallback(() => {
     const canvas = canvasRef.current;
     if (!canvas || !hasSignature) return;
 
-    let signatureData = canvas.toDataURL('image/png');
-    // 레거시: + → %2B 치환
-    signatureData = signatureData.replace(/\+/g, '%2B');
-
-    // 레거시: 서명 식별 검증
-    if (signatureData.length < 5000) {
-      setModalState({
-        isOpen: true,
-        type: 'error',
-        message: '서명하신 것이 식별이 되지 않습니다.\n다시 서명해주시기 바랍니다.',
-        onConfirm: () => clearCanvas()
-      });
-      return;
-    }
-    if (signatureData.length < 10000) {
-      setModalState({
-        isOpen: true,
-        type: 'warning',
-        message: '서명하신 것이 식별이 안 될 수도 있습니다.\n다시 서명하기를 권장드립니다.',
-        onConfirm: () => clearCanvas()
-      });
-      return;
-    }
-
+    const signatureData = canvas.toDataURL('image/png');
     onSave(signatureData);
-  }, [hasSignature, onSave, clearCanvas]);
-
-  const closeModal = useCallback(() => {
-    setModalState(prev => ({ ...prev, isOpen: false }));
-  }, []);
+  }, [hasSignature, onSave]);
 
   return (
     <div className="bg-white rounded-lg shadow-lg overflow-hidden">
-      {/* 서명 검증 팝업 */}
-      <ConfirmModal
-        isOpen={modalState.isOpen}
-        onClose={closeModal}
-        onConfirm={modalState.onConfirm}
-        title="서명 확인"
-        message={modalState.message}
-        type={modalState.type}
-        showCancel={false}
-        confirmText="확인"
-      />
-
       {/* 헤더 */}
-      <div className="px-4 py-3 bg-gradient-to-r from-blue-500 to-blue-600 text-white">
+      <div className="px-4 py-3 bg-gradient-to-r from-primary-500 to-primary-500 text-white">
         <h3 className="font-medium">{title}</h3>
-        <p className="text-xs text-blue-100 mt-0.5">아래 영역에 서명해주세요</p>
+        <p className="text-xs text-primary-100 mt-0.5">아래 영역에 서명해주세요</p>
       </div>
 
       {/* 캔버스 영역 */}
@@ -233,7 +187,7 @@ const SignaturePad: React.FC<SignaturePadProps> = ({
         <button
           onClick={saveSignature}
           disabled={!hasSignature}
-          className="flex-1 flex items-center justify-center gap-2 py-2.5 bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
+          className="flex-1 flex items-center justify-center gap-2 py-2.5 bg-primary-500 text-white rounded-lg hover:bg-primary-500 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
         >
           <Check className="w-4 h-4" />
           확인

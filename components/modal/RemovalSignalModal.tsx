@@ -16,6 +16,8 @@ interface RemovalSignalModalProps {
   ctrtId: string;
   soId: string;
   workId: string;
+  prodGrp?: string;       // 상품그룹 (D/C/I/A/V 등)
+  prodCd?: string;        // 기본상품코드
   equipmentList?: any[];  // 회수장비 목록
   onSuccess?: () => void;
   showToast?: (message: string, type: 'success' | 'error' | 'warning' | 'info') => void;
@@ -28,6 +30,8 @@ const RemovalSignalModal: React.FC<RemovalSignalModalProps> = ({
   ctrtId,
   soId,
   workId,
+  prodGrp = '',
+  prodCd = '',
   equipmentList = [],
   onSuccess,
   showToast
@@ -77,38 +81,98 @@ const RemovalSignalModal: React.FC<RemovalSignalModalProps> = ({
     setShowConfirmModal(true);
   };
 
-  // 실제 철거 신호 전송
+  /**
+   * 레거시 fn_seteqt() 동일구현: ITEM_MID_CD 기반 장비 파라미터 분류
+   * D/C 상품: 05→EQT_NO, 04→ETC_1, 07→ETC_2, 02/08(C)→ETC_3, 03(C)→EQT_NO
+   * I 상품: 21→ETC_4, 그 외→EQT_NO
+   * 기타: 선택 장비→EQT_NO
+   */
+  const buildSignalParams = (selectedEqs: any[]): { EQT_NO: string; ETC_1: string; ETC_2: string; ETC_3: string; ETC_4: string } => {
+    let eqtNo = '';
+    let etc1 = '';
+    let etc2 = '';
+    let etc3 = '';
+    let etc4 = '';
+
+    if (prodGrp === 'D' || prodGrp === 'C') {
+      for (const eq of selectedEqs) {
+        const midCd = eq.ITEM_MID_CD || eq.itemMidCd || '';
+        const no = eq.EQT_NO || eq.id || '';
+        if (midCd === '05') eqtNo = no;
+        else if (midCd === '04') etc1 = no;
+        else if (midCd === '07') etc2 = no;
+        else if (prodGrp === 'C' && midCd === '02') etc3 = no;
+        else if (prodGrp === 'C' && midCd === '08') etc3 = no;
+        else if (prodGrp === 'C' && midCd === '03') eqtNo = no;
+      }
+    } else if (prodGrp === 'I') {
+      for (const eq of selectedEqs) {
+        const midCd = eq.ITEM_MID_CD || eq.itemMidCd || '';
+        const no = eq.EQT_NO || eq.id || '';
+        if (midCd === '21') etc4 = no;
+        else eqtNo = no;
+      }
+    } else {
+      // 기타 상품: 첫 번째 장비를 EQT_NO로
+      if (selectedEqs.length > 0) {
+        eqtNo = selectedEqs[0].EQT_NO || selectedEqs[0].id || '';
+      }
+    }
+
+    return { EQT_NO: eqtNo, ETC_1: etc1, ETC_2: etc2, ETC_3: etc3, ETC_4: etc4 };
+  };
+
+  // 실제 철거 신호 전송 (레거시 동일: 한 번의 API 호출로 모든 장비 정보 전송)
   const handleConfirmSendSignal = async () => {
     setShowConfirmModal(false);
     setIsLoading(true);
     setResults([]);
 
+    const userInfo = localStorage.getItem('userInfo');
+    const user = userInfo ? JSON.parse(userInfo) : {};
+
+    // 선택된 장비만 필터
+    const selectedEqs = equipmentList.filter(eq => {
+      const eqtNo = eq.EQT_NO || eq.id;
+      return selectedEquipments.has(eqtNo);
+    });
+
+    // 레거시 fn_seteqt() 동일: ITEM_MID_CD 기반 분류
+    const params = buildSignalParams(selectedEqs);
+
+    console.log('[RemovalSignal] 레거시 동일 파라미터:', { prodGrp, ...params });
+
     const newResults: { eqtNo: string; eqtNm: string; result: SignalResult }[] = [];
 
-    // 선택된 장비에 대해 순차적으로 신호 전송
-    for (const eq of equipmentList) {
-      const eqtNo = eq.EQT_NO || eq.id;
-      if (!selectedEquipments.has(eqtNo)) continue;
+    try {
+      const result = await sendSignal({
+        MSG_ID: 'SMR91',
+        CUST_ID: custId,
+        CTRT_ID: ctrtId,
+        SO_ID: soId,
+        EQT_NO: params.EQT_NO,
+        ETC_1: params.ETC_1,
+        ETC_2: params.ETC_2,
+        ETC_3: params.ETC_3,
+        ETC_4: params.ETC_4,
+        PROD_CD: prodCd,
+        WRK_ID: workId,
+        REG_UID: user.userId || user.workerId || '',
+        WTIME: '3',
+      });
 
-      try {
-        const result = await sendSignal({
-          MSG_ID: 'SMR91',
-          CUST_ID: custId,
-          CTRT_ID: ctrtId,
-          SO_ID: soId,
-          EQT_NO: eqtNo,
-          EQT_PROD_CMPS_ID: eq.EQT_PROD_CMPS_ID || eq.SVC_CMPS_ID || '',
-          PROD_CD: eq.PROD_CD || '',
-          WRK_ID: workId,
-          REG_UID: 'A20130708',
-        });
-
+      // 결과를 각 장비별로 매핑
+      for (const eq of selectedEqs) {
+        const eqtNo = eq.EQT_NO || eq.id;
         newResults.push({
           eqtNo,
           eqtNm: eq.EQT_NM || eq.ITEM_MID_NM || eq.name || '장비',
           result
         });
-      } catch (error: any) {
+      }
+    } catch (error: any) {
+      for (const eq of selectedEqs) {
+        const eqtNo = eq.EQT_NO || eq.id;
         newResults.push({
           eqtNo,
           eqtNm: eq.EQT_NM || eq.ITEM_MID_NM || eq.name || '장비',
@@ -124,22 +188,19 @@ const RemovalSignalModal: React.FC<RemovalSignalModalProps> = ({
     setResults(newResults);
     setIsLoading(false);
 
-    // 결과 체크
     const successCount = newResults.filter(r => r.result.code === 'SUCCESS' || r.result.code === 'OK').length;
     const failCount = newResults.length - successCount;
 
-    if (failCount === 0) {
-      showToast?.(`${successCount}개 장비 철거 신호 전송 완료`, 'success');
+    if (failCount === 0 && successCount > 0) {
+      showToast?.(`철거 신호 전송 완료 (${selectedEqs.length}개 장비)`, 'success');
       onSuccess?.();
-    } else if (successCount > 0) {
-      showToast?.(`성공: ${successCount}건, 실패: ${failCount}건`, 'warning');
-    } else {
-      showToast?.('모든 장비 신호 전송 실패', 'error');
+    } else if (failCount > 0) {
+      showToast?.('철거 신호 전송 실패', 'error', true);
     }
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center">
+    <div className="fixed inset-0 z-[200] flex items-center justify-center">
       {/* Backdrop */}
       <div
         className="absolute inset-0 bg-black/50"
@@ -188,7 +249,7 @@ const RemovalSignalModal: React.FC<RemovalSignalModalProps> = ({
                 <button
                   type="button"
                   onClick={toggleAll}
-                  className="text-sm text-blue-600 hover:text-blue-800"
+                  className="text-sm text-primary-700 hover:text-primary-700"
                 >
                   {selectedEquipments.size === equipmentList.length ? '전체 해제' : '전체 선택'}
                 </button>
@@ -278,7 +339,7 @@ const RemovalSignalModal: React.FC<RemovalSignalModalProps> = ({
               <button
                 onClick={handleSendSignal}
                 disabled={isLoading || selectedEquipments.size === 0}
-                className="flex-1 px-3 sm:px-4 py-2 sm:py-3 bg-yellow-600 text-white rounded-lg font-semibold hover:bg-yellow-700 transition-colors disabled:opacity-50 flex items-center justify-center gap-1.5 sm:gap-2 text-sm sm:text-base"
+                className="flex-1 px-3 sm:px-4 py-2 sm:py-3 bg-yellow-600 text-white rounded-lg font-semibold hover:bg-yellow-700 transition-colors disabled:bg-gray-400 disabled:text-white disabled:cursor-not-allowed flex items-center justify-center gap-1.5 sm:gap-2 text-sm sm:text-base"
               >
                 {isLoading ? (
                   <>

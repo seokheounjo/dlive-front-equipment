@@ -62,7 +62,7 @@ export const MoveWorkInfoModal: React.FC<MoveWorkInfoModalProps> = ({
   const footerContent = (
     <button
       onClick={onClose}
-      className="w-full px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-semibold transition-colors"
+      className="w-full px-4 py-2.5 bg-primary-500 hover:bg-primary-600 text-white rounded-lg font-semibold transition-colors"
     >
       확인
     </button>
@@ -78,7 +78,7 @@ export const MoveWorkInfoModal: React.FC<MoveWorkInfoModalProps> = ({
     >
       {loading ? (
         <div className="flex items-center justify-center py-8">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-500"></div>
           <span className="ml-3 text-gray-600">조회 중...</span>
         </div>
       ) : error ? (
@@ -86,7 +86,7 @@ export const MoveWorkInfoModal: React.FC<MoveWorkInfoModalProps> = ({
           <div className="text-red-500 mb-2">{error}</div>
           <button
             onClick={loadMoveWorkInfo}
-            className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm hover:bg-blue-700"
+            className="px-4 py-2 bg-primary-500 text-white rounded-lg text-sm hover:bg-primary-600"
           >
             다시 시도
           </button>

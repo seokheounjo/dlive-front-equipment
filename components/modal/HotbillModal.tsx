@@ -185,7 +185,7 @@ const HotbillModal: React.FC<HotbillModalProps> = ({
     <div className="text-xs text-gray-700 space-y-0.5">
       <div className="flex gap-4">
         {custNm && (
-          <div className="whitespace-nowrap"><span className="text-gray-600">고객명:</span> <span className="font-medium text-blue-700">{custNm}</span></div>
+          <div className="whitespace-nowrap"><span className="text-gray-600">고객명:</span> <span className="font-medium text-primary-600">{custNm}</span></div>
         )}
         <div className="whitespace-nowrap"><span className="text-gray-600">고객ID:</span> <span className="font-medium">{formatId(custId)}</span></div>
       </div>
@@ -247,7 +247,7 @@ const HotbillModal: React.FC<HotbillModalProps> = ({
       {/* 조회 중 */}
       {!simulating && loading && (
         <div className="flex flex-col items-center justify-center py-8 gap-2">
-          <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
+          <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary-500"></div>
           <div className="text-gray-500 text-xs">조회 중...</div>
         </div>
       )}
@@ -309,10 +309,10 @@ const HotbillModal: React.FC<HotbillModalProps> = ({
           )}
 
           {/* 반환금 합계 (레거시 스타일) */}
-          <div className="bg-blue-50 rounded-lg border border-blue-200 p-3">
+          <div className="bg-primary-50 rounded-lg border border-primary-200 p-3">
             <div className="flex items-center justify-end">
               <span className="text-sm font-semibold text-gray-800 mr-2">반환금 합계:</span>
-              <span className="text-lg font-bold text-blue-700">
+              <span className="text-lg font-bold text-primary-600">
                 {formatAmount(summary.refundAmount || summary.totalAmount)}원
               </span>
             </div>

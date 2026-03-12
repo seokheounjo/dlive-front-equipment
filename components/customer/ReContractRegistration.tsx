@@ -3,6 +3,7 @@ import {
   Loader2, AlertCircle, Send, Calendar,
   RefreshCw, CheckCircle, XCircle, FileText
 } from 'lucide-react';
+import Select from '../ui/Select';
 import {
   getPromOfContract,
   saveCtrtAgreeInfo,
@@ -483,46 +484,43 @@ const ReContractRegistration: React.FC<ReContractRegistrationProps> = ({
             {/* 약정변경코드 */}
             <div>
               <label className="block text-sm text-gray-600 mb-1">약정변경코드 *</label>
-              <select
+              <Select
                 value={form.promChgCd}
-                onChange={(e) => setForm(prev => ({ ...prev, promChgCd: e.target.value }))}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
-              >
-                <option value="">선택</option>
-                {promChangeCodes.map(c => (
-                  <option key={c.CODE} value={c.CODE}>{c.CODE_NM}</option>
-                ))}
-              </select>
+                onValueChange={(val) => setForm(prev => ({ ...prev, promChgCd: val }))}
+                options={[
+                  { value: '', label: '선택' },
+                  ...promChangeCodes.map(c => ({ value: c.CODE, label: c.CODE_NM }))
+                ]}
+                placeholder="선택"
+              />
             </div>
 
             {/* 약정변경사유 */}
             <div>
               <label className="block text-sm text-gray-600 mb-1">약정변경사유 *</label>
-              <select
+              <Select
                 value={form.promChgrsnCd}
-                onChange={(e) => setForm(prev => ({ ...prev, promChgrsnCd: e.target.value }))}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
-              >
-                <option value="">선택</option>
-                {promChangeReasonCodes.map(c => (
-                  <option key={c.CODE} value={c.CODE}>{c.CODE_NM}</option>
-                ))}
-              </select>
+                onValueChange={(val) => setForm(prev => ({ ...prev, promChgrsnCd: val }))}
+                options={[
+                  { value: '', label: '선택' },
+                  ...promChangeReasonCodes.map(c => ({ value: c.CODE, label: c.CODE_NM }))
+                ]}
+                placeholder="선택"
+              />
             </div>
 
             {/* 약정개월수 */}
             <div>
               <label className="block text-sm text-gray-600 mb-1">약정개월수 *</label>
-              <select
+              <Select
                 value={form.promCnt}
-                onChange={(e) => setForm(prev => ({ ...prev, promCnt: e.target.value }))}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
-              >
-                <option value="">선택</option>
-                {promMonthCodes.map(c => (
-                  <option key={c.CODE} value={c.CODE}>{c.CODE_NM}</option>
-                ))}
-              </select>
+                onValueChange={(val) => setForm(prev => ({ ...prev, promCnt: val }))}
+                options={[
+                  { value: '', label: '선택' },
+                  ...promMonthCodes.map(c => ({ value: c.CODE, label: c.CODE_NM }))
+                ]}
+                placeholder="선택"
+              />
             </div>
 
             {/* 약정시작일 / 종료일 */}

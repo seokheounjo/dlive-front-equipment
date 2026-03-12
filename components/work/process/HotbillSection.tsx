@@ -236,6 +236,7 @@ const HotbillSection: React.FC<HotbillSectionProps> = ({
         SO_ID: soId,
         HOPE_DT: todayStr,
         CLC_WRK_CL: '2',  // 철거
+        RCPT_ID: rcptId,   // wrk_receipt RCPT_ID
         PNTY_EXMP_YN: 'N',
       });
 
@@ -367,7 +368,7 @@ const HotbillSection: React.FC<HotbillSectionProps> = ({
         {/* 로딩 */}
         {loading && (
           <div className="flex flex-col items-center justify-center py-5 sm:py-6 gap-1.5 sm:gap-2">
-            <div className="animate-spin rounded-full h-5 w-5 sm:h-6 sm:w-6 border-b-2 border-blue-600"></div>
+            <div className="animate-spin rounded-full h-5 w-5 sm:h-6 sm:w-6 border-b-2 border-primary-500"></div>
             <div className="text-gray-500 text-[0.625rem] sm:text-xs">핫빌 이력 조회 중...</div>
           </div>
         )}
@@ -423,10 +424,10 @@ const HotbillSection: React.FC<HotbillSectionProps> = ({
                 </div>
 
                 {/* 청구금액 합계 */}
-                <div className="bg-blue-50 rounded-lg border border-blue-200 p-2.5 sm:p-3">
+                <div className="bg-primary-50 rounded-lg border border-primary-200 p-2.5 sm:p-3">
                   <div className="flex items-center justify-end gap-1.5 sm:gap-2">
                     <span className="text-xs sm:text-sm font-semibold text-gray-800 whitespace-nowrap">합계:</span>
-                    <span className="text-base sm:text-lg font-bold text-blue-700">
+                    <span className="text-base sm:text-lg font-bold text-primary-600">
                       {formatAmount(chargeTotal > 0 ? chargeTotal : (summary!.refundAmount || summary!.totalAmount))}원
                     </span>
                   </div>

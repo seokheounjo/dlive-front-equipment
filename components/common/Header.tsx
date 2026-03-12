@@ -81,7 +81,7 @@ const Header: React.FC<HeaderProps> = ({ onLogout, onNavigateHome, onNavigateBac
             {!isHome && (
               <button
                 onClick={onNavigateBack || onNavigateHome}
-                className="p-1.5 text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded-lg transition-colors duration-200"
+                className="p-1.5 text-primary-700 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-colors duration-200"
                 aria-label="뒤로가기"
               >
                 <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
@@ -93,7 +93,7 @@ const Header: React.FC<HeaderProps> = ({ onLogout, onNavigateHome, onNavigateBac
             {onMenuClick && (
               <button
                 onClick={onMenuClick}
-                className="p-1.5 text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded-lg transition-colors duration-200"
+                className="p-1.5 text-primary-700 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-colors duration-200"
                 aria-label="메뉴 열기"
               >
                 <Menu className="w-5 h-5" />
@@ -105,13 +105,13 @@ const Header: React.FC<HeaderProps> = ({ onLogout, onNavigateHome, onNavigateBac
           <div className="flex-1 flex items-center justify-center">
             {isHome ? (
               <button onClick={onNavigateHome} className="flex items-center cursor-pointer" aria-label="메인 메뉴로 이동">
-                <DliveLogo className="text-xl text-blue-600" />
+                <DliveLogo height={24} />
               </button>
             ) : viewTitle ? (
               <span className="text-sm font-bold text-gray-900">
                 {viewTitle.title}
                 {viewTitle.workType && (
-                  <span className="text-blue-600">({viewTitle.workType})</span>
+                  <span className="text-primary-700">({viewTitle.workType})</span>
                 )}
               </span>
             ) : null}
@@ -122,7 +122,7 @@ const Header: React.FC<HeaderProps> = ({ onLogout, onNavigateHome, onNavigateBac
           <div className="relative" ref={userMenuRef}>
             <button
               onClick={() => setShowUserMenu(!showUserMenu)}
-              className={`flex flex-col items-center p-1.5 rounded-lg transition-colors duration-200 ${showUserMenu ? 'text-blue-700 bg-blue-50' : 'text-blue-600 hover:text-blue-700 hover:bg-blue-50'}`}
+              className={`flex flex-col items-center p-1.5 rounded-lg transition-colors duration-200 ${showUserMenu ? 'text-primary-600 bg-primary-50' : 'text-primary-700 hover:text-primary-600 hover:bg-primary-50'}`}
               aria-label="사용자 메뉴"
             >
               <User className="w-4 h-4" />

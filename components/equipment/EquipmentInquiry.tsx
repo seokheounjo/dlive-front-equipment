@@ -19,6 +19,7 @@ import {
   getTransferredOutCount          // 이관해준 장비 수
 } from '../../services/apiService';
 import BaseModal from '../common/BaseModal';
+import Select from '../ui/Select';
 // getCustProdInfo 활용 API (테스트 완료: 기사보유장비 조회)
 import { getTechnicianEquipmentFromWork } from '../../services/equipmentWorkApi';
 import { debugApiCall } from './equipmentDebug';
@@ -1535,44 +1536,38 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
               {/* 지점 */}
               <div className="flex items-center gap-2">
                 <label className="text-xs font-medium text-gray-600 w-14 flex-shrink-0">지점</label>
-                <select
+                <Select
                   value={selectedSoId}
-                  onChange={(e) => setSelectedSoId(e.target.value)}
-                  className="flex-1 px-3 py-2.5 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
-                >
-                  <option value="">전체</option>
-                  {soList.map((item) => (
-                    <option key={item.SO_ID} value={item.SO_ID}>{item.SO_NM}</option>
-                  ))}
-                </select>
+                  onValueChange={(val) => setSelectedSoId(val)}
+                  options={[
+                    { value: '', label: '전체' },
+                    ...soList.map((item) => ({ value: item.SO_ID, label: item.SO_NM }))
+                  ]}
+                  placeholder="전체"
+                  className="flex-1"
+                />
               </div>
               {/* 장비종류 (중분류 + 소분류 한 줄) */}
               <div className="flex items-center gap-2 overflow-hidden">
                 <label className="text-xs font-medium text-gray-600 w-14 flex-shrink-0">장비종류</label>
-                <select
+                <Select
                   value={selectedItemMidCd}
-                  onChange={(e) => setSelectedItemMidCd(e.target.value)}
-                  className="flex-1 min-w-0 px-2 py-2.5 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent truncate"
-                >
-                  {itemMidList.map((item) => (
-                    <option key={item.COMMON_CD} value={item.COMMON_CD}>{item.COMMON_CD_NM}</option>
-                  ))}
-                </select>
-                <select
+                  onValueChange={(val) => setSelectedItemMidCd(val)}
+                  options={itemMidList.map((item) => ({ value: item.COMMON_CD, label: item.COMMON_CD_NM }))}
+                  placeholder="중분류"
+                  className="flex-1 min-w-0"
+                />
+                <Select
                   value={selectedEqtClCd}
-                  onChange={(e) => setSelectedEqtClCd(e.target.value)}
+                  onValueChange={(val) => setSelectedEqtClCd(val)}
+                  options={[
+                    { value: '', label: !selectedItemMidCd ? '-' : isLoadingEqtCl ? '...' : (eqtClOptions.length === 0 ? '-' : '전체') },
+                    ...eqtClOptions.map(opt => ({ value: opt.code, label: opt.name }))
+                  ]}
+                  placeholder={!selectedItemMidCd ? '-' : isLoadingEqtCl ? '...' : (eqtClOptions.length === 0 ? '-' : '전체')}
                   disabled={!selectedItemMidCd || isLoadingEqtCl || eqtClOptions.length === 0}
-                  className="flex-1 min-w-0 px-2 py-2.5 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-100 disabled:cursor-not-allowed truncate"
-                >
-                  <option value="">
-                    {!selectedItemMidCd ? '-' :
-                     isLoadingEqtCl ? '...' :
-                     (eqtClOptions.length === 0 ? '-' : '전체')}
-                  </option>
-                  {eqtClOptions.map(opt => (
-                    <option key={opt.code} value={opt.code}>{opt.name}</option>
-                  ))}
-                </select>
+                  className="flex-1 min-w-0"
+                />
               </div>
               {/* S/N + 스캔 버튼 */}
               <div className="flex items-center gap-2 overflow-hidden">
@@ -2076,19 +2071,21 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
             <label className="block text-xs font-medium text-gray-600 mb-1">
               반납 사유 <span className="text-red-500">*</span>
             </label>
-            <select
+            <Select
               value={returnReason}
-              onChange={(e) => {
-                setReturnReason(e.target.value);
-                if (e.target.value !== '03') setReturnReasonText('');  // 기타 아니면 입력 초기화
+              onValueChange={(val) => {
+                setReturnReason(val);
+                if (val !== '03') setReturnReasonText('');  // 기타 아니면 입력 초기화
               }}
-              className={`w-full px-2 py-1.5 text-sm border rounded ${!returnReason ? 'border-red-300' : 'border-gray-300'}`}
-            >
-              <option value="">선택해주세요</option>
-              <option value="01">장비 사용일 만료</option>
-              <option value="02">장비 불량 (고객 설치 불가)</option>
-              <option value="03">기타</option>
-            </select>
+              options={[
+                { value: '', label: '선택해주세요' },
+                { value: '01', label: '장비 사용일 만료' },
+                { value: '02', label: '장비 불량 (고객 설치 불가)' },
+                { value: '03', label: '기타' },
+              ]}
+              placeholder="선택해주세요"
+              required={true}
+            />
           </div>
 
           {/* 기타 사유 입력 (기타 선택 시에만 표시) */}

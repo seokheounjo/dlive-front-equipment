@@ -94,12 +94,12 @@ const SuspensionWorkDetails: React.FC<SuspensionWorkDetailsProps> = ({ order }) 
 
       {/* 일시정지 해제 */}
       {isSuspensionRelease && (
-        <div className="bg-gradient-to-r from-blue-50 to-cyan-50 border border-blue-200 rounded-lg p-4">
-          <h3 className="text-sm font-semibold text-blue-800 mb-3 flex items-center gap-2">
+        <div className="bg-gradient-to-r from-primary-50 to-cyan-50 border border-primary-200 rounded-lg p-4">
+          <h3 className="text-sm font-semibold text-primary-700 mb-3 flex items-center gap-2">
             <Play size={16} />
             일시정지 해제 정보
           </h3>
-          <div className="bg-white rounded-lg border border-blue-100 divide-y divide-gray-100">
+          <div className="bg-white rounded-lg border border-primary-100 divide-y divide-gray-100">
             <InfoRow
               label="정지 사유"
               value={order.mmtSusCd || '미입력'}
@@ -121,12 +121,12 @@ const SuspensionWorkDetails: React.FC<SuspensionWorkDetailsProps> = ({ order }) 
           </div>
 
           {/* 해제 필수 입력 안내 */}
-          <div className="mt-3 bg-blue-100 border border-blue-200 rounded-lg p-3">
-            <h4 className="text-xs font-semibold text-blue-800 mb-2 flex items-center gap-1">
+          <div className="mt-3 bg-primary-100 border border-primary-200 rounded-lg p-3">
+            <h4 className="text-xs font-semibold text-primary-700 mb-2 flex items-center gap-1">
               <List size={14} />
               필수 입력 항목
             </h4>
-            <ul className="text-xs text-blue-700 space-y-1">
+            <ul className="text-xs text-primary-600 space-y-1">
               <li>• 해제 사유</li>
               <li>• 해제 처리일</li>
               <li>• 서비스 재개 확인</li>
@@ -134,14 +134,14 @@ const SuspensionWorkDetails: React.FC<SuspensionWorkDetailsProps> = ({ order }) 
           </div>
 
           {/* 계약 상태 확인 */}
-          <div className="mt-3 bg-white border border-blue-200 rounded-lg p-3">
+          <div className="mt-3 bg-white border border-primary-200 rounded-lg p-3">
             <h4 className="text-xs font-semibold text-gray-700 mb-2 flex items-center gap-1">
               <AlertTriangle size={14} />
               계약 상태 확인
             </h4>
             <p className="text-xs text-gray-600">
-              일시정지 해제는 계약 상태가 <span className="font-semibold text-blue-600">'30'(일시정지)</span> 또는{' '}
-              <span className="font-semibold text-blue-600">'37'(일시정지-특정)</span>인 경우에만 가능합니다.
+              일시정지 해제는 계약 상태가 <span className="font-semibold text-primary-700">'30'(일시정지)</span> 또는{' '}
+              <span className="font-semibold text-primary-700">'37'(일시정지-특정)</span>인 경우에만 가능합니다.
             </p>
             <div className="mt-2 text-xs flex items-center gap-1">
               <span className="text-gray-600">현재 계약 상태: </span>

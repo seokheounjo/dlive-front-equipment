@@ -3,6 +3,7 @@ import Select from '../ui/Select';
 import BaseModal from '../common/BaseModal';
 import { getCommonCodes } from '../../services/apiService';
 import '../../styles/buttons.css';
+import { useUIStore } from '../../stores/uiStore';
 
 interface InstallLocationModalProps {
   isOpen: boolean;
@@ -154,7 +155,7 @@ const InstallLocationModal: React.FC<InstallLocationModalProps> = ({
       if (showToast) {
         showToast(error, 'warning');
       } else {
-        alert(error);
+        useUIStore.getState().showGlobalToast(error, 'warning');
       }
       return;
     }

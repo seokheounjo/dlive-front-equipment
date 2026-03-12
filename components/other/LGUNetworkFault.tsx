@@ -54,7 +54,7 @@ const LGUNetworkFault: React.FC<LGUNetworkFaultProps> = ({ onBack, userInfo, sho
       };
       
       const response = await requestLGUNetworkFault(requestData);
-      console.log('✅ LGU 망장애 처리 성공:', response);
+      console.log('LGU 망장애 처리 성공:', response);
       
       setResult({ success: true, data: response });
       if (showToast) showToast('LGU 망장애 처리가 완료되었습니다.', 'success');
@@ -68,9 +68,9 @@ const LGUNetworkFault: React.FC<LGUNetworkFaultProps> = ({ onBack, userInfo, sho
       });
       clearSession(SESSION_KEYS.LGU_NETWORK_FAULT_FORM);
     } catch (error: any) {
-      console.error('❌ LGU 망장애 처리 실패:', error);
+      console.error('LGU 망장애 처리 실패:', error);
       setResult({ success: false, error: error.message });
-      if (showToast) showToast(`LGU 망장애 처리 실패: ${error.message}`, 'error');
+      if (showToast) showToast(`LGU 망장애 처리 실패: ${error.message}`, 'error', true);
     } finally {
       setIsSubmitting(false);
     }
@@ -144,7 +144,7 @@ const LGUNetworkFault: React.FC<LGUNetworkFaultProps> = ({ onBack, userInfo, sho
             <button
               type="submit"
               disabled={isSubmitting}
-              className="px-3 sm:px-4 py-2 sm:py-2.5 bg-orange-500 hover:bg-orange-600 text-white rounded-lg font-medium text-xs sm:text-sm shadow-md transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+              className="px-3 sm:px-4 py-2 sm:py-2.5 bg-orange-500 hover:bg-orange-600 text-white rounded-lg font-medium text-xs sm:text-sm shadow-md transition-all disabled:bg-gray-400 disabled:text-white disabled:cursor-not-allowed"
             >
               {isSubmitting ? '처리 중...' : '망장애 처리'}
             </button>

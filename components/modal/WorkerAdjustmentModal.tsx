@@ -428,7 +428,7 @@ const WorkerAdjustmentModal: React.FC<WorkerAdjustmentModalProps> = ({
           </div>
           <div className="flex">
             <span className="text-gray-500 w-20 flex-shrink-0">작업유형</span>
-            <span className="text-blue-600 font-medium">{direction.typeDisplay || direction.WRK_CD_NM}</span>
+            <span className="text-primary-700 font-medium">{direction.typeDisplay || direction.WRK_CD_NM}</span>
           </div>
           <div className="flex">
             <span className="text-gray-500 w-20 flex-shrink-0">고객명</span>
@@ -445,7 +445,7 @@ const WorkerAdjustmentModal: React.FC<WorkerAdjustmentModalProps> = ({
         type="button"
         onClick={onClose}
         disabled={isSubmitting}
-        className="flex-1 px-4 py-3 bg-gray-100 text-gray-700 rounded-lg font-medium hover:bg-gray-200 transition-colors disabled:opacity-50 whitespace-nowrap"
+        className="flex-1 px-4 py-3 bg-gray-100 text-gray-700 rounded-lg font-medium hover:bg-gray-200 transition-colors disabled:bg-gray-300 disabled:text-gray-400 disabled:cursor-not-allowed whitespace-nowrap"
       >
         취소
       </button>
@@ -453,7 +453,7 @@ const WorkerAdjustmentModal: React.FC<WorkerAdjustmentModalProps> = ({
         type="button"
         onClick={handleSubmit}
         disabled={isSubmitting || !selectedWorker}
-        className="flex-1 px-4 py-3 bg-blue-500 text-white rounded-lg font-medium hover:bg-blue-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
+        className="flex-1 px-4 py-3 bg-primary-500 text-white rounded-lg font-medium hover:bg-primary-500 transition-colors disabled:bg-gray-400 disabled:text-white disabled:cursor-not-allowed whitespace-nowrap"
       >
         {isSubmitting ? '처리중...' : '저장'}
       </button>
@@ -492,7 +492,7 @@ const WorkerAdjustmentModal: React.FC<WorkerAdjustmentModalProps> = ({
                 onChange={(e) => handleSearchChange(e.target.value)}
                 onFocus={() => workers.length > 0 && setShowDropdown(true)}
                 placeholder="이름으로 검색 (2자 이상)"
-                className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
               />
               {selectedWorker && (
                 <button
@@ -531,7 +531,7 @@ const WorkerAdjustmentModal: React.FC<WorkerAdjustmentModalProps> = ({
                         type="button"
                         onMouseDown={(e) => e.preventDefault()}
                         onClick={() => handleWorkerSelect(worker)}
-                        className="w-full p-3 text-left hover:bg-blue-50 transition-colors border-b border-gray-100 last:border-b-0"
+                        className="w-full p-3 text-left hover:bg-primary-50 transition-colors border-b border-gray-100 last:border-b-0"
                       >
                         <div className="font-medium text-gray-900">{worker.USR_NM}</div>
                         <div className="text-xs text-gray-500 mt-0.5">
@@ -578,7 +578,7 @@ const WorkerAdjustmentModal: React.FC<WorkerAdjustmentModalProps> = ({
         {/* 작업예정일 */}
         <div>
           <label className="block text-sm font-semibold text-gray-700 mb-2">
-            작업예정일 <span className="font-normal text-blue-600"></span>
+            작업예정일 <span className="font-normal text-primary-700"></span>
           </label>
           <div className="relative">
             <input
@@ -592,7 +592,7 @@ const WorkerAdjustmentModal: React.FC<WorkerAdjustmentModalProps> = ({
             <button
               type="button"
               onClick={() => (datePickerRef.current as any)?.showPicker?.()}
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 cursor-pointer bg-white flex items-center justify-between"
+              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 cursor-pointer bg-white flex items-center justify-between"
             >
               <span className={`text-sm sm:text-base ${divDate ? 'text-gray-900' : 'text-gray-500'}`}>
                 {divDate || '날짜 선택'}

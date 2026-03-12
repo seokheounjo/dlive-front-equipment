@@ -49,7 +49,7 @@
   width: 2.5rem;
   height: 2.5rem;
   border: 0.25rem solid #f3f3f3;
-  border-top: 0.25rem solid #007bff;
+  border-top: 0.25rem solid #00B0C8;
   border-radius: 50%;
   animation: spin 1s linear infinite;
 }
@@ -136,12 +136,12 @@
 }
 
 .install-input-inline:hover {
-  border-color: #007bff;
+  border-color: #00B0C8;
 }
 
 .install-input-inline:focus {
   outline: none;
-  border-color: #007bff;
+  border-color: #00B0C8;
   box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.1);
 }
 
@@ -159,7 +159,7 @@
   height: 1rem;
   cursor: pointer;
   flex-shrink: 0;
-  accent-color: #007bff;
+  accent-color: #00B0C8;
 }
 
 .install-checkbox-label span {

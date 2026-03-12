@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useUIStore } from '../../stores/uiStore';
 
 interface AutomationBotProps {
   onBack: () => void;
@@ -65,7 +66,7 @@ const AutomationBot: React.FC<AutomationBotProps> = ({ onBack }) => {
 
   const handleRunBot = () => {
     if (!selectedCust) {
-      alert('고객을 선택해주세요');
+      useUIStore.getState().showGlobalToast('고객을 선택해주세요', 'warning');
       return;
     }
 
@@ -74,14 +75,14 @@ const AutomationBot: React.FC<AutomationBotProps> = ({ onBack }) => {
       console.log('신호연동봇 수행:', selectedCust);
     } else if (selectedBot === 'gift') {
       if (!selectedGift) {
-        alert('사은품을 선택해주세요');
+        useUIStore.getState().showGlobalToast('사은품을 선택해주세요', 'warning');
         return;
       }
       // TODO: 사은품접수봇 수행
       console.log('사은품접수봇 수행:', { selectedCust, selectedGift });
     } else if (selectedBot === 'buga') {
       if (!selectedBuga) {
-        alert('부가상품을 선택해주세요');
+        useUIStore.getState().showGlobalToast('부가상품을 선택해주세요', 'warning');
         return;
       }
       // TODO: 부가가입봇 수행

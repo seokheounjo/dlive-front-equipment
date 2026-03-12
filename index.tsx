@@ -2,9 +2,7 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App';
-
-// API 디버거 초기화 (콘솔 명령어 등록)
-import './services/apiDebugger';
+console.log('[Build] 20260225-0510');
 
 const rootElement = document.getElementById('root');
 if (!rootElement) {

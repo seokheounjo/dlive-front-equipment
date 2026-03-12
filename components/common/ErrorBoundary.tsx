@@ -115,7 +115,7 @@ class ErrorBoundary extends Component<Props, State> {
             <div className="flex flex-col sm:flex-row gap-3">
               <button
                 onClick={this.handleReload}
-                className="flex-1 bg-blue-500 hover:bg-blue-600 text-white font-medium py-3 px-6 rounded-lg transition-colors duration-200 flex items-center justify-center gap-2"
+                className="flex-1 bg-primary-500 hover:bg-primary-500 text-white font-medium py-3 px-6 rounded-lg transition-colors duration-200 flex items-center justify-center gap-2"
               >
                 <svg
                   className="w-5 h-5"

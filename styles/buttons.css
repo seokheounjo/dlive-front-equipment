@@ -38,12 +38,12 @@
 
 /* Primary - 주요 액션 (파란색) */
 .btn-primary {
-  background: #007bff;
+  background: #00B0C8;
   color: white;
 }
 
 .btn-primary:hover:not(:disabled) {
-  background: #0056b3;
+  background: #009DB3;
 }
 
 /* Secondary - 보조 액션 (회색) */
@@ -89,12 +89,12 @@
 /* Outline 버튼 */
 .btn-outline-primary {
   background: transparent;
-  color: #007bff;
-  border: 2px solid #007bff;
+  color: #00B0C8;
+  border: 2px solid #00B0C8;
 }
 
 .btn-outline-primary:hover:not(:disabled) {
-  background: #007bff;
+  background: #00B0C8;
   color: white;
 }
 
@@ -209,4 +209,10 @@
 
 .scrollbar-hide::-webkit-scrollbar {
   display: none;  /* Chrome, Safari, Opera */
+}
+
+/* iOS Safe Area - 하단 패딩 */
+.pb-safe {
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+  padding-bottom: max(env(safe-area-inset-bottom), 0px);
 }

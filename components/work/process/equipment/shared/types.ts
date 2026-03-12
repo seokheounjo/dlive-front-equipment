@@ -5,6 +5,9 @@
 
 import { Equipment, WorkItem } from '../../../../../types';
 
+/** 상품유형 */
+export type ProductType = 'basic' | 'ftth' | 'lguplus';
+
 // 확장 장비 타입 (레거시 필드 포함)
 export interface ExtendedEquipment extends Equipment {
   itemMidCd?: string;         // 04:모뎀, 05:셋톱박스, 07:특수장비, 03:추가장비
@@ -102,13 +105,16 @@ export interface EquipmentComponentProps {
   preloadedApiData?: any;
   onPreloadedDataUpdate?: (newData: any) => void;
   readOnly?: boolean;
-  // LGU+ props (Phase D/E)
-  isCertifyProd?: boolean;
-  certifyOpLnkdCd?: string;
   onLdapConnect?: () => void;
   isLdapDone?: boolean;
   ldapLoading?: boolean;
   ldapBlocked?: boolean;
+  productType?: ProductType;      // 상품유형 (Context에서 주입)
+}
+
+// 상품유형 기반 Equipment Props (새 라우터에서 사용)
+export interface EquipmentFormProps extends EquipmentComponentProps {
+  productType: ProductType;       // 필수
 }
 
 // 작업코드 → 한글 변환 (레거시 CMWT000 코드 테이블)

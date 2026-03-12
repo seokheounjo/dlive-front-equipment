@@ -1,6 +1,6 @@
 import React from 'react';
 import { View } from '../App';
-import { ClipboardList, UserCheck, Boxes, MoreHorizontal } from 'lucide-react';
+import { ClipboardList, UserCheck, Home, Boxes, MoreHorizontal } from 'lucide-react';
 
 interface BottomNavigationProps {
   currentView: View;
@@ -28,6 +28,11 @@ const BottomNavigation: React.FC<BottomNavigationProps> = ({
       id: 'customer-management' as View,
       label: '고객관리',
       icon: UserCheck,
+    },
+    {
+      id: 'today-work' as View,
+      label: '홈',
+      icon: Home,
     },
     {
       id: 'equipment-management' as View,
@@ -62,7 +67,7 @@ const BottomNavigation: React.FC<BottomNavigationProps> = ({
                   className={`
                     transition-all duration-200
                     ${isActive
-                      ? 'h-5 w-5 text-blue-600'
+                      ? 'h-5 w-5 text-primary-700'
                       : 'h-5 w-5 text-gray-500'
                     }
                   `}
@@ -70,9 +75,9 @@ const BottomNavigation: React.FC<BottomNavigationProps> = ({
                 />
                 <span
                   className={`
-                    text-[10px] transition-all duration-200
+                    text-[0.625rem] transition-all duration-200
                     ${isActive
-                      ? 'text-blue-600 font-bold'
+                      ? 'text-primary-700 font-bold'
                       : 'text-gray-500 font-medium'
                     }
                   `}
