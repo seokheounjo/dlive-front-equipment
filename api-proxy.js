@@ -864,6 +864,7 @@ router.post('/statistics/customer/getPostList', handleProxy);  // 지번주소 �
 router.post('/customer/common/customercommon/getStreetAddrList', handleProxy);  // 도로명주소 검색
 
 // System/CM API
+router.post('/system/cm/getFindUsrList', handleProxy);
 router.post('/system/cm/getFindUsrList3', handleProxy);
 
 // Activity & Debug Log APIs (system/pm -> authController on CONA)
