@@ -878,6 +878,7 @@ router.post('/system/cm/getFindUsrList3', handleProxy);
 // Activity & Debug Log APIs (system/pm -> authController on CONA)
 router.post('/system/pm/insertActivityLog', handleProxy);
 router.post('/system/pm/insertDebugLog', handleProxy);
+router.post('/system/pm/saveDliveAttendance', handleProxy);
 
 // Login Audit Log APIs (browser-side calls from logService.ts)
 router.post('/system/pm/pmobileLoginApi_1', handleProxy);
