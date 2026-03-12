@@ -384,6 +384,9 @@ router.post('/system/pm/pmobileLoginApi_3', handleProxy);
 | 03/12 | services/logService.ts | sendLogs() 배치 → 개별 전송으로 변경 |
 | 03/12 | App.tsx | LOGIN_TRX_ID 이중 생성 방지 (localStorage 체크) |
 | 03/12 | services/apiService.ts | PASSWORD 키명 수정, DRM_VERSION="1000", LOGIN_VIEW="MOBILE" |
+| 03/12 | services/apiService.ts | fetchWithRetry 4xx error response body parsing (wasName 추출) |
+| 03/12 | services/apiService.ts | LoginResponse에 wasName 필드 추가 |
+| 03/12 | components/layout/Login.tsx | loginApi2/3에 WAS 컨테이너명 포함 (성공/실패 모두) |
 
 ### 백엔드 (jsh 브랜치 - 관리자 빌드/배포 대기)
 
@@ -397,6 +400,10 @@ router.post('/system/pm/pmobileLoginApi_3', handleProxy);
 | 03/11 | TaskAuthController.java | req.setCharacterEncoding("UTF-8") 한글 인코딩 |
 | 03/12 | TaskAuthController.java | P_LOGIN_TRX_ID/P_NW_TYPE 파라미터 키 매핑 수정 |
 | 03/12 | TaskAuthController.java | 레거시 로그인 플로우 완전 매칭 (동시접속, modUsrLoginDt, addUsrConnLog) |
+| 03/12 | TaskAuthController.java | WAS 컨테이너명 추가: getWasContainerName() (legacy getWasName 동일) |
+| 03/12 | TaskAuthController.java | 로그인 응답에 wasName 포함 (성공/실패 모두) |
+| 03/12 | TaskAuthController.java | pmobileLoginApi_1 P_SERVER에 WAS 컨테이너명 자동 설정 |
+| 03/12 | TaskAuthController.java | pmobileLoginApi_2/3에 WAS 컨테이너명 자동 추가 |
 
 ---
 
@@ -416,6 +423,7 @@ router.post('/system/pm/pmobileLoginApi_3', handleProxy);
 | 10 | 동시접속 체크 누락 | getUsrSessionInfo 미호출 | 레거시와 동일하게 추가 |
 | 11 | 로그인일자 미갱신 | modUsrLoginDt 미호출 | 추가 (LAST_LOGIN_DT 업데이트) |
 | 12 | 접속로그 미저장 | addUsrConnLog 미호출 | 추가 (tsylm_usr_conn INSERT) |
+| 13 | WAS 컨테이너명 미포함 | 레거시 fn_get_was_name 누락 | getWasContainerName() 구현, 로그인 응답+감사로그에 포함 |
 
 ---
 
@@ -430,6 +438,8 @@ router.post('/system/pm/pmobileLoginApi_3', handleProxy);
 | apiService.ts (DRM_VERSION, LOGIN_VIEW, PASSWORD) | ✅ 배포 완료 |
 | App.tsx (LOGIN_TRX_ID 조건부 생성) | ✅ 배포 완료 |
 | Login.tsx (loginApi1/2/3 호출) | ✅ 배포 완료 |
+| Login.tsx (WAS 컨테이너명 loginApi2/3 전달) | ✅ 배포 완료 |
+| apiService.ts (401 에러 응답 body parsing) | ✅ 배포 완료 |
 
 ### 백엔드 (CONA WebSphere - 관리자 수동 배포)
 
@@ -442,7 +452,7 @@ router.post('/system/pm/pmobileLoginApi_3', handleProxy);
 
 ```
 브랜치: jsh
-최신 커밋: 4c9c26c (Match legacy login flow: add missing login steps)
+최신 커밋: 3f61db8 (Add WAS container name to login response and audit logs)
 수정 파일:
   - src/task/TaskAuthController.java
   - deployment-package/api-servlet.xml
@@ -482,3 +492,51 @@ router.post('/system/pm/pmobileLoginApi_3', handleProxy);
 
 > **주의**: LOGIN_TRX_ID와 NW_TYPE가 실제 DB에 저장되려면 백엔드 배포가 필요합니다.
 > 현재 배포된 main에는 `LOGIN_TRX_ID`/`NW_TYPE` 키가 `P_LOGIN_TRX_ID`/`P_NW_TYPE`로 매핑 안 되어 있어 NULL이 들어갑니다.
+
+---
+
+## 10. WAS 컨테이너명 (fn_get_was_name)
+
+### 레거시 구현 (BulletinManagementImpl.java)
+
+```java
+String str_comm = System.getProperty("sun.java.command").toString();
+String[] str_comm_arr = str_comm.split(" ");
+String nm_container = str_comm_arr[str_comm_arr.length - 1];
+```
+
+- 레거시 MiPlatform에서 `fn_get_was_name()` → `/system/bd/getWasName.req` 호출
+- WAS 컨테이너명 = JVM 실행 커맨드의 마지막 인자 (WebSphere 컨테이너 식별자)
+
+### 우리 구현 (TaskAuthController.java)
+
+```java
+private static String getWasContainerName() {
+    String cmd = System.getProperty("sun.java.command");
+    String[] parts = cmd.split(" ");
+    return parts[parts.length - 1];  // WAS container name
+}
+```
+
+### 적용 위치
+
+| 위치 | 필드 | 내용 |
+|------|------|------|
+| 로그인 성공 응답 | `wasName` | 컨테이너명 직접 포함 |
+| 로그인 실패 응답 (401/423) | `wasName` | 에러 JSON에 포함 |
+| pmobileLoginApi_1 | `P_SERVER` | 컨테이너명으로 자동 설정 (프론트 값 무시) |
+| pmobileLoginApi_2 | `P_RESPONSE_DATA` | `WAS=컨테이너명` 추가 |
+| pmobileLoginApi_3 | `P_FINAL_RESULT_MSG` | `WAS=컨테이너명` 추가 |
+
+### 프론트엔드 전달 흐름
+
+```
+[Login.tsx]
+  ├─ loginApi1: P_SERVER → backend가 자동 설정
+  ├─ login() 성공 → result.wasName
+  │   ├─ loginApi2: P_RESPONSE_DATA = "WAS=컨테이너명"
+  │   └─ loginApi3: P_FINAL_RESULT_MSG = "...,WAS=컨테이너명"
+  └─ login() 실패 (401) → err.details.wasName
+      ├─ loginApi2: P_RESPONSE_DATA = "WAS=컨테이너명"
+      └─ loginApi3: P_FINAL_RESULT_MSG = "...,WAS=컨테이너명"
+```
