@@ -79,14 +79,48 @@ function getLoginTrxId(): string {
 }
 
 // ============ Network Type Detection ============
+// Format: DEVICE_CONNECTION (e.g. IPHONE_LTE, ANDROID_WIFI, PC_ETHERNET)
+//
+// Device types:
+//   PC          - Windows desktop/laptop
+//   PC_TAB      - Windows tablet (Surface etc., touch + Windows)
+//   MAC         - macOS desktop/laptop
+//   LINUX       - Linux desktop
+//   CHROMEBOOK  - ChromeOS
+//   IPHONE      - iPhone
+//   IPAD        - iPad (incl. iPadOS 13+ which masquerades as Mac)
+//   ANDROID     - Android phone
+//   ANDROID_TAB - Android tablet (no 'Mobile' in UA)
+//
+// Connection types (Android Chrome/Samsung Internet only):
+//   WIFI     - Wi-Fi (conn.type = 'wifi')
+//   LTE      - Cellular 4G (conn.type = 'cellular' or effectiveType = '4g')
+//   3G       - 3G (effectiveType = '3g')
+//   2G       - 2G/slow (effectiveType = '2g' or 'slow-2g')
+//   ETHERNET - Wired (conn.type = 'ethernet')
+//   (empty)  - Safari/Firefox/API unsupported -> device name only
 
 function getDeviceType(): string {
   try {
     const ua = navigator.userAgent || '';
-    if (/iPad/i.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)) return 'IPAD';
+    // iPad: explicit 'iPad' in UA, or iPadOS 13+ (reports as Mac but has touch)
+    if (/iPad/i.test(ua)) return 'IPAD';
+    if (/Macintosh/i.test(ua) && typeof navigator.maxTouchPoints === 'number' && navigator.maxTouchPoints > 1) return 'IPAD';
+    // iPhone
     if (/iPhone/i.test(ua)) return 'IPHONE';
+    // Android: phone has 'Mobile', tablet does not
     if (/Android/i.test(ua)) return /Mobile/i.test(ua) ? 'ANDROID' : 'ANDROID_TAB';
+    // Mac (after iPad check)
     if (/Macintosh|Mac OS/i.test(ua)) return 'MAC';
+    // ChromeOS
+    if (/CrOS/i.test(ua)) return 'CHROMEBOOK';
+    // Windows: tablet (Surface) has touch
+    if (/Windows/i.test(ua)) {
+      if (typeof navigator.maxTouchPoints === 'number' && navigator.maxTouchPoints > 0 && /Touch/i.test(ua)) return 'PC_TAB';
+      return 'PC';
+    }
+    // Linux (non-Android, non-ChromeOS)
+    if (/Linux|X11/i.test(ua)) return 'LINUX';
     return 'PC';
   } catch {
     return 'PC';
@@ -97,15 +131,23 @@ function getConnectionType(): string {
   try {
     const conn = (navigator as any).connection || (navigator as any).mozConnection || (navigator as any).webkitConnection;
     if (!conn) return '';
-    if (conn.type) {
-      const t = conn.type.toUpperCase();
-      if (t === 'CELLULAR') return 'LTE';
-      return t; // WIFI, ETHERNET, BLUETOOTH, NONE
+    // conn.type: wifi, cellular, ethernet, bluetooth, none, other, unknown
+    if (conn.type && conn.type !== 'unknown' && conn.type !== 'none' && conn.type !== 'other') {
+      const t = conn.type.toLowerCase();
+      if (t === 'wifi') return 'WIFI';
+      if (t === 'cellular') return 'LTE';
+      if (t === 'ethernet') return 'ETHERNET';
+      if (t === 'bluetooth') return 'BT';
+      return conn.type.toUpperCase();
     }
+    // effectiveType: 4g, 3g, 2g, slow-2g (Chrome desktop always says 4g, skip for PC)
     if (conn.effectiveType) {
-      const e = conn.effectiveType.toUpperCase();
-      if (e === '4G') return 'LTE';
-      return e; // 3G, 2G, SLOW-2G
+      const e = conn.effectiveType.toLowerCase();
+      // PC Chrome always reports effectiveType='4g' even on WiFi — unreliable, skip
+      if (!/Mobi|Android/i.test(navigator.userAgent || '')) return '';
+      if (e === '4g') return 'LTE';
+      if (e === '3g') return '3G';
+      if (e === '2g' || e === 'slow-2g') return '2G';
     }
     return '';
   } catch {
