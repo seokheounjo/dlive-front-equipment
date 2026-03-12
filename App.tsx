@@ -158,8 +158,11 @@ const App: React.FC = () => {
   const handleLogin = (userId?: string, userName?: string, userNameEn?: string, userRole?: string, crrId?: string, soId?: string, mstSoId?: string, telNo2?: string, authSoList?: Array<{SO_ID: string; SO_NM: string; MST_SO_ID: string}>, soYn?: string, deptCd?: string) => {
     setIsAuthenticated(true);
     setCurrentView('today-work');
-    // Generate login transaction ID for all log entries during this session
-    generateLoginTrxId(userId || 'unknown');
+    // LOGIN_TRX_ID is already generated in Login.tsx before loginApi1/2/3 calls.
+    // Only generate here for demo/direct login that bypasses Login.tsx flow.
+    if (!localStorage.getItem('loginTrxId')) {
+      generateLoginTrxId(userId || 'unknown');
+    }
     if (userId) {
       const userInfoData = {
         userId,
