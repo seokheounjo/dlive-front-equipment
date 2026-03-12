@@ -479,8 +479,8 @@ export default function OvertimeWork({ onBack, userInfo, showToast }: OvertimeWo
 
       {/* ===== New Application Modal ===== */}
       {showApplyModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 z-40 flex items-end justify-center" style={{ bottom: 'calc(52px + env(safe-area-inset-bottom, 0px))' }}>
-          <div className="bg-white w-full max-w-lg rounded-t-2xl max-h-[80vh] flex flex-col">
+        <div className="fixed inset-0 bg-black bg-opacity-50 z-[60] flex items-end justify-center pb-[52px]">
+          <div className="bg-white w-full max-w-lg rounded-t-2xl max-h-[75vh] flex flex-col">
             <div className="flex-shrink-0 bg-white border-b border-gray-200 px-4 py-3 flex items-center justify-between rounded-t-2xl">
               <h3 className="font-medium text-gray-800">시간외근무 신청</h3>
               <button onClick={() => setShowApplyModal(false)} className="p-1 text-gray-400 hover:text-gray-600">
@@ -607,8 +607,8 @@ export default function OvertimeWork({ onBack, userInfo, showToast }: OvertimeWo
 
       {/* ===== Actual Input Modal ===== */}
       {showActualModal && selectedRecord && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 z-40 flex items-end justify-center" style={{ bottom: 'calc(52px + env(safe-area-inset-bottom, 0px))' }}>
-          <div className="bg-white w-full max-w-lg rounded-t-2xl max-h-[80vh] flex flex-col">
+        <div className="fixed inset-0 bg-black bg-opacity-50 z-[60] flex items-end justify-center pb-[52px]">
+          <div className="bg-white w-full max-w-lg rounded-t-2xl max-h-[75vh] flex flex-col">
             <div className="flex-shrink-0 bg-white border-b border-gray-200 px-4 py-3 flex items-center justify-between rounded-t-2xl">
               <h3 className="font-medium text-gray-800">실적 입력</h3>
               <button onClick={() => setShowActualModal(false)} className="p-1 text-gray-400 hover:text-gray-600">
