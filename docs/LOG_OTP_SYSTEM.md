@@ -24,7 +24,7 @@
 ### 인코딩 체인
 - 브라우저 → Express: `Content-Type: application/json` (UTF-8)
 - Express → CONA: `Content-Type: application/json; charset=utf-8`
-- CONA: `req.setCharacterEncoding("UTF-8")` → `req.getReader()` UTF-8 읽기
+- CONA: `req.getInputStream()` → `new String(bytes, "UTF-8")` 명시적 디코딩
 - Oracle JDBC: Java String → DB charset 자동 변환
 
 ---
@@ -404,6 +404,7 @@ router.post('/system/pm/pmobileLoginApi_3', handleProxy);
 | 03/12 | TaskAuthController.java | 로그인 응답에 wasName 포함 (성공/실패 모두) |
 | 03/12 | TaskAuthController.java | pmobileLoginApi_1 P_SERVER에 WAS 컨테이너명 자동 설정 |
 | 03/12 | TaskAuthController.java | pmobileLoginApi_2/3에 WAS 컨테이너명 자동 추가 |
+| 03/12 | TaskAuthController.java | parseJsonBody/parseJsonBodyAll: InputStream + UTF-8 명시적 디코딩 (한글 깨짐 수정) |
 
 ---
 
@@ -424,6 +425,8 @@ router.post('/system/pm/pmobileLoginApi_3', handleProxy);
 | 11 | 로그인일자 미갱신 | modUsrLoginDt 미호출 | 추가 (LAST_LOGIN_DT 업데이트) |
 | 12 | 접속로그 미저장 | addUsrConnLog 미호출 | 추가 (tsylm_usr_conn INSERT) |
 | 13 | WAS 컨테이너명 미포함 | 레거시 fn_get_was_name 누락 | getWasContainerName() 구현, 로그인 응답+감사로그에 포함 |
+| 14 | loginApi2 P_RESULT_CD에 에러코드 전송 | catch블록에서 errCode(INVALID_PASS 등) 직접 전송 | P_RESULT_CD='FAIL' 고정, 에러코드는 P_RESULT_MSG에 [CODE] 형태로 포함 |
+| 15 | 한글 인코딩 깨짐 (UTF-8→EUC-KR) | req.getReader()가 WebSphere 기본 인코딩 사용 | req.getInputStream() + 명시적 UTF-8 바이트 디코딩으로 변경 |
 
 ---
 
@@ -439,6 +442,7 @@ router.post('/system/pm/pmobileLoginApi_3', handleProxy);
 | App.tsx (LOGIN_TRX_ID 조건부 생성) | ✅ 배포 완료 |
 | Login.tsx (loginApi1/2/3 호출) | ✅ 배포 완료 |
 | Login.tsx (WAS 컨테이너명 loginApi2/3 전달) | ✅ 배포 완료 |
+| Login.tsx (P_RESULT_CD: FAIL 고정) | ✅ 배포 완료 |
 | apiService.ts (401 에러 응답 body parsing) | ✅ 배포 완료 |
 
 ### 백엔드 (CONA WebSphere - 관리자 수동 배포)
@@ -452,7 +456,7 @@ router.post('/system/pm/pmobileLoginApi_3', handleProxy);
 
 ```
 브랜치: jsh
-최신 커밋: 3f61db8 (Add WAS container name to login response and audit logs)
+최신 커밋: a361a82 (Fix Korean encoding: use InputStream with explicit UTF-8 decode)
 수정 파일:
   - src/task/TaskAuthController.java
   - deployment-package/api-servlet.xml
