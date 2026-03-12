@@ -116,7 +116,25 @@ export function pickRandomKey(keys: string[]): string {
   return keys[Math.floor(Math.random() * keys.length)];
 }
 
-// 카카오 SDK 로드 대기
+// Try loading Kakao SDK with a single key
+function tryLoadKakaoSdk(appKey: string): Promise<boolean> {
+  return new Promise((resolve) => {
+    const s = document.createElement('script');
+    s.src = `https://dapi.kakao.com/v2/maps/sdk.js?appkey=${appKey}&libraries=services&autoload=false`;
+    s.onload = () => {
+      if ((window as any).kakao?.maps) {
+        (window as any).kakao.maps.load(() => resolve(!!(window as any).kakao.maps.services));
+      } else resolve(false);
+    };
+    s.onerror = () => {
+      s.remove();
+      resolve(false);
+    };
+    document.head.appendChild(s);
+  });
+}
+
+// 카카오 SDK 로드 대기 (all keys tried in order until one works)
 function ensureKakaoGeocoder(): Promise<boolean> {
   return new Promise((resolve) => {
     if ((window as any).kakao?.maps?.services) { resolve(true); return; }
@@ -134,17 +152,16 @@ function ensureKakaoGeocoder(): Promise<boolean> {
       } else if (t > 25) {
         clearInterval(iv);
         const mapKeys = await loadMapApiKeys();
-        const appKey = pickRandomKey(mapKeys.kakao);
-        if (!appKey) { resolve(false); return; }
-        const s = document.createElement('script');
-        s.src = `https://dapi.kakao.com/v2/maps/sdk.js?appkey=${appKey}&libraries=services&autoload=false`;
-        s.onload = () => {
-          if ((window as any).kakao?.maps) {
-            (window as any).kakao.maps.load(() => resolve(!!(window as any).kakao.maps.services));
-          } else resolve(false);
-        };
-        s.onerror = () => resolve(false);
-        document.head.appendChild(s);
+        const keys = mapKeys.kakao;
+        if (keys.length === 0) { resolve(false); return; }
+        // Try each key until one works
+        for (const key of keys) {
+          const ok = await tryLoadKakaoSdk(key);
+          if (ok) { resolve(true); return; }
+          // Remove failed kakao object so next key starts fresh
+          delete (window as any).kakao;
+        }
+        resolve(false);
       }
     }, 200);
   });
