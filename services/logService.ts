@@ -111,17 +111,17 @@ function getDeviceType(): string {
     // Android: phone has 'Mobile', tablet does not
     if (/Android/i.test(ua)) return /Mobile/i.test(ua) ? 'ANDROID' : 'ANDROID_TAB';
     // Mac (after iPad check)
-    if (/Macintosh|Mac OS/i.test(ua)) return 'MAC';
+    if (/Macintosh|Mac OS/i.test(ua)) return 'PC_MAC';
     // ChromeOS
-    if (/CrOS/i.test(ua)) return 'CHROMEBOOK';
+    if (/CrOS/i.test(ua)) return 'PC_CHROMEBOOK';
     // Windows: tablet (Surface) has touch
     if (/Windows/i.test(ua)) {
       if (typeof navigator.maxTouchPoints === 'number' && navigator.maxTouchPoints > 0 && /Touch/i.test(ua)) return 'PC_TAB';
-      return 'PC';
+      return 'PC_WIN';
     }
     // Linux (non-Android, non-ChromeOS)
-    if (/Linux|X11/i.test(ua)) return 'LINUX';
-    return 'PC';
+    if (/Linux|X11/i.test(ua)) return 'PC_LINUX';
+    return 'PC_WIN';
   } catch {
     return 'PC';
   }
