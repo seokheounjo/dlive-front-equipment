@@ -42,15 +42,20 @@ interface GubnCode {
   GUBN_NAME: string;
 }
 
+interface ResultPopup {
+  show: boolean;
+  type: 'success' | 'error';
+  title: string;
+  message: string;
+}
+
 // Calculate hours between time range
 function calcHours(fromDate: string, fromHour: string, fromMinu: string, toDate: string, toHour: string, toMinu: string): string {
   if (!fromHour || !toHour) return '';
   const startMin = parseInt(fromHour) * 60 + parseInt(fromMinu || '0');
   const endMin = parseInt(toHour) * 60 + parseInt(toMinu || '0');
-  // Handle cross-day
   let diffMin = endMin - startMin;
   if (fromDate && toDate && fromDate !== toDate) {
-    // Simple: assume next day
     diffMin += 24 * 60;
   }
   if (diffMin <= 0) return '';
@@ -88,7 +93,7 @@ export default function OvertimeWork({ onBack, userInfo, showToast }: OvertimeWo
   // List
   const [records, setRecords] = useState<OvertimeRecord[]>([]);
   const [loading, setLoading] = useState(false);
-  const [period, setPeriod] = useState('1'); // 1=1week, 2=1month, 3=3months
+  const [period, setPeriod] = useState('1');
 
   // New application modal
   const [showApplyModal, setShowApplyModal] = useState(false);
@@ -118,6 +123,9 @@ export default function OvertimeWork({ onBack, userInfo, showToast }: OvertimeWo
   });
   const [savingActual, setSavingActual] = useState(false);
 
+  // Result popup
+  const [resultPopup, setResultPopup] = useState<ResultPopup>({ show: false, type: 'success', title: '', message: '' });
+
   // Auth check
   useEffect(() => {
     if (!userInfo?.userId) return;
@@ -128,9 +136,6 @@ export default function OvertimeWork({ onBack, userInfo, showToast }: OvertimeWo
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ USR_ID: userInfo.userId })
         });
-        const data = await res.json();
-        // If we get a response (even empty array), user has access
-        // If error or specific denial, no access
         if (res.ok) {
           setAuthorized(true);
         } else {
@@ -199,7 +204,6 @@ export default function OvertimeWork({ onBack, userInfo, showToast }: OvertimeWo
     if (authorized) loadList();
   }, [authorized, loadList]);
 
-  // Period change
   const handlePeriodChange = (val: string) => {
     setPeriod(val);
     loadList(val);
@@ -209,11 +213,11 @@ export default function OvertimeWork({ onBack, userInfo, showToast }: OvertimeWo
   const handleApply = async () => {
     if (!userInfo?.userId) return;
     if (!applyForm.gubn) {
-      showToast?.('구분을 선택해주세요.', 'error');
+      setResultPopup({ show: true, type: 'error', title: '입력 오류', message: '구분을 선택해주세요.' });
       return;
     }
     if (!applyForm.reason.trim()) {
-      showToast?.('근무사유를 입력해주세요.', 'error');
+      setResultPopup({ show: true, type: 'error', title: '입력 오류', message: '근무사유를 입력해주세요.' });
       return;
     }
 
@@ -236,16 +240,17 @@ export default function OvertimeWork({ onBack, userInfo, showToast }: OvertimeWo
       });
 
       if (res.ok) {
-        showToast?.('시간외근무가 신청되었습니다.', 'success');
         setShowApplyModal(false);
         setApplyForm(prev => ({ ...prev, reason: '' }));
         loadList();
+        setResultPopup({ show: true, type: 'success', title: '신청 완료', message: '시간외근무가 신청되었습니다.' });
       } else {
         const err = await res.json().catch(() => null);
-        showToast?.(err?.rootCause || err?.cause || err?.message || '신청에 실패했습니다.', 'error');
+        const msg = err?.rootCause || err?.cause || err?.message || '신청에 실패했습니다.';
+        setResultPopup({ show: true, type: 'error', title: '신청 실패', message: msg });
       }
     } catch {
-      showToast?.('신청에 실패했습니다.', 'error');
+      setResultPopup({ show: true, type: 'error', title: '신청 실패', message: '서버 연결에 실패했습니다.' });
     } finally {
       setSubmitting(false);
     }
@@ -270,7 +275,7 @@ export default function OvertimeWork({ onBack, userInfo, showToast }: OvertimeWo
   const handleSaveActual = async () => {
     if (!userInfo?.userId || !selectedRecord) return;
     if (!actualForm.reason.trim()) {
-      showToast?.('근무사유를 입력해주세요.', 'error');
+      setResultPopup({ show: true, type: 'error', title: '입력 오류', message: '근무사유를 입력해주세요.' });
       return;
     }
 
@@ -297,21 +302,21 @@ export default function OvertimeWork({ onBack, userInfo, showToast }: OvertimeWo
       });
 
       if (res.ok) {
-        showToast?.('실적이 저장되었습니다.', 'success');
         setShowActualModal(false);
         loadList();
+        setResultPopup({ show: true, type: 'success', title: '저장 완료', message: '실적이 저장되었습니다.' });
       } else {
         const err = await res.json().catch(() => null);
-        showToast?.(err?.rootCause || err?.cause || err?.message || '저장에 실패했습니다.', 'error');
+        const msg = err?.rootCause || err?.cause || err?.message || '저장에 실패했습니다.';
+        setResultPopup({ show: true, type: 'error', title: '저장 실패', message: msg });
       }
     } catch {
-      showToast?.('저장에 실패했습니다.', 'error');
+      setResultPopup({ show: true, type: 'error', title: '저장 실패', message: '서버 연결에 실패했습니다.' });
     } finally {
       setSavingActual(false);
     }
   };
 
-  // Get gubn name from code
   const getGubnName = (code: string) => {
     return gubnCodes.find(g => g.GUBN_CODE === code)?.GUBN_NAME || code || '-';
   };
@@ -326,7 +331,6 @@ export default function OvertimeWork({ onBack, userInfo, showToast }: OvertimeWo
     );
   }
 
-  // No auth
   if (!authorized) {
     return (
       <div className="p-4">
@@ -340,7 +344,7 @@ export default function OvertimeWork({ onBack, userInfo, showToast }: OvertimeWo
   }
 
   return (
-    <div className="p-4 space-y-4">
+    <div className="p-4 pb-20 space-y-4 overflow-y-auto">
       {/* Header */}
       <div className="flex items-center justify-between">
         <h3 className="font-medium text-gray-800 flex items-center gap-2">
@@ -405,50 +409,32 @@ export default function OvertimeWork({ onBack, userInfo, showToast }: OvertimeWo
               : (record.RUN_TIME || '-');
 
             return (
-              <div key={record.DOC_NO || idx} className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 space-y-2.5">
-                {/* Status + Gubn */}
+              <div key={`${record.DOC_DATE}-${record.DOC_NO}-${idx}`} className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 space-y-2.5">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${
-                      isApproved
-                        ? 'bg-green-100 text-green-700'
-                        : 'bg-yellow-100 text-yellow-700'
+                      isApproved ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'
                     }`}>
-                      {isApproved ? (
-                        <><CheckCircle className="w-3 h-3 mr-0.5" />승인</>
-                      ) : (
-                        <><XCircle className="w-3 h-3 mr-0.5" />미승인</>
-                      )}
+                      {isApproved ? (<><CheckCircle className="w-3 h-3 mr-0.5" />승인</>) : (<><XCircle className="w-3 h-3 mr-0.5" />미승인</>)}
                     </span>
                     {isSanctioned && (
-                      <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-700">
-                        실적확정
-                      </span>
+                      <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-700">실적확정</span>
                     )}
-                    <span className="text-xs text-gray-500 bg-gray-100 px-1.5 py-0.5 rounded">
-                      {getGubnName(record.GUBN_S)}
-                    </span>
+                    <span className="text-xs text-gray-500 bg-gray-100 px-1.5 py-0.5 rounded">{getGubnName(record.GUBN_S)}</span>
                   </div>
                   <span className="text-xs text-gray-400">{record.DOC_DATE}</span>
                 </div>
 
-                {/* Plan */}
                 <div className="flex items-start gap-2">
                   <span className="text-xs text-gray-500 w-8 flex-shrink-0 pt-0.5">계획</span>
                   <span className="text-sm text-gray-800 font-medium">{planDisplay}</span>
                 </div>
 
-                {/* Actual */}
                 <div className="flex items-start gap-2">
                   <span className="text-xs text-gray-500 w-8 flex-shrink-0 pt-0.5">실적</span>
-                  <div className="flex items-center gap-2 flex-1">
-                    <span className={`text-sm ${hasActual ? 'text-gray-800 font-medium' : 'text-gray-400'}`}>
-                      {actualDisplay}
-                    </span>
-                  </div>
+                  <span className={`text-sm ${hasActual ? 'text-gray-800 font-medium' : 'text-gray-400'}`}>{actualDisplay}</span>
                 </div>
 
-                {/* Actual input button */}
                 {!isSanctioned && (
                   <button
                     onClick={() => openActualModal(record)}
@@ -464,7 +450,6 @@ export default function OvertimeWork({ onBack, userInfo, showToast }: OvertimeWo
                   </button>
                 )}
 
-                {/* Reason */}
                 {record.REASON1 && (
                   <div className="flex items-start gap-2 pt-1 border-t border-gray-100">
                     <span className="text-xs text-gray-500 w-8 flex-shrink-0 pt-0.5">사유</span>
@@ -477,11 +462,11 @@ export default function OvertimeWork({ onBack, userInfo, showToast }: OvertimeWo
         </div>
       )}
 
-      {/* ===== New Application Modal ===== */}
+      {/* ===== New Application Modal (center overlay) ===== */}
       {showApplyModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 z-[60] flex items-end justify-center pb-[52px]">
-          <div className="bg-white w-full max-w-lg rounded-t-2xl max-h-[75vh] flex flex-col">
-            <div className="flex-shrink-0 bg-white border-b border-gray-200 px-4 py-3 flex items-center justify-between rounded-t-2xl">
+        <div className="fixed inset-0 bg-black bg-opacity-50 z-[60] flex items-center justify-center p-4">
+          <div className="bg-white w-full max-w-lg rounded-xl max-h-[85vh] flex flex-col shadow-xl">
+            <div className="flex-shrink-0 border-b border-gray-200 px-4 py-3 flex items-center justify-between">
               <h3 className="font-medium text-gray-800">시간외근무 신청</h3>
               <button onClick={() => setShowApplyModal(false)} className="p-1 text-gray-400 hover:text-gray-600">
                 <X className="w-5 h-5" />
@@ -489,13 +474,11 @@ export default function OvertimeWork({ onBack, userInfo, showToast }: OvertimeWo
             </div>
 
             <div className="flex-1 overflow-y-auto p-4 space-y-4">
-              {/* 결재선 */}
               <div>
                 <label className="block text-sm text-gray-600 mb-1">결재선</label>
                 <div className="px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-500">-</div>
               </div>
 
-              {/* 신청자 */}
               <div>
                 <label className="block text-sm text-gray-600 mb-1">신청자</label>
                 <div className="px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-700">
@@ -503,7 +486,6 @@ export default function OvertimeWork({ onBack, userInfo, showToast }: OvertimeWo
                 </div>
               </div>
 
-              {/* 구분 */}
               <div>
                 <label className="block text-sm text-gray-600 mb-1">구분</label>
                 <div className="flex gap-2">
@@ -523,55 +505,35 @@ export default function OvertimeWork({ onBack, userInfo, showToast }: OvertimeWo
                 </div>
               </div>
 
-              {/* 근무일자 */}
               <div>
                 <label className="block text-sm text-gray-600 mb-1">근무일자</label>
                 <div className="space-y-2">
-                  <div className="flex items-center gap-2">
-                    <input
-                      type="date"
-                      value={applyForm.fromDate}
-                      onChange={e => setApplyForm(prev => ({ ...prev, fromDate: e.target.value, toDate: e.target.value }))}
-                      className="flex-1 px-2 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-                    />
-                  </div>
+                  <input
+                    type="date"
+                    value={applyForm.fromDate}
+                    onChange={e => setApplyForm(prev => ({ ...prev, fromDate: e.target.value, toDate: e.target.value }))}
+                    className="w-full px-2 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                  />
                   <div className="flex items-center gap-1.5">
-                    <select
-                      value={applyForm.fromHour}
-                      onChange={e => setApplyForm(prev => ({ ...prev, fromHour: e.target.value }))}
-                      className="w-16 px-1 py-2 border border-gray-300 rounded-lg text-sm text-center"
-                    >
+                    <select value={applyForm.fromHour} onChange={e => setApplyForm(prev => ({ ...prev, fromHour: e.target.value }))} className="w-16 px-1 py-2 border border-gray-300 rounded-lg text-sm text-center">
                       {HOURS.map(h => <option key={h} value={h}>{h}</option>)}
                     </select>
                     <span className="text-gray-400">:</span>
-                    <select
-                      value={applyForm.fromMinu}
-                      onChange={e => setApplyForm(prev => ({ ...prev, fromMinu: e.target.value }))}
-                      className="w-16 px-1 py-2 border border-gray-300 rounded-lg text-sm text-center"
-                    >
+                    <select value={applyForm.fromMinu} onChange={e => setApplyForm(prev => ({ ...prev, fromMinu: e.target.value }))} className="w-16 px-1 py-2 border border-gray-300 rounded-lg text-sm text-center">
                       {MINUTES.map(m => <option key={m} value={m}>{m}</option>)}
                     </select>
                     <span className="text-gray-400 mx-1">~</span>
-                    <select
-                      value={applyForm.toHour}
-                      onChange={e => setApplyForm(prev => ({ ...prev, toHour: e.target.value }))}
-                      className="w-16 px-1 py-2 border border-gray-300 rounded-lg text-sm text-center"
-                    >
+                    <select value={applyForm.toHour} onChange={e => setApplyForm(prev => ({ ...prev, toHour: e.target.value }))} className="w-16 px-1 py-2 border border-gray-300 rounded-lg text-sm text-center">
                       {HOURS.map(h => <option key={h} value={h}>{h}</option>)}
                     </select>
                     <span className="text-gray-400">:</span>
-                    <select
-                      value={applyForm.toMinu}
-                      onChange={e => setApplyForm(prev => ({ ...prev, toMinu: e.target.value }))}
-                      className="w-16 px-1 py-2 border border-gray-300 rounded-lg text-sm text-center"
-                    >
+                    <select value={applyForm.toMinu} onChange={e => setApplyForm(prev => ({ ...prev, toMinu: e.target.value }))} className="w-16 px-1 py-2 border border-gray-300 rounded-lg text-sm text-center">
                       {MINUTES.map(m => <option key={m} value={m}>{m}</option>)}
                     </select>
                   </div>
                 </div>
               </div>
 
-              {/* 근무사유 */}
               <div>
                 <label className="block text-sm text-gray-600 mb-1">근무사유</label>
                 <textarea
@@ -584,19 +546,11 @@ export default function OvertimeWork({ onBack, userInfo, showToast }: OvertimeWo
               </div>
             </div>
 
-            {/* Buttons - fixed at bottom */}
-            <div className="flex-shrink-0 border-t border-gray-200 bg-white px-4 py-3 flex gap-3" >
-              <button
-                onClick={() => setShowApplyModal(false)}
-                className="flex-1 py-2.5 border border-gray-300 text-gray-700 rounded-lg text-sm hover:bg-gray-50 transition-colors"
-              >
+            <div className="flex-shrink-0 border-t border-gray-200 bg-white px-4 py-3 flex gap-3 rounded-b-xl">
+              <button onClick={() => setShowApplyModal(false)} className="flex-1 py-2.5 border border-gray-300 text-gray-700 rounded-lg text-sm hover:bg-gray-50 transition-colors">
                 닫기
               </button>
-              <button
-                onClick={handleApply}
-                disabled={submitting}
-                className="flex-1 py-2.5 bg-primary-500 text-white rounded-lg text-sm hover:bg-primary-600 disabled:bg-gray-400 transition-colors flex items-center justify-center gap-1"
-              >
+              <button onClick={handleApply} disabled={submitting} className="flex-1 py-2.5 bg-primary-500 text-white rounded-lg text-sm hover:bg-primary-600 disabled:bg-gray-400 transition-colors flex items-center justify-center gap-1">
                 {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
                 상신
               </button>
@@ -605,11 +559,11 @@ export default function OvertimeWork({ onBack, userInfo, showToast }: OvertimeWo
         </div>
       )}
 
-      {/* ===== Actual Input Modal ===== */}
+      {/* ===== Actual Input Modal (center overlay) ===== */}
       {showActualModal && selectedRecord && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 z-[60] flex items-end justify-center pb-[52px]">
-          <div className="bg-white w-full max-w-lg rounded-t-2xl max-h-[75vh] flex flex-col">
-            <div className="flex-shrink-0 bg-white border-b border-gray-200 px-4 py-3 flex items-center justify-between rounded-t-2xl">
+        <div className="fixed inset-0 bg-black bg-opacity-50 z-[60] flex items-center justify-center p-4">
+          <div className="bg-white w-full max-w-lg rounded-xl max-h-[85vh] flex flex-col shadow-xl">
+            <div className="flex-shrink-0 border-b border-gray-200 px-4 py-3 flex items-center justify-between">
               <h3 className="font-medium text-gray-800">실적 입력</h3>
               <button onClick={() => setShowActualModal(false)} className="p-1 text-gray-400 hover:text-gray-600">
                 <X className="w-5 h-5" />
@@ -617,13 +571,11 @@ export default function OvertimeWork({ onBack, userInfo, showToast }: OvertimeWo
             </div>
 
             <div className="flex-1 overflow-y-auto p-4 space-y-4">
-              {/* 결재선 */}
               <div>
                 <label className="block text-sm text-gray-600 mb-1">결재선</label>
                 <div className="px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-500">-</div>
               </div>
 
-              {/* 신청자 */}
               <div>
                 <label className="block text-sm text-gray-600 mb-1">신청자</label>
                 <div className="px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-700">
@@ -631,7 +583,6 @@ export default function OvertimeWork({ onBack, userInfo, showToast }: OvertimeWo
                 </div>
               </div>
 
-              {/* 구분 (read-only) */}
               <div>
                 <label className="block text-sm text-gray-600 mb-1">구분</label>
                 <div className="px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-700">
@@ -639,7 +590,6 @@ export default function OvertimeWork({ onBack, userInfo, showToast }: OvertimeWo
                 </div>
               </div>
 
-              {/* 계획일자 (read-only) */}
               <div>
                 <label className="block text-sm text-gray-600 mb-1">계획일자</label>
                 <div className="px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-700">
@@ -650,55 +600,35 @@ export default function OvertimeWork({ onBack, userInfo, showToast }: OvertimeWo
                 </div>
               </div>
 
-              {/* 근무일자 (editable) */}
               <div>
                 <label className="block text-sm text-gray-600 mb-1">근무일자 (실적)</label>
                 <div className="space-y-2">
-                  <div className="flex items-center gap-2">
-                    <input
-                      type="date"
-                      value={actualForm.fromDate}
-                      onChange={e => setActualForm(prev => ({ ...prev, fromDate: e.target.value, toDate: e.target.value }))}
-                      className="flex-1 px-2 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-                    />
-                  </div>
+                  <input
+                    type="date"
+                    value={actualForm.fromDate}
+                    onChange={e => setActualForm(prev => ({ ...prev, fromDate: e.target.value, toDate: e.target.value }))}
+                    className="w-full px-2 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                  />
                   <div className="flex items-center gap-1.5">
-                    <select
-                      value={actualForm.fromHour}
-                      onChange={e => setActualForm(prev => ({ ...prev, fromHour: e.target.value }))}
-                      className="w-16 px-1 py-2 border border-gray-300 rounded-lg text-sm text-center"
-                    >
+                    <select value={actualForm.fromHour} onChange={e => setActualForm(prev => ({ ...prev, fromHour: e.target.value }))} className="w-16 px-1 py-2 border border-gray-300 rounded-lg text-sm text-center">
                       {HOURS.map(h => <option key={h} value={h}>{h}</option>)}
                     </select>
                     <span className="text-gray-400">:</span>
-                    <select
-                      value={actualForm.fromMinu}
-                      onChange={e => setActualForm(prev => ({ ...prev, fromMinu: e.target.value }))}
-                      className="w-16 px-1 py-2 border border-gray-300 rounded-lg text-sm text-center"
-                    >
+                    <select value={actualForm.fromMinu} onChange={e => setActualForm(prev => ({ ...prev, fromMinu: e.target.value }))} className="w-16 px-1 py-2 border border-gray-300 rounded-lg text-sm text-center">
                       {MINUTES.map(m => <option key={m} value={m}>{m}</option>)}
                     </select>
                     <span className="text-gray-400 mx-1">~</span>
-                    <select
-                      value={actualForm.toHour}
-                      onChange={e => setActualForm(prev => ({ ...prev, toHour: e.target.value }))}
-                      className="w-16 px-1 py-2 border border-gray-300 rounded-lg text-sm text-center"
-                    >
+                    <select value={actualForm.toHour} onChange={e => setActualForm(prev => ({ ...prev, toHour: e.target.value }))} className="w-16 px-1 py-2 border border-gray-300 rounded-lg text-sm text-center">
                       {HOURS.map(h => <option key={h} value={h}>{h}</option>)}
                     </select>
                     <span className="text-gray-400">:</span>
-                    <select
-                      value={actualForm.toMinu}
-                      onChange={e => setActualForm(prev => ({ ...prev, toMinu: e.target.value }))}
-                      className="w-16 px-1 py-2 border border-gray-300 rounded-lg text-sm text-center"
-                    >
+                    <select value={actualForm.toMinu} onChange={e => setActualForm(prev => ({ ...prev, toMinu: e.target.value }))} className="w-16 px-1 py-2 border border-gray-300 rounded-lg text-sm text-center">
                       {MINUTES.map(m => <option key={m} value={m}>{m}</option>)}
                     </select>
                   </div>
                 </div>
               </div>
 
-              {/* 근무사유 */}
               <div>
                 <label className="block text-sm text-gray-600 mb-1">근무사유</label>
                 <textarea
@@ -711,23 +641,38 @@ export default function OvertimeWork({ onBack, userInfo, showToast }: OvertimeWo
               </div>
             </div>
 
-            {/* Buttons - fixed at bottom */}
-            <div className="flex-shrink-0 border-t border-gray-200 bg-white px-4 py-3 flex gap-3" >
-              <button
-                onClick={() => setShowActualModal(false)}
-                className="flex-1 py-2.5 border border-gray-300 text-gray-700 rounded-lg text-sm hover:bg-gray-50 transition-colors"
-              >
+            <div className="flex-shrink-0 border-t border-gray-200 bg-white px-4 py-3 flex gap-3 rounded-b-xl">
+              <button onClick={() => setShowActualModal(false)} className="flex-1 py-2.5 border border-gray-300 text-gray-700 rounded-lg text-sm hover:bg-gray-50 transition-colors">
                 닫기
               </button>
-              <button
-                onClick={handleSaveActual}
-                disabled={savingActual}
-                className="flex-1 py-2.5 bg-primary-500 text-white rounded-lg text-sm hover:bg-primary-600 disabled:bg-gray-400 transition-colors flex items-center justify-center gap-1"
-              >
+              <button onClick={handleSaveActual} disabled={savingActual} className="flex-1 py-2.5 bg-primary-500 text-white rounded-lg text-sm hover:bg-primary-600 disabled:bg-gray-400 transition-colors flex items-center justify-center gap-1">
                 {savingActual ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
                 저장
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* ===== Result Popup ===== */}
+      {resultPopup.show && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[70] p-4">
+          <div className="bg-white rounded-xl shadow-xl max-w-sm w-full p-5 space-y-4">
+            <div className={`flex items-center gap-2 ${resultPopup.type === 'success' ? 'text-green-600' : 'text-red-600'}`}>
+              {resultPopup.type === 'success' ? <CheckCircle className="w-6 h-6" /> : <AlertCircle className="w-6 h-6" />}
+              <span className="font-semibold text-lg">{resultPopup.title}</span>
+            </div>
+            <p className="text-gray-700 text-sm whitespace-pre-wrap">{resultPopup.message}</p>
+            <button
+              onClick={() => setResultPopup(prev => ({ ...prev, show: false }))}
+              className={`w-full py-2.5 rounded-lg text-sm font-medium transition-colors ${
+                resultPopup.type === 'success'
+                  ? 'bg-green-500 text-white hover:bg-green-600'
+                  : 'bg-red-500 text-white hover:bg-red-600'
+              }`}
+            >
+              확인
+            </button>
           </div>
         </div>
       )}
