@@ -870,6 +870,11 @@ router.post('/system/cm/getFindUsrList3', handleProxy);
 router.post('/system/pm/insertActivityLog', handleProxy);
 router.post('/system/pm/insertDebugLog', handleProxy);
 
+// Login Audit Log APIs (browser-side calls from logService.ts)
+router.post('/system/pm/pmobileLoginApi_1', handleProxy);
+router.post('/system/pm/pmobileLoginApi_2', handleProxy);
+router.post('/system/pm/pmobileLoginApi_3', handleProxy);
+
 // Debug endpoints (GET)
 router.get('/debug/equipmentManager/methods', handleProxy);
 router.get('/debug/sigtransManagement/methods', handleProxy);

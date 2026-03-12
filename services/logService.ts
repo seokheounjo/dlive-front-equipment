@@ -346,28 +346,32 @@ function flushDebugLogs() {
 
 function sendLogs(path: string, logs: Record<string, string>[]) {
   const url = `${API_BASE}${path}`;
-  const body = JSON.stringify({ logs });
 
-  try {
-    // Use sendBeacon if available (for page unload scenarios)
-    if (typeof navigator !== 'undefined' && navigator.sendBeacon) {
-      const blob = new Blob([body], { type: 'application/json' });
-      const sent = navigator.sendBeacon(url, blob);
-      if (sent) return;
+  // CONA handleInsertLog expects individual JSON fields per request (not array batch)
+  // Send each log entry as a separate request
+  for (const log of logs) {
+    const body = JSON.stringify(log);
+    try {
+      // Use sendBeacon if available (for page unload scenarios)
+      if (typeof navigator !== 'undefined' && navigator.sendBeacon) {
+        const blob = new Blob([body], { type: 'application/json' });
+        const sent = navigator.sendBeacon(url, blob);
+        if (sent) continue;
+      }
+
+      // Fallback: fire-and-forget fetch
+      fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body,
+        keepalive: true,
+      }).catch(() => {
+        // silent - log sending should never block the app
+      });
+    } catch {
+      // silent
     }
-
-    // Fallback: fire-and-forget fetch
-    fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      credentials: 'include',
-      body,
-      keepalive: true,
-    }).catch(() => {
-      // silent - log sending should never block the app
-    });
-  } catch {
-    // silent
   }
 }
 
