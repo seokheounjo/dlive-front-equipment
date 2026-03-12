@@ -451,7 +451,9 @@ export const login = async (userId: string, password: string, disconnYn: string 
       body: JSON.stringify({
         USR_ID: userId,
         USR_PWD: password,
-        DISCONN_YN: disconnYn  // Y: 기존 세션 강제 종료, N: 동시접속 체크
+        DISCONN_YN: disconnYn,  // Y: 기존 세션 강제 종료, N: 동시접속 체크
+        DRM_VERSION: '1.0',     // DRM 버전 (checkLoginDRM에서 검증)
+        LOGIN_VIEW: 'APP'       // 모바일 앱 로그인
       }),
     }, 1); // 로그인은 재시도 1회만
 
