@@ -708,6 +708,9 @@ router.post('/other/overtime/list', handleProxy);
 router.post('/other/overtime/savePlan', handleProxy);
 router.post('/other/overtime/saveActual', handleProxy);
 
+// Debug (OtherController)
+router.post('/other/debug/beans', handleProxy);
+
 // Proxy routes
 router.post('/login', handleProxy);
 router.post('/work/directions', handleProxy);
