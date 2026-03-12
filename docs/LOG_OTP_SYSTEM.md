@@ -166,6 +166,17 @@ OTP는 현재 **비활성화** 상태. `OTP_ENABLED = true`로 변경 시 활성
 | 6040 | OTP 서버에 연결할 수 없습니다. |
 | 6041 | OTP 서버 통신 오류가 발생했습니다. |
 
+### 3.3.1 로그인 에러 팝업 모달 (Login.tsx)
+
+| 에러 조건 | 팝업 종류 | 스타일 | 변수 |
+|----------|----------|--------|------|
+| 동시접속 (LOGIN_DUP_YN=Y) | 동시접속 확인 모달 | amber 경고 | `showDupConfirm` |
+| 계정 잠금 (code=LOCK, 423) | 계정 잠금 모달 | red 에러 | `lockMessage` |
+| Circuit Breaker (503) | 요청 차단 모달 | amber 경고 | `blockMessage` |
+| 기타 에러 (401, 400 등) | 인라인 에러 텍스트 | red 텍스트 | `error` |
+
+> Circuit Breaker: 동일 API에 5번 연속 실패 시 30초간 요청 차단. `fetchWithRetry`에서 503 throw → Login.tsx catch에서 `setBlockMessage()`.
+
 ### 3.4 OTP 백엔드 (api-proxy.js)
 
 ```
@@ -297,7 +308,42 @@ YYYYMMDDHHMMSS_USERID_RANDOM6
 예: 20260312110000_A20130708_RLZWVP
 ```
 
-### 4.4 NW_TYPE 기기/네트워크 분류 (logService.ts)
+#### 로그 전송 키명 (iBatis 매핑 일치)
+```
+프론트 전송 키       →  iBatis 파라미터     →  DB 컬럼
+P_LOGIN_TRX_ID      →  #P_LOGIN_TRX_ID#    →  LOGIN_TRX_ID (= P_LOGIN_TRX_ID)
+P_NW_TYPE           →  #P_NW_TYPE#         →  NW_TYPE (= P_NW_TYPE)
+```
+> 주의: 프론트에서 `LOGIN_TRX_ID`/`NW_TYPE`로 보내면 iBatis 매핑 불일치로 DB에 NULL 저장됨.
+> 반드시 `P_LOGIN_TRX_ID`/`P_NW_TYPE` 키로 전송해야 함.
+
+### 4.4 MENU_NM 자동 매핑 (logService.ts)
+
+`logNavigation()` 호출 시 MENU_NM을 명시적으로 전달하지 않으면 toView의 한글 매핑명이 자동 입력됨.
+
+#### VIEW_MENU_NAMES 매핑 테이블 (전체 14개 View)
+
+| View ID | MENU_NM | 출처 |
+|---------|---------|------|
+| `today-work` | 오늘의 작업 | Header/SideDrawer |
+| `menu` | 메인메뉴 | - |
+| `work-management` | 작업관리 | Header/BottomNav/SideDrawer/MainMenu |
+| `work-order-detail` | 작업상세 | Header |
+| `work-complete-form` | 작업완료 | Header |
+| `work-complete-detail` | 작업완료상세 | Header |
+| `work-item-list` | 작업목록 | Header |
+| `work-process-flow` | 작업진행 | Header |
+| `customer-management` | 고객관리 | Header/BottomNav/SideDrawer/MainMenu |
+| `equipment-management` | 장비관리 | Header/BottomNav/SideDrawer/MainMenu |
+| `other-management` | 기타관리 | Header/BottomNav/SideDrawer/MainMenu |
+| `settings` | 설정 | - |
+| `api-explorer` | API탐색기 | - |
+| `coming-soon` | 준비중 | Header |
+
+> 매핑은 `type View` 유니온 타입 14개와 완전 일치 검증 완료.
+> 매핑에 없는 viewId가 들어오면 viewId 문자열 그대로 MENU_NM에 저장됨.
+
+### 4.5 NW_TYPE 기기/네트워크 분류 (logService.ts)
 
 #### 기기 타입 분류 (UserAgent 기반)
 
@@ -409,7 +455,7 @@ function getNetworkType(): string {
 }
 ```
 
-### 4.5 이벤트 트리거 연결
+### 4.6 이벤트 트리거 연결
 
 | 이벤트 | 위치 | 로그 타입 | 호출 함수 |
 |--------|------|----------|----------|
@@ -424,7 +470,7 @@ function getNetworkType(): string {
 | 로그인 결과 | Login.tsx handleSubmit() | - | loginApi2() |
 | 로그인 최종 | Login.tsx handleSubmit() | - | loginApi3() |
 
-### 4.6 데이터 흐름
+### 4.7 데이터 흐름
 
 ```
 [Login.tsx]
@@ -581,6 +627,9 @@ String body = new String(baos.toByteArray(), "UTF-8");
 | 2cf1b5d | services/logService.ts | ANDROID_TAB 추가 |
 | c1f0a06 | services/logService.ts | PC_MAC, PC_LINUX 추가 |
 | 1388a98 | services/logService.ts | PC_CHROMEBOOK, PC_TAB 추가 |
+| d03e4c9 | services/logService.ts | LOGIN_TRX_ID→P_LOGIN_TRX_ID, NW_TYPE→P_NW_TYPE 키명 수정 (iBatis 일치) |
+| d03e4c9 | services/logService.ts | VIEW_MENU_NAMES 매핑 추가 (14개 View→한글 MENU_NM 자동 입력) |
+| d03e4c9 | components/layout/Login.tsx | Circuit Breaker 503 차단 팝업 모달 추가 |
 
 ### 백엔드 (jsh 브랜치 → 관리자 빌드/배포)
 
@@ -612,7 +661,7 @@ String body = new String(baos.toByteArray(), "UTF-8");
 
 ---
 
-## 9. 발견 및 수정한 버그 (총 15건)
+## 9. 발견 및 수정한 버그 (총 18건)
 
 | # | 버그 | 원인 | 수정 |
 |---|------|------|------|
@@ -631,6 +680,9 @@ String body = new String(baos.toByteArray(), "UTF-8");
 | 13 | WAS 컨테이너명 미포함 | 레거시 fn_get_was_name 누락 | getWasContainerName() 구현, 응답+감사로그에 포함 |
 | 14 | loginApi2 P_RESULT_CD에 에러코드 전송 | catch에서 errCode(INVALID_PASS 등) 직접 전송 | P_RESULT_CD='FAIL' 고정, 에러코드는 P_RESULT_MSG에 `[CODE] msg` 형태 |
 | 15 | 한글 인코딩 깨짐 (UTF-8→EUC-KR) | `req.getReader()`가 WebSphere 기본 인코딩 사용 | `req.getInputStream()` + 명시적 UTF-8 바이트 디코딩 |
+| 16 | P_LOGIN_TRX_ID/P_NW_TYPE DB에 여전히 NULL | 프론트에서 `LOGIN_TRX_ID`/`NW_TYPE` 키로 전송 → iBatis `#P_LOGIN_TRX_ID#` 불일치 | 프론트 키명을 `P_LOGIN_TRX_ID`/`P_NW_TYPE`로 수정 |
+| 17 | MENU_NM 항상 NULL | `logNavigation()` 호출 시 menuNm 파라미터 미전달 | VIEW_MENU_NAMES 매핑 테이블 추가, toView→한글 자동 변환 |
+| 18 | Circuit Breaker 503 에러 시 팝업 없음 | 차단 에러가 일반 에러 메시지로만 표시 | blockMessage 모달 팝업 추가 (amber 경고 스타일) |
 
 ---
 
@@ -674,10 +726,13 @@ $ grep -c "'FAIL'" Login.tsx  → 8건 (실패 처리 정상)
 | 항목 | 상태 |
 |------|------|
 | logService.ts (개별 전송 + NW_TYPE 기기/네트워크 분류) | ✅ 배포 완료 |
+| logService.ts (P_LOGIN_TRX_ID/P_NW_TYPE 키명 수정) | ✅ 배포 완료 |
+| logService.ts (VIEW_MENU_NAMES 매핑 - MENU_NM 자동 입력) | ✅ 배포 완료 |
 | api-proxy.js (pmobileLoginApi 라우트) | ✅ 배포 완료 |
 | apiService.ts (DRM_VERSION, LOGIN_VIEW, PASSWORD, wasName) | ✅ 배포 완료 |
 | App.tsx (LOGIN_TRX_ID 조건부 생성) | ✅ 배포 완료 |
 | Login.tsx (loginApi1/2/3 + P_RESULT_CD SUCC/FAIL) | ✅ 배포 완료 |
+| Login.tsx (Circuit Breaker 503 차단 팝업) | ✅ 배포 완료 |
 
 ### 백엔드 (CONA WebSphere - 관리자 수동 배포) ✅ 완료
 
