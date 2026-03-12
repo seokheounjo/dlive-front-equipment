@@ -242,7 +242,7 @@ export default function OvertimeWork({ onBack, userInfo, showToast }: OvertimeWo
         loadList();
       } else {
         const err = await res.json().catch(() => null);
-        showToast?.(err?.message || '신청에 실패했습니다.', 'error');
+        showToast?.(err?.rootCause || err?.cause || err?.message || '신청에 실패했습니다.', 'error');
       }
     } catch {
       showToast?.('신청에 실패했습니다.', 'error');
@@ -302,7 +302,7 @@ export default function OvertimeWork({ onBack, userInfo, showToast }: OvertimeWo
         loadList();
       } else {
         const err = await res.json().catch(() => null);
-        showToast?.(err?.message || '저장에 실패했습니다.', 'error');
+        showToast?.(err?.rootCause || err?.cause || err?.message || '저장에 실패했습니다.', 'error');
       }
     } catch {
       showToast?.('저장에 실패했습니다.', 'error');
