@@ -1,7 +1,7 @@
-# D'Live CONA 모바일 - 로그/OTP/로그인 시스템 문서
+# D'Live CONA 모바일 - 로그인/로그/OTP 시스템 종합 문서
 
 > 최종 업데이트: 2026-03-12
-> 상태: 프론트엔드 배포 완료 / 백엔드 jsh 브랜치 push (관리자 빌드/배포 대기)
+> 상태: 프론트엔드 배포 완료 / 백엔드 배포 완료 (jsh → main 빌드/배포)
 
 ---
 
@@ -15,7 +15,7 @@
 [PM2 Node.js:8080 - Express (api-proxy.js)]
     ↓ HTTP proxy (JSON, UTF-8)
 [CONA WebSphere:8080 - TaskAuthController.java]
-    ↓ iBatis SQL
+    ↓ iBatis SQL / Oracle Procedure
 [Oracle DB]
     ↓ DB Link
 [@CONATOMOBILE (원격 DB)]
@@ -26,6 +26,11 @@
 - Express → CONA: `Content-Type: application/json; charset=utf-8`
 - CONA: `req.getInputStream()` → `new String(bytes, "UTF-8")` 명시적 디코딩
 - Oracle JDBC: Java String → DB charset 자동 변환
+
+### 핵심 규칙
+- **P_RESULT_CD 규칙**: loginApi2는 반드시 `SUCC` / `FAIL` 만 사용. 구체적 에러코드는 P_RESULT_MSG에 `[CODE] message` 형태로 포함
+- **한글 인코딩**: WebSphere 기본 EUC-KR → `req.getInputStream()` + UTF-8 명시적 디코딩 필수
+- **WAS 컨테이너명**: `System.getProperty("sun.java.command")` 마지막 인자 = container1/container2
 
 ---
 
@@ -69,6 +74,7 @@ body: JSON.stringify({
    ├─ INVALID_PASS → 401 "Password mismatch"
    ├─ INVALID_USER → 401 "User not found"
    ├─ USE_YN_IS_A_TYPE → 401 "Account archived"
+   ├─ INVALID_PARAM → 401 "Required parameter missing" (wasName 포함)
    └─ *LOCK*       → 423 "Account locked"
 
 3. getUserInfo(row) → userMap
@@ -94,7 +100,7 @@ body: JSON.stringify({
 8. modUsrLoginDt(loginDtMap)        // LAST_LOGIN_DT 업데이트
 9. addUsrConnLog(connLogMap)        // tsylm_usr_conn 접속 로그 INSERT
 10. getUsrSoList(soParam)           // AUTH_SO_List 조회
-11. JSON 응답 리턴
+11. JSON 응답 리턴 (wasName 포함)
 ```
 
 ### 2.4 로그인 JSON 응답 필드
@@ -121,6 +127,7 @@ body: JSON.stringify({
 | userRole | string | 역할 |
 | LOGIN_DUP_YN | string | 동시접속 여부 (Y/N) |
 | AUTH_SO_List | array | 권한 SO 목록 [{SO_ID, SO_NM, MST_SO_ID}] |
+| wasName | string | WAS 컨테이너명 (container1/container2) |
 
 ---
 
@@ -142,7 +149,7 @@ OTP는 현재 **비활성화** 상태. `OTP_ENABLED = true`로 변경 시 활성
 2. generateLoginTrxId(username) → LOGIN_TRX_ID 생성 (localStorage 저장)
 3. loginApi1({P_LOGIN_TRX_ID, P_USER_ID, P_API_TYPE: 'LOGIN'})
 4. login(username, password) → CONA 로그인 API 호출
-5. loginApi2({P_LOGIN_TRX_ID, P_RESULT_CD: SUCCESS/FAIL})
+5. loginApi2({P_LOGIN_TRX_ID, P_RESULT_CD: SUCC/FAIL})
 6. 로그인 성공 시 → verifyOtp(username, otpCode)
    ├─ 성공 → loginApi3({P_FINAL_RESULT_CD: 'SUCCESS'}) → completeLogin
    └─ 실패 → loginApi3({P_FINAL_RESULT_CD: 'OTP_FAIL'}) → 에러 표시
@@ -191,7 +198,7 @@ POST /api/auth/otp-verify
 | USER_AGENT | VARCHAR2(500) | 브라우저/기기 정보 |
 | CRT_DTTM | VARCHAR2(14) | 생성일시 (YYYYMMDDHHMMSS) |
 | P_LOGIN_TRX_ID | VARCHAR2 | 로그인 트랜잭션 ID |
-| P_NW_TYPE | VARCHAR2 | 네트워크 타입 (WIFI/4G/CELLULAR) |
+| P_NW_TYPE | VARCHAR2 | 네트워크/기기 타입 |
 
 #### TSYMO_APP_DEBUG_LOG (디버그 로그)
 
@@ -212,7 +219,7 @@ POST /api/auth/otp-verify
 | PAGE_VIEW | VARCHAR2(50) | 현재 화면 |
 | CRT_DTTM | VARCHAR2(14) | 생성일시 |
 | P_LOGIN_TRX_ID | VARCHAR2 | 로그인 트랜잭션 ID |
-| P_NW_TYPE | VARCHAR2 | 네트워크 타입 |
+| P_NW_TYPE | VARCHAR2 | 네트워크/기기 타입 |
 
 ### 4.2 iBatis SQL 매핑 (program-manage.xml)
 
@@ -256,7 +263,6 @@ PMOBILE_LOGIN_API_3(
 #### 개별 전송 (배치 아님)
 - CONA `handleInsertLog`는 개별 JSON만 파싱 가능
 - `sendLogs()`가 **로그 건별로 개별 HTTP 요청** 전송
-- ~~이전: `{"logs":[...]}` 배치 형식 → CONA에서 파싱 불가~~ (수정 완료)
 
 #### 공개 API
 
@@ -291,14 +297,119 @@ YYYYMMDDHHMMSS_USERID_RANDOM6
 예: 20260312110000_A20130708_RLZWVP
 ```
 
-#### NW_TYPE 감지
-```typescript
-navigator.connection.type       → WIFI, CELLULAR, ETHERNET
-navigator.connection.effectiveType → 4G, 3G, 2G
-없으면 → UNKNOWN
+### 4.4 NW_TYPE 기기/네트워크 분류 (logService.ts)
+
+#### 기기 타입 분류 (UserAgent 기반)
+
+| 코드 | 기기 | 판별 기준 |
+|------|------|----------|
+| PC_WIN | Windows PC | `/Windows/i` (Touch가 없거나 maxTouchPoints=0) |
+| PC_MAC | Mac PC | `/Macintosh\|Mac OS/i` (maxTouchPoints ≤ 1) |
+| PC_LINUX | Linux PC | `/Linux\|X11/i` (Android 아님) |
+| PC_CHROMEBOOK | Chromebook | `/CrOS/i` |
+| PC_TAB | Windows 태블릿 | `/Windows/i` + maxTouchPoints > 0 + `/Touch/i` |
+| ANDROID | Android 폰 | `/Android/i` + `/Mobile/i` |
+| ANDROID_TAB | Android 태블릿 | `/Android/i` + Mobile 없음 |
+| IPHONE | iPhone | `/iPhone/i` |
+| IPAD | iPad | `/iPad/i` 또는 (Macintosh + maxTouchPoints > 1) |
+
+#### 네트워크 타입 분류 (navigator.connection API)
+
+| 코드 | 네트워크 | 판별 기준 |
+|------|---------|----------|
+| WIFI | Wi-Fi | `conn.type === 'wifi'` |
+| LTE | LTE/5G | `conn.type === 'cellular'` 또는 모바일 `effectiveType === '4g'` |
+| 3G | 3G | 모바일 `effectiveType === '3g'` |
+| 2G | 2G | 모바일 `effectiveType === '2g' \| 'slow-2g'` |
+| ETHERNET | 유선 | `conn.type === 'ethernet'` |
+| BT | 블루투스 | `conn.type === 'bluetooth'` |
+
+#### 최종 NW_TYPE 출력 형식
+
+```
+{기기타입}_{네트워크타입}   (네트워크 감지 시)
+{기기타입}                 (네트워크 감지 불가 시)
 ```
 
-### 4.4 이벤트 트리거 연결
+**출력 예시:**
+
+| 접속 환경 | NW_TYPE 값 |
+|----------|-----------|
+| Windows PC + Wi-Fi | `PC_WIN_WIFI` |
+| Windows PC + 유선 | `PC_WIN_ETHERNET` |
+| Windows PC (네트워크 불명) | `PC_WIN` |
+| Mac PC | `PC_MAC` |
+| Android 폰 + LTE | `ANDROID_LTE` |
+| Android 폰 + Wi-Fi | `ANDROID_WIFI` |
+| Android 태블릿 + Wi-Fi | `ANDROID_TAB_WIFI` |
+| iPhone + Wi-Fi | `IPHONE_WIFI` |
+| iPhone (Safari - connection 미지원) | `IPHONE` |
+| iPad + Wi-Fi | `IPAD_WIFI` |
+| iPad (Safari - connection 미지원) | `IPAD` |
+
+#### 브라우저 API 제한 사항
+- **PC Chrome**: `effectiveType`이 항상 `'4g'` 반환 → PC에서는 effectiveType 무시
+- **iPhone/iPad Safari**: `navigator.connection` API 미지원 → 기기명만 반환
+- **5G vs LTE**: 브라우저 API로 구분 불가 → 둘 다 `LTE`로 분류
+
+#### 구현 코드 (logService.ts)
+
+```typescript
+function getDeviceType(): string {
+  try {
+    const ua = navigator.userAgent || '';
+    if (/iPad/i.test(ua)) return 'IPAD';
+    if (/Macintosh/i.test(ua) && typeof navigator.maxTouchPoints === 'number'
+        && navigator.maxTouchPoints > 1) return 'IPAD';
+    if (/iPhone/i.test(ua)) return 'IPHONE';
+    if (/Android/i.test(ua)) return /Mobile/i.test(ua) ? 'ANDROID' : 'ANDROID_TAB';
+    if (/Macintosh|Mac OS/i.test(ua)) return 'PC_MAC';
+    if (/CrOS/i.test(ua)) return 'PC_CHROMEBOOK';
+    if (/Windows/i.test(ua)) {
+      if (typeof navigator.maxTouchPoints === 'number'
+          && navigator.maxTouchPoints > 0 && /Touch/i.test(ua)) return 'PC_TAB';
+      return 'PC_WIN';
+    }
+    if (/Linux|X11/i.test(ua)) return 'PC_LINUX';
+    return 'PC_WIN';
+  } catch { return 'PC_WIN'; }
+}
+
+function getConnectionType(): string {
+  try {
+    const conn = (navigator as any).connection
+      || (navigator as any).mozConnection
+      || (navigator as any).webkitConnection;
+    if (!conn) return '';
+    if (conn.type && conn.type !== 'unknown' && conn.type !== 'none'
+        && conn.type !== 'other') {
+      const t = conn.type.toLowerCase();
+      if (t === 'wifi') return 'WIFI';
+      if (t === 'cellular') return 'LTE';
+      if (t === 'ethernet') return 'ETHERNET';
+      if (t === 'bluetooth') return 'BT';
+      return conn.type.toUpperCase();
+    }
+    if (conn.effectiveType) {
+      const e = conn.effectiveType.toLowerCase();
+      if (!/Mobi|Android/i.test(navigator.userAgent || '')) return '';
+      if (e === '4g') return 'LTE';
+      if (e === '3g') return '3G';
+      if (e === '2g' || e === 'slow-2g') return '2G';
+    }
+    return '';
+  } catch { return ''; }
+}
+
+function getNetworkType(): string {
+  const device = getDeviceType();
+  const conn = getConnectionType();
+  if (conn) return device + '_' + conn;
+  return device;
+}
+```
+
+### 4.5 이벤트 트리거 연결
 
 | 이벤트 | 위치 | 로그 타입 | 호출 함수 |
 |--------|------|----------|----------|
@@ -313,7 +424,7 @@ navigator.connection.effectiveType → 4G, 3G, 2G
 | 로그인 결과 | Login.tsx handleSubmit() | - | loginApi2() |
 | 로그인 최종 | Login.tsx handleSubmit() | - | loginApi3() |
 
-### 4.5 데이터 흐름
+### 4.6 데이터 흐름
 
 ```
 [Login.tsx]
@@ -327,9 +438,9 @@ navigator.connection.effectiveType → 4G, 3G, 2G
        ↓
 [logService.ts logActivity]
   ├─ getUserInfo() → localStorage('userInfo') 읽기
-  │   → {USR_ID: user.userId, USR_NM: user.userName, SO_ID: user.soId, CRR_ID: user.crrId}
+  │   → {USR_ID, USR_NM, SO_ID, CRR_ID}
   ├─ getLoginTrxId() → localStorage('loginTrxId') 읽기
-  ├─ getNetworkType() → navigator.connection
+  ├─ getNetworkType() → 기기+네트워크 분류
   └─ activityQueue.push(record) → 10초 후 flush
        ↓
 [sendLogs → 개별 POST]
@@ -374,132 +485,7 @@ router.post('/system/pm/pmobileLoginApi_3', handleProxy);
 
 ---
 
-## 6. 수정 이력
-
-### 프론트엔드 (main 브랜치 - 배포 완료)
-
-| 날짜 | 파일 | 수정 내용 |
-|------|------|----------|
-| 03/12 | api-proxy.js | pmobileLoginApi_1/2/3 Express 라우트 추가 |
-| 03/12 | services/logService.ts | sendLogs() 배치 → 개별 전송으로 변경 |
-| 03/12 | App.tsx | LOGIN_TRX_ID 이중 생성 방지 (localStorage 체크) |
-| 03/12 | services/apiService.ts | PASSWORD 키명 수정, DRM_VERSION="1000", LOGIN_VIEW="MOBILE" |
-| 03/12 | services/apiService.ts | fetchWithRetry 4xx error response body parsing (wasName 추출) |
-| 03/12 | services/apiService.ts | LoginResponse에 wasName 필드 추가 |
-| 03/12 | components/layout/Login.tsx | loginApi2/3에 WAS 컨테이너명 포함 (성공/실패 모두) |
-
-### 백엔드 (jsh 브랜치 - 관리자 빌드/배포 대기)
-
-| 날짜 | 파일 | 수정 내용 |
-|------|------|----------|
-| 03/09 | TaskAuthController.java | pmobileLoginApi_1/2/3 엔드포인트 추가 |
-| 03/09 | api-servlet.xml | pmobileLoginApi URL 매핑 추가 |
-| 03/09 | TaskAuthController.java | LOCK 계정 감지 (423 응답) |
-| 03/10 | TaskAuthController.java | insertActivityLog/insertDebugLog 엔드포인트 추가 |
-| 03/10 | api-servlet.xml | insertActivityLog/insertDebugLog URL 매핑 추가 |
-| 03/11 | TaskAuthController.java | req.setCharacterEncoding("UTF-8") 한글 인코딩 |
-| 03/12 | TaskAuthController.java | P_LOGIN_TRX_ID/P_NW_TYPE 파라미터 키 매핑 수정 |
-| 03/12 | TaskAuthController.java | 레거시 로그인 플로우 완전 매칭 (동시접속, modUsrLoginDt, addUsrConnLog) |
-| 03/12 | TaskAuthController.java | WAS 컨테이너명 추가: getWasContainerName() (legacy getWasName 동일) |
-| 03/12 | TaskAuthController.java | 로그인 응답에 wasName 포함 (성공/실패 모두) |
-| 03/12 | TaskAuthController.java | pmobileLoginApi_1 P_SERVER에 WAS 컨테이너명 자동 설정 |
-| 03/12 | TaskAuthController.java | pmobileLoginApi_2/3에 WAS 컨테이너명 자동 추가 |
-| 03/12 | TaskAuthController.java | parseJsonBody/parseJsonBodyAll: InputStream + UTF-8 명시적 디코딩 (한글 깨짐 수정) |
-
----
-
-## 7. 발견 및 수정한 버그
-
-| # | 버그 | 원인 | 수정 |
-|---|------|------|------|
-| 1 | LOGIN_TRX_ID DB에 NULL | Java 키 `LOGIN_TRX_ID` ≠ iBatis `#P_LOGIN_TRX_ID#` | `P_LOGIN_TRX_ID`로 수정 |
-| 2 | NW_TYPE DB에 NULL | Java 키 `NW_TYPE` ≠ iBatis `#P_NW_TYPE#` | `P_NW_TYPE`로 수정 |
-| 3 | USR_NM 한글 깨짐 | WebSphere EUC-KR 기본 인코딩 | `req.setCharacterEncoding("UTF-8")` |
-| 4 | Activity 로그 전체 빈값 | sendLogs()가 `{"logs":[...]}` 배치 전송 → CONA 파싱 불가 | 개별 전송으로 변경 |
-| 5 | pmobileLoginApi 404 | Express에 라우트 미등록 | router.post 추가 |
-| 6 | LOGIN_TRX_ID 불일치 | App.tsx에서 재생성하여 Login.tsx 것을 덮어씀 | localStorage 체크 후 조건부 생성 |
-| 7 | DRM_VERSION 불일치 | "1.0" 전송 → DRM skip 아닌 사용자 INVALID_DRM | "1000"으로 수정 (레거시 동일) |
-| 8 | LOGIN_VIEW 불일치 | "APP" 전송 → 레거시는 "MOBILE" | "MOBILE"로 수정 |
-| 9 | PASSWORD 키명 | USR_PWD로 전송 (백엔드에서 둘 다 처리하긴 하나) | PASSWORD로 통일 |
-| 10 | 동시접속 체크 누락 | getUsrSessionInfo 미호출 | 레거시와 동일하게 추가 |
-| 11 | 로그인일자 미갱신 | modUsrLoginDt 미호출 | 추가 (LAST_LOGIN_DT 업데이트) |
-| 12 | 접속로그 미저장 | addUsrConnLog 미호출 | 추가 (tsylm_usr_conn INSERT) |
-| 13 | WAS 컨테이너명 미포함 | 레거시 fn_get_was_name 누락 | getWasContainerName() 구현, 로그인 응답+감사로그에 포함 |
-| 14 | loginApi2 P_RESULT_CD에 에러코드 전송 | catch블록에서 errCode(INVALID_PASS 등) 직접 전송 | P_RESULT_CD='FAIL' 고정, 에러코드는 P_RESULT_MSG에 [CODE] 형태로 포함 |
-| 15 | 한글 인코딩 깨짐 (UTF-8→EUC-KR) | req.getReader()가 WebSphere 기본 인코딩 사용 | req.getInputStream() + 명시적 UTF-8 바이트 디코딩으로 변경 |
-
----
-
-## 8. 배포 상태
-
-### 프론트엔드 (EC2 - GitHub Actions 자동 배포)
-
-| 항목 | 상태 |
-|------|------|
-| logService.ts (개별 전송) | ✅ 배포 완료 |
-| api-proxy.js (pmobileLoginApi 라우트) | ✅ 배포 완료 |
-| apiService.ts (DRM_VERSION, LOGIN_VIEW, PASSWORD) | ✅ 배포 완료 |
-| App.tsx (LOGIN_TRX_ID 조건부 생성) | ✅ 배포 완료 |
-| Login.tsx (loginApi1/2/3 호출) | ✅ 배포 완료 |
-| Login.tsx (WAS 컨테이너명 loginApi2/3 전달) | ✅ 배포 완료 |
-| Login.tsx (P_RESULT_CD: FAIL 고정) | ✅ 배포 완료 |
-| apiService.ts (401 에러 응답 body parsing) | ✅ 배포 완료 |
-
-### 백엔드 (CONA WebSphere - 관리자 수동 배포)
-
-| 항목 | 상태 |
-|------|------|
-| TaskAuthController.java (전체) | ⏳ jsh 브랜치 push 완료, 빌드/배포 대기 |
-| api-servlet.xml (URL 매핑) | ⏳ jsh 브랜치 push 완료, 빌드/배포 대기 |
-
-### 백엔드 배포 요청 정보
-
-```
-브랜치: jsh
-최신 커밋: a361a82 (Fix Korean encoding: use InputStream with explicit UTF-8 decode)
-수정 파일:
-  - src/task/TaskAuthController.java
-  - deployment-package/api-servlet.xml
-```
-
----
-
-## 9. 테스트 결과 (2026-03-12)
-
-### API 응답 테스트 (EC2 → CONA)
-
-| API | 상태 | 응답 |
-|-----|------|------|
-| POST /api/login | 200 OK | `{"ok":true, "userId":"A20130708", "userName":"[방판]유영무"}` |
-| POST /api/system/pm/pmobileLoginApi_1 | 200 OK | `{"ok":true, "MSGCODE":"", "MESSAGE":""}` |
-| POST /api/system/pm/pmobileLoginApi_2 | 200 OK | `{"ok":true, "MSGCODE":"", "MESSAGE":""}` |
-| POST /api/system/pm/pmobileLoginApi_3 | 200 OK | `{"ok":true, "MSGCODE":"", "MESSAGE":""}` |
-| POST /api/system/pm/insertActivityLog | 200 OK | `{"ok":true}` |
-| POST /api/system/pm/insertDebugLog | 200 OK | `{"ok":true}` |
-
-### 필드별 검증 (insertActivityLog)
-
-| 필드 | 전송 값 | 결과 |
-|------|---------|------|
-| LOG_TYPE | LOGIN / MENU_CLICK / LOGOUT | ✅ |
-| USR_ID | A20130708 | ✅ |
-| USR_NM | [방판]유영무 (한글 UTF-8) | ✅ |
-| SO_ID | (빈값 - 이 사용자는 SO_ID 없음) | ✅ 정상 |
-| CRR_ID | 1055809 | ✅ |
-| ACCESS_TYPE | APP | ✅ |
-| FROM_VIEW | today-work | ✅ |
-| TO_VIEW | work-management | ✅ |
-| MENU_NM | 작업관리 (한글) | ✅ |
-| CRT_DTTM | 20260312015825 | ✅ |
-| LOGIN_TRX_ID | 20260312015755_A20130708_RLZWVP | ✅ (이전 NULL) |
-| NW_TYPE | WIFI | ✅ (이전 NULL) |
-
-> **주의**: LOGIN_TRX_ID와 NW_TYPE가 실제 DB에 저장되려면 백엔드 배포가 필요합니다.
-> 현재 배포된 main에는 `LOGIN_TRX_ID`/`NW_TYPE` 키가 `P_LOGIN_TRX_ID`/`P_NW_TYPE`로 매핑 안 되어 있어 NULL이 들어갑니다.
-
----
-
-## 10. WAS 컨테이너명 (fn_get_was_name)
+## 6. WAS 컨테이너명 (fn_get_was_name)
 
 ### 레거시 구현 (BulletinManagementImpl.java)
 
@@ -508,9 +494,6 @@ String str_comm = System.getProperty("sun.java.command").toString();
 String[] str_comm_arr = str_comm.split(" ");
 String nm_container = str_comm_arr[str_comm_arr.length - 1];
 ```
-
-- 레거시 MiPlatform에서 `fn_get_was_name()` → `/system/bd/getWasName.req` 호출
-- WAS 컨테이너명 = JVM 실행 커맨드의 마지막 인자 (WebSphere 컨테이너 식별자)
 
 ### 우리 구현 (TaskAuthController.java)
 
@@ -528,6 +511,7 @@ private static String getWasContainerName() {
 |------|------|------|
 | 로그인 성공 응답 | `wasName` | 컨테이너명 직접 포함 |
 | 로그인 실패 응답 (401/423) | `wasName` | 에러 JSON에 포함 |
+| INVALID_PARAM 에러 (401) | `wasName` | codeMsgWithWas()로 포함 |
 | pmobileLoginApi_1 | `P_SERVER` | 컨테이너명으로 자동 설정 (프론트 값 무시) |
 | pmobileLoginApi_2 | `P_RESPONSE_DATA` | `WAS=컨테이너명` 추가 |
 | pmobileLoginApi_3 | `P_FINAL_RESULT_MSG` | `WAS=컨테이너명` 추가 |
@@ -538,9 +522,187 @@ private static String getWasContainerName() {
 [Login.tsx]
   ├─ loginApi1: P_SERVER → backend가 자동 설정
   ├─ login() 성공 → result.wasName
-  │   ├─ loginApi2: P_RESPONSE_DATA = "WAS=컨테이너명"
-  │   └─ loginApi3: P_FINAL_RESULT_MSG = "...,WAS=컨테이너명"
+  │   ├─ loginApi2: P_RESULT_CD='SUCC', P_RESPONSE_DATA="WAS=컨테이너명"
+  │   └─ loginApi3: P_FINAL_RESULT_MSG="...,WAS=컨테이너명"
   └─ login() 실패 (401) → err.details.wasName
-      ├─ loginApi2: P_RESPONSE_DATA = "WAS=컨테이너명"
-      └─ loginApi3: P_FINAL_RESULT_MSG = "...,WAS=컨테이너명"
+      ├─ loginApi2: P_RESULT_CD='FAIL', P_RESULT_MSG="[에러코드] 메시지"
+      │             P_RESPONSE_DATA="WAS=컨테이너명"
+      └─ loginApi3: P_FINAL_RESULT_MSG="에러코드,WAS=컨테이너명"
 ```
+
+---
+
+## 7. 한글 인코딩 (UTF-8 / EUC-KR)
+
+### 문제
+WebSphere 기본 인코딩이 EUC-KR이므로 `req.getReader()`가 UTF-8 바이트를 EUC-KR로 해석하여 한글 깨짐 발생.
+
+### 해결 (TaskAuthController.java)
+
+**수정 전:**
+```java
+BufferedReader r = req.getReader();
+char[] buf = new char[4096];
+```
+
+**수정 후:**
+```java
+java.io.InputStream is = req.getInputStream();
+java.io.ByteArrayOutputStream baos = new java.io.ByteArrayOutputStream();
+byte[] buf = new byte[4096];
+int n;
+while ((n = is.read(buf)) != -1) { baos.write(buf, 0, n); }
+String body = new String(baos.toByteArray(), "UTF-8");
+```
+
+### 적용 메서드
+- `parseJsonBody(req)` — 단일 JSON 파싱
+- `parseJsonBodyAll(req)` — 전체 필드 추출 (insertLog 등)
+
+---
+
+## 8. 커밋 이력
+
+### 프론트엔드 (main 브랜치 - GitHub Actions 자동 배포)
+
+| 커밋 | 파일 | 수정 내용 |
+|------|------|----------|
+| - | api-proxy.js | pmobileLoginApi_1/2/3 Express 라우트 추가 |
+| - | services/logService.ts | sendLogs() 배치 → 개별 전송으로 변경 |
+| - | App.tsx | LOGIN_TRX_ID 이중 생성 방지 (localStorage 체크) |
+| - | services/apiService.ts | PASSWORD 키명 수정, DRM_VERSION="1000", LOGIN_VIEW="MOBILE" |
+| - | services/apiService.ts | fetchWithRetry 4xx error response body parsing (wasName 추출) |
+| - | services/apiService.ts | LoginResponse에 wasName 필드 추가 |
+| - | components/layout/Login.tsx | loginApi2/3에 WAS 컨테이너명 포함 (성공/실패 모두) |
+| e13a1f9 | components/layout/Login.tsx | P_RESULT_CD: SUCCESS→SUCC (성공 시), errCode→FAIL (실패 시) |
+| 14a0399 | components/layout/Login.tsx | handleForceLogin에서도 P_RESULT_CD 동일 수정 |
+| 531450e | services/logService.ts | NW_TYPE 기기 분류 (getDeviceType) 구현 |
+| 188ea3d | services/logService.ts | PC effectiveType='4g' 무시 로직 추가 |
+| 2cf1b5d | services/logService.ts | ANDROID_TAB 추가 |
+| c1f0a06 | services/logService.ts | PC_MAC, PC_LINUX 추가 |
+| 1388a98 | services/logService.ts | PC_CHROMEBOOK, PC_TAB 추가 |
+
+### 백엔드 (jsh 브랜치 → 관리자 빌드/배포)
+
+| 커밋 | 파일 | 수정 내용 |
+|------|------|----------|
+| - | TaskAuthController.java | pmobileLoginApi_1/2/3 엔드포인트 추가 |
+| - | api-servlet.xml | pmobileLoginApi URL 매핑 추가 |
+| - | TaskAuthController.java | LOCK 계정 감지 (423 응답) |
+| - | TaskAuthController.java | insertActivityLog/insertDebugLog 엔드포인트 추가 |
+| - | api-servlet.xml | insertActivityLog/insertDebugLog URL 매핑 추가 |
+| - | TaskAuthController.java | P_LOGIN_TRX_ID/P_NW_TYPE 파라미터 키 매핑 수정 |
+| - | TaskAuthController.java | 레거시 로그인 플로우 완전 매칭 (동시접속, modUsrLoginDt, addUsrConnLog) |
+| - | TaskAuthController.java | getWasContainerName() 구현 + 로그인 응답/감사로그에 포함 |
+| - | TaskAuthController.java | pmobileLoginApi_1 P_SERVER에 WAS 컨테이너명 자동 설정 |
+| - | TaskAuthController.java | INVALID_PARAM에 codeMsgWithWas() 적용 (wasName 포함) |
+| 64a162e | TaskAuthController.java | INVALID_PARAM wasName 포함 수정 (codeMsgWithWas) |
+| a361a82 | TaskAuthController.java | 한글 인코딩 수정: getInputStream + UTF-8 명시적 디코딩 |
+
+### api-servlet.xml URL 매핑 (전체)
+
+```xml
+<prop key="/api/system/pm/pmobileLoginApi_1">authController</prop>
+<prop key="/api/system/pm/pmobileLoginApi_2">authController</prop>
+<prop key="/api/system/pm/pmobileLoginApi_3">authController</prop>
+<prop key="/api/system/pm/insertActivityLog">authController</prop>
+<prop key="/api/system/pm/insertDebugLog">authController</prop>
+<prop key="/api/system/pm/saveDliveAttendance">authController</prop>
+```
+
+---
+
+## 9. 발견 및 수정한 버그 (총 15건)
+
+| # | 버그 | 원인 | 수정 |
+|---|------|------|------|
+| 1 | LOGIN_TRX_ID DB에 NULL | Java 키 `LOGIN_TRX_ID` ≠ iBatis `#P_LOGIN_TRX_ID#` | `P_LOGIN_TRX_ID`로 수정 |
+| 2 | NW_TYPE DB에 NULL | Java 키 `NW_TYPE` ≠ iBatis `#P_NW_TYPE#` | `P_NW_TYPE`로 수정 |
+| 3 | USR_NM 한글 깨짐 | WebSphere EUC-KR + `req.getReader()` | `req.getInputStream()` + UTF-8 명시적 디코딩 |
+| 4 | Activity 로그 전체 빈값 | `{"logs":[...]}` 배치 전송 → CONA 파싱 불가 | 개별 전송으로 변경 |
+| 5 | pmobileLoginApi 404 | Express에 라우트 미등록 | router.post 추가 |
+| 6 | LOGIN_TRX_ID 불일치 | App.tsx에서 재생성하여 Login.tsx 것을 덮어씀 | localStorage 체크 후 조건부 생성 |
+| 7 | DRM_VERSION 불일치 | "1.0" 전송 → INVALID_DRM | "1000"으로 수정 (레거시 동일) |
+| 8 | LOGIN_VIEW 불일치 | "APP" 전송 → 레거시는 "MOBILE" | "MOBILE"로 수정 |
+| 9 | PASSWORD 키명 | USR_PWD로 전송 | PASSWORD로 통일 |
+| 10 | 동시접속 체크 누락 | getUsrSessionInfo 미호출 | 레거시와 동일하게 추가 |
+| 11 | 로그인일자 미갱신 | modUsrLoginDt 미호출 | 추가 (LAST_LOGIN_DT 업데이트) |
+| 12 | 접속로그 미저장 | addUsrConnLog 미호출 | 추가 (tsylm_usr_conn INSERT) |
+| 13 | WAS 컨테이너명 미포함 | 레거시 fn_get_was_name 누락 | getWasContainerName() 구현, 응답+감사로그에 포함 |
+| 14 | loginApi2 P_RESULT_CD에 에러코드 전송 | catch에서 errCode(INVALID_PASS 등) 직접 전송 | P_RESULT_CD='FAIL' 고정, 에러코드는 P_RESULT_MSG에 `[CODE] msg` 형태 |
+| 15 | 한글 인코딩 깨짐 (UTF-8→EUC-KR) | `req.getReader()`가 WebSphere 기본 인코딩 사용 | `req.getInputStream()` + 명시적 UTF-8 바이트 디코딩 |
+
+---
+
+## 10. 테스트 결과 (2026-03-12)
+
+### API 테스트 (15건 전체 통과)
+
+| # | 테스트 | 상태 | 결과 |
+|---|--------|------|------|
+| 1 | 로그인 성공 | 200 OK | ok=true, userId/userName/crrId/wasName 정상 |
+| 2 | 로그인 실패 (wrong password) | 401 | code=INVALID_PASS, message/wasName 정상 |
+| 3 | 로그인 실패 (빈값) | 401 | code=INVALID_PARAM, wasName 포함 정상 |
+| 4 | pmobileLoginApi_1 | 200 OK | ok=true |
+| 5 | pmobileLoginApi_2 (SUCC) | 200 OK | ok=true |
+| 6 | pmobileLoginApi_2 (FAIL) | 200 OK | ok=true |
+| 7 | pmobileLoginApi_3 (SUCCESS) | 200 OK | ok=true |
+| 8 | pmobileLoginApi_3 (FAIL) | 200 OK | ok=true |
+| 9 | insertActivityLog (LOGIN) | 200 OK | ok=true |
+| 10 | insertActivityLog (MENU_CLICK) | 200 OK | ok=true |
+| 11 | insertActivityLog (WORK_COMPLETE) | 200 OK | ok=true |
+| 12 | insertActivityLog (LOGOUT) | 200 OK | ok=true |
+| 13 | insertDebugLog (ERROR) | 200 OK | ok=true |
+| 14 | insertDebugLog (WARN) | 200 OK | ok=true |
+| 15 | insertActivityLog (한글 테스트) | 200 OK | ok=true, 한글 정상 저장 |
+
+### EC2 배포 코드 검증 (SSH)
+
+```bash
+# Login.tsx에서 P_RESULT_CD 검증
+$ grep -c "SUCC" Login.tsx    → 2건 (성공 2곳)
+$ grep -c "INVALID_PASS" Login.tsx → 0건 (에러코드 직접 사용 없음)
+$ grep -c "'FAIL'" Login.tsx  → 8건 (실패 처리 정상)
+```
+
+---
+
+## 11. 배포 상태
+
+### 프론트엔드 (EC2 - GitHub Actions 자동 배포) ✅ 완료
+
+| 항목 | 상태 |
+|------|------|
+| logService.ts (개별 전송 + NW_TYPE 기기/네트워크 분류) | ✅ 배포 완료 |
+| api-proxy.js (pmobileLoginApi 라우트) | ✅ 배포 완료 |
+| apiService.ts (DRM_VERSION, LOGIN_VIEW, PASSWORD, wasName) | ✅ 배포 완료 |
+| App.tsx (LOGIN_TRX_ID 조건부 생성) | ✅ 배포 완료 |
+| Login.tsx (loginApi1/2/3 + P_RESULT_CD SUCC/FAIL) | ✅ 배포 완료 |
+
+### 백엔드 (CONA WebSphere - 관리자 수동 배포) ✅ 완료
+
+| 항목 | 상태 |
+|------|------|
+| TaskAuthController.java (전체 - 로그인/로그/한글/WAS) | ✅ 배포 완료 |
+| api-servlet.xml (6개 URL 매핑) | ✅ 배포 완료 |
+
+---
+
+## 12. 수정 파일 목록
+
+### 프론트엔드
+
+| 파일 경로 | 역할 |
+|----------|------|
+| `api-proxy.js` | Express 프록시 라우트 (pmobileLoginApi, insertLog) |
+| `services/logService.ts` | 로그 서비스 (배치 큐, NW_TYPE 분류, loginApi1/2/3) |
+| `services/apiService.ts` | API 호출 (login, fetchWithRetry, wasName 파싱) |
+| `components/layout/Login.tsx` | 로그인 UI + loginApi1/2/3 호출 + P_RESULT_CD |
+| `App.tsx` | LOGIN_TRX_ID 생성, logLogin/logLogout 호출 |
+
+### 백엔드
+
+| 파일 경로 | 역할 |
+|----------|------|
+| `src/task/TaskAuthController.java` | 로그인/로그 엔드포인트, 한글 인코딩, WAS 컨테이너명 |
+| `deployment-package/api-servlet.xml` | URL → Controller 매핑 |

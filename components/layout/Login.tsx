@@ -32,6 +32,7 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
   const [showDupConfirm, setShowDupConfirm] = useState(false);
   const [otpCode, setOtpCode] = useState('');
   const [lockMessage, setLockMessage] = useState<string | null>(null);
+  const [blockMessage, setBlockMessage] = useState<string | null>(null);
 
   const completeLogin = (result: any) => {
     localStorage.removeItem('demoMode');
@@ -51,6 +52,7 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
     setError(null);
     setShowDupConfirm(false);
     setLockMessage(null);
+    setBlockMessage(null);
 
     // Step 1: Generate trxId + loginApi1 (LOGIN start)
     const trxId = generateLoginTrxId(username);
@@ -110,7 +112,9 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
       loginApi2({ P_LOGIN_TRX_ID: trxId, P_API_TYPE: 'LOGIN', P_RESULT_CD: 'FAIL', P_RESULT_MSG: errCode ? `[${errCode}] ${err.details?.message || err.message || 'Unknown error'}` : (err.details?.message || err.message || 'Unknown error'), P_RESPONSE_DATA: errWasName ? `WAS=${errWasName}` : '' });
       loginApi3({ P_LOGIN_TRX_ID: trxId, P_FINAL_RESULT_CD: 'FAIL', P_FINAL_RESULT_MSG: `${errCode || err.message || 'Unknown error'},WAS=${errWasName}` });
 
-      if (err.statusCode === 401 || (err.message && err.message.includes('401'))) {
+      if (err.statusCode === 503) {
+        setBlockMessage(err.message || '일시적으로 요청이 차단되었습니다. 잠시 후 다시 시도해주세요.');
+      } else if (err.statusCode === 401 || (err.message && err.message.includes('401'))) {
         setError('아이디 또는 비밀번호가 잘못되었습니다.');
       } else if (err.statusCode === 400 || (err.message && err.message.includes('400'))) {
         setError('아이디와 비밀번호를 모두 입력해주세요.');
@@ -161,7 +165,11 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
       const errCode = err.details?.code || '';
       loginApi2({ P_LOGIN_TRX_ID: trxId, P_API_TYPE: 'LOGIN', P_RESULT_CD: 'FAIL', P_RESULT_MSG: errCode ? `[${errCode}] ${err.details?.message || err.message || 'Unknown error'}` : (err.details?.message || err.message || 'Unknown error'), P_RESPONSE_DATA: errWasName ? `WAS=${errWasName}` : '' });
       loginApi3({ P_LOGIN_TRX_ID: trxId, P_FINAL_RESULT_CD: 'FAIL', P_FINAL_RESULT_MSG: `${err.message || 'Error'},WAS=${errWasName}` });
-      setError('로그인 중 오류가 발생했습니다.');
+      if (err.statusCode === 503) {
+        setBlockMessage(err.message || '일시적으로 요청이 차단되었습니다. 잠시 후 다시 시도해주세요.');
+      } else {
+        setError('로그인 중 오류가 발생했습니다.');
+      }
       console.error('강제 로그인 오류:', err);
     } finally {
       setIsLoading(false);
@@ -347,6 +355,30 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
             </div>
             <button
               onClick={() => setLockMessage(null)}
+              className="w-full py-2.5 px-4 bg-primary-500 text-white font-medium rounded-lg hover:bg-primary-600 transition"
+            >
+              확인
+            </button>
+          </div>
+        </div>
+      )}
+      {/* 요청 차단 모달 (Circuit Breaker) */}
+      {blockMessage && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-2xl max-w-sm w-full p-6 space-y-4">
+            <div className="text-center">
+              <div className="mx-auto w-12 h-12 bg-amber-100 rounded-full flex items-center justify-center mb-4">
+                <svg className="w-6 h-6 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                </svg>
+              </div>
+              <h3 className="text-lg font-bold text-gray-900 mb-2">요청 차단</h3>
+              <p className="text-sm text-gray-600 whitespace-pre-line">
+                {blockMessage}
+              </p>
+            </div>
+            <button
+              onClick={() => setBlockMessage(null)}
               className="w-full py-2.5 px-4 bg-primary-500 text-white font-medium rounded-lg hover:bg-primary-600 transition"
             >
               확인

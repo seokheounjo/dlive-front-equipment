@@ -209,8 +209,8 @@ export function logActivity(entry: ActivityLogEntry) {
       IP_ADDR: '',
       USER_AGENT: typeof navigator !== 'undefined' ? navigator.userAgent : '',
       CRT_DTTM: nowStr(),
-      LOGIN_TRX_ID: getLoginTrxId(),
-      NW_TYPE: getNetworkType(),
+      P_LOGIN_TRX_ID: getLoginTrxId(),
+      P_NW_TYPE: getNetworkType(),
     };
 
     activityQueue.push(record);
@@ -244,8 +244,8 @@ export function logDebug(entry: DebugLogEntry) {
       STACK_TRACE: (entry.STACK_TRACE || '').substring(0, 4000),
       PAGE_VIEW: entry.PAGE_VIEW || (typeof window !== 'undefined' ? window.location.pathname : ''),
       CRT_DTTM: nowStr(),
-      LOGIN_TRX_ID: getLoginTrxId(),
-      NW_TYPE: getNetworkType(),
+      P_LOGIN_TRX_ID: getLoginTrxId(),
+      P_NW_TYPE: getNetworkType(),
     };
 
     debugQueue.push(record);
@@ -256,6 +256,30 @@ export function logDebug(entry: DebugLogEntry) {
   } catch {
     // silent
   }
+}
+
+// ============ View → Menu Name Mapping ============
+
+const VIEW_MENU_NAMES: Record<string, string> = {
+  'today-work': '오늘의 작업',
+  'menu': '메인메뉴',
+  'work-management': '작업관리',
+  'work-order-detail': '작업상세',
+  'work-complete-form': '작업완료',
+  'work-complete-detail': '작업완료상세',
+  'work-item-list': '작업목록',
+  'work-process-flow': '작업진행',
+  'customer-management': '고객관리',
+  'equipment-management': '장비관리',
+  'other-management': '기타관리',
+  'settings': '설정',
+  'api-explorer': 'API탐색기',
+  'coming-soon': '준비중',
+};
+
+/** Get Korean menu name for a view ID */
+export function getMenuName(viewId: string): string {
+  return VIEW_MENU_NAMES[viewId] || viewId;
 }
 
 // ============ Convenience Helpers ============
@@ -270,9 +294,9 @@ export function logLogout() {
   logActivity({ LOG_TYPE: 'LOGOUT', FROM_VIEW: typeof window !== 'undefined' ? window.location.pathname : '' });
 }
 
-/** Log page/menu navigation */
+/** Log page/menu navigation (auto-fills MENU_NM from view mapping if not provided) */
 export function logNavigation(fromView: string, toView: string, menuNm?: string) {
-  logActivity({ LOG_TYPE: 'MENU_CLICK', FROM_VIEW: fromView, TO_VIEW: toView, MENU_NM: menuNm });
+  logActivity({ LOG_TYPE: 'MENU_CLICK', FROM_VIEW: fromView, TO_VIEW: toView, MENU_NM: menuNm || getMenuName(toView) });
 }
 
 /** Log work completion */
