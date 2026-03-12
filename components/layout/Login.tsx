@@ -107,7 +107,7 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
       // Extract wasName from error details (server includes it in error responses)
       const errWasName = err.details?.wasName || '';
       const errCode = err.details?.code || '';
-      loginApi2({ P_LOGIN_TRX_ID: trxId, P_API_TYPE: 'LOGIN', P_RESULT_CD: errCode || 'ERROR', P_RESULT_MSG: err.details?.message || err.message || 'Unknown error', P_RESPONSE_DATA: errWasName ? `WAS=${errWasName}` : '' });
+      loginApi2({ P_LOGIN_TRX_ID: trxId, P_API_TYPE: 'LOGIN', P_RESULT_CD: 'FAIL', P_RESULT_MSG: errCode ? `[${errCode}] ${err.details?.message || err.message || 'Unknown error'}` : (err.details?.message || err.message || 'Unknown error'), P_RESPONSE_DATA: errWasName ? `WAS=${errWasName}` : '' });
       loginApi3({ P_LOGIN_TRX_ID: trxId, P_FINAL_RESULT_CD: 'FAIL', P_FINAL_RESULT_MSG: `${errCode || err.message || 'Unknown error'},WAS=${errWasName}` });
 
       if (err.statusCode === 401 || (err.message && err.message.includes('401'))) {
@@ -159,7 +159,7 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
     } catch (err: any) {
       const errWasName = err.details?.wasName || '';
       const errCode = err.details?.code || '';
-      loginApi2({ P_LOGIN_TRX_ID: trxId, P_API_TYPE: 'LOGIN', P_RESULT_CD: errCode || 'ERROR', P_RESULT_MSG: err.details?.message || err.message, P_RESPONSE_DATA: errWasName ? `WAS=${errWasName}` : '' });
+      loginApi2({ P_LOGIN_TRX_ID: trxId, P_API_TYPE: 'LOGIN', P_RESULT_CD: 'FAIL', P_RESULT_MSG: errCode ? `[${errCode}] ${err.details?.message || err.message || 'Unknown error'}` : (err.details?.message || err.message || 'Unknown error'), P_RESPONSE_DATA: errWasName ? `WAS=${errWasName}` : '' });
       loginApi3({ P_LOGIN_TRX_ID: trxId, P_FINAL_RESULT_CD: 'FAIL', P_FINAL_RESULT_MSG: `${err.message || 'Error'},WAS=${errWasName}` });
       setError('로그인 중 오류가 발생했습니다.');
       console.error('강제 로그인 오류:', err);
