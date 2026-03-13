@@ -275,17 +275,17 @@ const crypto = require('crypto');
 //   ref_code2 = DEV(개발) / LIVE(운영)
 const OTP_SERVER_PORT = 1812;
 const OTP_TIMEOUT = 5000; // 5s
-const OTP_ENV = 'DEV'; // 현재 환경: DEV(개발) → 나중에 LIVE(운영)으로 전환
+const OTP_ENV = 'LIVE'; // 운영 환경
 
 // OTP 설정 캐시
 let otpConfigCache = null;
 let otpConfigLoadedAt = 0;
 const OTP_CONFIG_TTL = 3600000; // 1시간 캐시
 
-// 하드코딩 폴백 (DB 조회 실패 시 - DEV 기준)
+// 하드코딩 폴백 (DB 조회 실패 시 - LIVE 기준)
 const OTP_FALLBACK = {
-  serverIp: '52.79.244.8',
-  sharedSecret: '6FA8D9C467D1492E'
+  serverIp: '58.143.140.5',
+  sharedSecret: '03D4E6EF37FE1077'
 };
 
 /**
