@@ -60,8 +60,8 @@ const OtherManagement: React.FC<OtherManagementProps> = ({
   };
 
   return (
-    <div className="w-full">
-      <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
+    <div className="w-full flex-1 flex flex-col overflow-hidden">
+      <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full flex-1 flex flex-col overflow-hidden">
         <div className="bg-white border-b border-gray-200">
           <div
             ref={tabListRef}
@@ -90,11 +90,11 @@ const OtherManagement: React.FC<OtherManagementProps> = ({
           />
         </TabsContent>
 
-        <TabsContent value="attendance" className="px-0 pt-1">
+        <TabsContent value="attendance" className="px-0 pt-1 flex-1 flex flex-col overflow-hidden">
           <AttendanceRegistration onBack={onNavigateToMenu} userInfo={userInfo} showToast={showToast} />
         </TabsContent>
 
-        <TabsContent value="overtime" className="px-0 pt-1">
+        <TabsContent value="overtime" className="px-0 pt-1 flex-1 flex flex-col overflow-hidden">
           <OvertimeWork onBack={onNavigateToMenu} userInfo={userInfo} showToast={showToast} />
         </TabsContent>
 

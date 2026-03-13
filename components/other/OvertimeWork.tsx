@@ -344,7 +344,7 @@ export default function OvertimeWork({ onBack, userInfo, showToast }: OvertimeWo
   }
 
   return (
-    <div className="p-4 pb-20 space-y-4">
+    <div className="flex-1 overflow-y-auto p-4 pb-4 space-y-4">
       {/* Header */}
       <div className="flex items-center justify-between">
         <h3 className="font-medium text-gray-800 flex items-center gap-2">
