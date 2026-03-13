@@ -3,8 +3,8 @@ import { ShieldCheckIcon } from '../icons/ShieldCheckIcon';
 import { LockClosedIcon } from '../icons/LockClosedIcon';
 import { EyeIcon } from '../icons/EyeIcon';
 import { EyeSlashIcon } from '../icons/EyeSlashIcon';
-import { login, verifyOtp } from '../../services/apiService';
-import { logLogin, generateLoginTrxId, loginApi1, loginApi2, loginApi3 } from '../../services/logService';
+import { login, loginWithOtp } from '../../services/apiService';
+import { logLogin } from '../../services/logService';
 
 const OTP_ENABLED = false;
 
@@ -40,6 +40,15 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
     logLogin();
   };
 
+  // NW_TYPE 가져오기
+  const getNetworkType = (): string => {
+    try {
+      const conn = (navigator as any).connection;
+      if (conn) return conn.type || conn.effectiveType || '';
+    } catch (e) {}
+    return '';
+  };
+
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>, forceDisconnect: boolean = false) => {
     e.preventDefault();
     if (!username || !password) return;
@@ -55,22 +64,21 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
     setLockMessage(null);
     setBlockMessage(null);
 
-    // Step 1: Generate trxId + loginApi1 (LOGIN start)
-    const trxId = generateLoginTrxId(username);
-    loginApi1({ P_LOGIN_TRX_ID: trxId, P_USER_ID: username, P_API_TYPE: 'LOGIN' });
-
     try {
-      const result = await login(username, password, forceDisconnect ? 'Y' : 'N');
-      console.log('[Login] API 응답:', result);
-      console.log('[Login] telNo2:', result.telNo2);
-      console.log('[Login] wasName:', result.wasName);
+      let result: any;
 
-      // Step 2: loginApi2 (LOGIN result)
-      loginApi2({ P_LOGIN_TRX_ID: trxId, P_API_TYPE: 'LOGIN', P_RESULT_CD: result.ok ? 'SUCC' : 'FAIL', P_RESULT_MSG: result.ok ? '' : 'Login failed', P_RESPONSE_DATA: result.wasName ? `WAS=${result.wasName}` : '' });
+      if (OTP_ENABLED && !skipOtp) {
+        // OTP 활성화: login-with-otp 한번에 처리 (로그인+OTP+감사로그 서버에서 전부 처리)
+        result = await loginWithOtp(username, password, otpCode, forceDisconnect ? 'Y' : 'N', getNetworkType());
+      } else {
+        // OTP 비활성화 또는 스킵: 기존 로그인만
+        result = await login(username, password, forceDisconnect ? 'Y' : 'N');
+      }
+
+      console.log('[Login] API 응답:', result);
 
       // 계정 잠금 감지
       if (result.code === 'LOCK') {
-        loginApi3({ P_LOGIN_TRX_ID: trxId, P_FINAL_RESULT_CD: 'LOCK', P_FINAL_RESULT_MSG: `Account locked,WAS=${result.wasName || ''}` });
         setLockMessage(result.message || '계정이 잠겨있습니다. 관리자에게 문의하세요.');
         setIsLoading(false);
         return;
@@ -78,41 +86,24 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
 
       // 동시접속 감지
       if (result.LOGIN_DUP_YN === 'Y' || result.code === 'LOGIN_DUP') {
-        loginApi3({ P_LOGIN_TRX_ID: trxId, P_FINAL_RESULT_CD: 'DUP', P_FINAL_RESULT_MSG: `Duplicate login,WAS=${result.wasName || ''}` });
         setShowDupConfirm(true);
         setIsLoading(false);
         return;
       }
 
       if (result.ok) {
-        // OTP 검증 (OTP 제외 계정은 생략)
-        if (OTP_ENABLED && !skipOtp) {
-          const otpResult = await verifyOtp(username, otpCode);
-          if (!otpResult.ok) {
-            const errorCode = otpResult.code || '';
-            loginApi3({ P_LOGIN_TRX_ID: trxId, P_FINAL_RESULT_CD: 'OTP_FAIL', P_FINAL_RESULT_MSG: `OTP error: ${errorCode},WAS=${result.wasName || ''}` });
-            setError(otpErrorMessages[errorCode] || otpResult.message || 'OTP 인증에 실패했습니다.');
-            setOtpCode('');
-            setIsLoading(false);
-            return;
-          }
-        }
-
-        // Step 5: loginApi3 (final SUCCESS)
-        loginApi3({ P_LOGIN_TRX_ID: trxId, P_FINAL_RESULT_CD: 'SUCCESS', P_FINAL_RESULT_MSG: `${skipOtp ? 'OTP_SKIP,' : ''}WAS=${result.wasName || ''}` });
         completeLogin(result);
       } else {
-        loginApi3({ P_LOGIN_TRX_ID: trxId, P_FINAL_RESULT_CD: 'FAIL', P_FINAL_RESULT_MSG: `Login failed,WAS=${result.wasName || ''}` });
-        setError('로그인에 실패했습니다.');
+        // OTP 에러 처리
+        const errorCode = result.code || '';
+        if (otpErrorMessages[errorCode]) {
+          setError(otpErrorMessages[errorCode]);
+          setOtpCode('');
+        } else {
+          setError(result.message || '로그인에 실패했습니다.');
+        }
       }
     } catch (err: any) {
-      // Step 2+3: loginApi2 + loginApi3 (error - 401 etc.)
-      // Extract wasName from error details (server includes it in error responses)
-      const errWasName = err.details?.wasName || '';
-      const errCode = err.details?.code || '';
-      loginApi2({ P_LOGIN_TRX_ID: trxId, P_API_TYPE: 'LOGIN', P_RESULT_CD: 'FAIL', P_RESULT_MSG: errCode ? `[${errCode}] ${err.details?.message || err.message || 'Unknown error'}` : (err.details?.message || err.message || 'Unknown error'), P_RESPONSE_DATA: errWasName ? `WAS=${errWasName}` : '' });
-      loginApi3({ P_LOGIN_TRX_ID: trxId, P_FINAL_RESULT_CD: 'FAIL', P_FINAL_RESULT_MSG: `${errCode || err.message || 'Unknown error'},WAS=${errWasName}` });
-
       if (err.statusCode === 503) {
         setBlockMessage(err.message || '일시적으로 요청이 차단되었습니다. 잠시 후 다시 시도해주세요.');
       } else if (err.statusCode === 401 || (err.message && err.message.includes('401'))) {
@@ -133,40 +124,30 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
     setIsLoading(true);
     setShowDupConfirm(false);
 
-    const trxId = generateLoginTrxId(username);
-    loginApi1({ P_LOGIN_TRX_ID: trxId, P_USER_ID: username, P_API_TYPE: 'LOGIN', P_REQUEST_DATA: 'FORCE_DISCONNECT=Y' });
-
     try {
-      const result = await login(username, password, 'Y');
+      const skipOtp = OTP_SKIP_USERS.includes(username.toUpperCase());
+      let result: any;
+
+      if (OTP_ENABLED && !skipOtp) {
+        result = await loginWithOtp(username, password, otpCode, 'Y', getNetworkType());
+      } else {
+        result = await login(username, password, 'Y');
+      }
+
       console.log('[Login] 강제 로그인 응답:', result);
-      loginApi2({ P_LOGIN_TRX_ID: trxId, P_API_TYPE: 'LOGIN', P_RESULT_CD: result.ok ? 'SUCC' : 'FAIL', P_RESPONSE_DATA: result.wasName ? `WAS=${result.wasName}` : '' });
 
       if (result.ok) {
-        // OTP 검증 (OTP 제외 계정은 생략)
-        const skipOtp = OTP_SKIP_USERS.includes(username.toUpperCase());
-        if (OTP_ENABLED && !skipOtp) {
-          const otpResult = await verifyOtp(username, otpCode);
-          if (!otpResult.ok) {
-            const errorCode = otpResult.code || '';
-            loginApi3({ P_LOGIN_TRX_ID: trxId, P_FINAL_RESULT_CD: 'OTP_FAIL', P_FINAL_RESULT_MSG: `OTP error: ${errorCode},WAS=${result.wasName || ''}` });
-            setError(otpErrorMessages[errorCode] || otpResult.message || 'OTP 인증에 실패했습니다.');
-            setOtpCode('');
-            setIsLoading(false);
-            return;
-          }
-        }
-
-        loginApi3({ P_LOGIN_TRX_ID: trxId, P_FINAL_RESULT_CD: 'SUCCESS', P_FINAL_RESULT_MSG: `${skipOtp ? 'OTP_SKIP,' : ''}WAS=${result.wasName || ''}` });
         completeLogin(result);
       } else {
-        loginApi3({ P_LOGIN_TRX_ID: trxId, P_FINAL_RESULT_CD: 'FAIL', P_FINAL_RESULT_MSG: `WAS=${result.wasName || ''}` });
-        setError('로그인에 실패했습니다.');
+        const errorCode = result.code || '';
+        if (otpErrorMessages[errorCode]) {
+          setError(otpErrorMessages[errorCode]);
+          setOtpCode('');
+        } else {
+          setError(result.message || '로그인에 실패했습니다.');
+        }
       }
     } catch (err: any) {
-      const errWasName = err.details?.wasName || '';
-      const errCode = err.details?.code || '';
-      loginApi2({ P_LOGIN_TRX_ID: trxId, P_API_TYPE: 'LOGIN', P_RESULT_CD: 'FAIL', P_RESULT_MSG: errCode ? `[${errCode}] ${err.details?.message || err.message || 'Unknown error'}` : (err.details?.message || err.message || 'Unknown error'), P_RESPONSE_DATA: errWasName ? `WAS=${errWasName}` : '' });
-      loginApi3({ P_LOGIN_TRX_ID: trxId, P_FINAL_RESULT_CD: 'FAIL', P_FINAL_RESULT_MSG: `${err.message || 'Error'},WAS=${errWasName}` });
       if (err.statusCode === 503) {
         setBlockMessage(err.message || '일시적으로 요청이 차단되었습니다. 잠시 후 다시 시도해주세요.');
       } else {

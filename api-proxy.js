@@ -25,16 +25,9 @@ const PATH_MAPPING = {
 // Routes that should go directly to legacy .req servlet (bypass our adapter)
 // NOTE: getEquipmentHistoryInfo removed - our adapter handles it with getEquipmentHistoryInfo_2
 // NOTE: _m APIs go through EC2 /api/* (D'Live requires separate session we don't have)
-const LEGACY_REQ_ROUTES = [
-
-  // Equipment Processing 3 APIs - Route directly to legacy .req servlet
-  "/customer/phoneNumber/getOwnEqtLstForMobile_3",  // 장비반납
-  "/customer/equipment/getAuthSoList",  // SO 권한 목록
-  "/customer/equipment/getEqtTrnsList",  // 장비이동내역
-  "/customer/work/getProd_Grp",  // AS접수 콤보상세 (상품그룹)
-  // getEquipLossInfo_ForM → PATH_MAPPING으로 어댑터 경유 (레거시 .req CONA 세션 인증 실패)
-
-];
+// LEGACY_REQ_ROUTES removed - all routes go through adapter (/api prefix)
+// Previously these went directly to .req servlet but failed due to missing CONA session
+const LEGACY_REQ_ROUTES = [];
 
 // Parse MiPlatform XML response to JSON
 function parseMiPlatformXMLtoJSON(xmlString) {
@@ -579,7 +572,7 @@ function generateTrxId(userId) {
     String(now.getHours()).padStart(2, '0') +
     String(now.getMinutes()).padStart(2, '0') +
     String(now.getSeconds()).padStart(2, '0');
-  return ts + '_' + (userId || 'unknown');
+  return (userId || 'unknown') + '_' + ts;
 }
 
 // Call CONA login audit procedure via adapter

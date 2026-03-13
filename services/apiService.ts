@@ -476,40 +476,36 @@ export const login = async (userId: string, password: string, disconnYn: string 
 };
 
 
-// OTP 검증 응답
-export interface OtpVerifyResponse {
-  ok: boolean;
-  code?: string;
-  message?: string;
-  errorCount?: number;
-}
-
-// OTP 검증 API
-export const verifyOtp = async (userId: string, otpCode: string): Promise<OtpVerifyResponse> => {
+// OTP 포함 로그인 (login + OTP + 감사로그 한번에 처리)
+export const loginWithOtp = async (userId: string, password: string, otpCode: string, disconnYn: string = 'N', nwType: string = ''): Promise<LoginResponse> => {
   const origin = typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000';
 
   try {
-    const response = await fetchWithRetry(`${API_BASE}/auth/otp-verify`, {
+    const response = await fetchWithRetry(`${API_BASE}/auth/login-with-otp`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Origin': origin
+        'Origin': origin,
+        'X-Network-Type': nwType
       },
       credentials: 'include',
       body: JSON.stringify({
         USR_ID: userId,
-        OTP_CODE: otpCode
+        PASSWORD: password,
+        OTP_CODE: otpCode,
+        DISCONN_YN: disconnYn,
+        NW_TYPE: nwType
       }),
     }, 1);
 
     const result = await response.json();
     return result;
   } catch (error) {
-    console.error('OTP 검증 API 호출 실패:', error);
+    console.error('OTP 로그인 API 호출 실패:', error);
     if (error instanceof NetworkError) {
       throw error;
     }
-    throw new NetworkError('OTP 인증 중 오류가 발생했습니다. 다시 시도해주세요.');
+    throw new NetworkError('로그인 중 오류가 발생했습니다. 다시 시도해주세요.');
   }
 };
 
@@ -3570,12 +3566,12 @@ export const processEquipmentLoss = async (params: {
 export const setEquipmentCheckStandby = async (params: {
   EQT_NO: string;
 }): Promise<any> => {
-  console.log('[fn:setEquipmentCheckStandby -> req:setEquipmentChkStndByY_ForM] API:', params);
+  console.log('[장비상태변경] API 호출:', params);
 
   try {
     const origin = typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000';
 
-    const response = await fetch(`${API_BASE}/customer/equipment/setEquipmentChkStndByY_ForM`, {
+    const response = await fetchWithRetry(`${API_BASE}/customer/equipment/setEquipmentChkStndByY`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -3586,34 +3582,15 @@ export const setEquipmentCheckStandby = async (params: {
     });
 
     const result = await response.json();
+    console.log('장비 상태 변경 성공:', result);
 
-    // debugLogs from backend
-    if (result.debugLogs) {
-      console.log('[backend debug logs]');
-      result.debugLogs.forEach((log: string) => console.log(log));
-    }
-
-    // HTTP 400: business rule error
-    if (response.status === 400 && result.code === 'BUSINESS_RULE_ERROR') {
-      console.error('business rule error:', result.message);
-      throw new Error(result.message || 'business rule error');
-    }
-
-    // HTTP 500: technical error
-    if (!response.ok) {
-      console.error('equipment status change failed:', result);
-      const errMsg = result.message || result.error || `server error (HTTP ${response.status})`;
-      throw new Error(errMsg);
-    }
-
-    console.log('equipment status change success:', result);
     return result;
   } catch (error: any) {
-    console.error('equipment status change failed:', error);
-    if (error instanceof Error) {
+    console.error('장비 상태 변경 실패:', error);
+    if (error instanceof NetworkError) {
       throw error;
     }
-    throw new Error('equipment status change failed.');
+    throw new NetworkError('장비 상태 변경에 실패했습니다.');
   }
 };
 
@@ -3646,9 +3623,7 @@ export const getEquipmentHistoryInfo = async (params: {
     const result = await response.json();
     console.log('장비 조회 성공:', result);
 
-    // 응답 구조: {success, data: [...], count} 또는 직접 배열
-    const data = result?.data || result;
-    return Array.isArray(data) ? data : [data];
+    return Array.isArray(result) ? result[0] : result;
   } catch (error: any) {
     console.error('장비 조회 실패:', error);
     if (error instanceof NetworkError) {
