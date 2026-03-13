@@ -90,6 +90,9 @@ export default function OvertimeWork({ onBack, userInfo, showToast }: OvertimeWo
   // Common codes
   const [gubnCodes, setGubnCodes] = useState<GubnCode[]>([]);
 
+  // Approval path (결재선)
+  const [approvalPath, setApprovalPath] = useState<any[]>([]);
+
   // List
   const [records, setRecords] = useState<OvertimeRecord[]>([]);
   const [loading, setLoading] = useState(false);
@@ -180,6 +183,28 @@ export default function OvertimeWork({ onBack, userInfo, showToast }: OvertimeWo
       }
     })();
   }, [authorized]);
+
+  // Load approval path (결재선)
+  useEffect(() => {
+    if (!authorized || !userInfo?.userId) return;
+    (async () => {
+      try {
+        const res = await fetch('/api/other/overtime/getPath', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ USR_ID: userInfo.userId })
+        });
+        if (res.ok) {
+          const data = await res.json();
+          if (Array.isArray(data)) {
+            setApprovalPath(data);
+          }
+        }
+      } catch {
+        // ignore - will show '-' as fallback
+      }
+    })();
+  }, [authorized, userInfo?.userId]);
 
   // Load list
   const loadList = useCallback(async (periodVal?: string) => {
@@ -483,7 +508,21 @@ export default function OvertimeWork({ onBack, userInfo, showToast }: OvertimeWo
             <div className="flex-1 overflow-y-auto p-4 space-y-4">
               <div>
                 <label className="block text-sm text-gray-600 mb-1">결재선</label>
-                <div className="px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-500">-</div>
+                <div className="px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm">
+                  {approvalPath.length > 0 ? (
+                    <div className="flex flex-wrap items-center gap-1">
+                      {approvalPath.map((ap, idx) => (
+                        <span key={idx} className="inline-flex items-center">
+                          <span className="text-gray-700">{ap.USR_NM || ap.USER_NAME || ap.APPR_NM || '-'}</span>
+                          {ap.POSITION_NM && <span className="text-gray-400 text-xs ml-0.5">({ap.POSITION_NM})</span>}
+                          {idx < approvalPath.length - 1 && <span className="text-gray-300 mx-1">→</span>}
+                        </span>
+                      ))}
+                    </div>
+                  ) : (
+                    <span className="text-gray-400">-</span>
+                  )}
+                </div>
               </div>
 
               <div>
@@ -580,7 +619,21 @@ export default function OvertimeWork({ onBack, userInfo, showToast }: OvertimeWo
             <div className="flex-1 overflow-y-auto p-4 space-y-4">
               <div>
                 <label className="block text-sm text-gray-600 mb-1">결재선</label>
-                <div className="px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-500">-</div>
+                <div className="px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm">
+                  {approvalPath.length > 0 ? (
+                    <div className="flex flex-wrap items-center gap-1">
+                      {approvalPath.map((ap, idx) => (
+                        <span key={idx} className="inline-flex items-center">
+                          <span className="text-gray-700">{ap.USR_NM || ap.USER_NAME || ap.APPR_NM || '-'}</span>
+                          {ap.POSITION_NM && <span className="text-gray-400 text-xs ml-0.5">({ap.POSITION_NM})</span>}
+                          {idx < approvalPath.length - 1 && <span className="text-gray-300 mx-1">→</span>}
+                        </span>
+                      ))}
+                    </div>
+                  ) : (
+                    <span className="text-gray-400">-</span>
+                  )}
+                </div>
               </div>
 
               <div>

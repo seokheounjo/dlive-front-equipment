@@ -707,6 +707,7 @@ router.post('/other/overtime/getGubn', handleProxy);
 router.post('/other/overtime/list', handleProxy);
 router.post('/other/overtime/savePlan', handleProxy);
 router.post('/other/overtime/saveActual', handleProxy);
+router.post('/other/overtime/getPath', handleProxy);
 
 // Debug (OtherController)
 router.post('/other/debug/beans', handleProxy);
