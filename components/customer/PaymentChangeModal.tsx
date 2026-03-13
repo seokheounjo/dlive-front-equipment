@@ -156,22 +156,34 @@ const PaymentChangeModal: React.FC<PaymentChangeModalProps> = ({
   // 공통코드 로드
   useEffect(() => {
     if (isOpen) {
-      const loadCodes = (apiFn: () => Promise<any>, setter: (v: any) => void) => {
+      const loadCodes = (label: string, apiFn: () => Promise<any>, setter: (v: any) => void) => {
         apiFn().then(res => {
+          console.log(`[PaymentChange] ${label} response:`, res.success, 'count:', res.data?.length || 0);
           if (res.success && res.data && res.data.length > 0) {
             const mapped = res.data
-              .filter((item: any) => item.code && item.name && item.name !== '선택' && item.code !== '[]')
-              .map((item: any) => ({ CODE: item.code, CODE_NM: item.name.trim() }));
+              .filter((item: any) => {
+                // 대소문자 모두 지원 (code/CODE, name/CODE_NM)
+                const cd = item.code || item.CODE || item.CD;
+                const nm = item.name || item.CODE_NM || item.CD_NM;
+                return cd && nm && nm !== '선택' && cd !== '[]';
+              })
+              .map((item: any) => ({
+                CODE: item.code || item.CODE || item.CD,
+                CODE_NM: (item.name || item.CODE_NM || item.CD_NM || '').trim()
+              }));
+            console.log(`[PaymentChange] ${label} mapped:`, mapped.length);
             if (mapped.length > 0) setter(mapped);
           }
-        }).catch(() => {});
+        }).catch((err) => {
+          console.error(`[PaymentChange] ${label} load failed:`, err);
+        });
       };
-      loadCodes(getBankCodesDLive, setBankCodes);           // BLPY015 은행명
-      loadCodes(getCardCompanyCodes, setCardCompanyCodes);  // BLPY016 카드사명
-      loadCodes(getIdTypeCodes111, setIdTypeCodes);         // CMCU111 신분유형
-      loadCodes(getPayerRelationCodes, setPyrRelCodes);     // CMCU005 납부자관계
-      loadCodes(getChangeReasonCodes, setChangeReasonCodes); // CMCU079 변경사유
-      loadCodes(getCardClassCodes, setCardClassCodes);       // CMCU112 카드구분(개인/법인)
+      loadCodes('은행(BLPY015)', getBankCodesDLive, setBankCodes);
+      loadCodes('카드사(BLPY016)', getCardCompanyCodes, setCardCompanyCodes);
+      loadCodes('신분유형(CMCU111)', getIdTypeCodes111, setIdTypeCodes);
+      loadCodes('납부자관계(CMCU005)', getPayerRelationCodes, setPyrRelCodes);
+      loadCodes('변경사유(CMCU079)', getChangeReasonCodes, setChangeReasonCodes);
+      loadCodes('카드구분(CMCU112)', getCardClassCodes, setCardClassCodes);
     }
   }, [isOpen]);
 
