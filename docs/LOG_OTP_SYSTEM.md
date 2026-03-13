@@ -1,7 +1,8 @@
 # D'Live CONA 모바일 - 로그인/로그/OTP 시스템 종합 문서
 
-> 최종 업데이트: 2026-03-12
+> 최종 업데이트: 2026-03-13
 > 상태: 프론트엔드 배포 완료 / 백엔드 배포 완료 (jsh → main 빌드/배포)
+> 동기화 대상: seokheounjo/dlive-front-equipment (main) ↔ teemartbottle/dlive-cona-client (equipment_customer_other)
 
 ---
 
@@ -761,3 +762,171 @@ $ grep -c "'FAIL'" Login.tsx  → 8건 (실패 처리 정상)
 |----------|------|
 | `src/task/TaskAuthController.java` | 로그인/로그 엔드포인트, 한글 인코딩, WAS 컨테이너명 |
 | `deployment-package/api-servlet.xml` | URL → Controller 매핑 |
+
+---
+
+## 13. 두 레포 동기화 관리
+
+### 13.1 레포 정보
+
+| 구분 | OUR (우리) | THEIR (상대) |
+|------|-----------|-------------|
+| **레포** | seokheounjo/dlive-front-equipment | teemartbottle/dlive-cona-client |
+| **브랜치** | `main` | `equipment_customer_other` |
+| **로컬 경로** | `/c/bottle/dlive/frontend` | `/c/tmp/dlive-cona-client` |
+| **배포** | GitHub Actions 자동배포 (push→EC2) | 관리자 수동 머지/빌드 |
+| **커밋 형식** | 자유 | `[jsh] 변경내용` |
+| **dist/ 포함** | O (커밋+푸시) | X (절대 금지) |
+
+### 13.2 파일별 수정 권한 (cona-client)
+
+| 파일 | 권한 | 비고 |
+|------|------|------|
+| `components/layout/Login.tsx` | **수정 가능** | OTP/로그인 로직 동기화 대상 |
+| `services/logService.ts` | **수정 불가** | 관리자에게 요청 필요 |
+| `services/apiService.ts` | **추가만 가능** | 새 함수만 추가, 기존 수정 금지 |
+| `api-proxy.js` | **추가만 가능** | 새 라우트만 추가, 기존 수정 금지 |
+| `types.ts` | **추가만 가능** | 새 타입만 추가 |
+
+### 13.3 현재 차이점 비교 (2026-03-13 기준)
+
+#### Login.tsx 차이
+
+| 항목 | OUR (우리) | THEIR (상대) | 동기화 상태 |
+|------|-----------|-------------|------------|
+| OTP_ENABLED = true | O | O | **동기화 완료** |
+| OTP_SKIP_USERS 배열 | O | O | **동기화 완료** |
+| blockMessage (503 팝업) | O | O | **동기화 완료** |
+| lockMessage (잠금 팝업) | O | O | **동기화 완료** |
+| showDupConfirm (동시접속) | O | O | **동기화 완료** |
+| loginApi1/2/3 감사로그 | O | O | **동기화 완료** |
+| skipOtp 로직 | O | O | **동기화 완료** |
+| `TestTube` 데모 버튼 | O | X | **우리만 사용** (상대에 반영 불필요) |
+| `localStorage.removeItem('demoMode')` | O | X | **우리만 사용** (데모용) |
+| `__BUILD_TIME__` 버전 표시 | X | O | **상대만 사용** (우리는 미반영) |
+
+#### logService.ts 차이 (CRITICAL - DB에 직접 영향)
+
+| 항목 | OUR (우리) | THEIR (상대) | 영향 |
+|------|-----------|-------------|------|
+| `P_LOGIN_TRX_ID` 키명 | **P_LOGIN_TRX_ID** (정상) | `LOGIN_TRX_ID` (오류) | DB에 NULL 저장됨 |
+| `P_NW_TYPE` 키명 | **P_NW_TYPE** (정상) | `NW_TYPE` (오류) | DB에 NULL 저장됨 |
+| VIEW_MENU_NAMES 매핑 | O (14개 뷰 매핑) | X (없음) | MENU_NM 항상 NULL |
+| getMenuName() 함수 | O | X | logNavigation 자동변환 안됨 |
+| logNavigation MENU_NM 자동채움 | `menuNm \|\| getMenuName(toView)` | `menuNm` (수동만) | MENU_NM 대부분 NULL |
+
+> **주의**: logService.ts는 cona-client에서 jsh 수정 불가 범위. 관리자에게 아래 3개 수정 요청 필요:
+> 1. `LOGIN_TRX_ID` → `P_LOGIN_TRX_ID` (logActivity, logDebug 양쪽)
+> 2. `NW_TYPE` → `P_NW_TYPE` (logActivity, logDebug 양쪽)
+> 3. VIEW_MENU_NAMES 매핑 + getMenuName() + logNavigation 자동채움 추가
+
+### 13.4 동기화 프로세스 (매번 수정 시 반드시 수행)
+
+```
+=== 동기화 체크리스트 ===
+
+[STEP 1] 양쪽 최신 코드 받기
+  $ cd /c/bottle/dlive/frontend && git pull origin main
+  $ cd /c/tmp/dlive-cona-client && git pull origin equipment_customer_other
+
+[STEP 2] 상대방 변경사항 확인
+  $ cd /c/tmp/dlive-cona-client && git log --oneline -5
+  → 새 커밋이 있으면 우리 쪽에 반영할 것 있는지 확인
+
+[STEP 3] 우리 변경사항을 상대에 반영
+  - Login.tsx 수정 시: 상대 Login.tsx에도 동일하게 반영
+    (단, TestTube/demoMode 관련 코드는 우리만 사용)
+    (단, __BUILD_TIME__ 관련 코드는 상대만 사용 → 유지)
+  - logService.ts 수정 시: 수정 불가 → 관리자에게 변경 내용 전달
+
+[STEP 4] 빌드 (우리 레포만)
+  $ cd /c/bottle/dlive/frontend && npm run build
+
+[STEP 5] 양쪽 커밋 & 푸시
+  # 우리 레포 (dist/ 포함)
+  $ cd /c/bottle/dlive/frontend
+  $ git add [변경파일] dist/
+  $ git commit -m "변경 내용 설명"
+  $ git push origin main
+
+  # 상대 레포 (dist/ 절대 금지)
+  $ cd /c/tmp/dlive-cona-client
+  $ git add [변경파일]   ← dist/ 제외!
+  $ git commit -m "[jsh] 변경 내용 설명"
+  $ git push origin equipment_customer_other
+
+[STEP 6] 문서 업데이트
+  - LOG_OTP_SYSTEM.md의 13.3 차이점 비교 테이블 업데이트
+  - 날짜 업데이트
+```
+
+### 13.5 동기화 시 주의사항
+
+1. **상대 레포에서 절대 하면 안 되는 것**
+   - `dist/` 폴더 커밋/푸시
+   - `main` 브랜치로 푸시
+   - 수정 불가 파일 변경 (stores/, App.tsx, server.js, package.json 등)
+   - 기존 코드 수정/삭제 (추가만 가능한 파일들)
+
+2. **Login.tsx 동기화 시 제외 항목**
+   - `import { TestTube } from 'lucide-react';` → 우리만
+   - 데모 버튼 (`<button type="button" onClick={...demoMode...}>`) → 우리만
+   - `localStorage.removeItem('demoMode');` in completeLogin → 우리만
+   - `v{__BUILD_TIME__}` 버전 표시 → 상대만 (건드리지 말 것)
+
+3. **logService.ts 관리자 요청 항목** (cona-client 전용)
+   - `LOGIN_TRX_ID` → `P_LOGIN_TRX_ID` (iBatis 키 매칭 필수)
+   - `NW_TYPE` → `P_NW_TYPE` (iBatis 키 매칭 필수)
+   - VIEW_MENU_NAMES 매핑 테이블 추가
+   - getMenuName() 함수 추가
+   - logNavigation에 `menuNm || getMenuName(toView)` 자동채움
+
+### 13.6 관리자 전달용 logService.ts 수정 요청서
+
+```
+=== logService.ts 수정 요청 (teemartbottle/dlive-cona-client) ===
+
+1. logActivity() 함수 내 키명 수정:
+   변경 전: LOGIN_TRX_ID: getLoginTrxId(),
+   변경 후: P_LOGIN_TRX_ID: getLoginTrxId(),
+
+   변경 전: NW_TYPE: getNetworkType(),
+   변경 후: P_NW_TYPE: getNetworkType(),
+
+2. logDebug() 함수 내 키명 수정:
+   변경 전: LOGIN_TRX_ID: getLoginTrxId(),
+   변경 후: P_LOGIN_TRX_ID: getLoginTrxId(),
+
+   변경 전: NW_TYPE: getNetworkType(),
+   변경 후: P_NW_TYPE: getNetworkType(),
+
+3. VIEW_MENU_NAMES 매핑 추가 (logNavigation 위에):
+
+   const VIEW_MENU_NAMES: Record<string, string> = {
+     'today-work': '오늘의 작업',
+     'menu': '메인메뉴',
+     'work-management': '작업관리',
+     'work-order-detail': '작업상세',
+     'work-complete-form': '작업완료',
+     'work-complete-detail': '작업완료상세',
+     'work-item-list': '작업목록',
+     'work-process-flow': '작업진행',
+     'customer-management': '고객관리',
+     'equipment-management': '장비관리',
+     'other-management': '기타관리',
+     'settings': '설정',
+     'api-explorer': 'API탐색기',
+     'coming-soon': '준비중',
+   };
+
+   export function getMenuName(viewId: string): string {
+     return VIEW_MENU_NAMES[viewId] || viewId;
+   }
+
+4. logNavigation() 수정:
+   변경 전: MENU_NM: menuNm
+   변경 후: MENU_NM: menuNm || getMenuName(toView)
+
+사유: iBatis SQL에서 #P_LOGIN_TRX_ID#, #P_NW_TYPE# 으로 참조하므로
+      프론트에서도 동일한 키명 사용 필수. 미수정 시 DB에 NULL 저장됨.
+```
