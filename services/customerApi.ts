@@ -1862,6 +1862,32 @@ export const savePaymentSignature = async (params: SignatureSaveRequest): Promis
 };
 
 /**
+ * 자동이체 동의서 PDF 파일명 DB 저장
+ */
+export const updatePymAtmtApplAGRPdf = async (params: {
+  PYM_ACNT_ID: string;
+  UPDATE_DATE: string;
+  AGR_FILE_NAME: string;
+  AGR_FILE_GB?: string;
+  AGR_CTI_UID?: string;
+  USER_ID?: string;
+}): Promise<ApiResponse<any>> => {
+  let usrId = params.USER_ID || 'MOBILE_USER';
+  try {
+    const userInfoStr = sessionStorage.getItem('userInfo') || localStorage.getItem('userInfo');
+    if (userInfoStr) {
+      const userInfo = JSON.parse(userInfoStr);
+      usrId = userInfo.userId || userInfo.USR_ID || usrId;
+    }
+  } catch {}
+  return apiCall<any>('/customer/customer/general/updatePymAtmtApplAGRPdf', {
+    ...params,
+    AGR_FILE_GB: params.AGR_FILE_GB || 'A',
+    USER_ID: usrId,
+  });
+};
+
+/**
  * 납부방법 변경 - 공통코드 조회 (Stub - 추후 API 연결)
  * 은행코드, 카드사코드, 변경사유코드 등을 서버에서 조회
  *
@@ -2916,5 +2942,7 @@ export default {
   formatCurrency,
   formatDate,
   maskString,
-  getCustCntBySearchCust
+  getCustCntBySearchCust,
+  // PDF 파일명 저장
+  updatePymAtmtApplAGRPdf
 };

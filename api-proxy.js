@@ -262,6 +262,16 @@ function parseMiPlatformDatasetXMLtoJSON(xmlString) {
 // .req 서블릿은 CONA 원본 MiPlatform 로그인 세션만 인식
 const DIRECT_REQ_ROUTES = {};
 
+// Long-running API paths (120s timeout instead of default 60s)
+const LONG_TIMEOUT_PATHS = [
+  '/hotbill/simulate',
+  '/customer/receipt/calcHotbillSumul',
+  '/work/complete',
+  '/customer/work/workComplete',
+  '/work/directions',
+  '/customer/etc/setUplsWorkComplete',
+];
+
 // ============================================================
 // OTP Authentication (GrippinTower RADIUS - Node.js direct)
 // ============================================================
@@ -1056,28 +1066,127 @@ router.get('/customer/debug/billingManagement/methods', handleProxy);
 router.get('/customer/debug/customerEtcManagement/methods', handleProxy);
 router.get('/customer/debug/sampleHistoryData', handleProxy);
 router.post('/customer/debug/testDao', handleProxy);
+router.post('/other/debug/beans', handleProxy);  // OtherController beans debug
 
-// === 신규 API 라우트 (2026-03-13 프론트 교체 후 추가) ===
-// apiService.ts 신규 6건
-router.post('/customer/negociation/insertRcptProcInfo', handleProxy);  // 작업접수 처리
-router.post('/customer/receipt/getNBGuide', handleProxy);              // NB 가이드 조회
-router.post('/customer/receipt/saveNBGuide', handleProxy);             // NB 가이드 저장
-router.post('/customer/sigtrans/modSvcDtlErrResend', handleProxy);    // 신호 에러 재전송
-router.post('/customer/sigtrans/modSvcDtlErrResend_2', handleProxy);  // 신호 에러 재전송 (iTV)
-router.post('/customer/work/getChkWorkFee', handleProxy);             // 작업수수료 확인
+// === Customer/Alarm (알람/알림) ===
+router.post('/customer/alarm/getWorkAlarmInfo', handleProxy);
+router.post('/customer/alarm/getVod6MonUseDate', handleProxy);
+router.post('/customer/alarm/getSpecialCust4VOD5K', handleProxy);
+router.post('/customer/alarm/getCustSpecialBigo', handleProxy);
+router.post('/customer/alarm/getAllAlarmInfo', handleProxy);
+router.post('/customer/alarm/getCustomerInfoSmsRecv', handleProxy);
 
-// certifyApiService.ts 신규 11건
-router.post('/customer/equipment/getAsRcptEqtStatInfo', handleProxy);       // AS접수 장비상태
-router.post('/customer/equipment/getCntFMSSession', handleProxy);           // FMS 세션
-router.post('/customer/equipment/getCntFMSSession2', handleProxy);          // FMS 세션2
-router.post('/customer/equipment/callEqtStatReqIns4ASRcpt', handleProxy);   // AS접수 장비상태 요청
-router.post('/customer/equipment/getEqtStatInfo', handleProxy);             // 장비상태 조회
-router.post('/customer/etc/getLguMangReq', handleProxy);                    // LGU 관리요청
-router.post('/customer/etc/getLguMangRslt', handleProxy);                   // LGU 관리결과
-router.post('/customer/etc/getUplsApiReq', handleProxy);                    // UPLS API 요청
-router.post('/customer/etc/getUplsLdapInfo', handleProxy);                  // UPLS LDAP 조회
-router.post('/customer/etc/getUplsNwtbDetail', handleProxy);                // UPLS 망전환 상세
-router.post('/customer/etc/saveLguMangReq', handleProxy);                   // LGU 관리요청 저장
+// === Customer/Contract (계약 상세) ===
+router.post('/customer/contract/getCtrtDetailInfo', handleProxy);
+router.post('/customer/contract/getCtrtDetailInfo2', handleProxy);
+router.post('/customer/contract/getCtrtDetailInfo3', handleProxy);
+
+// === Customer/Negociation (고객검색 - legacy) ===
+router.post('/customer/negociation/getCustByPhnNo', handleProxy);
+router.post('/customer/negociation/getCustByPhnNo.req', handleProxy);
+router.post('/customer/negociation/getCustById', handleProxy);
+router.post('/customer/negociation/getCustById.req', handleProxy);
+router.post('/customer/negociation/getCustByCtrtId', handleProxy);
+router.post('/customer/negociation/getCustByCtrtId.req', handleProxy);
+router.post('/customer/negociation/getCustByEqtNo', handleProxy);
+router.post('/customer/negociation/getCustByEqtNo.req', handleProxy);
+router.post('/customer/negociation/getContractList', handleProxy);
+router.post('/customer/negociation/getContractList.req', handleProxy);
+router.post('/customer/negociation/getCustConslHist', handleProxy);
+router.post('/customer/negociation/getCustConslHist.req', handleProxy);
+router.post('/customer/negociation/getCtrtDetailInfo1', handleProxy);
+router.post('/customer/negociation/getCtrtDetailInfo1.req', handleProxy);
+router.post('/customer/negociation/getCtrtDetailInfo2', handleProxy);
+router.post('/customer/negociation/getCtrtDetailInfo3', handleProxy);
+router.post('/customer/negociation/getCustomerCtrtInfo.req', handleProxy);
+
+// === Customer/Work (작업 관련) ===
+router.post('/customer/work/getDetailWorkInfo', handleProxy);
+router.post('/customer/work/getMoveWorkInfo', handleProxy);
+router.post('/customer/work/getEqtSoMoveInfo', handleProxy);
+router.post('/customer/work/excuteSoMoveEqtChg', handleProxy);
+router.post('/customer/work/custEqtInfoDel', handleProxy);
+router.post('/customer/work/getAfterProcInfo', handleProxy);
+router.post('/customer/work/getLghvProdMap', handleProxy);
+router.post('/customer/work/getCertifyProdMap', handleProxy);
+router.post('/customer/work/getOttSale', handleProxy);
+router.post('/customer/work/saveOttSale', handleProxy);
+router.post('/customer/work/getOttType', handleProxy);
+router.post('/customer/work/getOttSerno', handleProxy);
+
+// === Customer/Equipment (장비 추가) ===
+router.post('/customer/equipment/getMVRemoveEqtInfo', handleProxy);
+
+// === Customer/Etc (LGU+, FTTH, UPLS) ===
+router.post('/customer/etc/getUplsCtrtInfo', handleProxy);
+router.post('/customer/etc/setCertifyCL06', handleProxy);
+router.post('/customer/etc/getCertifyCL08', handleProxy);
+router.post('/customer/etc/getUplsNwcs', handleProxy);
+router.post('/customer/etc/getUplsEntrEqipDtl', handleProxy);
+router.post('/customer/etc/setUplsWorkComplete', handleProxy);
+router.post('/customer/etc/getUplsDuplicationMember', handleProxy);
+router.post('/customer/etc/getUplsEqipInfo', handleProxy);
+router.post('/customer/etc/getUplsEqipPortInfo', handleProxy);
+router.post('/customer/etc/setUplsRqstConsReq', handleProxy);
+router.post('/customer/etc/getBldEtcInfo', handleProxy);
+router.post('/customer/etc/getTpProdSvc', handleProxy);
+router.post('/customer/etc/getUplsRqstConsList', handleProxy);
+router.post('/customer/etc/getCertifyApiHist', handleProxy);
+router.post('/customer/etc/getMmtSusInfo', handleProxy);
+router.post('/customer/etc/modMmtSusInfo', handleProxy);
+router.post('/customer/etc/getCertifyCL02', handleProxy);
+router.post('/customer/etc/getCertifyCL03', handleProxy);
+router.post('/customer/etc/setCertifyCL04', handleProxy);
+router.post('/customer/etc/getUplsLdapRslt', handleProxy);
+
+// === Customer/Receipt (영수/청구) ===
+router.post('/customer/receipt/uplsEntrBgnEstbChg', handleProxy);
+router.post('/customer/receipt/saveConRenewalGuide', handleProxy);
+router.post('/customer/receipt/calcHotbillSumul', handleProxy);
+
+// === Customer/Sigtrans (신호전송이력) ===
+router.post('/customer/sigtrans/getLghvSendHist', handleProxy);
+router.post('/customer/sigtrans/getLghvSvcRslt', handleProxy);
+router.post('/customer/sigtrans/getSvcMsgInfo', handleProxy);
+router.post('/customer/sigtrans/getSvcRsltAndDtlRslt', handleProxy);
+router.post('/customer/sigtrans/replayShinho', handleProxy);
+router.post('/customer/sigtrans/reProc4VoipShinho_1', handleProxy);
+router.post('/customer/sigtrans/reProc4VoipShinho_2', handleProxy);
+router.post('/customer/sigtrans/saveENSSendHist.req', handleProxy);
+
+// === Hotbill (즉시청구) ===
+router.post('/hotbill/detail', handleProxy);
+router.post('/hotbill/refund', handleProxy);
+router.post('/hotbill/byContract', handleProxy);
+router.post('/hotbill/summary', handleProxy);
+router.post('/hotbill/simulate', handleProxy);
+router.post('/hotbill/byCharge', handleProxy);
+
+// === System/Common ===
+router.post('/system/common/getCodeDetail', handleProxy);
+
+// === Work (작업자보정) ===
+router.post('/work/worker-adjustment', handleProxy);
+
+// === .req suffix routes (장비/작업 레거시) ===
+router.post('/customer/equipment/getEquipmentOutList.req', handleProxy);
+router.post('/customer/equipment/getEquipmentProcYnCheck.req', handleProxy);
+router.post('/customer/equipment/addCorporationEquipmentQuota.req', handleProxy);
+router.post('/customer/equipment/getEquipmentReturnRequestList.req', handleProxy);
+router.post('/customer/equipment/getEquipmentReturnRequestCheck.req', handleProxy);
+router.post('/customer/equipment/addEquipmentReturnRequest.req', handleProxy);
+router.post('/customer/equipment/getWrkrHaveEqtList.req', handleProxy);
+router.post('/customer/equipment/cmplEqtCustLossIndem.req', handleProxy);
+router.post('/customer/equipment/setEquipmentChkStndByY.req', handleProxy);
+router.post('/customer/equipment/changeEqtWrkr_3.req', handleProxy);
+router.post('/customer/equipment/updateInstlLocFrWrk.req', handleProxy);
+router.post('/statistics/equipment/getEquipmentHistoryInfo.req', handleProxy);
+router.post('/system/cm/getFindUsrList.req', handleProxy);
+router.post('/system/cm/getFindUsrList3.req', handleProxy);
+router.post('/customer/work/getEquipLossInfo.req', handleProxy);
+router.post('/customer/work/modEquipLoss.req', handleProxy);
+router.post('/customer/work/insertWorkRemoveStat.req', handleProxy);
+router.post('/customer/work/modAsPdaReceipt.req', handleProxy);
 
 // === 계좌 실명인증 핸들러 (KSNET) ===
 // CONA AddCustomerRlnmAuthCheck.req 직접 호출
@@ -1629,7 +1738,7 @@ async function handleProxy(req, res) {
         'X-Forwarded-For': (req.headers['x-forwarded-for'] || req.socket.remoteAddress || '').toString(),
         'X-Forwarded-Proto': 'http'
       },
-      timeout: 60000
+      timeout: LONG_TIMEOUT_PATHS.some(p => apiPath.includes(p)) ? 120000 : 60000
     };
 
     if (postData) {

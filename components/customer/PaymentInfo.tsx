@@ -627,14 +627,24 @@ const PaymentInfo: React.FC<PaymentInfoProps> = ({
         custNm={custNm}
         custTpCd={custTpCd}
         soId={(() => {
+          // 1. 선택된 납부계정의 SO_ID
           if (selectedPymAcntId) {
             const account = paymentAccounts.find(a => a.PYM_ACNT_ID === selectedPymAcntId);
             if (account?.SO_ID) return account.SO_ID;
           }
+          // 2. PYM_ACNT_ID 매칭 계약
           if (selectedPymAcntId && contracts.length > 0) {
             const matched = contracts.filter(c => c.PYM_ACNT_ID === selectedPymAcntId && c.SO_ID);
             if (matched.length > 0) return (matched.find(c => c.CTRT_STAT_CD === '10') || matched[0]).SO_ID!;
           }
+          // 3. 아무 활성 계약의 SO_ID (PYM_ACNT_ID 무관)
+          if (contracts.length > 0) {
+            const active = contracts.find(c => c.CTRT_STAT_CD === '10' && c.SO_ID);
+            if (active?.SO_ID) return active.SO_ID;
+            const anySo = contracts.find(c => c.SO_ID);
+            if (anySo?.SO_ID) return anySo.SO_ID;
+          }
+          // 4. session fallback (최후 수단)
           try {
             const u = JSON.parse(sessionStorage.getItem('userInfo') || localStorage.getItem('userInfo') || '{}');
             const list = u.authSoList || u.AUTH_SO_List || [];

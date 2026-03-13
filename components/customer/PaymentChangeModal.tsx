@@ -14,7 +14,8 @@ import {
   getCardCompanyCodes,
   getPayerRelationCodes,
   getChangeReasonCodes,
-  getCardClassCodes
+  getCardClassCodes,
+  updatePymAtmtApplAGRPdf
 } from '../../services/customerApi';
 import { generateAutoTransferPdf, downloadPdf } from '../../services/pdfService';
 
@@ -463,6 +464,20 @@ const PaymentChangeModal: React.FC<PaymentChangeModalProps> = ({
             await handleDownloadPdf();
           } catch (pdfErr) {
             console.warn('[PaymentChange] PDF auto-download failed:', pdfErr);
+          }
+
+          // 4. PDF 파일명 DB 저장
+          const dateStr = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+          const agrFileName = `ATM_${custId}_${dateStr}`;
+          try {
+            await updatePymAtmtApplAGRPdf({
+              PYM_ACNT_ID: selectedPymAcntId,
+              UPDATE_DATE: response.data?.UPDATE_DATE || dateStr,
+              AGR_FILE_NAME: agrFileName,
+              AGR_FILE_GB: 'A',
+            });
+          } catch (e) {
+            console.warn('PDF filename DB save failed:', e);
           }
         }
 
