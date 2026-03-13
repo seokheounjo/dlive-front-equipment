@@ -90,13 +90,13 @@ export default function OvertimeWork({ onBack, userInfo, showToast }: OvertimeWo
   // Common codes
   const [gubnCodes, setGubnCodes] = useState<GubnCode[]>([]);
 
-  // Approval path (결재선)
-  const [approvalPath, setApprovalPath] = useState<any[]>([]);
-
   // List
   const [records, setRecords] = useState<OvertimeRecord[]>([]);
   const [loading, setLoading] = useState(false);
   const [period, setPeriod] = useState('1');
+
+  // Approval path
+  const [approvalPath, setApprovalPath] = useState<any[]>([]);
 
   // New application modal
   const [showApplyModal, setShowApplyModal] = useState(false);
@@ -184,7 +184,7 @@ export default function OvertimeWork({ onBack, userInfo, showToast }: OvertimeWo
     })();
   }, [authorized]);
 
-  // Load approval path (결재선)
+  // Load approval path
   useEffect(() => {
     if (!authorized || !userInfo?.userId) return;
     (async () => {
@@ -196,13 +196,9 @@ export default function OvertimeWork({ onBack, userInfo, showToast }: OvertimeWo
         });
         if (res.ok) {
           const data = await res.json();
-          if (Array.isArray(data)) {
-            setApprovalPath(data);
-          }
+          if (Array.isArray(data)) setApprovalPath(data);
         }
-      } catch {
-        // ignore - will show '-' as fallback
-      }
+      } catch { }
     })();
   }, [authorized, userInfo?.userId]);
 
@@ -376,7 +372,7 @@ export default function OvertimeWork({ onBack, userInfo, showToast }: OvertimeWo
   }
 
   return (
-    <div className="p-4 space-y-4 flex-1 min-h-0 overflow-y-auto">
+    <div className="p-4 space-y-4 overflow-y-auto" style={{ height: 'calc(100dvh - 160px - env(safe-area-inset-bottom, 0px))' }}>
       {/* Header */}
       <div className="flex items-center justify-between">
         <h3 className="font-medium text-gray-800 flex items-center gap-2">

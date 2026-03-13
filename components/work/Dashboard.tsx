@@ -15,7 +15,7 @@ import SignalIntegration from '../other/SignalIntegration';
 import FloatingMapButton from '../common/FloatingMapButton';
 import WorkMapView from './WorkMapView';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '../ui/tabs';
-import { cancelWork, checkDemoMode, parseWorkStatusFromStrings, WorkStatusCounts, NetworkError, getSafetyCheckResultInfo, getAfterProcInfo } from '../../services/apiService';
+import { cancelWork,  parseWorkStatusFromStrings, WorkStatusCounts, NetworkError, getSafetyCheckResultInfo, getAfterProcInfo } from '../../services/apiService';
 import LoadingSpinner from '../common/LoadingSpinner';
 import ErrorMessage from '../common/ErrorMessage';
 import { AlertTriangle, X, ChevronLeft, ChevronRight, ClipboardList } from 'lucide-react';
@@ -234,7 +234,7 @@ const Dashboard: React.FC<DashboardProps> = ({
   // 작업 상태별 개수 조회 - PROD_GRPS/WRK_STATS 필드에서 파싱 (receipt API 호출 없음)
   // 백엔드 getWorkdrctnList_ForM에서 PROD_GRPS, WRK_STATS 필드를 반환
   useEffect(() => {
-    if (!checkDemoMode() && directions.length > 0) {
+    if (directions.length > 0) {
       setIsStatusCountsLoading(true);
 
       const counts: Record<string, WorkStatusCounts> = {};
@@ -440,7 +440,7 @@ const Dashboard: React.FC<DashboardProps> = ({
       CUST_ID: (order as any).CUST_ID || order.customer?.id || '',
       CUST_NM: order.customer?.name || '',
       SMS_RCV_TEL: order.customer?.phone || (order as any).REQ_CUST_TEL_NO || '',  // 여러 번호 그대로 전달 (모달에서 Select로 선택)
-      SMS_SEND_TEL: '',
+      SMS_SEND_TEL: (userInfo as any)?.telNo2 || '',
       WRK_HOPE_DTTM: convertToWrkHopeDttm(order.scheduledAt),
       WRKR_NM: userInfo?.userName || '',
       WRKR_NM_EN: userInfo?.userNameEn || userInfo?.userName || '',
@@ -772,7 +772,7 @@ const Dashboard: React.FC<DashboardProps> = ({
                 {/* 이전 달 */}
                 <button
                   onClick={goToPreviousMonth}
-                  className="p-1.5 rounded-full hover:bg-gray-100 active:bg-gray-200 transition-colors flex-shrink-0"
+                  className="p-2.5 rounded-full hover:bg-gray-100 active:bg-gray-200 transition-colors flex-shrink-0"
                 >
                   <ChevronLeft className="w-4 h-4 text-gray-400" />
                 </button>
@@ -790,7 +790,7 @@ const Dashboard: React.FC<DashboardProps> = ({
                 {/* 다음 달 */}
                 <button
                   onClick={goToNextMonth}
-                  className="p-1.5 rounded-full hover:bg-gray-100 active:bg-gray-200 transition-colors flex-shrink-0"
+                  className="p-2.5 rounded-full hover:bg-gray-100 active:bg-gray-200 transition-colors flex-shrink-0"
                 >
                   <ChevronRight className="w-4 h-4 text-gray-400" />
                 </button>
@@ -822,7 +822,7 @@ const Dashboard: React.FC<DashboardProps> = ({
                 <button
                   onClick={refreshDirections}
                   disabled={isFetching}
-                  className="p-1.5 rounded-full text-primary-600 hover:bg-primary-50 active:bg-primary-100 transition-colors flex-shrink-0 disabled:text-gray-400 disabled:cursor-not-allowed"
+                  className="p-2.5 rounded-full text-primary-600 hover:bg-primary-50 active:bg-primary-100 transition-colors flex-shrink-0 disabled:text-gray-400 disabled:cursor-not-allowed"
                   title="목록 새로고침"
                 >
                   <svg className={`w-3.5 h-3.5 ${isFetching ? 'animate-spin' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">

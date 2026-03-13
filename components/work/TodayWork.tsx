@@ -170,7 +170,7 @@ const TodayWork: React.FC<TodayWorkProps> = ({
       CUST_ID: (order as any).CUST_ID || order.customer.id || '',
       CUST_NM: order.customer.name || '',
       SMS_RCV_TEL: order.customer.phone || '',
-      SMS_SEND_TEL: '',
+      SMS_SEND_TEL: (userInfo as any)?.telNo2 || '',
       WRK_HOPE_DTTM: convertToWrkHopeDttm(order.scheduledAt),
       WRKR_NM: userInfo?.userName || '',
       WRKR_NM_EN: userInfo?.userNameEn || userInfo?.userName || '',
@@ -248,7 +248,13 @@ const TodayWork: React.FC<TodayWorkProps> = ({
                   {activeTab === 'today' ? '오늘의 작업' : '지연된 작업'}
                 </h1>
               </div>
-              <p className="text-primary-100 text-sm">{todayDisplay.full}</p>
+              <p
+                className="text-primary-100 text-sm cursor-pointer underline"
+                onClick={() => {
+                  useUIStore.getState().setActiveTab('work-receipt');
+                  useUIStore.getState().setCurrentView('work-management' as any);
+                }}
+              >{todayDisplay.full}</p>
             </div>
             <div className="flex items-center gap-3">
               <button

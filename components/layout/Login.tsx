@@ -3,12 +3,10 @@ import { ShieldCheckIcon } from '../icons/ShieldCheckIcon';
 import { LockClosedIcon } from '../icons/LockClosedIcon';
 import { EyeIcon } from '../icons/EyeIcon';
 import { EyeSlashIcon } from '../icons/EyeSlashIcon';
-import { TestTube } from 'lucide-react';
-
 import { login, verifyOtp } from '../../services/apiService';
 import { logLogin, generateLoginTrxId, loginApi1, loginApi2, loginApi3 } from '../../services/logService';
 
-const OTP_ENABLED = true;
+const OTP_ENABLED = false;
 
 // OTP 제외 계정 (운영 모바일코나 테스트 계정)
 const OTP_SKIP_USERS = ['A20072330', 'A20070013', 'A20119065'];
@@ -38,7 +36,6 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
   const [blockMessage, setBlockMessage] = useState<string | null>(null);
 
   const completeLogin = (result: any) => {
-    localStorage.removeItem('demoMode');
     onLogin(result.userId, result.userName, result.userNameEn, result.userRole, result.crrId, result.soId, result.mstSoId, result.telNo2, result.AUTH_SO_List, result.soYn, result.deptCd);
     logLogin();
   };
@@ -282,19 +279,6 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
               {isLoading ? '로그인 중...' : '로그인'}
             </button>
             
-            {/* 더미 계정 로그인 버튼 */}
-            <button
-              type="button"
-              onClick={() => {
-                // 더미 로그인 (API 호출 없이 바로 성공)
-                localStorage.setItem('demoMode', 'true');
-                onLogin('demo', 'demo', 'demo');
-              }}
-              className="w-full flex items-center justify-center gap-2 py-2 px-4 border border-gray-300 text-sm font-medium rounded-lg text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500 transition-colors shadow-sm"
-            >
-              <TestTube className="w-4 h-4" />
-              UI 테스트 계정
-            </button>
           </div>
         </form>
         
@@ -307,6 +291,7 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
           </div>
 
           <p className="text-xs font-semibold text-primary-700">COPYRIGHT 2025. D'LIVE CO. LTD</p>
+          <p className="text-[10px] text-gray-400 mt-2">v{(typeof __BUILD_TIME__ !== 'undefined' ? __BUILD_TIME__ : '')}</p>
         </div>
 
       </div>
