@@ -428,10 +428,11 @@ export default function OvertimeWork({ onBack, userInfo, showToast }: OvertimeWo
         <div className="space-y-3">
           {records.map((record, idx) => {
             const isApproved = record.APPROVE === 'Y';
-            const isSanctioned = record.sanct_yn === 'Y';
+            const sanctYn = (record.sanct_yn || record.SANCT_YN || '').toUpperCase();
+            const isFullySanctioned = sanctYn === 'YY';
             const hasPlan = !!record.FROM_DATE1_PLAN && !!record.FROM_HOUR1_PLAN;
             const hasActual = !!record.FROM_DATE1 && !!record.FROM_HOUR1;
-            const canInputActual = isApproved && !isSanctioned;
+            const canInputActual = !isFullySanctioned;
 
             const planDisplay = hasPlan
               ? formatTimeRange(record.FROM_DATE1_PLAN, record.FROM_HOUR1_PLAN, record.FROM_MINU1_PLAN, record.TO_DATE1_PLAN, record.TO_HOUR1_PLAN, record.TO_MINU1_PLAN)
@@ -449,8 +450,8 @@ export default function OvertimeWork({ onBack, userInfo, showToast }: OvertimeWo
                     }`}>
                       {isApproved ? (<><CheckCircle className="w-3 h-3 mr-0.5" />승인</>) : (<><XCircle className="w-3 h-3 mr-0.5" />미승인</>)}
                     </span>
-                    {isSanctioned && (
-                      <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-700">실적확정</span>
+                    {isFullySanctioned && (
+                      <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-700">승인완료</span>
                     )}
                     <span className="text-xs text-gray-500 bg-gray-100 px-1.5 py-0.5 rounded">{getGubnName(record.GUBN_S)}</span>
                   </div>
@@ -467,18 +468,16 @@ export default function OvertimeWork({ onBack, userInfo, showToast }: OvertimeWo
                   <span className={`text-sm ${hasActual ? 'text-gray-800 font-medium' : 'text-gray-400'}`}>{actualDisplay}</span>
                 </div>
 
-                {!isSanctioned && (
+                {isFullySanctioned ? (
+                  <div className="w-full py-2 rounded-lg text-sm bg-gray-50 text-gray-400 border border-gray-200 text-center">
+                    승인완료 (수정불가)
+                  </div>
+                ) : (
                   <button
                     onClick={() => openActualModal(record)}
-                    disabled={!canInputActual}
-                    className={`w-full py-2 rounded-lg text-sm transition-colors ${
-                      canInputActual
-                        ? 'bg-primary-50 text-primary-600 border border-primary-200 hover:bg-primary-100'
-                        : 'bg-gray-50 text-gray-400 border border-gray-200 cursor-not-allowed'
-                    }`}
+                    className="w-full py-2 rounded-lg text-sm transition-colors bg-primary-50 text-primary-600 border border-primary-200 hover:bg-primary-100"
                   >
                     {hasActual ? '실적 수정하기' : '실적 입력하기'}
-                    {!isApproved && <span className="text-xs ml-1">(승인 후 가능)</span>}
                   </button>
                 )}
 
