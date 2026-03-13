@@ -3,7 +3,7 @@ import { ShieldCheckIcon } from '../icons/ShieldCheckIcon';
 import { LockClosedIcon } from '../icons/LockClosedIcon';
 import { EyeIcon } from '../icons/EyeIcon';
 import { EyeSlashIcon } from '../icons/EyeSlashIcon';
-import { login, loginWithOtp } from '../../services/apiService';
+import { loginWithOtp } from '../../services/apiService';
 import { logLogin } from '../../services/logService';
 
 const OTP_ENABLED = false;
@@ -65,15 +65,10 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
     setBlockMessage(null);
 
     try {
-      let result: any;
-
-      if (OTP_ENABLED && !skipOtp) {
-        // OTP 활성화: login-with-otp 한번에 처리 (로그인+OTP+감사로그 서버에서 전부 처리)
-        result = await loginWithOtp(username, password, otpCode, forceDisconnect ? 'Y' : 'N', getNetworkType());
-      } else {
-        // OTP 비활성화 또는 스킵: 기존 로그인만
-        result = await login(username, password, forceDisconnect ? 'Y' : 'N');
-      }
+      // 항상 login-with-otp 사용 (로그인+OTP+감사로그 서버에서 전부 처리)
+      // OTP 꺼져있거나 스킵 계정이면 OTP_CODE 빈값 → 서버에서 OTP 단계 스킵, 로그는 쌓음
+      const sendOtpCode = (OTP_ENABLED && !skipOtp) ? otpCode : '';
+      const result = await loginWithOtp(username, password, sendOtpCode, forceDisconnect ? 'Y' : 'N', getNetworkType());
 
       console.log('[Login] API 응답:', result);
 
@@ -126,13 +121,8 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
 
     try {
       const skipOtp = OTP_SKIP_USERS.includes(username.toUpperCase());
-      let result: any;
-
-      if (OTP_ENABLED && !skipOtp) {
-        result = await loginWithOtp(username, password, otpCode, 'Y', getNetworkType());
-      } else {
-        result = await login(username, password, 'Y');
-      }
+      const sendOtpCode = (OTP_ENABLED && !skipOtp) ? otpCode : '';
+      const result = await loginWithOtp(username, password, sendOtpCode, 'Y', getNetworkType());
 
       console.log('[Login] 강제 로그인 응답:', result);
 
