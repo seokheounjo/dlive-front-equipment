@@ -251,13 +251,14 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
                 type="text"
                 inputMode="numeric"
                 pattern="[0-9]*"
+                maxLength={6}
                 autoComplete="one-time-code"
                 disabled={!OTP_ENABLED}
                 className={`${inputBaseClasses} pl-10 text-center text-xl tracking-[0.4em] font-mono disabled:bg-gray-100 disabled:cursor-not-allowed`}
                 placeholder="인증번호"
                 value={otpCode}
                 onChange={(e) => {
-                  const val = e.target.value.replace(/[^0-9]/g, '');
+                  const val = e.target.value.replace(/[^0-9]/g, '').slice(0, 6);
                   setOtpCode(val);
                 }}
               />
