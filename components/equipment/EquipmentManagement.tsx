@@ -1512,7 +1512,7 @@ const EquipmentManagement: React.FC<EquipmentManagementProps> = ({ workItem, onS
       SO_ID: eq.actualEquipment.SO_ID || workItem.SO_ID || user.soId,
 
       // 기타 필수 필드
-      REG_UID: user.userId || user.workerId || 'A20230019',
+      REG_UID: user.userId || user.workerId,
       OLD_LENT_YN: eq.actualEquipment.OLD_LENT_YN || 'N',
       LENT: eq.actualEquipment.LENT || '10',
       ITLLMT_PRD: eq.actualEquipment.ITLLMT_PRD || '00',
@@ -1552,7 +1552,7 @@ const EquipmentManagement: React.FC<EquipmentManagementProps> = ({ workItem, onS
         BASIC_PROD_CMPS_ID: eq.BASIC_PROD_CMPS_ID || '',
         MST_SO_ID: eq.MST_SO_ID || workItem.SO_ID || user.soId,
         SO_ID: eq.SO_ID || workItem.SO_ID || user.soId,
-        REG_UID: user.userId || user.workerId || 'A20230019',
+        REG_UID: user.userId || user.workerId,
 
         // 분실/파손 상태 (레거시 ds_rmv_eqt_info 동일)
         EQT_LOSS_YN: status.EQT_LOSS_YN || '0',
@@ -1647,7 +1647,7 @@ const EquipmentManagement: React.FC<EquipmentManagementProps> = ({ workItem, onS
         BASIC_PROD_CMPS_ID: (eq as any).BASIC_PROD_CMPS_ID || '',
         MST_SO_ID: (eq as any).MST_SO_ID || workItem.SO_ID || user.soId,
         SO_ID: (eq as any).SO_ID || workItem.SO_ID || user.soId,
-        REG_UID: user.userId || user.workerId || 'A20230019',
+        REG_UID: user.userId || user.workerId,
 
         // 분실 상태 (철거 장비 전용) - 레거시 동일
         EQT_LOSS_YN: status.EQT_LOSS_YN || '0',           // 장비분실

@@ -1758,7 +1758,7 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
                       <div className="flex-1 min-w-0">
                         {/* Line 1: 모델명 + [반납요청/보유] 뱃지 */}
                         <div className="flex items-center justify-between">
-                          <span className="text-base font-bold text-gray-900 truncate">{item.EQT_CL_NM || item.ITEM_NM || '-'}</span>
+                          <span className="text-sm sm:text-base font-bold text-gray-900 truncate">{item.EQT_CL_NM || item.ITEM_NM || '-'}</span>
                           <div className="flex-shrink-0 ml-2">
                             {(item._hasReturnRequest || item._category === 'RETURN_REQUESTED') ? (
                               <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-orange-100 text-orange-700">반납요청</span>

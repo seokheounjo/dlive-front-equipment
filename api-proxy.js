@@ -18,8 +18,7 @@ const PATH_MAPPING = {
   "/work/receipts": "/api/work/receipts",
   "/work/cancel": "/api/work/cancel",
   "/work/complete": "/api/work/complete",
-  "/customer/work/getEquipLossInfo_ForM": "/api/customer/work/getEquipLossInfo",  // 어댑터 경유 (레거시 .req는 CONA 세션 필요)
-  "/customer/work/modEquipLoss_ForM": "/api/customer/work/modEquipLoss_ForM",  // 어댑터 경유 (모바일용 단건 처리)
+  // _ForM mappings removed - frontend now uses non-ForM URLs directly
 };
 
 // Routes that should go directly to legacy .req servlet (bypass our adapter)

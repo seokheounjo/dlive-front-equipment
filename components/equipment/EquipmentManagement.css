@@ -348,10 +348,10 @@
 
 .btn-edit,
 .btn-remove {
-  padding: 4px 8px;
+  padding: 8px 12px;
   border: none;
   border-radius: 3px;
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 600;
   cursor: pointer;
   white-space: nowrap;
@@ -491,8 +491,8 @@
   position: absolute;
   top: 8px;
   right: 8px;
-  width: 24px;
-  height: 24px;
+  width: 32px;
+  height: 32px;
   background: #dc3545;
   color: white;
   border: none;

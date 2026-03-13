@@ -3639,93 +3639,41 @@ export const getEquipmentHistoryInfo = async (params: {
  * @returns 처리 결과
  */
 export const changeEquipmentWorker = async (params: {
-  SO_ID: string;
   EQT_NO: string;
-  EQT_SERNO: string;
-  CHG_UID: string;
-  MV_SO_ID: string;
-  MV_CRR_ID: string;
-  MV_WRKR_ID: string;
+  FROM_WRKR_ID?: string;
+  TO_WRKR_ID?: string;
+  SO_ID?: string;
+  EQT_SERNO?: string;
+  CHG_UID?: string;
+  MV_SO_ID?: string;
+  MV_CRR_ID?: string;
+  MV_WRKR_ID?: string;
 }): Promise<any> => {
-  const apiCallId = `API_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`;
-  const apiStartTime = Date.now();
-
-  // backend compat: add TO_WRKR_ID, WRKR_ID
-  const requestBody = {
-    ...params,
-    TO_WRKR_ID: params.MV_WRKR_ID,
-    WRKR_ID: params.MV_WRKR_ID,
-  };
-
-  console.log(`[fn:changeEquipmentWorker -> req:changeEqtWrkr_3_ForM] ${apiCallId}`);
-  console.log('params:', JSON.stringify(requestBody, null, 2));
+  console.log('[장비인수] API 호출:', params);
 
   try {
-    const apiUrl = `${API_BASE}/customer/equipment/changeEqtWrkr_3_ForM`;
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 30000);
+    const origin = typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000';
 
-    const response = await fetch(apiUrl, {
+    const response = await fetchWithRetry(`${API_BASE}/customer/equipment/changeEqtWrkr_3`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        'Origin': origin
+      },
       credentials: 'include',
-      body: JSON.stringify(requestBody),
-      signal: controller.signal
+      body: JSON.stringify(params),
     });
 
-    clearTimeout(timeoutId);
-    const duration = Date.now() - apiStartTime;
+    const result = await response.json();
+    console.log('장비 인수 성공:', result);
 
-    console.log(`[${apiCallId}] HTTP ${response.status} (${duration}ms)`);
-
-    const responseText = await response.text();
-    console.log(`[${apiCallId}] RAW:`, responseText);
-
-    let result;
-    try {
-      result = JSON.parse(responseText);
-      console.log(`[${apiCallId}] PARSED:`, JSON.stringify(result, null, 2));
-    } catch (parseError) {
-      console.error(`[${apiCallId}] JSON parse failed`);
-      throw new Error('server response parse failed');
-    }
-
-    const msgCode = result?.MSGCODE;
-    const message = result?.MESSAGE || result?.message || '';
-
-    // MSGCODE === "SUCCESS" -> success regardless of HTTP status
-    if (msgCode === 'SUCCESS') {
-      console.log(`[${apiCallId}] SUCCESS (MSGCODE=SUCCESS, ${duration}ms)`);
-      return result;
-    }
-
-    // MSGCODE === "FAIL" -> error
-    if (msgCode === 'FAIL') {
-      throw new Error(message || 'Oracle procedure failed (MSGCODE=FAIL)');
-    }
-
-    // HTTP error
-    if (!response.ok) {
-      const errMsg = message || result?.error || result?.code || `server error (HTTP ${response.status})`;
-      throw new Error(errMsg);
-    }
-
-    // error keywords
-    if (message && (message.includes('ERROR') || message.includes('FAIL'))) {
-      throw new Error(message);
-    }
-
-    console.log(`[${apiCallId}] SUCCESS (${duration}ms)`);
     return result;
-
   } catch (error: any) {
-    const duration = Date.now() - apiStartTime;
-    console.error(`[${apiCallId}] FAILED (${duration}ms):`, error.message);
-
-    if (error.name === 'AbortError') {
-      throw new Error('Request timeout (30s).');
+    console.error('장비 인수 실패:', error);
+    if (error instanceof NetworkError) {
+      throw error;
     }
-    throw error instanceof Error ? error : new Error('equipment transfer failed.');
+    throw new NetworkError('장비 인수에 실패했습니다.');
   }
 };
 
@@ -3806,42 +3754,26 @@ export const findUserList = async (params: {
   SO_ID?: string;
   CRR_ID?: string;
 }): Promise<any[]> => {
-  console.log('[fn:findUserList -> req:getFindUsrList3] API:', params);
+  console.log('[기사검색] API 호출:', params);
 
   try {
     const origin = typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000';
 
-    // 파라미터 정리 (trim + 호환 키 추가)
-    const searchParams: any = {};
-    if (params.USR_NM && params.USR_NM.trim()) {
-      searchParams.USR_NM = params.USR_NM.trim();
-      searchParams.WRKR_NM = params.USR_NM.trim();
-    }
-    if (params.USR_ID && params.USR_ID.trim()) {
-      searchParams.USR_ID = params.USR_ID.trim();
-      searchParams.WRKR_ID = params.USR_ID.trim();
-    }
-    if (params.SO_ID) { searchParams.SO_ID = params.SO_ID; }
-    if (params.CRR_ID) { searchParams.CRR_ID = params.CRR_ID; }
-
-    const response = await fetchWithRetry(`${API_BASE}/system/cm/getFindUsrList3`, {
+    const response = await fetchWithRetry(`${API_BASE}/system/cm/getFindUsrList`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'Origin': origin
       },
       credentials: 'include',
-      body: JSON.stringify(searchParams),
+      body: JSON.stringify(params),
     });
 
     const result = await response.json();
     console.log('기사 검색 성공:', result);
 
-    // output1 우선 → data → 빈 배열
-    if (Array.isArray(result)) { return result; }
-    if (result.output1 && Array.isArray(result.output1)) { return result.output1; }
-    if (result.data && Array.isArray(result.data)) { return result.data; }
-    return [];
+    // API 응답: {data: [...], count: N} 또는 배열 직접 반환
+    return Array.isArray(result) ? result : (result.data || result.output1 || []);
   } catch (error: any) {
     console.error('기사 검색 실패:', error);
     if (error instanceof NetworkError) {
@@ -4067,7 +3999,7 @@ export const getUnreturnedEquipmentList = async (params: {
   try {
     const origin = typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000';
 
-    const response = await fetchWithRetry(`${API_BASE}/customer/work/getEquipLossInfo_ForM`, {
+    const response = await fetchWithRetry(`${API_BASE}/customer/work/getEquipLossInfo`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -4114,7 +4046,7 @@ export const processEquipmentRecovery = async (params: {
   try {
     const origin = typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000';
 
-    const response = await fetchWithRetry(`${API_BASE}/customer/work/modEquipLoss_ForM`, {
+    const response = await fetchWithRetry(`${API_BASE}/customer/work/modEquipLoss`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
