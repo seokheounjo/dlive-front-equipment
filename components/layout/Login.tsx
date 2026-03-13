@@ -11,7 +11,7 @@ import { logLogin, generateLoginTrxId, loginApi1, loginApi2, loginApi3 } from '.
 const OTP_ENABLED = false;
 
 // OTP 제외 계정 (운영 모바일코나 테스트 계정)
-const OTP_SKIP_USERS = ['A20072330', 'A20070013'];
+const OTP_SKIP_USERS = ['A20072330', 'A20070013', 'A20119065'];
 
 const otpErrorMessages: Record<string, string> = {
   '6000': 'OTP 인증에 실패했습니다. 다시 입력해주세요.',
