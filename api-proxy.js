@@ -866,6 +866,7 @@ router.post("/customer/equipment/getEquipmentReturnRequestList_All", handleProxy
 router.post("/customer/equipment/getWrkrListDetail", handleProxy);  // 분실처리 상세조회 (추가)
 router.post("/customer/equipment/getEquipmentTypeList", handleProxy);  // 장비 소분류 목록 조회
 router.post("/customer/equipment/getEqtTrnsList", handleProxy);  // 장비이동내역
+router.post("/customer/equipment/getEqtMasterInfo", handleProxy);  // 장비 마스터 정보 조회
 
 // Statistics/Equipment API
 router.post('/statistics/equipment/getEquipmentHistoryInfo', handleProxy);
