@@ -275,6 +275,13 @@ const CustomerSearch: React.FC<CustomerSearchProps> = ({ onCustomerSelect, onCus
     }
   };
 
+  // 모바일 키보드 올라올 때 포커스된 input으로 스크롤
+  const handleInputFocus = (e: React.FocusEvent<HTMLInputElement>) => {
+    setTimeout(() => {
+      e.target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }, 300);
+  };
+
   // 바코드 스캔 결과 처리
   const handleBarcodeScan = (barcode: string) => {
     setEquipmentNo(barcode.toUpperCase());
@@ -376,6 +383,7 @@ const CustomerSearch: React.FC<CustomerSearchProps> = ({ onCustomerSelect, onCus
                   value={customerId}
                   onChange={(e) => setCustomerId(extractDigits(e.target.value))}
                   onKeyPress={handleKeyPress}
+                  onFocus={handleInputFocus}
                   placeholder="0000000000"
                   maxLength={10}
                   className="flex-1 px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500"
@@ -390,6 +398,7 @@ const CustomerSearch: React.FC<CustomerSearchProps> = ({ onCustomerSelect, onCus
                   value={contractId}
                   onChange={(e) => setContractId(extractDigits(e.target.value))}
                   onKeyPress={handleKeyPress}
+                  onFocus={handleInputFocus}
                   placeholder="0000000000"
                   maxLength={10}
                   className="flex-1 px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500"
@@ -405,6 +414,7 @@ const CustomerSearch: React.FC<CustomerSearchProps> = ({ onCustomerSelect, onCus
                     value={phoneNumber}
                     onChange={(e) => setPhoneNumber(extractDigits(e.target.value))}
                     onKeyPress={handleKeyPress}
+                    onFocus={handleInputFocus}
                     placeholder="01000000000"
                     maxLength={11}
                     className="flex-1 min-w-0 px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500"
@@ -414,6 +424,7 @@ const CustomerSearch: React.FC<CustomerSearchProps> = ({ onCustomerSelect, onCus
                     value={customerName}
                     onChange={(e) => setCustomerName(e.target.value)}
                     onKeyPress={handleKeyPress}
+                    onFocus={handleInputFocus}
                     placeholder="이름"
                     className="flex-1 min-w-0 px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500"
                   />
@@ -428,6 +439,7 @@ const CustomerSearch: React.FC<CustomerSearchProps> = ({ onCustomerSelect, onCus
                   value={equipmentNo}
                   onChange={(e) => setEquipmentNo(e.target.value.toUpperCase())}
                   onKeyPress={handleKeyPress}
+                  onFocus={handleInputFocus}
                   placeholder="S/N 또는 MAC 주소 입력"
                   className="flex-1 min-w-0 px-3 py-2.5 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent uppercase transition-all font-mono"
                 />
