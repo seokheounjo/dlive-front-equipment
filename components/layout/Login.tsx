@@ -8,7 +8,7 @@ import { TestTube } from 'lucide-react';
 import { login, verifyOtp } from '../../services/apiService';
 import { logLogin, generateLoginTrxId, loginApi1, loginApi2, loginApi3 } from '../../services/logService';
 
-const OTP_ENABLED = false;
+const OTP_ENABLED = true;
 
 // OTP 제외 계정 (운영 모바일코나 테스트 계정)
 const OTP_SKIP_USERS = ['A20072330', 'A20070013', 'A20119065'];
