@@ -126,7 +126,7 @@ export default function OvertimeWork({ onBack, userInfo, showToast }: OvertimeWo
   // Result popup
   const [resultPopup, setResultPopup] = useState<ResultPopup>({ show: false, type: 'success', title: '', message: '' });
 
-  // Auth check
+  // Auth check — server error (500) is NOT auth denial, allow access
   useEffect(() => {
     if (!userInfo?.userId) return;
     (async () => {
@@ -136,13 +136,20 @@ export default function OvertimeWork({ onBack, userInfo, showToast }: OvertimeWo
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ USR_ID: userInfo.userId })
         });
+        // 200 = authorized, 403 = denied, 500 = server error (allow access)
         if (res.ok) {
           setAuthorized(true);
-        } else {
+        } else if (res.status === 403) {
           setAuthorized(false);
+        } else {
+          // Server error - allow access, individual APIs have their own error handling
+          console.warn('[OvertimeWork] checkAuth server error, allowing access:', res.status);
+          setAuthorized(true);
         }
       } catch {
-        setAuthorized(false);
+        // Network error - allow access
+        console.warn('[OvertimeWork] checkAuth network error, allowing access');
+        setAuthorized(true);
       } finally {
         setAuthChecking(false);
       }
