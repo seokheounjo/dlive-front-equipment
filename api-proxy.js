@@ -740,6 +740,8 @@ router.post('/customer/work/getEquipLossInfo_ForM', handleProxy);
 router.post('/customer/work/modEquipLoss', handleProxy);
 router.post('/customer/work/modEquipLoss_ForM', handleProxy);
 router.post('/customer/work/getSafeCheckResultInfo_ForM', handleProxy);
+router.post('/customer/work/getSafeCheckList_ForM', handleProxy);
+router.post('/customer/work/saveSafeCheckList_ForM', handleProxy);
 
 // Customer/Receipt/Contract API
 router.post('/customer/receipt/contract/getEquipmentNmListOfProd', handleProxy);

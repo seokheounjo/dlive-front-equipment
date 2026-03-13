@@ -4090,7 +4090,7 @@ export const getUnreturnedEquipmentList = async (params: {
   try {
     const origin = typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000';
 
-    const response = await fetchWithRetry(`${API_BASE}/customer/work/getEquipLossInfo`, {
+    const response = await fetchWithRetry(`${API_BASE}/customer/work/getEquipLossInfo_ForM`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -4137,7 +4137,7 @@ export const processEquipmentRecovery = async (params: {
   try {
     const origin = typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000';
 
-    const response = await fetchWithRetry(`${API_BASE}/customer/work/modEquipLoss`, {
+    const response = await fetchWithRetry(`${API_BASE}/customer/work/modEquipLoss_ForM`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
