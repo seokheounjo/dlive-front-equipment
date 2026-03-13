@@ -279,6 +279,17 @@ const EquipmentAssignment: React.FC<EquipmentAssignmentProps> = ({ onBack, showT
         allResults = result || [];
       }
 
+      // 내 할당 장비만 필터링 (OUT_CHRG_UID = 출고담당자 = 수령기사)
+      const myUserId = userInfo?.userId || '';
+      if (myUserId) {
+        const beforeCount = allResults.length;
+        allResults = allResults.filter(item => {
+          // OUT_CHRG_UID(출고담당자)가 내 userId와 일치하는 건만
+          return item.OUT_CHRG_UID === myUserId || item.OUT_REQ_UID === myUserId;
+        });
+        console.log(`[장비할당] 내 할당 필터: ${beforeCount}건 → ${allResults.length}건 (userId: ${myUserId})`);
+      }
+
       // 지점별 정렬 (SO_NM 기준)
       allResults.sort((a, b) => (a.SO_NM || '').localeCompare(b.SO_NM || ''));
 
