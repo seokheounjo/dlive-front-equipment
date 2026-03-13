@@ -95,8 +95,8 @@ export default function OvertimeWork({ onBack, userInfo, showToast }: OvertimeWo
   const [loading, setLoading] = useState(false);
   const [period, setPeriod] = useState('1');
 
-  // Approval path
-  const [approvalPath, setApprovalPath] = useState<any[]>([]);
+  // Approval path (결재선 문자열, e.g. "본인-송태현-김인영-박현주")
+  const [approvalPathStr, setApprovalPathStr] = useState<string>('');
 
   // New application modal
   const [showApplyModal, setShowApplyModal] = useState(false);
@@ -196,7 +196,11 @@ export default function OvertimeWork({ onBack, userInfo, showToast }: OvertimeWo
         });
         if (res.ok) {
           const data = await res.json();
-          if (Array.isArray(data)) setApprovalPath(data);
+          if (Array.isArray(data) && data.length > 0 && data[0].MESSAGE) {
+            setApprovalPathStr(data[0].MESSAGE);
+          } else if (data && data.MESSAGE) {
+            setApprovalPathStr(data.MESSAGE);
+          }
         }
       } catch { }
     })();
@@ -504,13 +508,12 @@ export default function OvertimeWork({ onBack, userInfo, showToast }: OvertimeWo
               <div>
                 <label className="block text-sm text-gray-600 mb-1">결재선</label>
                 <div className="px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm">
-                  {approvalPath.length > 0 ? (
+                  {approvalPathStr ? (
                     <div className="flex flex-wrap items-center gap-1">
-                      {approvalPath.map((ap, idx) => (
+                      {approvalPathStr.split('-').map((name, idx, arr) => (
                         <span key={idx} className="inline-flex items-center">
-                          <span className="text-gray-700">{ap.USR_NM || ap.USER_NAME || ap.APPR_NM || '-'}</span>
-                          {ap.POSITION_NM && <span className="text-gray-400 text-xs ml-0.5">({ap.POSITION_NM})</span>}
-                          {idx < approvalPath.length - 1 && <span className="text-gray-300 mx-1">→</span>}
+                          <span className="text-gray-700">{name}</span>
+                          {idx < arr.length - 1 && <span className="text-gray-300 mx-1">→</span>}
                         </span>
                       ))}
                     </div>
@@ -615,13 +618,12 @@ export default function OvertimeWork({ onBack, userInfo, showToast }: OvertimeWo
               <div>
                 <label className="block text-sm text-gray-600 mb-1">결재선</label>
                 <div className="px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm">
-                  {approvalPath.length > 0 ? (
+                  {approvalPathStr ? (
                     <div className="flex flex-wrap items-center gap-1">
-                      {approvalPath.map((ap, idx) => (
+                      {approvalPathStr.split('-').map((name, idx, arr) => (
                         <span key={idx} className="inline-flex items-center">
-                          <span className="text-gray-700">{ap.USR_NM || ap.USER_NAME || ap.APPR_NM || '-'}</span>
-                          {ap.POSITION_NM && <span className="text-gray-400 text-xs ml-0.5">({ap.POSITION_NM})</span>}
-                          {idx < approvalPath.length - 1 && <span className="text-gray-300 mx-1">→</span>}
+                          <span className="text-gray-700">{name}</span>
+                          {idx < arr.length - 1 && <span className="text-gray-300 mx-1">→</span>}
                         </span>
                       ))}
                     </div>
