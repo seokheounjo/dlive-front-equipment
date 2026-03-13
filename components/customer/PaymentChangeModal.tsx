@@ -130,6 +130,8 @@ const PaymentChangeModal: React.FC<PaymentChangeModalProps> = ({
   // IME 조합 상태 추적 (한글 입력 시 마지막 글자 잘림 방지)
   const acntHolderRef = useRef<HTMLInputElement>(null);
   const isComposingRef = useRef(false);
+  const contentRef = useRef<HTMLDivElement>(null);
+  const verifyAreaRef = useRef<HTMLDivElement>(null);
 
   // 납부자관계 코드
   const [pyrRelCodes, setPyrRelCodes] = useState<{ CODE: string; CODE_NM: string }[]>([]);
@@ -253,6 +255,11 @@ const PaymentChangeModal: React.FC<PaymentChangeModalProps> = ({
       return;
     }
 
+    // 모바일 키보드 닫기 (뷰포트 점프 방지)
+    if (document.activeElement instanceof HTMLElement) {
+      document.activeElement.blur();
+    }
+
     setIsVerifying(true);
     setVerifyProgress('인증 요청 중...');
 
@@ -320,6 +327,10 @@ const PaymentChangeModal: React.FC<PaymentChangeModalProps> = ({
     } finally {
       setIsVerifying(false);
       setVerifyProgress('');
+      // 인증 완료 후 스크롤 위치 복원 (모바일 키보드 닫힘으로 인한 점프 방지)
+      requestAnimationFrame(() => {
+        verifyAreaRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      });
     }
   };
 
@@ -537,7 +548,7 @@ const PaymentChangeModal: React.FC<PaymentChangeModalProps> = ({
         </div>
 
         {/* 컨텐츠 */}
-        <div className="flex-1 overflow-y-auto p-4 space-y-4 min-h-0">
+        <div ref={contentRef} className="flex-1 overflow-y-auto p-4 space-y-4 min-h-0">
           {isLoading ? (
             <div className="flex items-center justify-center py-8">
               <Loader2 className="w-6 h-6 text-orange-500 animate-spin" />
@@ -668,7 +679,7 @@ const PaymentChangeModal: React.FC<PaymentChangeModalProps> = ({
                 </div>
 
                 {/* 계좌번호/카드번호 + 인증 */}
-                <div className="flex items-center">
+                <div ref={verifyAreaRef} className="flex items-center">
                   <label className="w-20 flex-shrink-0 text-xs text-gray-500">
                     {paymentForm.pymMthCd === '01' ? '계좌번호' : '카드번호'}
                   </label>
@@ -698,7 +709,7 @@ const PaymentChangeModal: React.FC<PaymentChangeModalProps> = ({
                       {isVerifying ? (
                         <>
                           <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                          인증 진행중
+                          인증중
                         </>
                       ) : isVerified ? (
                         <>
@@ -709,6 +720,21 @@ const PaymentChangeModal: React.FC<PaymentChangeModalProps> = ({
                     </button>
                   </div>
                 </div>
+
+                {/* 인증 상태 표시 */}
+                {isVerified ? (
+                  <div className="flex items-center gap-1.5 px-2 py-1.5 bg-green-50 border border-green-200 rounded text-xs text-green-700">
+                    <Check className="w-3.5 h-3.5 flex-shrink-0" />
+                    <span>
+                      {paymentForm.pymMthCd === '01' ? '계좌' : '카드'} 인증완료: {getCodeName(paymentForm.pymMthCd === '01' ? bankCodes : cardCompanyCodes, paymentForm.bankCd)} {paymentForm.acntNo ? paymentForm.acntNo.replace(/(\d{4})(?=\d)/g, '$1-').slice(0, paymentForm.pymMthCd === '01' ? 20 : 19) : ''} ({paymentForm.acntHolderNm})
+                    </span>
+                  </div>
+                ) : (paymentForm.acntNo && paymentForm.bankCd && paymentForm.acntHolderNm) ? (
+                  <div className="flex items-center gap-1.5 px-2 py-1.5 bg-orange-50 border border-orange-200 rounded text-xs text-orange-600">
+                    <AlertCircle className="w-3.5 h-3.5 flex-shrink-0" />
+                    <span>입력 정보가 변경되었습니다. 인증 버튼을 눌러주세요.</span>
+                  </div>
+                ) : null}
 
                 {/* 카드 전용 필드: 유효기간 + 제휴카드 */}
                 {paymentForm.pymMthCd === '02' && (
