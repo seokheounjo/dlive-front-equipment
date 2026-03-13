@@ -203,7 +203,7 @@ const PaymentChangeModal: React.FC<PaymentChangeModalProps> = ({
       const response = await getPaymentAccounts(custId);
       if (response.success && response.data) {
         setPaymentAccounts(response.data);
-        if (response.data.length > 0 && !selectedPymAcntId) {
+        if (response.data.length > 0 && !initialPymAcntId) {
           setSelectedPymAcntId(response.data[0].PYM_ACNT_ID);
         }
       }
@@ -665,6 +665,7 @@ const PaymentChangeModal: React.FC<PaymentChangeModalProps> = ({
                         setPaymentForm(prev => ({ ...prev, acntNo: e.target.value.replace(/[^0-9]/g, '') }));
                         setIsVerified(false);
                       }}
+                      maxLength={paymentForm.pymMthCd === '01' ? 20 : 16}
                       placeholder={paymentForm.pymMthCd === '01' ? '계좌번호 (- 제외)' : '카드번호 (- 제외)'}
                       className="flex-1 min-w-0 px-2 py-1.5 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-orange-500"
                     />
