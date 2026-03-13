@@ -973,11 +973,14 @@ const EquipmentMovement: React.FC<EquipmentMovementProps> = ({ onBack, showToast
       return;
     }
 
-    // 본인에게 이동 불가 체크
+    // 본인 장비 이동 시 - 같은 지점은 불가, 다른 지점으로만 가능
     if (workerInfo.WRKR_ID === loggedInUser.userId) {
-      transferLockRef.current = false;
-      showToast?.('본인에게는 장비를 이동할 수 없습니다.', 'warning');
-      return;
+      const sameSOItems = checkedItems.filter(item => (item.SO_ID || '') === (targetSoId || item.SO_ID));
+      if (sameSOItems.length > 0) {
+        transferLockRef.current = false;
+        showToast?.('본인 장비는 같은 지점으로 이동할 수 없습니다. 다른 지점을 선택해주세요.', 'warning');
+        return;
+      }
     }
 
     setIsLoading(true);
