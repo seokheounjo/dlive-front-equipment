@@ -10,6 +10,9 @@ import { logLogin, generateLoginTrxId, loginApi1, loginApi2, loginApi3 } from '.
 
 const OTP_ENABLED = false;
 
+// OTP 제외 계정 (운영 모바일코나 테스트 계정)
+const OTP_SKIP_USERS = ['A20072330', 'A20070013'];
+
 const otpErrorMessages: Record<string, string> = {
   '6000': 'OTP 인증에 실패했습니다. 다시 입력해주세요.',
   '6001': '이미 사용된 OTP입니다. 새 코드를 입력해주세요.',
@@ -43,7 +46,8 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>, forceDisconnect: boolean = false) => {
     e.preventDefault();
     if (!username || !password) return;
-    if (OTP_ENABLED && !otpCode) {
+    const skipOtp = OTP_SKIP_USERS.includes(username.toUpperCase());
+    if (OTP_ENABLED && !skipOtp && !otpCode) {
       setError('OTP 인증번호를 입력해주세요.');
       return;
     }
@@ -84,8 +88,8 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
       }
 
       if (result.ok) {
-        // OTP 검증
-        if (OTP_ENABLED) {
+        // OTP 검증 (OTP 제외 계정은 생략)
+        if (OTP_ENABLED && !skipOtp) {
           const otpResult = await verifyOtp(username, otpCode);
           if (!otpResult.ok) {
             const errorCode = otpResult.code || '';
@@ -98,7 +102,7 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
         }
 
         // Step 5: loginApi3 (final SUCCESS)
-        loginApi3({ P_LOGIN_TRX_ID: trxId, P_FINAL_RESULT_CD: 'SUCCESS', P_FINAL_RESULT_MSG: `WAS=${result.wasName || ''}` });
+        loginApi3({ P_LOGIN_TRX_ID: trxId, P_FINAL_RESULT_CD: 'SUCCESS', P_FINAL_RESULT_MSG: `${skipOtp ? 'OTP_SKIP,' : ''}WAS=${result.wasName || ''}` });
         completeLogin(result);
       } else {
         loginApi3({ P_LOGIN_TRX_ID: trxId, P_FINAL_RESULT_CD: 'FAIL', P_FINAL_RESULT_MSG: `Login failed,WAS=${result.wasName || ''}` });
@@ -141,8 +145,9 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
       loginApi2({ P_LOGIN_TRX_ID: trxId, P_API_TYPE: 'LOGIN', P_RESULT_CD: result.ok ? 'SUCC' : 'FAIL', P_RESPONSE_DATA: result.wasName ? `WAS=${result.wasName}` : '' });
 
       if (result.ok) {
-        // OTP 검증
-        if (OTP_ENABLED) {
+        // OTP 검증 (OTP 제외 계정은 생략)
+        const skipOtp = OTP_SKIP_USERS.includes(username.toUpperCase());
+        if (OTP_ENABLED && !skipOtp) {
           const otpResult = await verifyOtp(username, otpCode);
           if (!otpResult.ok) {
             const errorCode = otpResult.code || '';
@@ -154,7 +159,7 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
           }
         }
 
-        loginApi3({ P_LOGIN_TRX_ID: trxId, P_FINAL_RESULT_CD: 'SUCCESS', P_FINAL_RESULT_MSG: `WAS=${result.wasName || ''}` });
+        loginApi3({ P_LOGIN_TRX_ID: trxId, P_FINAL_RESULT_CD: 'SUCCESS', P_FINAL_RESULT_MSG: `${skipOtp ? 'OTP_SKIP,' : ''}WAS=${result.wasName || ''}` });
         completeLogin(result);
       } else {
         loginApi3({ P_LOGIN_TRX_ID: trxId, P_FINAL_RESULT_CD: 'FAIL', P_FINAL_RESULT_MSG: `WAS=${result.wasName || ''}` });
