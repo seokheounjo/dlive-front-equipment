@@ -268,13 +268,129 @@ const DIRECT_REQ_ROUTES = {};
 const dgram = require('dgram');
 const crypto = require('crypto');
 
-// GrippinTower OTP Server Config
-const OTP_SERVER_IP = '58.143.140.185';
+// GrippinTower OTP Server Config - DB 공통코드(MOOT001)에서 동적 로딩
+// MOOT001 테이블 구조:
+//   name      = Shared Secret (키값)
+//   ref_code  = OTP Server IP
+//   ref_code2 = DEV(개발) / LIVE(운영)
 const OTP_SERVER_PORT = 1812;
-const OTP_SHARED_SECRET = '6FA8D9C467D1492E';
 const OTP_TIMEOUT = 5000; // 5s
+const OTP_ENV = 'DEV'; // 현재 환경: DEV(개발) → 나중에 LIVE(운영)으로 전환
 
-// OTP 인증: 로그인한 사용자 ID로 인증 (하드코딩 제거)
+// OTP 설정 캐시
+let otpConfigCache = null;
+let otpConfigLoadedAt = 0;
+const OTP_CONFIG_TTL = 3600000; // 1시간 캐시
+
+// 하드코딩 폴백 (DB 조회 실패 시 - DEV 기준)
+const OTP_FALLBACK = {
+  serverIp: '52.79.244.8',
+  sharedSecret: '6FA8D9C467D1492E'
+};
+
+/**
+ * MOOT001 공통코드에서 OTP 설정을 동적으로 로드
+ * CONA 백엔드 /api/common/getCommonCodes 호출
+ */
+async function loadOtpConfig() {
+  // 캐시 유효하면 그대로 사용
+  if (otpConfigCache && (Date.now() - otpConfigLoadedAt) < OTP_CONFIG_TTL) {
+    return otpConfigCache;
+  }
+
+  const http = require('http');
+  const urlMod = require('url');
+
+  return new Promise((resolve) => {
+    const targetUrl = DLIVE_API_BASE + '/api/common/getCommonCodes';
+    const parsed = urlMod.parse(targetUrl);
+    const postData = JSON.stringify({ CODE_GROUP: 'MOOT001' });
+
+    console.log('[OTP-CONFIG] Loading OTP config from DB (MOOT001, ENV=' + OTP_ENV + ')...');
+
+    const options = {
+      hostname: parsed.hostname,
+      port: parsed.port || 8080,
+      path: parsed.path,
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json; charset=utf-8',
+        'Content-Length': Buffer.byteLength(postData)
+      },
+      timeout: 10000
+    };
+
+    const req = http.request(options, (res) => {
+      let body = '';
+      res.setEncoding('utf8');
+      res.on('data', (chunk) => { body += chunk; });
+      res.on('end', () => {
+        try {
+          const result = JSON.parse(body);
+          console.log('[OTP-CONFIG] MOOT001 response:', JSON.stringify(result).substring(0, 500));
+
+          if (Array.isArray(result)) {
+            // ref_code2 가 현재 환경(DEV/LIVE)과 일치하는 항목 찾기
+            const matched = result.find(item => {
+              const env = (item.ref_code2 || '').toUpperCase().trim();
+              return env === OTP_ENV;
+            });
+
+            if (matched) {
+              const serverIp = (matched.ref_code || '').trim();       // ref_code = IP
+              const sharedSecret = (matched.name || '').trim();       // name = Shared Secret
+
+              if (serverIp && sharedSecret) {
+                otpConfigCache = { serverIp, sharedSecret };
+                otpConfigLoadedAt = Date.now();
+                console.log('[OTP-CONFIG] Loaded from DB - IP:', serverIp, ', Secret:', sharedSecret.substring(0, 4) + '****', ', ENV:', OTP_ENV);
+                resolve(otpConfigCache);
+                return;
+              } else {
+                console.warn('[OTP-CONFIG] MOOT001 matched but ref_code/ref_code2 empty');
+              }
+            } else {
+              console.warn('[OTP-CONFIG] No MOOT001 entry for ENV=' + OTP_ENV + ', items:', result.length);
+            }
+          }
+
+          // DB에서 못 찾으면 폴백
+          console.warn('[OTP-CONFIG] Using fallback config');
+          resolve(OTP_FALLBACK);
+        } catch (parseErr) {
+          console.error('[OTP-CONFIG] Parse error:', parseErr.message, 'body:', body.substring(0, 200));
+          resolve(OTP_FALLBACK);
+        }
+      });
+    });
+
+    req.on('error', (err) => {
+      console.error('[OTP-CONFIG] Request error:', err.message);
+      resolve(OTP_FALLBACK);
+    });
+
+    req.on('timeout', () => {
+      console.error('[OTP-CONFIG] Request timeout');
+      req.destroy();
+      resolve(OTP_FALLBACK);
+    });
+
+    req.write(postData);
+    req.end();
+  });
+}
+
+/**
+ * OTP 설정 가져오기 (캐시 + DB 조회 + 폴백)
+ */
+async function getOtpConfig() {
+  try {
+    return await loadOtpConfig();
+  } catch (err) {
+    console.error('[OTP-CONFIG] Unexpected error:', err.message);
+    return OTP_FALLBACK;
+  }
+}
 
 /**
  * RADIUS Access-Request (RFC 2865)
@@ -431,8 +547,12 @@ router.post('/auth/otp-verify', async (req, res) => {
     const otpUserId = userId;
     console.log('[OTP] OTP auth user:', otpUserId);
 
+    // DB(MOOT001)에서 OTP 설정 동적 로드
+    const otpConfig = await getOtpConfig();
+    console.log('[OTP] Using config - IP:', otpConfig.serverIp, ', ENV:', OTP_ENV);
+
     const result = await radiusAccessRequest(
-      OTP_SERVER_IP, OTP_SERVER_PORT, OTP_SHARED_SECRET,
+      otpConfig.serverIp, OTP_SERVER_PORT, otpConfig.sharedSecret,
       otpUserId, otpCode, OTP_TIMEOUT
     );
 
@@ -644,12 +764,14 @@ router.post('/auth/login-with-otp', async (req, res) => {
       P_REQUEST_DATA: JSON.stringify({ USR_ID: userId })
     });
 
-    // Call OTP RADIUS
+    // Call OTP RADIUS (DB에서 동적 로드)
     const otpUserId = userId;
     let otpResult;
     try {
+      const otpConfig = await getOtpConfig();
+      console.log('[OTP] login-with-otp using config - IP:', otpConfig.serverIp, ', ENV:', OTP_ENV);
       otpResult = await radiusAccessRequest(
-        OTP_SERVER_IP, OTP_SERVER_PORT, OTP_SHARED_SECRET,
+        otpConfig.serverIp, OTP_SERVER_PORT, otpConfig.sharedSecret,
         otpUserId, otpCode, OTP_TIMEOUT
       );
     } catch (err) {
