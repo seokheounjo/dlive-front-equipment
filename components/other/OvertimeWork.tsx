@@ -424,8 +424,8 @@ export default function OvertimeWork({ onBack, userInfo, showToast }: OvertimeWo
         <div className="space-y-3">
           {records.map((record, idx) => {
             const isApproved = record.APPROVE === 'Y';
-            const sanctYn = (record.sanct_yn || record.SANCT_YN || '').toUpperCase();
-            const isFullySanctioned = sanctYn === 'YY';
+            const isSanctioned = (record.sanct_yn || record.SANCT_YN || '').toUpperCase() === 'Y';
+            const isFullySanctioned = isApproved && isSanctioned;
             const hasPlan = !!record.FROM_DATE1_PLAN && !!record.FROM_HOUR1_PLAN;
             const hasActual = !!record.FROM_DATE1 && !!record.FROM_HOUR1;
             const canInputActual = !isFullySanctioned;
