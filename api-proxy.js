@@ -287,24 +287,11 @@ const OTP_SERVER_PORT = 1812;
 const OTP_TIMEOUT = 5000; // 5s
 const OTP_ENV = 'LIVE'; // 운영 환경
 
-// OTP 설정 캐시
-let otpConfigCache = null;
-let otpConfigLoadedAt = 0;
-const OTP_CONFIG_TTL = 3600000; // 1시간 캐시
-
-// 폴백 없음 - DB(MOOT001) 조회 실패 시 OTP 불가
-const OTP_FALLBACK = null;
-
 /**
- * MOOT001 공통코드에서 OTP 설정을 동적으로 로드
+ * MOOT001 공통코드에서 OTP 설정을 매번 DB에서 로드 (캐시 없음)
  * CONA 백엔드 /api/common/getCommonCodes 호출
  */
 async function loadOtpConfig() {
-  // 캐시 유효하면 그대로 사용
-  if (otpConfigCache && (Date.now() - otpConfigLoadedAt) < OTP_CONFIG_TTL) {
-    return otpConfigCache;
-  }
-
   const http = require('http');
   const urlMod = require('url');
 
@@ -334,38 +321,31 @@ async function loadOtpConfig() {
       res.on('end', () => {
         try {
           const result = JSON.parse(body);
-          console.log('[OTP-CONFIG] MOOT001 response:', JSON.stringify(result).substring(0, 500));
 
           if (Array.isArray(result)) {
-            // ref_code2 가 현재 환경(DEV/LIVE)과 일치하는 항목 찾기
             const matched = result.find(item => {
               const env = (item.ref_code2 || '').toUpperCase().trim();
               return env === OTP_ENV;
             });
 
             if (matched) {
-              const serverIp = (matched.ref_code || '').trim();       // ref_code = IP
-              const sharedSecret = (matched.name || '').trim();       // name = Shared Secret
+              const serverIp = (matched.ref_code || '').trim();
+              const sharedSecret = (matched.name || '').trim();
 
               if (serverIp && sharedSecret) {
-                otpConfigCache = { serverIp, sharedSecret };
-                otpConfigLoadedAt = Date.now();
                 console.log('[OTP-CONFIG] Loaded from DB - IP:', serverIp, ', Secret:', sharedSecret.substring(0, 4) + '****', ', ENV:', OTP_ENV);
-                resolve(otpConfigCache);
+                resolve({ serverIp, sharedSecret });
                 return;
-              } else {
-                console.warn('[OTP-CONFIG] MOOT001 matched but ref_code/ref_code2 empty');
               }
             } else {
-              console.warn('[OTP-CONFIG] No MOOT001 entry for ENV=' + OTP_ENV + ', items:', result.length);
+              console.warn('[OTP-CONFIG] No MOOT001 entry for ENV=' + OTP_ENV);
             }
           }
 
-          // DB에서 못 찾으면 null (OTP 불가)
           console.error('[OTP-CONFIG] MOOT001 config not found - OTP disabled');
           resolve(null);
         } catch (parseErr) {
-          console.error('[OTP-CONFIG] Parse error:', parseErr.message, 'body:', body.substring(0, 200));
+          console.error('[OTP-CONFIG] Parse error:', parseErr.message);
           resolve(null);
         }
       });
