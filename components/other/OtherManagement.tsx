@@ -90,11 +90,11 @@ const OtherManagement: React.FC<OtherManagementProps> = ({
           />
         </TabsContent>
 
-        <TabsContent value="attendance" className="px-0 pt-1">
+        <TabsContent value="attendance" className="px-0 pt-1 data-[state=active]:flex data-[state=active]:flex-1 data-[state=active]:flex-col min-h-0">
           <AttendanceRegistration onBack={onNavigateToMenu} userInfo={userInfo} showToast={showToast} />
         </TabsContent>
 
-        <TabsContent value="overtime" className="px-0 pt-1">
+        <TabsContent value="overtime" className="px-0 pt-1 data-[state=active]:flex data-[state=active]:flex-1 data-[state=active]:flex-col min-h-0">
           <OvertimeWork onBack={onNavigateToMenu} userInfo={userInfo} showToast={showToast} />
         </TabsContent>
 

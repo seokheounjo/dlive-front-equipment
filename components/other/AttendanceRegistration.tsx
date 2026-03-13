@@ -342,7 +342,7 @@ const AttendanceRegistration: React.FC<AttendanceRegistrationProps> = ({
   };
 
   return (
-    <div className="p-4 space-y-4 overflow-y-auto" style={{ height: 'calc(100dvh - 160px - env(safe-area-inset-bottom, 0px))' }}>
+    <div className="p-4 space-y-4 flex-1 min-h-0 overflow-y-auto">
       {/* 출근/퇴근 탭 */}
       <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-1 flex gap-1">
         <button
