@@ -2830,7 +2830,7 @@ export const getPromChangeCodes = async (): Promise<ApiResponse<any[]>> => {
 export const getCustCntBySearchCust = async (custNm: string): Promise<ApiResponse<any>> => {
   return apiCall<any>('/customer/negociation/getCustCntBySearchCust', {
     CUST_NM: custNm,
-    CHK_FIX_CUST_NM: 'N'
+    CHK_FIX_CUST_NM: 'Y'
   });
 };
 
