@@ -450,8 +450,10 @@ export default function OvertimeWork({ onBack, userInfo, showToast }: OvertimeWo
                     }`}>
                       {isApproved ? (<><CheckCircle className="w-3 h-3 mr-0.5" />승인</>) : (<><XCircle className="w-3 h-3 mr-0.5" />미승인</>)}
                     </span>
-                    {isFullySanctioned && (
-                      <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-700">승인완료</span>
+                    {isFullySanctioned ? (
+                      <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-700">결재</span>
+                    ) : (
+                      <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-orange-100 text-orange-700">미결재</span>
                     )}
                     <span className="text-xs text-gray-500 bg-gray-100 px-1.5 py-0.5 rounded">{getGubnName(record.GUBN_S)}</span>
                   </div>
@@ -470,7 +472,7 @@ export default function OvertimeWork({ onBack, userInfo, showToast }: OvertimeWo
 
                 {isFullySanctioned ? (
                   <div className="w-full py-2 rounded-lg text-sm bg-gray-50 text-gray-400 border border-gray-200 text-center">
-                    승인완료 (수정불가)
+                    결재완료 (수정불가)
                   </div>
                 ) : (
                   <button
