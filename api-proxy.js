@@ -906,6 +906,28 @@ router.get('/customer/debug/customerEtcManagement/methods', handleProxy);
 router.get('/customer/debug/sampleHistoryData', handleProxy);
 router.post('/customer/debug/testDao', handleProxy);
 
+// === 신규 API 라우트 (2026-03-13 프론트 교체 후 추가) ===
+// apiService.ts 신규 6건
+router.post('/customer/negociation/insertRcptProcInfo', handleProxy);  // 작업접수 처리
+router.post('/customer/receipt/getNBGuide', handleProxy);              // NB 가이드 조회
+router.post('/customer/receipt/saveNBGuide', handleProxy);             // NB 가이드 저장
+router.post('/customer/sigtrans/modSvcDtlErrResend', handleProxy);    // 신호 에러 재전송
+router.post('/customer/sigtrans/modSvcDtlErrResend_2', handleProxy);  // 신호 에러 재전송 (iTV)
+router.post('/customer/work/getChkWorkFee', handleProxy);             // 작업수수료 확인
+
+// certifyApiService.ts 신규 11건
+router.post('/customer/equipment/getAsRcptEqtStatInfo', handleProxy);       // AS접수 장비상태
+router.post('/customer/equipment/getCntFMSSession', handleProxy);           // FMS 세션
+router.post('/customer/equipment/getCntFMSSession2', handleProxy);          // FMS 세션2
+router.post('/customer/equipment/callEqtStatReqIns4ASRcpt', handleProxy);   // AS접수 장비상태 요청
+router.post('/customer/equipment/getEqtStatInfo', handleProxy);             // 장비상태 조회
+router.post('/customer/etc/getLguMangReq', handleProxy);                    // LGU 관리요청
+router.post('/customer/etc/getLguMangRslt', handleProxy);                   // LGU 관리결과
+router.post('/customer/etc/getUplsApiReq', handleProxy);                    // UPLS API 요청
+router.post('/customer/etc/getUplsLdapInfo', handleProxy);                  // UPLS LDAP 조회
+router.post('/customer/etc/getUplsNwtbDetail', handleProxy);                // UPLS 망전환 상세
+router.post('/customer/etc/saveLguMangReq', handleProxy);                   // LGU 관리요청 저장
+
 // === 계좌 실명인증 핸들러 (KSNET) ===
 // CONA AddCustomerRlnmAuthCheck.req 직접 호출
 // CustomerManagerDelegate.AddCustomerRlnmAuthCheck → CustomerManagerImpl.addCustomerRlnmAuthCheck
