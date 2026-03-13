@@ -1508,7 +1508,7 @@ async function handleProxy(req, res) {
         // /other/* 경로는 폴백하지 않음 (OtherController 전용, .req 대응 없음)
         const skipFallback = apiPath.startsWith('/other/');
         if (!skipFallback && !isLegacyReq && (proxyRes.statusCode === 500 || proxyRes.statusCode === 404) &&
-            (responseBody.includes('SRVE0207E') || responseBody.includes('SRVE0255E'))) {
+            (responseBody.includes('SRVE0207E') || responseBody.includes('SRVE0255E') || responseBody.includes('SRVE0295E'))) {
           console.log('[PROXY] ⚠ Adapter servlet error, falling back to .req endpoint');
           const reqPath = apiPath + '.req';
           const reqUrl = DLIVE_API_BASE + reqPath;
