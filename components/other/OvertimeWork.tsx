@@ -344,7 +344,7 @@ export default function OvertimeWork({ onBack, userInfo, showToast }: OvertimeWo
   }
 
   return (
-    <div className="p-4 space-y-4 overflow-y-auto" style={{ maxHeight: 'calc(100dvh - 120px)' }}>
+    <div className="p-4 space-y-4 overflow-y-auto" style={{ height: 'calc(100dvh - 160px - env(safe-area-inset-bottom, 0px))' }}>
       {/* Header */}
       <div className="flex items-center justify-between">
         <h3 className="font-medium text-gray-800 flex items-center gap-2">
