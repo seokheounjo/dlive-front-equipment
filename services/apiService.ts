@@ -3194,6 +3194,8 @@ export const getEquipmentOutList = async (params: {
   SO_ID?: string;
   OUT_REQ_NO?: string;
   PROC_STAT?: string;
+  WRKR_ID?: string;
+  CRR_ID?: string;
 }): Promise<any[]> => {
   console.log('📦 [장비할당조회] API 호출:', params);
 

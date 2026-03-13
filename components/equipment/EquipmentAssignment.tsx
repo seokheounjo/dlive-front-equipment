@@ -247,11 +247,13 @@ const EquipmentAssignment: React.FC<EquipmentAssignmentProps> = ({ onBack, showT
       if (!selectedSoId && soList.length > 0) {
         console.log('[장비할당] 전체 지점 조회 모드 - ', soList.length, '개 지점');
         const promises = soList.map(so => {
-          const params = {
+          const params: any = {
             FROM_OUT_REQ_DT: fromDate,
             TO_OUT_REQ_DT: toDate,
             SO_ID: so.SO_ID,
-            PROC_STAT: '%'
+            PROC_STAT: '%',
+            WRKR_ID: userInfo?.userId || '',
+            CRR_ID: userInfo?.crrId || '',
           };
           return getEquipmentOutList(params).catch(() => []);
         });
@@ -260,11 +262,13 @@ const EquipmentAssignment: React.FC<EquipmentAssignmentProps> = ({ onBack, showT
         console.log('[장비할당] 전체 지점 조회 완료 - 총', allResults.length, '건');
       } else {
         // 특정 지점 선택 시
-        const params = {
+        const params: any = {
           FROM_OUT_REQ_DT: fromDate,
           TO_OUT_REQ_DT: toDate,
           SO_ID: selectedSoId || userInfo?.soId || '209',
-          PROC_STAT: '%'
+          PROC_STAT: '%',
+          WRKR_ID: userInfo?.userId || '',
+          CRR_ID: userInfo?.crrId || '',
         };
         const result = await debugApiCall(
           'EquipmentAssignment',
