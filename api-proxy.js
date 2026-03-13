@@ -539,9 +539,9 @@ function radiusAccessRequest(serverIp, serverPort, sharedSecret, username, passw
 // OTP Verify Endpoint
 router.post('/auth/otp-verify', async (req, res) => {
   const userId = req.body.USR_ID;
-  const otpCode = req.body.OTP_CODE;
+  const otpCode = req.body.OTP_CODE ? String(req.body.OTP_CODE).trim() : '';
 
-  console.log('[OTP] Verify request - userId:', userId, 'otpCode length:', otpCode ? otpCode.length : 0);
+  console.log('[OTP] Verify request - userId:', userId, 'otpCode length:', otpCode.length);
 
   if (!userId || !otpCode) {
     return res.json({ ok: false, code: '6007', message: 'USR_ID or OTP_CODE is missing' });
@@ -653,7 +653,7 @@ function callLoginApi(apiPath, params) {
 router.post('/auth/login-with-otp', async (req, res) => {
   const userId = req.body.USR_ID;
   const password = req.body.PASSWORD || req.body.USR_PWD;
-  const otpCode = req.body.OTP_CODE;
+  const otpCode = req.body.OTP_CODE ? String(req.body.OTP_CODE).trim() : '';
   const disconnYn = req.body.DISCONN_YN || 'N';
   const clientIp = req.headers['x-forwarded-for'] || req.headers['x-real-ip'] || req.connection.remoteAddress || '';
   const userAgent = req.headers['user-agent'] || '';
