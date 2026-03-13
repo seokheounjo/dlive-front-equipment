@@ -282,11 +282,8 @@ let otpConfigCache = null;
 let otpConfigLoadedAt = 0;
 const OTP_CONFIG_TTL = 3600000; // 1시간 캐시
 
-// 하드코딩 폴백 (DB 조회 실패 시 - LIVE 기준)
-const OTP_FALLBACK = {
-  serverIp: '58.143.140.5',
-  sharedSecret: '03D4E6EF37FE1077'
-};
+// 폴백 없음 - DB(MOOT001) 조회 실패 시 OTP 불가
+const OTP_FALLBACK = null;
 
 /**
  * MOOT001 공통코드에서 OTP 설정을 동적으로 로드
@@ -354,25 +351,25 @@ async function loadOtpConfig() {
             }
           }
 
-          // DB에서 못 찾으면 폴백
-          console.warn('[OTP-CONFIG] Using fallback config');
-          resolve(OTP_FALLBACK);
+          // DB에서 못 찾으면 null (OTP 불가)
+          console.error('[OTP-CONFIG] MOOT001 config not found - OTP disabled');
+          resolve(null);
         } catch (parseErr) {
           console.error('[OTP-CONFIG] Parse error:', parseErr.message, 'body:', body.substring(0, 200));
-          resolve(OTP_FALLBACK);
+          resolve(null);
         }
       });
     });
 
     req.on('error', (err) => {
       console.error('[OTP-CONFIG] Request error:', err.message);
-      resolve(OTP_FALLBACK);
+      resolve(null);
     });
 
     req.on('timeout', () => {
       console.error('[OTP-CONFIG] Request timeout');
       req.destroy();
-      resolve(OTP_FALLBACK);
+      resolve(null);
     });
 
     req.write(postData);
@@ -381,14 +378,15 @@ async function loadOtpConfig() {
 }
 
 /**
- * OTP 설정 가져오기 (캐시 + DB 조회 + 폴백)
+ * OTP 설정 가져오기 (캐시 + DB 조회)
+ * DB 조회 실패 시 null 반환 → OTP 인증 불가
  */
 async function getOtpConfig() {
   try {
     return await loadOtpConfig();
   } catch (err) {
     console.error('[OTP-CONFIG] Unexpected error:', err.message);
-    return OTP_FALLBACK;
+    return null;
   }
 }
 
@@ -549,6 +547,10 @@ router.post('/auth/otp-verify', async (req, res) => {
 
     // DB(MOOT001)에서 OTP 설정 동적 로드
     const otpConfig = await getOtpConfig();
+    if (!otpConfig) {
+      console.error('[OTP] MOOT001 config load failed - cannot authenticate');
+      return res.json({ ok: false, code: '6040', message: 'OTP 서버 설정을 불러올 수 없습니다. 관리자에게 문의하세요.' });
+    }
     console.log('[OTP] Using config - IP:', otpConfig.serverIp, ', ENV:', OTP_ENV);
 
     const result = await radiusAccessRequest(
@@ -769,11 +771,15 @@ router.post('/auth/login-with-otp', async (req, res) => {
     let otpResult;
     try {
       const otpConfig = await getOtpConfig();
-      console.log('[OTP] login-with-otp using config - IP:', otpConfig.serverIp, ', ENV:', OTP_ENV);
-      otpResult = await radiusAccessRequest(
-        otpConfig.serverIp, OTP_SERVER_PORT, otpConfig.sharedSecret,
-        otpUserId, otpCode, OTP_TIMEOUT
-      );
+      if (!otpConfig) {
+        otpResult = { code: '6040', count: '0', message: 'OTP 서버 설정을 불러올 수 없습니다.' };
+      } else {
+        console.log('[OTP] login-with-otp using config - IP:', otpConfig.serverIp, ', ENV:', OTP_ENV);
+        otpResult = await radiusAccessRequest(
+          otpConfig.serverIp, OTP_SERVER_PORT, otpConfig.sharedSecret,
+          otpUserId, otpCode, OTP_TIMEOUT
+        );
+      }
     } catch (err) {
       otpResult = { code: '6042', count: '0', message: 'OTP error: ' + err.message };
     }
