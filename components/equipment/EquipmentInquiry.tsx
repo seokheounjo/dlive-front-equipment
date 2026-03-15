@@ -199,7 +199,7 @@ const fetchAuthSoList = async (): Promise<SoListItem[]> => {
 
     // 3순위: API 호출 (/statistics/equipment/getAuthSoList)
     console.log('🔍 [장비처리] API에서 지점 목록 로드 시도...');
-    const response = await fetch(`${API_BASE}/statistics/equipment/getAuthSoList`, {
+    const response = await fetch(`${API_BASE}/customer/equipment/getAuthSoList`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       credentials: 'include',
