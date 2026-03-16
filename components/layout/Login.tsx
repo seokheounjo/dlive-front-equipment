@@ -29,10 +29,6 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
   const [blockMessage, setBlockMessage] = useState<string | null>(null);
 
   const completeLogin = (result: any) => {
-    // 서버에서 생성한 TRX_ID를 localStorage에 저장 (이후 활동 로그에서 사용)
-    if (result.trxId) {
-      try { localStorage.setItem('loginTrxId', result.trxId); } catch {}
-    }
     onLogin(result.userId, result.userName, result.userNameEn, result.userRole, result.crrId, result.soId, result.mstSoId, result.telNo2, result.AUTH_SO_List, result.soYn, result.deptCd);
     logLogin();
   };
@@ -68,6 +64,11 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
       const result = await loginWithOtp(username, password, sendOtpCode, forceDisconnect ? 'Y' : 'N', getNetworkType());
 
       console.log('[Login] API 응답:', result);
+
+      // 서버 TRX_ID를 항상 저장 (성공/실패 무관 — 이후 활동 로그 추적용)
+      if (result.trxId) {
+        try { localStorage.setItem('loginTrxId', result.trxId); } catch {}
+      }
 
       // 계정 잠금 감지
       if (result.code === 'LOCK') {
@@ -112,6 +113,10 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
       const result = await loginWithOtp(username, password, sendOtpCode, 'Y', getNetworkType());
 
       console.log('[Login] 강제 로그인 응답:', result);
+
+      if (result.trxId) {
+        try { localStorage.setItem('loginTrxId', result.trxId); } catch {}
+      }
 
       if (result.ok) {
         completeLogin(result);

@@ -710,7 +710,7 @@ router.post('/auth/login-with-otp', async (req, res) => {
       P_FINAL_RESULT_CD: 'FAIL',
       P_FINAL_RESULT_MSG: 'Login request failed: ' + err.message
     });
-    return res.json({ ok: false, code: 'LOGIN_ERROR', message: 'Login server error' });
+    return res.json({ ok: false, code: 'LOGIN_ERROR', message: 'Login server error', trxId });
   }
 
   // Step 3: Log login result (API_2 - LOGIN)
@@ -731,6 +731,7 @@ router.post('/auth/login-with-otp', async (req, res) => {
       P_FINAL_RESULT_CD: loginResult.code || 'FAIL',
       P_FINAL_RESULT_MSG: loginResult.message || 'Login failed'
     });
+    loginResult.trxId = trxId;
     return res.json(loginResult);
   }
 
@@ -791,7 +792,8 @@ router.post('/auth/login-with-otp', async (req, res) => {
         code: otpResult.code,
         message: otpResult.message,
         errorCount: parseInt(otpResult.count) || 0,
-        loginData: loginResult
+        loginData: loginResult,
+        trxId
       });
     }
   }
