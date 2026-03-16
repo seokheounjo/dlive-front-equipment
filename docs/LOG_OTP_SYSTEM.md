@@ -1,6 +1,6 @@
 # D'Live CONA 모바일 - 로그인/로그/OTP 시스템 종합 문서
 
-> 최종 업데이트: 2026-03-13
+> 최종 업데이트: 2026-03-16
 > 상태: 프론트엔드 배포 완료 / 백엔드 배포 완료 (jsh → main 빌드/배포)
 > 동기화 대상: seokheounjo/dlive-front-equipment (main) ↔ teemartbottle/dlive-cona-client (equipment_customer_other)
 
@@ -138,23 +138,122 @@ body: JSON.stringify({
 
 ```typescript
 // components/layout/Login.tsx
-const OTP_ENABLED = false;  // 현재 비활성화
+const OTP_ENABLED = true;  // 2026-03-16 활성화
 ```
 
-OTP는 현재 **비활성화** 상태. `OTP_ENABLED = true`로 변경 시 활성화.
+OTP는 현재 **활성화** 상태.
 
-### 3.2 OTP 플로우 (활성화 시)
+### 3.2 OTP 인증 구조 (login-with-otp 통합 방식)
+
+#### 3.2.1 전체 아키텍처
 
 ```
-1. 사용자가 ID/PW/OTP 입력 → Submit
-2. generateLoginTrxId(username) → LOGIN_TRX_ID 생성 (localStorage 저장)
-3. loginApi1({P_LOGIN_TRX_ID, P_USER_ID, P_API_TYPE: 'LOGIN'})
-4. login(username, password) → CONA 로그인 API 호출
-5. loginApi2({P_LOGIN_TRX_ID, P_RESULT_CD: SUCC/FAIL})
-6. 로그인 성공 시 → verifyOtp(username, otpCode)
-   ├─ 성공 → loginApi3({P_FINAL_RESULT_CD: 'SUCCESS'}) → completeLogin
-   └─ 실패 → loginApi3({P_FINAL_RESULT_CD: 'OTP_FAIL'}) → 에러 표시
+[브라우저]
+  ↓ POST /api/auth/login-with-otp
+  ↓ {USR_ID, PASSWORD, OTP_CODE, DISCONN_YN, DRM_VERSION, LOGIN_VIEW, NW_TYPE}
+[Node.js api-proxy.js (PM2)]
+  ├─ Step 1: pmobileLoginApi_1 (감사로그 - 로그인 시작)
+  ├─ Step 2: CONA /login (ID/PW 인증)
+  ├─ Step 3: pmobileLoginApi_2 (감사로그 - 로그인 결과)
+  ├─ Step 4: OTP 인증 (OTP_CODE가 6자리일 때만)
+  │   ├─ MOOT001 공통코드 DB 조회 (매번, 캐시 없음)
+  │   ├─ RADIUS Access-Request (UDP 1812)
+  │   └─ pmobileLoginApi_2 (감사로그 - OTP 결과)
+  └─ Step 5: pmobileLoginApi_3 (감사로그 - 최종 결과)
 ```
+
+#### 3.2.2 OTP 키값 조회 구조 (매번 DB 조회, 캐시 없음)
+
+```
+api-proxy.js loadOtpConfig()
+  ↓ POST DLIVE_API_BASE/common/getCommonCodes
+  ↓ {CODE_GROUP: 'MOOT001'}
+  ↓
+CONA DB 조회 결과 (MOOT001 공통코드):
+  ┌──────┬──────┬─────────────────┬──────────────────┐
+  │ code │ ENV  │ OTP Server IP   │ Shared Secret    │
+  ├──────┼──────┼─────────────────┼──────────────────┤
+  │ OT1  │ LIVE │ 58.143.140.5    │ (DB에서 조회)    │
+  │ OT2  │ DEV  │ 58.143.140.185  │ (DB에서 조회)    │
+  └──────┴──────┴─────────────────┴──────────────────┘
+  ↓
+OTP_ENV = 'LIVE' 로 필터링 (ref_code2 === 'LIVE')
+  → ref_code = OTP 서버 IP
+  → name = Shared Secret
+```
+
+**CRITICAL: 캐시 절대 금지** — 이전에 1시간 캐시로 인해 DB에서 Shared Secret 변경 후에도 구 값 사용 → 6010 에러 발생. 캐시 완전 제거함.
+
+#### 3.2.3 RADIUS 인증 (UDP 1812)
+
+```
+api-proxy.js radiusAccessRequest()
+  ↓ UDP 1812
+  ↓ RADIUS Access-Request (RFC 2865)
+  ↓   - Username: 사번 (USR_ID)
+  ↓   - Password: OTP 코드 (6자리, Shared Secret으로 암호화)
+  ↓
+OTP Server (58.143.140.5:1812)
+  ↓
+  ├─ Access-Accept (code=2)  → OTP 인증 성공
+  ├─ Access-Reject (code=3)  → OTP 인증 실패 (6000)
+  └─ 응답 없음               → 타임아웃 (6040)
+      → Shared Secret 불일치 시 OTP 서버가 응답 자체를 안 보냄
+```
+
+#### 3.2.4 login-with-otp 통합 플로우 (api-proxy.js)
+
+```
+router.post('/auth/login-with-otp')
+
+1. pmobileLoginApi_1 (로그인 시작 로그)
+   → P_LOGIN_TRX_ID = 사번_시간 (예: 20230019_20260316143000)
+   → P_API_TYPE = 'LOGIN'
+
+2. CONA 로그인 요청
+   → POST DLIVE_API_BASE/login
+   → {USR_ID, PASSWORD, LOGIN_VIEW:'MOBILE', DRM_VERSION:'1000', DISCONN_YN}
+   → DRM_VERSION 누락 시 INVALID_DRM 에러 발생
+
+3. pmobileLoginApi_2 (로그인 결과 로그)
+   → P_RESULT_CD = 'SUCCESS' 또는 에러코드
+
+4. 로그인 실패 시 → pmobileLoginApi_3 + 에러 응답 리턴 (OTP 건너뜀)
+
+5. 로그인 성공 + OTP_CODE 6자리 → OTP 인증
+   a. pmobileLoginApi_1 (OTP 시작 로그, P_API_TYPE='OTP')
+   b. loadOtpConfig() → DB에서 MOOT001 조회
+   c. radiusAccessRequest() → UDP 1812 RADIUS 요청
+   d. pmobileLoginApi_2 (OTP 결과 로그)
+
+6. 로그인 성공 + OTP_CODE 없음 → OTP 건너뜀 (OTP 비활성화 시)
+   → 감사로그는 저장됨 (pmobileLoginApi_1/2/3)
+
+7. pmobileLoginApi_3 (최종 결과 로그)
+   → P_FINAL_RESULT_CD = 'SUCCESS' 또는 'OTP_FAIL' 또는 'FAIL'
+```
+
+#### 3.2.5 프론트엔드 호출 (Login.tsx → apiService.ts)
+
+```typescript
+// OTP 켜짐/꺼짐 무관하게 항상 loginWithOtp() 사용
+const sendOtpCode = (OTP_ENABLED && !skipOtp) ? otpCode : '';
+const result = await loginWithOtp(username, password, sendOtpCode,
+                                   forceDisconnect ? 'Y' : 'N', getNetworkType());
+
+// apiService.ts - loginWithOtp()
+body: JSON.stringify({
+  USR_ID: userId,
+  PASSWORD: password,
+  OTP_CODE: otpCode,      // OTP 꺼져있으면 빈 문자열
+  DISCONN_YN: disconnYn,
+  DRM_VERSION: '1000',    // 필수 (없으면 INVALID_DRM)
+  LOGIN_VIEW: 'MOBILE',   // 필수
+  NW_TYPE: nwType
+})
+```
+
+**CRITICAL: OTP 꺼져있어도 loginWithOtp() 사용** — login()을 쓰면 감사로그(pmobileLoginApi_1/2/3)가 안 쌓임.
 
 ### 3.3 OTP 에러 코드
 
@@ -178,11 +277,69 @@ OTP는 현재 **비활성화** 상태. `OTP_ENABLED = true`로 변경 시 활성
 
 > Circuit Breaker: 동일 API에 5번 연속 실패 시 30초간 요청 차단. `fetchWithRetry`에서 503 throw → Login.tsx catch에서 `setBlockMessage()`.
 
-### 3.4 OTP 백엔드 (api-proxy.js)
+### 3.4 OTP 서버 정보
+
+| 항목 | LIVE | DEV |
+|------|------|-----|
+| OTP Server IP | 58.143.140.5 | 58.143.140.185 |
+| Port | UDP 1812 | UDP 1812 |
+| MOOT001 code | OT1 | OT2 |
+| Shared Secret | DB MOOT001.name 필드 | DB MOOT001.name 필드 |
+
+### 3.5 OTP 트러블슈팅 이력
+
+#### 3.5.1 6010 ERR_INVALID_OTP (2026-03-15)
+
+**증상:** OTP 인증 시 항상 6010 에러
+**원인:** api-proxy.js에 OTP 설정 1시간 캐시 존재. DB에서 Shared Secret 변경 후에도 캐시된 구 값(03D4...) 사용 → OTP 서버와 Secret 불일치 → 인증 실패
+**수정:**
+- OTP 설정 캐시 완전 제거 (otpConfigCache, otpConfigLoadedAt, OTP_CONFIG_TTL 삭제)
+- loadOtpConfig()이 매 요청마다 DB에서 직접 조회
+- OTP_CODE에 String().trim() 적용 (공백 방지)
+
+#### 3.5.2 INVALID_DRM (2026-03-16)
+
+**증상:** login-with-otp 호출 시 `{"code":"INVALID_DRM","message":"DRM version invalid"}`
+**원인:** login-with-otp에서 CONA 로그인 호출 시 `DRM_VERSION: '1000'` 파라미터 누락. CONA checkLoginDRM()에서 DRM 버전 검증 실패.
+**수정:**
+- api-proxy.js login-with-otp 내 CONA 로그인 요청에 `DRM_VERSION: '1000'` 추가
+- apiService.ts loginWithOtp()에도 `DRM_VERSION: '1000'`, `LOGIN_VIEW: 'MOBILE'` 추가
+**교훈:** 새 로그인 API 만들 때 기존 login() 함수의 파라미터를 전수 비교할 것
+
+#### 3.5.3 감사로그 미저장 (2026-03-15)
+
+**증상:** OTP 꺼져있을 때 pmobileLoginApi_1/2/3 로그가 안 쌓임
+**원인:** OTP 꺼져있을 때 login()을 호출 → login()에는 감사로그 호출이 없음
+**수정:** OTP 켜짐/꺼짐 무관하게 항상 loginWithOtp() 사용. OTP 꺼져있으면 OTP_CODE를 빈 문자열로 전송 → 서버에서 OTP 검증만 건너뛰고 감사로그는 저장
+
+#### 3.5.4 URL /api/ 중복 (2026-03-15)
+
+**증상:** cona-client에서 login-with-otp 404/LOGIN_ERROR
+**원인:** DLIVE_API_BASE='http://58.143.140.222:8080/api'에 다시 '/api/login' 추가 → '/api/api/login' 중복
+**수정:** cona-client api-proxy.js에서 '/api/' prefix 제거. 두 레포의 DLIVE_API_BASE 차이 주의:
+- 우리 레포: `http://58.143.139.1:8080` (api 없음) → URL에 `/api/` 붙여야 함
+- cona-client: `http://58.143.140.222:8080/api` (api 있음) → URL에 `/api/` 붙이면 안 됨
+
+#### 3.5.5 6040 ERR_NETWORK_TIMEOUT (2026-03-16, 미해결)
+
+**증상:** 테스트 EC2(52.79.244.8)에서 OTP RADIUS 요청 타임아웃
+**원인 추정:**
+1. AWS EC2 → 내부망 OTP 서버(58.143.140.5) UDP 1812 통신 불가 (방화벽)
+2. Shared Secret 불일치 → OTP 서버가 응답 자체를 안 보냄 (RADIUS 특성)
+**확인 필요:**
+- OTP 서버(58.143.140.5)에 등록된 Shared Secret과 DB MOOT001 LIVE 값 일치 여부
+- EC2 → OTP 서버 UDP 1812 방화벽 오픈 여부
+- mcona.dlive.kr:7080(내부망)에서는 정상 동작하는지 확인 (main 머지+PM2 재시작 후)
+
+### 3.6 TRX_ID 형식
 
 ```
-POST /api/auth/otp-verify
-  → CONA /api/auth/otp-verify (TaskAuthController에서 처리)
+사번_시간
+예: 20230019_20260316143000
+
+// api-proxy.js generateTrxId()
+return (userId || 'unknown') + '_' + ts;
+// ts = YYYYMMDDHHMMSS
 ```
 
 ---
@@ -684,6 +841,11 @@ String body = new String(baos.toByteArray(), "UTF-8");
 | 16 | P_LOGIN_TRX_ID/P_NW_TYPE DB에 여전히 NULL | 프론트에서 `LOGIN_TRX_ID`/`NW_TYPE` 키로 전송 → iBatis `#P_LOGIN_TRX_ID#` 불일치 | 프론트 키명을 `P_LOGIN_TRX_ID`/`P_NW_TYPE`로 수정 |
 | 17 | MENU_NM 항상 NULL | `logNavigation()` 호출 시 menuNm 파라미터 미전달 | VIEW_MENU_NAMES 매핑 테이블 추가, toView→한글 자동 변환 |
 | 18 | Circuit Breaker 503 에러 시 팝업 없음 | 차단 에러가 일반 에러 메시지로만 표시 | blockMessage 모달 팝업 추가 (amber 경고 스타일) |
+| 19 | OTP 6010 항상 실패 | OTP 설정 1시간 캐시 → DB 변경 후에도 구 Secret 사용 | 캐시 완전 제거, 매번 DB 조회 |
+| 20 | INVALID_DRM 에러 | login-with-otp에서 DRM_VERSION:'1000' 누락 | api-proxy.js + apiService.ts에 추가 |
+| 21 | OTP 꺼져있을 때 감사로그 미저장 | OTP off 시 login() 호출 → 감사로그 없음 | 항상 loginWithOtp() 사용, OTP off 시 빈 OTP_CODE 전송 |
+| 22 | cona-client URL /api/ 중복 | DLIVE_API_BASE에 /api 있는데 또 /api/ 추가 | /api/ prefix 제거 |
+| 23 | loginWithOtp에 LOGIN_VIEW 누락 | login()에는 있으나 loginWithOtp()에 미포함 | apiService.ts에 LOGIN_VIEW:'MOBILE' 추가 |
 
 ---
 
