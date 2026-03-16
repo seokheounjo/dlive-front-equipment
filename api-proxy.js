@@ -5,6 +5,8 @@ const router = express.Router();
 const iconv = require('iconv-lite');
 
 const DLIVE_API_BASE = process.env.DLIVE_API_BASE || 'http://58.143.140.222:8080';
+// MCONA: Real CONA server for equipment list APIs (adapter returns 0 items for list queries)
+const MCONA_API_BASE = 'https://mcona.dlive.kr:7080';
 
 // CONA JSESSIONID 저장 (로그인 시 캡처, 이후 모든 요청에 주입)
 let storedJSessionId = null;
@@ -993,10 +995,11 @@ router.post('/customer/equipment/updateInstlLocFrWrk', handleProxy);
 router.post('/customer/equipment/getAuthSoList', handleProxy);
 router.post('/customer/equipment/getUserExtendedInfo', handleProxy);
 
-// Equipment Processing APIs (3 categories)
-router.post('/customer/equipment/getWrkrHaveEqtList_All', handleProxy);        // My Equipment (보유장비)
+// Equipment Processing APIs (3 categories) - MCONA routing for list queries
+// Adapter (58.143.140.222:8080) returns 0 items, MCONA (mcona.dlive.kr:7080) works correctly
+router.post('/customer/equipment/getWrkrHaveEqtList_All', handleMconaProxy);        // My Equipment (보유장비) → MCONA
 router.post('/customer/equipment/searchWorkersByName', handleProxy);        // 기사 이름 검색
-router.post("/customer/equipment/getEquipmentChkStndByA_All", handleProxy);  // 검사대기
+router.post("/customer/equipment/getEquipmentChkStndByA_All", handleMconaProxy);  // 검사대기 → MCONA
 router.post("/customer/phoneNumber/getOwnEqtLstForMobile_3", handleProxy);  // 장비반납
 router.post("/customer/phoneNumber/getCtrtIDforSmartPhone", handleProxy);  // 고객검색 (전화번호)
 router.post("/customer/equipment/getOwnEqtLstForMobile_3", handleProxy);  // 반납요청 (equipment 경로)
@@ -1578,6 +1581,78 @@ function callLegacyReqEndpoint(endpoints, index, accessTicket, res) {
 
   proxyReq.write(postData);
   proxyReq.end();
+}
+
+// MCONA proxy handler: Routes equipment LIST APIs to real CONA server (mcona.dlive.kr:7080)
+// Adapter at 58.143.140.222:8080 returns 0 items for list queries, mcona works correctly
+async function handleMconaProxy(req, res) {
+  try {
+    const apiPath = req.path;
+    const targetUrl = MCONA_API_BASE + '/api' + apiPath;
+    console.log('\n========================================');
+    console.log('[MCONA] ' + req.method + ' ' + targetUrl);
+    console.log('========================================');
+    if (req.body && Object.keys(req.body).length > 0) {
+      console.log('Request body:', JSON.stringify(req.body));
+    }
+
+    const https = require('https');
+    const url = require('url');
+    const parsedUrl = url.parse(targetUrl);
+    const postData = JSON.stringify(req.body || {});
+
+    const options = {
+      hostname: parsedUrl.hostname,
+      port: parsedUrl.port || 7080,
+      path: parsedUrl.path,
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json; charset=utf-8',
+        'Content-Length': Buffer.byteLength(postData, 'utf8'),
+        'User-Agent': 'EC2-Proxy/1.0'
+      },
+      rejectUnauthorized: false,
+      timeout: 60000
+    };
+
+    const proxyReq = https.request(options, (proxyRes) => {
+      let chunks = [];
+      proxyRes.on('data', (chunk) => chunks.push(chunk));
+      proxyRes.on('end', () => {
+        const responseBody = Buffer.concat(chunks).toString();
+        try {
+          const jsonResponse = JSON.parse(responseBody);
+          const count = Array.isArray(jsonResponse) ? jsonResponse.length : 'object';
+          console.log('[MCONA] Response: ' + count + (Array.isArray(jsonResponse) ? ' items' : ''));
+        } catch (e) {
+          console.log('[MCONA] Response preview:', responseBody.substring(0, 200));
+        }
+        res.setHeader('Content-Type', 'application/json; charset=utf-8');
+        res.setHeader('Access-Control-Allow-Origin', req.headers.origin || '*');
+        res.setHeader('Access-Control-Allow-Credentials', 'true');
+        res.status(proxyRes.statusCode || 200).send(responseBody);
+      });
+    });
+
+    proxyReq.on('error', (error) => {
+      console.error('[MCONA] Error:', error.message);
+      // Fallback to adapter
+      console.log('[MCONA] Falling back to adapter...');
+      handleProxy(req, res);
+    });
+
+    proxyReq.on('timeout', () => {
+      proxyReq.destroy();
+      console.error('[MCONA] Timeout, falling back to adapter...');
+      handleProxy(req, res);
+    });
+
+    proxyReq.write(postData);
+    proxyReq.end();
+  } catch (error) {
+    console.error('[MCONA] Exception:', error.message);
+    handleProxy(req, res);
+  }
 }
 
 async function handleProxy(req, res) {
