@@ -263,48 +263,36 @@ const EquipmentList: React.FC<EquipmentListProps> = ({ onBack, showToast }) => {
         const baseParams: any = { WRKR_ID: userInfo.userId };
         if (userInfo.crrId) baseParams.CRR_ID = userInfo.crrId;
 
-        if (userInfo.soId) {
-          // 본사 직원: soId가 있으면 그것으로 조회
-          const params = { ...baseParams, SO_ID: userInfo.soId };
-          console.log('[장비처리] 본사직원 - SO_ID+CRR_ID로 조회:', params);
+        // 항상 전체 조회 먼저 (SO_ID 없이) - SO_ID 필터는 서버에서 0건 반환할 수 있음
+        console.log('[장비처리] 전체 조회 (SO_ID 없이):', baseParams);
+        try {
           const result = await debugApiCall(
             'EquipmentList',
-            'getWrkrHaveEqtList',
-            () => getWrkrHaveEqtList(params),
-            params
+            'getWrkrHaveEqtList(전체)',
+            () => getWrkrHaveEqtList(baseParams),
+            baseParams
           );
           allEquipments = Array.isArray(result) ? result : result?.data || [];
-        } else if (userInfo.authSoList && userInfo.authSoList.length > 0) {
-          // 타사 직원: 먼저 CRR_ID만으로 전체 조회 시도
-          console.log('[장비처리] 타사직원 - CRR_ID로 전체 조회:', baseParams);
-          try {
-            const result = await debugApiCall(
-              'EquipmentList',
-              'getWrkrHaveEqtList(CRR_ID)',
-              () => getWrkrHaveEqtList(baseParams),
-              baseParams
-            );
-            allEquipments = Array.isArray(result) ? result : result?.data || [];
-          } catch (e) {
-            console.warn('CRR_ID 전체 조회 실패, SO_ID별 조회:', e);
-          }
+        } catch (e) {
+          console.warn('전체 조회 실패:', e);
+        }
 
-          // CRR_ID 전체 조회가 빈 결과면 SO_ID별로 재시도
-          if (allEquipments.length === 0) {
-            for (const so of userInfo.authSoList) {
-              try {
-                const params = { ...baseParams, SO_ID: so.SO_ID };
-                const result = await debugApiCall(
-                  'EquipmentList',
-                  `getWrkrHaveEqtList(SO_ID=${so.SO_ID})`,
-                  () => getWrkrHaveEqtList(params),
-                  params
-                );
-                const items = Array.isArray(result) ? result : result?.data || [];
-                allEquipments = [...allEquipments, ...items];
-              } catch (e) {
-                console.warn(`SO_ID ${so.SO_ID} 조회 실패:`, e);
-              }
+        // 전체 조회 0건이면 SO_ID별로 재시도
+        if (allEquipments.length === 0 && userInfo.authSoList && userInfo.authSoList.length > 0) {
+          console.log('[장비처리] 전체 0건, SO_ID별 재시도:', userInfo.authSoList.length, '개 지점');
+          for (const so of userInfo.authSoList) {
+            try {
+              const params = { ...baseParams, SO_ID: so.SO_ID };
+              const result = await debugApiCall(
+                'EquipmentList',
+                `getWrkrHaveEqtList(SO_ID=${so.SO_ID})`,
+                () => getWrkrHaveEqtList(params),
+                params
+              );
+              const items = Array.isArray(result) ? result : result?.data || [];
+              allEquipments = [...allEquipments, ...items];
+            } catch (e) {
+              console.warn(`SO_ID ${so.SO_ID} 조회 실패:`, e);
             }
           }
           // 중복 제거 (EQT_SERNO 기준)
@@ -315,18 +303,8 @@ const EquipmentList: React.FC<EquipmentListProps> = ({ onBack, showToast }) => {
             }
           });
           allEquipments = Array.from(uniqueMap.values());
-          console.log('[장비처리] 타사직원 최종 장비:', allEquipments.length, '건');
-        } else {
-          // 기본: CRR_ID로 조회
-          console.log('[장비처리] 기본 조회 (CRR_ID 포함):', baseParams);
-          const result = await debugApiCall(
-            'EquipmentList',
-            'getWrkrHaveEqtList',
-            () => getWrkrHaveEqtList(baseParams),
-            baseParams
-          );
-          allEquipments = Array.isArray(result) ? result : result?.data || [];
         }
+        console.log('[장비처리] 최종 장비:', allEquipments.length, '건');
 
         setMyEquipments(allEquipments);
       } catch (err) {
