@@ -989,8 +989,8 @@ router.post('/customer/equipment/getWrkrHaveEqtList', handleProxy);
 router.post('/customer/equipment/cmplEqtCustLossIndem', handleProxy);
 router.post('/customer/equipment/setEquipmentChkStndByY', handleProxy);
 router.post('/customer/equipment/setEquipmentChkStndByY_ForM', handleProxy);  // 검사대기 -> 사용가능 (ForM)
-router.post('/customer/equipment/changeEqtWrkr_3', handleProxy);
-router.post('/customer/equipment/changeEqtWrkr_3_ForM', handleProxy);  // 신규 장비이관 (Map 반환)
+router.post('/customer/equipment/changeEqtWrkr_3', handleMconaProxyForM);  // 장비이관 → MCONA _ForM (adapter TO_WRKR_ID 불일치)
+router.post('/customer/equipment/changeEqtWrkr_3_ForM', handleMconaProxy);  // 신규 장비이관 → MCONA
 router.post('/customer/equipment/updateInstlLocFrWrk', handleProxy);
 router.post('/customer/equipment/getAuthSoList', handleProxy);
 router.post('/customer/equipment/getUserExtendedInfo', handleProxy);
@@ -1653,6 +1653,15 @@ async function handleMconaProxy(req, res) {
     console.error('[MCONA] Exception:', error.message);
     handleProxy(req, res);
   }
+}
+
+// MCONA proxy with _ForM suffix: Routes changeEqtWrkr_3 to changeEqtWrkr_3_ForM on MCONA
+// Adapter requires TO_WRKR_ID but frontend sends MV_WRKR_ID; MCONA's _ForM endpoint accepts MV_WRKR_ID
+async function handleMconaProxyForM(req, res) {
+  const origPath = req.path;
+  req.path = origPath + '_ForM';
+  console.log('[MCONA_ForM] Rewriting path:', origPath, '->', req.path);
+  return handleMconaProxy(req, res);
 }
 
 async function handleProxy(req, res) {
