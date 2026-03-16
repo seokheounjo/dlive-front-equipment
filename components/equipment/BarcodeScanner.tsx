@@ -79,6 +79,7 @@ const BarcodeScanner: React.FC<BarcodeScannerProps> = ({ isOpen, onClose, onScan
     setTorchSupported(false);
     setZoomSupported(false);
     setEngineType('');
+    setPermissionDenied(false);
 
     const loadScript = async () => {
       if ((window as any).Html5Qrcode) {
@@ -99,6 +100,24 @@ const BarcodeScanner: React.FC<BarcodeScannerProps> = ({ isOpen, onClose, onScan
   const initScanner = async () => {
     try {
       setError(null);
+      setPermissionDenied(false);
+
+      // Permissions API로 실제 카메라 권한 상태 확인
+      if (navigator.permissions) {
+        try {
+          const result = await navigator.permissions.query({ name: 'camera' as PermissionName });
+          console.log('[BarcodeScanner] Camera permission state:', result.state);
+          if (result.state === 'denied') {
+            setPermissionDenied(true);
+            setError('PERMISSION_DENIED');
+            return;
+          }
+        } catch (e) {
+          // Permissions API 미지원 브라우저 → 그냥 진행
+          console.log('[BarcodeScanner] Permissions API not supported, proceeding');
+        }
+      }
+
       const Html5QrcodeClass = (window as any).Html5Qrcode;
       if (!Html5QrcodeClass) {
         setError('Html5Qrcode not loaded');
