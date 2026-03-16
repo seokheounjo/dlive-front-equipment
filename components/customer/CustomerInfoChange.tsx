@@ -491,8 +491,8 @@ const CustomerInfoChange: React.FC<CustomerInfoChangeProps> = ({
       showAlert('예금주/카드소유주 명을 입력해주세요.', 'warning');
       return;
     }
-    if (!paymentForm.bankCd) {
-      showAlert('은행/카드사를 선택해주세요.', 'warning');
+    if (paymentForm.pymMthCd === '01' && !paymentForm.bankCd) {
+      showAlert('은행을 선택해주세요.', 'warning');
       return;
     }
     if (!paymentForm.acntNo) {

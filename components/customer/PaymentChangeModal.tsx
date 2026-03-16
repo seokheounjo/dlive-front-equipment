@@ -182,7 +182,7 @@ const PaymentChangeModal: React.FC<PaymentChangeModalProps> = ({
         });
       };
       loadCodes('은행(BLPY015)', getBankCodesDLive, setBankCodes);
-      loadCodes('카드사(BLPY016)', getCardCompanyCodes, setCardCompanyCodes);
+      // 카드사 코드는 카드 인증 시 FINANCE_CD로 자동 설정되므로 로딩 불필요
       loadCodes('신분유형(CMCU111)', getIdTypeCodes111, setIdTypeCodes);
       loadCodes('납부자관계(CMCU005)', getPayerRelationCodes, setPyrRelCodes);
       loadCodes('변경사유(CMCU079)', getChangeReasonCodes, setChangeReasonCodes);
@@ -253,8 +253,8 @@ const PaymentChangeModal: React.FC<PaymentChangeModalProps> = ({
       showAlert('예금주/카드소유주 명을 입력해주세요.', 'warning');
       return;
     }
-    if (!paymentForm.bankCd) {
-      showAlert('은행/카드사를 선택해주세요.', 'warning');
+    if (paymentForm.pymMthCd === '01' && !paymentForm.bankCd) {
+      showAlert('은행을 선택해주세요.', 'warning');
       return;
     }
     if (!paymentForm.acntNo) {
@@ -682,11 +682,10 @@ const PaymentChangeModal: React.FC<PaymentChangeModalProps> = ({
                   />
                 </div>
 
-                {/* 은행명/카드사명 */}
+                {/* 은행명 (자동이체만 — 카드는 인증 시 자동 설정) */}
+                {paymentForm.pymMthCd === '01' && (
                 <div className="flex items-center">
-                  <label className="w-20 flex-shrink-0 text-xs text-gray-500">
-                    {paymentForm.pymMthCd === '01' ? '은행명' : '카드사명'}
-                  </label>
+                  <label className="w-20 flex-shrink-0 text-xs text-gray-500">은행명</label>
                   <Select
                     value={paymentForm.bankCd}
                     onValueChange={(val) => {
@@ -695,12 +694,13 @@ const PaymentChangeModal: React.FC<PaymentChangeModalProps> = ({
                     }}
                     options={[
                       { value: '', label: '선택' },
-                      ...(paymentForm.pymMthCd === '01' ? bankCodes : cardCompanyCodes).map(code => ({ value: code.CODE, label: code.CODE_NM }))
+                      ...bankCodes.map(code => ({ value: code.CODE, label: code.CODE_NM }))
                     ]}
                     placeholder="선택"
                     className="flex-1"
                   />
                 </div>
+                )}
 
                 {/* 계좌번호/카드번호 + 인증 */}
                 <div ref={verifyAreaRef} className="flex items-center">
@@ -750,10 +750,10 @@ const PaymentChangeModal: React.FC<PaymentChangeModalProps> = ({
                   <div className="flex items-center gap-1.5 px-2 py-1.5 bg-green-50 border border-green-200 rounded text-xs text-green-700">
                     <Check className="w-3.5 h-3.5 flex-shrink-0" />
                     <span>
-                      {paymentForm.pymMthCd === '01' ? '계좌' : '카드'} 인증완료: {getCodeName(paymentForm.pymMthCd === '01' ? bankCodes : cardCompanyCodes, paymentForm.bankCd)} {paymentForm.acntNo ? paymentForm.acntNo.replace(/(\d{4})(?=\d)/g, '$1-').slice(0, paymentForm.pymMthCd === '01' ? 20 : 19) : ''} ({paymentForm.acntHolderNm})
+                      {paymentForm.pymMthCd === '01' ? '계좌' : '카드'} 인증완료: {paymentForm.pymMthCd === '01' ? getCodeName(bankCodes, paymentForm.bankCd) + ' ' : ''}{paymentForm.acntNo ? paymentForm.acntNo.replace(/(\d{4})(?=\d)/g, '$1-').slice(0, paymentForm.pymMthCd === '01' ? 20 : 19) : ''} ({paymentForm.acntHolderNm})
                     </span>
                   </div>
-                ) : (paymentForm.acntNo && paymentForm.bankCd && paymentForm.acntHolderNm) ? (
+                ) : (paymentForm.acntNo && (paymentForm.pymMthCd === '02' || paymentForm.bankCd) && paymentForm.acntHolderNm) ? (
                   <div className="flex items-center gap-1.5 px-2 py-1.5 bg-orange-50 border border-orange-200 rounded text-xs text-orange-600">
                     <AlertCircle className="w-3.5 h-3.5 flex-shrink-0" />
                     <span>입력 정보가 변경되었습니다. 인증 버튼을 눌러주세요.</span>
