@@ -128,27 +128,36 @@ const App: React.FC = () => {
   useEffect(() => {
     if (!isAuthenticated) return;
 
-    // history에 상태를 push하여 뒤로가기 감지 가능하게 함
-    const pushState = () => {
-      window.history.pushState({ appView: currentView }, '');
-    };
-    pushState();
+    // Chrome 호환: history에 2개 push하여 뒤로가기 시 항상 popstate가 발생하도록 보장
+    window.history.replaceState({ appView: currentView, idx: 0 }, '');
+    window.history.pushState({ appView: currentView, idx: 1 }, '');
 
-    const handlePopState = () => {
+    const handlePopState = (e: PopStateEvent) => {
+      // 항상 다시 push하여 다음 뒤로가기도 감지 가능하게 함
+      window.history.pushState({ appView: currentView, idx: 1 }, '');
+
       const parentView = NAVIGATION_HIERARCHY[currentView];
       if (parentView) {
         // 하위 페이지면 상위로 이동
         setCurrentView(parentView);
-        window.history.pushState({ appView: parentView }, '');
       } else {
         // 최상위(today-work)면 종료 확인 팝업
         setShowExitConfirm(true);
-        window.history.pushState({ appView: currentView }, '');
       }
     };
 
+    // beforeunload: Chrome에서 popstate 우회 시 백업 (탭 닫기, 주소창 이동 등)
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+      e.returnValue = '';
+    };
+
     window.addEventListener('popstate', handlePopState);
-    return () => window.removeEventListener('popstate', handlePopState);
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => {
+      window.removeEventListener('popstate', handlePopState);
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+    };
   }, [isAuthenticated, currentView]);
 
   // 전역 에러 핸들러 설정
