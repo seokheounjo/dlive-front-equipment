@@ -46,7 +46,31 @@ const BarcodeScanner: React.FC<BarcodeScannerProps> = ({ isOpen, onClose, onScan
   const [zoomLevel, setZoomLevel] = useState(1);
   const [zoomRange, setZoomRange] = useState({ min: 1, max: 1 });
   const [engineType, setEngineType] = useState<string>('');
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
 
+  // 사진 촬영으로 바코드 스캔 (카메라 권한 불필요)
+  const handlePhotoScan = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    try {
+      const Html5QrcodeClass = (window as any).Html5Qrcode;
+      if (!Html5QrcodeClass) {
+        setError('Html5Qrcode not loaded');
+        return;
+      }
+      const tempScanner = new Html5QrcodeClass('barcode-reader-temp');
+      const result = await tempScanner.scanFile(file, /* showImage= */ false);
+      console.log('[BarcodeScanner] Photo scan result:', result);
+      if (navigator.vibrate) navigator.vibrate([50, 30, 50]);
+      onScan(result);
+      if (!isMultiScanMode) handleClose();
+    } catch (err: any) {
+      console.error('[BarcodeScanner] Photo scan error:', err);
+      setError('PHOTO_SCAN_FAILED');
+    }
+    // 같은 파일 재선택 허용
+    if (fileInputRef.current) fileInputRef.current.value = '';
+  };
 
   // 화면 회전 잠금 (세로 모드 고정)
   useEffect(() => {
@@ -392,38 +416,52 @@ const BarcodeScanner: React.FC<BarcodeScannerProps> = ({ isOpen, onClose, onScan
       >
         {error ? (
           <div className="bg-red-500/20 border border-red-500/50 rounded-lg p-4 mb-3">
-            <div className="flex items-center justify-center mb-2">
-              <svg className="w-10 h-10 text-orange-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z" />
-              </svg>
-            </div>
-            <p className="text-orange-300 text-sm text-center font-bold mb-3">
-              카메라를 사용할 수 없습니다
-            </p>
-            <div className="bg-white/10 rounded-lg p-3 mb-3">
-              <p className="text-white text-xs font-bold mb-2">아래 순서대로 설정을 변경해주세요:</p>
-              <div className="text-white/80 text-sm space-y-2">
-                <div className="flex items-start gap-2">
-                  <span className="bg-blue-500 text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center flex-shrink-0 mt-0.5">1</span>
-                  <span>주소창 왼쪽 <b className="text-white">자물쇠 아이콘</b> 터치</span>
+            {error === 'PHOTO_SCAN_FAILED' ? (
+              <>
+                <p className="text-orange-300 text-sm text-center font-bold mb-2">
+                  바코드를 인식하지 못했습니다
+                </p>
+                <p className="text-white/60 text-xs text-center mb-3">
+                  바코드가 선명하게 보이도록 다시 촬영해주세요
+                </p>
+                <button
+                  onClick={() => { setError(null); fileInputRef.current?.click(); }}
+                  className="w-full py-3 bg-green-500 hover:bg-green-600 text-white rounded-lg text-sm font-bold mb-2"
+                >
+                  다시 촬영하기
+                </button>
+              </>
+            ) : (
+              <>
+                <p className="text-orange-300 text-sm text-center font-bold mb-3">
+                  카메라를 사용할 수 없습니다
+                </p>
+                {/* 사진 촬영 스캔 - 카메라 권한 불필요 */}
+                <button
+                  onClick={() => fileInputRef.current?.click()}
+                  className="w-full py-3 bg-green-500 hover:bg-green-600 text-white rounded-lg text-sm font-bold mb-3 flex items-center justify-center gap-2"
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
+                  </svg>
+                  사진으로 바코드 스캔
+                </button>
+                <div className="bg-white/10 rounded-lg p-3 mb-3">
+                  <p className="text-white text-xs font-bold mb-2">또는 카메라 권한을 허용해주세요:</p>
+                  <div className="text-white/80 text-xs space-y-1">
+                    <div className="flex items-start gap-2">
+                      <span className="bg-blue-500 text-white text-xs font-bold rounded-full w-4 h-4 flex items-center justify-center flex-shrink-0 mt-0.5" style={{fontSize:'10px'}}>1</span>
+                      <span>주소창 왼쪽 <b className="text-white">자물쇠</b> 터치</span>
+                    </div>
+                    <div className="flex items-start gap-2">
+                      <span className="bg-blue-500 text-white text-xs font-bold rounded-full w-4 h-4 flex items-center justify-center flex-shrink-0 mt-0.5" style={{fontSize:'10px'}}>2</span>
+                      <span>카메라 → <b className="text-green-400">"허용"</b>으로 변경 → 새로고침</span>
+                    </div>
+                  </div>
                 </div>
-                <div className="flex items-start gap-2">
-                  <span className="bg-blue-500 text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center flex-shrink-0 mt-0.5">2</span>
-                  <span><b className="text-white">"권한"</b> 또는 <b className="text-white">"사이트 설정"</b> 터치</span>
-                </div>
-                <div className="flex items-start gap-2">
-                  <span className="bg-blue-500 text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center flex-shrink-0 mt-0.5">3</span>
-                  <span>카메라 → <b className="text-green-400">"허용"</b>으로 변경</span>
-                </div>
-              </div>
-            </div>
-            <p className="text-white/60 text-xs text-center mb-2">설정 변경 후 아래 버튼을 눌러주세요</p>
-            <button
-              onClick={() => { window.location.reload(); }}
-              className="w-full py-3 bg-blue-500 hover:bg-blue-600 text-white rounded-lg text-sm font-bold"
-            >
-              설정 변경 완료 → 새로고침
-            </button>
+              </>
+            )}
           </div>
         ) : (
           <div className="text-center mb-3">
@@ -445,6 +483,18 @@ const BarcodeScanner: React.FC<BarcodeScannerProps> = ({ isOpen, onClose, onScan
           수동 입력
         </button>
       </div>
+
+      {/* Hidden file input for photo scan */}
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="image/*"
+        capture="environment"
+        onChange={handlePhotoScan}
+        style={{ display: 'none' }}
+      />
+      {/* Hidden div for scanFile */}
+      <div id="barcode-reader-temp" style={{ display: 'none' }}></div>
 
       <style>{`
         @keyframes scan {

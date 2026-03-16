@@ -1,16 +1,27 @@
 // Service Worker for D'LIVE Mobile CONA PWA
-const CACHE_NAME = 'dlive-cona-v2';
+const CACHE_NAME = 'dlive-cona-v3';
 
 // Install event
 self.addEventListener('install', (event) => {
-  console.log('[SW] Install');
+  console.log('[SW] Install v3');
   self.skipWaiting();
 });
 
-// Activate event
+// Activate event - 이전 캐시 모두 삭제
 self.addEventListener('activate', (event) => {
-  console.log('[SW] Activate');
-  event.waitUntil(clients.claim());
+  console.log('[SW] Activate v3 - clearing old caches');
+  event.waitUntil(
+    caches.keys().then((names) => {
+      return Promise.all(
+        names.map((name) => {
+          if (name !== CACHE_NAME) {
+            console.log('[SW] Deleting old cache:', name);
+            return caches.delete(name);
+          }
+        })
+      );
+    }).then(() => clients.claim())
+  );
 });
 
 // Push event - 서버에서 보낸 푸시 알림 수신

@@ -82,13 +82,24 @@ app.use(cors({
 const apiProxy = require('./api-proxy');
 app.use('/api', apiProxy);
 
-// 정적 파일 서빙 (Vite 빌드 결과)
-app.use(express.static(path.join(__dirname, 'dist')));
+// 정적 파일 서빙 (Vite 빌드 결과) - HTML/SW는 캐시 금지
+app.use(express.static(path.join(__dirname, 'dist'), {
+  setHeaders: (res, filePath) => {
+    if (filePath.endsWith('.html') || filePath.endsWith('sw.js')) {
+      res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+      res.setHeader('Pragma', 'no-cache');
+      res.setHeader('Expires', '0');
+    }
+  }
+}));
 
 // SPA를 위한 fallback (모든 경로를 index.html로)
 app.use((req, res, next) => {
   // API 경로가 아닌 경우에만 index.html 반환
   if (!req.path.startsWith('/api/')) {
+    res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+    res.setHeader('Pragma', 'no-cache');
+    res.setHeader('Expires', '0');
     res.sendFile(path.join(__dirname, 'dist', 'index.html'));
   } else {
     next();
