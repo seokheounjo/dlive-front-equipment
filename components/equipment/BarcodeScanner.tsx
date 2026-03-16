@@ -46,7 +46,7 @@ const BarcodeScanner: React.FC<BarcodeScannerProps> = ({ isOpen, onClose, onScan
   const [zoomLevel, setZoomLevel] = useState(1);
   const [zoomRange, setZoomRange] = useState({ min: 1, max: 1 });
   const [engineType, setEngineType] = useState<string>('');
-  const [permissionDenied, setPermissionDenied] = useState(false);
+
 
   // 화면 회전 잠금 (세로 모드 고정)
   useEffect(() => {
@@ -79,7 +79,6 @@ const BarcodeScanner: React.FC<BarcodeScannerProps> = ({ isOpen, onClose, onScan
     setTorchSupported(false);
     setZoomSupported(false);
     setEngineType('');
-    setPermissionDenied(false);
 
     const loadScript = async () => {
       if ((window as any).Html5Qrcode) {
@@ -100,7 +99,6 @@ const BarcodeScanner: React.FC<BarcodeScannerProps> = ({ isOpen, onClose, onScan
   const initScanner = async () => {
     try {
       setError(null);
-      setPermissionDenied(false);
 
       const Html5QrcodeClass = (window as any).Html5Qrcode;
       if (!Html5QrcodeClass) {
@@ -111,7 +109,6 @@ const BarcodeScanner: React.FC<BarcodeScannerProps> = ({ isOpen, onClose, onScan
     } catch (err: any) {
       console.error('[BarcodeScanner] Camera init error:', err, JSON.stringify({name: err.name, message: err.message}));
       // 모바일에서 카메라 실패 = 권한 문제가 대부분 → 항상 권한 안내 표시
-      setPermissionDenied(true);
       setError('PERMISSION_DENIED');
     }
   };
@@ -241,7 +238,6 @@ const BarcodeScanner: React.FC<BarcodeScannerProps> = ({ isOpen, onClose, onScan
       }
       // 모바일에서 카메라 실패 = 권한 문제가 대부분 → 항상 권한 안내 표시
       console.error('[BarcodeScanner] Final error:', err, JSON.stringify({name: err.name, message: err.message}));
-      setPermissionDenied(true);
       setError('PERMISSION_DENIED');
     }
   };
@@ -267,7 +263,6 @@ const BarcodeScanner: React.FC<BarcodeScannerProps> = ({ isOpen, onClose, onScan
   const handleRetry = async () => {
     setIsRetrying(true);
     setError(null);
-    setPermissionDenied(false);
     await stopScanner();
     await new Promise(resolve => setTimeout(resolve, 300));
     await initScanner();
@@ -397,63 +392,38 @@ const BarcodeScanner: React.FC<BarcodeScannerProps> = ({ isOpen, onClose, onScan
       >
         {error ? (
           <div className="bg-red-500/20 border border-red-500/50 rounded-lg p-4 mb-3">
-            {permissionDenied ? (
-              <>
-                <div className="flex items-center justify-center mb-2">
-                  <svg className="w-10 h-10 text-orange-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z" />
-                  </svg>
+            <div className="flex items-center justify-center mb-2">
+              <svg className="w-10 h-10 text-orange-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z" />
+              </svg>
+            </div>
+            <p className="text-orange-300 text-sm text-center font-bold mb-3">
+              카메라를 사용할 수 없습니다
+            </p>
+            <div className="bg-white/10 rounded-lg p-3 mb-3">
+              <p className="text-white text-xs font-bold mb-2">아래 순서대로 설정을 변경해주세요:</p>
+              <div className="text-white/80 text-sm space-y-2">
+                <div className="flex items-start gap-2">
+                  <span className="bg-blue-500 text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center flex-shrink-0 mt-0.5">1</span>
+                  <span>주소창 왼쪽 <b className="text-white">자물쇠 아이콘</b> 터치</span>
                 </div>
-                <p className="text-orange-300 text-sm text-center font-bold mb-3">
-                  카메라 권한이 차단되어 있습니다
-                </p>
-                <div className="bg-white/10 rounded-lg p-3 mb-3">
-                  <p className="text-white text-xs font-bold mb-2">아래 순서대로 설정을 변경해주세요:</p>
-                  <div className="text-white/80 text-sm space-y-2">
-                    <div className="flex items-start gap-2">
-                      <span className="bg-blue-500 text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center flex-shrink-0 mt-0.5">1</span>
-                      <span>주소창 왼쪽 <b className="text-white">자물쇠 아이콘</b> 터치</span>
-                    </div>
-                    <div className="flex items-start gap-2">
-                      <span className="bg-blue-500 text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center flex-shrink-0 mt-0.5">2</span>
-                      <span><b className="text-white">"권한"</b> 또는 <b className="text-white">"사이트 설정"</b> 터치</span>
-                    </div>
-                    <div className="flex items-start gap-2">
-                      <span className="bg-blue-500 text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center flex-shrink-0 mt-0.5">3</span>
-                      <span>카메라 → <b className="text-green-400">"허용"</b>으로 변경</span>
-                    </div>
-                  </div>
+                <div className="flex items-start gap-2">
+                  <span className="bg-blue-500 text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center flex-shrink-0 mt-0.5">2</span>
+                  <span><b className="text-white">"권한"</b> 또는 <b className="text-white">"사이트 설정"</b> 터치</span>
                 </div>
-                <p className="text-white/60 text-xs text-center mb-2">설정 변경 후 아래 버튼을 눌러주세요</p>
-                <button
-                  onClick={() => { window.location.reload(); }}
-                  className="w-full py-3 bg-blue-500 hover:bg-blue-600 text-white rounded-lg text-sm font-bold"
-                >
-                  설정 변경 완료 → 새로고침
-                </button>
-              </>
-            ) : (
-              <>
-                <p className="text-red-200 text-sm text-center whitespace-pre-line">{error}</p>
-                <button
-                  onClick={handleRetry}
-                  disabled={isRetrying}
-                  className="w-full mt-3 py-2.5 bg-red-500 hover:bg-red-600 disabled:bg-red-400 text-white rounded-lg text-sm font-medium flex items-center justify-center gap-2"
-                >
-                  {isRetrying ? (
-                    <>
-                      <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24">
-                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
-                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-                      </svg>
-                      권한 요청 중...
-                    </>
-                  ) : (
-                    '다시 시도'
-                  )}
-                </button>
-              </>
-            )}
+                <div className="flex items-start gap-2">
+                  <span className="bg-blue-500 text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center flex-shrink-0 mt-0.5">3</span>
+                  <span>카메라 → <b className="text-green-400">"허용"</b>으로 변경</span>
+                </div>
+              </div>
+            </div>
+            <p className="text-white/60 text-xs text-center mb-2">설정 변경 후 아래 버튼을 눌러주세요</p>
+            <button
+              onClick={() => { window.location.reload(); }}
+              className="w-full py-3 bg-blue-500 hover:bg-blue-600 text-white rounded-lg text-sm font-bold"
+            >
+              설정 변경 완료 → 새로고침
+            </button>
           </div>
         ) : (
           <div className="text-center mb-3">
