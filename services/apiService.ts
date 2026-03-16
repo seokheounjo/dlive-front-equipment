@@ -494,6 +494,8 @@ export const loginWithOtp = async (userId: string, password: string, otpCode: st
         PASSWORD: password,
         OTP_CODE: otpCode,
         DISCONN_YN: disconnYn,
+        DRM_VERSION: '1000',
+        LOGIN_VIEW: 'MOBILE',
         NW_TYPE: nwType
       }),
     }, 1);
