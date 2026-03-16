@@ -1000,9 +1000,9 @@ router.post('/customer/equipment/getUserExtendedInfo', handleProxy);
 router.post('/customer/equipment/getWrkrHaveEqtList_All', handleMconaProxy);        // My Equipment (보유장비) → MCONA
 router.post('/customer/equipment/searchWorkersByName', handleProxy);        // 기사 이름 검색
 router.post("/customer/equipment/getEquipmentChkStndByA_All", handleMconaProxy);  // 검사대기 → MCONA
-router.post("/customer/phoneNumber/getOwnEqtLstForMobile_3", handleProxy);  // 장비반납
+router.post("/customer/phoneNumber/getOwnEqtLstForMobile_3", handleMconaProxy);  // 장비반납 → MCONA (adapter 0건)
 router.post("/customer/phoneNumber/getCtrtIDforSmartPhone", handleProxy);  // 고객검색 (전화번호)
-router.post("/customer/equipment/getOwnEqtLstForMobile_3", handleProxy);  // 반납요청 (equipment 경로)
+router.post("/customer/equipment/getOwnEqtLstForMobile_3", handleMconaProxy);  // 반납요청 (equipment 경로) → MCONA
 router.post("/customer/equipment/getEquipmentReturnRequestList_All", handleProxy);  // 반납요청 _All (추가)
 router.post("/customer/equipment/getWrkrListDetail", handleProxy);  // 분실처리 상세조회 (추가)
 router.post("/customer/equipment/getEquipmentTypeList", handleProxy);  // 장비 소분류 목록 조회
@@ -1010,7 +1010,7 @@ router.post("/customer/equipment/getEqtTrnsList", handleProxy);  // 장비이동
 router.post("/customer/equipment/getEqtMasterInfo", handleProxy);  // 장비 마스터 정보 조회
 
 // Statistics/Equipment API
-router.post('/statistics/equipment/getEquipmentHistoryInfo', handleProxy);
+router.post('/statistics/equipment/getEquipmentHistoryInfo', handleMconaProxy);  // → MCONA (adapter 500 에러)
 
 // Statistics/Customer API (Address Search)
 router.post('/statistics/customer/getPostList', handleProxy);  // 지번주소 검색
