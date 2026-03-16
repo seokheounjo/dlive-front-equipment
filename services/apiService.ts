@@ -373,7 +373,7 @@ const getDummyWorkOrders = (startDate: string, endDate: string): WorkOrder[] => 
   const statuses = [WorkOrderStatus.Pending, WorkOrderStatus.Completed, WorkOrderStatus.Cancelled];
   const addresses = [
     "서울시 송파구 석촌동 15번지 1호",
-    "서울시 강남구 역삼동 123번지 5호", 
+    "서울시 강남구 역삼동 123번지 5호",
     "서울시 마포구 합정동 456번지 12호",
     "서울시 서초구 방배동 789번지 3호",
     "서울시 용산구 이촌동 321번지 8호",
@@ -408,6 +408,12 @@ const getDummyWorkOrders = (startDate: string, endDate: string): WorkOrder[] => 
 
   return dummyOrders;
 };
+
+// 더미 모드 확인 함수
+export const checkDemoMode = (): boolean => {
+  return typeof window !== 'undefined' && localStorage.getItem('demoMode') === 'true';
+};
+
 
 // 로그인 API 응답 타입 (레거시 gds_user 필드 + AUTH_SO_List)
 export interface LoginResponse {
@@ -511,189 +517,7 @@ export const loginWithOtp = async (userId: string, password: string, otpCode: st
   }
 };
 
-// 더미 모드 확인 함수
-export const checkDemoMode = (): boolean => {
-  return typeof window !== 'undefined' && localStorage.getItem('demoMode') === 'true';
-};
 
-// ============ 더미 데이터 생성 함수들 ============
-
-const getDummySafetyChecks = (): SafetyCheck[] => {
-  return [
-    {
-      INSP_ID: 'INSP001',
-      SO_ID: '209',
-      CRR_ID: '01',
-      INSP_END_DT: '20251015',
-      STTL_YN: 'Y',
-      CUST_ID: 'CUST001',
-      CUST_NM: '김철수',
-      TEL_NO: '010-1234-5678',
-      PASS_YN: 'Y',
-      PROD_GRP_NM: '인터넷+TV'
-    },
-    {
-      INSP_ID: 'INSP002',
-      SO_ID: '209',
-      CRR_ID: '01',
-      INSP_END_DT: '20251014',
-      STTL_YN: 'N',
-      CUST_ID: 'CUST002',
-      CUST_NM: '박영희',
-      TEL_NO: '010-2345-6789',
-      PASS_YN: 'N',
-      FAIL_GRADE: 'B',
-      DAPPR_RESN: '장비 불량',
-      PROD_GRP_NM: '인터넷'
-    },
-    {
-      INSP_ID: 'INSP003',
-      SO_ID: '209',
-      CRR_ID: '01',
-      INSP_END_DT: '20251013',
-      STTL_YN: 'Y',
-      CUST_ID: 'CUST003',
-      CUST_NM: '이민수',
-      TEL_NO: '010-3456-7890',
-      PASS_YN: 'Y',
-      PROD_GRP_NM: '인터넷+TV+전화'
-    }
-  ];
-};
-
-const getDummyENSHistory = (): ENSHistory[] => {
-  return [
-    {
-      MSG_TYP: 'KKO',
-      SO_ID: '209',
-      SO_NM: '송파지점',
-      EML_SMS_SND_ID: 'MSG001',
-      EML_SMS_SND_TP: '01',
-      EML_SMS_SND_TP_NM: '작업완료',
-      CUST_ID: 'CUST001',
-      CUST_NM: '김철수',
-      SEND_TYPE: '즉시',
-      CELL_PHN: '010-1234-5678',
-      SMS_RCV_NO: '1588-1234',
-      MESSAGE: '안녕하세요. D\'LIVE입니다.\n작업이 완료되었습니다.',
-      RESULT: '성공',
-      RSLT_NM: '전송성공',
-      REG_UID: 'A20230019',
-      REG_NM: '김상주',
-      SOSOK: '송파지점',
-      REG_DATE: '2025-10-16 14:30',
-      CREATE_TIME: '2025-10-16 14:30',
-      SEND_TIME: '2025-10-16 14:30',
-      RSLT_TIME: '2025-10-16 14:31',
-      TM_RSLT: '정상'
-    },
-    {
-      MSG_TYP: 'SMS',
-      SO_ID: '209',
-      SO_NM: '송파지점',
-      EML_SMS_SND_ID: 'MSG002',
-      EML_SMS_SND_TP: '02',
-      EML_SMS_SND_TP_NM: '작업예정',
-      CUST_ID: 'CUST002',
-      CUST_NM: '박영희',
-      SEND_TYPE: '예약',
-      CELL_PHN: '010-2345-6789',
-      SMS_RCV_NO: '1588-1234',
-      MESSAGE: '내일 오전 10시 방문 예정입니다.',
-      RESULT: '성공',
-      RSLT_NM: '전송성공',
-      REG_UID: 'A20230019',
-      REG_NM: '김상주',
-      SOSOK: '송파지점',
-      REG_DATE: '2025-10-16 09:00',
-      CREATE_TIME: '2025-10-16 09:00',
-      SEND_TIME: '2025-10-16 09:01',
-      RSLT_TIME: '2025-10-16 09:02',
-      TM_RSLT: '정상'
-    },
-    {
-      MSG_TYP: 'LMS',
-      SO_ID: '209',
-      SO_NM: '송파지점',
-      EML_SMS_SND_ID: 'MSG003',
-      EML_SMS_SND_TP: '03',
-      EML_SMS_SND_TP_NM: '작업취소',
-      CUST_ID: 'CUST003',
-      CUST_NM: '이민수',
-      SEND_TYPE: '즉시',
-      CELL_PHN: '010-3456-7890',
-      SMS_RCV_NO: '1588-1234',
-      MESSAGE: '고객 요청으로 작업이 취소되었습니다.',
-      RESULT: '실패',
-      RSLT_NM: '전송실패',
-      REG_UID: 'A20230019',
-      REG_NM: '김상주',
-      SOSOK: '송파지점',
-      REG_DATE: '2025-10-15 16:00',
-      CREATE_TIME: '2025-10-15 16:00',
-      SEND_TIME: '2025-10-15 16:00',
-      RSLT_TIME: '',
-      TM_RSLT: '실패'
-    }
-  ];
-};
-
-const getDummyWorkResultSignals = (): WorkResultSignal[] => {
-  return [
-    {
-      WRK_DRCTN_ID: 'WRK001',
-      WRK_ID: '1008409324',
-      CUST_ID: 'CUST001',
-      CUST_NM: '김철수',
-      SO_ID: '209',
-      SO_NM: '송파지점',
-      CRR_ID: '01',
-      CRR_NM: 'LG',
-      PROD_CD: 'PROD001',
-      PROD_NM: '인터넷 100M',
-      WRK_CD: '02',
-      WRK_CD_NM: 'A/S',
-      WRK_STAT_CD: '4',
-      WRK_STAT_NM: '완료',
-      SIGNAL_RESULT: '정상',
-      SIGNAL_DATE: '2025-10-16 15:30'
-    },
-    {
-      WRK_DRCTN_ID: 'WRK002',
-      WRK_ID: '1008409325',
-      CUST_ID: 'CUST002',
-      CUST_NM: '박영희',
-      SO_ID: '209',
-      SO_NM: '송파지점',
-      CRR_ID: '01',
-      CRR_NM: 'LG',
-      PROD_CD: 'PROD002',
-      PROD_NM: '인터넷 500M + TV',
-      WRK_CD: '01',
-      WRK_CD_NM: '신규설치',
-      WRK_STAT_CD: '2',
-      WRK_STAT_NM: '진행중',
-      SIGNAL_RESULT: '대기중'
-    },
-    {
-      WRK_DRCTN_ID: 'WRK003',
-      WRK_ID: '1008409326',
-      CUST_ID: 'CUST003',
-      CUST_NM: '이민수',
-      SO_ID: '209',
-      SO_NM: '송파지점',
-      CRR_ID: '01',
-      CRR_NM: 'LG',
-      PROD_CD: 'PROD003',
-      PROD_NM: '인터넷 1G',
-      WRK_CD: '03',
-      WRK_CD_NM: '이전설치',
-      WRK_STAT_CD: '1',
-      WRK_STAT_NM: '대기',
-      SIGNAL_RESULT: '미전송'
-    }
-  ];
-};
 
 // 작업지시서별 실제 작업개수 조회
 export const getWorkCountForDirection = async (directionId: string): Promise<number> => {
@@ -867,11 +691,6 @@ export const getWorkStatusCountsForDirection = async (directionId: string): Prom
 export const getWorkReceipts = async (directionId: string): Promise<any[]> => {
 
   // 더미 모드 체크
-  const isDemoMode = checkDemoMode();
-
-  if (isDemoMode) {
-    return getMockWorkItems(directionId);
-  }
 
   try {
     const origin = typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000';
@@ -901,13 +720,6 @@ export const getWorkReceipts = async (directionId: string): Promise<any[]> => {
 // 작업취소 API
 export const cancelWork = async (cancelData: any): Promise<{ code: string; message: string }> => {
   // 더미 모드 체크
-  const isDemoMode = typeof window !== 'undefined' && localStorage.getItem('demoMode') === 'true';
-
-  if (isDemoMode) {
-    // 1초 지연 후 성공 응답
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    return { code: "SUCCESS", message: "작업이 성공적으로 취소되었습니다 (더미)" };
-  }
 
   try {
     const origin = typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000';
@@ -975,23 +787,6 @@ export const getWorkCancelInfo = async (params: {
   console.log('[작업취소정보] API 호출:', params);
 
   // 더미 모드 체크
-  if (checkDemoMode()) {
-    await new Promise(resolve => setTimeout(resolve, 300));
-    return {
-      WRK_ID: params.WRK_ID,
-      RCPT_ID: params.RCPT_ID || '',
-      CUST_ID: params.CUST_ID || '',
-      CTRT_ID: 'CT001',
-      SO_ID: '100',
-      WRK_CD: '01',
-      WRK_CD_NM: '설치',
-      WRK_STAT_CD: '2',
-      WRK_STAT_CD_NM: '할당',
-      WRK_RCPT_CL: '',
-      OST_WORKABLE_STAT: 'X',
-      HOTBILL_YN: 'N'
-    };
-  }
 
   try {
     const origin = typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000';
@@ -1039,14 +834,6 @@ export const getOSTInfo = async (params: {
   console.log('[OST정보] API 호출:', params);
 
   // 더미 모드 체크
-  if (checkDemoMode()) {
-    await new Promise(resolve => setTimeout(resolve, 300));
-    return {
-      AGENT_FL: '1',
-      BUSI_TYPE: '031',
-      RES_CD: '0BS0000'
-    };
-  }
 
   try {
     const origin = typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000';
@@ -1096,10 +883,6 @@ export const modOstWorkCancel = async (params: {
   console.log('[OST취소] API 호출:', params);
 
   // 더미 모드 체크
-  if (checkDemoMode()) {
-    await new Promise(resolve => setTimeout(resolve, 500));
-    return { code: 'SUCCESS', message: '작업취소가 처리되었습니다.' };
-  }
 
   try {
     const origin = typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000';
@@ -1195,11 +978,6 @@ const mapWorkOrderStatus = (apiStatus: string, wrkStatCd?: string): WorkOrderSta
 export const getWorkOrders = async ({ startDate, endDate }: { startDate: string, endDate: string }): Promise<WorkOrder[]> => {
 
   // 더미 모드 체크
-  const isDemoMode = checkDemoMode();
-
-  if (isDemoMode) {
-    return getDummyWorkOrders(startDate, endDate);
-  }
 
   const formattedStartDate = startDate.replace(/-/g, '');
   const formattedEndDate = endDate.replace(/-/g, '');
@@ -1384,9 +1162,6 @@ export const getWorkReceiptDetail = async (params: {
   SO_ID?: string;
 }): Promise<WorkReceiptDetail | null> => {
   // 더미 모드 체크
-  if (checkDemoMode()) {
-    return null;
-  }
 
   try {
     const origin = typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000';
@@ -1606,10 +1381,6 @@ export interface SafetyCheck {
  */
 export const getSafetyChecks = async (params: { SO_ID: string; CRR_ID: string; INSP_DT_FROM?: string; INSP_DT_TO?: string; INSP_ID?: string }): Promise<SafetyCheck[]> => {
   // 더미 모드 체크
-  if (checkDemoMode()) {
-    await new Promise(resolve => setTimeout(resolve, 500)); // 로딩 시뮬레이션
-    return getDummySafetyChecks();
-  }
 
   try {
     const origin = typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000';
@@ -1668,10 +1439,6 @@ export const saveSafetyCheck = async (data: {
   REG_UID: string;
 }): Promise<{ code: string; message: string }> => {
   // 더미 모드 체크
-  if (checkDemoMode()) {
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    return { code: 'SUCCESS', message: '안전점검이 등록되었습니다 (더미)' };
-  }
 
   try {
     const origin = typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000';
@@ -1743,10 +1510,6 @@ export const getENSHistory = async (params: {
   SMS_PROCESS?: string;
 }): Promise<ENSHistory[]> => {
   // 더미 모드 체크
-  if (checkDemoMode()) {
-    await new Promise(resolve => setTimeout(resolve, 500));
-    return getDummyENSHistory();
-  }
 
   try {
     const origin = typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000';
@@ -1811,10 +1574,6 @@ export const getWorkResultSignals = async (params: {
   PROD_CD?: string;
 }): Promise<WorkResultSignal[]> => {
   // 더미 모드 체크
-  if (checkDemoMode()) {
-    await new Promise(resolve => setTimeout(resolve, 500));
-    return getDummyWorkResultSignals();
-  }
 
   try {
     const origin = typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000';
@@ -1910,61 +1669,6 @@ export const getTechnicianEquipments = async (params: {
   BLD_ID?: string;          // 건물 ID
 }): Promise<EquipmentQueryResponse> => {
   // 더미 모드 체크 또는 실제 장비가 없을 때 테스트 데이터 사용
-  const isDemoMode = checkDemoMode();
-
-  if (isDemoMode) {
-    await new Promise(resolve => setTimeout(resolve, 500));
-    return {
-      contractEquipments: [
-        {
-          SVC_CMPS_ID: 'SVC001',
-          ITEM_MID_NM: '모뎀',
-          EQT_CL_NM: 'RS-M100',
-          ITEM_MID_CD: '04',
-        },
-        {
-          SVC_CMPS_ID: 'SVC002',
-          ITEM_MID_NM: '셋톱박스',
-          EQT_CL_NM: 'DTV-STB100',
-          ITEM_MID_CD: '05',
-        }
-      ],
-      technicianEquipments: [
-        {
-          EQT_NO: 'EQT001',
-          ITEM_MID_NM: '모뎀',
-          EQT_CL_NM: 'RS-M100',
-          EQT_SERNO: 'RSM100001',
-          ITEM_MID_CD: '04',
-          MAC_ADDRESS: 'AA:BB:CC:DD:EE:01'
-        },
-        {
-          EQT_NO: 'EQT002',
-          ITEM_MID_NM: '모뎀',
-          EQT_CL_NM: 'RS-M200',
-          EQT_SERNO: 'RSM200001',
-          ITEM_MID_CD: '04',
-          MAC_ADDRESS: 'AA:BB:CC:DD:EE:02'
-        },
-        {
-          EQT_NO: 'EQT003',
-          ITEM_MID_NM: '셋톱박스',
-          EQT_CL_NM: 'DTV-STB100',
-          EQT_SERNO: 'DTV100001',
-          ITEM_MID_CD: '05',
-        },
-        {
-          EQT_NO: 'EQT004',
-          ITEM_MID_NM: '셋톱박스',
-          EQT_CL_NM: 'DTV-STB200',
-          EQT_SERNO: 'DTV200001',
-          ITEM_MID_CD: '05',
-        }
-      ],
-      customerEquipments: [],
-      removedEquipments: []
-    };
-  }
 
   try {
     const origin = typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000';
@@ -2042,10 +1746,6 @@ export const getContractEquipments = async (params: {
   console.log('📋 장비 구성 정보 조회 API 호출:', params);
 
   // 더미 모드 체크
-  if (checkDemoMode()) {
-    await new Promise(resolve => setTimeout(resolve, 500));
-    return [];
-  }
 
   try {
     const origin = typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000';
@@ -2103,10 +1803,6 @@ export const updateEquipmentComposition = async (data: {
   WRKR_ID?: string;  // 기사 ID (필수)
 }): Promise<{ code: string; message: string }> => {
   // 더미 모드 체크
-  if (checkDemoMode()) {
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    return { code: 'SUCCESS', message: '장비 구성이 변경되었습니다 (더미)' };
-  }
 
   // 로그인한 사용자 정보에서 REG_UID, WRKR_ID 가져오기
   const userInfo = typeof window !== 'undefined' ? localStorage.getItem('userInfo') : null;
@@ -2252,16 +1948,6 @@ export const getEquipmentModelsForProduct = async (
   EQT_CL_NM: string;   // 장비 클래스명 (모델명)
 }>> => {
   // 더미 모드 체크
-  if (checkDemoMode()) {
-    await new Promise(resolve => setTimeout(resolve, 500));
-    return [
-      { EQT_CD: '05', EQT_CL_CD: 'STB001', EQT_CL_NM: 'STB-HD' },
-      { EQT_CD: '05', EQT_CL_CD: 'STB002', EQT_CL_NM: 'STB-UHD' },
-      { EQT_CD: '05', EQT_CL_CD: 'STB003', EQT_CL_NM: 'STB-4K' },
-      { EQT_CD: '04', EQT_CL_CD: 'MDM001', EQT_CL_NM: 'DOCSIS 3.0' },
-      { EQT_CD: '04', EQT_CL_CD: 'MDM002', EQT_CL_NM: 'DOCSIS 3.1' },
-    ];
-  }
 
   try {
     const requestBody: any = {
@@ -2375,62 +2061,6 @@ export const getContractEquipmentList = async (
   console.log('  - PROD_CD:', prodCd);
   console.log('  - CTRT_ID:', ctrtId);
 
-  if (checkDemoMode()) {
-    await new Promise(resolve => setTimeout(resolve, 500));
-    return {
-      output1: [{
-        ITEM_MID_CDS: '05        10        ',
-        EQT_CLS: 'STB001    MDM001    ',
-        LENTS: '1030',
-        EQT_USE_STATS: '11',
-        ITLLMT_PRDS: '0000',
-        EQT_SALE_AMTS: '0         0         '
-      }],
-      output2: [
-        {
-          SEL: '1',
-          PROD_CD: prodCd,
-          SVC_CD: 'SVC001',
-          PROD_TYP: '01',
-          PROD_GRP: 'V',
-          EQT: '05',
-          EQT_CD: '05',
-          EQT_CL: 'STB001',
-          EQT_CL_NM: 'STB-HD',
-          ITM_MID_CD: '05',
-          LENT: '10',
-          EQT_USE_STAT_CD: '1',
-          ITLLMT_PRD: '00',
-          LENT_YN: 'Y',
-          EQT_SALE_AMT: 0,
-          EQUIP_SEQ: '1',
-          EQT_BASIC_YN: 'Y',
-          EQT_NM: '셋톱박스'
-        },
-        {
-          SEL: '1',
-          PROD_CD: prodCd,
-          SVC_CD: 'SVC001',
-          PROD_TYP: '01',
-          PROD_GRP: 'V',
-          EQT: '04',
-          EQT_CD: '04',
-          EQT_CL: 'MDM001',
-          EQT_CL_NM: 'DOCSIS 3.0',
-          ITM_MID_CD: '04',
-          LENT: '30',
-          EQT_USE_STAT_CD: '1',
-          ITLLMT_PRD: '00',
-          LENT_YN: 'Y',
-          EQT_SALE_AMT: 0,
-          EQUIP_SEQ: '2',
-          EQT_BASIC_YN: 'Y',
-          EQT_NM: '모뎀'
-        }
-      ],
-      output3: []
-    };
-  }
 
   try {
     const requestBody: any = {
@@ -2475,88 +2105,6 @@ export const getCommonCodeList = async (
 ): Promise<{ [key: string]: CommonCode[] }> => {
   console.log('[공통코드 API] 공통코드 조회 API 호출:', codeIds);
 
-  if (checkDemoMode()) {
-    await new Promise(resolve => setTimeout(resolve, 300));
-
-    const result: { [key: string]: CommonCode[] } = {};
-
-    if (codeIds.includes('CMCU027')) {
-      // 임대구분
-      result['CMCU027'] = [
-        { COMMON_CD: '10', COMMON_CD_NM: '구매' },
-        { COMMON_CD: '30', COMMON_CD_NM: '렌탈' },
-        { COMMON_CD: '31', COMMON_CD_NM: '할부' },
-        { COMMON_CD: '60', COMMON_CD_NM: '무상' },
-      ];
-    }
-
-    if (codeIds.includes('CMEP314')) {
-      // 장비사용상태
-      result['CMEP314'] = [
-        { COMMON_CD: '1', COMMON_CD_NM: '정상' },
-        { COMMON_CD: '2', COMMON_CD_NM: '고장' },
-        { COMMON_CD: '3', COMMON_CD_NM: '분실' },
-      ];
-    }
-
-    if (codeIds.includes('CMCU064')) {
-      // 프로모션개수
-      result['CMCU064'] = [
-        { COMMON_CD: '0', COMMON_CD_NM: '없음' },
-        { COMMON_CD: '1', COMMON_CD_NM: '1개' },
-        { COMMON_CD: '2', COMMON_CD_NM: '2개' },
-        { COMMON_CD: '3', COMMON_CD_NM: '3개' },
-      ];
-    }
-
-    if (codeIds.includes('CMCU057')) {
-      // 인터넷 이용 구분
-      result['CMCU057'] = [
-        { COMMON_CD: '1', COMMON_CD_NM: '없음' },
-        { COMMON_CD: '2', COMMON_CD_NM: '개인' },
-        { COMMON_CD: '3', COMMON_CD_NM: '법인' },
-      ];
-    }
-
-    if (codeIds.includes('CMCU110')) {
-      // VoIP 이용 구분
-      result['CMCU110'] = [
-        { COMMON_CD: '1', COMMON_CD_NM: '없음' },
-        { COMMON_CD: '2', COMMON_CD_NM: '개인' },
-        { COMMON_CD: '3', COMMON_CD_NM: '법인' },
-      ];
-    }
-
-    if (codeIds.includes('CMCU148')) {
-      // 디지털방송 이용 구분
-      result['CMCU148'] = [
-        { COMMON_CD: '1', COMMON_CD_NM: '없음' },
-        { COMMON_CD: '2', COMMON_CD_NM: '개인' },
-        { COMMON_CD: '3', COMMON_CD_NM: '법인' },
-      ];
-    }
-
-    if (codeIds.includes('CMCU005')) {
-      // 고객관계
-      result['CMCU005'] = [
-        { COMMON_CD: '1', COMMON_CD_NM: '본인' },
-        { COMMON_CD: '2', COMMON_CD_NM: '배우자' },
-        { COMMON_CD: '3', COMMON_CD_NM: '자녀' },
-        { COMMON_CD: '4', COMMON_CD_NM: '부모' },
-        { COMMON_CD: '5', COMMON_CD_NM: '기타' },
-      ];
-    }
-
-    if (codeIds.includes('CMCT015')) {
-      // 상향제어
-      result['CMCT015'] = [
-        { COMMON_CD: '1', COMMON_CD_NM: '단독' },
-        { COMMON_CD: '2', COMMON_CD_NM: '공용' },
-      ];
-    }
-
-    return result;
-  }
 
   try {
     const requestBody = {
@@ -2623,16 +2171,6 @@ export const checkStbServerConnection = async (
   console.log('[STB API] 서버 연결 체크 API 호출');
   console.log('[STB API] 입력 파라미터:', { regUid, ctrtId, wrkId, msgId, stbEqtNo, modemEqtNo });
 
-  const isDemoMode = checkDemoMode();
-
-  if (isDemoMode) {
-    await new Promise(resolve => setTimeout(resolve, 800));
-    return {
-      MSGCODE: 'SUCCESS',
-      MESSAGE: 'STB server connection check completed',
-      O_IFSVC_RESULT: 'TRUE0000000001SMR03000000'
-    };
-  }
 
   try {
     const origin = typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000';
@@ -2704,10 +2242,6 @@ export const changeEquipmentModel = async (
   console.log('  - CUST_ID:', custId);
 
   // 더미 모드 체크
-  if (checkDemoMode()) {
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    return { MSGCODE: 'SUCCESS', MESSAGE: '장비 모델이 변경되었습니다 (더미)' };
-  }
 
   try {
     const origin = typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000';
@@ -2798,44 +2332,6 @@ export const checkSignal = async (params: SignalCheckRequest): Promise<SignalChe
   console.log('📡 신호 점검 API 호출:', params);
 
   // 더미 모드 체크
-  if (checkDemoMode()) {
-    await new Promise(resolve => setTimeout(resolve, 2000));
-
-    const mockResult: SignalCheckResult = {
-      checkType: params.CHECK_TYPE,
-      checkTime: new Date().toLocaleString('ko-KR'),
-      status: Math.random() > 0.2 ? 'success' : 'warning',
-      signalStrength: Math.floor(Math.random() * 30) + 70,
-    };
-
-    if (params.CHECK_TYPE === 'A') {
-      mockResult.speedTest = {
-        download: Math.floor(Math.random() * 200) + 100,
-        upload: Math.floor(Math.random() * 50) + 20,
-        ping: Math.floor(Math.random() * 20) + 5,
-      };
-      mockResult.deviceStatus = {
-        macAddress: 'AA:BB:CC:DD:EE:FF',
-        connection: 'connected',
-        ipAddress: `192.168.1.${Math.floor(Math.random() * 200) + 10}`,
-      };
-    } else {
-      mockResult.tvSignal = {
-        channels: Math.floor(Math.random() * 50) + 100,
-        quality: Math.floor(Math.random() * 20) + 80,
-        errors: Math.floor(Math.random() * 5),
-      };
-    }
-
-    if (mockResult.status === 'warning') {
-      mockResult.issues = [
-        '신호 품질이 기준치보다 약간 낮습니다.',
-        '재점검을 권장합니다.',
-      ];
-    }
-
-    return mockResult;
-  }
 
   try {
     const origin = typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000';
@@ -2871,18 +2367,6 @@ export const completeWork = async (data: WorkCompleteData): Promise<{ code: stri
   console.log('작업 완료 API 호출:', data);
 
   // 더미 모드 체크
-  if (checkDemoMode()) {
-    await new Promise(resolve => setTimeout(resolve, 1500));
-    return {
-      code: 'SUCCESS',
-      message: '작업이 성공적으로 완료되었습니다 (더미)',
-      data: {
-        WRK_ID: data.workInfo.WRK_ID,
-        WRK_STAT_CD: '4', // 완료
-        CMPL_DT: data.workInfo.WRKR_CMPL_DT
-      }
-    };
-  }
 
   try {
     const origin = typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000';
@@ -2934,25 +2418,6 @@ export const getCustomerCtrtInfo = async (ctrtId: string): Promise<any> => {
   console.log('[고객 계약 정보] API 호출:', ctrtId);
 
   // 더미 모드 체크
-  if (checkDemoMode()) {
-    await new Promise(resolve => setTimeout(resolve, 500));
-    return {
-      code: 'SUCCESS',
-      data: [{
-        CTRT_ID: ctrtId,
-        CUST_ID: 'CUST001',
-        CUST_NM: '홍길동',
-        ADDR: '서울시 강남구 테헤란로 123',
-        INSTL_LOC: '101동 1001호',
-        BASIC_PROD_CD_NM: '인터넷+IPTV 결합',
-        PROD_NM: '기가인터넷+IPTV',
-        SO_NM: '강남지사',
-        SO_CALL_NO: '02-1234-5678',
-        PROM_YN: 'Y',
-        CTRT_CL: '1'
-      }]
-    };
-  }
 
   try {
     const origin = typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000';
@@ -2994,13 +2459,6 @@ export const saveInstallInfo = async (installInfo: InstallInfo): Promise<any> =>
   console.log('💾 [설치 정보 저장] API 호출:', installInfo);
 
   // 더미 모드 체크
-  if (checkDemoMode()) {
-    await new Promise(resolve => setTimeout(resolve, 500));
-    return {
-      code: 'SUCCESS',
-      message: '설치 정보가 저장되었습니다.'
-    };
-  }
 
   try {
     const origin = typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000';
@@ -3051,10 +2509,6 @@ export const getChkWorkFee = async (params: {
 }): Promise<any> => {
   console.log('[단가 존재여부 체크] API 호출:', params);
 
-  if (checkDemoMode()) {
-    await new Promise(resolve => setTimeout(resolve, 300));
-    return { code: 'SUCCESS', data: [], count: '0' };
-  }
 
   try {
     const origin = typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000';
@@ -3089,57 +2543,6 @@ export const getCommonCodes = async (codeGroup: string): Promise<CommonCodeItem[
   console.log('[공통 코드 조회] API 호출:', codeGroup);
 
   // 더미 모드 체크
-  if (checkDemoMode()) {
-    await new Promise(resolve => setTimeout(resolve, 300));
-
-    // 코드 그룹별 더미 데이터
-    const dummyData: { [key: string]: CommonCodeItem[] } = {
-      'CMCU048': [ // 망구분
-        { code: '1', name: 'HFC' },
-        { code: '2', name: 'FTTH' },
-        { code: '3', name: 'FTTB' }
-      ],
-      'BLST010': [ // 설치유형
-        { code: '1', name: '신규' },
-        { code: '2', name: '이전' },
-        { code: '3', name: '재설치' }
-      ],
-      'BLST014': [ // 배선유형
-        { code: '1', name: '단독' },
-        { code: '2', name: '공용' },
-        { code: '3', name: '기타' }
-      ],
-      'CMCU030': [ // 케이블배선유형
-        { code: '1', name: '동축' },
-        { code: '2', name: '광케이블' },
-        { code: '3', name: 'UTP' }
-      ],
-      'BLST016': [ // 인입관통
-        { code: '1', name: '관통' },
-        { code: '2', name: '비관통' }
-      ],
-      'CMCU046': [ // 케이블설치유형
-        { code: '1', name: '노출' },
-        { code: '2', name: '은폐' },
-        { code: '3', name: '반은폐' }
-      ],
-      'CMCU050': [ // AV접속유형
-        { code: '1', name: 'HDMI' },
-        { code: '2', name: 'Component' },
-        { code: '3', name: 'Composite' }
-      ],
-      'CMCU051': [ // RF접속유형
-        { code: '1', name: '동축' },
-        { code: '2', name: '광' }
-      ],
-      'CMCU049': [ // 상향제어구분
-        { code: '1', name: '양방향' },
-        { code: '2', name: '단방향' }
-      ]
-    };
-
-    return dummyData[codeGroup] || [];
-  }
 
   try {
     const origin = typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000';
@@ -4515,10 +3918,6 @@ export const insertWorkRemoveStat = async (params: {
   console.log('[철거관리 API] insertWorkRemoveStat 호출:', params);
 
   // 더미 모드 체크
-  if (checkDemoMode()) {
-    await new Promise(resolve => setTimeout(resolve, 500));
-    return { code: 'SUCCESS', message: '철거상태가 저장되었습니다 (더미)' };
-  }
 
   try {
     const userInfo = localStorage.getItem('userInfo');
@@ -4584,10 +3983,6 @@ export const insertRcptProcInfo = async (params: {
 }): Promise<{ code: string; message: string }> => {
   console.log('[망이관 API] insertRcptProcInfo 호출:', params);
 
-  if (checkDemoMode()) {
-    await new Promise(resolve => setTimeout(resolve, 500));
-    return { code: 'SUCCESS', message: '작업처리정보 저장되었습니다 (더미)' };
-  }
 
   try {
     const response = await fetch(`${API_BASE}/customer/negociation/insertRcptProcInfo`, {
@@ -4654,10 +4049,6 @@ export const modAsPdaReceipt = async (params: {
   console.log('[AS할당 API] modAsPdaReceipt 호출:', params);
 
   // 더미 모드 체크
-  if (checkDemoMode()) {
-    await new Promise(resolve => setTimeout(resolve, 500));
-    return { code: 'SUCCESS', message: 'AS가 할당되었습니다 (더미)' };
-  }
 
   try {
     const userInfo = localStorage.getItem('userInfo');
@@ -4777,29 +4168,6 @@ export const getHotbillDetail = async (custId: string, rcptId: string): Promise<
   console.log('[Hotbill API] getHotbillDetail 호출:', { custId, rcptId });
 
   // 더미 모드 체크
-  if (checkDemoMode()) {
-    await new Promise(resolve => setTimeout(resolve, 500));
-    return [
-      {
-        BILL_SEQ_NO: '202412001',
-        PROD_GRP: 'DTV',
-        SO_ID: '01',
-        CHG_NM: 'DTV 기본료',
-        BILL_AMT: 15000,
-        PYM_AMT: 15000,
-        UPYM_AMT: 0,
-      },
-      {
-        BILL_SEQ_NO: '202412002',
-        PROD_GRP: 'ISP',
-        SO_ID: '01',
-        CHG_NM: '인터넷 기본료',
-        BILL_AMT: 25000,
-        PYM_AMT: 0,
-        UPYM_AMT: 25000,
-      },
-    ];
-  }
 
   try {
     const response = await fetch(`${API_BASE}/hotbill/detail`, {
@@ -4838,13 +4206,6 @@ export const getHotbillRefund = async (rcptId: string): Promise<HotbillRefund | 
   console.log('[Hotbill API] getHotbillRefund 호출:', { rcptId });
 
   // 더미 모드 체크
-  if (checkDemoMode()) {
-    await new Promise(resolve => setTimeout(resolve, 300));
-    return {
-      TOT_RFND_AMT: 5000,
-      RFND_RSN: '해지 환불',
-    };
-  }
 
   try {
     const response = await fetch(`${API_BASE}/hotbill/refund`, {
@@ -4882,39 +4243,6 @@ export const getHotbillSummary = async (custId: string, rcptId: string): Promise
   console.log('[Hotbill API] getHotbillSummary 호출:', { custId, rcptId });
 
   // 더미 모드 체크
-  if (checkDemoMode()) {
-    await new Promise(resolve => setTimeout(resolve, 500));
-    return {
-      details: [
-        {
-          BILL_SEQ_NO: '202412001',
-          PROD_GRP: 'DTV',
-          SO_ID: '01',
-          CHG_NM: 'DTV 기본료',
-          BILL_AMT: 15000,
-          PYM_AMT: 15000,
-          UPYM_AMT: 0,
-        },
-        {
-          BILL_SEQ_NO: '202412002',
-          PROD_GRP: 'ISP',
-          SO_ID: '01',
-          CHG_NM: '인터넷 기본료',
-          BILL_AMT: 25000,
-          PYM_AMT: 0,
-          UPYM_AMT: 25000,
-        },
-      ],
-      refund: {
-        TOT_RFND_AMT: 5000,
-        RFND_RSN: '해지 환불',
-      },
-      totalAmount: 40000,
-      paidAmount: 15000,
-      unpaidAmount: 25000,
-      refundAmount: 5000,
-    };
-  }
 
   try {
     const response = await fetch(`${API_BASE}/hotbill/summary`, {
@@ -4996,15 +4324,6 @@ export const runHotbillSimulation = async (params: HotbillSimulateParams): Promi
   console.log('[Hotbill API] runHotbillSimulation 호출:', params);
 
   // 더미 모드 체크
-  if (checkDemoMode()) {
-    await new Promise(resolve => setTimeout(resolve, 300));
-    return {
-      code: 'SUCCESS',
-      RCPT_ID: params.RCPT_ID || '1044931550',
-      message: 'OK (Demo)',
-      simulatedCount: 1,
-    };
-  }
 
   try {
     const requestBody = {
@@ -5079,12 +4398,6 @@ export const getHotbillByContract = async (
   console.log('[Hotbill API] getHotbillByContract 호출:', { billSeqNo, prodGrp, soId, clcWrkCl, rcptId });
 
   // 더미 모드 체크
-  if (checkDemoMode()) {
-    await new Promise(resolve => setTimeout(resolve, 200));
-    return [
-      { BILL_SEQ_NO: billSeqNo, PROD_GRP: prodGrp, SO_ID: soId, CTRT_ID: '0000000001', CLC_WRK_NO: '20241201001', BILL_AMT: 20000 },
-    ];
-  }
 
   try {
     const response = await fetch(`${API_BASE}/hotbill/byContract`, {
@@ -5150,13 +4463,6 @@ export const getHotbillByCharge = async (
   console.log('[Hotbill API] getHotbillByCharge 호출:', { billSeqNo, clcWrkNo, ctrtId });
 
   // 더미 모드 체크
-  if (checkDemoMode()) {
-    await new Promise(resolve => setTimeout(resolve, 300));
-    return [
-      { CLC_WRK_NO: clcWrkNo, BILL_SEQ_NO: billSeqNo, CUST_ID: '0000000001', CTRT_ID: ctrtId, SORT_SEQ: '1', CHRG_ITEM_NM: '이용료', REQ_YN: 'Y', BILL_AMT: 15000 },
-      { CLC_WRK_NO: clcWrkNo, BILL_SEQ_NO: billSeqNo, CUST_ID: '0000000001', CTRT_ID: ctrtId, SORT_SEQ: '2', CHRG_ITEM_NM: '부가서비스', REQ_YN: 'N', BILL_AMT: 5000 },
-    ];
-  }
 
   try {
     const response = await fetch(`${API_BASE}/hotbill/byCharge`, {
@@ -5205,13 +4511,6 @@ export const sendVisitSms = async (data: VisitSmsRequest): Promise<{ code: strin
   console.log('[SMS API] sendVisitSms 호출:', data);
 
   // 더미 모드 체크
-  if (checkDemoMode()) {
-    await new Promise(resolve => setTimeout(resolve, 500));
-    return {
-      code: 'SUCCESS',
-      message: '문자 발송이 완료되었습니다. (Demo)',
-    };
-  }
 
   try {
     const requestBody = {
@@ -5845,19 +5144,6 @@ export const getMoveWorkInfo = async (params: {
   console.log('[이사작업정보 API] getMoveWorkInfo:', params);
 
   // 더미 모드 체크
-  if (checkDemoMode()) {
-    await new Promise(resolve => setTimeout(resolve, 500));
-    return {
-      MVM_TP: '01',
-      MVM_TP_NM: '일반이사',
-      WRK_ID: params.WRK_ID,
-      PROD_NM: 'DTV 기본상품',
-      HOPE_DTTM: '2024-12-29 10:00',
-      WRK_STAT_NM: '작업완료',
-      ADDR_ORD: '서울시 강남구 테헤란로 123',
-      WRK_CD: params.WRK_CD,
-    };
-  }
 
   try {
     const response = await fetch(`${API_BASE}/customer/work/getMoveWorkInfo`, {
@@ -5919,41 +5205,6 @@ export const getMVRemoveEqtInfo = async (params: {
 }): Promise<RemovalEquipmentInfo[]> => {
   console.log('[장비이전 API] getMVRemoveEqtInfo:', params);
 
-  if (checkDemoMode()) {
-    await new Promise(resolve => setTimeout(resolve, 500));
-    return [
-      {
-        CHK: 1,
-        CTRT_ID: 'CT123456',
-        EQT_CL_NM: 'DTV 셋톱박스',
-        LENT_YN_NM: '임대',
-        EQT_USE_STAT_CD: '사용중',
-        NOTRECEV: '사용중',
-        EQT_LOC_TP_CD: '고객',
-        EQT_STAT_CD: '정상',
-        WRKR_NM: '홍길동',
-        EQT_SERNO: 'STB123456789',
-        MAC_ADDRESS: 'AA:BB:CC:DD:EE:FF',
-        ITEM_NM: 'UHD 셋톱박스',
-        WRK_CD: '08',
-      },
-      {
-        CHK: 1,
-        CTRT_ID: 'CT123456',
-        EQT_CL_NM: '모뎀',
-        LENT_YN_NM: '임대',
-        EQT_USE_STAT_CD: '사용중',
-        NOTRECEV: '사용중',
-        EQT_LOC_TP_CD: '고객',
-        EQT_STAT_CD: '정상',
-        WRKR_NM: '홍길동',
-        EQT_SERNO: 'MDM987654321',
-        MAC_ADDRESS: '11:22:33:44:55:66',
-        ITEM_NM: '기가비트 모뎀',
-        WRK_CD: '08',
-      },
-    ];
-  }
 
   try {
     const response = await fetch(`${API_BASE}/customer/equipment/getMVRemoveEqtInfo`, {
@@ -6028,10 +5279,6 @@ export const getEqtSoMoveInfo = async (params: {
 }): Promise<EqtSoMoveInfo[]> => {
   console.log('[장비이전 API] getEqtSoMoveInfo:', params);
 
-  if (checkDemoMode()) {
-    await new Promise(resolve => setTimeout(resolve, 500));
-    return [];
-  }
 
   try {
     const response = await fetch(`${API_BASE}/customer/work/getEqtSoMoveInfo`, {
@@ -6088,13 +5335,6 @@ export const excuteSoMoveEqtChg = async (params: {
 }): Promise<ExcuteSoMoveEqtChgResult | null> => {
   console.log('[장비이전 API] excuteSoMoveEqtChg:', params);
 
-  if (checkDemoMode()) {
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    return {
-      MSGCODE: 'SUCCESS',
-      MESSAGE: '장비이전이 완료되었습니다.',
-    };
-  }
 
   try {
     const response = await fetch(`${API_BASE}/customer/work/excuteSoMoveEqtChg`, {
@@ -6166,13 +5406,6 @@ export interface CustEqtInfoDelResult {
 export const custEqtInfoDel = async (params: CustEqtInfoDelParams): Promise<CustEqtInfoDelResult | null> => {
   console.log('[장비분실처리 API] custEqtInfoDel:', params);
 
-  if (checkDemoMode()) {
-    await new Promise(resolve => setTimeout(resolve, 500));
-    return {
-      MSGCODE: 'SUCCESS',
-      MESSAGE: '장비분실처리가 완료되었습니다.',
-    };
-  }
 
   try {
     const response = await fetch(`${API_BASE}/customer/work/custEqtInfoDel`, {
