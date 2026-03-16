@@ -136,6 +136,9 @@ const PaymentChangeModal: React.FC<PaymentChangeModalProps> = ({
   // 납부자관계 코드
   const [pyrRelCodes, setPyrRelCodes] = useState<{ CODE: string; CODE_NM: string }[]>([]);
 
+  // 카드 인증 시 받은 결제기관코드
+  const [financeCd, setFinanceCd] = useState<string>('');
+
   // 결제일 목록
   const paymentDays = [
     { CODE: '05', CODE_NM: '5일' },
@@ -192,6 +195,7 @@ const PaymentChangeModal: React.FC<PaymentChangeModalProps> = ({
     if (isOpen) {
       setPaymentForm({ ...defaultPaymentForm });
       setIsVerified(false);
+      setFinanceCd('');
       setIsSaved(false);
       setSignatureData('');
       if (initialPymAcntId) {
@@ -304,7 +308,7 @@ const PaymentChangeModal: React.FC<PaymentChangeModalProps> = ({
           CUST_ID: custId,
           CUST_NM: custNm || ''
         });
-        return { success: response.success, message: response.message || '' };
+        return { success: response.success, message: response.message || '', financeCd: response.data?.FINANCE_CD || '' };
       }
     };
 
@@ -315,6 +319,7 @@ const PaymentChangeModal: React.FC<PaymentChangeModalProps> = ({
 
       if (result1.success) {
         setIsVerified(true);
+        if (result1.financeCd) setFinanceCd(result1.financeCd);
         setVerifyProgress('');
         showAlert(paymentForm.pymMthCd === '01' ? '계좌 인증이 완료되었습니다.' : '카드 인증이 완료되었습니다.', 'success');
       } else {
@@ -325,6 +330,7 @@ const PaymentChangeModal: React.FC<PaymentChangeModalProps> = ({
         const result2 = await doVerify();
         if (result2.success) {
           setIsVerified(true);
+          if (result2.financeCd) setFinanceCd(result2.financeCd);
           setVerifyProgress('');
           showAlert(paymentForm.pymMthCd === '01' ? '계좌 인증이 완료되었습니다.' : '카드 인증이 완료되었습니다.', 'success');
         } else {
@@ -433,11 +439,14 @@ const PaymentChangeModal: React.FC<PaymentChangeModalProps> = ({
       // 기존 납부계정의 확장 필드 (any 캐스팅으로 접근)
       const acctRaw = selectedPayment as any || {};
 
+      const isCard = paymentForm.pymMthCd === '02';
       const response = await updatePaymentMethod({
         CUST_ID: custId,
         PYM_ACNT_ID: selectedPymAcntId,
         PYM_MTH_CD: paymentForm.pymMthCd,
-        BANK_CD: paymentForm.bankCd,
+        // 자동이체: BANK_CD=은행코드, FINANCE_CD=null / 신용카드: BANK_CD=null, FINANCE_CD=인증값
+        BANK_CD: isCard ? undefined : paymentForm.bankCd,
+        FINANCE_CD: isCard ? financeCd : undefined,
         ACNT_NO: paymentForm.acntNo,
         ACNT_OWNER_NM: paymentForm.acntHolderNm,
         ACNT_NM: custNm || paymentForm.acntHolderNm,
@@ -445,9 +454,9 @@ const PaymentChangeModal: React.FC<PaymentChangeModalProps> = ({
         BIRTH_DT: paddedId,
         PAYER_REL_CD: paymentForm.pyrRel,
         PAY_DAY_CD: paymentForm.pymDay,
-        CARD_VALID_YM: paymentForm.pymMthCd === '02' ? paymentForm.cardExpYy + paymentForm.cardExpMm : undefined,
-        JOIN_CARD_YN: paymentForm.pymMthCd === '02' ? paymentForm.joinCardYn : undefined,
-        CARD_CL: paymentForm.pymMthCd === '02' ? paymentForm.cardCl : undefined,
+        CARD_VALID_YM: isCard ? paymentForm.cardExpYy + paymentForm.cardExpMm : undefined,
+        JOIN_CARD_YN: isCard ? paymentForm.joinCardYn : undefined,
+        CARD_CL: isCard ? paymentForm.cardCl : undefined,
         CHG_RESN_L_CD: paymentForm.changeReasonL,
         // 기존 납부계정 데이터
         OLD_PYM_MTHD: oldPymMthd,

@@ -211,6 +211,7 @@ const CustomerInfoChange: React.FC<CustomerInfoChangeProps> = ({
   const [paymentForm, setPaymentForm] = useState<PaymentFormData>(savedPaymentForm || defaultPaymentForm);
   const [isVerifying, setIsVerifying] = useState(false);
   const [isVerified, setIsVerified] = useState(savedIsVerified);
+  const [financeCd, setFinanceCd] = useState<string>('');
   const [isSavingPayment, setIsSavingPayment] = useState(false);
 
   // 서명 관련 상태
@@ -530,6 +531,7 @@ const CustomerInfoChange: React.FC<CustomerInfoChangeProps> = ({
         });
         if (response.success) {
           setIsVerified(true);
+          if (response.data?.FINANCE_CD) setFinanceCd(response.data.FINANCE_CD);
           showAlert('카드 인증이 완료되었습니다.', 'success');
         } else {
           showAlert(response.message || '카드 인증에 실패했습니다.', 'error');
@@ -552,12 +554,15 @@ const CustomerInfoChange: React.FC<CustomerInfoChangeProps> = ({
     setIsSavingPayment(true);
     try {
       // 모든 필드 포함
+      const isCard = paymentForm.pymMthCd === '02';
       const params: any = {
         PYM_ACNT_ID: selectedPymAcntId,
         CUST_ID: selectedCustomer!.custId,
         ACNT_NM: paymentForm.acntHolderNm,
-        PYM_MTHD: paymentForm.pymMthCd === '01' ? '02' : '04',  // 02: 자동이체, 04: 신용카드
-        BANK_CARD: paymentForm.bankCd,
+        PYM_MTHD: isCard ? '04' : '02',  // 02: 자동이체, 04: 신용카드
+        // 자동이체: BANK_CARD=은행코드, FINANCE_CD=null / 신용카드: BANK_CARD=null, FINANCE_CD=인증값
+        BANK_CARD: isCard ? undefined : paymentForm.bankCd,
+        FINANCE_CD: isCard ? financeCd : undefined,
         ACNT_CARD_NO: paymentForm.acntNo,
         // 변경사유
         CHG_RESN_L: paymentForm.changeReasonL,
@@ -606,6 +611,7 @@ const CustomerInfoChange: React.FC<CustomerInfoChangeProps> = ({
           pymDay: ''
         });
         setIsVerified(false);
+        setFinanceCd('');
         setSignatureData(null);
         onPaymentChangeEnd?.();
         // 납부정보 다시 로드

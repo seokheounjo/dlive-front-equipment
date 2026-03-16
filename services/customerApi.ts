@@ -521,6 +521,7 @@ export interface PaymentMethodChangeRequest {
   CARD_RSDT_CRRNO?: string;  // 카드소유주 주민등록번호
   CDTCD_EXP_DT?: string;     // 카드유효기간
   JOIN_CARD_YN?: string;     // 제휴카드 여부
+  FINANCE_CD?: string;       // 결제기관코드 (카드인증 시 받은 값)
   // 기타
   MST_SO_ID?: string;        // 계열사ID
   SO_ID?: string;            // 지점ID
@@ -1812,7 +1813,7 @@ export const verifyCard = async (params: CardVerifyRequest): Promise<ApiResponse
     if (response.success && response.data) {
       const data = response.data;
       if (data.success === 'true' || data.RESP_CD === '0000') {
-        return { success: true, data: { verified: true, RESP_CD: data.RESP_CD }, message: '카드 인증이 완료되었습니다.' };
+        return { success: true, data: { verified: true, RESP_CD: data.RESP_CD, FINANCE_CD: data.FINANCE_CD || '', FINANCE_NM: data.FINANCE_NM || '' }, message: '카드 인증이 완료되었습니다.' };
       } else {
         return { success: false, data, message: data.RESP_MSG || '카드 인증에 실패했습니다.' };
       }
@@ -2239,10 +2240,17 @@ export const getBankCodesDLive = async (): Promise<ApiResponse<any[]>> => {
 
 /**
  * 카드사 코드 조회 (BLPY016)
+ * Uses getComboRefList: REF_CODE=00000 제외, USE_YN=Y만
  * Returns: code (01=비씨, 02=국민, 04=삼성, ...), name
  */
 export const getCardCompanyCodes = async (): Promise<ApiResponse<any[]>> => {
-  return apiCall<any[]>('/common/getCommonCodes', { CODE_GROUP: 'BLPY016' });
+  return apiCall<any[]>('/common/getComboRefList', {
+    COMMON_GRP: 'BLPY016',
+    REF_CODE: '00000',
+    USE_YN: 'Y',
+    EXCEPT_YN: 'Y',
+    ALL_YN: 'N'
+  });
 };
 
 /**

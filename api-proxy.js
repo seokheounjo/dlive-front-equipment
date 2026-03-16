@@ -865,6 +865,7 @@ router.post('/customer/work/checkStbServerConnection', handleProxy);
 // Common API
 router.post('/common/getCommonCodeList', handleProxy);
 router.post('/common/getCommonCodes', handleProxy);
+router.post('/common/getComboRefList', handleProxy);
 
 // Customer/Negociation API
 router.post('/customer/negociation/getCustomerCtrtInfo', handleProxy);
