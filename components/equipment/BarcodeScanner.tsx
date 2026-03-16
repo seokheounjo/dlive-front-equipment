@@ -102,22 +102,6 @@ const BarcodeScanner: React.FC<BarcodeScannerProps> = ({ isOpen, onClose, onScan
       setError(null);
       setPermissionDenied(false);
 
-      // Permissions API로 실제 카메라 권한 상태 확인
-      if (navigator.permissions) {
-        try {
-          const result = await navigator.permissions.query({ name: 'camera' as PermissionName });
-          console.log('[BarcodeScanner] Camera permission state:', result.state);
-          if (result.state === 'denied') {
-            setPermissionDenied(true);
-            setError('PERMISSION_DENIED');
-            return;
-          }
-        } catch (e) {
-          // Permissions API 미지원 브라우저 → 그냥 진행
-          console.log('[BarcodeScanner] Permissions API not supported, proceeding');
-        }
-      }
-
       const Html5QrcodeClass = (window as any).Html5Qrcode;
       if (!Html5QrcodeClass) {
         setError('Html5Qrcode not loaded');
@@ -125,15 +109,10 @@ const BarcodeScanner: React.FC<BarcodeScannerProps> = ({ isOpen, onClose, onScan
       }
       await startScanner();
     } catch (err: any) {
-      console.error('[BarcodeScanner] Camera init error:', err);
-      if (err.name === 'NotAllowedError' || err.message?.includes('Permission') || err.message?.includes('denied')) {
-        setPermissionDenied(true);
-        setError('PERMISSION_DENIED');
-      } else if (err.message?.includes('secure context') || err.message?.includes('https')) {
-        setError('카메라는 HTTPS 또는 localhost에서만 사용 가능합니다.\n\n수동으로 S/N을 입력해주세요.');
-      } else {
-        setError('카메라를 초기화할 수 없습니다:\n' + (err.message || err));
-      }
+      console.error('[BarcodeScanner] Camera init error:', err, JSON.stringify({name: err.name, message: err.message}));
+      // 모바일에서 카메라 실패 = 권한 문제가 대부분 → 항상 권한 안내 표시
+      setPermissionDenied(true);
+      setError('PERMISSION_DENIED');
     }
   };
 
@@ -260,12 +239,10 @@ const BarcodeScanner: React.FC<BarcodeScannerProps> = ({ isOpen, onClose, onScan
           console.error('[BarcodeScanner] Fallback failed:', e2);
         }
       }
-      if (err.name === 'NotAllowedError' || err.message?.includes('Permission') || err.message?.includes('denied')) {
-        setPermissionDenied(true);
-        setError('PERMISSION_DENIED');
-      } else {
-        setError('카메라를 시작할 수 없습니다.\n' + (err.message || '권한을 확인해주세요.'));
-      }
+      // 모바일에서 카메라 실패 = 권한 문제가 대부분 → 항상 권한 안내 표시
+      console.error('[BarcodeScanner] Final error:', err, JSON.stringify({name: err.name, message: err.message}));
+      setPermissionDenied(true);
+      setError('PERMISSION_DENIED');
     }
   };
 
