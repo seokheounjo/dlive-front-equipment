@@ -23,7 +23,7 @@ import ApiExplorer from './components/equipment/ApiExplorer';
 import OtherManagement from './components/other/OtherManagement';
 import Settings from './components/layout/Settings';
 import { clearAllSessions } from './utils/sessionStorage';
-import { logLogout, logNavigation, flushAll as flushLogs, generateLoginTrxId, clearLoginTrxId } from './services/logService';
+import { logLogout, logNavigation, logRuntimeError, flushAll as flushLogs, generateLoginTrxId, clearLoginTrxId } from './services/logService';
 import { useUIStore } from './stores/uiStore';
 import { useWorkEquipmentStore } from './stores/workEquipmentStore';
 import { useWorkProcessStore } from './stores/workProcessStore';
@@ -157,16 +157,19 @@ const App: React.FC = () => {
     const handleUnhandledRejection = (event: PromiseRejectionEvent) => {
       console.error('Unhandled Promise Rejection:', event.reason);
       showToast('처리되지 않은 오류가 발생했습니다.', 'error');
-      // 에러 로깅 (프로덕션 환경에서는 로깅 서비스로 전송)
-      if (process.env.NODE_ENV === 'production') {
-        // 여기에 로깅 서비스 연동
-      }
+      const reason = event.reason;
+      const msg = reason instanceof Error ? reason.message : String(reason || 'Unknown rejection');
+      const stack = reason instanceof Error ? reason.stack : undefined;
+      logRuntimeError(`[UnhandledRejection] ${msg}`, stack);
     };
 
     // 전역 에러 이벤트 처리
     const handleError = (event: ErrorEvent) => {
       console.error('Global Error:', event.error);
-      // ErrorBoundary가 캐치하지 못한 에러들 처리
+      const err = event.error;
+      const msg = err instanceof Error ? err.message : (event.message || 'Unknown error');
+      const stack = err instanceof Error ? err.stack : `${event.filename}:${event.lineno}:${event.colno}`;
+      logRuntimeError(`[GlobalError] ${msg}`, stack);
     };
 
     window.addEventListener('unhandledrejection', handleUnhandledRejection);

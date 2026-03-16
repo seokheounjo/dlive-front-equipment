@@ -1,4 +1,5 @@
 import React, { Component, ErrorInfo, ReactNode } from 'react';
+import { logRuntimeError } from '../../services/logService';
 
 interface Props {
   children: ReactNode;
@@ -36,14 +37,11 @@ class ErrorBoundary extends Component<Props, State> {
       errorInfo
     });
 
-    // 에러 로깅 - 프로덕션 환경에서는 로깅 서비스로 전송
-    if (process.env.NODE_ENV === 'production') {
-      // 여기에 로깅 서비스 연동 (예: Sentry, LogRocket 등)
-      console.error('Production Error:', {
-        error: error.toString(),
-        componentStack: errorInfo.componentStack
-      });
-    }
+    // 에러 로깅 - DB에 디버그 로그로 기록
+    logRuntimeError(
+      `[ReactError] ${error.toString()}`,
+      errorInfo.componentStack || error.stack
+    );
   }
 
   handleReload = () => {
