@@ -55,8 +55,7 @@ export function generateLoginTrxId(userId: string): string {
   const d = new Date();
   const pad = (n: number) => String(n).padStart(2, '0');
   const ts = `${d.getFullYear()}${pad(d.getMonth() + 1)}${pad(d.getDate())}${pad(d.getHours())}${pad(d.getMinutes())}${pad(d.getSeconds())}`;
-  const rand = Math.random().toString(36).substring(2, 8).toUpperCase();
-  const trxId = `${ts}_${userId}_${rand}`;
+  const trxId = `${userId}_${ts}`;
   try {
     localStorage.setItem('loginTrxId', trxId);
   } catch { /* silent */ }
