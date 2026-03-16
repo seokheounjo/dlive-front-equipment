@@ -204,14 +204,18 @@ const App: React.FC = () => {
       generateLoginTrxId(userId || 'unknown');
     }
     if (userId) {
+      // soId가 비어있으면 AUTH_SO_List 첫 번째 지점의 SO_ID 사용
+      const effectiveSoId = soId || (authSoList && authSoList.length > 0 ? authSoList[0].SO_ID : undefined);
+      const effectiveMstSoId = mstSoId || (authSoList && authSoList.length > 0 ? authSoList[0].MST_SO_ID : undefined);
+      console.log('[Login] soId 보충:', { soId, effectiveSoId, mstSoId, effectiveMstSoId, authSoList: authSoList?.length });
       const userInfoData = {
         userId,
         userName: userName || '작업자',
         userNameEn: userNameEn || userName || '작업자',  // 영문 이름 (SMS 방문안내문자용)
         userRole: userRole || '전산작업자',
         crrId,
-        soId,
-        mstSoId,
+        soId: effectiveSoId,
+        mstSoId: effectiveMstSoId,
         telNo2,  // SMS 발신번호
         authSoList: authSoList || [],  // 지점 목록
         soYn: soYn || '',
@@ -227,8 +231,8 @@ const App: React.FC = () => {
         USR_ID: userId,
         WRKR_ID: userId,
         userId: userId,
-        soId: soId,
-        SO_ID: soId,
+        soId: effectiveSoId,
+        SO_ID: effectiveSoId,
         AUTH_SO_List: authSoList || []
       }));
       // branchList도 별도로 저장 (EquipmentInquiry에서 사용)

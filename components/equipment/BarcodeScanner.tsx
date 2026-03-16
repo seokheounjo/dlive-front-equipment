@@ -38,6 +38,7 @@ interface BarcodeScannerProps {
 const BarcodeScanner: React.FC<BarcodeScannerProps> = ({ isOpen, onClose, onScan, isMultiScanMode = false, scanCount = 0 }) => {
   const scannerRef = useRef<Html5Qrcode | null>(null);
   const trackRef = useRef<MediaStreamTrack | null>(null);
+  const isScanningRef = useRef(false);
   const [isScanning, setIsScanning] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -46,31 +47,6 @@ const BarcodeScanner: React.FC<BarcodeScannerProps> = ({ isOpen, onClose, onScan
   const [zoomSupported, setZoomSupported] = useState(false);
   const [zoomLevel, setZoomLevel] = useState(1);
   const [zoomRange, setZoomRange] = useState({ min: 1, max: 1 });
-  const [engineType, setEngineType] = useState<string>('');
-  const fileInputRef = useRef<HTMLInputElement | null>(null);
-
-  // 사진 촬영으로 바코드 스캔 (카메라 권한 불필요)
-  const handlePhotoScan = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    try {
-      const Html5QrcodeClass = (window as any).Html5Qrcode;
-      if (!Html5QrcodeClass) {
-        setError('스캐너를 로드할 수 없습니다');
-        return;
-      }
-      const tempScanner = new Html5QrcodeClass('barcode-reader-temp');
-      const result = await tempScanner.scanFile(file, false);
-      console.log('[BarcodeScanner] Photo scan result:', result);
-      if (navigator.vibrate) navigator.vibrate([50, 30, 50]);
-      onScan(result);
-      if (!isMultiScanMode) handleClose();
-    } catch (err: any) {
-      console.error('[BarcodeScanner] Photo scan error:', err);
-      setError('PHOTO_SCAN_FAILED');
-    }
-    if (fileInputRef.current) fileInputRef.current.value = '';
-  };
 
   // 화면 회전 잠금 (세로 모드 고정)
   useEffect(() => {
@@ -101,8 +77,7 @@ const BarcodeScanner: React.FC<BarcodeScannerProps> = ({ isOpen, onClose, onScan
     setTorchOn(false);
     setTorchSupported(false);
     setZoomSupported(false);
-    setEngineType('');
-
+    
     const loadScript = async () => {
       if ((window as any).Html5Qrcode) {
         await initScanner();
@@ -116,11 +91,11 @@ const BarcodeScanner: React.FC<BarcodeScannerProps> = ({ isOpen, onClose, onScan
       document.body.appendChild(script);
     };
 
-    // 10초 타임아웃
+    // 10초 타임아웃 (ref로 최신 상태 확인)
     const timeout = setTimeout(() => {
-      if (!isScanning) {
+      if (!isScanningRef.current) {
         setIsLoading(false);
-        setError('카메라 시작 시간 초과');
+        setError('CAMERA_FAILED');
       }
     }, 10000);
 
@@ -161,7 +136,6 @@ const BarcodeScanner: React.FC<BarcodeScannerProps> = ({ isOpen, onClose, onScan
 
     await new Promise(resolve => setTimeout(resolve, 100));
 
-    const hasNativeBD = 'BarcodeDetector' in window;
     const scannerConfig = {
       formatsToSupport: [
         QR_FORMATS.CODE_128,
@@ -200,7 +174,6 @@ const BarcodeScanner: React.FC<BarcodeScannerProps> = ({ isOpen, onClose, onScan
       try {
         console.log('[BarcodeScanner] Attempt', i + 1, JSON.stringify(attempts[i]));
         scannerRef.current = new Html5QrcodeClass('barcode-reader', scannerConfig);
-        setEngineType(hasNativeBD ? 'HW' : 'SW');
 
         await scannerRef.current.start(
           attempts[i],
@@ -243,6 +216,7 @@ const BarcodeScanner: React.FC<BarcodeScannerProps> = ({ isOpen, onClose, onScan
           console.log('[BarcodeScanner] Camera enhancement not supported:', e);
         }
 
+        isScanningRef.current = true;
         setIsScanning(true);
         setIsLoading(false);
         setError(null);
@@ -272,6 +246,7 @@ const BarcodeScanner: React.FC<BarcodeScannerProps> = ({ isOpen, onClose, onScan
       scannerRef.current = null;
     }
     trackRef.current = null;
+    isScanningRef.current = false;
     setIsScanning(false);
     setTorchOn(false);
   };
@@ -413,48 +388,18 @@ const BarcodeScanner: React.FC<BarcodeScannerProps> = ({ isOpen, onClose, onScan
       >
         {error ? (
           <div className="bg-red-500/20 border border-red-500/50 rounded-lg p-4 mb-3">
-            {error === 'PHOTO_SCAN_FAILED' ? (
-              <>
-                <p className="text-orange-300 text-sm text-center font-bold mb-2">
-                  바코드를 인식하지 못했습니다
-                </p>
-                <p className="text-white/60 text-xs text-center mb-3">
-                  바코드가 선명하게 보이도록 다시 촬영해주세요
-                </p>
-                <button
-                  onClick={() => { setError(null); fileInputRef.current?.click(); }}
-                  className="w-full py-3 bg-green-500 hover:bg-green-600 text-white rounded-lg text-sm font-bold mb-2"
-                >
-                  다시 촬영하기
-                </button>
-              </>
-            ) : (
-              <>
-                <p className="text-orange-300 text-sm text-center font-bold mb-3">
-                  카메라를 사용할 수 없습니다
-                </p>
-                {/* 사진 촬영 스캔 - 카메라 권한 불필요 */}
-                <button
-                  onClick={() => fileInputRef.current?.click()}
-                  className="w-full py-3 bg-green-500 hover:bg-green-600 text-white rounded-lg text-sm font-bold mb-3 flex items-center justify-center gap-2"
-                >
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
-                  </svg>
-                  사진으로 바코드 스캔
-                </button>
-                <div className="bg-white/10 rounded-lg p-2 mb-2">
-                  <p className="text-white/70 text-xs">또는 브라우저 설정에서 카메라 권한을 허용 후 새로고침</p>
-                </div>
-                <button
-                  onClick={() => { window.location.reload(); }}
-                  className="w-full py-2 bg-blue-500/50 hover:bg-blue-500 text-white rounded-lg text-xs"
-                >
-                  새로고침
-                </button>
-              </>
-            )}
+            <p className="text-orange-300 text-sm text-center font-bold mb-3">
+              카메라를 사용할 수 없습니다
+            </p>
+            <div className="bg-white/10 rounded-lg p-2 mb-2">
+              <p className="text-white/70 text-xs">브라우저 설정에서 카메라 권한을 허용 후 새로고침 해주세요</p>
+            </div>
+            <button
+              onClick={() => { window.location.reload(); }}
+              className="w-full py-2.5 bg-blue-500 hover:bg-blue-600 text-white rounded-lg text-sm font-medium"
+            >
+              새로고침
+            </button>
           </div>
         ) : (
           <div className="text-center mb-3">
@@ -464,7 +409,7 @@ const BarcodeScanner: React.FC<BarcodeScannerProps> = ({ isOpen, onClose, onScan
             <p className="text-white/50 text-xs">
               {isMultiScanMode
                 ? '연속 스캔 모드 - 여러 장비를 계속 스캔하세요'
-                : `자동 인식 중${engineType ? ` (${engineType})` : ''}`}
+                : '자동 인식 중'}
             </p>
           </div>
         )}
@@ -476,18 +421,6 @@ const BarcodeScanner: React.FC<BarcodeScannerProps> = ({ isOpen, onClose, onScan
           수동 입력
         </button>
       </div>
-
-      {/* Hidden file input for photo scan */}
-      <input
-        ref={fileInputRef}
-        type="file"
-        accept="image/*"
-        capture="environment"
-        onChange={handlePhotoScan}
-        style={{ display: 'none' }}
-      />
-      {/* Hidden div for scanFile */}
-      <div id="barcode-reader-temp" style={{ display: 'none' }}></div>
 
       <style>{`
         @keyframes scan {
