@@ -1658,9 +1658,9 @@ async function handleMconaProxy(req, res) {
 // MCONA proxy with _ForM suffix: Routes changeEqtWrkr_3 to changeEqtWrkr_3_ForM on MCONA
 // Adapter requires TO_WRKR_ID but frontend sends MV_WRKR_ID; MCONA's _ForM endpoint accepts MV_WRKR_ID
 async function handleMconaProxyForM(req, res) {
-  const origPath = req.path;
-  req.path = origPath + '_ForM';
-  console.log('[MCONA_ForM] Rewriting path:', origPath, '->', req.path);
+  const origUrl = req.url;
+  req.url = origUrl + '_ForM';
+  console.log('[MCONA_ForM] Rewriting URL:', origUrl, '->', req.url);
   return handleMconaProxy(req, res);
 }
 
