@@ -46,6 +46,7 @@ const BarcodeScanner: React.FC<BarcodeScannerProps> = ({ isOpen, onClose, onScan
   const [zoomLevel, setZoomLevel] = useState(1);
   const [zoomRange, setZoomRange] = useState({ min: 1, max: 1 });
   const [engineType, setEngineType] = useState<string>('');
+  const [permissionDenied, setPermissionDenied] = useState(false);
 
   // 화면 회전 잠금 (세로 모드 고정)
   useEffect(() => {
@@ -106,8 +107,9 @@ const BarcodeScanner: React.FC<BarcodeScannerProps> = ({ isOpen, onClose, onScan
       await startScanner();
     } catch (err: any) {
       console.error('[BarcodeScanner] Camera init error:', err);
-      if (err.name === 'NotAllowedError' || err.message?.includes('Permission')) {
-        setError('카메라 접근 권한이 필요합니다.\n설정에서 카메라 권한을 허용해주세요.');
+      if (err.name === 'NotAllowedError' || err.message?.includes('Permission') || err.message?.includes('denied')) {
+        setPermissionDenied(true);
+        setError('PERMISSION_DENIED');
       } else if (err.message?.includes('secure context') || err.message?.includes('https')) {
         setError('카메라는 HTTPS 또는 localhost에서만 사용 가능합니다.\n\n수동으로 S/N을 입력해주세요.');
       } else {
@@ -239,7 +241,12 @@ const BarcodeScanner: React.FC<BarcodeScannerProps> = ({ isOpen, onClose, onScan
           console.error('[BarcodeScanner] Fallback failed:', e2);
         }
       }
-      setError('카메라를 시작할 수 없습니다.\n' + (err.message || '권한을 확인해주세요.'));
+      if (err.name === 'NotAllowedError' || err.message?.includes('Permission') || err.message?.includes('denied')) {
+        setPermissionDenied(true);
+        setError('PERMISSION_DENIED');
+      } else {
+        setError('카메라를 시작할 수 없습니다.\n' + (err.message || '권한을 확인해주세요.'));
+      }
     }
   };
 
@@ -264,11 +271,13 @@ const BarcodeScanner: React.FC<BarcodeScannerProps> = ({ isOpen, onClose, onScan
   const handleRetry = async () => {
     setIsRetrying(true);
     setError(null);
+    setPermissionDenied(false);
     await stopScanner();
     await new Promise(resolve => setTimeout(resolve, 300));
     await initScanner();
     setIsRetrying(false);
   };
+
 
   // Torch toggle
   const toggleTorch = useCallback(async () => {
@@ -392,24 +401,73 @@ const BarcodeScanner: React.FC<BarcodeScannerProps> = ({ isOpen, onClose, onScan
       >
         {error ? (
           <div className="bg-red-500/20 border border-red-500/50 rounded-lg p-4 mb-3">
-            <p className="text-red-200 text-sm text-center whitespace-pre-line">{error}</p>
-            <button
-              onClick={handleRetry}
-              disabled={isRetrying}
-              className="w-full mt-3 py-2.5 bg-red-500 hover:bg-red-600 disabled:bg-red-400 text-white rounded-lg text-sm font-medium flex items-center justify-center gap-2"
-            >
-              {isRetrying ? (
-                <>
-                  <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+            {permissionDenied ? (
+              <>
+                <div className="flex items-center justify-center mb-2">
+                  <svg className="w-8 h-8 text-red-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
                   </svg>
-                  권한 요청 중...
-                </>
-              ) : (
-                '다시 시도'
-              )}
-            </button>
+                </div>
+                <p className="text-red-200 text-sm text-center font-semibold mb-2">
+                  카메라 접근이 차단되었습니다
+                </p>
+                <div className="bg-black/30 rounded-lg p-3 mb-3">
+                  <p className="text-white/90 text-xs font-semibold mb-1.5">권한 허용 방법:</p>
+                  <div className="text-white/70 text-xs space-y-1">
+                    <p>1. 주소창 왼쪽 자물쇠 아이콘 터치</p>
+                    <p>2. "권한" 또는 "사이트 설정" 터치</p>
+                    <p>3. 카메라 → "허용"으로 변경</p>
+                    <p>4. 페이지 새로고침 후 다시 시도</p>
+                  </div>
+                </div>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => { window.location.reload(); }}
+                    className="flex-1 py-2.5 bg-blue-500 hover:bg-blue-600 text-white rounded-lg text-sm font-medium"
+                  >
+                    새로고침
+                  </button>
+                  <button
+                    onClick={handleRetry}
+                    disabled={isRetrying}
+                    className="flex-1 py-2.5 bg-red-500 hover:bg-red-600 disabled:bg-red-400 text-white rounded-lg text-sm font-medium flex items-center justify-center gap-1"
+                  >
+                    {isRetrying ? (
+                      <>
+                        <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                        </svg>
+                        요청 중
+                      </>
+                    ) : (
+                      '다시 시도'
+                    )}
+                  </button>
+                </div>
+              </>
+            ) : (
+              <>
+                <p className="text-red-200 text-sm text-center whitespace-pre-line">{error}</p>
+                <button
+                  onClick={handleRetry}
+                  disabled={isRetrying}
+                  className="w-full mt-3 py-2.5 bg-red-500 hover:bg-red-600 disabled:bg-red-400 text-white rounded-lg text-sm font-medium flex items-center justify-center gap-2"
+                >
+                  {isRetrying ? (
+                    <>
+                      <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                      </svg>
+                      권한 요청 중...
+                    </>
+                  ) : (
+                    '다시 시도'
+                  )}
+                </button>
+              </>
+            )}
           </div>
         ) : (
           <div className="text-center mb-3">
