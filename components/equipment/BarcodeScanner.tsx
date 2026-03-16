@@ -15,6 +15,7 @@ declare class Html5Qrcode {
   ): Promise<void>;
   stop(): Promise<void>;
   clear(): void;
+  scanFile(file: File, showImage?: boolean): Promise<string>;
   static getCameras(): Promise<Array<{ id: string; label: string }>>;
 }
 
@@ -38,8 +39,8 @@ const BarcodeScanner: React.FC<BarcodeScannerProps> = ({ isOpen, onClose, onScan
   const scannerRef = useRef<Html5Qrcode | null>(null);
   const trackRef = useRef<MediaStreamTrack | null>(null);
   const [isScanning, setIsScanning] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [isRetrying, setIsRetrying] = useState(false);
   const [torchSupported, setTorchSupported] = useState(false);
   const [torchOn, setTorchOn] = useState(false);
   const [zoomSupported, setZoomSupported] = useState(false);
@@ -55,11 +56,11 @@ const BarcodeScanner: React.FC<BarcodeScannerProps> = ({ isOpen, onClose, onScan
     try {
       const Html5QrcodeClass = (window as any).Html5Qrcode;
       if (!Html5QrcodeClass) {
-        setError('Html5Qrcode not loaded');
+        setError('스캐너를 로드할 수 없습니다');
         return;
       }
       const tempScanner = new Html5QrcodeClass('barcode-reader-temp');
-      const result = await tempScanner.scanFile(file, /* showImage= */ false);
+      const result = await tempScanner.scanFile(file, false);
       console.log('[BarcodeScanner] Photo scan result:', result);
       if (navigator.vibrate) navigator.vibrate([50, 30, 50]);
       onScan(result);
@@ -68,7 +69,6 @@ const BarcodeScanner: React.FC<BarcodeScannerProps> = ({ isOpen, onClose, onScan
       console.error('[BarcodeScanner] Photo scan error:', err);
       setError('PHOTO_SCAN_FAILED');
     }
-    // 같은 파일 재선택 허용
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
@@ -80,9 +80,7 @@ const BarcodeScanner: React.FC<BarcodeScannerProps> = ({ isOpen, onClose, onScan
         if (screen.orientation && (screen.orientation as any).lock) {
           await (screen.orientation as any).lock('portrait');
         }
-      } catch (e) {
-        // 지원하지 않는 브라우저는 무시
-      }
+      } catch (e) {}
     };
     lockOrientation();
     return () => {
@@ -99,6 +97,7 @@ const BarcodeScanner: React.FC<BarcodeScannerProps> = ({ isOpen, onClose, onScan
     if (!isOpen) return;
     setError(null);
     setIsScanning(false);
+    setIsLoading(true);
     setTorchOn(false);
     setTorchSupported(false);
     setZoomSupported(false);
@@ -113,157 +112,155 @@ const BarcodeScanner: React.FC<BarcodeScannerProps> = ({ isOpen, onClose, onScan
       script.src = 'https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js';
       script.async = true;
       script.onload = () => { initScanner(); };
-      script.onerror = () => { setError('바코드 스캐너를 로드할 수 없습니다.'); };
+      script.onerror = () => { setIsLoading(false); setError('스캐너 라이브러리를 로드할 수 없습니다'); };
       document.body.appendChild(script);
     };
+
+    // 10초 타임아웃
+    const timeout = setTimeout(() => {
+      if (!isScanning) {
+        setIsLoading(false);
+        setError('카메라 시작 시간 초과');
+      }
+    }, 10000);
+
     loadScript();
-    return () => { stopScanner(); };
+    return () => { clearTimeout(timeout); stopScanner(); };
   }, [isOpen]);
 
   const initScanner = async () => {
     try {
       setError(null);
-
       const Html5QrcodeClass = (window as any).Html5Qrcode;
       if (!Html5QrcodeClass) {
+        setIsLoading(false);
         setError('Html5Qrcode not loaded');
         return;
       }
       await startScanner();
     } catch (err: any) {
-      console.error('[BarcodeScanner] Camera init error:', err, JSON.stringify({name: err.name, message: err.message}));
-      // 모바일에서 카메라 실패 = 권한 문제가 대부분 → 항상 권한 안내 표시
-      setError('PERMISSION_DENIED');
+      console.error('[BarcodeScanner] Camera init error:', err);
+      setIsLoading(false);
+      setError('카메라 초기화 실패: ' + (err.message || err));
     }
   };
 
   const startScanner = async () => {
-    try {
-      const Html5QrcodeClass = (window as any).Html5Qrcode;
-      if (!Html5QrcodeClass) return;
+    const Html5QrcodeClass = (window as any).Html5Qrcode;
+    if (!Html5QrcodeClass) return;
 
-      // Stop existing scanner
-      if (scannerRef.current) {
-        try {
-          await scannerRef.current.stop();
-          scannerRef.current.clear();
-        } catch (e) {}
-        scannerRef.current = null;
-        trackRef.current = null;
-      }
-
-      await new Promise(resolve => setTimeout(resolve, 100));
-
-      // KEY FIX 1: Format filtering + Native BarcodeDetector
-      const hasNativeBD = 'BarcodeDetector' in window;
-      scannerRef.current = new Html5QrcodeClass('barcode-reader', {
-        formatsToSupport: [
-          QR_FORMATS.CODE_128,
-          QR_FORMATS.CODE_39,
-          QR_FORMATS.CODE_93,
-          QR_FORMATS.CODABAR,
-        ],
-        useBarCodeDetectorIfSupported: true,
-        verbose: false,
-      });
-      setEngineType(hasNativeBD ? 'HW' : 'SW');
-
-      // KEY FIX 2: High-res camera FROM THE START
-      const videoConstraints: MediaTrackConstraints = {
-        facingMode: { exact: 'environment' },
-        width: { min: 1280, ideal: 1920, max: 3840 },
-        height: { min: 720, ideal: 1080, max: 2160 },
-      };
-
-      const config = {
-        fps: 15,
-        qrbox: { width: 280, height: 90 },
-        disableFlip: true,
-      };
-
-      await scannerRef.current.start(
-        videoConstraints,
-        config,
-        (decodedText: string) => {
-          console.log('[BarcodeScanner] Scanned:', decodedText);
-          if (navigator.vibrate) { navigator.vibrate([50, 30, 50]); }
-          onScan(decodedText);
-          if (!isMultiScanMode) { handleClose(); }
-        },
-        () => {}
-      );
-
-      // KEY FIX 3: Immediately apply focus + zoom + torch detection
+    // Stop existing scanner
+    if (scannerRef.current) {
       try {
-        const videoEl = document.querySelector('#barcode-reader video') as HTMLVideoElement;
-        if (videoEl && videoEl.srcObject) {
-          const track = (videoEl.srcObject as MediaStream).getVideoTracks()[0];
-          if (track) {
-            trackRef.current = track;
-            const caps = track.getCapabilities() as any;
-            const settings = track.getSettings() as any;
-            console.log('[BarcodeScanner] Camera:', settings.width + 'x' + settings.height);
+        await scannerRef.current.stop();
+        scannerRef.current.clear();
+      } catch (e) {}
+      scannerRef.current = null;
+      trackRef.current = null;
+    }
 
-            const advConstraints: any[] = [];
+    await new Promise(resolve => setTimeout(resolve, 100));
 
-            // Continuous autofocus
-            if (caps.focusMode && caps.focusMode.includes('continuous')) {
-              advConstraints.push({ focusMode: 'continuous' });
-              console.log('[BarcodeScanner] Continuous autofocus ON');
-            }
+    const hasNativeBD = 'BarcodeDetector' in window;
+    const scannerConfig = {
+      formatsToSupport: [
+        QR_FORMATS.CODE_128,
+        QR_FORMATS.CODE_39,
+        QR_FORMATS.CODE_93,
+        QR_FORMATS.CODABAR,
+      ],
+      useBarCodeDetectorIfSupported: true,
+      verbose: false,
+    };
 
-            // Default zoom 2x
-            if (caps.zoom) {
-              setZoomSupported(true);
-              setZoomRange({ min: caps.zoom.min, max: caps.zoom.max });
-              const initZoom = Math.min(2.0, caps.zoom.max);
-              advConstraints.push({ zoom: initZoom });
-              setZoomLevel(initZoom);
-            }
+    const qrConfig = {
+      fps: 15,
+      qrbox: { width: 280, height: 90 },
+      disableFlip: true,
+    };
 
-            // Torch detection
-            if (caps.torch) {
-              setTorchSupported(true);
-            }
+    const onSuccess = (decodedText: string) => {
+      console.log('[BarcodeScanner] Scanned:', decodedText);
+      if (navigator.vibrate) { navigator.vibrate([50, 30, 50]); }
+      onScan(decodedText);
+      if (!isMultiScanMode) { handleClose(); }
+    };
 
-            if (advConstraints.length > 0) {
-              await track.applyConstraints({ advanced: advConstraints });
+    // 3단계 fallback 시도
+    const attempts = [
+      // 1단계: 후면카메라 고해상도
+      { facingMode: { exact: 'environment' }, width: { ideal: 1920 }, height: { ideal: 1080 } },
+      // 2단계: 후면카메라 기본
+      { facingMode: 'environment' },
+      // 3단계: 아무 카메라
+      true,
+    ];
+
+    for (let i = 0; i < attempts.length; i++) {
+      try {
+        console.log('[BarcodeScanner] Attempt', i + 1, JSON.stringify(attempts[i]));
+        scannerRef.current = new Html5QrcodeClass('barcode-reader', scannerConfig);
+        setEngineType(hasNativeBD ? 'HW' : 'SW');
+
+        await scannerRef.current.start(
+          attempts[i],
+          qrConfig,
+          onSuccess,
+          () => {}
+        );
+
+        // 성공! 카메라 기능 설정
+        try {
+          const videoEl = document.querySelector('#barcode-reader video') as HTMLVideoElement;
+          if (videoEl && videoEl.srcObject) {
+            const track = (videoEl.srcObject as MediaStream).getVideoTracks()[0];
+            if (track) {
+              trackRef.current = track;
+              const caps = track.getCapabilities() as any;
+              const settings = track.getSettings() as any;
+              console.log('[BarcodeScanner] Camera:', settings.width + 'x' + settings.height);
+
+              const advConstraints: any[] = [];
+              if (caps.focusMode && caps.focusMode.includes('continuous')) {
+                advConstraints.push({ focusMode: 'continuous' });
+              }
+              if (caps.zoom) {
+                setZoomSupported(true);
+                setZoomRange({ min: caps.zoom.min, max: caps.zoom.max });
+                const initZoom = Math.min(2.0, caps.zoom.max);
+                advConstraints.push({ zoom: initZoom });
+                setZoomLevel(initZoom);
+              }
+              if (caps.torch) {
+                setTorchSupported(true);
+              }
+              if (advConstraints.length > 0) {
+                await track.applyConstraints({ advanced: advConstraints });
+              }
             }
           }
+        } catch (e) {
+          console.log('[BarcodeScanner] Camera enhancement not supported:', e);
         }
-      } catch (e) {
-        console.log('[BarcodeScanner] Camera enhancement not supported:', e);
-      }
 
-      setIsScanning(true);
-      setError(null);
-    } catch (err: any) {
-      console.error('[BarcodeScanner] Scanner start error:', err);
-
-      // Fallback: exact facingMode fail
-      if (err.name === 'OverconstrainedError' && scannerRef.current) {
-        try {
-          await scannerRef.current.start(
-            { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 720 } },
-            { fps: 15, qrbox: { width: 280, height: 90 }, disableFlip: true },
-            (decodedText: string) => {
-              if (navigator.vibrate) navigator.vibrate([50, 30, 50]);
-              onScan(decodedText);
-              if (!isMultiScanMode) handleClose();
-            },
-            () => {}
-          );
-          setIsScanning(true);
-          setError(null);
-          return;
-        } catch (e2) {
-          console.error('[BarcodeScanner] Fallback failed:', e2);
+        setIsScanning(true);
+        setIsLoading(false);
+        setError(null);
+        console.log('[BarcodeScanner] Started successfully on attempt', i + 1);
+        return; // 성공 → 종료
+      } catch (err: any) {
+        console.error('[BarcodeScanner] Attempt', i + 1, 'failed:', err.name, err.message);
+        // 실패 → scanner cleanup 후 다음 시도
+        if (scannerRef.current) {
+          try { await scannerRef.current.stop(); scannerRef.current.clear(); } catch (e) {}
+          scannerRef.current = null;
         }
       }
-      // 모바일에서 카메라 실패 = 권한 문제가 대부분 → 항상 권한 안내 표시
-      console.error('[BarcodeScanner] Final error:', err, JSON.stringify({name: err.name, message: err.message}));
-      setError('PERMISSION_DENIED');
     }
+
+    // 모든 시도 실패
+    setIsLoading(false);
+    setError('CAMERA_FAILED');
   };
 
   const stopScanner = async () => {
@@ -283,16 +280,6 @@ const BarcodeScanner: React.FC<BarcodeScannerProps> = ({ isOpen, onClose, onScan
     await stopScanner();
     onClose();
   };
-
-  const handleRetry = async () => {
-    setIsRetrying(true);
-    setError(null);
-    await stopScanner();
-    await new Promise(resolve => setTimeout(resolve, 300));
-    await initScanner();
-    setIsRetrying(false);
-  };
-
 
   // Torch toggle
   const toggleTorch = useCallback(async () => {
@@ -375,6 +362,16 @@ const BarcodeScanner: React.FC<BarcodeScannerProps> = ({ isOpen, onClose, onScan
         <div id="barcode-reader" className="w-full max-w-md mx-4"></div>
       </div>
 
+      {/* Loading indicator */}
+      {isLoading && !isScanning && !error && (
+        <div className="absolute inset-0 flex items-center justify-center z-20">
+          <div className="text-center">
+            <div className="w-12 h-12 border-4 border-white/30 border-t-white rounded-full animate-spin mx-auto mb-3"></div>
+            <p className="text-white text-sm font-medium">카메라 준비 중...</p>
+          </div>
+        </div>
+      )}
+
       {/* Scan overlay - 1D barcode shape (wide + thin) */}
       {isScanning && (
         <div className="absolute inset-0 pointer-events-none flex items-center justify-center">
@@ -447,19 +444,15 @@ const BarcodeScanner: React.FC<BarcodeScannerProps> = ({ isOpen, onClose, onScan
                   </svg>
                   사진으로 바코드 스캔
                 </button>
-                <div className="bg-white/10 rounded-lg p-3 mb-3">
-                  <p className="text-white text-xs font-bold mb-2">또는 카메라 권한을 허용해주세요:</p>
-                  <div className="text-white/80 text-xs space-y-1">
-                    <div className="flex items-start gap-2">
-                      <span className="bg-blue-500 text-white text-xs font-bold rounded-full w-4 h-4 flex items-center justify-center flex-shrink-0 mt-0.5" style={{fontSize:'10px'}}>1</span>
-                      <span>주소창 왼쪽 <b className="text-white">자물쇠</b> 터치</span>
-                    </div>
-                    <div className="flex items-start gap-2">
-                      <span className="bg-blue-500 text-white text-xs font-bold rounded-full w-4 h-4 flex items-center justify-center flex-shrink-0 mt-0.5" style={{fontSize:'10px'}}>2</span>
-                      <span>카메라 → <b className="text-green-400">"허용"</b>으로 변경 → 새로고침</span>
-                    </div>
-                  </div>
+                <div className="bg-white/10 rounded-lg p-2 mb-2">
+                  <p className="text-white/70 text-xs">또는 브라우저 설정에서 카메라 권한을 허용 후 새로고침</p>
                 </div>
+                <button
+                  onClick={() => { window.location.reload(); }}
+                  className="w-full py-2 bg-blue-500/50 hover:bg-blue-500 text-white rounded-lg text-xs"
+                >
+                  새로고침
+                </button>
               </>
             )}
           </div>
