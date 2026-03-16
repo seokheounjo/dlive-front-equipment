@@ -208,8 +208,8 @@ export function logActivity(entry: ActivityLogEntry) {
       IP_ADDR: '',
       USER_AGENT: typeof navigator !== 'undefined' ? navigator.userAgent : '',
       CRT_DTTM: nowStr(),
-      P_LOGIN_TRX_ID: getLoginTrxId(),
-      P_NW_TYPE: getNetworkType(),
+      LOGIN_TRX_ID: getLoginTrxId(),
+      NW_TYPE: getNetworkType(),
     };
 
     activityQueue.push(record);
@@ -243,8 +243,8 @@ export function logDebug(entry: DebugLogEntry) {
       STACK_TRACE: (entry.STACK_TRACE || '').substring(0, 4000),
       PAGE_VIEW: entry.PAGE_VIEW || (typeof window !== 'undefined' ? window.location.pathname : ''),
       CRT_DTTM: nowStr(),
-      P_LOGIN_TRX_ID: getLoginTrxId(),
-      P_NW_TYPE: getNetworkType(),
+      LOGIN_TRX_ID: getLoginTrxId(),
+      NW_TYPE: getNetworkType(),
     };
 
     debugQueue.push(record);

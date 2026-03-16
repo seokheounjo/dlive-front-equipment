@@ -46,7 +46,7 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
     e.preventDefault();
     if (!username || !password) return;
     const skipOtp = OTP_SKIP_USERS.includes(username.toUpperCase());
-    if (OTP_ENABLED && !skipOtp && !otpCode) {
+    if (OTP_ENABLED && !skipOtp && (!otpCode || otpCode.length < 6)) {
       setError('OTP 인증번호를 입력해주세요.');
       return;
     }
@@ -209,14 +209,14 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
                 type="text"
                 inputMode="numeric"
                 pattern="[0-9]*"
-                maxLength={6}
+                maxLength={100}
                 autoComplete="one-time-code"
                 disabled={!OTP_ENABLED}
                 className={`${inputBaseClasses} pl-10 text-center text-xl tracking-[0.4em] font-mono disabled:bg-gray-100 disabled:cursor-not-allowed`}
                 placeholder="인증번호"
                 value={otpCode}
                 onChange={(e) => {
-                  const val = e.target.value.replace(/[^0-9]/g, '').slice(0, 6);
+                  const val = e.target.value.replace(/[^0-9]/g, '');
                   setOtpCode(val);
                 }}
               />
