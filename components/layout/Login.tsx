@@ -11,14 +11,7 @@ const OTP_ENABLED = true;
 // OTP 제외 계정 (운영 모바일코나 테스트 계정)
 const OTP_SKIP_USERS = ['A20072330', 'A20070013', 'A20119065'];
 
-const otpErrorMessages: Record<string, string> = {
-  '6000': 'OTP 인증에 실패했습니다. 다시 입력해주세요.',
-  '6001': '이미 사용된 OTP입니다. 새 코드를 입력해주세요.',
-  '6010': 'OTP는 숫자 6자리를 입력해주세요.',
-  '6025': '인증 실패 횟수를 초과했습니다. 관리자에게 문의하세요.',
-  '6040': 'OTP 서버에 연결할 수 없습니다. 잠시 후 다시 시도해주세요.',
-  '6041': 'OTP 서버 통신 오류가 발생했습니다.',
-};
+const LOGIN_ERROR_MESSAGE = '입력정보가 잘못되어 로그인이 불가합니다.';
 
 interface LoginProps {
   onLogin: (userId?: string, userName?: string, userNameEn?: string, userRole?: string, crrId?: string, soId?: string, mstSoId?: string, telNo2?: string, authSoList?: Array<{SO_ID: string; SO_NM: string; MST_SO_ID: string}>, soYn?: string, deptCd?: string) => void;
@@ -89,24 +82,14 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
       if (result.ok) {
         completeLogin(result);
       } else {
-        // OTP 에러 처리
-        const errorCode = result.code || '';
-        if (otpErrorMessages[errorCode]) {
-          setError(otpErrorMessages[errorCode]);
-          setOtpCode('');
-        } else {
-          setError(result.message || '로그인에 실패했습니다.');
-        }
+        setError(LOGIN_ERROR_MESSAGE);
+        setOtpCode('');
       }
     } catch (err: any) {
       if (err.statusCode === 503) {
         setBlockMessage(err.message || '일시적으로 요청이 차단되었습니다. 잠시 후 다시 시도해주세요.');
-      } else if (err.statusCode === 401 || (err.message && err.message.includes('401'))) {
-        setError('아이디 또는 비밀번호가 잘못되었습니다.');
-      } else if (err.statusCode === 400 || (err.message && err.message.includes('400'))) {
-        setError('아이디와 비밀번호를 모두 입력해주세요.');
       } else {
-        setError('아이디 또는 비밀번호가 잘못되었습니다.');
+        setError(LOGIN_ERROR_MESSAGE);
       }
       console.error('로그인 오류:', err);
     } finally {
@@ -129,19 +112,14 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
       if (result.ok) {
         completeLogin(result);
       } else {
-        const errorCode = result.code || '';
-        if (otpErrorMessages[errorCode]) {
-          setError(otpErrorMessages[errorCode]);
-          setOtpCode('');
-        } else {
-          setError(result.message || '로그인에 실패했습니다.');
-        }
+        setError(LOGIN_ERROR_MESSAGE);
+        setOtpCode('');
       }
     } catch (err: any) {
       if (err.statusCode === 503) {
         setBlockMessage(err.message || '일시적으로 요청이 차단되었습니다. 잠시 후 다시 시도해주세요.');
       } else {
-        setError('로그인 중 오류가 발생했습니다.');
+        setError(LOGIN_ERROR_MESSAGE);
       }
       console.error('강제 로그인 오류:', err);
     } finally {
