@@ -656,6 +656,7 @@ router.post('/auth/login-with-otp', async (req, res) => {
         USR_ID: userId,
         PASSWORD: password,
         LOGIN_VIEW: 'MOBILE',
+        DRM_VERSION: '1000',
         DISCONN_YN: disconnYn
       });
       const urlObj = new URL(`${DLIVE_API_BASE}/api/login`);
