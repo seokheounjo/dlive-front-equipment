@@ -68,6 +68,7 @@ const App: React.FC = () => {
   const [toast, setToast] = useState<{ message: string; type: ToastType; persistent?: boolean } | null>(null);
   const [comingSoonTitle, setComingSoonTitle] = useState<string>('');
   const [showNoticePopup, setShowNoticePopup] = useState<boolean>(false);
+  const [showExitConfirm, setShowExitConfirm] = useState<boolean>(false);
   const [workStats, setWorkStats] = useState({
     todayInProgress: 0,
     todayCompleted: 0,
@@ -122,6 +123,33 @@ const App: React.FC = () => {
       if (sessionTimerRef.current) clearTimeout(sessionTimerRef.current);
     };
   }, [isAuthenticated, resetSessionTimer]);
+
+  // 브라우저 뒤로가기 감지 — 앱 내 네비게이션 또는 종료 확인 팝업
+  useEffect(() => {
+    if (!isAuthenticated) return;
+
+    // history에 상태를 push하여 뒤로가기 감지 가능하게 함
+    const pushState = () => {
+      window.history.pushState({ appView: currentView }, '');
+    };
+    pushState();
+
+    const handlePopState = () => {
+      const parentView = NAVIGATION_HIERARCHY[currentView];
+      if (parentView) {
+        // 하위 페이지면 상위로 이동
+        setCurrentView(parentView);
+        window.history.pushState({ appView: parentView }, '');
+      } else {
+        // 최상위(today-work)면 종료 확인 팝업
+        setShowExitConfirm(true);
+        window.history.pushState({ appView: currentView }, '');
+      }
+    };
+
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, [isAuthenticated, currentView]);
 
   // 전역 에러 핸들러 설정
   useEffect(() => {
@@ -462,6 +490,34 @@ const App: React.FC = () => {
               persistent={toast.persistent}
               onClose={() => setToast(null)}
             />
+          )}
+          {/* 앱 종료 확인 모달 */}
+          {showExitConfirm && (
+            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+              <div className="bg-white rounded-xl shadow-2xl max-w-sm w-full p-6 space-y-4">
+                <div className="text-center">
+                  <h3 className="text-lg font-bold text-gray-900 mb-2">앱 종료</h3>
+                  <p className="text-sm text-gray-600">앱을 종료하시겠습니까?</p>
+                </div>
+                <div className="flex gap-3">
+                  <button
+                    onClick={() => setShowExitConfirm(false)}
+                    className="flex-1 py-2.5 px-4 border border-gray-300 text-gray-700 font-medium rounded-lg hover:bg-gray-50 transition"
+                  >
+                    취소
+                  </button>
+                  <button
+                    onClick={() => {
+                      setShowExitConfirm(false);
+                      handleLogout();
+                    }}
+                    className="flex-1 py-2.5 px-4 bg-primary-500 text-white font-medium rounded-lg hover:bg-primary-600 transition"
+                  >
+                    종료
+                  </button>
+                </div>
+              </div>
+            </div>
           )}
           {/* 공지사항 팝업 (주석처리) */}
           {/* <NoticePopup
