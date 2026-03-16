@@ -466,14 +466,24 @@ YYYYMMDDHHMMSS_USERID_RANDOM6
 예: 20260312110000_A20130708_RLZWVP
 ```
 
-#### 로그 전송 키명 (iBatis 매핑 일치)
+#### 로그 전송 키명 (2026-03-16 수정)
+
+**활동/디버그 로그 (logActivity, logDebug):**
 ```
-프론트 전송 키       →  iBatis 파라미터     →  DB 컬럼
-P_LOGIN_TRX_ID      →  #P_LOGIN_TRX_ID#    →  LOGIN_TRX_ID (= P_LOGIN_TRX_ID)
-P_NW_TYPE           →  #P_NW_TYPE#         →  NW_TYPE (= P_NW_TYPE)
+프론트 전송 키       →  백엔드 handleInsertLog  →  iBatis 파라미터
+LOGIN_TRX_ID        →  params.put 양쪽 키       →  #LOGIN_TRX_ID# + #P_LOGIN_TRX_ID#
+NW_TYPE             →  params.put 양쪽 키       →  #NW_TYPE# + #P_NW_TYPE#
 ```
-> 주의: 프론트에서 `LOGIN_TRX_ID`/`NW_TYPE`로 보내면 iBatis 매핑 불일치로 DB에 NULL 저장됨.
-> 반드시 `P_LOGIN_TRX_ID`/`P_NW_TYPE` 키로 전송해야 함.
+> 백엔드 TaskAuthController가 LOGIN_TRX_ID → P_LOGIN_TRX_ID 양쪽 모두 params에 넣음.
+> iBatis SQL 키가 어느 쪽이든 매칭되도록 보장.
+
+**로그인 감사 로그 (loginApi1/2/3):**
+```
+프론트 전송 키       →  Oracle 프로시저 파라미터
+P_LOGIN_TRX_ID      →  #P_LOGIN_TRX_ID#
+P_NW_TYPE           →  #P_NW_TYPE#
+```
+> 로그인 감사 로그는 Oracle 프로시저 직접 호출이므로 P_ 접두사 유지.
 
 ### 4.4 MENU_NM 자동 매핑 (logService.ts)
 
@@ -621,9 +631,13 @@ function getNetworkType(): string {
 | 로그아웃 | App.tsx handleLogout() | LOGOUT | logLogout() |
 | 화면 이동 | App.tsx navigateToView() | MENU_CLICK | logNavigation(from, to) |
 | 작업 완료 | (미연결) | WORK_COMPLETE | logWorkComplete(orderId) |
-| API 에러 | apiService.ts | ERROR | logApiError() |
-| 느린 API | apiService.ts | WARN | logSlowApi() |
-| 런타임 오류 | (미연결) | ERROR | logRuntimeError() |
+| API 에러 (4xx/5xx) | apiService.ts fetchWithRetry | ERROR | logApiError() |
+| API 타임아웃 | apiService.ts fetchWithRetry | ERROR | logApiError() |
+| 네트워크 끊김 | apiService.ts fetchWithRetry | ERROR | logApiError() |
+| 느린 API (5초+) | apiService.ts fetchWithRetry | WARN | logSlowApi() |
+| JS 런타임 에러 | App.tsx window.onerror | ERROR | logRuntimeError(`[GlobalError]`) |
+| Promise 미처리 에러 | App.tsx window.onunhandledrejection | ERROR | logRuntimeError(`[UnhandledRejection]`) |
+| React 렌더링 에러 | ErrorBoundary.componentDidCatch | ERROR | logRuntimeError(`[ReactError]`) |
 | 로그인 시작 | Login.tsx handleSubmit() | - | loginApi1() |
 | 로그인 결과 | Login.tsx handleSubmit() | - | loginApi2() |
 | 로그인 최종 | Login.tsx handleSubmit() | - | loginApi3() |
@@ -1092,3 +1106,129 @@ $ grep -c "'FAIL'" Login.tsx  → 8건 (실패 처리 정상)
 사유: iBatis SQL에서 #P_LOGIN_TRX_ID#, #P_NW_TYPE# 으로 참조하므로
       프론트에서도 동일한 키명 사용 필수. 미수정 시 DB에 NULL 저장됨.
 ```
+
+---
+
+## 14. 디버그 로그 (logRuntimeError) 연결 상세 (2026-03-16)
+
+### 14.1 문제
+`logRuntimeError()` 함수가 logService.ts에 선언만 되어 있고 **아무 곳에서도 호출하지 않음**.
+앱 내부 JS 에러, React 렌더링 에러, Promise 미처리 에러가 DB에 기록되지 않는 상태.
+
+### 14.2 수정 내역
+
+#### App.tsx - 글로벌 에러 핸들러 연결
+```typescript
+import { logRuntimeError } from './services/logService';
+
+// 1. Promise 미처리 에러
+const handleUnhandledRejection = (event: PromiseRejectionEvent) => {
+  const reason = event.reason;
+  const msg = reason instanceof Error ? reason.message : String(reason || 'Unknown rejection');
+  const stack = reason instanceof Error ? reason.stack : undefined;
+  logRuntimeError(`[UnhandledRejection] ${msg}`, stack);
+};
+
+// 2. JS 런타임 에러
+const handleError = (event: ErrorEvent) => {
+  const err = event.error;
+  const msg = err instanceof Error ? err.message : (event.message || 'Unknown error');
+  const stack = err instanceof Error ? err.stack : `${event.filename}:${event.lineno}:${event.colno}`;
+  logRuntimeError(`[GlobalError] ${msg}`, stack);
+};
+```
+
+#### ErrorBoundary.tsx - React 렌더링 에러 연결
+```typescript
+import { logRuntimeError } from '../../services/logService';
+
+componentDidCatch(error: Error, errorInfo: ErrorInfo) {
+  logRuntimeError(
+    `[ReactError] ${error.toString()}`,
+    errorInfo.componentStack || error.stack
+  );
+}
+```
+
+### 14.3 디버그 로그 전체 커버리지
+
+| 에러 유형 | 핸들러 | ERROR_MSG 접두사 | 상태 |
+|----------|--------|-----------------|------|
+| API 4xx/5xx 에러 | apiService.ts logApiError | (에러 메시지 그대로) | 기존 ✅ |
+| API 타임아웃 | apiService.ts logApiError | Timeout | 기존 ✅ |
+| 네트워크 끊김 | apiService.ts logApiError | fetch error msg | 기존 ✅ |
+| 느린 API (5초+) | apiService.ts logSlowApi | Slow API: {N}ms | 기존 ✅ |
+| JS 런타임 에러 | App.tsx window.onerror | [GlobalError] | 신규 ✅ |
+| Promise 미처리 에러 | App.tsx onunhandledrejection | [UnhandledRejection] | 신규 ✅ |
+| React 렌더링 에러 | ErrorBoundary componentDidCatch | [ReactError] | 신규 ✅ |
+
+### 14.4 기록되지 않는 에러 (정상)
+
+| 에러 유형 | 미기록 사유 |
+|----------|-----------|
+| 이미지/CSS/폰트 로딩 실패 | 리소스 에러는 element에서 발생, window로 버블링 안 됨 |
+| try-catch로 처리된 에러 | 앱에서 자체 처리 완료 |
+| console.error 직접 호출 | 로그 출력일 뿐 실제 에러 아님 |
+
+### 14.5 검증 결과 (2026-03-16)
+
+- insertDebugLog API 5종 테스트 → 전부 `{"ok":true}` 응답
+- EC2 PM2 로그에서 `[GlobalError]`, `[UnhandledRejection]`, `[ReactError]` 백엔드 전달 확인
+- LOGIN_TRX_ID, NW_TYPE 값 정상 포함 확인
+
+---
+
+## 15. 브라우저 뒤로가기 종료 확인 팝업 (2026-03-16)
+
+### 15.1 기능
+로그인 후 브라우저 뒤로가기 버튼 누르면:
+- **하위 페이지**: 상위 페이지로 이동 (NAVIGATION_HIERARCHY 기반)
+- **최상위 (today-work)**: "앱을 종료하시겠습니까?" 팝업 표시
+
+### 15.2 Chrome 호환성 문제 및 해결
+
+**문제:** Chrome에서 `pushState` 1개만 넣으면 back 시 히스토리 스택이 비어 popstate 이벤트 없이 페이지를 떠남.
+
+**해결:**
+```typescript
+// Chrome 호환: replaceState(idx:0) + pushState(idx:1) 이중 엔트리
+window.history.replaceState({ appView: currentView, idx: 0 }, '');
+window.history.pushState({ appView: currentView, idx: 1 }, '');
+
+const handlePopState = (e: PopStateEvent) => {
+  // 항상 다시 push하여 다음 뒤로가기도 감지
+  window.history.pushState({ appView: currentView, idx: 1 }, '');
+  // ... 상위 이동 또는 종료 팝업
+};
+
+// beforeunload: 탭 닫기/주소창 이동 시 백업
+const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+  e.preventDefault();
+  e.returnValue = '';
+};
+```
+
+### 15.3 NAVIGATION_HIERARCHY (뒤로가기 경로)
+
+```typescript
+const NAVIGATION_HIERARCHY: Record<View, View | null> = {
+  'today-work': null,           // 최상위 → 종료 팝업
+  'menu': 'today-work',
+  'work-management': 'today-work',
+  'work-item-list': 'work-management',
+  'work-order-detail': 'work-item-list',
+  'work-process-flow': 'work-item-list',
+  'work-complete-form': 'work-order-detail',
+  'work-complete-detail': 'work-item-list',
+  'customer-management': 'today-work',
+  'equipment-management': 'today-work',
+  'other-management': 'today-work',
+  'api-explorer': 'today-work',
+  'coming-soon': 'today-work',
+  'settings': 'today-work'
+};
+```
+
+### 15.4 반영 현황
+- front-equipment (main) ✅
+- cona-client (equipment_customer_other) ✅
