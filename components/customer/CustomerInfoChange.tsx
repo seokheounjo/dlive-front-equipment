@@ -558,6 +558,7 @@ const CustomerInfoChange: React.FC<CustomerInfoChangeProps> = ({
       const params: any = {
         PYM_ACNT_ID: selectedPymAcntId,
         CUST_ID: selectedCustomer!.custId,
+        SO_ID: selectedContract?.soId || '',
         ACNT_NM: paymentForm.acntHolderNm,
         PYM_MTHD: isCard ? '04' : '02',  // 02: 자동이체, 04: 신용카드
         // 자동이체: BANK_CARD=은행코드, FINANCE_CD=null / 신용카드: BANK_CARD=null, FINANCE_CD=인증값

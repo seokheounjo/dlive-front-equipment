@@ -444,6 +444,7 @@ const PaymentChangeModal: React.FC<PaymentChangeModalProps> = ({
         CUST_ID: custId,
         PYM_ACNT_ID: selectedPymAcntId,
         PYM_MTH_CD: paymentForm.pymMthCd,
+        SO_ID: soId || '',
         // 자동이체: BANK_CD=은행코드, FINANCE_CD=null / 신용카드: BANK_CD=null, FINANCE_CD=인증값
         BANK_CD: isCard ? undefined : paymentForm.bankCd,
         FINANCE_CD: isCard ? financeCd : undefined,
@@ -497,8 +498,10 @@ const PaymentChangeModal: React.FC<PaymentChangeModalProps> = ({
           } catch (pdfErr) {
             console.warn('[PaymentChange] PDF auto-download failed:', pdfErr);
           }
+        }
 
-          // 4. PDF 파일명 DB 저장
+        // 4. PDF 파일명 DB 저장 (자동이체/카드 모두)
+        {
           const dateStr = new Date().toISOString().slice(0, 10).replace(/-/g, '');
           const agrFileName = `ATM_${custId}_${dateStr}`;
           try {
@@ -506,7 +509,7 @@ const PaymentChangeModal: React.FC<PaymentChangeModalProps> = ({
               PYM_ACNT_ID: selectedPymAcntId,
               UPDATE_DATE: response.data?.UPDATE_DATE || dateStr,
               AGR_FILE_NAME: agrFileName,
-              AGR_FILE_GB: 'A',
+              AGR_FILE_GB: paymentForm.pymMthCd === '01' ? 'A' : 'C',
             });
           } catch (e) {
             console.warn('PDF filename DB save failed:', e);
