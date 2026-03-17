@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { ArrowLeft, Navigation, List, MapPin, Phone, MessageSquare } from 'lucide-react';
 import { WorkOrder, WorkOrderStatus, MapMarkerData } from '../../types';
 import { useUIStore } from '../../stores/uiStore';
-import { loadMapApiKeys } from '../../services/navigationService';
+import { loadMapApiKeys, geocodeAndNavigate } from '../../services/navigationService';
 
 interface WorkMapViewProps {
   workOrders?: WorkOrder[];
@@ -31,7 +31,7 @@ const WorkMapView: React.FC<WorkMapViewProps> = ({ workOrders, directions, onBac
   const [sdkError, setSdkError] = useState<string | null>(null);
   const [selectedWork, setSelectedWork] = useState<WorkOrder | null>(null);
   const [geocodedCount, setGeocodedCount] = useState(0);
-  const { setCurrentView, setSelectedWorkDirection } = useUIStore();
+  const { setCurrentView, setSelectedWorkDirection, preferredNavApp } = useUIStore();
 
   // 카카오맵 SDK 동적 로드 (MOMP001 공통코드에서 키 가져옴)
   useEffect(() => {
@@ -155,32 +155,49 @@ const WorkMapView: React.FC<WorkMapViewProps> = ({ workOrders, directions, onBac
         <div style="font-size: 13px; color: #6b7280; margin-bottom: 12px; line-height: 1.4;">
           ${work.customer?.address || '주소 없음'}
         </div>
-        <div style="display: flex; gap: 8px;">
+        <div style="display: flex; gap: 6px;">
           <button id="call-btn-${work.id}" style="
             flex: 1;
-            padding: 8px;
+            padding: 8px 4px;
             border: none;
             border-radius: 8px;
             background: #3B82F6;
             color: white;
-            font-size: 13px;
+            font-size: 12px;
             font-weight: 500;
             cursor: pointer;
             display: flex;
             align-items: center;
             justify-content: center;
-            gap: 4px;
+            gap: 2px;
           ">
             📞 전화
           </button>
+          <button id="navi-btn-${work.id}" style="
+            flex: 1;
+            padding: 8px 4px;
+            border: none;
+            border-radius: 8px;
+            background: #F59E0B;
+            color: white;
+            font-size: 12px;
+            font-weight: 500;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 2px;
+          ">
+            🧭 길찾기
+          </button>
           <button id="detail-btn-${work.id}" style="
             flex: 1;
-            padding: 8px;
+            padding: 8px 4px;
             border: none;
             border-radius: 8px;
             background: #10B981;
             color: white;
-            font-size: 13px;
+            font-size: 12px;
             font-weight: 500;
             cursor: pointer;
           ">
@@ -264,6 +281,7 @@ const WorkMapView: React.FC<WorkMapViewProps> = ({ workOrders, directions, onBac
             // 버튼 이벤트 바인딩 (DOM이 렌더링된 후)
             setTimeout(() => {
               const callBtn = document.getElementById(`call-btn-${work.id}`);
+              const naviBtn = document.getElementById(`navi-btn-${work.id}`);
               const detailBtn = document.getElementById(`detail-btn-${work.id}`);
 
               if (callBtn) {
@@ -271,6 +289,17 @@ const WorkMapView: React.FC<WorkMapViewProps> = ({ workOrders, directions, onBac
                   e.stopPropagation();
                   if (work.customer?.phone) {
                     window.location.href = `tel:${work.customer.phone}`;
+                  }
+                };
+              }
+
+              if (naviBtn) {
+                naviBtn.onclick = (e) => {
+                  e.stopPropagation();
+                  buttonClickedRef.current = true;
+                  const address = work.customer?.address;
+                  if (address) {
+                    geocodeAndNavigate(address, preferredNavApp);
                   }
                 };
               }
