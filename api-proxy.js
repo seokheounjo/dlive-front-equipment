@@ -4,7 +4,7 @@ const express = require('express');
 const router = express.Router();
 const iconv = require('iconv-lite');
 
-const DLIVE_API_BASE = process.env.DLIVE_API_BASE || 'http://58.143.140.222:8080';
+const DLIVE_API_BASE = (process.env.DLIVE_API_BASE || 'http://58.143.140.222:8080').replace(/\/api\/?$/, '');
 // MCONA: Real CONA server for equipment list APIs (adapter returns 0 items for list queries)
 const MCONA_API_BASE = 'https://mcona.dlive.kr:7080';
 
@@ -1613,7 +1613,7 @@ async function handleMconaProxy(req, res) {
         'User-Agent': 'EC2-Proxy/1.0'
       },
       rejectUnauthorized: false,
-      timeout: 60000
+      timeout: 10000  // MCONA 10초 타임아웃 (60초→10초, 빠른 fallback)
     };
 
     const proxyReq = https.request(options, (proxyRes) => {
