@@ -71,7 +71,7 @@ app.use(express.json());
 
 // CORS 설정
 app.use(cors({
-  origin: ['http://localhost:3000', 'http://127.0.0.1:3000', 'http://52.63.232.141', 'http://52.63.232.141'],
+  origin: ['http://localhost:3000', 'http://127.0.0.1:3000', 'https://dlivestore2.store', 'http://52.79.244.8'],
   credentials: true
 }));
 
@@ -108,6 +108,6 @@ app.use((req, res, next) => {
 
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`🚀 서버가 포트 ${PORT}에서 실행 중입니다`);
-  console.log(`🔗 접속 URL: http://52.63.232.141:${PORT}`);
+  console.log(`🔗 접속 URL: https://dlivestore2.store (EC2: 52.79.244.8:${PORT})`);
   console.log(`🛡️ IP 제한 활성화 - 허용된 IP: ${ALLOWED_IPS.join(', ')}`);
 });

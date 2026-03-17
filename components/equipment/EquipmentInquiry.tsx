@@ -169,7 +169,7 @@ interface ItemMidItem {
 const API_BASE = typeof window !== 'undefined' ? (() => {
   const hostname = window.location.hostname;
   if (hostname === 'localhost' || hostname === '127.0.0.1') {
-    return 'http://52.63.232.141:8080/api';
+    return 'https://dlivestore2.store/api';
   }
   return '/api';
 })() : '/api';

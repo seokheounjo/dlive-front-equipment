@@ -1710,7 +1710,7 @@ async function handleProxy(req, res) {
       method: req.method,
       headers: {
         'Content-Type': contentType,
-        'Origin': req.headers.origin || 'http://52.63.232.141:8080',
+        'Origin': req.headers.origin || 'https://dlivestore2.store',
         'User-Agent': 'EC2-Proxy/1.0',
         'Host': parsedUrl.host,
         'X-Forwarded-For': (req.headers['x-forwarded-for'] || req.socket.remoteAddress || '').toString(),

@@ -922,7 +922,7 @@ export const modOstWorkCancel = async (params: {
 export const API_BASE = typeof window !== 'undefined' ? (() => {
   // Capacitor 네이티브 앱이면 EC2 프록시 경유 (외부망에서도 동작)
   if (Capacitor.isNativePlatform()) {
-    return 'http://52.63.131.157/api';
+    return 'https://dlivestore2.store/api';
   }
 
   const hostname = window.location.hostname;
@@ -932,8 +932,7 @@ export const API_BASE = typeof window !== 'undefined' ? (() => {
 
   if (hostname === 'localhost' || hostname === '127.0.0.1') {
     return 'http://58.143.140.222:8080/api';  // 로컬 → 딜라이브 내부서버
-  } else if (hostname === '52.63.131.157') {
-    // EC2 환경: Express 프록시 사용 (딜라이브 내부에서도 8080 포트 접근 문제)
+  } else if (hostname === '52.79.244.8') {
     return '/api';  // EC2 Express 서버의 프록시 사용
   } else {
     return '/api';  // Vercel 프록시
