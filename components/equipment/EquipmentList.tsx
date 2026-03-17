@@ -249,71 +249,39 @@ const EquipmentList: React.FC<EquipmentListProps> = ({ onBack, showToast }) => {
     return null;
   };
 
-  // 내 보유 장비 목록 로드
+  // 내 보유 장비 목록 로드 (사용자 액션 시에만 호출 - 자동 로딩 금지!)
+  // 주의: useEffect 자동 로딩 제거됨 (2026-03-17)
+  // 이유: 마운트 시 자동 호출 → 0건이면 SO_ID별 30+ 재시도 → 서버 과부하
+  const loadMyEquipments = async () => {
+    const userInfo = getLoggedInUser();
+    if (!userInfo) return;
+
+    setIsLoadingMyEquipments(true);
+    try {
+      // CRR_ID 필수 전송 (협력업체 ID - 장비 소속 확인용)
+      const baseParams: any = { WRKR_ID: userInfo.userId };
+      if (userInfo.crrId) baseParams.CRR_ID = userInfo.crrId;
+
+      // 전체 조회 1회만 수행 (SO_ID 없이) - SO_ID별 재시도 루프 제거!
+      console.log('[장비조회] 보유장비 조회:', baseParams);
+      const result = await debugApiCall(
+        'EquipmentList',
+        'getWrkrHaveEqtList(전체)',
+        () => getWrkrHaveEqtList(baseParams),
+        baseParams
+      );
+      const allEquipments = Array.isArray(result) ? result : result?.data || [];
+      console.log('[장비조회] 보유장비:', allEquipments.length, '건');
+      setMyEquipments(allEquipments);
+    } catch (err) {
+      console.warn('내 보유 장비 로드 실패:', err);
+    } finally {
+      setIsLoadingMyEquipments(false);
+    }
+  };
+
+  // 탭 진입 시 보유장비 1회 로딩 (SO_ID 재시도 루프 없음)
   useEffect(() => {
-    const loadMyEquipments = async () => {
-      const userInfo = getLoggedInUser();
-      if (!userInfo) return;
-
-      setIsLoadingMyEquipments(true);
-      try {
-        let allEquipments: any[] = [];
-
-        // CRR_ID 필수 전송 (협력업체 ID - 장비 소속 확인용)
-        const baseParams: any = { WRKR_ID: userInfo.userId };
-        if (userInfo.crrId) baseParams.CRR_ID = userInfo.crrId;
-
-        // 항상 전체 조회 먼저 (SO_ID 없이) - SO_ID 필터는 서버에서 0건 반환할 수 있음
-        console.log('[장비처리] 전체 조회 (SO_ID 없이):', baseParams);
-        try {
-          const result = await debugApiCall(
-            'EquipmentList',
-            'getWrkrHaveEqtList(전체)',
-            () => getWrkrHaveEqtList(baseParams),
-            baseParams
-          );
-          allEquipments = Array.isArray(result) ? result : result?.data || [];
-        } catch (e) {
-          console.warn('전체 조회 실패:', e);
-        }
-
-        // 전체 조회 0건이면 SO_ID별로 재시도
-        if (allEquipments.length === 0 && userInfo.authSoList && userInfo.authSoList.length > 0) {
-          console.log('[장비처리] 전체 0건, SO_ID별 재시도:', userInfo.authSoList.length, '개 지점');
-          for (const so of userInfo.authSoList) {
-            try {
-              const params = { ...baseParams, SO_ID: so.SO_ID };
-              const result = await debugApiCall(
-                'EquipmentList',
-                `getWrkrHaveEqtList(SO_ID=${so.SO_ID})`,
-                () => getWrkrHaveEqtList(params),
-                params
-              );
-              const items = Array.isArray(result) ? result : result?.data || [];
-              allEquipments = [...allEquipments, ...items];
-            } catch (e) {
-              console.warn(`SO_ID ${so.SO_ID} 조회 실패:`, e);
-            }
-          }
-          // 중복 제거 (EQT_SERNO 기준)
-          const uniqueMap = new Map();
-          allEquipments.forEach(e => {
-            if (e.EQT_SERNO && !uniqueMap.has(e.EQT_SERNO)) {
-              uniqueMap.set(e.EQT_SERNO, e);
-            }
-          });
-          allEquipments = Array.from(uniqueMap.values());
-        }
-        console.log('[장비처리] 최종 장비:', allEquipments.length, '건');
-
-        setMyEquipments(allEquipments);
-      } catch (err) {
-        console.warn('내 보유 장비 로드 실패:', err);
-      } finally {
-        setIsLoadingMyEquipments(false);
-      }
-    };
-
     loadMyEquipments();
   }, []);
 

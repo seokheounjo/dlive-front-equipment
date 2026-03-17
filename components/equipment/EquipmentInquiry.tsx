@@ -425,22 +425,9 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
     loadDropdownData();
   }, []);
 
-  // 테스트용: 컴포넌트 마운트 시 자동 조회 (S/N 고정값 설정된 경우)
-  useEffect(() => {
-    if (eqtSerno === '705KVQS022868' && userInfo?.userId) {
-      console.log('🚀 [자동조회] S/N 고정값으로 자동 조회 시작...');
-      // 지점 목록 로드 완료 후 조회
-      const timer = setTimeout(() => {
-        handleSearch();
-      }, 500);
-      return () => clearTimeout(timer);
-    }
-  }, [userInfo?.userId]);
-
   const loadDropdownData = async () => {
     // 지점 목록은 useEffect의 fetchAuthSoList()에서 이미 로드됨
-    // 이 함수는 다른 드롭다운 데이터가 필요할 경우를 위해 유지
-    console.log('📋 [드롭다운] 초기화 완료');
+    console.log('[드롭다운] 초기화 완료');
   };
 
   // 장비 조회

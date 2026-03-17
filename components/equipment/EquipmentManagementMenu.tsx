@@ -45,23 +45,23 @@ const EquipmentManagementMenu: React.FC<EquipmentManagementMenuProps> = ({ onNav
           onTabChange={handleTabChange}
         />
       </div>
-      {/* 콘텐츠 영역 - 모든 탭 항상 마운트, display로 전환 (상태 유지) */}
+      {/* 콘텐츠 영역 - 활성 탭만 렌더링 (불필요한 API 호출 방지) */}
       <div className="flex-1 overflow-hidden">
-        <div style={{ display: activeTab === 'equipment-assignment' ? 'contents' : 'none' }}>
+        {activeTab === 'equipment-assignment' && (
           <EquipmentAssignment onBack={onNavigateToMenu} showToast={showToast} />
-        </div>
-        <div style={{ display: activeTab === 'equipment-inquiry' ? 'contents' : 'none' }}>
+        )}
+        {activeTab === 'equipment-inquiry' && (
           <EquipmentInquiry onBack={onNavigateToMenu} showToast={showToast} />
-        </div>
-        <div style={{ display: activeTab === 'equipment-list' ? 'contents' : 'none' }}>
+        )}
+        {activeTab === 'equipment-list' && (
           <EquipmentList onBack={onNavigateToMenu} showToast={showToast} />
-        </div>
-        <div style={{ display: activeTab === 'equipment-movement' ? 'contents' : 'none' }}>
+        )}
+        {activeTab === 'equipment-movement' && (
           <EquipmentMovement onBack={onNavigateToMenu} showToast={showToast} />
-        </div>
-        <div style={{ display: activeTab === 'equipment-recovery' ? 'contents' : 'none' }}>
+        )}
+        {activeTab === 'equipment-recovery' && (
           <EquipmentRecovery onBack={onNavigateToMenu} showToast={showToast} />
-        </div>
+        )}
       </div>
     </div>
   );
