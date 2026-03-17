@@ -353,6 +353,10 @@ const UnpaymentCollectionModal: React.FC<UnpaymentCollectionModalProps> = ({
         return;
       }
 
+      // Use backend-generated ORDER_NO and MERT_KEY if available
+      const actualOrderNo = dpstRes.data?.ORDER_NO || orderNo;
+      const mertKey = dpstRes.data?.MERT_KEY || '';
+
       // Step 3: Save pending BEFORE PG call
       const pendingInfo: PendingPaymentInfo = {
         cardNo: cleanCardNo.slice(-4),
@@ -361,7 +365,7 @@ const UnpaymentCollectionModal: React.FC<UnpaymentCollectionModalProps> = ({
         installment,
         korId: korId.slice(0, 2) + '****',
         mid,
-        orderNo,
+        orderNo: actualOrderNo,
         orderDt,
         selectedTotal,
         timestamp: Date.now(),
@@ -380,7 +384,7 @@ const UnpaymentCollectionModal: React.FC<UnpaymentCollectionModalProps> = ({
       // Step 4: Process card payment (may timeout)
       const pgRes = await processCardPayment({
         mid,
-        oid: orderNo,
+        oid: actualOrderNo,
         order_dt: orderDt,
         amount: String(selectedTotal),
         buyer: custNm || '',
@@ -394,10 +398,11 @@ const UnpaymentCollectionModal: React.FC<UnpaymentCollectionModalProps> = ({
         encrypted_amt: String(selectedTotal),
         so_id: soId,
         cust_id: custId,
+        mert_key: mertKey,
       });
 
       if (pgRes.success) {
-        removePendingPayment(pymAcntId, orderNo);
+        removePendingPayment(pymAcntId, actualOrderNo);
         setPendingPayments(getPendingPayments(pymAcntId));
         setCompletedBillYms(prev => {
           const next = new Set(prev);
@@ -412,7 +417,7 @@ const UnpaymentCollectionModal: React.FC<UnpaymentCollectionModalProps> = ({
         setPaymentPopup({ visible: true, status: 'pending', message: '' });
       } else {
         // Explicit failure - remove pending
-        removePendingPayment(pymAcntId, orderNo);
+        removePendingPayment(pymAcntId, actualOrderNo);
         setPendingPayments(getPendingPayments(pymAcntId));
         setPaymentPopup({ visible: true, status: 'fail', message: pgRes.message || '서버 오류' });
       }

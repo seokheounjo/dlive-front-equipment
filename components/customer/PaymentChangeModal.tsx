@@ -313,30 +313,17 @@ const PaymentChangeModal: React.FC<PaymentChangeModalProps> = ({
     };
 
     try {
-      // 1차 시도
       setVerifyProgress('인증 처리 중...');
-      const result1 = await doVerify();
+      const result = await doVerify();
 
-      if (result1.success) {
+      if (result.success) {
         setIsVerified(true);
-        if (result1.financeCd) setFinanceCd(result1.financeCd);
+        if (result.financeCd) setFinanceCd(result.financeCd);
         setVerifyProgress('');
         showAlert(paymentForm.pymMthCd === '01' ? '계좌 인증이 완료되었습니다.' : '카드 인증이 완료되었습니다.', 'success');
       } else {
-        // 1차 실패 → 5초 대기 후 재시도
-        setVerifyProgress('재시도 중... 잠시만 기다려주세요.');
-        await new Promise(r => setTimeout(r, 5000));
-
-        const result2 = await doVerify();
-        if (result2.success) {
-          setIsVerified(true);
-          if (result2.financeCd) setFinanceCd(result2.financeCd);
-          setVerifyProgress('');
-          showAlert(paymentForm.pymMthCd === '01' ? '계좌 인증이 완료되었습니다.' : '카드 인증이 완료되었습니다.', 'success');
-        } else {
-          setVerifyProgress('');
-          showAlert('인증에 실패했습니다.\n잠시 후 다시 시도해주세요.\n\n' + (result2.message || ''), 'error');
-        }
+        setVerifyProgress('');
+        showAlert('인증에 실패했습니다.\n잠시 후 다시 시도해주세요.\n\n' + (result.message || ''), 'error');
       }
     } catch (error) {
       console.error('Verify error:', error);

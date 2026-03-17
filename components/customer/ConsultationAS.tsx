@@ -483,7 +483,9 @@ const ConsultationAS: React.FC<ConsultationASProps> = ({
         CNSL_RSLT: '5',   // 완료 (원본 CONA mowoe03m04.xml 기준)
         RCPT_TP: 'G1', CUST_REL: 'A', PRESS_RCPT_YN: 'N',
         SUBS_TP: '1', CTI_CID: '0',
-        SO_ID: '', MST_SO_ID: ''
+        SO_ID: '', MST_SO_ID: '',
+        CALL_NM: selectedCustomer.custNm || '',
+        REQ_CUST_TEL_NO: selectedCustomer.telNo || ''
       };
 
       const response = await registerConsultation(params);
@@ -1137,13 +1139,13 @@ const ConsultationAS: React.FC<ConsultationASProps> = ({
                           <div className="px-3 pb-3">
                             <div>
                               <div className="text-xs text-gray-500 mb-1">요청사항</div>
-                              <div className="p-2 bg-white border border-gray-200 rounded min-h-[48px] text-gray-700 text-xs">
+                              <div className="p-2 bg-white border border-gray-200 rounded min-h-[48px] text-gray-700 text-xs whitespace-pre-wrap">
                                 {item.REQ_CTX || '-'}
                               </div>
                             </div>
                             <div className="mt-2">
                               <div className="text-xs text-gray-500 mb-1">응대내용</div>
-                              <div className="p-2 bg-white border border-gray-200 rounded min-h-[48px] text-gray-700 text-xs">
+                              <div className="p-2 bg-white border border-gray-200 rounded min-h-[48px] text-gray-700 text-xs whitespace-pre-wrap">
                                 {item.PROC_CT || '-'}
                               </div>
                             </div>
@@ -1228,7 +1230,7 @@ const ConsultationAS: React.FC<ConsultationASProps> = ({
                             )}
                           </div>
                           {expandedWorkItems.has(index) && (
-                            <div className="p-2 bg-white border border-gray-200 rounded min-h-[48px] text-gray-700 text-xs">
+                            <div className="p-2 bg-white border border-gray-200 rounded min-h-[48px] text-gray-700 text-xs whitespace-pre-wrap">
                               {item.MEMO || '-'}
                             </div>
                           )}

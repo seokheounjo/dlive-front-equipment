@@ -553,13 +553,13 @@ const CustomerBasicInfo: React.FC<CustomerBasicInfoProps> = ({
                             <div className="px-3 pb-3">
                               <div>
                                 <div className="text-xs text-gray-500 mb-1">요청사항</div>
-                                <div className="p-2 bg-white border border-gray-200 rounded min-h-[48px] text-gray-700 text-xs">
+                                <div className="p-2 bg-white border border-gray-200 rounded min-h-[48px] text-gray-700 text-xs whitespace-pre-wrap">
                                   {item.REQ_CTX || '-'}
                                 </div>
                               </div>
                               <div className="mt-2">
                                 <div className="text-xs text-gray-500 mb-1">응대내용</div>
-                                <div className="p-2 bg-white border border-gray-200 rounded min-h-[48px] text-gray-700 text-xs">
+                                <div className="p-2 bg-white border border-gray-200 rounded min-h-[48px] text-gray-700 text-xs whitespace-pre-wrap">
                                   {item.PROC_CT || '-'}
                                 </div>
                               </div>
@@ -707,7 +707,7 @@ const CustomerBasicInfo: React.FC<CustomerBasicInfoProps> = ({
                               )}
                             </div>
                             {expandedWorkItems.has(index) && (
-                              <div className="p-2 bg-white border border-gray-200 rounded min-h-[48px] text-gray-700 text-xs">
+                              <div className="p-2 bg-white border border-gray-200 rounded min-h-[48px] text-gray-700 text-xs whitespace-pre-wrap">
                                 {item.MEMO || '-'}
                               </div>
                             )}

@@ -300,6 +300,8 @@ export interface ConsultationRequest {
   DEPT_CD?: string;          // 지점 선택 시
   CRR_ID?: string;           // 업체 선택 시
   CNSL_RSLT?: string;        // 상담결과 - '5'=완료 (원본 CONA mowoe03m04.xml 기준)
+  CALL_NM?: string;           // 전화자명
+  REQ_CUST_TEL_NO?: string;   // 요청고객 연락처
 }
 
 // AS 접수 요청 (Backend: modAsPdaReceipt)
