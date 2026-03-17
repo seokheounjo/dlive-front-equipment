@@ -122,44 +122,6 @@ export const getTechnicianEquipmentFromWork = async (params: {
 };
 
 /**
- * 보유장비 통합 조회 (Fallback 전략)
- *
- * 1순위: getCustProdInfo (82개 성공)
- * 2순위: getWrkrHaveEqtList_All (기존 API)
- */
-export const getMyEquipmentListWithFallback = async (params: {
-  WRKR_ID: string;
-  SO_ID?: string;
-  CRR_ID?: string;
-  ITEM_MID_CD?: string;
-}): Promise<TechnicianEquipment[]> => {
-  console.log('[보유장비-통합] 조회 시작:', params);
-
-  try {
-    // 1순위: getCustProdInfo 사용 (82개 성공)
-    const result = await getTechnicianEquipmentFromWork(params);
-
-    if (result && result.length > 0) {
-      console.log('[보유장비-통합] getCustProdInfo 성공:', result.length, '개');
-
-      // ITEM_MID_CD 필터링
-      if (params.ITEM_MID_CD) {
-        const filtered = result.filter((item: any) => item.ITEM_MID_CD === params.ITEM_MID_CD);
-        console.log('[보유장비-통합] ITEM_MID_CD 필터 후:', filtered.length, '개');
-        return filtered;
-      }
-      return result;
-    }
-
-    console.log('[보유장비-통합] getCustProdInfo 결과 없음');
-    return [];
-  } catch (error) {
-    console.error('[보유장비-통합] getCustProdInfo 실패:', error);
-    throw error;
-  }
-};
-
-/**
  * 전체 장비 정보 조회 (output1~5 모두)
  *
  * @param params 조회 파라미터
