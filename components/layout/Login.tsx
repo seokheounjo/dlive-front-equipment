@@ -39,7 +39,7 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
   const getNetworkType = (): string => {
     try {
       const conn = (navigator as any).connection;
-      if (conn) return conn.type || conn.effectiveType || '';
+      if (conn) return (conn.type || conn.effectiveType || '').substring(0, 10);
     } catch (e) {}
     return '';
   };

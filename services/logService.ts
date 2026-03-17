@@ -157,8 +157,8 @@ function getConnectionType(): string {
 function getNetworkType(): string {
   const device = getDeviceType();
   const conn = getConnectionType();
-  if (conn) return device + '_' + conn;
-  return device;
+  const raw = conn ? device + '_' + conn : device;
+  return raw.substring(0, 10);
 }
 
 // ============ User Info Helper ============
