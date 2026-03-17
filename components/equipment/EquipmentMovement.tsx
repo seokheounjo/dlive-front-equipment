@@ -715,15 +715,16 @@ const EquipmentMovement: React.FC<EquipmentMovementProps> = ({ onBack, showToast
     setIsSearchingWorker(true);
     try {
       if (isNameSearch) {
-        // 이름 검색: findUserList API 사용 (USR_NM 파라미터) - getFindUsrList3.req
-        console.log('[장비이동] 이름 검색:', keyword);
+        // 이름 검색: 본인 SO_ID + CRR_ID 기준 단일 호출
+        const userSoId = userInfo?.soId || '';
+        const userCrrId = userInfo?.crrId || '';
+        console.log('[장비이동] 이름 검색:', keyword, 'SO_ID:', userSoId);
 
-        // 먼저 USR_NM으로 직접 검색 시도
-        let allWorkers = await findUserList({ USR_NM: keyword });
+        const searchParams: any = { USR_NM: keyword };
+        if (userSoId) searchParams.SO_ID = userSoId;
+        if (userCrrId) searchParams.CRR_ID = userCrrId;
+        let allWorkers = await findUserList(searchParams);
         console.log('[장비이동] 이름 검색 결과:', allWorkers.length, '명');
-
-        // 과부하 방지: SO_ID 병렬 조회 제거됨 (2026-03-17)
-        // 이름 검색 0건이면 그대로 0건 반환 (30+ SO_ID 병렬 조회 → 서버 과부하 원인)
 
         if (allWorkers.length > 0) {
           const workersToShow = allWorkers.slice(0, 30).map((w: any) => ({

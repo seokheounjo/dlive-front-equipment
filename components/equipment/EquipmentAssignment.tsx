@@ -243,42 +243,23 @@ const EquipmentAssignment: React.FC<EquipmentAssignmentProps> = ({ onBack, showT
     try {
       let allResults: EqtOut[] = [];
 
-      // 전체 선택 시 SO_ID 없이 단일 호출 (과부하 방지: SO_ID별 병렬 조회 제거, 2026-03-17)
-      if (!selectedSoId && soList.length > 0) {
-        console.log('[장비할당] 전체 지점 조회 모드 - 단일 호출');
-        const params: any = {
-          FROM_OUT_REQ_DT: fromDate,
-          TO_OUT_REQ_DT: toDate,
-          PROC_STAT: '%',
-          WRKR_ID: userInfo?.userId || '',
-          CRR_ID: userInfo?.crrId || '',
-        };
-        const result = await debugApiCall(
-          'EquipmentAssignment',
-          'getEquipmentOutList (전체)',
-          () => getEquipmentOutList(params),
-          params
-        );
-        allResults = result || [];
-        console.log('[장비할당] 전체 지점 조회 완료 - 총', allResults.length, '건');
-      } else {
-        // 특정 지점 선택 시
-        const params: any = {
-          FROM_OUT_REQ_DT: fromDate,
-          TO_OUT_REQ_DT: toDate,
-          SO_ID: selectedSoId || userInfo?.soId || '209',
-          PROC_STAT: '%',
-          WRKR_ID: userInfo?.userId || '',
-          CRR_ID: userInfo?.crrId || '',
-        };
-        const result = await debugApiCall(
-          'EquipmentAssignment',
-          'getEquipmentOutList',
-          () => getEquipmentOutList(params),
-          params
-        );
-        allResults = result || [];
-      }
+      // 본인 SO_ID + CRR_ID 기준 단일 호출 (선택 지점 또는 기본 지점)
+      const params: any = {
+        FROM_OUT_REQ_DT: fromDate,
+        TO_OUT_REQ_DT: toDate,
+        SO_ID: selectedSoId || userInfo?.soId || '',
+        PROC_STAT: '%',
+        WRKR_ID: userInfo?.userId || '',
+        CRR_ID: userInfo?.crrId || '',
+      };
+      console.log('[장비할당] 출고조회:', params.SO_ID ? 'SO_ID=' + params.SO_ID : '본인 지점');
+      const result = await debugApiCall(
+        'EquipmentAssignment',
+        'getEquipmentOutList',
+        () => getEquipmentOutList(params),
+        params
+      );
+      allResults = result || [];
 
       // 내 할당 장비만 필터링 (OUT_CHRG_UID = 출고담당자 = 수령기사)
       const myUserId = userInfo?.userId || '';
