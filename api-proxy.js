@@ -913,6 +913,7 @@ router.post('/customer/etc/saveMargeAddrOrdInfo', handleProxy);
 router.post('/customer/negociation/updateInstlLoc', handleProxy);
 router.post('/customer/etc/savePymAddrInfo', handleProxy);
 router.post('/customer/customer/general/customerPymChgAddManager', handlePaymentMethodChange);  // chgPymMthd_m via adapter
+router.post('/customer/customer/general/updatePaymentMethod', handleProxy);  // chgPymMthd_m direct adapter call
 router.post('/customer/customer/general/updatePymAtmtApplAGRPdf', handleProxy);  // AGR PDF update after chgPymMthd_m
 router.post('/customer/customer/general/addCustomerPymInfoChange', handleProxy);
 router.post('/customer/payment/verifyBankAccount', handleBankAccountVerify);  // KSNET bank account verify (.req direct)
