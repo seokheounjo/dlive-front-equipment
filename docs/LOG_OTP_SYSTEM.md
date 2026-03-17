@@ -1,6 +1,6 @@
 # D'Live CONA 모바일 - 로그인/로그/OTP 시스템 종합 문서
 
-> 최종 업데이트: 2026-03-16
+> 최종 업데이트: 2026-03-17
 > 상태: 프론트엔드 배포 완료 / 백엔드 배포 완료 (jsh → main 빌드/배포)
 > 동기화 대상: seokheounjo/dlive-front-equipment (main) ↔ teemartbottle/dlive-cona-client (equipment_customer_other)
 
@@ -1232,3 +1232,53 @@ const NAVIGATION_HIERARCHY: Record<View, View | null> = {
 ### 15.4 반영 현황
 - front-equipment (main) ✅
 - cona-client (equipment_customer_other) ✅
+
+---
+
+## 16. 프론트엔드 배포 워크플로우
+
+### 16.1 개발/운영 레포 구분
+
+| 구분 | 레포 | 브랜치 | 용도 |
+|------|------|--------|------|
+| **개발 (DEV)** | `seokheounjo/dlive-front-equipment` | `main` | 개발/테스트 서버 (dlivestore2.store) |
+| **운영 (PROD)** | `teemartbottle/dlive-cona-client` | `equipment_customer_other` | 운영 코드 관리 (관리자가 main 머지) |
+
+### 16.2 배포 순서 (필수 준수)
+
+```
+1. 개발 레포 (front-equipment) 코드 수정
+   ↓
+2. npm run build → dist/ 포함 커밋 → push to main
+   ↓
+3. GitHub Actions 자동 배포 → EC2 (dlivestore2.store)
+   ↓
+4. EC2에서 기능 테스트/검증
+   ↓
+5. 검증 완료 후 운영 레포 (cona-client) 에 동일 코드 반영
+   ↓
+6. push to equipment_customer_other (dist/ 커밋 금지)
+   ↓
+7. 관리자가 main 머지 후 운영 빌드/배포
+```
+
+### 16.3 핵심 규칙
+
+- **개발 먼저, 검증 후 운영** — 순서 절대 역전 금지
+- **운영 레포 main 브랜치 푸시 절대 금지** — `equipment_customer_other` 브랜치만 사용
+- **운영 레포 dist/ 커밋 금지** — main 머지 후 관리자가 빌드
+- **개발에서 테스트 안 된 코드 운영에 올리지 않음**
+- 개발 레포 커밋 메시지: 자유 형식
+- 운영 레포 커밋 메시지: `[jsh] 변경 내용` 형식
+
+### 16.4 로컬 경로
+
+```
+개발: /c/bottle/dlive/frontend
+운영: /c/tmp/dlive-cona-client
+```
+
+### 16.5 OTP 설정 차이
+
+- 개발 (front-equipment): `OTP_ENABLED = false` (OTP 비활성화)
+- 운영 (cona-client): `OTP_ENABLED = true` (OTP 활성화)
