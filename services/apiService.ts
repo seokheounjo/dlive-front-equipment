@@ -3028,6 +3028,10 @@ export const getEquipmentHistoryInfo = async (params: {
     const result = await response.json();
     console.log('장비 조회 성공:', result);
 
+    // MCONA wrapped response: {success: true, data: [{...}], debugLogs, count}
+    if (result && result.data && Array.isArray(result.data)) {
+      return result.data.length === 1 ? result.data[0] : result.data;
+    }
     return Array.isArray(result) ? result[0] : result;
   } catch (error: any) {
     console.error('장비 조회 실패:', error);
