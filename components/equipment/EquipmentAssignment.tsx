@@ -243,22 +243,23 @@ const EquipmentAssignment: React.FC<EquipmentAssignmentProps> = ({ onBack, showT
     try {
       let allResults: EqtOut[] = [];
 
-      // 전체 선택 시 모든 지점 조회
+      // 전체 선택 시 SO_ID 없이 단일 호출 (과부하 방지: SO_ID별 병렬 조회 제거, 2026-03-17)
       if (!selectedSoId && soList.length > 0) {
-        console.log('[장비할당] 전체 지점 조회 모드 - ', soList.length, '개 지점');
-        const promises = soList.map(so => {
-          const params: any = {
-            FROM_OUT_REQ_DT: fromDate,
-            TO_OUT_REQ_DT: toDate,
-            SO_ID: so.SO_ID,
-            PROC_STAT: '%',
-            WRKR_ID: userInfo?.userId || '',
-            CRR_ID: userInfo?.crrId || '',
-          };
-          return getEquipmentOutList(params).catch(() => []);
-        });
-        const results = await Promise.all(promises);
-        allResults = results.flat();
+        console.log('[장비할당] 전체 지점 조회 모드 - 단일 호출');
+        const params: any = {
+          FROM_OUT_REQ_DT: fromDate,
+          TO_OUT_REQ_DT: toDate,
+          PROC_STAT: '%',
+          WRKR_ID: userInfo?.userId || '',
+          CRR_ID: userInfo?.crrId || '',
+        };
+        const result = await debugApiCall(
+          'EquipmentAssignment',
+          'getEquipmentOutList (전체)',
+          () => getEquipmentOutList(params),
+          params
+        );
+        allResults = result || [];
         console.log('[장비할당] 전체 지점 조회 완료 - 총', allResults.length, '건');
       } else {
         // 특정 지점 선택 시
@@ -299,35 +300,57 @@ const EquipmentAssignment: React.FC<EquipmentAssignmentProps> = ({ onBack, showT
         setOutTgtEqtList([]);
         showToast?.('조회된 출고 내역이 없습니다.', 'info');
       } else {
-        // 수령 상태를 먼저 계산한 후 목록 표시 (배지가 함께 표시되도록)
-        const resultsWithStatus = await Promise.all(
-          allResults.map(async (item) => {
-            try {
-              const equipments = await getOutEquipmentTargetList({ OUT_REQ_NO: item.OUT_REQ_NO });
-              const eqList = Array.isArray(equipments) ? equipments : (equipments.output1 || []);
+        // 수령 상태 조회 - 동시 3개씩 순차 배치 (과부하 방지, 2026-03-17)
+        const resultsWithStatus = allResults.map(item => ({
+          ...item, _receiveStatus: 'none' as const, _receivedCount: 0, _totalCount: 0
+        }));
 
-              if (eqList.length === 0) {
-                return { ...item, _receiveStatus: 'none' as const, _receivedCount: 0, _totalCount: 0 };
-              }
-
-              const receivedCount = eqList.filter((eq: any) => eq.PROC_YN === 'Y').length;
-              const totalCount = eqList.length;
-
-              let status: 'received' | 'partial' | 'none' = 'none';
-              if (receivedCount === totalCount) {
-                status = 'received';
-              } else if (receivedCount > 0) {
-                status = 'partial';
-              }
-
-              return { ...item, _receiveStatus: status, _receivedCount: receivedCount, _totalCount: totalCount };
-            } catch {
-              return { ...item, _receiveStatus: 'none' as const, _receivedCount: 0, _totalCount: 0 };
-            }
-          })
-        );
-        
+        // 먼저 목록 표시 (상태는 백그라운드에서 로드)
         setEqtOutList(resultsWithStatus);
+
+        // 동시 3개씩 배치로 수령 상태 조회
+        const BATCH_SIZE = 3;
+        for (let i = 0; i < allResults.length; i += BATCH_SIZE) {
+          const batch = allResults.slice(i, i + BATCH_SIZE);
+          const batchResults = await Promise.all(
+            batch.map(async (item, idx) => {
+              try {
+                const equipments = await getOutEquipmentTargetList({ OUT_REQ_NO: item.OUT_REQ_NO });
+                const eqList = Array.isArray(equipments) ? equipments : (equipments.output1 || []);
+
+                if (eqList.length === 0) {
+                  return { index: i + idx, status: 'none' as const, received: 0, total: 0 };
+                }
+
+                const receivedCount = eqList.filter((eq: any) => eq.PROC_YN === 'Y').length;
+                const totalCount = eqList.length;
+                let status: 'received' | 'partial' | 'none' = 'none';
+                if (receivedCount === totalCount) status = 'received';
+                else if (receivedCount > 0) status = 'partial';
+
+                return { index: i + idx, status, received: receivedCount, total: totalCount };
+              } catch {
+                return { index: i + idx, status: 'none' as const, received: 0, total: 0 };
+              }
+            })
+          );
+
+          // 배치 결과 반영
+          setEqtOutList(prev => {
+            const updated = [...prev];
+            batchResults.forEach(br => {
+              if (updated[br.index]) {
+                updated[br.index] = {
+                  ...updated[br.index],
+                  _receiveStatus: br.status,
+                  _receivedCount: br.received,
+                  _totalCount: br.total,
+                };
+              }
+            });
+            return updated;
+          });
+        }
         setSelectedEqtOut(null);
         setOutTgtEqtList([]);
         showToast?.(`${resultsWithStatus.length}건의 출고 내역을 조회했습니다.`, 'success');

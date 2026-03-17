@@ -722,47 +722,8 @@ const EquipmentMovement: React.FC<EquipmentMovementProps> = ({ onBack, showToast
         let allWorkers = await findUserList({ USR_NM: keyword });
         console.log('[장비이동] 이름 검색 결과:', allWorkers.length, '명');
 
-        // 한글 인코딩 문제로 빈 결과 시, 모든 AUTH_SO_List로 병렬 조회 후 클라이언트 필터링
-        if (allWorkers.length === 0) {
-          const storedUser = localStorage.getItem('user') || localStorage.getItem('userInfo');
-          if (storedUser) {
-            try {
-              const user = JSON.parse(storedUser);
-              const authSoList = user.AUTH_SO_List || user.authSoList || [];
-              if (authSoList.length > 0) {
-                console.log('[장비이동] 이름 검색 빈 결과 - 모든 SO_ID로 병렬 조회:', authSoList.map((s: any) => s.SO_ID).join(', '));
-
-                // 모든 SO_ID로 병렬 조회
-                const soQueries = authSoList.map((so: any) =>
-                  findUserList({ SO_ID: so.SO_ID }).catch(() => [])
-                );
-                const soResults = await Promise.all(soQueries);
-
-                // 결과 병합 (USR_ID 기준 중복 제거)
-                const workerMap = new Map<string, any>();
-                soResults.forEach((workers: any[]) => {
-                  workers.forEach((w: any) => {
-                    if (w.USR_ID && !workerMap.has(w.USR_ID)) {
-                      workerMap.set(w.USR_ID, w);
-                    }
-                  });
-                });
-                const mergedWorkers = Array.from(workerMap.values());
-                console.log('[장비이동] 병합 결과:', mergedWorkers.length, '명 (중복제거)');
-
-                // 이름으로 클라이언트 필터링 (대소문자 무시, 부분 일치)
-                const keywordLower = keyword.toLowerCase();
-                allWorkers = mergedWorkers.filter((w: any) => {
-                  const name = (w.USR_NM || w.USR_NAME_EN || '').toLowerCase();
-                  return name.includes(keywordLower);
-                });
-                console.log('[장비이동] 이름 필터링 결과:', allWorkers.length, '명');
-              }
-            } catch (e) {
-              console.error('[장비이동] user 파싱 실패:', e);
-            }
-          }
-        }
+        // 과부하 방지: SO_ID 병렬 조회 제거됨 (2026-03-17)
+        // 이름 검색 0건이면 그대로 0건 반환 (30+ SO_ID 병렬 조회 → 서버 과부하 원인)
 
         if (allWorkers.length > 0) {
           const workersToShow = allWorkers.slice(0, 30).map((w: any) => ({
