@@ -1587,6 +1587,7 @@ function callLegacyReqEndpoint(endpoints, index, accessTicket, res) {
 // MCONA proxy handler: Routes equipment LIST APIs to real CONA server (mcona.dlive.kr:7080)
 // Adapter at 58.143.140.222:8080 returns 0 items for list queries, mcona works correctly
 async function handleMconaProxy(req, res) {
+  let fallbackDone = false;  // 이중 fallback 방지 (timeout+error 동시 발생 시 ERR_HTTP_HEADERS_SENT 크래시 방지)
   try {
     const apiPath = req.path;
     const targetUrl = MCONA_API_BASE + '/api' + apiPath;
@@ -1617,6 +1618,7 @@ async function handleMconaProxy(req, res) {
     };
 
     const proxyReq = https.request(options, (proxyRes) => {
+      fallbackDone = true;  // MCONA 응답 받음 → fallback 불필요
       let chunks = [];
       proxyRes.on('data', (chunk) => chunks.push(chunk));
       proxyRes.on('end', () => {
@@ -1637,6 +1639,8 @@ async function handleMconaProxy(req, res) {
 
     proxyReq.on('error', (error) => {
       console.error('[MCONA] Error:', error.message);
+      if (fallbackDone) return;  // 이미 응답 전송됨 → 중복 방지
+      fallbackDone = true;
       // Fallback to adapter
       console.log('[MCONA] Falling back to adapter...');
       handleProxy(req, res);
@@ -1645,6 +1649,8 @@ async function handleMconaProxy(req, res) {
     proxyReq.on('timeout', () => {
       proxyReq.destroy();
       console.error('[MCONA] Timeout, falling back to adapter...');
+      if (fallbackDone) return;  // 이미 응답 전송됨 → 중복 방지
+      fallbackDone = true;
       handleProxy(req, res);
     });
 
@@ -1652,7 +1658,7 @@ async function handleMconaProxy(req, res) {
     proxyReq.end();
   } catch (error) {
     console.error('[MCONA] Exception:', error.message);
-    handleProxy(req, res);
+    if (!fallbackDone) { fallbackDone = true; handleProxy(req, res); }
   }
 }
 
