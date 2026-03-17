@@ -558,31 +558,40 @@ export default function OvertimeWork({ onBack, userInfo, showToast }: OvertimeWo
               </div>
 
               <div>
-                <label className="block text-sm text-gray-600 mb-1">근무일자</label>
-                <div className="space-y-2">
+                <label className="block text-sm text-gray-600 mb-1">시작</label>
+                <div className="flex items-center gap-1.5">
                   <input
                     type="date"
                     value={applyForm.fromDate}
-                    onChange={e => setApplyForm(prev => ({ ...prev, fromDate: e.target.value, toDate: e.target.value }))}
-                    className="w-full px-2 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                    onChange={e => setApplyForm(prev => ({ ...prev, fromDate: e.target.value }))}
+                    className="flex-1 min-w-0 px-2 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
                   />
-                  <div className="flex items-center gap-1.5">
-                    <select value={applyForm.fromHour} onChange={e => setApplyForm(prev => ({ ...prev, fromHour: e.target.value }))} className="w-16 px-1 py-2 border border-gray-300 rounded-lg text-sm text-center">
-                      {HOURS.map(h => <option key={h} value={h}>{h}</option>)}
-                    </select>
-                    <span className="text-gray-400">:</span>
-                    <select value={applyForm.fromMinu} onChange={e => setApplyForm(prev => ({ ...prev, fromMinu: e.target.value }))} className="w-16 px-1 py-2 border border-gray-300 rounded-lg text-sm text-center">
-                      {MINUTES.map(m => <option key={m} value={m}>{m}</option>)}
-                    </select>
-                    <span className="text-gray-400 mx-1">~</span>
-                    <select value={applyForm.toHour} onChange={e => setApplyForm(prev => ({ ...prev, toHour: e.target.value }))} className="w-16 px-1 py-2 border border-gray-300 rounded-lg text-sm text-center">
-                      {HOURS.map(h => <option key={h} value={h}>{h}</option>)}
-                    </select>
-                    <span className="text-gray-400">:</span>
-                    <select value={applyForm.toMinu} onChange={e => setApplyForm(prev => ({ ...prev, toMinu: e.target.value }))} className="w-16 px-1 py-2 border border-gray-300 rounded-lg text-sm text-center">
-                      {MINUTES.map(m => <option key={m} value={m}>{m}</option>)}
-                    </select>
-                  </div>
+                  <select value={applyForm.fromHour} onChange={e => setApplyForm(prev => ({ ...prev, fromHour: e.target.value }))} className="w-16 px-1 py-2 border border-gray-300 rounded-lg text-sm text-center">
+                    {HOURS.map(h => <option key={h} value={h}>{h}</option>)}
+                  </select>
+                  <span className="text-gray-400">:</span>
+                  <select value={applyForm.fromMinu} onChange={e => setApplyForm(prev => ({ ...prev, fromMinu: e.target.value }))} className="w-16 px-1 py-2 border border-gray-300 rounded-lg text-sm text-center">
+                    {MINUTES.map(m => <option key={m} value={m}>{m}</option>)}
+                  </select>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm text-gray-600 mb-1">종료</label>
+                <div className="flex items-center gap-1.5">
+                  <input
+                    type="date"
+                    value={applyForm.toDate}
+                    onChange={e => setApplyForm(prev => ({ ...prev, toDate: e.target.value }))}
+                    className="flex-1 min-w-0 px-2 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                  />
+                  <select value={applyForm.toHour} onChange={e => setApplyForm(prev => ({ ...prev, toHour: e.target.value }))} className="w-16 px-1 py-2 border border-gray-300 rounded-lg text-sm text-center">
+                    {HOURS.map(h => <option key={h} value={h}>{h}</option>)}
+                  </select>
+                  <span className="text-gray-400">:</span>
+                  <select value={applyForm.toMinu} onChange={e => setApplyForm(prev => ({ ...prev, toMinu: e.target.value }))} className="w-16 px-1 py-2 border border-gray-300 rounded-lg text-sm text-center">
+                    {MINUTES.map(m => <option key={m} value={m}>{m}</option>)}
+                  </select>
                 </div>
               </div>
 
@@ -666,31 +675,40 @@ export default function OvertimeWork({ onBack, userInfo, showToast }: OvertimeWo
               </div>
 
               <div>
-                <label className="block text-sm text-gray-600 mb-1">근무일자 (실적)</label>
-                <div className="space-y-2">
+                <label className="block text-sm text-gray-600 mb-1">시작 (실적)</label>
+                <div className="flex items-center gap-1.5">
                   <input
                     type="date"
                     value={actualForm.fromDate}
-                    onChange={e => setActualForm(prev => ({ ...prev, fromDate: e.target.value, toDate: e.target.value }))}
-                    className="w-full px-2 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                    onChange={e => setActualForm(prev => ({ ...prev, fromDate: e.target.value }))}
+                    className="flex-1 min-w-0 px-2 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
                   />
-                  <div className="flex items-center gap-1.5">
-                    <select value={actualForm.fromHour} onChange={e => setActualForm(prev => ({ ...prev, fromHour: e.target.value }))} className="w-16 px-1 py-2 border border-gray-300 rounded-lg text-sm text-center">
-                      {HOURS.map(h => <option key={h} value={h}>{h}</option>)}
-                    </select>
-                    <span className="text-gray-400">:</span>
-                    <select value={actualForm.fromMinu} onChange={e => setActualForm(prev => ({ ...prev, fromMinu: e.target.value }))} className="w-16 px-1 py-2 border border-gray-300 rounded-lg text-sm text-center">
-                      {MINUTES.map(m => <option key={m} value={m}>{m}</option>)}
-                    </select>
-                    <span className="text-gray-400 mx-1">~</span>
-                    <select value={actualForm.toHour} onChange={e => setActualForm(prev => ({ ...prev, toHour: e.target.value }))} className="w-16 px-1 py-2 border border-gray-300 rounded-lg text-sm text-center">
-                      {HOURS.map(h => <option key={h} value={h}>{h}</option>)}
-                    </select>
-                    <span className="text-gray-400">:</span>
-                    <select value={actualForm.toMinu} onChange={e => setActualForm(prev => ({ ...prev, toMinu: e.target.value }))} className="w-16 px-1 py-2 border border-gray-300 rounded-lg text-sm text-center">
-                      {MINUTES.map(m => <option key={m} value={m}>{m}</option>)}
-                    </select>
-                  </div>
+                  <select value={actualForm.fromHour} onChange={e => setActualForm(prev => ({ ...prev, fromHour: e.target.value }))} className="w-16 px-1 py-2 border border-gray-300 rounded-lg text-sm text-center">
+                    {HOURS.map(h => <option key={h} value={h}>{h}</option>)}
+                  </select>
+                  <span className="text-gray-400">:</span>
+                  <select value={actualForm.fromMinu} onChange={e => setActualForm(prev => ({ ...prev, fromMinu: e.target.value }))} className="w-16 px-1 py-2 border border-gray-300 rounded-lg text-sm text-center">
+                    {MINUTES.map(m => <option key={m} value={m}>{m}</option>)}
+                  </select>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm text-gray-600 mb-1">종료 (실적)</label>
+                <div className="flex items-center gap-1.5">
+                  <input
+                    type="date"
+                    value={actualForm.toDate}
+                    onChange={e => setActualForm(prev => ({ ...prev, toDate: e.target.value }))}
+                    className="flex-1 min-w-0 px-2 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                  />
+                  <select value={actualForm.toHour} onChange={e => setActualForm(prev => ({ ...prev, toHour: e.target.value }))} className="w-16 px-1 py-2 border border-gray-300 rounded-lg text-sm text-center">
+                    {HOURS.map(h => <option key={h} value={h}>{h}</option>)}
+                  </select>
+                  <span className="text-gray-400">:</span>
+                  <select value={actualForm.toMinu} onChange={e => setActualForm(prev => ({ ...prev, toMinu: e.target.value }))} className="w-16 px-1 py-2 border border-gray-300 rounded-lg text-sm text-center">
+                    {MINUTES.map(m => <option key={m} value={m}>{m}</option>)}
+                  </select>
                 </div>
               </div>
 
