@@ -25,9 +25,14 @@ const PATH_MAPPING = {
 // Routes that should go directly to legacy .req servlet (bypass our adapter)
 // NOTE: getEquipmentHistoryInfo removed - our adapter handles it with getEquipmentHistoryInfo_2
 // NOTE: _m APIs go through EC2 /api/* (D'Live requires separate session we don't have)
-// LEGACY_REQ_ROUTES removed - all routes go through adapter (/api prefix)
-// Previously these went directly to .req servlet but failed due to missing CONA session
-const LEGACY_REQ_ROUTES = [];
+// 어댑터 핸들러가 invokeFlexible 문제로 빈값 반환하는 API → .req 직접 호출
+// PC(레거시)에서 정상 동작하는 것은 .req 서블릿 직접 호출이기 때문
+const LEGACY_REQ_ROUTES = [
+  '/customer/equipment/getWrkrHaveEqtList_All',
+  '/customer/equipment/getEquipmentChkStndByA_All',
+  '/customer/phoneNumber/getOwnEqtLstForMobile_3',
+  '/customer/equipment/getOwnEqtLstForMobile_3',
+];
 
 // Parse MiPlatform XML response to JSON
 function parseMiPlatformXMLtoJSON(xmlString) {
