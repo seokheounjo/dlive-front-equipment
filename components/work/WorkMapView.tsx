@@ -5,7 +5,8 @@ import { useUIStore } from '../../stores/uiStore';
 import { loadMapApiKeys } from '../../services/navigationService';
 
 interface WorkMapViewProps {
-  workOrders: WorkOrder[];
+  workOrders?: WorkOrder[];
+  directions?: WorkOrder[];
   onBack: () => void;
   onSelectWork: (work: WorkOrder) => void;
 }
@@ -18,7 +19,8 @@ const STATUS_COLORS: Record<string, string> = {
   'default': '#EF4444' // 밝은 빨간색 (대기/기본)
 };
 
-const WorkMapView: React.FC<WorkMapViewProps> = ({ workOrders, onBack, onSelectWork }) => {
+const WorkMapView: React.FC<WorkMapViewProps> = ({ workOrders, directions, onBack, onSelectWork }) => {
+  const items = workOrders || directions || [];
   const mapRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<kakao.maps.Map | null>(null);
   const markersRef = useRef<kakao.maps.Marker[]>([]);
@@ -291,7 +293,7 @@ const WorkMapView: React.FC<WorkMapViewProps> = ({ workOrders, onBack, onSelectW
           validMarkers++;
 
           // 모든 마커가 추가되면 bounds 조정
-          if (validMarkers > 0 && index === workOrders.length - 1) {
+          if (validMarkers > 0 && index === items.length - 1) {
             setTimeout(() => {
               map.setBounds(bounds);
               setIsLoading(false);
@@ -300,14 +302,14 @@ const WorkMapView: React.FC<WorkMapViewProps> = ({ workOrders, onBack, onSelectW
         }
 
         // 마지막 작업이면 로딩 완료
-        if (index === workOrders.length - 1) {
+        if (index === items.length - 1) {
           setTimeout(() => setIsLoading(false), 500);
         }
       });
     };
 
     // 작업 목록 처리 (딜레이를 두어 API 제한 방지)
-    workOrders.forEach((work, index) => {
+    items.forEach((work, index) => {
       setTimeout(() => processWork(work, index), index * 100);
     });
 
@@ -329,7 +331,7 @@ const WorkMapView: React.FC<WorkMapViewProps> = ({ workOrders, onBack, onSelectW
       markersRef.current.forEach(marker => marker.setMap(null));
       overlaysRef.current.forEach(overlay => overlay.setMap(null));
     };
-  }, [sdkLoaded, workOrders, createMarkerImage, createInfoContent, onSelectWork]);
+  }, [sdkLoaded, items, createMarkerImage, createInfoContent, onSelectWork]);
 
   // 현재 위치로 이동
   const handleMyLocation = () => {
@@ -378,7 +380,7 @@ const WorkMapView: React.FC<WorkMapViewProps> = ({ workOrders, onBack, onSelectW
           <div className="absolute inset-0 bg-white/80 flex flex-col items-center justify-center z-10">
             <div className="w-10 h-10 border-4 border-primary-500 border-t-transparent rounded-full animate-spin mb-4" />
             <p className="text-gray-600">
-              {!sdkLoaded ? '카카오맵 로딩 중...' : `지도 로딩 중... (${geocodedCount}/${workOrders.length})`}
+              {!sdkLoaded ? '카카오맵 로딩 중...' : `지도 로딩 중... (${geocodedCount}/${items.length})`}
             </p>
           </div>
         )}
@@ -463,7 +465,7 @@ const WorkMapView: React.FC<WorkMapViewProps> = ({ workOrders, onBack, onSelectW
             </div>
           </div>
           <div className="text-sm text-gray-500">
-            총 {workOrders.length}건
+            총 {items.length}건
           </div>
         </div>
       </div>
