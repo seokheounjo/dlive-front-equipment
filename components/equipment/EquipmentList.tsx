@@ -280,10 +280,8 @@ const EquipmentList: React.FC<EquipmentListProps> = ({ onBack, showToast }) => {
     }
   };
 
-  // 탭 진입 시 보유장비 1회 로딩 (SO_ID 재시도 루프 없음)
-  useEffect(() => {
-    loadMyEquipments();
-  }, []);
+  // 자동 로딩 제거 (2026-03-17): 탭 전환마다 리마운트 → 반복 호출 원인
+  // 보유장비는 사용자가 검색 버튼 클릭 시에만 로드
 
   // 내 보유 장비에서 검색
   const searchInMyEquipments = (searchVal: string): any | null => {
@@ -350,6 +348,11 @@ const EquipmentList: React.FC<EquipmentListProps> = ({ onBack, showToast }) => {
     if (!valueToSearch) {
       showToast?.('검색어를 입력해주세요.', 'warning');
       return;
+    }
+
+    // 보유장비 목록이 없으면 먼저 1회 로드 (자동 로딩 제거 후 대체)
+    if (myEquipments.length === 0 && !isLoadingMyEquipments) {
+      await loadMyEquipments();
     }
 
     setIsLoading(true);
