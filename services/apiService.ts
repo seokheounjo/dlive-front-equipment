@@ -2602,7 +2602,7 @@ export const getEquipmentOutList = async (params: {
   try {
     const origin = typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000';
 
-    const response = await fetchWithRetry(`${API_BASE}/customer/equipment/getEquipmentOutList`, {
+    const response = await fetch(`${API_BASE}/customer/equipment/getEquipmentOutList`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -2618,10 +2618,7 @@ export const getEquipmentOutList = async (params: {
     return Array.isArray(result) ? result : result.output1 || [];
   } catch (error: any) {
     console.error('기사 할당 장비 조회 실패:', error);
-    if (error instanceof NetworkError) {
-      throw error;
-    }
-    throw new NetworkError('기사 할당 장비 조회에 실패했습니다.');
+    throw error;
   }
 };
 
@@ -2901,7 +2898,7 @@ export const getWorkerEquipmentList = async (params: {
   try {
     const origin = typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000';
 
-    const response = await fetchWithRetry(`${API_BASE}/customer/equipment/getWrkrHaveEqtList`, {
+    const response = await fetch(`${API_BASE}/customer/equipment/getWrkrHaveEqtList`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -2917,10 +2914,7 @@ export const getWorkerEquipmentList = async (params: {
     return Array.isArray(result) ? result : result.output1 || [];
   } catch (error: any) {
     console.error('작업자 장비 조회 실패:', error);
-    if (error instanceof NetworkError) {
-      throw error;
-    }
-    throw new NetworkError('작업자 장비 조회에 실패했습니다.');
+    throw error;
   }
 };
 
@@ -5996,7 +5990,7 @@ export const getWrkrHaveEqtListAll = async (params: {
   console.log('[getWrkrHaveEqtListAll] API 호출:', params);
 
   try {
-    const response = await fetchWithRetry(`${API_BASE}/customer/equipment/getWrkrHaveEqtList_All`, {
+    const response = await fetch(`${API_BASE}/customer/equipment/getWrkrHaveEqtList_All`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -6015,10 +6009,7 @@ export const getWrkrHaveEqtListAll = async (params: {
     return Array.isArray(result) ? result : result.output1 || [];
   } catch (error: any) {
     console.error('보유장비 전체 조회 실패:', error);
-    if (error instanceof NetworkError) {
-      throw error;
-    }
-    throw new NetworkError('보유장비 전체 조회에 실패했습니다.');
+    throw error;
   }
 };
 
@@ -6037,7 +6028,7 @@ export const getEquipmentChkStndByAAll = async (params: {
   console.log('[getEquipmentChkStndByAAll] API 호출:', params);
 
   try {
-    const response = await fetchWithRetry(`${API_BASE}/customer/equipment/getEquipmentChkStndByA_All`, {
+    const response = await fetch(`${API_BASE}/customer/equipment/getEquipmentChkStndByA_All`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -6056,10 +6047,7 @@ export const getEquipmentChkStndByAAll = async (params: {
     return Array.isArray(result) ? result : result.output1 || [];
   } catch (error: any) {
     console.error('검사대기 장비 조회 실패:', error);
-    if (error instanceof NetworkError) {
-      throw error;
-    }
-    throw new NetworkError('검사대기 장비 조회에 실패했습니다.');
+    throw error;
   }
 };
 
@@ -6784,7 +6772,7 @@ export const getOwnEqtLstForMobile3 = async (params: {
   console.log('[getOwnEqtLstForMobile3] API call:', params);
   try {
     const origin = typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000';
-    const response = await fetchWithRetry(`${API_BASE}/customer/equipment/getOwnEqtLstForMobile_3`, {
+    const response = await fetch(`${API_BASE}/customer/equipment/getOwnEqtLstForMobile_3`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Origin': origin },
       credentials: 'include',
@@ -6796,8 +6784,7 @@ export const getOwnEqtLstForMobile3 = async (params: {
     return Array.isArray(result) ? result : result.output1 || [];
   } catch (error: any) {
     console.error('[getOwnEqtLstForMobile3] failed:', error);
-    if (error instanceof NetworkError) throw error;
-    throw new NetworkError('Equipment return list query failed.');
+    throw error;
   }
 };
 

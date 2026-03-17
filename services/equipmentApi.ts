@@ -452,7 +452,7 @@ export const getEquipmentOutList = async (params: {
   try {
     const origin = typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000';
 
-    const response = await fetchWithRetry(`${API_BASE}/customer/equipment/getEquipmentOutList`, {
+    const response = await fetch(`${API_BASE}/customer/equipment/getEquipmentOutList`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -467,10 +467,7 @@ export const getEquipmentOutList = async (params: {
     return result || [];
   } catch (error) {
     console.error('[장비출고 API] 출고 목록 조회 실패:', error);
-    if (error instanceof NetworkError) {
-      throw error;
-    }
-    throw new NetworkError('출고 목록을 불러오는데 실패했습니다.');
+    throw error;
   }
 };
 
@@ -602,7 +599,7 @@ export const getMyEquipmentList = async (params: {
   try {
     const origin = typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000';
 
-    const response = await fetchWithRetry(`${API_BASE}/customer/equipment/getWrkrHaveEqtList_All`, {
+    const response = await fetch(`${API_BASE}/customer/equipment/getWrkrHaveEqtList_All`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -617,10 +614,7 @@ export const getMyEquipmentList = async (params: {
     return result || [];
   } catch (error) {
     console.error('[보유장비 API] 조회 실패:', error);
-    if (error instanceof NetworkError) {
-      throw error;
-    }
-    throw new NetworkError('보유장비 목록을 불러오는데 실패했습니다.');
+    throw error;
   }
 };
 
@@ -665,7 +659,7 @@ export const getReturnRequestEquipmentList = async (params: {
       RETURN_TP: params.RETURN_TP || '2'
     };
 
-    const response = await fetchWithRetry(`${API_BASE}/customer/equipment/getOwnEqtLstForMobile_3`, {
+    const response = await fetch(`${API_BASE}/customer/equipment/getOwnEqtLstForMobile_3`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -680,10 +674,7 @@ export const getReturnRequestEquipmentList = async (params: {
     return result || [];
   } catch (error) {
     console.error('[반납요청 API] 조회 실패:', error);
-    if (error instanceof NetworkError) {
-      throw error;
-    }
-    throw new NetworkError('반납요청 장비 목록을 불러오는데 실패했습니다.');
+    throw error;
   }
 };
 
@@ -723,7 +714,7 @@ export const getInspectionPendingEquipmentList = async (params: {
   try {
     const origin = typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000';
 
-    const response = await fetchWithRetry(`${API_BASE}/customer/equipment/getEquipmentChkStndByA_All`, {
+    const response = await fetch(`${API_BASE}/customer/equipment/getEquipmentChkStndByA_All`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -738,10 +729,7 @@ export const getInspectionPendingEquipmentList = async (params: {
     return result || [];
   } catch (error) {
     console.error('[검사대기 API] 조회 실패:', error);
-    if (error instanceof NetworkError) {
-      throw error;
-    }
-    throw new NetworkError('검사대기 장비 목록을 불러오는데 실패했습니다.');
+    throw error;
   }
 };
 
