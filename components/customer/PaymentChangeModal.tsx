@@ -113,15 +113,8 @@ const PaymentChangeModal: React.FC<PaymentChangeModalProps> = ({
     type: 'success' | 'error' | 'warning' | 'info';
   }>({ show: false, title: '', message: '', type: 'info' });
 
-  // 공통코드 (API에서 로드, 로드 전 fallback용 기본값)
-  const [bankCodes, setBankCodes] = useState<{ CODE: string; CODE_NM: string }[]>([
-    { CODE: '003', CODE_NM: 'IBK기업' },
-    { CODE: '004', CODE_NM: 'KB국민' },
-    { CODE: '011', CODE_NM: 'NH농협' },
-    { CODE: '020', CODE_NM: '우리' },
-    { CODE: '081', CODE_NM: '하나' },
-    { CODE: '088', CODE_NM: '신한' }
-  ]);
+  // 공통코드 (API에서 로드)
+  const [bankCodes, setBankCodes] = useState<{ CODE: string; CODE_NM: string }[]>([]);
   const [cardCompanyCodes, setCardCompanyCodes] = useState<{ CODE: string; CODE_NM: string }[]>([]);
   const [changeReasonCodes, setChangeReasonCodes] = useState<{ CODE: string; CODE_NM: string }[]>([]);
   const [cardClassCodes, setCardClassCodes] = useState<{ CODE: string; CODE_NM: string }[]>([]);

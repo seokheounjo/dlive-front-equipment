@@ -982,52 +982,8 @@ export const searchCustomer = async (params: CustomerSearchParams): Promise<ApiR
     return { ...result, data: [] };
   }
 
-  // 계약ID 검색
-  // 1차: getCtrtIDforSmartPhone API 시도 (JAR 배포 후 사용 가능)
-  // 2차: getCustomerCtrtInfo -> getConditionalCustList2 fallback
+  // 계약ID 검색: getCustomerCtrtInfo로 CUST_ID 획득 → getConditionalCustList2로 고객 조회
   if (params.searchType === 'CONTRACT_ID' && params.contractId) {
-    // SO_ID 획득 (세션에서)
-    let soId = '';
-    try {
-      const userInfoStr = sessionStorage.getItem('userInfo') || localStorage.getItem('userInfo');
-      if (userInfoStr) {
-        const userInfo = JSON.parse(userInfoStr);
-        const authSoList = userInfo.authSoList || userInfo.AUTH_SO_List || [];
-        if (authSoList.length > 0) {
-          soId = authSoList[0].SO_ID || authSoList[0].soId || '';
-        }
-        if (!soId) {
-          soId = userInfo.soId || userInfo.SO_ID || '';
-        }
-      }
-    } catch (e) {
-      console.log('[CustomerAPI] Failed to get SO_ID from session');
-    }
-
-    // 1차 시도: getCtrtIDforSmartPhone (JAR 배포 후 활성화)
-    if (soId) {
-      try {
-        console.log('[CustomerAPI] Trying getCtrtIDforSmartPhone for CONTRACT_ID: ' + params.contractId);
-        const ctrtResult = await apiCall<any>('/customer/phoneNumber/getCtrtIDforSmartPhone', {
-          SO_ID: soId,
-          CTRT_ID: params.contractId
-        });
-
-        if (ctrtResult.success && ctrtResult.data) {
-          const dataArray = Array.isArray(ctrtResult.data) ? ctrtResult.data : [ctrtResult.data];
-          if (dataArray.length > 0) {
-            console.log('[CustomerAPI] getCtrtIDforSmartPhone success for CONTRACT_ID');
-            const mappedData = dataArray.map(mapCustomerFields);
-            return { ...ctrtResult, data: mappedData };
-          }
-        }
-        console.log('[CustomerAPI] getCtrtIDforSmartPhone returned no data for CONTRACT_ID, trying fallback...');
-      } catch (error) {
-        console.log('[CustomerAPI] getCtrtIDforSmartPhone failed for CONTRACT_ID, trying fallback...', error);
-      }
-    }
-
-    // 2차 시도: getCustomerCtrtInfo -> getConditionalCustList2 (fallback)
     const ctrtResult = await apiCall<any>('/customer/negociation/getCustomerCtrtInfo', { CTRT_ID: params.contractId });
 
     if (ctrtResult.success && ctrtResult.data) {
@@ -1050,57 +1006,12 @@ export const searchCustomer = async (params: CustomerSearchParams): Promise<ApiR
     return { success: false, message: '계약ID로 고객을 찾을 수 없습니다.', data: [] };
   }
 
-  // 전화번호/고객명 검색
-  // 1차: getCtrtIDforSmartPhone API 시도 (JAR 배포 후 사용 가능)
-  // 2차: getConditionalCustList2 SERCH_GB=3 fallback
+  // 전화번호/고객명 검색: getConditionalCustList2 SERCH_GB=3
   if (params.searchType === 'PHONE_NAME') {
     if (!params.phoneNumber && !params.customerName) {
       return { success: false, message: '전화번호 또는 고객명을 입력해주세요.', data: [] };
     }
 
-    // SO_ID 획득 (세션에서)
-    let soId = '';
-    try {
-      const userInfoStr = sessionStorage.getItem('userInfo') || localStorage.getItem('userInfo');
-      if (userInfoStr) {
-        const userInfo = JSON.parse(userInfoStr);
-        // authSoList 첫 번째 항목 또는 soId 사용
-        const authSoList = userInfo.authSoList || userInfo.AUTH_SO_List || [];
-        if (authSoList.length > 0) {
-          soId = authSoList[0].SO_ID || authSoList[0].soId || '';
-        }
-        if (!soId) {
-          soId = userInfo.soId || userInfo.SO_ID || '';
-        }
-      }
-    } catch (e) {
-      console.log('[CustomerAPI] Failed to get SO_ID from session');
-    }
-
-    // 1차 시도: getCtrtIDforSmartPhone (JAR 배포 후 활성화)
-    if (soId) {
-      try {
-        const ctrtParams: Record<string, any> = { SO_ID: soId };
-        if (params.phoneNumber) ctrtParams.TEL_NO = params.phoneNumber;
-        if (params.customerName) ctrtParams.CUST_NM = params.customerName;
-
-        const ctrtResult = await apiCall<any>('/customer/phoneNumber/getCtrtIDforSmartPhone', ctrtParams);
-
-        if (ctrtResult.success && ctrtResult.data) {
-          const dataArray = Array.isArray(ctrtResult.data) ? ctrtResult.data : [ctrtResult.data];
-          if (dataArray.length > 0) {
-            console.log('[CustomerAPI] getCtrtIDforSmartPhone success:', dataArray.length, 'results');
-            const mappedData = dataArray.map(mapCustomerFields);
-            return { ...ctrtResult, data: mappedData };
-          }
-        }
-        console.log('[CustomerAPI] getCtrtIDforSmartPhone returned no data, trying fallback...');
-      } catch (error) {
-        console.log('[CustomerAPI] getCtrtIDforSmartPhone failed, trying fallback...', error);
-      }
-    }
-
-    // 2차 시도: getConditionalCustList2 SERCH_GB=3 (fallback)
     const reqParams: Record<string, any> = {
       SERCH_GB: '3',
       LOGIN_ID: loginId
@@ -2315,12 +2226,12 @@ export const searchPostAddress = async (params: PostAddressSearchRequest): Promi
           mstSoId: so.MST_SO_ID || so.mstSoId || ''
         })).filter((so: { soId: string }) => so.soId);
       }
-      // authSoList가 비어있으면 기본 soId 사용
+      // authSoList가 비어있으면 userInfo 직접 필드 사용
       if (soList.length === 0) {
-        const fallbackSoId = userInfo.soId || userInfo.SO_ID || '';
-        const fallbackMstSoId = userInfo.mstSoId || userInfo.MST_SO_ID || '';
-        if (fallbackSoId) {
-          soList = [{ soId: fallbackSoId, mstSoId: fallbackMstSoId }];
+        const directSoId = userInfo.soId || userInfo.SO_ID || '';
+        const directMstSoId = userInfo.mstSoId || userInfo.MST_SO_ID || '';
+        if (directSoId) {
+          soList = [{ soId: directSoId, mstSoId: directMstSoId }];
         }
       }
     }
@@ -2720,22 +2631,10 @@ export const checkPaymentResult = async (params: {
   ORDER_DT: string;
   PYM_ACNT_ID: string;
 }, timeoutMs?: number): Promise<ApiResponse<any>> => {
-  // Try dedicated endpoint first
   const res = await apiCall<any>('/billing/payment/anony/chkUpymPayStatus_m', {
     ORDER_NO: params.OID,
     MASTER_STORE_ID: params.MID
   }, 'POST', timeoutMs);
-
-  // Fallback: if chkUpymPayStatus_m returns 404, use processCardPayment CHECK_ONLY
-  if (!res.success && (res.message?.includes('404') || res.message?.includes('Cannot') || res.message?.includes('SRVE0295'))) {
-    console.log('[CustomerAPI] chkUpymPayStatus_m failed, falling back to CHECK_ONLY');
-    return apiCall<any>('/billing/payment/anony/processCardPayment', {
-      OID: params.OID,
-      MID: params.MID,
-      AMT: String(params.AMT),
-      CHECK_ONLY: 'Y'
-    }, 'POST', timeoutMs);
-  }
 
   // API call succeeded (HTTP 200) but need to check actual payment status via RESP_CD
   if (res.success && res.data) {

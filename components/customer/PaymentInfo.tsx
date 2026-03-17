@@ -606,12 +606,7 @@ const PaymentInfo: React.FC<PaymentInfoProps> = ({
               return (active || matchedAll[0]).SO_ID!;
             }
           }
-          // 3순위: 세션 정보 fallback
-          try {
-            const u = JSON.parse(sessionStorage.getItem('userInfo') || localStorage.getItem('userInfo') || '{}');
-            const list = u.authSoList || u.AUTH_SO_List || [];
-            return list[0]?.SO_ID || list[0]?.soId || u.soId || u.SO_ID || '';
-          } catch { return ''; }
+          return '';
         })()}
       />
 
@@ -644,12 +639,7 @@ const PaymentInfo: React.FC<PaymentInfoProps> = ({
             const anySo = contracts.find(c => c.SO_ID);
             if (anySo?.SO_ID) return anySo.SO_ID;
           }
-          // 4. session fallback (최후 수단)
-          try {
-            const u = JSON.parse(sessionStorage.getItem('userInfo') || localStorage.getItem('userInfo') || '{}');
-            const list = u.authSoList || u.AUTH_SO_List || [];
-            return list[0]?.SO_ID || list[0]?.soId || u.soId || u.SO_ID || '';
-          } catch { return ''; }
+          return '';
         })()}
         initialPymAcntId={selectedPymAcntId || ''}
         showToast={showToast}

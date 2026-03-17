@@ -171,57 +171,26 @@ const ReContractModule: React.FC<ReContractModuleProps> = ({
         getPromChangeCodes(),
       ]);
 
-      const parseCodes = (res: any, fallback: CodeItem[], allowedCodes?: string[]): CodeItem[] => {
+      const parseCodes = (res: any, allowedCodes?: string[]): CodeItem[] => {
         if (res.success && res.data) {
           const codes = (res.data as any[]).map((c: any) => ({
             CODE: c.code || c.CODE || '',
             CODE_NM: c.name || c.CODE_NM || '',
           })).filter((c: CodeItem) => c.CODE && c.CODE !== '[]');
-          const filtered = allowedCodes
+          return allowedCodes
             ? codes.filter(c => allowedCodes.includes(c.CODE))
             : codes;
-          return filtered.length > 0 ? filtered : fallback;
         }
-        return fallback;
+        return [];
       };
 
-      setPromMonthCodes(parseCodes(monthRes, [
-        { CODE: '0', CODE_NM: '무약정' },
-        { CODE: '12', CODE_NM: '12개월' },
-        { CODE: '24', CODE_NM: '24개월' },
-        { CODE: '36', CODE_NM: '36개월' },
-      ]));
-      setPromChangeReasonCodes(parseCodes(reasonRes, [
-        { CODE: 'A', CODE_NM: '고객요청' },
-        { CODE: 'B', CODE_NM: 'TM유치' },
-        { CODE: 'C', CODE_NM: '해지방어' },
-        { CODE: 'D', CODE_NM: '전산처리' },
-      ]));
+      setPromMonthCodes(parseCodes(monthRes));
+      setPromChangeReasonCodes(parseCodes(reasonRes));
       // CMCU252: 02(약정만기후재계약), 03(약정상향변경)만
-      setPromChangeCodes(parseCodes(changeRes, [
-        { CODE: '02', CODE_NM: '약정만기후재계약' },
-        { CODE: '03', CODE_NM: '약정상향변경' },
-      ], ['02', '03']));
+      setPromChangeCodes(parseCodes(changeRes, ['02', '03']));
       setCodesLoaded(true);
     } catch (e) {
       console.error('Code loading failed:', e);
-      setPromMonthCodes([
-        { CODE: '0', CODE_NM: '무약정' },
-        { CODE: '12', CODE_NM: '12개월' },
-        { CODE: '24', CODE_NM: '24개월' },
-        { CODE: '36', CODE_NM: '36개월' },
-      ]);
-      setPromChangeReasonCodes([
-        { CODE: 'A', CODE_NM: '고객요청' },
-        { CODE: 'B', CODE_NM: 'TM유치' },
-        { CODE: 'C', CODE_NM: '해지방어' },
-        { CODE: 'D', CODE_NM: '전산처리' },
-      ]);
-      setPromChangeCodes([
-        { CODE: '02', CODE_NM: '약정만기후재계약' },
-        { CODE: '03', CODE_NM: '약정상향변경' },
-      ]);
-      setCodesLoaded(true);
     }
   }, [codesLoaded]);
 
