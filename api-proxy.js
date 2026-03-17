@@ -5,8 +5,7 @@ const router = express.Router();
 const iconv = require('iconv-lite');
 
 const DLIVE_API_BASE = (process.env.DLIVE_API_BASE || 'http://58.143.140.222:8080').replace(/\/api\/?$/, '');
-// MCONA: Real CONA server for equipment list APIs (adapter returns 0 items for list queries)
-const MCONA_API_BASE = 'https://mcona.dlive.kr:7080';
+// MCONA 제거됨 (2026-03-17): 서버 다운 + fallback 크래시 원인 → 어댑터 직접 연결
 
 // CONA JSESSIONID 저장 (로그인 시 캡처, 이후 모든 요청에 주입)
 let storedJSessionId = null;
@@ -990,20 +989,19 @@ router.post('/customer/equipment/getWrkrHaveEqtList', handleProxy);
 router.post('/customer/equipment/cmplEqtCustLossIndem', handleProxy);
 router.post('/customer/equipment/setEquipmentChkStndByY', handleProxy);
 router.post('/customer/equipment/setEquipmentChkStndByY_ForM', handleProxy);  // 검사대기 -> 사용가능 (ForM)
-router.post('/customer/equipment/changeEqtWrkr_3', handleMconaProxyForM);  // 장비이관 → MCONA _ForM (adapter TO_WRKR_ID 불일치)
-router.post('/customer/equipment/changeEqtWrkr_3_ForM', handleMconaProxy);  // 신규 장비이관 → MCONA
+router.post('/customer/equipment/changeEqtWrkr_3', handleProxy);  // 장비이관
+router.post('/customer/equipment/changeEqtWrkr_3_ForM', handleProxy);  // 장비이관 _ForM
 router.post('/customer/equipment/updateInstlLocFrWrk', handleProxy);
 router.post('/customer/equipment/getAuthSoList', handleProxy);
 router.post('/customer/equipment/getUserExtendedInfo', handleProxy);
 
-// Equipment Processing APIs (3 categories) - MCONA routing for list queries
-// Adapter (58.143.140.222:8080) returns 0 items, MCONA (mcona.dlive.kr:7080) works correctly
-router.post('/customer/equipment/getWrkrHaveEqtList_All', handleMconaProxy);        // My Equipment (보유장비) → MCONA
+// Equipment Processing APIs (3 categories)
+router.post('/customer/equipment/getWrkrHaveEqtList_All', handleProxy);        // My Equipment (보유장비)
 router.post('/customer/equipment/searchWorkersByName', handleProxy);        // 기사 이름 검색
-router.post("/customer/equipment/getEquipmentChkStndByA_All", handleMconaProxy);  // 검사대기 → MCONA
-router.post("/customer/phoneNumber/getOwnEqtLstForMobile_3", handleMconaProxy);  // 장비반납 → MCONA (adapter 0건)
+router.post("/customer/equipment/getEquipmentChkStndByA_All", handleProxy);  // 검사대기
+router.post("/customer/phoneNumber/getOwnEqtLstForMobile_3", handleProxy);  // 장비반납
 router.post("/customer/phoneNumber/getCtrtIDforSmartPhone", handleProxy);  // 고객검색 (전화번호)
-router.post("/customer/equipment/getOwnEqtLstForMobile_3", handleMconaProxy);  // 반납요청 (equipment 경로) → MCONA
+router.post("/customer/equipment/getOwnEqtLstForMobile_3", handleProxy);  // 반납요청 (equipment 경로)
 router.post("/customer/equipment/getEquipmentReturnRequestList_All", handleProxy);  // 반납요청 _All (추가)
 router.post("/customer/equipment/getWrkrListDetail", handleProxy);  // 분실처리 상세조회 (추가)
 router.post("/customer/equipment/getEquipmentTypeList", handleProxy);  // 장비 소분류 목록 조회
@@ -1011,7 +1009,7 @@ router.post("/customer/equipment/getEqtTrnsList", handleProxy);  // 장비이동
 router.post("/customer/equipment/getEqtMasterInfo", handleProxy);  // 장비 마스터 정보 조회
 
 // Statistics/Equipment API
-router.post('/statistics/equipment/getEquipmentHistoryInfo', handleMconaProxy);  // → MCONA (adapter 500 에러)
+router.post('/statistics/equipment/getEquipmentHistoryInfo', handleProxy);  // 장비이력
 
 // Statistics/Customer API (Address Search)
 router.post('/statistics/customer/getPostList', handleProxy);  // 지번주소 검색
@@ -1582,93 +1580,6 @@ function callLegacyReqEndpoint(endpoints, index, accessTicket, res) {
 
   proxyReq.write(postData);
   proxyReq.end();
-}
-
-// MCONA proxy handler: Routes equipment LIST APIs to real CONA server (mcona.dlive.kr:7080)
-// Adapter at 58.143.140.222:8080 returns 0 items for list queries, mcona works correctly
-async function handleMconaProxy(req, res) {
-  let fallbackDone = false;  // 이중 fallback 방지 (timeout+error 동시 발생 시 ERR_HTTP_HEADERS_SENT 크래시 방지)
-  try {
-    const apiPath = req.path;
-    const targetUrl = MCONA_API_BASE + '/api' + apiPath;
-    console.log('\n========================================');
-    console.log('[MCONA] ' + req.method + ' ' + targetUrl);
-    console.log('========================================');
-    if (req.body && Object.keys(req.body).length > 0) {
-      console.log('Request body:', JSON.stringify(req.body));
-    }
-
-    const https = require('https');
-    const url = require('url');
-    const parsedUrl = url.parse(targetUrl);
-    const postData = JSON.stringify(req.body || {});
-
-    const options = {
-      hostname: parsedUrl.hostname,
-      port: parsedUrl.port || 7080,
-      path: parsedUrl.path,
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json; charset=utf-8',
-        'Content-Length': Buffer.byteLength(postData, 'utf8'),
-        'User-Agent': 'EC2-Proxy/1.0'
-      },
-      rejectUnauthorized: false,
-      timeout: 10000  // MCONA 10초 타임아웃 (60초→10초, 빠른 fallback)
-    };
-
-    const proxyReq = https.request(options, (proxyRes) => {
-      fallbackDone = true;  // MCONA 응답 받음 → fallback 불필요
-      let chunks = [];
-      proxyRes.on('data', (chunk) => chunks.push(chunk));
-      proxyRes.on('end', () => {
-        const responseBody = Buffer.concat(chunks).toString();
-        try {
-          const jsonResponse = JSON.parse(responseBody);
-          const count = Array.isArray(jsonResponse) ? jsonResponse.length : 'object';
-          console.log('[MCONA] Response: ' + count + (Array.isArray(jsonResponse) ? ' items' : ''));
-        } catch (e) {
-          console.log('[MCONA] Response preview:', responseBody.substring(0, 200));
-        }
-        res.setHeader('Content-Type', 'application/json; charset=utf-8');
-        res.setHeader('Access-Control-Allow-Origin', req.headers.origin || '*');
-        res.setHeader('Access-Control-Allow-Credentials', 'true');
-        res.status(proxyRes.statusCode || 200).send(responseBody);
-      });
-    });
-
-    proxyReq.on('error', (error) => {
-      console.error('[MCONA] Error:', error.message);
-      if (fallbackDone) return;  // 이미 응답 전송됨 → 중복 방지
-      fallbackDone = true;
-      // Fallback to adapter
-      console.log('[MCONA] Falling back to adapter...');
-      handleProxy(req, res);
-    });
-
-    proxyReq.on('timeout', () => {
-      proxyReq.destroy();
-      console.error('[MCONA] Timeout, falling back to adapter...');
-      if (fallbackDone) return;  // 이미 응답 전송됨 → 중복 방지
-      fallbackDone = true;
-      handleProxy(req, res);
-    });
-
-    proxyReq.write(postData);
-    proxyReq.end();
-  } catch (error) {
-    console.error('[MCONA] Exception:', error.message);
-    if (!fallbackDone) { fallbackDone = true; handleProxy(req, res); }
-  }
-}
-
-// MCONA proxy with _ForM suffix: Routes changeEqtWrkr_3 to changeEqtWrkr_3_ForM on MCONA
-// Adapter requires TO_WRKR_ID but frontend sends MV_WRKR_ID; MCONA's _ForM endpoint accepts MV_WRKR_ID
-async function handleMconaProxyForM(req, res) {
-  const origUrl = req.url;
-  req.url = origUrl + '_ForM';
-  console.log('[MCONA_ForM] Rewriting URL:', origUrl, '->', req.url);
-  return handleMconaProxy(req, res);
 }
 
 async function handleProxy(req, res) {
