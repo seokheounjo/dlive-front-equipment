@@ -1035,7 +1035,8 @@ const EquipmentMovement: React.FC<EquipmentMovementProps> = ({ onBack, showToast
             CHG_UID: loggedInUser.userId,               // 변경자 ID
             MV_SO_ID: targetSoId || item.SO_ID,         // 이관 목적지
             MV_CRR_ID: loggedInUser.crrId,              // 이관 협력업체
-            MV_WRKR_ID: loggedInUser.userId             // 이관 기사 (TO_WRKR_ID 대신)
+            MV_WRKR_ID: loggedInUser.userId,            // 이관 기사
+            TO_WRKR_ID: loggedInUser.userId,            // 수신 기사 (백엔드 필수 파라미터)
           };
 
           console.log('[DEBUG] API 호출 파라미터:', JSON.stringify(params, null, 2));
