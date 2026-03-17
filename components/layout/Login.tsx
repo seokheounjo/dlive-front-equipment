@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
-import { ShieldCheckIcon } from '../icons/ShieldCheckIcon';
+import { FaRegIdBadge } from 'react-icons/fa6';
 import { LockClosedIcon } from '../icons/LockClosedIcon';
+import { GoShieldLock } from 'react-icons/go';
+import { IoIosLogIn } from 'react-icons/io';
 import { EyeIcon } from '../icons/EyeIcon';
 import { EyeSlashIcon } from '../icons/EyeSlashIcon';
 import { loginWithOtp } from '../../services/apiService';
@@ -136,24 +138,43 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
     }
   };
 
-  const inputBaseClasses = "w-full py-3 bg-white border border-gray-200 rounded-lg text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent transition";
+  const inputBaseClasses = "w-full py-3.5 bg-gray-100 border border-gray-300 rounded-xl text-gray-900 text-base placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-400 focus:bg-white transition-all duration-200";
+
+  const networkSvg = `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='300'%3E%3Crect fill='none' width='300' height='300'/%3E%3Cline x1='30' y1='20' x2='110' y2='60' stroke='%23ffffff' stroke-opacity='0.1' stroke-width='0.7'/%3E%3Cline x1='110' y1='60' x2='200' y2='35' stroke='%23ffffff' stroke-opacity='0.1' stroke-width='0.7'/%3E%3Cline x1='200' y1='35' x2='275' y2='90' stroke='%23ffffff' stroke-opacity='0.08' stroke-width='0.7'/%3E%3Cline x1='15' y1='130' x2='90' y2='110' stroke='%23ffffff' stroke-opacity='0.09' stroke-width='0.7'/%3E%3Cline x1='90' y1='110' x2='150' y2='160' stroke='%23ffffff' stroke-opacity='0.1' stroke-width='0.7'/%3E%3Cline x1='150' y1='160' x2='260' y2='140' stroke='%23ffffff' stroke-opacity='0.08' stroke-width='0.7'/%3E%3Cline x1='45' y1='220' x2='130' y2='205' stroke='%23ffffff' stroke-opacity='0.09' stroke-width='0.7'/%3E%3Cline x1='130' y1='205' x2='220' y2='245' stroke='%23ffffff' stroke-opacity='0.1' stroke-width='0.7'/%3E%3Cline x1='220' y1='245' x2='285' y2='215' stroke='%23ffffff' stroke-opacity='0.08' stroke-width='0.7'/%3E%3Cline x1='110' y1='60' x2='90' y2='110' stroke='%23ffffff' stroke-opacity='0.07' stroke-width='0.7'/%3E%3Cline x1='150' y1='160' x2='130' y2='205' stroke='%23ffffff' stroke-opacity='0.07' stroke-width='0.7'/%3E%3Cline x1='260' y1='140' x2='285' y2='215' stroke='%23ffffff' stroke-opacity='0.07' stroke-width='0.7'/%3E%3Cline x1='200' y1='35' x2='260' y2='140' stroke='%23ffffff' stroke-opacity='0.06' stroke-width='0.7'/%3E%3Cline x1='90' y1='110' x2='45' y2='220' stroke='%23ffffff' stroke-opacity='0.06' stroke-width='0.7'/%3E%3Cline x1='30' y1='20' x2='15' y2='130' stroke='%23ffffff' stroke-opacity='0.06' stroke-width='0.7'/%3E%3Cline x1='275' y1='90' x2='260' y2='140' stroke='%23ffffff' stroke-opacity='0.08' stroke-width='0.7'/%3E%3Cline x1='150' y1='160' x2='220' y2='245' stroke='%23ffffff' stroke-opacity='0.06' stroke-width='0.7'/%3E%3Cline x1='15' y1='130' x2='45' y2='220' stroke='%23ffffff' stroke-opacity='0.06' stroke-width='0.7'/%3E%3Cline x1='110' y1='60' x2='150' y2='160' stroke='%23ffffff' stroke-opacity='0.05' stroke-width='0.7'/%3E%3Cline x1='200' y1='35' x2='150' y2='160' stroke='%23ffffff' stroke-opacity='0.05' stroke-width='0.7'/%3E%3Cline x1='60' y1='280' x2='130' y2='205' stroke='%23ffffff' stroke-opacity='0.06' stroke-width='0.7'/%3E%3Cline x1='170' y1='290' x2='220' y2='245' stroke='%23ffffff' stroke-opacity='0.06' stroke-width='0.7'/%3E%3Ccircle cx='30' cy='20' r='2.5' fill='%23ffffff' fill-opacity='0.25'/%3E%3Ccircle cx='110' cy='60' r='3' fill='%23ffffff' fill-opacity='0.3'/%3E%3Ccircle cx='200' cy='35' r='2.5' fill='%23ffffff' fill-opacity='0.25'/%3E%3Ccircle cx='275' cy='90' r='2' fill='%23ffffff' fill-opacity='0.2'/%3E%3Ccircle cx='15' cy='130' r='2' fill='%23ffffff' fill-opacity='0.2'/%3E%3Ccircle cx='90' cy='110' r='3' fill='%23ffffff' fill-opacity='0.3'/%3E%3Ccircle cx='150' cy='160' r='3.5' fill='%23ffffff' fill-opacity='0.35'/%3E%3Ccircle cx='260' cy='140' r='2.5' fill='%23ffffff' fill-opacity='0.25'/%3E%3Ccircle cx='45' cy='220' r='2.5' fill='%23ffffff' fill-opacity='0.22'/%3E%3Ccircle cx='130' cy='205' r='2.5' fill='%23ffffff' fill-opacity='0.25'/%3E%3Ccircle cx='220' cy='245' r='3' fill='%23ffffff' fill-opacity='0.3'/%3E%3Ccircle cx='285' cy='215' r='2' fill='%23ffffff' fill-opacity='0.2'/%3E%3Ccircle cx='60' cy='280' r='2' fill='%23ffffff' fill-opacity='0.18'/%3E%3Ccircle cx='170' cy='290' r='2' fill='%23ffffff' fill-opacity='0.2'/%3E%3Ccircle cx='240' cy='10' r='1.5' fill='%23ffffff' fill-opacity='0.15'/%3E%3Ccircle cx='70' cy='70' r='1.5' fill='%23ffffff' fill-opacity='0.15'/%3E%3Ccircle cx='190' cy='110' r='1.5' fill='%23ffffff' fill-opacity='0.12'/%3E%3Ccircle cx='50' cy='160' r='1.5' fill='%23ffffff' fill-opacity='0.12'/%3E%3Ccircle cx='290' cy='170' r='1.5' fill='%23ffffff' fill-opacity='0.12'/%3E%3Ccircle cx='180' cy='80' r='1' fill='%23ffffff' fill-opacity='0.1'/%3E%3Ccircle cx='10' cy='270' r='1' fill='%23ffffff' fill-opacity='0.1'/%3E%3Ccircle cx='250' cy='270' r='1.5' fill='%23ffffff' fill-opacity='0.12'/%3E%3C/svg%3E")`;
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4 font-sans bg-gray-100">
-      <div className="w-full max-w-sm mx-auto bg-white rounded-2xl shadow-xl p-8 space-y-8">
-        
-        <div className="text-center space-y-4">
-          <div className="flex justify-center">
-            <img src="/recona/360X120px.png" alt="D'LIVE CONA" className="h-30" />
-          </div>
+    <div
+      className="min-h-screen flex items-center justify-center p-4 font-sans relative overflow-hidden"
+      style={{ background: 'linear-gradient(135deg, #1e4976, #1a3a5c, #15304e)' }}
+    >
+      {/* 움직이는 네트워크 패턴 배경 */}
+      <style>{`
+        @keyframes networkDrift {
+          0% { background-position: 0px 0px; }
+          100% { background-position: 300px 300px; }
+        }
+      `}</style>
+      <div
+        className="absolute inset-0 pointer-events-none"
+        style={{
+          backgroundImage: networkSvg,
+          backgroundSize: '300px 300px',
+          animation: 'networkDrift 60s linear infinite',
+        }}
+      />
+      <div className="w-full max-w-sm mx-auto relative z-10">
+        <div className="bg-white rounded-3xl shadow-lg px-10 pt-5 pb-5 space-y-3">
+
+        {/* Logo */}
+        <div className="flex justify-center">
+          <img src="/recona/dlive-cona-logo.png" alt="D'LIVE CONA" className="w-72 -my-6" />
         </div>
-        
-        <form onSubmit={handleSubmit} className="space-y-6">
-          <div>
-            <label htmlFor="username" className="sr-only">사용자 ID</label>
+
+        <form onSubmit={handleSubmit} className="space-y-3">
+          <div className="relative">
             <div className="relative">
               <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
-                <ShieldCheckIcon className="h-5 w-5 text-gray-400" />
+                <FaRegIdBadge className="h-5 w-5 text-gray-500" />
               </div>
               <input
                 id="username"
@@ -161,18 +182,17 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
                 type="text"
                 required
                 className={`${inputBaseClasses} pl-10 pr-3`}
-                placeholder="사용자 ID"
+                placeholder="사원번호"
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
               />
             </div>
           </div>
 
-          <div>
-            <label htmlFor="password" className="sr-only">비밀번호</label>
+          <div className="relative">
             <div className="relative">
               <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
-                <LockClosedIcon className="h-5 w-5 text-gray-400" />
+                <LockClosedIcon className="h-5 w-5 text-gray-500" />
               </div>
               <input
                 id="password"
@@ -188,7 +208,7 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="text-gray-400 hover:text-gray-600 focus:outline-none"
+                  className="text-gray-400 hover:text-primary-500 focus:outline-none transition-colors"
                   aria-label={showPassword ? "비밀번호 숨기기" : "비밀번호 보기"}
                 >
                   {showPassword ? <EyeSlashIcon className="h-5 w-5" /> : <EyeIcon className="h-5 w-5" />}
@@ -196,12 +216,11 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
               </div>
             </div>
           </div>
-          
-          <div className={OTP_ENABLED ? '' : 'opacity-50'}>
-            <label htmlFor="otpCode" className="sr-only">OTP 인증번호</label>
+
+          <div className={`relative ${OTP_ENABLED ? '' : 'opacity-50'}`}>
             <div className="relative">
               <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
-                <LockClosedIcon className="h-5 w-5 text-gray-300" />
+                <GoShieldLock className="h-5 w-5 text-gray-400" />
               </div>
               <input
                 id="otpCode"
@@ -212,8 +231,8 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
                 maxLength={100}
                 autoComplete="one-time-code"
                 disabled={!OTP_ENABLED}
-                className={`${inputBaseClasses} pl-10 text-center text-xl tracking-[0.4em] font-mono disabled:bg-gray-100 disabled:cursor-not-allowed`}
-                placeholder="인증번호"
+                className={`${inputBaseClasses} pl-10 text-center text-xl tracking-[0.4em] font-mono disabled:bg-gray-100 disabled:border-gray-200 disabled:cursor-not-allowed`}
+                placeholder="OTP"
                 value={otpCode}
                 onChange={(e) => {
                   const val = e.target.value.replace(/[^0-9]/g, '');
@@ -224,35 +243,41 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
           </div>
 
           {error && (
-            <div className="text-red-500 text-sm text-center bg-red-50 p-3 rounded-lg">
+            <div className="text-red-500 text-sm text-center bg-red-50 p-3 rounded-xl">
               {error}
             </div>
           )}
-          
-          <div className="space-y-3">
+
+          <div className="pt-1">
             <button
               type="submit"
               disabled={isLoading}
-              className="w-full flex justify-center py-3 px-4 border border-transparent text-base font-bold rounded-lg text-white bg-primary-500 hover:bg-primary-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 transition-colors shadow-md disabled:bg-gray-400 disabled:text-white disabled:cursor-not-allowed"
+              className="w-full relative overflow-hidden flex items-center py-3.5 px-0 border-0 text-base font-bold rounded-xl active:scale-[0.98] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 transition-all duration-150 disabled:opacity-50 disabled:cursor-not-allowed"
+              style={{
+                background: 'linear-gradient(to bottom, #33C7DF, #00B0C8, #007A8A)',
+                boxShadow: '0 6px 20px rgba(0,176,200,0.4), 0 2px 6px rgba(0,0,0,0.15), inset 0 1px 0 rgba(255,255,255,0.25), inset 0 -2px 4px rgba(0,0,0,0.1)',
+              }}
             >
-              {isLoading ? '로그인 중...' : '로그인'}
+              {/* 사선 흰색 영역 (자물쇠 아이콘 배경) */}
+              <span className="absolute top-0 left-0 bottom-0 w-14 pointer-events-none z-0" style={{
+                background: 'linear-gradient(to bottom, rgba(255,255,255,0.9), rgba(220,240,245,0.85))',
+                clipPath: 'polygon(0 0, 100% 0, 70% 100%, 0 100%)',
+              }} />
+              {/* 글로시 상단 하이라이트 */}
+              <span className="absolute top-0 left-0 right-0 h-[45%] rounded-t-xl pointer-events-none z-10" style={{ background: 'linear-gradient(to bottom, rgba(255,255,255,0.2), transparent)' }} />
+              <IoIosLogIn className="w-5 h-5 ml-3.5 relative z-20 text-primary-700 drop-shadow-sm" />
+              <span className="relative z-20 text-white tracking-widest drop-shadow-sm flex-1 text-center pr-6">{isLoading ? '로 그 인 중...' : '로 그 인'}</span>
             </button>
-            
           </div>
         </form>
-        
-        <div className="mt-8 text-center">
-          {/* 슬로건 - 카피라이트 위에 */}
-          <div className="mb-3">
-            <p className="text-sm font-medium tracking-wide text-primary-700">
-              Smart Life Coordinator
-            </p>
-          </div>
 
-          <p className="text-xs font-semibold text-primary-700">COPYRIGHT 2025. D'LIVE CO. LTD</p>
-          <p className="text-[10px] text-gray-400 mt-2">v{(typeof __BUILD_TIME__ !== 'undefined' ? __BUILD_TIME__ : '')}</p>
+        <div className="text-center space-y-0.5 pt-1">
+          <p className="text-xs font-bold text-gray-700">Smart Life Coordinator</p>
+          <p className="text-[11px] text-gray-400">COPYRIGHT 2025. D'LIVE CO. LTD</p>
+          <p className="text-[10px] text-gray-300">v{(typeof __BUILD_TIME__ !== 'undefined' ? __BUILD_TIME__ : '')}</p>
         </div>
 
+      </div>{/* card end */}
       </div>
 
       {/* 동시접속 확인 모달 */}
