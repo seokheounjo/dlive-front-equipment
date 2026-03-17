@@ -414,7 +414,12 @@ const EquipmentList: React.FC<EquipmentListProps> = ({ onBack, showToast }) => {
         const historyParams = { EQT_SERNO: val, SO_ID: userInfo?.soId || undefined, WRKR_ID: userInfo?.userId };
         const historyResult = await debugApiCall('EquipmentList', 'getEquipmentHistoryInfo', () => getEquipmentHistoryInfo(historyParams), historyParams);
         if (historyResult) {
-          const resultArray = Array.isArray(historyResult) ? historyResult : [historyResult];
+          // MCONA wrapped response 이중 방어: {success, data: [...], debugLogs}
+          let unwrapped = historyResult;
+          if (historyResult && !Array.isArray(historyResult) && historyResult.data && Array.isArray(historyResult.data)) {
+            unwrapped = historyResult.data.length === 1 ? historyResult.data[0] : historyResult.data;
+          }
+          const resultArray = Array.isArray(unwrapped) ? unwrapped : [unwrapped];
           if (resultArray.length > 1) {
             // 복수 결과 - 모달 표시 필요
             return { found: true, equipments: resultArray as EquipmentDetail[], source: 'getEquipmentHistoryInfo', isMultiple: true };
