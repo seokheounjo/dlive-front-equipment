@@ -1603,10 +1603,10 @@ export const updateInstlLoc = async (params: {
  * - USR_ID: 처리자ID
  */
 export const updatePaymentMethod = async (params: PaymentMethodChangeRequest): Promise<ApiResponse<any>> => {
-  // 세션에서 사용자 ID, SO_ID, MST_SO_ID, CRR_ID 가져오기
+  // 세션에서 사용자 ID, CRR_ID 가져오기 (SO_ID는 반드시 caller가 전달)
   let usrId = params.USR_ID || 'MOBILE_USER';
-  let soId = params.SO_ID || '';
-  let mstSoId = params.MST_SO_ID || '';
+  const soId = params.SO_ID || '';
+  const mstSoId = params.MST_SO_ID || '';
   let crrId = '';
   try {
     const userInfoStr = sessionStorage.getItem('userInfo') || localStorage.getItem('userInfo');
@@ -1614,16 +1614,6 @@ export const updatePaymentMethod = async (params: PaymentMethodChangeRequest): P
       const userInfo = JSON.parse(userInfoStr);
       usrId = userInfo.userId || userInfo.USR_ID || usrId;
       crrId = userInfo.crrId || userInfo.CRR_ID || '';
-      if (!soId) {
-        const authSoList = userInfo.authSoList || userInfo.AUTH_SO_List || [];
-        if (authSoList.length > 0) {
-          soId = authSoList[0].SO_ID || authSoList[0].soId || '';
-        }
-        if (!soId) soId = userInfo.soId || userInfo.SO_ID || '';
-      }
-      if (!mstSoId) {
-        mstSoId = userInfo.mstSoId || userInfo.MST_SO_ID || soId;
-      }
     }
   } catch (e) {
     console.log('[CustomerAPI] Failed to get session info for payment change');
@@ -1646,24 +1636,15 @@ export const updatePaymentMethod = async (params: PaymentMethodChangeRequest): P
  * 실제 계좌 인증 API가 있으면 연동, 없으면 시뮬레이션
  */
 export const verifyBankAccount = async (params: AccountVerifyRequest): Promise<ApiResponse<any>> => {
-  // 세션에서 SO_ID, MST_SO_ID, USR_ID 보충
-  let soId = params.SO_ID || '';
-  let mstSoId = params.MST_SO_ID || '';
+  // SO_ID는 반드시 caller가 전달, 세션에서는 USR_ID만
+  const soId = params.SO_ID || '';
+  const mstSoId = params.MST_SO_ID || '';
   let usrId = '';
   try {
     const userInfoStr = sessionStorage.getItem('userInfo') || localStorage.getItem('userInfo');
     if (userInfoStr) {
       const userInfo = JSON.parse(userInfoStr);
       usrId = userInfo.userId || userInfo.USR_ID || userInfo.usrId || '';
-      if (!soId) {
-        const authSoList = userInfo.authSoList || userInfo.AUTH_SO_List || [];
-        if (authSoList.length > 0) {
-          soId = authSoList[0].SO_ID || authSoList[0].soId || '';
-          if (!mstSoId) mstSoId = authSoList[0].MST_SO_ID || '';
-        }
-        if (!soId) soId = userInfo.soId || userInfo.SO_ID || '';
-      }
-      if (!mstSoId) mstSoId = userInfo.mstSoId || userInfo.MST_SO_ID || soId;
     }
   } catch (e) {
     console.log('[CustomerAPI] Failed to get session info for bank verify');
@@ -1848,30 +1829,17 @@ export const getPaymentCommonCodes = async (params: CommonCodeRequest): Promise<
  * 고정값: RCPT_TP='G1', CUST_REL='A', PRESS_RCPT_YN='N', SUBS_TP='1', CTI_CID='0'
  */
 export const registerConsultation = async (params: ConsultationRequest): Promise<ApiResponse<any>> => {
-  // 세션/로컬 스토리지에서 SO_ID, MST_SO_ID, USR_ID 가져오기
-  let soId = params.SO_ID || '';
-  let mstSoId = params.MST_SO_ID || '';
+  // SO_ID는 반드시 caller가 전달, 세션에서는 USR_ID/CRR_ID만
+  const soId = params.SO_ID || '';
+  const mstSoId = params.MST_SO_ID || soId;
   let usrId = '';
   let crrId = '';
   try {
     const userInfoStr = sessionStorage.getItem('userInfo') || localStorage.getItem('userInfo');
     if (userInfoStr) {
       const userInfo = JSON.parse(userInfoStr);
-      // USR_ID 추출
       usrId = userInfo.userId || userInfo.USR_ID || userInfo.usrId || '';
       crrId = userInfo.crrId || userInfo.CRR_ID || '';
-      if (!soId) {
-        const authSoList = userInfo.authSoList || userInfo.AUTH_SO_List || [];
-        if (authSoList.length > 0) {
-          soId = authSoList[0].SO_ID || authSoList[0].soId || '';
-        }
-        if (!soId) {
-          soId = userInfo.soId || userInfo.SO_ID || '';
-        }
-      }
-      if (!mstSoId) {
-        mstSoId = userInfo.mstSoId || userInfo.MST_SO_ID || soId;
-      }
     }
   } catch (e) {
     console.log('[CustomerAPI] Failed to get user info from session/localStorage');
