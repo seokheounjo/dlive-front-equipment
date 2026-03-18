@@ -265,12 +265,13 @@ const EquipmentList: React.FC<EquipmentListProps> = ({ onBack, showToast }) => {
     }
     setIsTransferring(true);
     try {
+      const eqtSoId = equipmentDetail.SO_ID || userInfo.soId || '';
       const params = {
-        SO_ID: equipmentDetail.SO_ID || '',
+        SO_ID: eqtSoId,
         EQT_NO: equipmentDetail.EQT_NO || '',
         EQT_SERNO: equipmentDetail.EQT_SERNO || '',
         CHG_UID: userInfo.userId,
-        MV_SO_ID: userInfo.soId || equipmentDetail.SO_ID || '',
+        MV_SO_ID: userInfo.soId || eqtSoId,
         MV_CRR_ID: userInfo.crrId || '',
         MV_WRKR_ID: userInfo.userId,
         TO_WRKR_ID: userInfo.userId,
@@ -980,45 +981,9 @@ const EquipmentList: React.FC<EquipmentListProps> = ({ onBack, showToast }) => {
               <InfoRow label="변경자" value={equipmentDetail.CHG_UID_NM || equipmentDetail.CHG_UID} />
             </div>
 
-            {/* 기사보유장비로 이관 버튼 - 고객사용장비 아닌 경우만 */}
-            {equipmentDetail.EQT_LOC_TP_CD !== '4' && (
-              <div className="mt-4 pt-4 border-t border-gray-100">
-                <button
-                  onClick={handleTransferToMe}
-                  disabled={isTransferring}
-                  className="w-full bg-indigo-500 hover:bg-indigo-600 disabled:bg-gray-400 text-white py-3 rounded-lg font-semibold text-sm shadow-sm transition-all active:scale-[0.98] touch-manipulation flex items-center justify-center gap-2"
-                  style={{ WebkitTapHighlightColor: 'transparent' }}
-                >
-                  {isTransferring ? (
-                    <>
-                      <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24">
-                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
-                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-                      </svg>
-                      이관 중...
-                    </>
-                  ) : (
-                    '기사보유장비로 이관'
-                  )}
-                </button>
-              </div>
-            )}
           </div>
         )}
 
-        {/* 디버그: Raw 응답 데이터 */}
-        {rawResponse && (
-          <div className="bg-gray-50 rounded-xl border border-gray-200 p-4">
-            <details>
-              <summary className="text-xs font-medium text-gray-600 cursor-pointer">
-                API 원본 응답 (디버그)
-              </summary>
-              <pre className="mt-2 text-xs text-gray-700 overflow-x-auto whitespace-pre-wrap bg-white p-3 rounded-lg border border-gray-100 max-h-48 overflow-y-auto">
-                {JSON.stringify(rawResponse, null, 2)}
-              </pre>
-            </details>
-          </div>
-        )}
 
         {/* 빈 상태 */}
         {!isLoading && !equipmentDetail && !error && (
@@ -1086,6 +1051,9 @@ const EquipmentList: React.FC<EquipmentListProps> = ({ onBack, showToast }) => {
             </div>
           </div>
         )}
+
+        {/* 하단 여백 (고정 버튼 공간) */}
+        {equipmentDetail && equipmentDetail.EQT_LOC_TP_CD !== '4' && <div className="h-16"></div>}
 
         {/* Barcode Scanner */}
         <BarcodeScanner
@@ -1247,6 +1215,30 @@ const EquipmentList: React.FC<EquipmentListProps> = ({ onBack, showToast }) => {
                 </button>
               </div>
             </div>
+          </div>
+        )}
+
+        {/* 기사보유장비로 이관 - 하단 고정 버튼 */}
+        {equipmentDetail && equipmentDetail.EQT_LOC_TP_CD !== '4' && (
+          <div className="fixed bottom-[56px] left-0 right-0 p-3 z-40" style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}>
+            <button
+              onClick={handleTransferToMe}
+              disabled={isTransferring}
+              className="w-full bg-indigo-500 hover:bg-indigo-600 disabled:bg-gray-400 text-white py-3 rounded-lg font-semibold text-sm shadow-md transition-all active:scale-[0.98] touch-manipulation flex items-center justify-center gap-2"
+              style={{ WebkitTapHighlightColor: 'transparent' }}
+            >
+              {isTransferring ? (
+                <>
+                  <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                  </svg>
+                  이관 중...
+                </>
+              ) : (
+                '기사보유장비로 이관'
+              )}
+            </button>
           </div>
         )}
     </div>
