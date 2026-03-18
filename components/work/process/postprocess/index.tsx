@@ -587,7 +587,7 @@ const PostProcess: React.FC<PostProcessProps> = ({
           {['05', '07', '08'].includes(order.WRK_CD || '') && ((order as any).OLD_PROD_NM || oldProdInfo) && (
             <div className="flex items-start">
               <span className="text-xs sm:text-sm text-gray-500 w-16 sm:w-20 flex-shrink-0 text-right pr-3">{oldProdInfo?.label || '이전상품'}</span>
-              <span className="text-xs sm:text-sm text-gray-500 flex-1 min-w-0 truncate">{oldProdInfo?.prodNm || (order as any).OLD_PROD_NM || '-'} <span className="text-gray-400">({oldProdInfo?.ctrtId || '-'})</span></span>
+              <span className="text-xs sm:text-sm text-gray-500 flex-1 min-w-0 truncate">{oldProdInfo?.prodNm || (order as any).OLD_PROD_NM || '-'} <span className="text-gray-400">({oldProdInfo?.ctrtId || '-'}) {order.SO_NM || ''}</span></span>
             </div>
           )}
           <div className="flex items-start pt-1 border-t border-gray-100">
