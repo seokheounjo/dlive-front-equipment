@@ -949,6 +949,7 @@ router.post('/customer/negociation/getTgtCtrtWorkList_m', handleProxy);  // 작�
 // 4-1. Payment & Billing (Mobile) - D'Live SQL 스펙
 router.post('/customer/negociation/getCustAccountInfo_m', handleProxy);  // 납부정보 조회
 router.post('/customer/negociation/getCustBillInfo_m', handleProxy);     // 요금내역 조회
+router.post('/customer/negociation/getCustSuspendList_m', handleProxy); // 보류결재 조회
 // Legacy (deprecated)
 router.post('/customer/negociation/getCallHistory', handleProxy);
 router.post('/customer/negociation/getCustWorkList', handleProxy);
