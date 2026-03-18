@@ -19,12 +19,17 @@ declare class Html5Qrcode {
   static getCameras(): Promise<Array<{ id: string; label: string }>>;
 }
 
-// html5-qrcode format enum values (1D barcode only)
+// html5-qrcode format enum values
 const QR_FORMATS = {
   CODE_128: 5,
   CODE_39: 3,
   CODE_93: 4,
   CODABAR: 2,
+  EAN_13: 0,
+  EAN_8: 1,
+  ITF: 7,
+  UPC_A: 11,
+  UPC_E: 12,
 };
 
 interface BarcodeScannerProps {
@@ -142,15 +147,21 @@ const BarcodeScanner: React.FC<BarcodeScannerProps> = ({ isOpen, onClose, onScan
         QR_FORMATS.CODE_39,
         QR_FORMATS.CODE_93,
         QR_FORMATS.CODABAR,
+        QR_FORMATS.EAN_13,
+        QR_FORMATS.EAN_8,
+        QR_FORMATS.ITF,
+        QR_FORMATS.UPC_A,
+        QR_FORMATS.UPC_E,
       ],
       useBarCodeDetectorIfSupported: true,
       verbose: false,
     };
 
     const qrConfig = {
-      fps: 15,
-      qrbox: { width: 280, height: 90 },
+      fps: 30,
+      qrbox: { width: 350, height: 120 },
       disableFlip: true,
+      aspectRatio: 16 / 9,
     };
 
     const onSuccess = (decodedText: string) => {
@@ -162,11 +173,13 @@ const BarcodeScanner: React.FC<BarcodeScannerProps> = ({ isOpen, onClose, onScan
 
     // 3단계 fallback 시도
     const attempts = [
-      // 1단계: 후면카메라 고해상도
+      // 1단계: 후면카메라 4K 최고해상도
+      { facingMode: { exact: 'environment' }, width: { ideal: 3840, min: 1920 }, height: { ideal: 2160, min: 1080 } },
+      // 2단계: 후면카메라 FHD
       { facingMode: { exact: 'environment' }, width: { ideal: 1920 }, height: { ideal: 1080 } },
-      // 2단계: 후면카메라 기본
+      // 3단계: 후면카메라 기본
       { facingMode: 'environment' },
-      // 3단계: 아무 카메라
+      // 4단계: 아무 카메라
       true,
     ];
 
@@ -194,18 +207,29 @@ const BarcodeScanner: React.FC<BarcodeScannerProps> = ({ isOpen, onClose, onScan
               console.log('[BarcodeScanner] Camera:', settings.width + 'x' + settings.height);
 
               const advConstraints: any[] = [];
+              // 연속 자동 포커스
               if (caps.focusMode && caps.focusMode.includes('continuous')) {
                 advConstraints.push({ focusMode: 'continuous' });
               }
+              // 줌 (바코드 인식 최적: 2.5x)
               if (caps.zoom) {
                 setZoomSupported(true);
                 setZoomRange({ min: caps.zoom.min, max: caps.zoom.max });
-                const initZoom = Math.min(2.0, caps.zoom.max);
+                const initZoom = Math.min(2.5, caps.zoom.max);
                 advConstraints.push({ zoom: initZoom });
                 setZoomLevel(initZoom);
               }
+              // 플래시
               if (caps.torch) {
                 setTorchSupported(true);
+              }
+              // 노출 모드: 연속 자동
+              if (caps.exposureMode && caps.exposureMode.includes('continuous')) {
+                advConstraints.push({ exposureMode: 'continuous' });
+              }
+              // 화이트밸런스: 자동
+              if (caps.whiteBalanceMode && caps.whiteBalanceMode.includes('continuous')) {
+                advConstraints.push({ whiteBalanceMode: 'continuous' });
               }
               if (advConstraints.length > 0) {
                 await track.applyConstraints({ advanced: advConstraints });
@@ -350,7 +374,7 @@ const BarcodeScanner: React.FC<BarcodeScannerProps> = ({ isOpen, onClose, onScan
       {/* Scan overlay - 1D barcode shape (wide + thin) */}
       {isScanning && (
         <div className="absolute inset-0 pointer-events-none flex items-center justify-center">
-          <div className="w-[280px] h-[90px] relative">
+          <div className="w-[350px] h-[120px] relative">
             <div className="absolute top-0 left-0 w-8 h-8 border-t-4 border-l-4 border-green-400 rounded-tl-lg"></div>
             <div className="absolute top-0 right-0 w-8 h-8 border-t-4 border-r-4 border-green-400 rounded-tr-lg"></div>
             <div className="absolute bottom-0 left-0 w-8 h-8 border-b-4 border-l-4 border-green-400 rounded-bl-lg"></div>
