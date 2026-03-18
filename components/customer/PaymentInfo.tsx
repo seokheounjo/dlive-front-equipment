@@ -440,18 +440,18 @@ const PaymentInfo: React.FC<PaymentInfoProps> = ({
                   </button>
                 )}
 
-                {/* 납부정보 변경 버튼 - 팝업으로 변경 */}
+                {/* 납부정보 변경 버튼 - 승인신청중(COMMON_CD=3)이면 비활성화 */}
                 {selectedPymAcntId && (
                   <button
                     onClick={() => setShowPaymentChangeModal(true)}
-                    disabled={needsRefresh}
+                    disabled={needsRefresh || (selectedPayment as any)?.COMMON_CD === '3'}
                     className={`w-full mt-2 py-2 text-sm rounded-lg transition-colors font-medium ${
-                      needsRefresh
+                      needsRefresh || (selectedPayment as any)?.COMMON_CD === '3'
                         ? 'text-gray-400 bg-gray-100 cursor-not-allowed'
                         : 'text-indigo-600 bg-indigo-50 hover:bg-indigo-100'
                     }`}
                   >
-                    납부정보 변경
+                    {(selectedPayment as any)?.COMMON_CD === '3' ? '납부정보 변경 (승인신청중)' : '납부정보 변경'}
                   </button>
                 )}
               </div>

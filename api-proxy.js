@@ -512,6 +512,9 @@ function radiusAccessRequest(serverIp, serverPort, sharedSecret, username, passw
 router.post('/auth/otp-verify', async (req, res) => {
   const userId = req.body.USR_ID;
   const otpCode = req.body.OTP_CODE ? String(req.body.OTP_CODE).trim() : '';
+  const clientIp = req.headers['x-forwarded-for'] || req.headers['x-real-ip'] || req.connection.remoteAddress || '';
+  const userAgent = req.headers['user-agent'] || '';
+  const nwType = req.body.NW_TYPE || req.headers['x-network-type'] || '';
 
   console.log('[OTP] Verify request - userId:', userId, 'otpCode length:', otpCode.length);
 
@@ -523,15 +526,37 @@ router.post('/auth/otp-verify', async (req, res) => {
     return res.json({ ok: false, code: '6010', message: 'OTP must be 6 digits' });
   }
 
+  const trxId = generateTrxId(userId);
+
   try {
     const otpUserId = userId;
-    console.log('[OTP] OTP auth user:', otpUserId);
+    console.log('[OTP] OTP auth user:', otpUserId, 'TRX_ID:', trxId);
+
+    // Api1: OTP 인증 시작 기록
+    await callLoginApi('pmobileLoginApi_1', {
+      P_LOGIN_TRX_ID: trxId,
+      P_USER_ID: userId,
+      P_NW_TYPE: nwType,
+      P_CLIENT_IP: clientIp,
+      P_USER_AGENT: userAgent.substring(0, 200),
+      P_SERVER: 'EC2_OTP_VERIFY',
+      P_API_TYPE: 'OTP',
+      P_REQUEST_DATA: JSON.stringify({ USR_ID: userId })
+    });
 
     // DB(MOOT001)에서 OTP 설정 동적 로드
     const otpConfig = await getOtpConfig();
     if (!otpConfig) {
       console.error('[OTP] MOOT001 config load failed - cannot authenticate');
-      return res.json({ ok: false, code: '6040', message: 'OTP 서버 설정을 불러올 수 없습니다. 관리자에게 문의하세요.' });
+      // Api2: 설정 로드 실패
+      await callLoginApi('pmobileLoginApi_2', {
+        P_LOGIN_TRX_ID: trxId,
+        P_API_TYPE: 'OTP',
+        P_RESPONSE_DATA: '',
+        P_RESULT_CD: '6040',
+        P_RESULT_MSG: 'OTP config load failed'
+      });
+      return res.json({ ok: false, code: '6040', message: 'OTP 서버 설정을 불러올 수 없습니다. 관리자에게 문의하세요.', trxId });
     }
     console.log('[OTP] Using config - IP:', otpConfig.serverIp, ', ENV:', OTP_ENV);
 
@@ -542,19 +567,39 @@ router.post('/auth/otp-verify', async (req, res) => {
 
     console.log('[OTP] RADIUS result:', JSON.stringify(result));
 
-    if (result.code === '0') {
-      res.json({ ok: true, code: '0', message: 'OTP authentication successful' });
+    const otpOk = result.code === '0';
+
+    // Api2: OTP 인증 결과 기록
+    await callLoginApi('pmobileLoginApi_2', {
+      P_LOGIN_TRX_ID: trxId,
+      P_API_TYPE: 'OTP',
+      P_RESPONSE_DATA: JSON.stringify({ code: result.code, message: result.message }),
+      P_RESULT_CD: otpOk ? 'SUCCESS' : result.code,
+      P_RESULT_MSG: otpOk ? 'OTP OK' : result.message
+    });
+
+    if (otpOk) {
+      res.json({ ok: true, code: '0', message: 'OTP authentication successful', trxId });
     } else {
       res.json({
         ok: false,
         code: result.code,
         message: result.message,
-        errorCount: parseInt(result.count) || 0
+        errorCount: parseInt(result.count) || 0,
+        trxId
       });
     }
   } catch (err) {
     console.error('[OTP] Unexpected error:', err);
-    res.json({ ok: false, code: '6042', message: 'OTP server error' });
+    // Api2: 예외 기록
+    await callLoginApi('pmobileLoginApi_2', {
+      P_LOGIN_TRX_ID: trxId,
+      P_API_TYPE: 'OTP',
+      P_RESPONSE_DATA: '',
+      P_RESULT_CD: '6042',
+      P_RESULT_MSG: 'OTP error: ' + (err.message || 'unknown')
+    });
+    res.json({ ok: false, code: '6042', message: 'OTP server error', trxId });
   }
 });
 
@@ -630,9 +675,10 @@ router.post('/auth/login-with-otp', async (req, res) => {
   const clientIp = req.headers['x-forwarded-for'] || req.headers['x-real-ip'] || req.connection.remoteAddress || '';
   const userAgent = req.headers['user-agent'] || '';
   const nwType = req.body.NW_TYPE || req.headers['x-network-type'] || '';
+  const deviceInfo = req.body.DEVICE_INFO || {};
 
   const trxId = generateTrxId(userId);
-  console.log('[LoginFlow] Start TRX_ID:', trxId);
+  console.log('[LoginFlow] Start TRX_ID:', trxId, 'DeviceInfo:', JSON.stringify(deviceInfo).substring(0, 300));
 
   // Step 1: Log login start (API_1 - LOGIN)
   // PASSWORD is NOT included in log
@@ -644,7 +690,8 @@ router.post('/auth/login-with-otp', async (req, res) => {
     P_USER_AGENT: userAgent.substring(0, 200),
     P_SERVER: 'EC2_MOBILE',
     P_API_TYPE: 'LOGIN',
-    P_REQUEST_DATA: JSON.stringify({ USR_ID: userId, LOGIN_VIEW: 'MOBILE' })
+    P_REQUEST_DATA: JSON.stringify({ USR_ID: userId, LOGIN_VIEW: 'MOBILE' }),
+    P_DEVICE_INFO: JSON.stringify(deviceInfo)
   });
 
   // Step 2: ID/PW authentication via CONA

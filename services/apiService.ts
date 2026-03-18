@@ -483,7 +483,7 @@ export const login = async (userId: string, password: string, disconnYn: string 
 
 
 // OTP 포함 로그인 (login + OTP + 감사로그 한번에 처리)
-export const loginWithOtp = async (userId: string, password: string, otpCode: string, disconnYn: string = 'N', nwType: string = ''): Promise<LoginResponse> => {
+export const loginWithOtp = async (userId: string, password: string, otpCode: string, disconnYn: string = 'N', nwType: string = '', deviceInfo?: any): Promise<LoginResponse> => {
   const origin = typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000';
 
   try {
@@ -502,7 +502,8 @@ export const loginWithOtp = async (userId: string, password: string, otpCode: st
         DISCONN_YN: disconnYn,
         DRM_VERSION: '1000',
         LOGIN_VIEW: 'MOBILE',
-        NW_TYPE: nwType
+        NW_TYPE: nwType,
+        DEVICE_INFO: deviceInfo || {}
       }),
     }, 1);
 

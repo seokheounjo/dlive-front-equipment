@@ -13,7 +13,7 @@ const OTP_ENABLED = false;
 // OTP 제외 계정 (운영 모바일코나 테스트 계정)
 const OTP_SKIP_USERS = ['A20072330', 'A20070013', 'A20119065'];
 
-const LOGIN_ERROR_MESSAGE = '입력정보가 잘못되어 로그인이 불가합니다.';
+const LOGIN_ERROR_MESSAGE = '사용자ID 또는 암호가 잘못되었습니다.';
 
 interface LoginProps {
   onLogin: (userId?: string, userName?: string, userNameEn?: string, userRole?: string, crrId?: string, soId?: string, mstSoId?: string, telNo2?: string, authSoList?: Array<{SO_ID: string; SO_NM: string; MST_SO_ID: string}>, soYn?: string, deptCd?: string) => void;
@@ -44,6 +44,28 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
     return '';
   };
 
+  // 디바이스 정보 수집 (PC/HP 구분용)
+  const getDeviceInfo = () => {
+    try {
+      return {
+        userAgent: navigator.userAgent,
+        platform: navigator.platform,
+        uaPlatform: (navigator as any).userAgentData?.platform || '',
+        uaMobile: (navigator as any).userAgentData?.mobile ?? null,
+        touchPoints: navigator.maxTouchPoints || 0,
+        isTouch: 'ontouchstart' in window,
+        screenWidth: window.innerWidth,
+        screenHeight: window.innerHeight,
+        screenFullWidth: window.screen.width,
+        screenFullHeight: window.screen.height,
+        devicePixelRatio: window.devicePixelRatio || 1,
+        timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+      };
+    } catch {
+      return { userAgent: navigator.userAgent || '' };
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>, forceDisconnect: boolean = false) => {
     e.preventDefault();
     if (!username || !password) return;
@@ -61,7 +83,7 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
 
     try {
       const sendOtpCode = (OTP_ENABLED && !skipOtp) ? otpCode : '';
-      const result = await loginWithOtp(username, password, sendOtpCode, forceDisconnect ? 'Y' : 'N', getNetworkType());
+      const result = await loginWithOtp(username, password, sendOtpCode, forceDisconnect ? 'Y' : 'N', getNetworkType(), getDeviceInfo());
 
       console.log('[Login] API 응답:', result);
 
@@ -106,7 +128,7 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
     try {
       const skipOtp = OTP_SKIP_USERS.includes(username.toUpperCase());
       const sendOtpCode = (OTP_ENABLED && !skipOtp) ? otpCode : '';
-      const result = await loginWithOtp(username, password, sendOtpCode, 'Y', getNetworkType());
+      const result = await loginWithOtp(username, password, sendOtpCode, 'Y', getNetworkType(), getDeviceInfo());
 
       console.log('[Login] 강제 로그인 응답:', result);
 
@@ -235,15 +257,15 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
                 type="text"
                 inputMode="numeric"
                 pattern="[0-9]*"
-                maxLength={100}
+                maxLength={6}
                 autoComplete="one-time-code"
                 disabled={!OTP_ENABLED}
-                className={`${inputBaseClasses} pl-10 text-center text-xl tracking-[0.4em] font-mono disabled:bg-white disabled:border-white disabled:cursor-not-allowed`}
+                className={`${inputBaseClasses} pl-10 pr-3 disabled:bg-white disabled:border-white disabled:cursor-not-allowed`}
                 style={inputStyle}
-                placeholder="OTP"
+                placeholder="OTP 인증번호"
                 value={otpCode}
                 onChange={(e) => {
-                  const val = e.target.value.replace(/[^0-9]/g, '');
+                  const val = e.target.value.replace(/[^0-9]/g, '').slice(0, 6);
                   setOtpCode(val);
                 }}
               />
