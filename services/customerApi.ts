@@ -1248,6 +1248,8 @@ export interface PaymentAccountInfo {
   BILL_MTHD: string;         // 청구방법 (실물+이메일+SMS 등)
   UPYM_AMT_ACNT: number;     // 미납금액
   SO_ID?: string;            // SO ID (계약 기반 매핑)
+  COMMON_CD?: string;        // 납부상태코드 (0=신규화면, 1=정상, 3=승인신청중 등)
+  COMMON_CD_NM?: string;     // 납부상태명
 }
 
 export const getPaymentAccountsRaw = async (custId: string): Promise<ApiResponse<PaymentAccountInfo[]>> => {
