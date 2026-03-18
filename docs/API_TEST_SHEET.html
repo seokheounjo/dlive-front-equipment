@@ -1,0 +1,489 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>모바일코나_로그인OTP_운영_테스트</title>
+<style>
+  body { font-family: 'Malgun Gothic', Arial, sans-serif; margin: 0; padding: 20px; background: #f5f5f5; }
+  h1 { text-align: center; font-size: 18px; margin-bottom: 10px; }
+  .info { text-align: center; font-size: 12px; color: #666; margin-bottom: 20px; }
+  .sheet-tabs { display: flex; gap: 2px; margin-bottom: 0; }
+  .sheet-tab { padding: 8px 20px; background: #e0e0e0; border: 1px solid #ccc; border-bottom: none; border-radius: 6px 6px 0 0; cursor: pointer; font-size: 13px; font-weight: bold; }
+  .sheet-tab.active { background: #fff; border-bottom: 1px solid #fff; margin-bottom: -1px; z-index: 1; }
+  .sheet-tab.login { color: #1a73e8; }
+  .sheet-tab.otp { color: #e65100; }
+  .sheet-tab.log { color: #2e7d32; }
+  table { border-collapse: collapse; width: 100%; background: #fff; border: 1px solid #ccc; }
+  th, td { border: 1px solid #ccc; padding: 6px 10px; font-size: 12px; text-align: left; vertical-align: top; }
+  th { background: #4a86c8; color: #fff; font-weight: bold; text-align: center; white-space: nowrap; }
+  .cat-header { background: #dce6f1; font-weight: bold; color: #1a3a5c; font-size: 13px; }
+  .sub-header { background: #edf2f9; font-weight: bold; color: #333; padding-left: 20px; }
+  .step { background: #f9f9f9; padding-left: 30px; }
+  .req { font-family: 'Consolas', 'Courier New', monospace; font-size: 11px; color: #0d47a1; word-break: break-all; }
+  .cona-req { font-family: 'Consolas', 'Courier New', monospace; font-size: 11px; color: #b71c1c; word-break: break-all; }
+  .adapter { font-family: 'Consolas', 'Courier New', monospace; font-size: 11px; color: #4a148c; word-break: break-all; }
+  .ok { background: #c8e6c9; color: #1b5e20; text-align: center; font-weight: bold; }
+  .fail { background: #ffcdd2; color: #b71c1c; text-align: center; font-weight: bold; }
+  .na { background: #fff9c4; color: #f57f17; text-align: center; }
+  .pending { background: #e3f2fd; color: #1565c0; text-align: center; }
+  .note { font-size: 11px; color: #555; }
+  .legend { margin: 15px 0; font-size: 12px; }
+  .legend span { padding: 2px 8px; margin-right: 10px; border-radius: 3px; }
+  .section-gap td { height: 4px; padding: 0; background: #e8e8e8; border-left: none; border-right: none; }
+  .no-col { text-align: center; width: 30px; color: #999; }
+  .flow-arrow { color: #e65100; font-weight: bold; }
+</style>
+</head>
+<body>
+
+<h1>모바일코나 — 로그인 / OTP / 로그 시스템 API 종합 테스트시트</h1>
+<div class="info">
+  서버: https://dlivestore2.store/ (EC2 52.79.244.8) |
+  백엔드: CONA 58.143.139.1:8080 |
+  작성일: 2026-03-18 |
+  어댑터: dlive_adapter (jsh branch)
+</div>
+
+<div class="legend">
+  <strong>범례:</strong>
+  <span style="background:#c8e6c9;">O = 정상</span>
+  <span style="background:#ffcdd2;">X = 오류</span>
+  <span style="background:#fff9c4;">- = 해당없음</span>
+  <span style="background:#e3f2fd;">△ = 미확인</span>
+  &nbsp;|&nbsp;
+  <span class="req">파란색 = 프론트→EC2 API</span>&nbsp;
+  <span class="cona-req">빨간색 = EC2→CONA .req</span>&nbsp;
+  <span class="adapter">보라색 = EC2→어댑터</span>
+</div>
+
+<div class="sheet-tabs">
+  <div class="sheet-tab active login">로그인/OTP</div>
+  <div class="sheet-tab log">로그 시스템</div>
+</div>
+
+<!-- ==================== 로그인/OTP 시트 ==================== -->
+<table>
+<thead>
+<tr>
+  <th style="width:30px;">No</th>
+  <th style="width:180px;">화면/기능</th>
+  <th style="width:300px;">프론트 → EC2 API 경로</th>
+  <th style="width:300px;">EC2 → CONA/어댑터 내부 호출</th>
+  <th style="width:180px;">파라미터 (주요)</th>
+  <th style="width:50px;">테스트</th>
+  <th style="width:200px;">비고</th>
+</tr>
+</thead>
+<tbody>
+
+<!-- ===== 1. 로그인 화면 ===== -->
+<tr class="cat-header">
+  <td colspan="7">1. 로그인 화면 (Login.tsx)</td>
+</tr>
+
+<tr class="sub-header">
+  <td class="no-col">1-1</td>
+  <td>OTP 설정 조회</td>
+  <td class="req">POST /api/common/getCommonCodes</td>
+  <td class="adapter">POST 어댑터 /api/common/getCommonCodes</td>
+  <td class="note">CODE_GROUP: "MOOT001"</td>
+  <td class="pending">△</td>
+  <td class="note">OTP_ENABLED=true일 때만 호출. ref_code=서버IP, ref_code2=DEV/LIVE, name=SharedSecret</td>
+</tr>
+
+<tr class="sub-header">
+  <td class="no-col">1-2</td>
+  <td>OTP 단독 인증 (선택)</td>
+  <td class="req">POST /api/auth/otp-verify</td>
+  <td class="note">EC2 내부 → RADIUS UDP 1812</td>
+  <td class="note">USR_ID, OTP_CODE(6자리)</td>
+  <td class="pending">△</td>
+  <td class="note">OTP만 별도 검증 시 사용. RADIUS AccessRequest → AccessAccept/Reject</td>
+</tr>
+
+<tr class="sub-header">
+  <td class="no-col">1-3</td>
+  <td colspan="6" style="background:#fff3e0; font-weight:bold;">통합 로그인 (ID+PW+OTP) — /api/auth/login-with-otp 내부 흐름</td>
+</tr>
+
+<tr class="step">
+  <td class="no-col"></td>
+  <td><span class="flow-arrow">Step 1.</span> 로그인 시작 기록</td>
+  <td class="req">POST /api/auth/login-with-otp</td>
+  <td class="adapter">→ POST 어댑터 /api/system/pm/pmobileLoginApi_1</td>
+  <td class="note">P_LOGIN_TRX_ID, P_USER_ID, P_NW_TYPE, P_CLIENT_IP, P_USER_AGENT, P_SERVER=EC2_MOBILE, P_API_TYPE=LOGIN</td>
+  <td class="pending">△</td>
+  <td class="note">TRX_ID 형식: userId_yyyyMMddHHmmss</td>
+</tr>
+
+<tr class="step">
+  <td class="no-col"></td>
+  <td><span class="flow-arrow">Step 2.</span> CONA ID/PW 인증</td>
+  <td></td>
+  <td class="adapter">→ POST 어댑터 /api/login</td>
+  <td class="note">USR_ID, PASSWORD, LOGIN_VIEW=MOBILE, DRM_VERSION=1000, DISCONN_YN</td>
+  <td class="pending">△</td>
+  <td class="note">JSESSIONID 저장. 30s 타임아웃.</td>
+</tr>
+
+<tr class="step">
+  <td class="no-col"></td>
+  <td><span class="flow-arrow">Step 3.</span> 로그인 결과 기록</td>
+  <td></td>
+  <td class="adapter">→ POST 어댑터 /api/system/pm/pmobileLoginApi_2</td>
+  <td class="note">P_LOGIN_TRX_ID, P_API_TYPE=LOGIN, P_RESULT_CD=SUCCESS/FAIL, P_RESULT_MSG</td>
+  <td class="pending">△</td>
+  <td class="note">실패 시 Step 5(API_3)로 직행 → FAIL 반환</td>
+</tr>
+
+<tr class="step">
+  <td class="no-col"></td>
+  <td><span class="flow-arrow">Step 4.</span> OTP RADIUS 인증</td>
+  <td></td>
+  <td class="note">EC2 → RADIUS UDP:1812 (OTP서버)<br>
+    <span class="adapter">→ 어댑터 /api/system/pm/pmobileLoginApi_1 (API_TYPE=OTP)</span><br>
+    <span class="adapter">→ 어댑터 /api/system/pm/pmobileLoginApi_2 (API_TYPE=OTP)</span>
+  </td>
+  <td class="note">RADIUS: User-Name, User-Password (MD5 XOR)<br>OTP서버 IP는 MOOT001에서 동적 로드</td>
+  <td class="pending">△</td>
+  <td class="note">OTP_CODE 있을때만. 6자리 검증. 캐시 없음(매 로그인마다 DB조회)</td>
+</tr>
+
+<tr class="step">
+  <td class="no-col"></td>
+  <td><span class="flow-arrow">Step 5.</span> 최종 결과 기록</td>
+  <td></td>
+  <td class="adapter">→ POST 어댑터 /api/system/pm/pmobileLoginApi_3</td>
+  <td class="note">P_LOGIN_TRX_ID, P_FINAL_RESULT_CD=SUCCESS/FAIL/OTP_FAIL, P_FINAL_RESULT_MSG</td>
+  <td class="pending">△</td>
+  <td class="note">성공 시 loginResult + trxId 반환</td>
+</tr>
+
+<tr class="sub-header">
+  <td class="no-col">1-4</td>
+  <td>레거시 직접 로그인 (OTP 미사용)</td>
+  <td class="req">POST /api/login</td>
+  <td class="adapter">POST 어댑터 /api/login</td>
+  <td class="note">USR_ID, PASSWORD, LOGIN_VIEW=MOBILE, DRM_VERSION=1000, DISCONN_YN</td>
+  <td class="pending">△</td>
+  <td class="note">OTP_ENABLED=false 시 사용. pmobileLoginApi 감사로그 없음.</td>
+</tr>
+
+<tr class="sub-header">
+  <td class="no-col">1-5</td>
+  <td>지점 목록 조회</td>
+  <td class="req">POST /api/customer/equipment/getAuthSoList</td>
+  <td class="adapter">POST 어댑터 → CONA bean</td>
+  <td class="note">USR_ID</td>
+  <td class="pending">△</td>
+  <td class="note">로그인 성공 후 AUTH_SO_List 획득</td>
+</tr>
+
+<tr class="sub-header">
+  <td class="no-col">1-6</td>
+  <td>공통코드 조회 (OTP 설정)</td>
+  <td class="req">POST /api/common/getCommonCodes</td>
+  <td class="adapter">POST 어댑터 /api/common/getCommonCodes</td>
+  <td class="note">CODE_GROUP: "MOOT001"</td>
+  <td class="pending">△</td>
+  <td class="note">Login.tsx에서 OTP on/off 판단. LIVE/DEV 환경 구분.</td>
+</tr>
+
+<!-- ===== 구분선 ===== -->
+<tr class="section-gap"><td colspan="7"></td></tr>
+
+<!-- ===== 2. Activity Log ===== -->
+<tr class="cat-header">
+  <td colspan="7">2. Activity Log (TSYMO_APP_ACTIVITY_LOG)</td>
+</tr>
+
+<tr class="sub-header">
+  <td class="no-col">2-1</td>
+  <td>활동 로그 저장</td>
+  <td class="req">POST /api/system/pm/insertActivityLog</td>
+  <td class="adapter">POST 어댑터 /api/system/pm/insertActivityLog</td>
+  <td class="note">LOG_TYPE, USR_ID, USR_NM, SO_ID, CRR_ID, ACCESS_TYPE, FROM_VIEW, TO_VIEW, MENU_NM, ORDER_ID, NW_TYPE, LOGIN_TRX_ID, CRT_DTTM</td>
+  <td class="pending">△</td>
+  <td class="note">10초 배치 or 50건 or 페이지 이탈 시 flush. sendBeacon 우선.</td>
+</tr>
+
+<tr class="step">
+  <td class="no-col"></td>
+  <td>LOG_TYPE: LOGIN</td>
+  <td colspan="2" class="note">로그인 성공 시 → TO_VIEW=LoginPage</td>
+  <td class="note">Login.tsx logLogin()</td>
+  <td class="pending">△</td>
+  <td class="note">App.tsx handleLogin()에서 호출</td>
+</tr>
+
+<tr class="step">
+  <td class="no-col"></td>
+  <td>LOG_TYPE: LOGOUT</td>
+  <td colspan="2" class="note">로그아웃 시 → FROM_VIEW=현재경로</td>
+  <td class="note">App.tsx handleLogout()</td>
+  <td class="pending">△</td>
+  <td class="note">세션타임아웃(60분) 포함</td>
+</tr>
+
+<tr class="step">
+  <td class="no-col"></td>
+  <td>LOG_TYPE: MENU_CLICK</td>
+  <td colspan="2" class="note">화면 전환 시 → FROM_VIEW, TO_VIEW, MENU_NM 자동매핑</td>
+  <td class="note">navigateToView, navigateBack, navigateToMenu, popstate</td>
+  <td class="pending">△</td>
+  <td class="note">작업완료 콜백, 뒤로가기 버튼 포함</td>
+</tr>
+
+<tr class="step">
+  <td class="no-col"></td>
+  <td>LOG_TYPE: WORK_COMPLETE</td>
+  <td colspan="2" class="note">작업 완료 시 → TO_VIEW=WorkComplete, ORDER_ID</td>
+  <td class="note">useCompleteWork.ts</td>
+  <td class="pending">△</td>
+  <td class="note">React Query onSuccess에서 호출</td>
+</tr>
+
+<!-- ===== 구분선 ===== -->
+<tr class="section-gap"><td colspan="7"></td></tr>
+
+<!-- ===== 3. Debug Log ===== -->
+<tr class="cat-header">
+  <td colspan="7">3. Debug Log (TSYMO_APP_DEBUG_LOG)</td>
+</tr>
+
+<tr class="sub-header">
+  <td class="no-col">3-1</td>
+  <td>디버그 로그 저장</td>
+  <td class="req">POST /api/system/pm/insertDebugLog</td>
+  <td class="adapter">POST 어댑터 /api/system/pm/insertDebugLog</td>
+  <td class="note">LOG_LEVEL, USR_ID, SO_ID, API_PATH, API_METHOD, API_STATUS, API_DURATION, ERROR_MSG, REQ_BODY, RES_BODY, STACK_TRACE, PAGE_VIEW, NW_TYPE, LOGIN_TRX_ID</td>
+  <td class="pending">△</td>
+  <td class="note">동일 배치 방식 (10초/50건)</td>
+</tr>
+
+<tr class="step">
+  <td class="no-col"></td>
+  <td>API 에러 (logApiError)</td>
+  <td colspan="2" class="note">apiService.ts 인터셉터 — HTTP 4xx/5xx 자동 캡처</td>
+  <td class="note">LOG_LEVEL=ERROR, API_PATH, API_STATUS, API_DURATION</td>
+  <td class="pending">△</td>
+  <td class="note">timeout(408), network error(0) 포함</td>
+</tr>
+
+<tr class="step">
+  <td class="no-col"></td>
+  <td>느린 API (logSlowApi)</td>
+  <td colspan="2" class="note">apiService.ts 인터셉터 — 응답시간 초과 시 자동</td>
+  <td class="note">LOG_LEVEL=WARN, API_DURATION(ms)</td>
+  <td class="pending">△</td>
+  <td class="note">임계값 초과 시</td>
+</tr>
+
+<tr class="step">
+  <td class="no-col"></td>
+  <td>전역 에러 (GlobalError)</td>
+  <td colspan="2" class="note">window.addEventListener('error') → logRuntimeError</td>
+  <td class="note">LOG_LEVEL=ERROR, ERROR_MSG, STACK_TRACE</td>
+  <td class="pending">△</td>
+  <td class="note">App.tsx 전역 핸들러</td>
+</tr>
+
+<tr class="step">
+  <td class="no-col"></td>
+  <td>미처리 Promise (UnhandledRejection)</td>
+  <td colspan="2" class="note">window.addEventListener('unhandledrejection') → logRuntimeError</td>
+  <td class="note">LOG_LEVEL=ERROR, ERROR_MSG, STACK_TRACE</td>
+  <td class="pending">△</td>
+  <td class="note">App.tsx 전역 핸들러</td>
+</tr>
+
+<tr class="step">
+  <td class="no-col"></td>
+  <td>React 에러 (ErrorBoundary)</td>
+  <td colspan="2" class="note">ErrorBoundary componentDidCatch → logRuntimeError</td>
+  <td class="note">LOG_LEVEL=ERROR, 컴포넌트 스택</td>
+  <td class="pending">△</td>
+  <td class="note">ErrorBoundary.tsx</td>
+</tr>
+
+<tr class="step">
+  <td class="no-col"></td>
+  <td>장비 프리로드 성공</td>
+  <td colspan="2" class="note">WorkProcessFlow.tsx — 장비 데이터 조회 완료</td>
+  <td class="note">LOG_LEVEL=INFO, WRK_ID, WRK_CD, 장비수량(contract/tech/customer/removed)</td>
+  <td class="pending">△</td>
+  <td class="note">작업 진행 화면 진입 시</td>
+</tr>
+
+<tr class="step">
+  <td class="no-col"></td>
+  <td>장비 프리로드 실패</td>
+  <td colspan="2" class="note">WorkProcessFlow.tsx — 장비 데이터 조회 오류</td>
+  <td class="note">LOG_LEVEL=ERROR, WRK_ID, WRK_CD, 에러메시지, STACK_TRACE</td>
+  <td class="pending">△</td>
+  <td class="note">catch 블록</td>
+</tr>
+
+<tr class="step">
+  <td class="no-col"></td>
+  <td>작업완료 확인 팝업</td>
+  <td colspan="2" class="note">WorkCompleteSummary.tsx — 작업완료 최종 확인 데이터</td>
+  <td class="note">LOG_LEVEL=INFO, 작업유형, 고객관계, 망구분, 설치유형, 장비목록(설치/철거), 메모</td>
+  <td class="pending">△</td>
+  <td class="note">관리자가 main 머지 시 추가 (ac0ad0bb)</td>
+</tr>
+
+<tr class="step">
+  <td class="no-col"></td>
+  <td>작업완료 실패</td>
+  <td colspan="2" class="note">useCompleteWork.ts onError — 완료 API 실패</td>
+  <td class="note">LOG_LEVEL=ERROR, WRK_ID, 에러메시지, STACK_TRACE</td>
+  <td class="pending">△</td>
+  <td class="note">React Query onError</td>
+</tr>
+
+<!-- ===== 구분선 ===== -->
+<tr class="section-gap"><td colspan="7"></td></tr>
+
+<!-- ===== 4. Login Audit Log ===== -->
+<tr class="cat-header">
+  <td colspan="7">4. Login Audit Log (PMOBILE_LOGIN_API 프로시저)</td>
+</tr>
+
+<tr class="sub-header">
+  <td class="no-col">4-1</td>
+  <td>pmobileLoginApi_1 (시작)</td>
+  <td class="req">POST /api/system/pm/pmobileLoginApi_1</td>
+  <td class="adapter">POST 어댑터 /api/system/pm/pmobileLoginApi_1</td>
+  <td class="note">P_LOGIN_TRX_ID, P_USER_ID, P_NW_TYPE, P_CLIENT_IP, P_USER_AGENT, P_SERVER, P_API_TYPE(LOGIN/OTP), P_REQUEST_DATA</td>
+  <td class="pending">△</td>
+  <td class="note">login-with-otp Step1,4에서 호출. 프론트 logService loginApi1()에서도 호출 가능.</td>
+</tr>
+
+<tr class="sub-header">
+  <td class="no-col">4-2</td>
+  <td>pmobileLoginApi_2 (결과)</td>
+  <td class="req">POST /api/system/pm/pmobileLoginApi_2</td>
+  <td class="adapter">POST 어댑터 /api/system/pm/pmobileLoginApi_2</td>
+  <td class="note">P_LOGIN_TRX_ID, P_API_TYPE(LOGIN/OTP), P_RESPONSE_DATA, P_RESULT_CD, P_RESULT_MSG</td>
+  <td class="pending">△</td>
+  <td class="note">login-with-otp Step3,4에서 호출</td>
+</tr>
+
+<tr class="sub-header">
+  <td class="no-col">4-3</td>
+  <td>pmobileLoginApi_3 (최종)</td>
+  <td class="req">POST /api/system/pm/pmobileLoginApi_3</td>
+  <td class="adapter">POST 어댑터 /api/system/pm/pmobileLoginApi_3</td>
+  <td class="note">P_LOGIN_TRX_ID, P_FINAL_RESULT_CD(SUCCESS/FAIL/OTP_FAIL), P_FINAL_RESULT_MSG</td>
+  <td class="pending">△</td>
+  <td class="note">login-with-otp Step5에서 호출. 성공/실패 최종 1회.</td>
+</tr>
+
+<!-- ===== 구분선 ===== -->
+<tr class="section-gap"><td colspan="7"></td></tr>
+
+<!-- ===== 5. 기타 시스템 ===== -->
+<tr class="cat-header">
+  <td colspan="7">5. 기타 시스템 API</td>
+</tr>
+
+<tr class="sub-header">
+  <td class="no-col">5-1</td>
+  <td>근태 조회</td>
+  <td class="req">POST /api/system/pm/saveDliveAttendance</td>
+  <td class="adapter">POST 어댑터 /api/system/pm/saveDliveAttendance</td>
+  <td class="note">출퇴근 기록</td>
+  <td class="pending">△</td>
+  <td class="note">logService 배치와 동일 경로</td>
+</tr>
+
+<tr class="sub-header">
+  <td class="no-col">5-2</td>
+  <td>공통코드 조회 (범용)</td>
+  <td class="req">POST /api/common/getCommonCodes</td>
+  <td class="adapter">POST 어댑터 /api/common/getCommonCodes</td>
+  <td class="note">CODE_GROUP</td>
+  <td class="pending">△</td>
+  <td class="note">다양한 코드 그룹 사용 (MOOT001, CMCU005 등)</td>
+</tr>
+
+<tr class="sub-header">
+  <td class="no-col">5-3</td>
+  <td>공통코드 목록 조회</td>
+  <td class="req">POST /api/common/getCommonCodeList</td>
+  <td class="adapter">POST 어댑터 /api/common/getCommonCodeList</td>
+  <td class="note">CODE_GRP_ID, 다중 코드그룹 가능</td>
+  <td class="pending">△</td>
+  <td class="note"></td>
+</tr>
+
+<tr class="sub-header">
+  <td class="no-col">5-4</td>
+  <td>콤보 참조 목록</td>
+  <td class="req">POST /api/common/getComboRefList</td>
+  <td class="adapter">POST 어댑터 /api/common/getComboRefList</td>
+  <td class="note">REF_TYPE, params</td>
+  <td class="pending">△</td>
+  <td class="note"></td>
+</tr>
+
+<tr class="sub-header">
+  <td class="no-col">5-5</td>
+  <td>코드 상세 조회</td>
+  <td class="req">POST /api/system/common/getCodeDetail</td>
+  <td class="adapter">POST 어댑터 /api/system/common/getCodeDetail</td>
+  <td class="note">CODE_GRP_ID, CODE_ID</td>
+  <td class="pending">△</td>
+  <td class="note"></td>
+</tr>
+
+<tr class="sub-header">
+  <td class="no-col">5-6</td>
+  <td>사용자 조회</td>
+  <td class="req">POST /api/system/cm/getFindUsrList</td>
+  <td class="cona-req">CONA .req: system/cm/getFindUsrList.req</td>
+  <td class="note">USR_ID</td>
+  <td class="pending">△</td>
+  <td class="note">.req 직접 프록시</td>
+</tr>
+
+<tr class="sub-header">
+  <td class="no-col">5-7</td>
+  <td>사용자 조회 3</td>
+  <td class="req">POST /api/system/cm/getFindUsrList3</td>
+  <td class="cona-req">CONA .req: system/cm/getFindUsrList3.req</td>
+  <td class="note">USR_ID</td>
+  <td class="pending">△</td>
+  <td class="note">.req 직접 프록시</td>
+</tr>
+
+<tr class="sub-header">
+  <td class="no-col">5-8</td>
+  <td>서버 상태 확인</td>
+  <td class="req">GET /api/ping</td>
+  <td class="note">EC2 로컬 (CONA 미호출)</td>
+  <td class="note">-</td>
+  <td class="pending">△</td>
+  <td class="note">헬스체크</td>
+</tr>
+
+</tbody>
+</table>
+
+<br>
+<div style="font-size: 12px; color: #666; text-align: center;">
+  <strong>아키텍처:</strong> [모바일 브라우저] → HTTPS → [EC2 Nginx:443 + PM2 Node.js:8080 (api-proxy.js)] → HTTP → [CONA WebSphere:8080 (58.143.139.1)] → [Oracle DB]
+  <br><br>
+  <strong>NW_TYPE:</strong> DEVICE_CONNECTION (예: ANDROID_LTE, IPHONE_WIFI, PC_WIN). DB 컬럼 10자 제한 → substring(0,10) 적용됨.
+  <br>
+  <strong>LOGIN_TRX_ID:</strong> 현재 형식 userId_yyyyMMddHHmmss (예: 20081061_20260318143022). 변경 요청: userId-yyyyMMddNNN
+  <br>
+  <strong>OTP:</strong> GrippinTower RADIUS. 서버IP+SharedSecret은 DB MOOT001 코드에서 동적 로드 (캐시 없음).
+  <br>
+  <strong>DEV서버:</strong> OTP_ENABLED=false | <strong>운영서버:</strong> OTP_ENABLED=true
+</div>
+
+</body>
+</html>

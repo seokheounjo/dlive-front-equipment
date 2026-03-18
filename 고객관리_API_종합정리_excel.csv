@@ -1,0 +1,73 @@
+﻿화면별,트랜잭션 경로(req),설명,INPUT 주요 파라미터,테스트 결과
+기본조회,,,,
+고객조회,customer/negociation/getCustCntBySearchCust.req,"고객명 검색 건수 조회 (150건 초과 시 팝업, getConditionalCustList2 실행 차단)",CUST_NM / CHK_FIX_CUST_NM(Y),O — 200 OK
+고객조회,customer/common/customercommon/getConditionalCustList2.req,"고객 통합 검색 (전화번호, 주소, 고객번호(계약번호), 장비번호(S/N, MAC)로 고객정보를 조회. 고객명 단독 조회 시 getCustCntBySearchCust 선행)",SERCH_GB=3 / LOGIN_ID / CUST_NM / TEL_NO / CUST_ID / CTRT_ID / EQT_SERNO,O — 200 OK
+고객조회,customer/negociation/getCustomerCtrtInfo.req,계약ID로 고객정보 역조회 (내부 검색용),CTRT_ID,O — 200 OK
+고객정보,,,,
+고객정보,customer/negociation/getCustInfo.req,고객 상세정보 조회 (고객명/주소/전화번호 등),CUST_ID,O — 200 OK
+계약현황,,,,
+계약현황,customer/negociation/getCustCtrtAll.req,"계약 목록 조회 — 계약ID, 계약상태, 상품명, 약정정보, 설치위치, 개통일, 장비정보(장비명, 모델명, 시리얼)",CUST_ID,O — 200 OK
+계약현황,customer/negociation/getCustCtrtInfoListCnt_1.req,계약 현황 건수 조회,CUST_ID,O — 200 OK
+계약현황,customer/negociation/getCustSearchCtrt.req,계약 상세 검색 (계약ID 기반),CUST_ID / CTRT_ID,O — 200 OK
+계약현황,customer/work/getProdPromotionInfo.req,상품/프로모션 정보 조회,CTRT_ID,O — 200 OK
+계약현황 - 상담 버튼,,상담등록 화면으로 이동,,O
+계약현황 - AS 버튼,,AS접수 화면으로 이동,,O
+계약현황 - 주소변경 버튼,,주소변경 화면으로 이동,,O
+납부정보 / 요금내역,,,,
+납부정보,customer/negociation/getCustAccountInfo.req,요금 내역 조회,CUST_ID,O — 200 OK
+납부정보,customer/negociation/getCustAccountInfo_m.req,납부정보 조회 (모바일),CUST_ID / LOGIN_ID,O — 200 OK
+요금내역,customer/negociation/getCustBillInfo_m.req,요금내역 조회 (모바일),PYM_ACNT_ID / CUST_ID / LOGIN_ID,O — 200 OK
+납부정보,customer/negociation/getCustDpstInfo.req,수납 내역 조회,CUST_ID,O — 200 OK
+납부정보,customer/negociation/getCustPymInfo.req,납부 정보 조회,CUST_ID,O — 200 OK
+미납내역,billing/unpayment/upreport/getUnpaymentNowList.req,미납 내역 조회 (현재 기준),CUST_ID / PYM_ACNT_ID / LOGIN_ID,O — 200 OK
+미납상세,billing/unpayment/upreport/getUnpaymentNowDtlList.req,미납 상세 내역 조회 (청구순번별),CUST_ID / BILL_YM / LOGIN_ID,O — 200 OK
+미납금 수납(카드 수납),,,,
+미납금 수납,billing/payment/anony/getCardVendorBySoId.req,카드사 벤더(MID) 조회 — PG 가맹점 ID,SO_ID,O — 200 OK
+미납금 수납,billing/payment/anony/insertDpstAndDTL.req,"카드수납 입금 등록 (TBLPY_CARD_DPST 마스터 + TBLPY_CARD_DPST_DTL 상세 INSERT, ORDER_NO 발급)",CUST_ID / PYM_ACNT_ID / 카드정보 / 금액,△ — 400 (필수 파라미터 미전송 시)
+미납금 수납,billing/payment/anony/insertCardPayStage.req,"카드결제 Stage 등록 (TBLPY_CARD_PAY_STAGE INSERT, STAGE 03→04→05→06)",ORDER_NO / STAGE / OID,△ — 400 (필수 파라미터 미전송 시)
+미납금 수납,"billing/payment/anony/processCardPayment.req (JSP 호출)","PG 결제 요청 — DLIVE_PAY.TBLPY_CARD_REQ@CONTODPAY 요청",ORDER_NO / MERT_KEY / 카드정보,— (JSP 브라우저 호출)
+최신화 버튼,billing/payment/anony/chkUpymPayStatus_m.req,결제 상태 조회 (폴링용) — TSYCM_CODE_DETAIL.REF_CODE = RESP_CD 조인,ORDER_NO,O — 200 OK
+납부방법 변경,,,,
+납부방법 변경,customer/customer/general/customerPymChgAddManager.req,납부방법 변경 (chgPymMthd_m),CUST_ID / PYM_ACNT_ID / 납부정보,O — 200 OK
+납부방법 변경,customer/customer/general/updatePymAtmtApplAGRPdf.req,자동이체 동의서 PDF 저장,PYM_ACNT_ID / PDF_CONTENT,△ — 400 (필수 파라미터 미전송 시)
+- 자동이체 계좌인증,customer/payment/verifyBankAccount.req,계좌 실명인증 (KSNET),ACNT_OWNER_NM / ACNT_NO / BANK_CD / ID_NO,O — 200 OK
+- 신용카드 인증,customer/payment/verifyCreditCard.req,카드 검증 (LGU+),CARD_NO / CARD_EXPIRY / ID_NO,O — 200 OK
+- PDF 저장,customer/payment/savePdf.req,동의서 PDF 파일 저장 (로컬 디렉토리),PDF_DATA / FILE_NAME,O — 200 OK
+상담이력조회,,,,
+상담이력조회,customer/negociation/getTgtCtrtRcptHist_m.req,"고객의 상담이력 확인 — 접수일, 상담소분류, 처리상태, 접수자, 요청사항, 응대내용. 기본 최근 10건, 전체 조회 가능",CUST_ID / CTRT_ID(선택),O — 200 OK
+작업이력조회,,,,
+작업이력조회,customer/negociation/getTgtCtrtWorkList_m.req,"고객의 작업이력 확인 — 작업예정일, 상품명, 작업구분, 작업상태, 완료일자, 작업자, 작업자소속, 설치(작업)주소, 작업지시내용, 작업처리내용. 기본 최근 10건",CUST_ID / CTRT_ID(선택),O — 200 OK
+콜이력조회,customer/negociation/getCallHistory.req,콜센터 통화이력 조회,CUST_ID,O — 200 OK
+정보변경,,,,
+전화번호변경,customer/negociation/updateCustTelDetailInfo.req,"고객의 전화번호를 추가/수정. 전화번호 존재 시 수정, 미존재 시 추가. DLIVE에서 난수 인증번호 발송 후 확인","CUST_ID / TEL_DDD / TEL_FIX / TEL_DTL / MB_CORP_TP",△ — 500 (실제 변경 데이터 필요)
+설치주소변경,customer/etc/saveMargeAddrOrdInfo.req,"고객의 주소(고객주소, 설치주소) 변경. 우편번호 검색 → 상세주소 입력 → 저장 (오라클 프로시저 호출)","CTRT_ID / POST_ID / BLD_ID / BUN_NO / HO_NM / CUST_FLAG / PYM_FLAG",— (실 데이터 필요)
+- 설치위치변경,customer/etc/saveMargeAddrOrdInfo.req,설치위치 변경 (같은 API 사용),CTRT_ID / INSTL_LOC,— (실 데이터 필요)
+- 지번주소검색,statistics/customer/getPostList.req,지번주소 검색 (우편번호 검색),SEARCH_STR / SO_ID,O — 200 OK
+- 도로명주소검색,customer/common/customercommon/getStreetAddrList.req,도로명주소 검색,SEARCH_STR / SO_ID,△ — 504 타임아웃 (CONA DB 느림)
+휴대폰결제등록(선불),,,,
+HP Pay 조회,customer/negociation/getHPPayList.req,"고객의 휴대폰결제등록(선불) 여부 조회 — 해지 제외 상태의 계약별 신청 여부. 조회정보: 계약ID, 상품명, 신청여부, 설치주소, 계약상태",CUST_ID,O — 200 OK
+HP Pay 신청/해제,customer/negociation/saveHPPayInfo.req,휴대폰결제 신청/해제 저장,CTRT_ID / HP_PAY_REQ_TP,△ — 500 (실 데이터 필요)
+HP Pay 이벤트,customer/work/modIfSvc_m.req,HP Pay 신청/해제 이벤트 (SMR74=신청 / SMR75=해제),CTRT_ID / MSG_ID,△ — 400 (필수 파라미터 미전송 시)
+상담등록,,,,
+상담이력등록,customer/negociation/saveCnslRcptInfo.req,"고객의 상담이력 신규 등록. 상담소분류 선택, 전달처리 체크, 전달할 지점/업체 선택, 요청사항 기재 후 저장","CUST_ID / CTRT_ID / CNSL_MST_CL / CNSL_MID_CL / CNSL_SLV_CL / REQ_CTX / SO_ID / POST_ID",△ — 400 (필수 파라미터 미전송 시)
+AS 접수,,,,
+AS 접수,customer/work/modAsPdaReceipt.req,"AS 접수 신규 등록. 설치주소 2개 이상 시 주소 선택, 동일 주소 복수계약 시 1개만 선택 접수 (모바일은 복수계약 접수 불가). 작업자는 로그인한 작업자에게 자동할당","POST_ID / CUST_ID / CTRT_ID / WRK_DTL_TCD / WRK_RCPT_CL / WRK_RCPT_CL_DTL / MEMO / WRK_HOPE_DTTM / REG_UID",△ — 500 (실 데이터 필요)
+AS 접수,customer/work/getProd_Grp.req,상품그룹 조회 (AS사유 필터링용),CTRT_ID,O — 200 OK
+- 비가입자 AS 접수,,비가입자 AS 접수 (같은 modAsPdaReceipt 사용),,—
+공통코드,,,,
+공통코드,common/getCommonCodes.req,상담대분류 (CMCS010),CODE_GROUP=CMCS010,O — 200 OK
+공통코드,common/getCommonCodes.req,상담중분류 (CMCS020),CODE_GROUP=CMCS020,O — 200 OK
+공통코드,common/getCommonCodes.req,상담소분류 (CMCS030),CODE_GROUP=CMCS030,O — 200 OK
+공통코드,common/getCommonCodes.req,AS구분 (CMWT001),CODE_GROUP=CMWT001,O — 200 OK
+공통코드,common/getCommonCodes.req,AS사유 대분류 (CMAS000),CODE_GROUP=CMAS000,O — 200 OK
+공통코드,common/getCommonCodes.req,AS사유 중분류 (CMAS001),CODE_GROUP=CMAS001,O — 200 OK
+공통코드,common/getCommonCodes.req,통신사 코드 (CMCU052),CODE_GROUP=CMCU052,O — 200 OK
+공통코드,common/getCommonCodes.req,은행 코드 (CMCU058),CODE_GROUP=CMCU058,O — 200 OK
+공통코드,common/getCommonCodes.req,카드사 코드 (CMCU059),CODE_GROUP=CMCU059,O — 200 OK
+공통코드,common/getCommonCodes.req,납부자관계 코드 (CMCU133),CODE_GROUP=CMCU133,O — 200 OK
+공통코드,common/getCommonCodes.req,변경사유 코드 (CMCU154),CODE_GROUP=CMCU154,O — 200 OK
+공통코드,common/getCommonCodes.req,카드구분 코드 (CMCU112),CODE_GROUP=CMCU112,O — 200 OK
+공통코드,common/getCommonCodes.req,신분증 구분 (CMCU111),CODE_GROUP=CMCU111,O — 200 OK
+기타,,,,
+기타,customer/etc/getPromOfContract.req,계약 상품/프로모션 조회,CTRT_ID,O — 200 OK
+기타,customer/etc/saveCtrtAgreeInfo.req,계약 약관 동의 저장,CTRT_ID / AGR_YN,△ — 400 (필수 파라미터 미전송 시)
