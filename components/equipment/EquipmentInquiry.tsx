@@ -1406,91 +1406,89 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
 
   return (
     <div className="h-full overflow-y-auto bg-gray-50 px-4 py-4 space-y-3">
-        {/* 검색 조건 선택 박스 - 체크박스로 복수 선택 가능 */}
-        <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-1">
-          <div className="grid grid-cols-3 gap-2">
-            {/* 보유장비 체크박스 */}
-            <button
-              type="button"
-              onClick={() => setSelectedCategory('OWNED')}
-              className={`p-2 rounded-lg border-2 transition-all text-center active:scale-[0.98] touch-manipulation ${
-                selectedCategory === 'OWNED'
-                  ? 'bg-green-50 border-green-500 text-green-700 shadow-sm'
-                  : 'border-gray-200 hover:bg-gray-50 text-gray-400'
-              }`}
-              style={{ WebkitTapHighlightColor: 'transparent' }}
-            >
-              <div className="flex items-center justify-center gap-1.5 mb-1">
-                <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center ${
-                  selectedCategory === 'OWNED' ? 'bg-green-500 border-green-500' : 'border-gray-300'
-                }`}>
-                  {selectedCategory === 'OWNED' && (
-                    <svg className="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 20 20">
-                      <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                    </svg>
-                  )}
-                </div>
-                <span className="text-sm font-bold">보유</span>
-              </div>
-              
-            </button>
-
-            {/* 반납요청 체크박스 */}
-            <button
-              type="button"
-              onClick={() => setSelectedCategory('RETURN_REQUESTED')}
-              className={`p-2 rounded-lg border-2 transition-all text-center active:scale-[0.98] touch-manipulation ${
-                selectedCategory === 'RETURN_REQUESTED'
-                  ? 'bg-amber-50 border-amber-500 text-amber-700 shadow-sm'
-                  : 'border-gray-200 hover:bg-gray-50 text-gray-400'
-              }`}
-              style={{ WebkitTapHighlightColor: 'transparent' }}
-            >
-              <div className="flex items-center justify-center gap-1.5 mb-1">
-                <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center ${
-                  selectedCategory === 'RETURN_REQUESTED' ? 'bg-orange-500 border-amber-500' : 'border-gray-300'
-                }`}>
-                  {selectedCategory === 'RETURN_REQUESTED' && (
-                    <svg className="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 20 20">
-                      <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                    </svg>
-                  )}
-                </div>
-                <span className="text-sm font-bold">반납요청</span>
-              </div>
-              
-            </button>
-
-            {/* 검사대기 체크박스 */}
-            <button
-              type="button"
-              onClick={() => setSelectedCategory('INSPECTION_WAITING')}
-              className={`p-2 rounded-lg border-2 transition-all text-center active:scale-[0.98] touch-manipulation ${
-                selectedCategory === 'INSPECTION_WAITING'
-                  ? 'bg-purple-50 border-purple-500 text-purple-700 shadow-sm'
-                  : 'border-gray-200 hover:bg-gray-50 text-gray-400'
-              }`}
-              style={{ WebkitTapHighlightColor: 'transparent' }}
-            >
-              <div className="flex items-center justify-center gap-1.5 mb-1">
-                <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center ${
-                  selectedCategory === 'INSPECTION_WAITING' ? 'bg-purple-500 border-purple-500' : 'border-gray-300'
-                }`}>
-                  {selectedCategory === 'INSPECTION_WAITING' && (
-                    <svg className="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 20 20">
-                      <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                    </svg>
-                  )}
-                </div>
-                <span className="text-sm font-bold">검사대기</span>
-              </div>
-              
-            </button>
-          </div>
-        </div>
-
-        {/* 상세 필터 영역 - 접기/펼치기 */}
+        {/* 검색 조건 + 필터 + 조회 - 한 박스 */}
         <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
+          {/* 카테고리 선택 */}
+          <div className="p-3 pb-0">
+            <div className="grid grid-cols-3 gap-2">
+              {/* 보유장비 */}
+              <button
+                type="button"
+                onClick={() => setSelectedCategory('OWNED')}
+                className={`p-2 rounded-lg border-2 transition-all text-center active:scale-[0.98] touch-manipulation ${
+                  selectedCategory === 'OWNED'
+                    ? 'bg-green-50 border-green-500 text-green-700 shadow-sm'
+                    : 'border-gray-200 hover:bg-gray-50 text-gray-400'
+                }`}
+                style={{ WebkitTapHighlightColor: 'transparent' }}
+              >
+                <div className="flex items-center justify-center gap-1.5">
+                  <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center ${
+                    selectedCategory === 'OWNED' ? 'bg-green-500 border-green-500' : 'border-gray-300'
+                  }`}>
+                    {selectedCategory === 'OWNED' && (
+                      <svg className="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                      </svg>
+                    )}
+                  </div>
+                  <span className="text-sm font-bold">보유</span>
+                </div>
+              </button>
+
+              {/* 반납요청 */}
+              <button
+                type="button"
+                onClick={() => setSelectedCategory('RETURN_REQUESTED')}
+                className={`p-2 rounded-lg border-2 transition-all text-center active:scale-[0.98] touch-manipulation ${
+                  selectedCategory === 'RETURN_REQUESTED'
+                    ? 'bg-amber-50 border-amber-500 text-amber-700 shadow-sm'
+                    : 'border-gray-200 hover:bg-gray-50 text-gray-400'
+                }`}
+                style={{ WebkitTapHighlightColor: 'transparent' }}
+              >
+                <div className="flex items-center justify-center gap-1.5">
+                  <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center ${
+                    selectedCategory === 'RETURN_REQUESTED' ? 'bg-orange-500 border-amber-500' : 'border-gray-300'
+                  }`}>
+                    {selectedCategory === 'RETURN_REQUESTED' && (
+                      <svg className="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                      </svg>
+                    )}
+                  </div>
+                  <span className="text-sm font-bold">반납요청</span>
+                </div>
+              </button>
+
+              {/* 검사대기 */}
+              <button
+                type="button"
+                onClick={() => setSelectedCategory('INSPECTION_WAITING')}
+                className={`p-2 rounded-lg border-2 transition-all text-center active:scale-[0.98] touch-manipulation ${
+                  selectedCategory === 'INSPECTION_WAITING'
+                    ? 'bg-purple-50 border-purple-500 text-purple-700 shadow-sm'
+                    : 'border-gray-200 hover:bg-gray-50 text-gray-400'
+                }`}
+                style={{ WebkitTapHighlightColor: 'transparent' }}
+              >
+                <div className="flex items-center justify-center gap-1.5">
+                  <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center ${
+                    selectedCategory === 'INSPECTION_WAITING' ? 'bg-purple-500 border-purple-500' : 'border-gray-300'
+                  }`}>
+                    {selectedCategory === 'INSPECTION_WAITING' && (
+                      <svg className="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                      </svg>
+                    )}
+                  </div>
+                  <span className="text-sm font-bold">검사대기</span>
+                </div>
+              </button>
+            </div>
+          </div>
+
+          {/* 상세 필터 영역 - 접기/펼치기 */}
           {/* 필터 헤더 (토글 버튼) */}
           <button
             onClick={() => setIsFilterOpen(!isFilterOpen)}
