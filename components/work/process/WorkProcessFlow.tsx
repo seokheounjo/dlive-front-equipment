@@ -7,6 +7,7 @@ import LineRegistration from './LineRegistration';
 import WorkCompleteRouter, { getWorkTypeName } from './complete';
 import PostProcess from './postprocess';
 import { getTechnicianEquipments, getCommonCodes, getWorkCancelInfo } from '../../../services/apiService';
+import { logDebug } from '../../../services/logService';
 import { useWorkProcessStore } from '../../../stores/workProcessStore';
 import { ProductTypeProvider } from '../../../contexts/ProductTypeContext';
 import { useProductType } from '../../../hooks/useProductType';
@@ -197,6 +198,16 @@ const WorkProcessFlowInner: React.FC<WorkProcessFlowProps> = ({ workItem, onComp
 
         console.log('[WorkProcessFlow] 프리로드 응답 - 계약장비:', response.contractEquipments?.length || 0, '기사재고:', response.technicianEquipments?.length || 0, '고객장비:', response.customerEquipments?.length || 0);
 
+        // DEBUG 로그: 장비정보 조회 결과
+        logDebug({
+          LOG_LEVEL: 'INFO',
+          API_PATH: '/work/equipment/preload',
+          API_METHOD: 'GET',
+          API_STATUS: '200',
+          PAGE_VIEW: 'WorkProcessFlow',
+          ERROR_MSG: `WRK_ID=${workItem.id} WRK_CD=${workItem.WRK_CD} contract=${response.contractEquipments?.length || 0} tech=${response.technicianEquipments?.length || 0} customer=${response.customerEquipments?.length || 0} removed=${response.removedEquipments?.length || 0}`,
+        });
+
         // 전체 API response 저장 (3단계에서 재사용)
         setPreloadedEquipmentApiData(response);
         setFilteringData(filtering);
@@ -270,6 +281,14 @@ const WorkProcessFlowInner: React.FC<WorkProcessFlowProps> = ({ workItem, onComp
         }
       } catch (error) {
         console.error('장비 API Pre-loading 실패:', error);
+        logDebug({
+          LOG_LEVEL: 'ERROR',
+          API_PATH: '/work/equipment/preload',
+          API_METHOD: 'GET',
+          PAGE_VIEW: 'WorkProcessFlow',
+          ERROR_MSG: `WRK_ID=${workItem.id} WRK_CD=${workItem.WRK_CD} ${error instanceof Error ? error.message : String(error)}`,
+          STACK_TRACE: error instanceof Error ? error.stack : undefined,
+        });
       }
     };
 

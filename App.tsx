@@ -23,7 +23,7 @@ import ApiExplorer from './components/equipment/ApiExplorer';
 import OtherManagement from './components/other/OtherManagement';
 import Settings from './components/layout/Settings';
 import { clearAllSessions } from './utils/sessionStorage';
-import { logLogout, logNavigation, logRuntimeError, flushAll as flushLogs, generateLoginTrxId, clearLoginTrxId } from './services/logService';
+import { logLogin, logLogout, logNavigation, logRuntimeError, flushAll as flushLogs, generateLoginTrxId, clearLoginTrxId } from './services/logService';
 import { useUIStore } from './stores/uiStore';
 import { useWorkEquipmentStore } from './stores/workEquipmentStore';
 import { useWorkProcessStore } from './stores/workProcessStore';
@@ -139,6 +139,7 @@ const App: React.FC = () => {
       const parentView = NAVIGATION_HIERARCHY[currentView];
       if (parentView) {
         // 하위 페이지면 상위로 이동
+        logNavigation(currentView, parentView);
         setCurrentView(parentView);
       } else {
         // 최상위(today-work)면 종료 확인 팝업
@@ -198,6 +199,7 @@ const App: React.FC = () => {
   const handleLogin = (userId?: string, userName?: string, userNameEn?: string, userRole?: string, crrId?: string, soId?: string, mstSoId?: string, telNo2?: string, authSoList?: Array<{SO_ID: string; SO_NM: string; MST_SO_ID: string}>, soYn?: string, deptCd?: string) => {
     setIsAuthenticated(true);
     setCurrentView('today-work');
+    logLogin();
     // TRX_ID는 서버(login-with-otp)에서 생성하여 Login.tsx에서 localStorage에 저장됨
     // 데모/직접 로그인 등 우회 시에만 프론트에서 생성
     if (!localStorage.getItem('loginTrxId')) {
@@ -298,6 +300,8 @@ const App: React.FC = () => {
     if (currentView === 'today-work') {
       // Already on today-work: force immediate re-fetch of directions
       queryClient.refetchQueries({ queryKey: ['workOrders'] });
+    } else {
+      logNavigation(currentView, 'today-work');
     }
     setCurrentView('today-work');
   };
@@ -345,6 +349,7 @@ const App: React.FC = () => {
     const parentView = NAVIGATION_HIERARCHY[currentView];
 
     if (parentView) {
+      logNavigation(currentView, parentView);
       setCurrentView(parentView);
     }
   };
@@ -395,6 +400,7 @@ const App: React.FC = () => {
             onComplete={() => {
               showToast('작업이 성공적으로 완료되었습니다.', 'success');
               // 작업완료 후 바로 작업목록으로 이동 (WorkCompletionResult 페이지 제거)
+              logNavigation('work-process-flow', 'work-item-list');
               setCurrentView('work-item-list');
             }}
             onBack={navigateBack}
@@ -409,6 +415,7 @@ const App: React.FC = () => {
             onSuccess={() => {
               showToast('작업이 성공적으로 완료되었습니다.', 'success');
               // 작업완료 후 바로 작업목록으로 이동 (WorkCompletionResult 페이지 제거)
+              logNavigation('work-complete-form', 'work-item-list');
               setCurrentView('work-item-list');
             }}
             showToast={showToast}
@@ -420,6 +427,7 @@ const App: React.FC = () => {
             order={selectedWorkItem}
             onBack={() => {
               setSelectedWorkItem(null);
+              logNavigation('work-complete-detail', 'work-item-list');
               setCurrentView('work-item-list');
             }}
           />

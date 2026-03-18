@@ -6,7 +6,7 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { completeWork } from '../../services/apiService';
 import { WorkCompleteData } from '../../types';
-import { logWorkComplete } from '../../services/logService';
+import { logWorkComplete, logDebug } from '../../services/logService';
 
 export const useCompleteWork = () => {
   const queryClient = useQueryClient();
@@ -21,8 +21,16 @@ export const useCompleteWork = () => {
       logWorkComplete(variables.WRK_ID || '');
       return result;
     },
-    onError: (error) => {
+    onError: (error, variables) => {
       console.error('[useCompleteWork] 작업 완료 실패:', error);
+      logDebug({
+        LOG_LEVEL: 'ERROR',
+        API_PATH: '/work/complete',
+        API_METHOD: 'POST',
+        PAGE_VIEW: 'WorkComplete',
+        ERROR_MSG: `WRK_ID=${variables.WRK_ID || ''} ${error instanceof Error ? error.message : String(error)}`,
+        STACK_TRACE: error instanceof Error ? error.stack : undefined,
+      });
     },
   });
 };
