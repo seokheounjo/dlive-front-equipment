@@ -6880,3 +6880,150 @@ export const apiRequest = async (endpoint: string, method: 'GET' | 'POST' = 'POS
     throw error;
   }
 };
+
+export const saveConRenewalGuide = async (wrkId: string, guideCds: string, regUid: string, noGuideCds?: string): Promise<any> => {
+  try {
+    const response = await fetch(`${API_BASE}/customer/receipt/saveConRenewalGuide`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify({ WRK_ID: wrkId, GUIDE_CDS: guideCds, NO_GUIDE_CDS: noGuideCds || '', REG_UID: regUid }),
+    });
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+    }
+    return await response.json();
+  } catch (error) {
+    console.error('[ConRenewal Guide] saveConRenewalGuide error:', error);
+    throw error;
+  }
+};
+
+export async function ensureKakaoGeocoderReady(): Promise<boolean> {
+  const kakao = (window as any).kakao;
+  if (kakao?.maps?.services) return true;
+  if (kakao?.maps) {
+    return new Promise(resolve => kakao.maps.load(() => resolve(!!kakao.maps.services)));
+  }
+  try {
+    const { loadMapApiKeys } = await import('./navigationService');
+    const mapKeys = await loadMapApiKeys();
+    const keys = mapKeys.kakao;
+    if (keys.length === 0) return false;
+    for (const key of keys) {
+      const ok = await new Promise<boolean>(resolve => {
+        const s = document.createElement('script');
+        s.src = `https://dapi.kakao.com/v2/maps/sdk.js?appkey=${key}&libraries=services&autoload=false`;
+        s.onload = () => {
+          if ((window as any).kakao?.maps) {
+            (window as any).kakao.maps.load(() => resolve(!!(window as any).kakao.maps.services));
+          } else resolve(false);
+        };
+        s.onerror = () => { s.remove(); resolve(false); };
+        document.head.appendChild(s);
+      });
+      if (ok) return true;
+      delete (window as any).kakao;
+    }
+  } catch (e) {
+    console.warn('[KakaoGeocoder] SDK load failed:', e);
+  }
+  return false;
+}
+
+export async function kakaoReverseGeocode(lat: number, lng: number): Promise<{ road: string; jibun: string }> {
+  try {
+    const ready = await ensureKakaoGeocoderReady();
+    if (!ready) return { road: '', jibun: '' };
+    const kakao = (window as any).kakao;
+    const geocoder = new kakao.maps.services.Geocoder();
+    return new Promise((resolve) => {
+      geocoder.coord2Address(lng, lat, (result: any, status: any) => {
+        if (status === kakao.maps.services.Status.OK && result[0]) {
+          resolve({
+            jibun: result[0].address?.address_name || '',
+            road: result[0].road_address?.address_name || ''
+          });
+        } else {
+          resolve({ road: '', jibun: '' });
+        }
+      });
+    });
+  } catch (e) {
+    console.warn('[KakaoGeocoder] reverse geocode failed:', e);
+    return { road: '', jibun: '' };
+  }
+}
+
+// ============ Notice (Bulletin) API ============
+
+export interface NoticeBulletin {
+  BULLETIN_ID: string;
+  TITLE: string;
+  CONTENTS?: string;
+  REG_DT: string;
+  USR_NM: string;
+  VIEW_CNT: number;
+  NOTICE_TYPE: string;
+  SO_NM: string;
+  POPUP_YN?: string;
+}
+
+export const getNoticePopupList = async (userId: string): Promise<any[]> => {
+  try {
+    const response = await fetch(`${API_BASE}/system/notice/popup-list`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify({ USR_ID: userId }),
+    });
+    if (!response.ok) return [];
+    const result = await response.json();
+    return Array.isArray(result) ? result : result.output || [];
+  } catch (error) {
+    console.error('[Notice API] getNoticePopupList error:', error);
+    return [];
+  }
+};
+
+export const getNoticeBulletinList = async (userId: string): Promise<NoticeBulletin[]> => {
+  try {
+    const response = await fetch(`${API_BASE}/system/notice/list`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify({
+        BULLETIN_TYPE: 'NOTICE',
+        END_NOTICE_YN: '0',
+        NOTICE_TYPE: '6',
+        PAGE_NO: '1',
+        SO_YN: 'Y',
+        USR_ID: userId,
+      }),
+    });
+    if (!response.ok) return [];
+    const result = await response.json();
+    return Array.isArray(result) ? result : result.output || [];
+  } catch (error) {
+    console.error('[Notice API] getNoticeBulletinList error:', error);
+    return [];
+  }
+};
+
+export const getNoticeBulletinContents = async (bulletinId: string): Promise<NoticeBulletin | null> => {
+  try {
+    const response = await fetch(`${API_BASE}/system/notice/contents`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify({ BULLETIN_ID: bulletinId }),
+    });
+    if (!response.ok) return null;
+    const result = await response.json();
+    const items = result.output || (Array.isArray(result) ? result : []);
+    return items[0] || null;
+  } catch (error) {
+    console.error('[Notice API] getNoticeBulletinContents error:', error);
+    return null;
+  }
+};
