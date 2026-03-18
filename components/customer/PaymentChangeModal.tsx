@@ -403,20 +403,20 @@ const PaymentChangeModal: React.FC<PaymentChangeModalProps> = ({
 
     setIsSaving(true);
     try {
-      // 1. 납부방법 변경 API 호출
-      // 주민번호 패딩: 6자리 → 13자리 (PC코나 동일: 앞6자리 + 0000000)
+      // [2026-03-18] Call payment method change API
+      // Pad ID to 13 digits: 6-digit birth → append 7 zeros (CONA PC compatible)
       const paddedId = paymentForm.idNumber.length === 6
         ? paymentForm.idNumber + '0000000'
         : paymentForm.idNumber;
 
-      // 기존 납부계정 데이터에서 old_pym_mthd 매핑
+      // [2026-03-18] Map old_pym_mthd from existing payment account display name
       const pymMthdNm = selectedPayment?.PYM_MTHD_NM || '';
       let oldPymMthd = '';
       if (pymMthdNm.includes('자동이체')) oldPymMthd = '02';
       else if (pymMthdNm.includes('신용카드') || pymMthdNm.includes('카드')) oldPymMthd = '04';
       else if (pymMthdNm.includes('지로')) oldPymMthd = '01';
 
-      // 기존 납부계정의 확장 필드 (any 캐스팅으로 접근)
+      // [2026-03-18] Access extended fields from selected payment account
       const acctRaw = selectedPayment as any || {};
 
       const isCard = paymentForm.pymMthCd === '02';
@@ -425,7 +425,7 @@ const PaymentChangeModal: React.FC<PaymentChangeModalProps> = ({
         PYM_ACNT_ID: selectedPymAcntId,
         PYM_MTH_CD: paymentForm.pymMthCd,
         SO_ID: soId || '',
-        // 자동이체: BANK_CD=은행코드, FINANCE_CD=null / 신용카드: BANK_CD=null, FINANCE_CD=인증값
+        // [2026-03-18] auto-transfer: BANK_CD=bank code / credit card: FINANCE_CD=auth code (separated)
         BANK_CD: isCard ? undefined : paymentForm.bankCd,
         FINANCE_CD: isCard ? financeCd : undefined,
         ACNT_NO: paymentForm.acntNo,
@@ -439,7 +439,7 @@ const PaymentChangeModal: React.FC<PaymentChangeModalProps> = ({
         JOIN_CARD_YN: isCard ? paymentForm.joinCardYn : undefined,
         CARD_CL: isCard ? paymentForm.cardCl : undefined,
         CHG_RESN_L_CD: paymentForm.changeReasonL,
-        // 기존 납부계정 데이터
+        // [2026-03-18] Existing payment account data
         OLD_PYM_MTHD: oldPymMthd,
         BILL_POST_ID: acctRaw.BILL_POST_ID || acctRaw.POST_ID || '',
         BILL_ZIP_CD: acctRaw.BILL_ZIP_CD || acctRaw.ZIP_CD || '',
@@ -453,13 +453,13 @@ const PaymentChangeModal: React.FC<PaymentChangeModalProps> = ({
         BILL_CELL_PHN: acctRaw.BILL_CELL_PHN || '',
         BILL_FAX_NO: acctRaw.BILL_FAX_NO || '',
         RCPT_YN: acctRaw.RCPT_ID ? 'Y' : 'N',
-        // 고정값
+        // [2026-03-18] Fixed values
         AGR_FILE_GB: paymentForm.pymMthCd === '01' ? 'A' : undefined,
         PYM_AUTH_CHECK: isVerified ? 'Y' : 'N',
       });
 
       if (response.success) {
-        // 2. 서명 이미지 저장 (stub - 추후 API 연결)
+        // [2026-03-18] Save signature image (stub - API TBD)
         try {
           await savePaymentSignature({
             CUST_ID: custId,
@@ -493,7 +493,7 @@ const PaymentChangeModal: React.FC<PaymentChangeModalProps> = ({
         setIsSaving(false);
         showToast?.('납부방법이 변경되었습니다.', 'success');
         onSuccess?.();
-        // 저장완료 표시 후 1초 뒤 닫기
+        // [2026-03-18] Close modal 1 second after save success
         setTimeout(() => {
           onClose();
         }, 1000);

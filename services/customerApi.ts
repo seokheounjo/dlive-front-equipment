@@ -1766,7 +1766,7 @@ export const savePaymentSignature = async (params: SignatureSaveRequest): Promis
 };
 
 /**
- * 자동이체 동의서 PDF 파일명 DB 저장
+ * [2026-03-18] Save auto-transfer agreement PDF filename to DB
  */
 export const updatePymAtmtApplAGRPdf = async (params: {
   PYM_ACNT_ID: string;
