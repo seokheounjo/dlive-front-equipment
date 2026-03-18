@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { getWrkrHaveEqtListAll as getWrkrHaveEqtList, getEquipmentHistoryInfo } from '../../services/apiService';
+import { getWrkrHaveEqtListAll as getWrkrHaveEqtList, getEquipmentHistoryInfo, changeEquipmentWorker } from '../../services/apiService';
 import { debugApiCall } from './equipmentDebug';
 import BarcodeScanner from './BarcodeScanner';
 
@@ -188,6 +188,8 @@ const EquipmentList: React.FC<EquipmentListProps> = ({ onBack, showToast }) => {
   const [myEquipments, setMyEquipments] = useState<any[]>([]);
   const [isLoadingMyEquipments, setIsLoadingMyEquipments] = useState(false);
 
+  const [isTransferring, setIsTransferring] = useState(false);
+
   // 조회 모드: single(스캔), multi(복수스캔), manual(장비번호 입력)
   const [scanMode, setScanMode] = useState<ScanMode>('manual');
 
@@ -247,6 +249,48 @@ const EquipmentList: React.FC<EquipmentListProps> = ({ onBack, showToast }) => {
       console.warn('사용자 정보 파싱 실패:', e);
     }
     return null;
+  };
+
+  // 기사보유장비로 이관
+  const handleTransferToMe = async () => {
+    if (!equipmentDetail || isTransferring) return;
+    const userInfo = getLoggedInUser();
+    if (!userInfo) {
+      showToast?.('로그인 정보를 찾을 수 없습니다.', 'error');
+      return;
+    }
+    if (equipmentDetail.EQT_LOC_TP_CD === '4') {
+      showToast?.('고객사용장비는 이관할 수 없습니다.', 'warning');
+      return;
+    }
+    setIsTransferring(true);
+    try {
+      const params = {
+        SO_ID: equipmentDetail.SO_ID || '',
+        EQT_NO: equipmentDetail.EQT_NO || '',
+        EQT_SERNO: equipmentDetail.EQT_SERNO || '',
+        CHG_UID: userInfo.userId,
+        MV_SO_ID: userInfo.soId || equipmentDetail.SO_ID || '',
+        MV_CRR_ID: userInfo.crrId || '',
+        MV_WRKR_ID: userInfo.userId,
+        TO_WRKR_ID: userInfo.userId,
+      };
+      console.log('[장비처리] 기사보유장비로 이관:', params);
+      const result = await changeEquipmentWorker(params);
+      console.log('[장비처리] 이관 결과:', result);
+      if (result.code === 'SUCCESS' || result.MSGCODE === 'SUCCESS') {
+        showToast?.('장비가 내 보유로 이관되었습니다.', 'success');
+        setEquipmentDetail(null);
+        setMyEquipments([]);
+      } else {
+        showToast?.(result.message || result.MESSAGE || '이관에 실패했습니다.', 'error');
+      }
+    } catch (err: any) {
+      console.error('[장비처리] 이관 실패:', err);
+      showToast?.(err?.message || '이관에 실패했습니다.', 'error');
+    } finally {
+      setIsTransferring(false);
+    }
   };
 
   // 내 보유 장비 목록 로드 (사용자 액션 시에만 호출 - 자동 로딩 금지!)
@@ -935,6 +979,30 @@ const EquipmentList: React.FC<EquipmentListProps> = ({ onBack, showToast }) => {
               <InfoRow label="변경일시" value={equipmentDetail.CHG_DATE} />
               <InfoRow label="변경자" value={equipmentDetail.CHG_UID_NM || equipmentDetail.CHG_UID} />
             </div>
+
+            {/* 기사보유장비로 이관 버튼 - 고객사용장비 아닌 경우만 */}
+            {equipmentDetail.EQT_LOC_TP_CD !== '4' && (
+              <div className="mt-4 pt-4 border-t border-gray-100">
+                <button
+                  onClick={handleTransferToMe}
+                  disabled={isTransferring}
+                  className="w-full bg-indigo-500 hover:bg-indigo-600 disabled:bg-gray-400 text-white py-3 rounded-lg font-semibold text-sm shadow-sm transition-all active:scale-[0.98] touch-manipulation flex items-center justify-center gap-2"
+                  style={{ WebkitTapHighlightColor: 'transparent' }}
+                >
+                  {isTransferring ? (
+                    <>
+                      <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                      </svg>
+                      이관 중...
+                    </>
+                  ) : (
+                    '기사보유장비로 이관'
+                  )}
+                </button>
+              </div>
+            )}
           </div>
         )}
 
