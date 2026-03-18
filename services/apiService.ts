@@ -3164,7 +3164,7 @@ export const findUserList = async (params: {
   try {
     const origin = typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000';
 
-    const response = await fetchWithRetry(`${API_BASE}/system/cm/getFindUsrList`, {
+    const response = await fetch(`${API_BASE}/system/cm/getFindUsrList3`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
