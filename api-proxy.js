@@ -1072,6 +1072,11 @@ router.post('/system/pm/insertActivityLog', handleProxy);
 router.post('/system/pm/insertDebugLog', handleProxy);
 router.post('/system/pm/saveDliveAttendance', handleProxy);
 
+// Notice/Popup APIs
+router.post('/system/notice/popup-list', handleProxy);
+router.post('/system/notice/list', handleProxy);
+router.post('/system/notice/contents', handleProxy);
+
 // Login Audit Log APIs (browser-side calls from logService.ts)
 router.post('/system/pm/pmobileLoginApi_1', handleProxy);
 router.post('/system/pm/pmobileLoginApi_2', handleProxy);
