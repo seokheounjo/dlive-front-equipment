@@ -175,7 +175,7 @@ const PaymentChangeModal: React.FC<PaymentChangeModalProps> = ({
         });
       };
       loadCodes('은행(BLPY015)', getBankCodesDLive, setBankCodes);
-      // 카드사 코드는 카드 인증 시 FINANCE_CD로 자동 설정되므로 로딩 불필요
+      loadCodes('카드사(BLPY016)', getCardCompanyCodes, setCardCompanyCodes);
       loadCodes('신분유형(CMCU111)', getIdTypeCodes111, setIdTypeCodes);
       loadCodes('납부자관계(CMCU005)', getPayerRelationCodes, setPyrRelCodes);
       loadCodes('변경사유(CMCU079)', getChangeReasonCodes, setChangeReasonCodes);
@@ -471,16 +471,7 @@ const PaymentChangeModal: React.FC<PaymentChangeModalProps> = ({
           console.log('[PaymentChange] Signature save stub (API not connected yet):', signErr);
         }
 
-        // 3. 자동이체인 경우 PDF 자동 다운로드
-        if (paymentForm.pymMthCd === '01' && signatureData) {
-          try {
-            await handleDownloadPdf();
-          } catch (pdfErr) {
-            console.warn('[PaymentChange] PDF auto-download failed:', pdfErr);
-          }
-        }
-
-        // 4. PDF 파일명 DB 저장 (자동이체/카드 모두)
+        // 3. PDF 파일명 DB 저장 (자동이체/카드 모두) — PDF 다운로드는 제거 (CONA에 직접 저장됨)
         {
           const dateStr = new Date().toISOString().slice(0, 10).replace(/-/g, '');
           const agrFileName = `ATM_${custId}_${dateStr}`;
@@ -616,6 +607,7 @@ const PaymentChangeModal: React.FC<PaymentChangeModalProps> = ({
                     type="text"
                     value={paymentForm.acntHolderNm}
                     ref={acntHolderRef}
+                    disabled={isVerified}
                     onChange={(e) => {
                       setPaymentForm(prev => ({ ...prev, acntHolderNm: e.target.value }));
                       setIsVerified(false);
@@ -626,7 +618,7 @@ const PaymentChangeModal: React.FC<PaymentChangeModalProps> = ({
                       setPaymentForm(prev => ({ ...prev, acntHolderNm: (e.target as HTMLInputElement).value }));
                     }}
                     placeholder="이름 입력"
-                    className="flex-1 px-2 py-1.5 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-orange-500"
+                    className={`flex-1 px-2 py-1.5 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-orange-500 ${isVerified ? 'bg-gray-100 text-gray-500' : ''}`}
                   />
                 </div>
 
@@ -635,6 +627,7 @@ const PaymentChangeModal: React.FC<PaymentChangeModalProps> = ({
                   <label className="w-20 flex-shrink-0 text-xs text-gray-500">신분유형</label>
                   <Select
                     value={paymentForm.idType}
+                    disabled={isVerified}
                     onValueChange={(val) => {
                       setPaymentForm(prev => ({ ...prev, idType: val, idNumber: '' }));
                       setIsVerified(false);
@@ -652,13 +645,14 @@ const PaymentChangeModal: React.FC<PaymentChangeModalProps> = ({
                   <input
                     type="text"
                     value={paymentForm.idNumber}
+                    disabled={isVerified}
                     onChange={(e) => {
                       setPaymentForm(prev => ({ ...prev, idNumber: e.target.value.replace(/[^0-9]/g, '').slice(0, paymentForm.idType === 'B' ? 10 : 6) }));
                       setIsVerified(false);
                     }}
                     placeholder={paymentForm.idType === 'A' ? '생년월일 6자리 (YYMMDD)' : paymentForm.idType === 'B' ? '사업자등록번호 10자리 (- 제외)' : '생년월일 6자리 (YYMMDD)'}
                     maxLength={paymentForm.idType === 'B' ? 10 : 6}
-                    className="flex-1 px-2 py-1.5 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-orange-500"
+                    className={`flex-1 px-2 py-1.5 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-orange-500 ${isVerified ? 'bg-gray-100 text-gray-500' : ''}`}
                   />
                 </div>
 
@@ -668,6 +662,7 @@ const PaymentChangeModal: React.FC<PaymentChangeModalProps> = ({
                   <label className="w-20 flex-shrink-0 text-xs text-gray-500">은행명</label>
                   <Select
                     value={paymentForm.bankCd}
+                    disabled={isVerified}
                     onValueChange={(val) => {
                       setPaymentForm(prev => ({ ...prev, bankCd: val }));
                       setIsVerified(false);
@@ -691,13 +686,14 @@ const PaymentChangeModal: React.FC<PaymentChangeModalProps> = ({
                     <input
                       type="text"
                       value={paymentForm.acntNo}
+                      disabled={isVerified}
                       onChange={(e) => {
                         setPaymentForm(prev => ({ ...prev, acntNo: e.target.value.replace(/[^0-9]/g, '') }));
                         setIsVerified(false);
                       }}
                       maxLength={paymentForm.pymMthCd === '01' ? 20 : 16}
                       placeholder={paymentForm.pymMthCd === '01' ? '계좌번호 (- 제외)' : '카드번호 (- 제외)'}
-                      className="flex-1 min-w-0 px-2 py-1.5 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-orange-500"
+                      className={`flex-1 min-w-0 px-2 py-1.5 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-orange-500 ${isVerified ? 'bg-gray-100 text-gray-500' : ''}`}
                     />
                     <button
                       onClick={handleVerify}
@@ -727,11 +723,17 @@ const PaymentChangeModal: React.FC<PaymentChangeModalProps> = ({
 
                 {/* 인증 상태 표시 */}
                 {isVerified ? (
-                  <div className="flex items-center gap-1.5 px-2 py-1.5 bg-green-50 border border-green-200 rounded text-xs text-green-700">
-                    <Check className="w-3.5 h-3.5 flex-shrink-0" />
-                    <span>
-                      {paymentForm.pymMthCd === '01' ? '계좌' : '카드'} 인증완료: {paymentForm.pymMthCd === '01' ? getCodeName(bankCodes, paymentForm.bankCd) + ' ' : ''}{paymentForm.acntNo ? paymentForm.acntNo.replace(/(\d{4})(?=\d)/g, '$1-').slice(0, paymentForm.pymMthCd === '01' ? 20 : 19) : ''} ({paymentForm.acntHolderNm})
-                    </span>
+                  <div className="flex items-center justify-between px-2 py-1.5 bg-green-50 border border-green-200 rounded text-xs text-green-700">
+                    <div className="flex items-center gap-1.5">
+                      <Check className="w-3.5 h-3.5 flex-shrink-0" />
+                      <span>
+                        {paymentForm.pymMthCd === '01' ? '계좌' : '카드'} 인증완료: {paymentForm.pymMthCd === '01' ? getCodeName(bankCodes, paymentForm.bankCd) + ' ' : (financeCd ? getCodeName(cardCompanyCodes, financeCd) + ' ' : '')}{paymentForm.acntNo ? paymentForm.acntNo.replace(/(\d{4})(?=\d)/g, '$1-').slice(0, paymentForm.pymMthCd === '01' ? 20 : 19) : ''} ({paymentForm.acntHolderNm})
+                      </span>
+                    </div>
+                    <button
+                      onClick={() => { setIsVerified(false); setFinanceCd(''); }}
+                      className="ml-2 px-2 py-0.5 text-xs text-orange-600 bg-orange-50 border border-orange-300 rounded hover:bg-orange-100"
+                    >재인증</button>
                   </div>
                 ) : (paymentForm.acntNo && (paymentForm.pymMthCd === '02' || paymentForm.bankCd) && paymentForm.acntHolderNm) ? (
                   <div className="flex items-center gap-1.5 px-2 py-1.5 bg-orange-50 border border-orange-200 rounded text-xs text-orange-600">
@@ -749,25 +751,27 @@ const PaymentChangeModal: React.FC<PaymentChangeModalProps> = ({
                         <input
                           type="text"
                           value={paymentForm.cardExpMm}
+                          disabled={isVerified}
                           onChange={(e) => {
                             setPaymentForm(prev => ({ ...prev, cardExpMm: e.target.value.replace(/[^0-9]/g, '').slice(0, 2) }));
                             setIsVerified(false);
                           }}
                           placeholder="MM"
                           maxLength={2}
-                          className="w-14 px-2 py-1.5 text-sm border border-gray-300 rounded text-center focus:ring-1 focus:ring-orange-500"
+                          className={`w-14 px-2 py-1.5 text-sm border border-gray-300 rounded text-center focus:ring-1 focus:ring-orange-500 ${isVerified ? 'bg-gray-100 text-gray-500' : ''}`}
                         />
                         <span className="text-gray-400">/</span>
                         <input
                           type="text"
                           value={paymentForm.cardExpYy}
+                          disabled={isVerified}
                           onChange={(e) => {
                             setPaymentForm(prev => ({ ...prev, cardExpYy: e.target.value.replace(/[^0-9]/g, '').slice(0, 2) }));
                             setIsVerified(false);
                           }}
                           placeholder="YY"
                           maxLength={2}
-                          className="w-14 px-2 py-1.5 text-sm border border-gray-300 rounded text-center focus:ring-1 focus:ring-orange-500"
+                          className={`w-14 px-2 py-1.5 text-sm border border-gray-300 rounded text-center focus:ring-1 focus:ring-orange-500 ${isVerified ? 'bg-gray-100 text-gray-500' : ''}`}
                         />
                       </div>
                     </div>

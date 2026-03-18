@@ -211,7 +211,7 @@ const ReContractModule: React.FC<ReContractModuleProps> = ({
       const hpList = selectedCustomer.phoneList.filter(p => p.number && p.type === 'hp');
       if (hpList.length > 0) return hpList;
     }
-    // fallback: hpNo만
+    // phoneList 없으면 hpNo 직접 사용
     if (selectedCustomer.hpNo) {
       return [{ type: 'hp', typeNm: '휴대폰', number: selectedCustomer.hpNo, fieldName: 'HP_NO' }];
     }

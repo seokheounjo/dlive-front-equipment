@@ -6,7 +6,7 @@ import CustomerSearch from './CustomerSearch';
 import ConsultationAS from './ConsultationAS';
 import ReContractModule from './ReContractModule';
 import CustomerCreate from './CustomerCreate';
-import { CustomerInfo, ContractInfo, ConsultationHistory, WorkHistory, getContractList } from '../../services/customerApi';
+import { CustomerInfo, ContractInfo, ConsultationHistory, WorkHistory, getContractList, searchCustomerAll } from '../../services/customerApi';
 
 interface CustomerManagementMenuProps {
   onNavigateToMenu: () => void;
@@ -178,6 +178,20 @@ const CustomerManagementMenu: React.FC<CustomerManagementMenuProps> = ({ onNavig
     }
   };
 
+  // 전화번호 변경 후 고객 정보 리프레시
+  const handlePhoneChanged = async () => {
+    if (!selectedCustomer) return;
+    try {
+      const res = await searchCustomerAll({ custId: selectedCustomer.CUST_ID });
+      if (res.success && res.data && res.data.length > 0) {
+        const updated = res.data[0];
+        setSelectedCustomer(updated);
+      }
+    } catch (e) {
+      console.error('Failed to refresh customer after phone change:', e);
+    }
+  };
+
   // 탭 이동 핸들러
   const handleNavigateToTab = (tabId: string) => {
     setActiveTab(tabId);
@@ -223,6 +237,7 @@ const CustomerManagementMenu: React.FC<CustomerManagementMenuProps> = ({ onNavig
               setPaymentIsVerified(isVerified);
             }}
             onAddressChanged={handleAddressChanged}
+            onPhoneChanged={handlePhoneChanged}
           />
         );
       case 'consultation-as':

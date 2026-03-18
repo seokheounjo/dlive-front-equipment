@@ -96,6 +96,7 @@ interface CustomerInfoChangeProps {
   savedIsVerified?: boolean;
   onPaymentFormChange?: (form: PaymentFormData, pymAcntId: string, isVerified: boolean) => void;
   onAddressChanged?: () => void;  // 주소/설치위치 변경 후 계약 재조회 트리거
+  onPhoneChanged?: () => void;   // 전화번호 변경 후 고객 재조회 트리거
 }
 
 interface TelecomCode {
@@ -126,7 +127,8 @@ const CustomerInfoChange: React.FC<CustomerInfoChangeProps> = ({
   savedPymAcntId = '',
   savedIsVerified = false,
   onPaymentFormChange,
-  onAddressChanged
+  onAddressChanged,
+  onPhoneChanged
 }) => {
   // 섹션 펼침 상태 (initialSection prop에 따라 초기값 설정)
   const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({
@@ -882,6 +884,8 @@ const CustomerInfoChange: React.FC<CustomerInfoChangeProps> = ({
       if (response.success) {
         showAlert(`${phoneTypeLabel}가 변경되었습니다.`, 'success');
         setPhoneForm({ telNoType: 'hp', telNo: '', telTpCd: '', disconnYn: 'N' });
+        // 부모에 알려서 고객 정보 재조회 → 화면 갱신
+        onPhoneChanged?.();
       } else {
         showAlert(response.message || '전화번호 변경에 실패했습니다.', 'error');
       }
@@ -1590,7 +1594,7 @@ const CustomerInfoChange: React.FC<CustomerInfoChangeProps> = ({
                         </span>
                       </div>
                       <div className="text-xs text-gray-500 space-y-1 ml-6">
-                        <div className="flex justify-between">
+                        <div className="flex gap-1">
                           <span>계약ID:</span>
                           <span className="text-gray-700">{item.CTRT_ID}</span>
                         </div>
@@ -1600,6 +1604,14 @@ const CustomerInfoChange: React.FC<CustomerInfoChangeProps> = ({
                             <span className="text-gray-700 break-all">{item.ADDR}</span>
                           </div>
                         )}
+                      </div>
+                      <div className="mt-2 ml-6">
+                        <button
+                          onClick={() => handleHpPayChange(item)}
+                          className="px-3 py-1 text-xs font-medium bg-purple-500 text-white rounded-lg hover:bg-purple-600 transition-colors"
+                        >
+                          신청
+                        </button>
                       </div>
                     </div>
                   ))}
@@ -1651,7 +1663,7 @@ const CustomerInfoChange: React.FC<CustomerInfoChangeProps> = ({
                         </span>
                       </div>
                       <div className="text-xs text-gray-500 space-y-1 ml-6">
-                        <div className="flex justify-between">
+                        <div className="flex gap-1">
                           <span>계약ID:</span>
                           <span className="text-gray-700">{item.CTRT_ID}</span>
                         </div>
@@ -1661,6 +1673,14 @@ const CustomerInfoChange: React.FC<CustomerInfoChangeProps> = ({
                             <span className="text-gray-700 break-all">{item.ADDR}</span>
                           </div>
                         )}
+                      </div>
+                      <div className="mt-2 ml-6">
+                        <button
+                          onClick={() => handleHpPayChange(item)}
+                          className="px-3 py-1 text-xs font-medium bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors"
+                        >
+                          해지
+                        </button>
                       </div>
                     </div>
                   ))}
