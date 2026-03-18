@@ -716,8 +716,10 @@ const EquipmentMovement: React.FC<EquipmentMovementProps> = ({ onBack, showToast
     try {
       if (isNameSearch) {
         // 이름 검색: 본인 SO_ID + CRR_ID 기준 단일 호출
-        const userSoId = userInfo?.soId || '';
-        const userCrrId = userInfo?.crrId || '';
+        const storedInfo = localStorage.getItem('userInfo');
+        const parsedInfo = storedInfo ? JSON.parse(storedInfo) : {};
+        const userSoId = parsedInfo.soId || '';
+        const userCrrId = parsedInfo.crrId || '';
         console.log('[장비이동] 이름 검색:', keyword, 'SO_ID:', userSoId);
 
         const searchParams: any = { USR_NM: keyword };
