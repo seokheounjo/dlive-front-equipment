@@ -509,6 +509,27 @@ const PaymentChangeModal: React.FC<PaymentChangeModalProps> = ({
   // 선택된 납부계정 정보
   const selectedPayment = paymentAccounts.find(p => p.PYM_ACNT_ID === selectedPymAcntId);
 
+  // 납부계정 데이터 로드 후 기존 값으로 폼 pre-fill
+  useEffect(() => {
+    if (!isOpen || !selectedPayment || isSaved) return;
+    const raw = selectedPayment as any;
+    // PYM_MTHD 매핑: 11/12=자동이체(01), 13/14=신용카드(02)
+    const pymMthd = raw.PYM_MTHD || '';
+    let pymMthCd = '01';
+    if (pymMthd === '13' || pymMthd === '14' || (raw.PYM_MTHD_NM || '').includes('카드')) {
+      pymMthCd = '02';
+    }
+    setPaymentForm(prev => ({
+      ...prev,
+      pymMthCd,
+      acntHolderNm: raw.ACNT_OWNER_NM || prev.acntHolderNm,
+      acntNo: raw.ACNT_NO || raw.BANK_CARD_NO || prev.acntNo,
+      bankCd: raw.BNK_CARD_CD || prev.bankCd,
+      idNumber: raw.RSDTNO ? raw.RSDTNO.substring(0, 6) : prev.idNumber,
+      pyrRel: raw.PYR_REL || prev.pyrRel,
+    }));
+  }, [selectedPayment, isOpen]);
+
   if (!isOpen) return null;
 
   return (
