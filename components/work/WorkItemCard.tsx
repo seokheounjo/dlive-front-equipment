@@ -108,11 +108,16 @@ const WorkItemCard: React.FC<WorkItemCardProps> = ({ item, onSelect, onComplete,
             >
               진행
             </button>
-            {/* 망이관/장비상태정보 버튼 - A/S(WRK_CD='03')만 표시 */}
-            {item.WRK_CD === '03' && item.WRK_DTL_TCD !== '0380' && onNetworkTransfer && (
+            {/* 망이관 버튼 - A/S(WRK_CD='03')만 표시, 0380(완전철거재할당)은 비활성 */}
+            {item.WRK_CD === '03' && onNetworkTransfer && (
               <button
-                onClick={(e) => { e.stopPropagation(); onNetworkTransfer(item); }}
-                className="flex-1 py-2 rounded-md bg-indigo-500 hover:bg-indigo-600 text-white text-xs font-semibold transition-colors"
+                onClick={(e) => { e.stopPropagation(); if (item.WRK_DTL_TCD !== '0380') onNetworkTransfer(item); }}
+                disabled={item.WRK_DTL_TCD === '0380'}
+                className={`flex-1 py-2 rounded-md text-xs font-semibold transition-colors ${
+                  item.WRK_DTL_TCD === '0380'
+                    ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                    : 'bg-indigo-500 hover:bg-indigo-600 text-white'
+                }`}
               >
                 망이관
               </button>

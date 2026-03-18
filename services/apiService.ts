@@ -1708,15 +1708,20 @@ export const getTechnicianEquipments = async (params: {
     // 레거시 mowoa03m02.xml (철거): "ds_prod_promo_info=output1 ds_rmv_eqt_info=output4"
     // 레거시 mowoa03m08.xml (이전철거): "ds_prod_promo_info=output1 ds_eqt_info=output2 ds_eqt_cust=output4 ds_rmv_eqt_info=output5"
     const isTerminateWork = requestParams.WRK_CD === '02';  // 철거(02)만 output4 사용
+    const isRelocateTerminateWork = requestParams.WRK_CD === '08';  // 이전철거(08)
 
     // 철거(02): output4 = 철거장비, 고객장비 없음
-    // 이전철거(08): output4 = 고객장비, output5 = 철거장비
+    // 이전철거(08): output4 = 고객장비(철거대상) + output5 = 철거장비 → 합쳐서 철거장비로
     // 기타: output4 = 고객장비, output5 = 회수장비
     return {
       contractEquipments: result?.output2 || [],    // 계약 장비 (설치 대상)
       technicianEquipments: result?.output3 || [],  // 기사 재고
-      customerEquipments: isTerminateWork ? [] : (result?.output4 || []),    // 철거(02)만 고객장비 비움
-      removedEquipments: isTerminateWork ? (result?.output4 || []) : (result?.output5 || []),  // 철거(02): output4, 이전철거(08)/기타: output5
+      customerEquipments: isTerminateWork ? [] : (isRelocateTerminateWork ? [] : (result?.output4 || [])),
+      removedEquipments: isTerminateWork
+        ? (result?.output4 || [])
+        : isRelocateTerminateWork
+          ? [...(result?.output4 || []), ...(result?.output5 || [])]  // 이전철거: output4 + output5 합침
+          : (result?.output5 || []),
       // 설치정보 모달 필터링용 데이터 (output1에서 추출)
       kpiProdGrpCd: promotionInfo.KPI_PROD_GRP_CD,
       prodChgGb: promotionInfo.PROD_CHG_GB,
