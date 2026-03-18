@@ -189,6 +189,9 @@ const EquipmentList: React.FC<EquipmentListProps> = ({ onBack, showToast }) => {
   const [isLoadingMyEquipments, setIsLoadingMyEquipments] = useState(false);
 
   const [isTransferring, setIsTransferring] = useState(false);
+  const [showTransferModal, setShowTransferModal] = useState(false);
+  const [transferSoId, setTransferSoId] = useState('');
+  const [transferSoList, setTransferSoList] = useState<{ SO_ID: string; SO_NM: string }[]>([]);
 
   // 조회 모드: single(스캔), multi(복수스캔), manual(장비번호 입력)
   const [scanMode, setScanMode] = useState<ScanMode>('manual');
@@ -251,18 +254,41 @@ const EquipmentList: React.FC<EquipmentListProps> = ({ onBack, showToast }) => {
     return null;
   };
 
-  // 기사보유장비로 이관
-  const handleTransferToMe = async () => {
-    if (!equipmentDetail || isTransferring) return;
+  // 기사보유장비로 이관 - 팝업 열기
+  const handleTransferToMe = () => {
+    if (!equipmentDetail) return;
+    if (equipmentDetail.EQT_LOC_TP_CD === '4' || equipmentDetail.EQT_LOC_TP_CD_NM === '고객') {
+      showToast?.('고객사용장비는 이관할 수 없습니다.', 'warning');
+      return;
+    }
     const userInfo = getLoggedInUser();
     if (!userInfo) {
       showToast?.('로그인 정보를 찾을 수 없습니다.', 'error');
       return;
     }
-    if (equipmentDetail.EQT_LOC_TP_CD === '4' || equipmentDetail.EQT_LOC_TP_CD_NM === '고객') {
-      showToast?.('고객사용장비는 이관할 수 없습니다.', 'warning');
-      return;
+    // AUTH_SO_List 로드
+    try {
+      const stored = localStorage.getItem('userInfo');
+      const parsed = stored ? JSON.parse(stored) : {};
+      const authList = parsed.authSoList || parsed.AUTH_SO_List || [];
+      if (authList.length > 0) {
+        setTransferSoList(authList);
+        setTransferSoId(authList[0].SO_ID);
+      } else if (userInfo.soId) {
+        setTransferSoList([{ SO_ID: userInfo.soId, SO_NM: userInfo.soId }]);
+        setTransferSoId(userInfo.soId);
+      }
+    } catch (e) {
+      console.warn('AUTH_SO_List parse error:', e);
     }
+    setShowTransferModal(true);
+  };
+
+  // 이관 실행
+  const executeTransfer = async () => {
+    if (!equipmentDetail || isTransferring) return;
+    const userInfo = getLoggedInUser();
+    if (!userInfo) return;
     setIsTransferring(true);
     try {
       const eqtSoId = equipmentDetail.SO_ID || userInfo.soId || '';
@@ -271,7 +297,7 @@ const EquipmentList: React.FC<EquipmentListProps> = ({ onBack, showToast }) => {
         EQT_NO: equipmentDetail.EQT_NO || '',
         EQT_SERNO: equipmentDetail.EQT_SERNO || '',
         CHG_UID: userInfo.userId,
-        MV_SO_ID: userInfo.soId || eqtSoId,
+        MV_SO_ID: transferSoId || userInfo.soId || eqtSoId,
         MV_CRR_ID: userInfo.crrId || '',
         MV_WRKR_ID: userInfo.userId,
         TO_WRKR_ID: userInfo.userId,
@@ -281,6 +307,7 @@ const EquipmentList: React.FC<EquipmentListProps> = ({ onBack, showToast }) => {
       console.log('[장비처리] 이관 결과:', result);
       if (result.code === 'SUCCESS' || result.MSGCODE === 'SUCCESS') {
         showToast?.('장비가 내 보유로 이관되었습니다.', 'success');
+        setShowTransferModal(false);
         setEquipmentDetail(null);
         setMyEquipments([]);
       } else {
@@ -1054,6 +1081,67 @@ const EquipmentList: React.FC<EquipmentListProps> = ({ onBack, showToast }) => {
 
         {/* 하단 여백 (고정 버튼 공간) */}
         {equipmentDetail && equipmentDetail.EQT_LOC_TP_CD !== '4' && equipmentDetail.EQT_LOC_TP_CD_NM !== '고객' && <div className="h-16"></div>}
+
+        {/* 이관 확인 팝업 */}
+        {showTransferModal && equipmentDetail && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm">
+              <div className="px-5 py-4 border-b border-gray-100">
+                <h3 className="text-base font-bold text-gray-800">기사보유장비로 이관</h3>
+              </div>
+              <div className="p-5 space-y-4">
+                <div className="bg-gray-50 rounded-lg p-3 space-y-1">
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-500">장비</span>
+                    <span className="font-medium text-gray-800">{equipmentDetail.EQT_CL_NM || equipmentDetail.ITEM_NM || '-'}</span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-500">S/N</span>
+                    <span className="font-mono text-gray-800">{equipmentDetail.EQT_SERNO || '-'}</span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-500">현재위치</span>
+                    <span className="text-gray-800">{equipmentDetail.EQT_LOC_TP_CD_NM || '-'}</span>
+                  </div>
+                </div>
+                <div className="rounded-xl p-4 bg-blue-50 border border-blue-200">
+                  <label className="block text-sm font-semibold mb-2 text-blue-800">이관지점 선택</label>
+                  {transferSoList.length > 1 ? (
+                    <select
+                      value={transferSoId}
+                      onChange={(e) => setTransferSoId(e.target.value)}
+                      className="w-full px-3 py-2.5 border border-blue-300 rounded-lg text-sm bg-white focus:ring-2 focus:ring-blue-500"
+                    >
+                      {transferSoList.map((so) => (
+                        <option key={so.SO_ID} value={so.SO_ID}>{so.SO_NM} ({so.SO_ID})</option>
+                      ))}
+                    </select>
+                  ) : (
+                    <div className="w-full px-4 py-3 border border-blue-300 rounded-lg text-sm bg-blue-100 text-blue-900 font-semibold">
+                      {transferSoList[0]?.SO_NM || '-'} ({transferSoList[0]?.SO_ID || '-'})
+                    </div>
+                  )}
+                  <p className="text-xs text-blue-600 mt-2">장비가 선택한 지점의 내 보유로 이관됩니다</p>
+                </div>
+              </div>
+              <div className="px-5 pb-5 grid grid-cols-2 gap-3">
+                <button
+                  onClick={() => setShowTransferModal(false)}
+                  className="py-3 text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-lg font-semibold text-sm transition-colors"
+                >
+                  취소
+                </button>
+                <button
+                  onClick={executeTransfer}
+                  disabled={isTransferring}
+                  className="py-3 bg-indigo-500 hover:bg-indigo-600 disabled:bg-gray-400 text-white rounded-lg font-semibold text-sm transition-all"
+                >
+                  {isTransferring ? '이관 중...' : '이관'}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Barcode Scanner */}
         <BarcodeScanner
