@@ -471,14 +471,16 @@ const PaymentChangeModal: React.FC<PaymentChangeModalProps> = ({
           console.log('[PaymentChange] Signature save stub (API not connected yet):', signErr);
         }
 
-        // 3. PDF 파일명 DB 저장 (자동이체/카드 모두) — PDF 다운로드는 제거 (CONA에 직접 저장됨)
+        // [2026-03-18] PDF filename DB save — format: PYM_ACNT_ID + NEXT_AGR_FILE_NAME_SEQ + UPDATE_DATE
         {
-          const dateStr = new Date().toISOString().slice(0, 10).replace(/-/g, '');
-          const agrFileName = `ATM_${custId}_${dateStr}`;
+          const updateDate = response.data?.UPDATE_DATE || '';
+          const nextSeq = response.data?.NEXT_AGR_FILE_NAME_SEQ || '001';
+          const pymAcntId = response.data?.PYM_ACNT_ID || selectedPymAcntId;
+          const agrFileName = `${pymAcntId}${nextSeq}${updateDate}`;
           try {
             await updatePymAtmtApplAGRPdf({
               PYM_ACNT_ID: selectedPymAcntId,
-              UPDATE_DATE: response.data?.UPDATE_DATE || dateStr,
+              UPDATE_DATE: updateDate,
               AGR_FILE_NAME: agrFileName,
               AGR_FILE_GB: paymentForm.pymMthCd === '01' ? 'A' : 'C',
             });
