@@ -1578,6 +1578,7 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
             </div>
           )}
           {/* 조회 버튼 */}
+          <div className="px-4 pb-4 pt-2">
           <button
             onClick={handleSearch}
             disabled={isLoading}
@@ -1596,6 +1597,7 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
               '조회'
             )}
           </button>
+          </div>
         </div>
 
         {/* 장비 리스트 */}
