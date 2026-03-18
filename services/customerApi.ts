@@ -1693,6 +1693,12 @@ export const verifyBankAccount = async (params: AccountVerifyRequest): Promise<A
  */
 export const verifyCard = async (params: CardVerifyRequest): Promise<ApiResponse<any>> => {
   try {
+    // REG_UID: 작업자 ID (백엔드에서 REGR_ID로 사용)
+    let regUid = '';
+    try {
+      const u = JSON.parse(sessionStorage.getItem('userInfo') || localStorage.getItem('userInfo') || '{}');
+      regUid = u.userId || u.USR_ID || u.LOGIN_ID || '';
+    } catch {}
     const response = await apiCall<any>('/customer/payment/verifyCreditCard', {
       SO_ID: params.SO_ID || '',
       PYM_ACNT_ID: params.PYM_ACNT_ID || '',
@@ -1701,7 +1707,8 @@ export const verifyCard = async (params: CardVerifyRequest): Promise<ApiResponse
       CARD_NO: params.CARD_NO,
       CARD_EXPYEAR: params.CARD_EXPYEAR || (params.CARD_VALID_YM ? params.CARD_VALID_YM.substring(0, 2) : ''),
       CARD_EXPMON: params.CARD_EXPMON || (params.CARD_VALID_YM ? params.CARD_VALID_YM.substring(2, 4) : ''),
-      KOR_ID: params.KOR_ID || ''
+      KOR_ID: params.KOR_ID || '',
+      REG_UID: regUid,
     });
 
     if (response.success && response.data) {
@@ -1955,6 +1962,10 @@ export const registerASRequest = async (params: ASRequestParams): Promise<ApiRes
     ADDR: isUIParams ? (uiParams.ADDR || '') : ((params as any).ADDR || ''),
     ADDR_ORD: isUIParams ? (uiParams.ADDR_ORD || '1') : ((params as any).ADDR_ORD || '1'),
     CNSL_RSLT: '3',
+    // 가입자/비가입자 구분 → 상담세분류 코드 전달
+    CNSL_SLV_CL: isUIParams
+      ? ((uiParams.CTRT_ID && uiParams.CTRT_ID.length > 0) ? 'BUK1' : 'ALA1')
+      : (((params as ASRequestParams).CTRT_ID && (params as ASRequestParams).CTRT_ID.length > 0) ? 'BUK1' : 'ALA1'),
   };
 
   if (isUIParams && uiParams.AS_CL_DTL_CD) {
