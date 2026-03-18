@@ -3062,7 +3062,7 @@ export const changeEquipmentWorker = async (params: {
   try {
     const origin = typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000';
 
-    const response = await fetch(`${API_BASE}/customer/equipment/changeEqtWrkr_3`, {
+    const response = await fetch(`${API_BASE}/customer/equipment/changeEqtWrkr_3_ForM`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
