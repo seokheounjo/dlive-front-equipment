@@ -2975,7 +2975,7 @@ export const setEquipmentCheckStandby = async (params: {
   try {
     const origin = typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000';
 
-    const response = await fetch(`${API_BASE}/customer/equipment/setEquipmentChkStndByY`, {
+    const response = await fetch(`${API_BASE}/customer/equipment/setEquipmentChkStndByY_ForM`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -3404,7 +3404,7 @@ export const getUnreturnedEquipmentList = async (params: {
   try {
     const origin = typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000';
 
-    const response = await fetchWithRetry(`${API_BASE}/customer/work/getEquipLossInfo`, {
+    const response = await fetch(`${API_BASE}/customer/work/getEquipLossInfo`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
