@@ -259,7 +259,7 @@ const EquipmentList: React.FC<EquipmentListProps> = ({ onBack, showToast }) => {
       showToast?.('로그인 정보를 찾을 수 없습니다.', 'error');
       return;
     }
-    if (equipmentDetail.EQT_LOC_TP_CD === '4') {
+    if (equipmentDetail.EQT_LOC_TP_CD === '4' || equipmentDetail.EQT_LOC_TP_CD_NM === '고객') {
       showToast?.('고객사용장비는 이관할 수 없습니다.', 'warning');
       return;
     }
@@ -1053,7 +1053,7 @@ const EquipmentList: React.FC<EquipmentListProps> = ({ onBack, showToast }) => {
         )}
 
         {/* 하단 여백 (고정 버튼 공간) */}
-        {equipmentDetail && equipmentDetail.EQT_LOC_TP_CD !== '4' && <div className="h-16"></div>}
+        {equipmentDetail && equipmentDetail.EQT_LOC_TP_CD !== '4' && equipmentDetail.EQT_LOC_TP_CD_NM !== '고객' && <div className="h-16"></div>}
 
         {/* Barcode Scanner */}
         <BarcodeScanner
@@ -1219,7 +1219,7 @@ const EquipmentList: React.FC<EquipmentListProps> = ({ onBack, showToast }) => {
         )}
 
         {/* 기사보유장비로 이관 - 하단 고정 버튼 */}
-        {equipmentDetail && equipmentDetail.EQT_LOC_TP_CD !== '4' && (
+        {equipmentDetail && equipmentDetail.EQT_LOC_TP_CD !== '4' && equipmentDetail.EQT_LOC_TP_CD_NM !== '고객' && (
           <div className="fixed bottom-[56px] left-0 right-0 p-3 z-40" style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}>
             <button
               onClick={handleTransferToMe}
