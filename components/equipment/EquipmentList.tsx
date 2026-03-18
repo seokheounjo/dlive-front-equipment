@@ -650,7 +650,7 @@ const EquipmentList: React.FC<EquipmentListProps> = ({ onBack, showToast }) => {
             <button
               onClick={() => handleSearch()}
               disabled={isLoading || !searchValue.trim()}
-              className="w-full bg-blue-500 hover:bg-blue-600 disabled:bg-gray-300 text-white py-2.5 rounded-lg font-semibold text-sm shadow-sm transition-all active:scale-[0.98] touch-manipulation flex items-center justify-center gap-2"
+              className="w-full bg-blue-500 hover:bg-blue-600 disabled:bg-gray-400 text-white py-2.5 rounded-lg font-semibold text-sm shadow-sm transition-all active:scale-[0.98] touch-manipulation flex items-center justify-center gap-2"
               style={{ WebkitTapHighlightColor: 'transparent' }}
             >
               {isLoading ? (
