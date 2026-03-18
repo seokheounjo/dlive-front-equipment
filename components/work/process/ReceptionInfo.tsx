@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { WorkItem } from '../../../types';
 import { getSmsHistory, SmsHistoryItem, getConsultationHistory, ConsultationHistoryItem } from '../../../services/apiService';
+
 import { formatId } from '../../../utils/dateFormatter';
 
 interface ReceptionInfoProps {
@@ -88,26 +89,26 @@ const ReceptionInfo: React.FC<ReceptionInfoProps> = ({ workItem, onNext, onBack,
       {/* 접수 기본 정보 */}
       <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-3 sm:p-5">
         <h4 className="text-sm sm:text-base font-bold text-gray-900 mb-3 sm:mb-4">접수 기본 정보</h4>
-        <div className="space-y-1.5 sm:space-y-2">
-          <div className="flex items-center justify-between">
-            <span className="text-[0.625rem] sm:text-xs text-gray-500">접수ID</span>
-            <span className="text-xs sm:text-sm font-medium text-gray-900 whitespace-nowrap">{formatId(workItem.RCPT_ID)}</span>
+        <div className="space-y-2 sm:space-y-3">
+          <div className="flex items-start">
+            <span className="text-xs sm:text-sm text-gray-500 w-16 sm:w-20 flex-shrink-0 text-right pr-3">접수ID</span>
+            <span className="text-xs sm:text-sm font-medium text-gray-900">{formatId(workItem.RCPT_ID)}</span>
           </div>
-          <div className="flex items-center justify-between">
-            <span className="text-[0.625rem] sm:text-xs text-gray-500">작업ID</span>
-            <span className="text-xs sm:text-sm font-medium text-gray-900 whitespace-nowrap">{formatId(workItem.id)}</span>
+          <div className="flex items-start">
+            <span className="text-xs sm:text-sm text-gray-500 w-16 sm:w-20 flex-shrink-0 text-right pr-3">작업ID</span>
+            <span className="text-xs sm:text-sm font-medium text-gray-900">{formatId(workItem.id)}</span>
           </div>
-          <div className="flex items-center justify-between">
-            <span className="text-[0.625rem] sm:text-xs text-gray-500">작업유형</span>
-            <span className="text-xs sm:text-sm font-medium text-primary-700 whitespace-nowrap">{workItem.typeDisplay}</span>
+          <div className="flex items-start">
+            <span className="text-xs sm:text-sm text-gray-500 w-16 sm:w-20 flex-shrink-0 text-right pr-3">작업유형</span>
+            <span className="text-xs sm:text-sm font-medium text-primary-700">{workItem.typeDisplay}</span>
           </div>
-          <div className="flex items-center justify-between">
-            <span className="text-[0.625rem] sm:text-xs text-gray-500">작업상태</span>
-            <span className="text-xs sm:text-sm font-medium text-gray-900 whitespace-nowrap">{getStatusText(workItem.WRK_STAT_CD)}</span>
+          <div className="flex items-start">
+            <span className="text-xs sm:text-sm text-gray-500 w-16 sm:w-20 flex-shrink-0 text-right pr-3">작업상태</span>
+            <span className="text-xs sm:text-sm font-medium text-gray-900">{getStatusText(workItem.WRK_STAT_CD)}</span>
           </div>
-          <div className="flex items-center justify-between pt-1.5 sm:pt-2 mt-1.5 sm:mt-2 border-t border-gray-100">
-            <span className="text-[0.625rem] sm:text-xs text-gray-500">예정일시</span>
-            <span className="text-xs sm:text-sm font-semibold text-primary-700 whitespace-nowrap">{formatDateTime(workItem.scheduledAt)}</span>
+          <div className="flex items-start pt-1 border-t border-gray-100">
+            <span className="text-xs sm:text-sm text-gray-500 w-16 sm:w-20 flex-shrink-0 text-right pr-3">예정일시</span>
+            <span className="text-xs sm:text-sm font-semibold text-primary-700">{formatDateTime(workItem.scheduledAt)}</span>
           </div>
         </div>
       </div>
@@ -119,7 +120,7 @@ const ReceptionInfo: React.FC<ReceptionInfoProps> = ({ workItem, onNext, onBack,
       <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-3 sm:p-5">
         <h4 className="text-sm sm:text-base font-bold text-gray-900 mb-2.5 sm:mb-3">작업 요청 상세</h4>
         <div className="p-3 sm:p-4 bg-gray-50 rounded-lg text-xs sm:text-sm text-gray-700 leading-relaxed min-h-20 whitespace-pre-line">
-          {workItem.details?.replace(/  /g, '\n')}
+          {workItem.details || '작업 상세 내용이 없습니다.'}
         </div>
       </div>
 

@@ -403,7 +403,7 @@ const ContractInfo: React.FC<ContractInfoProps> = ({ workItem, onNext, onBack })
         <h4 className="text-sm sm:text-base font-bold text-gray-900 mb-3 sm:mb-4">고객 정보</h4>
         <div className="space-y-2 sm:space-y-3">
           <div className="flex items-start">
-            <span className="text-xs sm:text-sm text-gray-500 w-16 sm:w-20 flex-shrink-0">고객명</span>
+            <span className="text-xs sm:text-sm text-gray-500 w-16 sm:w-20 flex-shrink-0 text-right pr-3">고객명</span>
             <div className="flex items-center gap-1.5 sm:gap-2 flex-1 min-w-0">
               <span className="text-xs sm:text-sm font-medium text-gray-900 truncate">
                 {workItem.customer.name}
@@ -420,11 +420,11 @@ const ContractInfo: React.FC<ContractInfoProps> = ({ workItem, onNext, onBack })
             </div>
           </div>
           <div className="flex items-start">
-            <span className="text-xs sm:text-sm text-gray-500 w-16 sm:w-20 flex-shrink-0">연락처</span>
+            <span className="text-xs sm:text-sm text-gray-500 w-16 sm:w-20 flex-shrink-0 text-right pr-3">연락처</span>
             <span className="text-xs sm:text-sm font-medium text-gray-900">{workItem.customer.phone || '-'}</span>
           </div>
           <div className="flex items-start pt-1 border-t border-gray-100">
-            <span className="text-xs sm:text-sm text-gray-500 w-16 sm:w-20 flex-shrink-0">주소</span>
+            <span className="text-xs sm:text-sm text-gray-500 w-16 sm:w-20 flex-shrink-0 text-right pr-3">주소</span>
             <span className="text-xs sm:text-sm font-medium text-gray-900 leading-relaxed flex-1 break-words">{workItem.customer.address}</span>
           </div>
         </div>
@@ -577,19 +577,19 @@ const ContractInfo: React.FC<ContractInfoProps> = ({ workItem, onNext, onBack })
           <h4 className="text-sm sm:text-base font-bold text-gray-900 mb-3 sm:mb-4">계약정보</h4>
           <div className="space-y-2 sm:space-y-3">
             <div className="flex items-start">
-              <span className="text-xs sm:text-sm text-gray-500 w-20 sm:w-24 flex-shrink-0">계약ID</span>
+              <span className="text-xs sm:text-sm text-gray-500 w-20 sm:w-24 flex-shrink-0 text-right pr-3">계약ID</span>
               <span className="text-xs sm:text-sm font-medium text-gray-900 whitespace-nowrap">{formatId(workItem.CTRT_ID)}</span>
             </div>
             <div className="flex items-start">
-              <span className="text-xs sm:text-sm text-gray-500 w-20 sm:w-24 flex-shrink-0">계약상태</span>
+              <span className="text-xs sm:text-sm text-gray-500 w-20 sm:w-24 flex-shrink-0 text-right pr-3">계약상태</span>
               <span className="text-xs sm:text-sm font-medium text-gray-900">{workItem.CTRT_STAT_NM || getContractStatusText(workItem.CTRT_STAT)}</span>
             </div>
             <div className="flex items-start">
-              <span className="text-xs sm:text-sm text-gray-500 w-20 sm:w-24 flex-shrink-0">상품명</span>
+              <span className="text-xs sm:text-sm text-gray-500 w-20 sm:w-24 flex-shrink-0 text-right pr-3">상품명</span>
               <span className="text-xs sm:text-sm font-medium text-gray-900 break-words flex-1">{contractDetail?.BASIC_PROD_CD_NM || workItem.productName || '-'}</span>
             </div>
             <div className="flex items-start">
-              <span className="text-xs sm:text-sm text-gray-500 w-20 sm:w-24 flex-shrink-0">IP수</span>
+              <span className="text-xs sm:text-sm text-gray-500 w-20 sm:w-24 flex-shrink-0 text-right pr-3">IP수</span>
               <span className="text-xs sm:text-sm font-medium text-gray-900">{displayData.IP_CNT || '-'}</span>
             </div>
           </div>
@@ -603,7 +603,7 @@ const ContractInfo: React.FC<ContractInfoProps> = ({ workItem, onNext, onBack })
           <div className="space-y-2 sm:space-y-3">
             {alarmItems.map((item, idx) => (
               <div key={idx} className="flex items-start">
-                <span className="text-xs sm:text-sm text-gray-500 w-20 sm:w-24 flex-shrink-0">{item.label}</span>
+                <span className="text-xs sm:text-sm text-gray-500 w-20 sm:w-24 flex-shrink-0 text-right pr-3">{item.label}</span>
                 <span className="text-xs sm:text-sm font-medium text-gray-900 break-words flex-1">{item.value}</span>
               </div>
             ))}
@@ -616,11 +616,11 @@ const ContractInfo: React.FC<ContractInfoProps> = ({ workItem, onNext, onBack })
         <h4 className="text-sm sm:text-base font-bold text-gray-900 mb-3 sm:mb-4">납부방법</h4>
         <div className="space-y-2 sm:space-y-3">
           <div className="flex items-start">
-            <span className="text-xs sm:text-sm text-gray-500 w-20 sm:w-24 flex-shrink-0">납부계정</span>
+            <span className="text-xs sm:text-sm text-gray-500 w-20 sm:w-24 flex-shrink-0 text-right pr-3">납부계정</span>
             <span className="text-xs sm:text-sm font-medium text-gray-900 break-all">{formatId(workItem.PYM_ACNT_ID) || '-'}</span>
           </div>
           <div className="flex items-start">
-            <span className="text-xs sm:text-sm text-gray-500 w-20 sm:w-24 flex-shrink-0">납부방법</span>
+            <span className="text-xs sm:text-sm text-gray-500 w-20 sm:w-24 flex-shrink-0 text-right pr-3">납부방법</span>
             <span className="text-xs sm:text-sm font-medium text-gray-900">{workItem.PYM_MTHD || '-'}</span>
           </div>
         </div>
@@ -631,19 +631,19 @@ const ContractInfo: React.FC<ContractInfoProps> = ({ workItem, onNext, onBack })
         <h4 className="text-sm sm:text-base font-bold text-gray-900 mb-3 sm:mb-4">약정정보</h4>
         <div className="space-y-2 sm:space-y-3">
           <div className="flex items-start">
-            <span className="text-xs sm:text-sm text-gray-500 w-20 sm:w-24 flex-shrink-0">약정개월</span>
+            <span className="text-xs sm:text-sm text-gray-500 w-20 sm:w-24 flex-shrink-0 text-right pr-3">약정개월</span>
             <span className="text-xs sm:text-sm font-medium text-gray-900">
               {displayData.PROM_CNT ? `${displayData.PROM_CNT}개월` : '-'}
             </span>
           </div>
           <div className="flex items-start">
-            <span className="text-xs sm:text-sm text-gray-500 w-20 sm:w-24 flex-shrink-0">시작</span>
+            <span className="text-xs sm:text-sm text-gray-500 w-20 sm:w-24 flex-shrink-0 text-right pr-3">시작</span>
             <span className="text-xs sm:text-sm font-medium text-gray-900">
               {displayData.CTRT_APLY_STRT_DT ? formatDate(displayData.CTRT_APLY_STRT_DT) : '-'}
             </span>
           </div>
           <div className="flex items-start">
-            <span className="text-xs sm:text-sm text-gray-500 w-20 sm:w-24 flex-shrink-0">종료</span>
+            <span className="text-xs sm:text-sm text-gray-500 w-20 sm:w-24 flex-shrink-0 text-right pr-3">종료</span>
             <span className="text-xs sm:text-sm font-medium text-gray-900">
               {displayData.CTRT_APLY_END_DT ? formatDate(displayData.CTRT_APLY_END_DT) : '-'}
             </span>
@@ -656,11 +656,11 @@ const ContractInfo: React.FC<ContractInfoProps> = ({ workItem, onNext, onBack })
         <h4 className="text-sm sm:text-base font-bold text-gray-900 mb-3 sm:mb-4">단체정보</h4>
         <div className="space-y-2 sm:space-y-3">
           <div className="flex items-start">
-            <span className="text-xs sm:text-sm text-gray-500 w-20 sm:w-24 flex-shrink-0">단체번호</span>
+            <span className="text-xs sm:text-sm text-gray-500 w-20 sm:w-24 flex-shrink-0 text-right pr-3">단체번호</span>
             <span className="text-xs sm:text-sm font-medium text-gray-900">{displayData.GRP_ID || '-'}</span>
           </div>
           <div className="flex items-start">
-            <span className="text-xs sm:text-sm text-gray-500 w-20 sm:w-24 flex-shrink-0">단체명</span>
+            <span className="text-xs sm:text-sm text-gray-500 w-20 sm:w-24 flex-shrink-0 text-right pr-3">단체명</span>
             <span className="text-xs sm:text-sm font-medium text-gray-900 break-words">{displayData.GRP_NM || '-'}</span>
           </div>
         </div>

@@ -6,8 +6,10 @@
  */
 import React, { useState, useEffect, useCallback } from 'react';
 import { WorkOrder } from '../../../../types';
-import { ExternalLink, Check, Loader2, RefreshCw, Send, Monitor, Smartphone, Zap, AlertCircle } from 'lucide-react';
-import { getAfterProcInfo, getCommonCodeList, getNBGuide, saveNBGuide, CommonCode } from '../../../../services/apiService';
+import { ExternalLink, Check, Loader2, RefreshCw, Send, Monitor, Smartphone, MonitorCog, AlertCircle, MapPin } from 'lucide-react';
+import { getAfterProcInfo, getCommonCodeList, getNBGuide, saveNBGuide, saveConRenewalGuide, getCtrtDetailInfo, getWorkReceiptDetail, getMoveWorkInfo, CommonCode } from '../../../../services/apiService';
+import { updateInstlLoc } from '../../../../services/customerApi';
+import InstallLocationModal, { InstallLocationData } from '../../../modal/InstallLocationModal';
 import { useUIStore } from '../../../../stores/uiStore';
 import { useWorkProcessStore } from '../../../../stores/workProcessStore';
 
@@ -44,6 +46,14 @@ const PostProcess: React.FC<PostProcessProps> = ({
   const [recontractTarget, setRecontractTarget] = useState(false);
   const [recontractCompleted, setRecontractCompleted] = useState(false);
 
+  // 재약정안내(현장) 폼 상태 (CMCU173: 안내여부, CMCU174: 미안내사유)
+  const [rcGuideOptions, setRcGuideOptions] = useState<CommonCode[]>([]);
+  const [rcNoGuideOptions, setRcNoGuideOptions] = useState<CommonCode[]>([]);
+  const [rcGuideSelected, setRcGuideSelected] = useState<string>(''); // COMMON_CD of selected guide option
+  const [rcNoGuideReason, setRcNoGuideReason] = useState<string>(''); // COMMON_CD of selected reason
+  const [rcGuideSaving, setRcGuideSaving] = useState(false);
+  const [rcGuideLoading, setRcGuideLoading] = useState(false);
+
   // 자동이체현장접수 상태
   const [autoTransferTarget, setAutoTransferTarget] = useState(false);
   const [autoTransferCompleted, setAutoTransferCompleted] = useState(false);
@@ -59,6 +69,78 @@ const PostProcess: React.FC<PostProcessProps> = ({
   const [alreadyGuided, setAlreadyGuided] = useState(false);
   const [guideSaving, setGuideSaving] = useState(false);
   const [guideLoading, setGuideLoading] = useState(false);
+
+  // 변경후 상품명 (DTL_CTRT_ID 계약정보에서 조회)
+  const [changedProdNm, setChangedProdNm] = useState<string>('');
+
+  // 작업 상태 (실제 값 그대로 표시)
+  const wrkStatCd = order.WRK_STAT_CD || '';
+
+  // 설치위치 변경 (설치/이전설치/상품변경)
+  const [showInstlLocModal, setShowInstlLocModal] = useState(false);
+  const [installLocationText, setInstallLocationText] = useState(order.installLocation || (order as any).INSTL_LOC || '');
+
+  // 이전/연계 상품 정보 (이전설치/이전철거/상품변경)
+  const [oldProdInfo, setOldProdInfo] = useState<{ label: string; prodNm: string; ctrtId: string; addr: string } | null>(null);
+
+  useEffect(() => {
+    const dtlCtrtId = (order as any).DTL_CTRT_ID;
+    const custId = order.customer?.id || (order as any).CUST_ID;
+    if (dtlCtrtId && custId) {
+      getCtrtDetailInfo(dtlCtrtId, custId).then(detail => {
+        if (detail?.BASIC_PROD_CD_NM) {
+          setChangedProdNm(detail.BASIC_PROD_CD_NM);
+        }
+      });
+    }
+    // 이전상품 조회 (이전설치/이전철거/상품변경)
+    const wrkCd = order.WRK_CD || '';
+    const wrkId = order.id || (order as any).WRK_ID;
+    if (wrkId && ['05', '07', '08'].includes(wrkCd)) {
+      if ((order as any).OLD_PROD_NM && wrkCd !== '08') {
+        // 상품변경/이전설치: OLD_PROD_NM이 있으면 이전상품으로 사용
+        setOldProdInfo({ label: '이전상품', prodNm: (order as any).OLD_PROD_NM, ctrtId: order.CTRT_ID || '', addr: '' });
+      } else {
+        // getMoveWorkInfo로 연계 정보 조회
+        getMoveWorkInfo({ WRK_CD: wrkCd, WRK_ID: wrkId, RCPT_ID: order.RCPT_ID || '' }).then(result => {
+          const data = result?.data || result;
+          if (wrkCd === '08') {
+            // 이전철거: 이전설치 계약 정보를 보여줌
+            setOldProdInfo({
+              label: '이전설치',
+              prodNm: data?.PROD_NM || order.PROD_NM || '',
+              ctrtId: data?.CTRT_ID || '',
+              addr: data?.ADDR || '',
+            });
+            console.log('[PostProcess] 이전설치 계약 조회:', data?.CTRT_ID);
+          } else if (data?.OLD_PROD_NM || data?.PROD_NM) {
+            // 이전설치/상품변경
+            setOldProdInfo({
+              label: '이전상품',
+              prodNm: data.OLD_PROD_NM || data.PROD_NM || '',
+              ctrtId: data.OLD_CTRT_ID || data.CTRT_ID || order.CTRT_ID || '',
+              addr: data.OLD_ADDR || '',
+            });
+            console.log('[PostProcess] 이전상품 조회:', data.OLD_PROD_NM || data.PROD_NM);
+          }
+        }).catch(() => { /* ignore */ });
+      }
+    }
+
+    // 설치위치 조회 (작업완료 시 저장된 값)
+    if (wrkId && ['01', '05', '07'].includes(wrkCd) && !installLocationText) {
+      getWorkReceiptDetail({
+        WRK_ID: wrkId,
+        WRK_CD: wrkCd,
+      }).then(detail => {
+        if (detail?.INSTL_LOC) {
+          const instlLoc = detail.INSTL_LOC.includes('¶') ? detail.INSTL_LOC.split('¶')[0] : detail.INSTL_LOC;
+          setInstallLocationText(instlLoc);
+          console.log('[PostProcess] 설치위치 조회:', instlLoc);
+        }
+      }).catch(() => { /* ignore */ });
+    }
+  }, [(order as any).DTL_CTRT_ID, (order as any).CUST_ID]);
 
   // 작업코드
   const wrkCd = order.WRK_CD || '';
@@ -173,6 +255,75 @@ const PostProcess: React.FC<PostProcessProps> = ({
 
     loadGuideData();
   }, [showNewBusiness, order]);
+
+  // 재약정안내 공통코드 로드 (CMCU173: 안내여부, CMCU174: 미안내사유)
+  useEffect(() => {
+    if (!recontractTarget) return;
+
+    const loadRcGuideData = async () => {
+      setRcGuideLoading(true);
+      try {
+        const codes = await getCommonCodeList(['CMCU173', 'CMCU174']);
+        setRcGuideOptions(codes['CMCU173'] || []);
+        setRcNoGuideOptions(codes['CMCU174'] || []);
+      } catch (error) {
+        console.error('[PostProcess] Failed to load recontract guide codes:', error);
+      } finally {
+        setRcGuideLoading(false);
+      }
+    };
+
+    loadRcGuideData();
+  }, [recontractTarget]);
+
+  // 재약정안내 저장
+  const handleRcGuideSave = useCallback(async () => {
+    if (!rcGuideSelected) {
+      showToast?.('재약정안내여부를 선택해주세요.', 'warning');
+      return;
+    }
+
+    // 미안내 선택 시 사유 필수
+    const isNoGuide = rcGuideOptions.findIndex(o => o.COMMON_CD === rcGuideSelected) > 0;
+    if (isNoGuide && !rcNoGuideReason) {
+      showToast?.('미안내사유를 선택해주세요.', 'warning');
+      return;
+    }
+
+    // GUIDE_CDS 조합: 각 항목별 선택=코드, 미선택=N
+    let guideCds = '';
+    rcGuideOptions.forEach(opt => {
+      guideCds += (opt.COMMON_CD === rcGuideSelected) ? opt.COMMON_CD : 'N';
+    });
+
+    // NO_GUIDE_CDS 조합
+    let noGuideCds = '';
+    rcNoGuideOptions.forEach(opt => {
+      noGuideCds += (opt.COMMON_CD === rcNoGuideReason) ? opt.COMMON_CD : 'N';
+    });
+
+    const userInfo = localStorage.getItem('userInfo');
+    const user = userInfo ? JSON.parse(userInfo) : {};
+    const regUid = user.userId || '';
+    const wrkId = order.id || (order as any).WRK_ID || '';
+
+    if (!wrkId) {
+      showToast?.('작업 ID를 찾을 수 없습니다.', 'error');
+      return;
+    }
+
+    setRcGuideSaving(true);
+    try {
+      await saveConRenewalGuide(wrkId, guideCds, regUid, noGuideCds);
+      showToast?.('재약정안내가 저장되었습니다.', 'success');
+      setRecontractClicked(true);
+    } catch (error) {
+      console.error('[PostProcess] saveConRenewalGuide error:', error);
+      showToast?.('재약정안내 저장에 실패했습니다.', 'error');
+    } finally {
+      setRcGuideSaving(false);
+    }
+  }, [rcGuideOptions, rcNoGuideOptions, rcGuideSelected, rcNoGuideReason, order, showToast]);
 
   // 후처리 미처리 상태를 부모에게 전달
   useEffect(() => {
@@ -296,12 +447,28 @@ const PostProcess: React.FC<PostProcessProps> = ({
   };
 
   const handleResendClick = () => {
-    showToast?.('재발송(모두싸인) 기능 연동 예정', 'info');
+    showToast?.(`${signMode === 'customer' ? '고객서명' : '대면서명'} 재발송(모두싸인) 기능 연동 예정`, 'info');
+  };
+
+  const handleChangeSignMode = (newMode: 'customer' | 'face') => {
+    setSignMode(newMode);
+    showToast?.(`${newMode === 'customer' ? '고객서명' : '대면서명'}으로 변경발송(모두싸인) 기능 연동 예정`, 'info');
   };
 
   const handleRecontractClick = () => {
     setRecontractClicked(true);
-    showToast?.('재약정(모두싸인) 기능 연동 예정', 'info');
+    const { setCurrentView, setRecontractNavContext } = useUIStore.getState();
+    const ctrtId = (order as any).DTL_CTRT_ID || order.CTRT_ID || '';
+    const custId = order.customer?.id || (order as any).CUST_ID || '';
+    const custNm = order.customer?.name || (order as any).CUST_NM || '';
+    console.log(`[화면전환] 후처리 → 재약정 | CUST_ID=${custId}, CTRT_ID=${ctrtId}`);
+    setRecontractNavContext({
+      custId,
+      custNm,
+      ctrtId,
+      returnView: 'work-process-flow',
+    });
+    setCurrentView('customer-management');
   };
 
   const handleAutoTransferClick = () => {
@@ -315,17 +482,21 @@ const PostProcess: React.FC<PostProcessProps> = ({
   const handleSignalInterlock = () => {
     const { setCurrentView, setActiveTab, setSignalNavContext } = useUIStore.getState();
     // 상품변경(WRK_CD='05')은 DTL_CTRT_ID가 신규 계약ID
-    const effectiveCtrtId = order.WRK_CD === '05'
+    const isProductChange = order.WRK_CD === '05';
+    const effectiveCtrtId = isProductChange
       ? ((order as any).DTL_CTRT_ID || order.CTRT_ID)
       : order.CTRT_ID;
-    console.log(`[화면전환] 후처리(WRK_CD=${order.WRK_CD}) → 신호연동 | CTRT_ID=${effectiveCtrtId}, PROD_CD=${order.PROD_CD}, SO_ID=${order.SO_ID}`);
+    // 상품변경 시 PROD_CD는 구상품 → 신규 계약에서 자동 감지하도록 비워둠
+    const effectiveProdCd = isProductChange ? '' : (order.PROD_CD || (order as any).BASIC_PROD_CD || '');
+    const effectiveProdNm = isProductChange ? (changedProdNm || (order as any).newProduct || order.PROD_NM || '') : (order.PROD_NM || (order as any).BASIC_PROD_CD_NM || '');
+    console.log(`[화면전환] 후처리(WRK_CD=${order.WRK_CD}) → 신호연동 | CTRT_ID=${effectiveCtrtId}, PROD_CD=${effectiveProdCd}, SO_ID=${order.SO_ID}`);
     setSignalNavContext({
       ctrtId: effectiveCtrtId,
       custId: order.customer?.id || (order as any).CUST_ID || '',
       workType: order.WRK_CD || '',
       wrkDtlTcd: order.WRK_DTL_TCD,
-      prodCd: order.PROD_CD || (order as any).BASIC_PROD_CD || '',
-      prodNm: order.PROD_NM || (order as any).BASIC_PROD_CD_NM || '',
+      prodCd: effectiveProdCd,
+      prodNm: effectiveProdNm,
       soId: order.SO_ID || '',
       equipmentData: signalEquipmentData,
       returnView: 'work-process-flow',
@@ -391,35 +562,69 @@ const PostProcess: React.FC<PostProcessProps> = ({
             <RefreshCw className={`w-4 h-4 text-white ${isRefreshing ? 'animate-spin' : ''}`} />
           </button>
         </div>
-        <div className="p-4 space-y-2">
-          <div className="flex justify-between items-center py-1.5 border-b border-gray-100">
-            <span className="text-xs text-gray-500">고객명</span>
-            <span className="text-sm font-semibold text-gray-900">{order.customer?.name || order.CUST_NM || '-'}</span>
+        <div className="p-3 sm:p-5 space-y-2 sm:space-y-3">
+          <div className="flex items-start">
+            <span className="text-xs sm:text-sm text-gray-500 w-16 sm:w-20 flex-shrink-0 text-right pr-3">고객명</span>
+            <span className="text-xs sm:text-sm font-semibold text-gray-900">{order.customer?.name || order.CUST_NM || '-'}</span>
           </div>
-          <div className="flex justify-between items-center py-1.5 border-b border-gray-100">
-            <span className="text-xs text-gray-500">작업유형</span>
-            <span className="text-sm font-medium text-gray-800">{order.typeDisplay || order.WRK_CD_NM || '-'}</span>
+          <div className="flex items-start">
+            <span className="text-xs sm:text-sm text-gray-500 w-16 sm:w-20 flex-shrink-0 text-right pr-3">작업유형</span>
+            <span className="text-xs sm:text-sm font-medium text-gray-800">
+              {order.typeDisplay || order.WRK_CD_NM || '-'}
+              <span className={`ml-1 text-[10px] px-1 py-0.5 rounded-full ${
+                wrkStatCd === '3' || wrkStatCd === '4' || wrkStatCd === '7'
+                  ? 'bg-green-100 text-green-700' : 'bg-blue-100 text-blue-700'
+              }`}>
+                {wrkStatCd === '4' || wrkStatCd === '7' ? '후처리완료' : wrkStatCd === '3' ? '작업완료' : '할당'}
+              </span>
+            </span>
           </div>
-          <div className="flex justify-between items-center py-1.5 border-b border-gray-100">
-            <span className="text-xs text-gray-500">상품명</span>
-            <span className="text-sm font-medium text-gray-800 text-right max-w-[60%] truncate">{order.PROD_NM || '-'}</span>
+          <div className="flex items-start">
+            <span className="text-xs sm:text-sm text-gray-500 w-16 sm:w-20 flex-shrink-0 text-right pr-3">상품명</span>
+            <span className="text-xs sm:text-sm font-medium text-gray-800 flex-1 min-w-0 truncate">{changedProdNm || (order as any).newProduct || order.PROD_NM || '-'} <span className="text-gray-500 font-normal">({(order as any).DTL_CTRT_ID || order.CTRT_ID || '-'}) {order.SO_NM || ''}</span></span>
           </div>
-          <div className="flex justify-between items-start py-1.5">
-            <span className="text-xs text-gray-500 flex-shrink-0">주소</span>
-            <span className="text-xs text-gray-700 text-right ml-2">{order.customer?.address || (order as any).ST_ADDR || '-'}</span>
+          {/* 상품변경/이전설치/이전철거 시 연계정보 표시 */}
+          {['05', '07', '08'].includes(order.WRK_CD || '') && ((order as any).OLD_PROD_NM || oldProdInfo) && (
+            <div className="flex items-start">
+              <span className="text-xs sm:text-sm text-gray-500 w-16 sm:w-20 flex-shrink-0 text-right pr-3">{oldProdInfo?.label || '이전상품'}</span>
+              <span className="text-xs sm:text-sm text-gray-500 flex-1 min-w-0 truncate">{oldProdInfo?.prodNm || (order as any).OLD_PROD_NM || '-'} <span className="text-gray-400">({oldProdInfo?.ctrtId || '-'})</span></span>
+            </div>
+          )}
+          <div className="flex items-start pt-1 border-t border-gray-100">
+            <span className="text-xs sm:text-sm text-gray-500 w-16 sm:w-20 flex-shrink-0 text-right pr-3">주소</span>
+            <span className="text-xs sm:text-sm text-gray-700 flex-1 min-w-0 break-words leading-relaxed">{order.customer?.address || (order as any).ST_ADDR || '-'}</span>
           </div>
-        </div>
-      </div>
-
-      {/* 신호연동 */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-        <div className="p-4">
+          {/* 이전 주소 (이전설치/이전철거/상품변경 시) */}
+          {['05', '07', '08'].includes(order.WRK_CD || '') && oldProdInfo?.addr && (
+            <div className="flex items-start">
+              <span className="text-xs sm:text-sm text-gray-500 w-16 sm:w-20 flex-shrink-0 text-right pr-3">{oldProdInfo?.label === '이전설치' ? '이전설치주소' : '이전주소'}</span>
+              <span className="text-xs sm:text-sm text-gray-500 flex-1 min-w-0 break-words leading-relaxed">{oldProdInfo.addr}</span>
+            </div>
+          )}
+          {/* 설치위치 (설치/이전설치/상품변경만) */}
+          {['01', '05', '07'].includes(wrkCd) && (
+            <div className="flex items-start">
+              <span className="text-xs sm:text-sm text-gray-500 w-16 sm:w-20 flex-shrink-0 text-right pr-3">설치위치</span>
+              <div className="flex items-center gap-2">
+                <span className="text-xs sm:text-sm text-gray-800">{installLocationText || '미설정'}</span>
+                <button
+                  type="button"
+                  onClick={() => setShowInstlLocModal(true)}
+                  className="px-2 py-1 bg-cyan-600 hover:bg-cyan-700 text-white text-xs rounded-md flex items-center gap-1"
+                >
+                  <MapPin className="w-3 h-3" />
+                  변경
+                </button>
+              </div>
+            </div>
+          )}
+          {/* 신호연동 버튼 */}
           <button
             type="button"
             onClick={handleSignalInterlock}
-            className="w-full flex items-center justify-center gap-2.5 px-4 py-3.5 bg-purple-600 hover:bg-purple-700 active:bg-purple-800 text-white rounded-lg font-bold transition-all text-sm shadow-sm"
+            className="w-full flex items-center justify-center gap-2.5 px-4 py-3 bg-purple-600 hover:bg-purple-700 active:bg-purple-800 text-white rounded-lg font-bold transition-all text-sm shadow-sm mt-3"
           >
-            <Zap className="w-5 h-5" />
+            <MonitorCog className="w-5 h-5" />
             <span>신호연동</span>
           </button>
         </div>
@@ -605,41 +810,42 @@ const PostProcess: React.FC<PostProcessProps> = ({
             </div>
           ) : (
             <div className="space-y-3">
-              <div className="flex items-center gap-2 px-3 py-2.5 bg-orange-50 rounded-lg border border-orange-200">
-                <div className="w-2 h-2 rounded-full bg-orange-400 animate-pulse" />
-                <span className="text-sm font-medium text-orange-700">전자서명 대상입니다</span>
+              <div className="flex items-center justify-between px-3 py-2.5 bg-orange-50 rounded-lg border border-orange-200">
+                <div className="flex items-center gap-2">
+                  <div className="w-2 h-2 rounded-full bg-orange-400 animate-pulse" />
+                  <span className="text-sm font-medium text-orange-700">전자서명 대상</span>
+                </div>
+                <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${signMode === 'customer' ? 'bg-blue-100 text-blue-700' : 'bg-purple-100 text-purple-700'}`}>
+                  {signMode === 'customer' ? '고객서명' : '대면서명'}
+                </span>
               </div>
-              {/* 현재 모드 라벨 */}
-              <p className="text-xs font-semibold text-gray-500 px-1">
-                {signMode === 'customer' ? '고객서명' : '대면서명'}
-              </p>
               {/* 버튼들 */}
               <div className="grid grid-cols-2 gap-2">
                 <button
                   type="button"
                   onClick={handleResendClick}
-                  className="flex items-center justify-center gap-1.5 px-3 py-2.5 bg-blue-50 hover:bg-blue-100 active:bg-blue-200 text-blue-700 rounded-lg font-semibold transition-all text-xs border border-blue-200"
+                  className="flex items-center justify-center gap-1.5 px-3 py-3 bg-blue-500 hover:bg-blue-600 active:bg-blue-700 text-white rounded-lg font-semibold transition-all text-sm shadow-sm"
                 >
-                  <Send className="w-3.5 h-3.5" />
+                  <Send className="w-4 h-4" />
                   <span>재발송</span>
                 </button>
                 {signMode === 'customer' ? (
                   <button
                     type="button"
-                    onClick={() => setSignMode('face')}
-                    className="flex items-center justify-center gap-1.5 px-3 py-2.5 bg-purple-50 hover:bg-purple-100 active:bg-purple-200 text-purple-700 rounded-lg font-semibold transition-all text-xs border border-purple-200"
+                    onClick={() => handleChangeSignMode('face')}
+                    className="flex items-center justify-center gap-1.5 px-3 py-3 bg-purple-500 hover:bg-purple-600 active:bg-purple-700 text-white rounded-lg font-semibold transition-all text-xs shadow-sm leading-tight text-center"
                   >
-                    <Monitor className="w-3.5 h-3.5" />
-                    <span>대면서명으로 변경발송</span>
+                    <Monitor className="w-4 h-4 flex-shrink-0" />
+                    <span>대면서명으로<br/>변경발송</span>
                   </button>
                 ) : (
                   <button
                     type="button"
-                    onClick={() => setSignMode('customer')}
-                    className="flex items-center justify-center gap-1.5 px-3 py-2.5 bg-teal-50 hover:bg-teal-100 active:bg-teal-200 text-teal-700 rounded-lg font-semibold transition-all text-xs border border-teal-200"
+                    onClick={() => handleChangeSignMode('customer')}
+                    className="flex items-center justify-center gap-1.5 px-3 py-3 bg-teal-500 hover:bg-teal-600 active:bg-teal-700 text-white rounded-lg font-semibold transition-all text-xs shadow-sm leading-tight text-center"
                   >
-                    <Smartphone className="w-3.5 h-3.5" />
-                    <span>고객서명으로 변경발송</span>
+                    <Smartphone className="w-4 h-4 flex-shrink-0" />
+                    <span>고객서명으로<br/>변경발송</span>
                   </button>
                 )}
               </div>
@@ -664,10 +870,10 @@ const PostProcess: React.FC<PostProcessProps> = ({
               <div className="w-2 h-2 rounded-full bg-gray-300" />
               <span className="text-sm text-gray-400">재약정 대상이 아닙니다</span>
             </div>
-          ) : recontractCompleted ? (
+          ) : (recontractCompleted || recontractClicked) ? (
             <div className="flex items-center gap-2 px-3 py-2.5 bg-green-50 rounded-lg border border-green-200">
               <Check className="w-4 h-4 text-green-600" />
-              <span className="text-sm font-medium text-green-700">재약정이 완료되었습니다</span>
+              <span className="text-sm font-medium text-green-700">재약정안내가 저장되었습니다</span>
             </div>
           ) : (
             <div className="space-y-3">
@@ -675,12 +881,96 @@ const PostProcess: React.FC<PostProcessProps> = ({
                 <div className="w-2 h-2 rounded-full bg-orange-400 animate-pulse" />
                 <span className="text-sm font-medium text-orange-700">재약정 대상입니다</span>
               </div>
+
+              {/* 재약정안내(현장) 폼 */}
+              <div className="border border-gray-200 rounded-lg overflow-hidden">
+                <div className="bg-slate-100 px-3 py-2">
+                  <span className="text-xs font-bold text-slate-700">재약정안내(현장)</span>
+                </div>
+                {rcGuideLoading ? (
+                  <div className="flex items-center justify-center py-6">
+                    <Loader2 className="w-4 h-4 animate-spin text-gray-400" />
+                  </div>
+                ) : (
+                  <div className="divide-y divide-gray-200">
+                    {/* 재약정안내여부 (CMCU173) */}
+                    <div className="flex items-center">
+                      <div className="w-28 flex-shrink-0 bg-blue-50 px-3 py-3 text-xs font-semibold text-gray-700 self-stretch flex items-center">
+                        재약정안내여부
+                      </div>
+                      <div className="flex-1 px-3 py-3 flex gap-4">
+                        {rcGuideOptions.map((opt) => (
+                          <label key={opt.COMMON_CD} className="flex items-center gap-1.5 cursor-pointer py-1">
+                            <input
+                              type="radio"
+                              name="rcGuide"
+                              checked={rcGuideSelected === opt.COMMON_CD}
+                              onChange={() => { setRcGuideSelected(opt.COMMON_CD); if (rcGuideOptions.indexOf(opt) === 0) setRcNoGuideReason(''); }}
+                              className="w-4 h-4 text-blue-600"
+                            />
+                            <span className="text-sm text-gray-700">{opt.COMMON_CD_NM}</span>
+                          </label>
+                        ))}
+                      </div>
+                    </div>
+                    {/* 미안내사유 (CMCU174) - 항상 표시, 안내 선택 시 비활성화 */}
+                    {rcNoGuideOptions.length > 0 && (
+                      <div className="flex items-start">
+                        <div className={`w-28 flex-shrink-0 px-3 py-3 text-xs font-semibold self-stretch flex items-center ${
+                          rcGuideSelected && rcGuideOptions.findIndex(o => o.COMMON_CD === rcGuideSelected) === 0
+                            ? 'bg-gray-100 text-gray-400'
+                            : 'bg-blue-50 text-gray-700'
+                        }`}>
+                          미안내사유
+                        </div>
+                        <div className="flex-1 px-3 py-2.5 flex flex-col gap-2">
+                          {rcNoGuideOptions.map((opt) => {
+                            const isDisabled = !rcGuideSelected || rcGuideOptions.findIndex(o => o.COMMON_CD === rcGuideSelected) === 0;
+                            return (
+                              <label key={opt.COMMON_CD} className={`flex items-center gap-1.5 py-1 ${isDisabled ? 'cursor-not-allowed' : 'cursor-pointer'}`}>
+                                <input
+                                  type="radio"
+                                  name="rcNoGuideReason"
+                                  checked={rcNoGuideReason === opt.COMMON_CD}
+                                  onChange={() => setRcNoGuideReason(opt.COMMON_CD)}
+                                  disabled={isDisabled}
+                                  className="w-4 h-4 text-blue-600 disabled:opacity-40"
+                                />
+                                <span className={`text-sm ${isDisabled ? 'text-gray-400' : 'text-gray-700'}`}>{opt.COMMON_CD_NM}</span>
+                              </label>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              {/* 저장 버튼 */}
+              <button
+                type="button"
+                onClick={handleRcGuideSave}
+                disabled={rcGuideSaving}
+                className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-blue-500 hover:bg-blue-600 active:bg-blue-700 text-white rounded-lg font-semibold transition-all text-sm shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {rcGuideSaving ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    <span>저장 중...</span>
+                  </>
+                ) : (
+                  <span>저장</span>
+                )}
+              </button>
+
+              {/* 재약정 진행 (고객관리 재약정 탭 이동) */}
               <button
                 type="button"
                 onClick={handleRecontractClick}
                 className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-green-500 hover:bg-green-600 active:bg-green-700 text-white rounded-lg font-semibold transition-all text-sm shadow-sm"
               >
-                <span>재약정 진행 (모두싸인)</span>
+                <span>재약정 진행</span>
                 <ExternalLink className="w-3.5 h-3.5" />
               </button>
             </div>
@@ -738,6 +1028,26 @@ const PostProcess: React.FC<PostProcessProps> = ({
           목록으로
         </button>
       </div>
+      {/* 설치위치 변경 모달 */}
+      <InstallLocationModal
+        isOpen={showInstlLocModal}
+        onClose={() => setShowInstlLocModal(false)}
+        onSave={async (data: InstallLocationData) => {
+          const ctrtId = (order as any).DTL_CTRT_ID || order.CTRT_ID || '';
+          if (ctrtId && data.INSTL_LOC) {
+            try {
+              await updateInstlLoc({ CTRT_ID: ctrtId, INSTL_LOC: data.INSTL_LOC });
+              setInstallLocationText(data.INSTL_LOC);
+              showToast?.('설치위치가 변경되었습니다.', 'success');
+            } catch (err) {
+              console.error('[PostProcess] 설치위치 변경 실패:', err);
+              showToast?.('설치위치 변경에 실패했습니다.', 'error');
+            }
+          }
+          setShowInstlLocModal(false);
+        }}
+        initialInstlLoc={installLocationText}
+      />
     </div>
   );
 };
