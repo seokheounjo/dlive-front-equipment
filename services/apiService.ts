@@ -2673,7 +2673,7 @@ export const addEquipmentQuota = async (params: {
   try {
     const origin = typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000';
 
-    const response = await fetchWithRetry(`${API_BASE}/customer/equipment/addCorporationEquipmentQuota`, {
+    const response = await fetch(`${API_BASE}/customer/equipment/addCorporationEquipmentQuota`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -2835,7 +2835,7 @@ export const addEquipmentReturnRequest = async (
       console.log('[addEquipmentReturnRequest] 개별 호출:', item.EQT_SERNO, singleRequestBody);
 
       try {
-        const response = await fetchWithRetry(`${API_BASE}/customer/equipment/addEquipmentReturnRequest`, {
+        const response = await fetch(`${API_BASE}/customer/equipment/addEquipmentReturnRequest`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -2934,7 +2934,7 @@ export const processEquipmentLoss = async (params: {
   try {
     const origin = typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000';
 
-    const response = await fetchWithRetry(`${API_BASE}/customer/equipment/cmplEqtCustLossIndem`, {
+    const response = await fetch(`${API_BASE}/customer/equipment/cmplEqtCustLossIndem`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -2970,7 +2970,7 @@ export const setEquipmentCheckStandby = async (params: {
   try {
     const origin = typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000';
 
-    const response = await fetchWithRetry(`${API_BASE}/customer/equipment/setEquipmentChkStndByY`, {
+    const response = await fetch(`${API_BASE}/customer/equipment/setEquipmentChkStndByY`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -3057,7 +3057,7 @@ export const changeEquipmentWorker = async (params: {
   try {
     const origin = typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000';
 
-    const response = await fetchWithRetry(`${API_BASE}/customer/equipment/changeEqtWrkr_3`, {
+    const response = await fetch(`${API_BASE}/customer/equipment/changeEqtWrkr_3`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -3073,10 +3073,7 @@ export const changeEquipmentWorker = async (params: {
     return result;
   } catch (error: any) {
     console.error('장비 인수 실패:', error);
-    if (error instanceof NetworkError) {
-      throw error;
-    }
-    throw new NetworkError('장비 인수에 실패했습니다.');
+    throw error;
   }
 };
 
@@ -3449,7 +3446,7 @@ export const processEquipmentRecovery = async (params: {
   try {
     const origin = typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000';
 
-    const response = await fetchWithRetry(`${API_BASE}/customer/work/modEquipLoss`, {
+    const response = await fetch(`${API_BASE}/customer/work/modEquipLoss`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -5927,7 +5924,7 @@ export const delEquipmentReturnRequest = async (
       console.log('[delEquipmentReturnRequest] 개별 호출:', item.EQT_SERNO, singleRequestBody);
 
       try {
-        const response = await fetchWithRetry(`${API_BASE}/customer/equipment/delEquipmentReturnRequest`, {
+        const response = await fetch(`${API_BASE}/customer/equipment/delEquipmentReturnRequest`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',

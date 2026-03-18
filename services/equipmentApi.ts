@@ -209,7 +209,7 @@ export const transferEquipment = async (params: {
     const origin = typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000';
 
     // 신규 API: changeEqtWrkr_3_ForM - Exception 대신 Map 반환 (2026-01-23)
-    const response = await fetchWithRetry(`${API_BASE}/customer/equipment/changeEqtWrkr_3_ForM`, {
+    const response = await fetch(`${API_BASE}/customer/equipment/changeEqtWrkr_3_ForM`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -294,7 +294,7 @@ export const registerEquipmentReturn = async (params: {
   try {
     const origin = typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000';
 
-    const response = await fetchWithRetry(`${API_BASE}/customer/equipment/addEquipmentReturnRequest`, {
+    const response = await fetch(`${API_BASE}/customer/equipment/addEquipmentReturnRequest`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -530,7 +530,7 @@ export const addEquipmentQuota = async (params: {
   try {
     const origin = typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000';
 
-    const response = await fetchWithRetry(`${API_BASE}/customer/equipment/addCorporationEquipmentQuota`, {
+    const response = await fetch(`${API_BASE}/customer/equipment/addCorporationEquipmentQuota`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -762,7 +762,7 @@ export const completeEquipmentInspection = async (params: {
   try {
     const origin = typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000';
 
-    const response = await fetchWithRetry(`${API_BASE}/customer/equipment/setEquipmentChkStndByY_ForM`, {
+    const response = await fetch(`${API_BASE}/customer/equipment/setEquipmentChkStndByY_ForM`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
