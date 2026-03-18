@@ -975,39 +975,6 @@ const EquipmentList: React.FC<EquipmentListProps> = ({ onBack, showToast }) => {
           </div>
         )}
 
-        {/* 내 보유 장비 목록 미리보기 */}
-        {!equipmentDetail && myEquipments.length > 0 && (
-          <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4">
-            <details>
-              <summary className="text-xs font-medium text-gray-700 cursor-pointer">
-                내 보유 장비 목록 ({myEquipments.length}건)
-              </summary>
-              <div className="mt-3 space-y-2 max-h-48 overflow-y-auto">
-                {myEquipments.slice(0, 20).map((eq, idx) => (
-                  <div
-                    key={idx}
-                    className="flex items-center justify-between p-3 bg-gray-50 rounded-lg text-xs cursor-pointer hover:bg-blue-50 transition-colors active:scale-[0.99] touch-manipulation"
-                    style={{ WebkitTapHighlightColor: 'transparent' }}
-                    onClick={() => {
-                      setSearchValue(eq.EQT_SERNO || eq.SERIAL_NO || eq.MAC_ADDRESS || eq.MAC || '');
-                      setEquipmentDetail(enrichEquipmentData(eq));
-                      setRawResponse({ source: '내 보유 장비 목록에서 선택', data: eq });
-                    }}
-                  >
-                    <div>
-                      <span className="font-medium text-gray-800">{eq.EQT_CL_NM || eq.EQT_TP_CD || '장비'}</span>
-                      <span className="ml-2 text-gray-500 font-mono">{eq.EQT_SERNO || eq.SERIAL_NO || '-'}</span>
-                    </div>
-                    <span className="text-gray-400 text-xs bg-gray-100 px-2 py-0.5 rounded">{eq.EQT_STAT_CD_NM || eq.EQT_USE_STAT_CD || ''}</span>
-                  </div>
-                ))}
-                {myEquipments.length > 20 && (
-                  <p className="text-xs text-gray-500 text-center py-2">... 외 {myEquipments.length - 20}건</p>
-                )}
-              </div>
-            </details>
-          </div>
-        )}
 
         {/* 등록되지 않은 장비 */}
         {failedBarcodes.length > 0 && (
