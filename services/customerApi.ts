@@ -269,9 +269,10 @@ export interface WorkHistory {
 export interface HPPayInfo {
   CTRT_ID: string;           // 계약ID
   PROD_NM: string;           // 상품명
-  HP_STAT: string;           // 휴대폰결제 상태 ('신청'/'해지'/기타)
+  HP_STAT: string;           // 휴대폰결제 상태 ('일반(후불)결제'/'휴대폰(선불)결제'/기타)
   ADDR: string;              // 설치주소
   CTRT_STAT_NM: string;      // 계약상태
+  EQT_CL_NM?: string;       // STB구분 (XSTB-UHD, STB-SMART 등)
 }
 
 // 상담 등록 요청 (Backend: saveCnslRcptInfo)

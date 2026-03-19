@@ -715,17 +715,10 @@ const CustomerInfoChange: React.FC<CustomerInfoChangeProps> = ({
     }
   };
 
-  // 휴대폰결제: 신청/해지 그룹 분리
-  const filteredHpPayList = hpPayList.filter(item => item.CTRT_STAT_NM === '사용중');
+  // 휴대폰결제: 신청/해지 그룹 분리 (전체 항목 표시 — 사용중 필터 제거)
   const isHpPayActive = (stat: string) => stat === '신청' || stat.includes('휴대폰');
-  const formatHpStat = (stat: string) => {
-    if (stat === '일반(후불)결제') return '일반(후불)';
-    if (stat === '휴대폰(선불)결제') return '휴대폰결제(선불)';
-    if (stat === '휴대폰(후불)결제') return '휴대폰결제(후불)';
-    return stat;
-  };
-  const hpPayApplyList = filteredHpPayList.filter(item => !isHpPayActive(item.HP_STAT));  // 일반/해제 → 신청 대상
-  const hpPayCancelList = filteredHpPayList.filter(item => isHpPayActive(item.HP_STAT));  // 휴대폰결제/신청 → 해지 대상
+  const hpPayApplyList = hpPayList.filter(item => !isHpPayActive(item.HP_STAT));  // 일반(후불)결제 → 신청 대상
+  const hpPayCancelList = hpPayList.filter(item => isHpPayActive(item.HP_STAT));  // 휴대폰(선불)결제 → 해지 대상
   const [hpPayApplySelected, setHpPayApplySelected] = useState<Set<string>>(new Set());
   const [hpPayCancelSelected, setHpPayCancelSelected] = useState<Set<string>>(new Set());
 
@@ -1599,13 +1592,23 @@ const CustomerInfoChange: React.FC<CustomerInfoChangeProps> = ({
                           {item.PROD_NM || '상품명 없음'}
                         </span>
                         <span className="px-2 py-0.5 text-sm rounded-full flex-shrink-0 bg-orange-100 text-orange-700">
-                          {formatHpStat(item.HP_STAT) || '해제'}
+                          {item.HP_STAT || '해제'}
                         </span>
                       </div>
                       <div className="text-sm text-gray-500 space-y-1 ml-6">
                         <div className="flex gap-1">
                           <span>계약ID:</span>
                           <span className="text-gray-700">{item.CTRT_ID}</span>
+                        </div>
+                        {item.EQT_CL_NM && (
+                          <div className="flex gap-1">
+                            <span>STB구분:</span>
+                            <span className="text-gray-700 font-medium">{item.EQT_CL_NM}</span>
+                          </div>
+                        )}
+                        <div className="flex gap-1">
+                          <span>계약상태:</span>
+                          <span className="text-gray-700">{item.CTRT_STAT_NM}</span>
                         </div>
                         {item.ADDR && (
                           <div>
@@ -1668,13 +1671,23 @@ const CustomerInfoChange: React.FC<CustomerInfoChangeProps> = ({
                           {item.PROD_NM || '상품명 없음'}
                         </span>
                         <span className="px-2 py-0.5 text-sm rounded-full flex-shrink-0 bg-green-100 text-green-700">
-                          {formatHpStat(item.HP_STAT) || '신청'}
+                          {item.HP_STAT || '신청'}
                         </span>
                       </div>
                       <div className="text-sm text-gray-500 space-y-1 ml-6">
                         <div className="flex gap-1">
                           <span>계약ID:</span>
                           <span className="text-gray-700">{item.CTRT_ID}</span>
+                        </div>
+                        {item.EQT_CL_NM && (
+                          <div className="flex gap-1">
+                            <span>STB구분:</span>
+                            <span className="text-gray-700 font-medium">{item.EQT_CL_NM}</span>
+                          </div>
+                        )}
+                        <div className="flex gap-1">
+                          <span>계약상태:</span>
+                          <span className="text-gray-700">{item.CTRT_STAT_NM}</span>
                         </div>
                         {item.ADDR && (
                           <div>
