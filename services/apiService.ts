@@ -689,12 +689,19 @@ export const getWorkStatusCountsForDirection = async (directionId: string): Prom
 };
 
 // 작업 상세 목록 조회 API (receipts + directionId)
-export const getWorkReceipts = async (directionId: string): Promise<any[]> => {
+export const getWorkReceipts = async (directionId: string, wrkCd?: string): Promise<any[]> => {
 
   // 더미 모드 체크
 
   try {
     const origin = typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000';
+    const params: Record<string, string> = {
+      WRK_DRCTN_ID: directionId,
+    };
+    // AS(03) 작업은 PROC_CL='A03' 추가 (레거시 동일: 비가입자 AS 조회용)
+    if (wrkCd === '03') {
+      params.PROC_CL = 'A03';
+    }
     const response = await fetchWithRetry(`${API_BASE}/work/receipts`, {
       method: 'POST',
       headers: {
@@ -702,9 +709,7 @@ export const getWorkReceipts = async (directionId: string): Promise<any[]> => {
         'Origin': origin
       },
       credentials: 'include',
-      body: JSON.stringify({
-        WRK_DRCTN_ID: directionId
-      }),
+      body: JSON.stringify(params),
     });
 
     const apiData = await response.json();
@@ -4260,14 +4265,15 @@ export const getHotbillSummary = async (custId: string, rcptId: string): Promise
       throw new Error(`Hot Bill API가 아직 배포되지 않았습니다. (HTTP ${response.status})`);
     }
 
-    // Content-Type 체크 (HTML 응답 방지)
-    const contentType = response.headers.get('content-type');
-    if (!contentType || !contentType.includes('application/json')) {
-      console.error('[Hotbill API] 잘못된 응답 형식:', contentType);
-      throw new Error('Hot Bill API가 아직 배포되지 않았습니다.');
+    // JSON 파싱 시도 (Content-Type 체크 대신 실제 파싱으로 판단)
+    const responseText = await response.text();
+    let result;
+    try {
+      result = JSON.parse(responseText);
+    } catch {
+      console.error('[Hotbill API] JSON 파싱 실패 — 응답:', responseText.substring(0, 200));
+      throw new Error('Hot Bill API 응답이 올바르지 않습니다.');
     }
-
-    const result = await response.json();
     console.log('[Hotbill API] getHotbillSummary 응답:', result);
 
     return {
@@ -4333,7 +4339,7 @@ export const runHotbillSimulation = async (params: HotbillSimulateParams): Promi
       HOPE_DT: params.HOPE_DT,
       CLC_WRK_CL: params.CLC_WRK_CL || '2',  // 레거시 기준: 2=해지
       RCPT_ID: params.RCPT_ID || '',
-      IS_NEW: params.IS_NEW || 'false',
+      IS_NEW: params.IS_NEW || 'TRUE',
       PNTY_EXMP_YN: params.PNTY_EXMP_YN || 'N',  // 위약금 면제 여부
     };
 
