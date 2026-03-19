@@ -719,8 +719,9 @@ const CustomerInfoChange: React.FC<CustomerInfoChangeProps> = ({
 
   // 휴대폰결제: 신청/해지 그룹 분리
   const filteredHpPayList = hpPayList.filter(item => item.CTRT_STAT_NM === '사용중');
-  const hpPayApplyList = filteredHpPayList.filter(item => item.HP_STAT !== '신청');  // 해제 상태 → 신청 대상
-  const hpPayCancelList = filteredHpPayList.filter(item => item.HP_STAT === '신청'); // 신청 상태 → 해지 대상
+  const isHpPayActive = (stat: string) => stat === '신청' || stat.includes('휴대폰');
+  const hpPayApplyList = filteredHpPayList.filter(item => !isHpPayActive(item.HP_STAT));  // 일반/해제 → 신청 대상
+  const hpPayCancelList = filteredHpPayList.filter(item => isHpPayActive(item.HP_STAT));  // 휴대폰결제/신청 → 해지 대상
   const [hpPayApplySelected, setHpPayApplySelected] = useState<Set<string>>(new Set());
   const [hpPayCancelSelected, setHpPayCancelSelected] = useState<Set<string>>(new Set());
 
@@ -816,9 +817,9 @@ const CustomerInfoChange: React.FC<CustomerInfoChangeProps> = ({
       return;
     }
 
-    const isApply = item.HP_STAT !== '신청';
+    const isApply = !isHpPayActive(item.HP_STAT);
     const actionText = isApply ? '신청' : '해지';
-    console.log(`[HP Pay] showing confirm modal: ${actionText}`);
+    console.log(`[HP Pay] showing confirm modal: ${actionText} (HP_STAT=${item.HP_STAT})`);
 
     // ConfirmModal 표시
     setConfirmModal({
@@ -1601,7 +1602,7 @@ const CustomerInfoChange: React.FC<CustomerInfoChangeProps> = ({
                           {item.PROD_NM || '상품명 없음'}
                         </span>
                         <span className="px-2 py-0.5 text-xs rounded-full flex-shrink-0 bg-orange-100 text-orange-700">
-                          해제
+                          {item.HP_STAT || '해제'}
                         </span>
                       </div>
                       <div className="text-xs text-gray-500 space-y-1 ml-6">
@@ -1670,7 +1671,7 @@ const CustomerInfoChange: React.FC<CustomerInfoChangeProps> = ({
                           {item.PROD_NM || '상품명 없음'}
                         </span>
                         <span className="px-2 py-0.5 text-xs rounded-full flex-shrink-0 bg-green-100 text-green-700">
-                          신청
+                          {item.HP_STAT || '신청'}
                         </span>
                       </div>
                       <div className="text-xs text-gray-500 space-y-1 ml-6">
