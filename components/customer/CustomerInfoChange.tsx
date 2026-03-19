@@ -679,18 +679,23 @@ const CustomerInfoChange: React.FC<CustomerInfoChangeProps> = ({
   // 휴대폰결제 신청/해제 실제 처리 (modIfSvc_m.req)
   // batch=true: 일괄처리시 alert 없이 결과만 리턴
   const executeHpPayChange = async (item: HPPayInfo, actionText: string, batch = false): Promise<boolean> => {
-    if (!selectedCustomer) return false;
+    if (!selectedCustomer) {
+      console.log('[HP Pay] executeHpPayChange: no selectedCustomer!');
+      return false;
+    }
 
     const isApply = actionText === '신청';
     const msgId = isApply ? 'SMR74' : 'SMR75';
 
     try {
+      console.log(`[HP Pay] API call: ${msgId} CTRT_ID=${item.CTRT_ID} CUST_ID=${selectedCustomer.custId}`);
       const response = await modIfSvcHP({
         MSG_ID: msgId,
         CUST_ID: selectedCustomer.custId,
         CTRT_ID: item.CTRT_ID,
       });
 
+      console.log('[HP Pay] API response:', response);
       if (response.success) {
         if (!batch) {
           showAlert(`휴대폰결제 ${actionText} 완료되었습니다.`, 'success');
@@ -727,16 +732,19 @@ const CustomerInfoChange: React.FC<CustomerInfoChangeProps> = ({
     }
   };
   const handleHpPayItemSelect = (group: 'apply' | 'cancel', ctrtId: string, checked: boolean) => {
+    console.log(`[HP Pay] checkbox ${group} CTRT_ID=${ctrtId} checked=${checked}`);
     const setter = group === 'apply' ? setHpPayApplySelected : setHpPayCancelSelected;
     setter(prev => {
       const next = new Set(prev);
       if (checked) next.add(ctrtId); else next.delete(ctrtId);
+      console.log(`[HP Pay] selected count: ${next.size}`, [...next]);
       return next;
     });
   };
 
   // 휴대폰결제 일괄 신청
   const handleHpPayBulkApply = async () => {
+    console.log(`[HP Pay] bulkApply clicked, selected: ${hpPayApplySelected.size}`);
     if (hpPayApplySelected.size === 0) {
       showAlert('신청할 항목을 선택해주세요.', 'warning');
       return;
@@ -801,13 +809,16 @@ const CustomerInfoChange: React.FC<CustomerInfoChangeProps> = ({
 
   // 휴대폰결제 신청/해지 처리 (확인 모달 표시)
   const handleHpPayChange = (item: HPPayInfo) => {
+    console.log('[HP Pay] handleHpPayChange:', item.CTRT_ID, item.HP_STAT, item.PROD_NM);
     if (!selectedCustomer) {
+      console.log('[HP Pay] handleHpPayChange: no selectedCustomer!');
       showAlert('고객 정보가 없습니다.', 'warning');
       return;
     }
 
     const isApply = item.HP_STAT !== '신청';
     const actionText = isApply ? '신청' : '해지';
+    console.log(`[HP Pay] showing confirm modal: ${actionText}`);
 
     // ConfirmModal 표시
     setConfirmModal({
