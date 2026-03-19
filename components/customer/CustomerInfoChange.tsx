@@ -688,7 +688,7 @@ const CustomerInfoChange: React.FC<CustomerInfoChangeProps> = ({
     const msgId = isApply ? 'SMR74' : 'SMR75';
 
     try {
-      console.log(`[HP Pay] API call: ${msgId} CTRT_ID=${item.CTRT_ID} CUST_ID=${selectedCustomer.custId}`);
+
       const response = await modIfSvcHP({
         MSG_ID: msgId,
         CUST_ID: selectedCustomer.custId,
@@ -739,19 +739,16 @@ const CustomerInfoChange: React.FC<CustomerInfoChangeProps> = ({
     }
   };
   const handleHpPayItemSelect = (group: 'apply' | 'cancel', ctrtId: string, checked: boolean) => {
-    console.log(`[HP Pay] checkbox ${group} CTRT_ID=${ctrtId} checked=${checked}`);
     const setter = group === 'apply' ? setHpPayApplySelected : setHpPayCancelSelected;
     setter(prev => {
       const next = new Set(prev);
       if (checked) next.add(ctrtId); else next.delete(ctrtId);
-      console.log(`[HP Pay] selected count: ${next.size}`, [...next]);
       return next;
     });
   };
 
   // 휴대폰결제 일괄 신청
   const handleHpPayBulkApply = async () => {
-    console.log(`[HP Pay] bulkApply clicked, selected: ${hpPayApplySelected.size}`);
     if (hpPayApplySelected.size === 0) {
       showAlert('신청할 항목을 선택해주세요.', 'warning');
       return;
@@ -825,8 +822,6 @@ const CustomerInfoChange: React.FC<CustomerInfoChangeProps> = ({
 
     const isApply = !isHpPayActive(item.HP_STAT);
     const actionText = isApply ? '신청' : '해지';
-    console.log(`[HP Pay] showing confirm modal: ${actionText} (HP_STAT=${item.HP_STAT})`);
-
     // ConfirmModal 표시
     setConfirmModal({
       isOpen: true,
