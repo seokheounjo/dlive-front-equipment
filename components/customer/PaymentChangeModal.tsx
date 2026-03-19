@@ -476,7 +476,7 @@ const PaymentChangeModal: React.FC<PaymentChangeModalProps> = ({
           const updateDate = response.data?.UPDATE_DATE || '';
           const nextSeq = response.data?.NEXT_AGR_FILE_NAME_SEQ || '001';
           const pymAcntId = response.data?.PYM_ACNT_ID || selectedPymAcntId;
-          const agrFileName = `${pymAcntId}${nextSeq}${updateDate}`;
+          const agrFileName = `${pymAcntId}${nextSeq}${updateDate}.pdf`;
           try {
             await updatePymAtmtApplAGRPdf({
               PYM_ACNT_ID: selectedPymAcntId,
