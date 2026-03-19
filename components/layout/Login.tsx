@@ -256,7 +256,7 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
                 disabled={!OTP_ENABLED}
                 className={`${inputBaseClasses} pl-10 pr-10 disabled:bg-white disabled:border-white disabled:cursor-not-allowed`}
                 style={inputStyle}
-                placeholder="OTP 인증번호"
+                placeholder="인증번호"
                 value={otpCode}
                 onChange={(e) => {
                   const val = e.target.value.replace(/[^0-9]/g, '');
