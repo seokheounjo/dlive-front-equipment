@@ -1725,8 +1725,9 @@ const CustomerInfoChange: React.FC<CustomerInfoChangeProps> = ({
 
       {/* 주소 검색 모달 */}
       {showAddressModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-end sm:items-center justify-center z-50 sm:p-4">
-          <div className="bg-white rounded-t-xl sm:rounded-xl shadow-xl w-full max-w-lg overflow-hidden max-h-[85dvh] sm:max-h-[85vh] flex flex-col">
+        <div className="fixed inset-0 z-50 overflow-y-auto bg-black/50">
+          <div className="flex items-center justify-center min-h-full p-4">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-lg overflow-hidden max-h-[90vh] flex flex-col">
             {/* 헤더 */}
             <div className="p-3 border-b border-gray-100 bg-gradient-to-r from-green-500 to-green-600 flex-shrink-0">
               <div className="flex items-center justify-between">
@@ -1905,6 +1906,7 @@ const CustomerInfoChange: React.FC<CustomerInfoChangeProps> = ({
                 닫기
               </button>
             </div>
+          </div>
           </div>
         </div>
       )}
