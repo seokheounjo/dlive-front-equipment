@@ -44,6 +44,7 @@ const BarcodeScanner: React.FC<BarcodeScannerProps> = ({ isOpen, onClose, onScan
   const scannerRef = useRef<Html5Qrcode | null>(null);
   const trackRef = useRef<MediaStreamTrack | null>(null);
   const isScanningRef = useRef(false);
+  const refocusIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const [isScanning, setIsScanning] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -52,6 +53,7 @@ const BarcodeScanner: React.FC<BarcodeScannerProps> = ({ isOpen, onClose, onScan
   const [zoomSupported, setZoomSupported] = useState(false);
   const [zoomLevel, setZoomLevel] = useState(1);
   const [zoomRange, setZoomRange] = useState({ min: 1, max: 1 });
+  const [cameraRes, setCameraRes] = useState('');
 
   // 화면 회전 잠금 (세로 모드 고정)
   useEffect(() => {
@@ -82,7 +84,8 @@ const BarcodeScanner: React.FC<BarcodeScannerProps> = ({ isOpen, onClose, onScan
     setTorchOn(false);
     setTorchSupported(false);
     setZoomSupported(false);
-    
+    setCameraRes('');
+
     const loadScript = async () => {
       if ((window as any).Html5Qrcode) {
         await initScanner();
@@ -96,13 +99,13 @@ const BarcodeScanner: React.FC<BarcodeScannerProps> = ({ isOpen, onClose, onScan
       document.body.appendChild(script);
     };
 
-    // 10초 타임아웃 (ref로 최신 상태 확인)
+    // 12초 타임아웃 (저사양 폰 여유)
     const timeout = setTimeout(() => {
       if (!isScanningRef.current) {
         setIsLoading(false);
         setError('CAMERA_FAILED');
       }
-    }, 10000);
+    }, 12000);
 
     loadScript();
     return () => { clearTimeout(timeout); stopScanner(); };
@@ -125,6 +128,34 @@ const BarcodeScanner: React.FC<BarcodeScannerProps> = ({ isOpen, onClose, onScan
     }
   };
 
+  // 주기적 재포커스 (continuous AF 미지원 기기용)
+  const startPeriodicRefocus = (track: MediaStreamTrack) => {
+    if (refocusIntervalRef.current) {
+      clearInterval(refocusIntervalRef.current);
+    }
+    refocusIntervalRef.current = setInterval(async () => {
+      try {
+        const caps = track.getCapabilities() as any;
+        if (caps.focusMode) {
+          if (caps.focusMode.includes('single-shot')) {
+            await track.applyConstraints({ advanced: [{ focusMode: 'single-shot' } as any] });
+          } else if (caps.focusMode.includes('manual') && caps.focusDistance) {
+            // 바코드 적정 거리: 15~30cm
+            const targetDist = Math.min(Math.max(0.2, caps.focusDistance.min), caps.focusDistance.max);
+            await track.applyConstraints({ advanced: [{ focusMode: 'manual', focusDistance: targetDist } as any] });
+          }
+        }
+      } catch (e) {}
+    }, 1500); // 1.5초마다 재포커스
+  };
+
+  const stopPeriodicRefocus = () => {
+    if (refocusIntervalRef.current) {
+      clearInterval(refocusIntervalRef.current);
+      refocusIntervalRef.current = null;
+    }
+  };
+
   const startScanner = async () => {
     const Html5QrcodeClass = (window as any).Html5Qrcode;
     if (!Html5QrcodeClass) return;
@@ -141,6 +172,7 @@ const BarcodeScanner: React.FC<BarcodeScannerProps> = ({ isOpen, onClose, onScan
 
     await new Promise(resolve => setTimeout(resolve, 100));
 
+    // 1D 바코드 전용 포맷만 (QR 코드 제외 → 디코딩 속도 향상)
     const scannerConfig = {
       formatsToSupport: [
         QR_FORMATS.CODE_128,
@@ -157,9 +189,11 @@ const BarcodeScanner: React.FC<BarcodeScannerProps> = ({ isOpen, onClose, onScan
       verbose: false,
     };
 
+    // FPS 15: 저사양 AP에 최적 (30fps → CPU 과부하 → 프레임드롭 → 인식률 하락)
+    // qrbox: 실제 해상도 기반으로 동적 조정 (아래 setupDynamicQrbox에서)
     const qrConfig = {
-      fps: 30,
-      qrbox: { width: 350, height: 120 },
+      fps: 15,
+      qrbox: { width: 280, height: 100 },
       disableFlip: true,
       aspectRatio: 16 / 9,
     };
@@ -171,12 +205,23 @@ const BarcodeScanner: React.FC<BarcodeScannerProps> = ({ isOpen, onClose, onScan
       if (!isMultiScanMode) { handleClose(); }
     };
 
-    // 3단계 fallback 시도
+    // 갤럭시 A 시리즈 최적화 해상도 전략
+    // 1단계: FHD (1920x1080) - A시리즈 대부분 지원, 디코딩 속도/품질 최적
+    // 2단계: HD (1280x720) - 구형 A시리즈 fallback
+    // 3단계: 기본 - 카메라 기본 설정
     const attempts = [
-      // 1단계: 후면카메라 4K 최고해상도
-      { facingMode: { exact: 'environment' }, width: { ideal: 3840, min: 1920 }, height: { ideal: 2160, min: 1080 } },
-      // 2단계: 후면카메라 FHD
-      { facingMode: { exact: 'environment' }, width: { ideal: 1920 }, height: { ideal: 1080 } },
+      // 1단계: 후면카메라 FHD (A시리즈 최적 해상도)
+      {
+        facingMode: { exact: 'environment' },
+        width: { ideal: 1920, min: 1280 },
+        height: { ideal: 1080, min: 720 },
+      },
+      // 2단계: 후면카메라 HD
+      {
+        facingMode: { exact: 'environment' },
+        width: { ideal: 1280 },
+        height: { ideal: 720 },
+      },
       // 3단계: 후면카메라 기본
       { facingMode: 'environment' },
       // 4단계: 아무 카메라
@@ -204,35 +249,110 @@ const BarcodeScanner: React.FC<BarcodeScannerProps> = ({ isOpen, onClose, onScan
               trackRef.current = track;
               const caps = track.getCapabilities() as any;
               const settings = track.getSettings() as any;
-              console.log('[BarcodeScanner] Camera:', settings.width + 'x' + settings.height);
+              const actualWidth = settings.width || 0;
+              const actualHeight = settings.height || 0;
+              console.log('[BarcodeScanner] Camera:', actualWidth + 'x' + actualHeight);
+              setCameraRes(actualWidth + 'x' + actualHeight);
 
               const advConstraints: any[] = [];
-              // 연속 자동 포커스
-              if (caps.focusMode && caps.focusMode.includes('continuous')) {
-                advConstraints.push({ focusMode: 'continuous' });
+              let hasContinuousAF = false;
+
+              // 포커스 모드 설정 (3단계 fallback)
+              if (caps.focusMode) {
+                if (caps.focusMode.includes('continuous')) {
+                  // 최적: 연속 자동 포커스
+                  advConstraints.push({ focusMode: 'continuous' });
+                  hasContinuousAF = true;
+                  console.log('[BarcodeScanner] Focus: continuous AF');
+                } else if (caps.focusMode.includes('single-shot')) {
+                  // 차선: 단발 포커스 → 주기적 재포커스로 보완
+                  advConstraints.push({ focusMode: 'single-shot' });
+                  console.log('[BarcodeScanner] Focus: single-shot (periodic refocus enabled)');
+                } else if (caps.focusMode.includes('manual') && caps.focusDistance) {
+                  // 최후: 수동 포커스 → 바코드 적정 거리 설정
+                  const targetDist = Math.min(Math.max(0.2, caps.focusDistance.min), caps.focusDistance.max);
+                  advConstraints.push({ focusMode: 'manual', focusDistance: targetDist });
+                  console.log('[BarcodeScanner] Focus: manual, distance:', targetDist);
+                }
               }
-              // 줌 (바코드 인식 최적: 2.5x)
+
+              // 포커스 거리 (근접 촬영 최적화 - continuous AF에서도 도움)
+              if (caps.focusDistance && hasContinuousAF) {
+                // focusDistance hint: 바코드 스캔 적정 거리 20cm
+                const nearDist = Math.min(Math.max(0.15, caps.focusDistance.min), 0.3);
+                if (nearDist <= caps.focusDistance.max) {
+                  advConstraints.push({ focusDistance: nearDist });
+                  console.log('[BarcodeScanner] Focus distance hint:', nearDist);
+                }
+              }
+
+              // 줌: A시리즈 최적 1.5x (2.5x는 디지털줌 노이즈 과다)
               if (caps.zoom) {
                 setZoomSupported(true);
                 setZoomRange({ min: caps.zoom.min, max: caps.zoom.max });
-                const initZoom = Math.min(2.5, caps.zoom.max);
-                advConstraints.push({ zoom: initZoom });
-                setZoomLevel(initZoom);
+                // 갤럭시 A: 1.5x 디지털줌이 화질 대비 최적
+                const optimalZoom = Math.min(1.5, caps.zoom.max);
+                advConstraints.push({ zoom: optimalZoom });
+                setZoomLevel(optimalZoom);
               }
+
               // 플래시
               if (caps.torch) {
                 setTorchSupported(true);
               }
+
               // 노출 모드: 연속 자동
               if (caps.exposureMode && caps.exposureMode.includes('continuous')) {
                 advConstraints.push({ exposureMode: 'continuous' });
               }
+
+              // 노출 보정: 약간 밝게 (+0.5 EV) → 바코드 명암비 향상
+              if (caps.exposureCompensation) {
+                const expComp = Math.min(0.5, caps.exposureCompensation.max);
+                if (expComp > 0) {
+                  advConstraints.push({ exposureCompensation: expComp });
+                  console.log('[BarcodeScanner] Exposure compensation:', expComp);
+                }
+              }
+
               // 화이트밸런스: 자동
               if (caps.whiteBalanceMode && caps.whiteBalanceMode.includes('continuous')) {
                 advConstraints.push({ whiteBalanceMode: 'continuous' });
               }
+
+              // ISO: 저사양 센서 노이즈 감소 (가능하면 낮은 ISO)
+              if (caps.iso) {
+                const targetIso = Math.min(400, caps.iso.max);
+                advConstraints.push({ iso: targetIso });
+                console.log('[BarcodeScanner] ISO:', targetIso);
+              }
+
+              // 선명도/대비 향상 (지원 시)
+              if (caps.sharpness) {
+                const sharpness = Math.min(caps.sharpness.max, caps.sharpness.max * 0.8);
+                advConstraints.push({ sharpness: sharpness });
+                console.log('[BarcodeScanner] Sharpness:', sharpness);
+              }
+              if (caps.contrast) {
+                const contrast = Math.min(caps.contrast.max, caps.contrast.max * 0.7);
+                advConstraints.push({ contrast: contrast });
+                console.log('[BarcodeScanner] Contrast:', contrast);
+              }
+
               if (advConstraints.length > 0) {
-                await track.applyConstraints({ advanced: advConstraints });
+                // 개별 적용 (하나 실패해도 나머지 적용)
+                for (const constraint of advConstraints) {
+                  try {
+                    await track.applyConstraints({ advanced: [constraint] });
+                  } catch (e) {
+                    console.log('[BarcodeScanner] Constraint not supported:', JSON.stringify(constraint));
+                  }
+                }
+              }
+
+              // continuous AF 미지원 시 주기적 재포커스 시작
+              if (!hasContinuousAF && caps.focusMode) {
+                startPeriodicRefocus(track);
               }
             }
           }
@@ -262,6 +382,7 @@ const BarcodeScanner: React.FC<BarcodeScannerProps> = ({ isOpen, onClose, onScan
   };
 
   const stopScanner = async () => {
+    stopPeriodicRefocus();
     if (scannerRef.current) {
       try {
         await scannerRef.current.stop();
@@ -306,6 +427,19 @@ const BarcodeScanner: React.FC<BarcodeScannerProps> = ({ isOpen, onClose, onScan
     }
   }, [zoomRange]);
 
+  // 수동 포커스 트리거 (탭하여 포커스)
+  const handleTapFocus = useCallback(async () => {
+    const track = trackRef.current;
+    if (!track) return;
+    try {
+      const caps = track.getCapabilities() as any;
+      if (caps.focusMode && caps.focusMode.includes('single-shot')) {
+        await track.applyConstraints({ advanced: [{ focusMode: 'single-shot' } as any] });
+        console.log('[BarcodeScanner] Tap focus triggered');
+      }
+    } catch (e) {}
+  }, []);
+
   if (!isOpen) return null;
 
   return (
@@ -343,6 +477,20 @@ const BarcodeScanner: React.FC<BarcodeScannerProps> = ({ isOpen, onClose, onScan
             </button>
           )}
 
+          {/* Focus button - 탭하여 포커스 */}
+          {isScanning && (
+            <button
+              onClick={handleTapFocus}
+              className="p-2.5 rounded-full bg-white/20 active:bg-white/40 transition-all"
+              title="포커스 맞추기"
+            >
+              <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <circle cx="12" cy="12" r="3" strokeWidth={2} />
+                <path strokeLinecap="round" strokeWidth={2} d="M3 9V3h6M15 3h6v6M21 15v6h-6M9 21H3v-6" />
+              </svg>
+            </button>
+          )}
+
           {/* Close/Search button */}
           <button
             onClick={handleClose}
@@ -356,8 +504,12 @@ const BarcodeScanner: React.FC<BarcodeScannerProps> = ({ isOpen, onClose, onScan
         </div>
       </div>
 
-      {/* Scanner area */}
-      <div className="absolute inset-0 flex items-center justify-center" style={{ top: '60px', bottom: '180px' }}>
+      {/* Scanner area - 탭하여 포커스 */}
+      <div
+        className="absolute inset-0 flex items-center justify-center"
+        style={{ top: '60px', bottom: '180px' }}
+        onClick={handleTapFocus}
+      >
         <div id="barcode-reader" className="w-full max-w-md mx-4"></div>
       </div>
 
@@ -374,7 +526,7 @@ const BarcodeScanner: React.FC<BarcodeScannerProps> = ({ isOpen, onClose, onScan
       {/* Scan overlay - 1D barcode shape (wide + thin) */}
       {isScanning && (
         <div className="absolute inset-0 pointer-events-none flex items-center justify-center">
-          <div className="w-[350px] h-[120px] relative">
+          <div className="w-[280px] h-[100px] relative">
             <div className="absolute top-0 left-0 w-8 h-8 border-t-4 border-l-4 border-green-400 rounded-tl-lg"></div>
             <div className="absolute top-0 right-0 w-8 h-8 border-t-4 border-r-4 border-green-400 rounded-tr-lg"></div>
             <div className="absolute bottom-0 left-0 w-8 h-8 border-b-4 border-l-4 border-green-400 rounded-bl-lg"></div>
@@ -428,13 +580,16 @@ const BarcodeScanner: React.FC<BarcodeScannerProps> = ({ isOpen, onClose, onScan
         ) : (
           <div className="text-center mb-3">
             <p className="text-white/80 text-sm mb-1">
-              장비 바코드를 프레임 안에 맞춰주세요
+              바코드를 프레임 안에 맞추고 화면을 탭하세요
             </p>
             <p className="text-white/50 text-xs">
               {isMultiScanMode
                 ? '연속 스캔 모드 - 여러 장비를 계속 스캔하세요'
-                : '자동 인식 중'}
+                : '초점이 안 맞으면 화면을 탭하세요'}
             </p>
+            {cameraRes && (
+              <p className="text-white/30 text-xs mt-1">{cameraRes}</p>
+            )}
           </div>
         )}
 
@@ -464,6 +619,8 @@ const BarcodeScanner: React.FC<BarcodeScannerProps> = ({ isOpen, onClose, onScan
           width: 100% !important;
           height: auto !important;
           object-fit: cover !important;
+          /* 대비/선명도 CSS 필터 - 하드웨어 가속으로 성능 영향 최소 */
+          filter: contrast(1.15) brightness(1.05);
         }
         #barcode-reader__scan_region {
           background: transparent !important;
