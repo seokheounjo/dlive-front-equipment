@@ -663,6 +663,8 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
             CRR_ID: userInfo.crrId || '',
             SO_ID: selectedSoId || '',
           };
+          if (selectedItemMidCd) inspectionParams.ITEM_MID_CD = selectedItemMidCd;
+          if (selectedEqtClCd) inspectionParams.EQT_CL_CD = selectedEqtClCd;
           if (eqtSerno) inspectionParams.EQT_SERNO = eqtSerno;
           console.log('[검사대기] API 호출 파라미터:', inspectionParams);
           try {
@@ -673,11 +675,9 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
               inspectionParams
             );
             if (Array.isArray(inspectionResult)) {
-              // STB(ITEM_MID_CD='04')만 필터링
-              let filtered = inspectionResult.filter((item: any) => item.ITEM_MID_CD === '04');
-              console.log('[검사대기] API 결과:', inspectionResult.length, '건, STB만:', filtered.length, '건');
+              console.log('[검사대기] API 결과:', inspectionResult.length, '건');
               // 검사대기 표시용 태그 추가
-              allResults.push(...filtered.map(item => ({ ...item, _category: 'INSPECTION_WAITING' })));
+              allResults.push(...inspectionResult.map(item => ({ ...item, _category: 'INSPECTION_WAITING' })));
             }
           } catch (e) {
             console.log('검사대기 조회 실패:', e);

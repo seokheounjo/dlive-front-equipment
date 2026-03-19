@@ -5860,7 +5860,7 @@ export const getEquipmentReturnRequestListAll = async (params: {
   console.log('[getEquipmentReturnRequestListAll] 최종 페이로드:', requestParams);
 
   try {
-    const response = await fetchWithRetry(`${API_BASE}/customer/equipment/getEquipmentReturnRequestList`, {
+    const response = await fetch(`${API_BASE}/customer/equipment/getEquipmentReturnRequestList_All`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
