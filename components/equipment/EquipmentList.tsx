@@ -1079,8 +1079,6 @@ const EquipmentList: React.FC<EquipmentListProps> = ({ onBack, showToast }) => {
           </div>
         )}
 
-        {/* 하단 여백 (고정 버튼 공간) */}
-        {equipmentDetail && equipmentDetail.EQT_LOC_TP_CD !== '4' && equipmentDetail.EQT_LOC_TP_CD_NM !== '고객' && <div className="h-16"></div>}
 
         {/* 이관 확인 팝업 */}
         {showTransferModal && equipmentDetail && (
@@ -1306,9 +1304,9 @@ const EquipmentList: React.FC<EquipmentListProps> = ({ onBack, showToast }) => {
           </div>
         )}
 
-        {/* 기사보유장비로 이관 - 하단 고정 버튼 */}
+        {/* 기사보유장비로 이관 - 스크롤 하단 버튼 */}
         {equipmentDetail && equipmentDetail.EQT_LOC_TP_CD !== '4' && equipmentDetail.EQT_LOC_TP_CD_NM !== '고객' && (
-          <div className="fixed bottom-[68px] left-0 right-0 px-4 pb-2 z-40">
+          <div className="px-0 pt-3 pb-24">
             <button
               onClick={handleTransferToMe}
               disabled={isTransferring}
