@@ -1544,7 +1544,7 @@ const CustomerInfoChange: React.FC<CustomerInfoChangeProps> = ({
               )}
 
               {/* 데이터 없음 */}
-              {!isLoadingHpPay && hpPayLoaded && filteredHpPayList.length === 0 && (
+              {!isLoadingHpPay && hpPayLoaded && hpPayList.length === 0 && (
                 <div className="text-center py-8 text-gray-500">
                   <Smartphone className="w-12 h-12 text-gray-300 mx-auto mb-2" />
                   <p>사용중인 휴대폰결제 내역이 없습니다.</p>
