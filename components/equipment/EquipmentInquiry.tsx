@@ -478,12 +478,15 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
         if (selectedCategory === 'OWNED') {
           try {
             // 보유장비 조회
-            const apiParams = {
+            const apiParams: any = {
               WRKR_ID: userInfo.userId,
-              CRR_ID: userInfo.crrId || '',  // 협력업체 ID (필수!)
-              SO_ID: selectedSoId || '',  // 빈 문자열 = 전체 SO 조회 (이관된 장비 포함)
+              CRR_ID: userInfo.crrId || '',
+              SO_ID: selectedSoId || '',
             };
-            console.log('[DEBUG] 보유장비 API 호출 파라미터:', apiParams);
+            if (selectedItemMidCd) apiParams.ITEM_MID_CD = selectedItemMidCd;
+            if (selectedEqtClCd) apiParams.EQT_CL_CD = selectedEqtClCd;
+            if (eqtSerno) apiParams.EQT_SERNO = eqtSerno;
+            console.log('[보유장비] API 호출 파라미터:', apiParams);
 
             const ownedResult = await debugApiCall(
               'EquipmentInquiry',
@@ -593,11 +596,13 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
         }
         // 반납요청 선택 시 - getEquipmentReturnRequestListAll 사용 (phoneNumberManager)
         if (selectedCategory === 'RETURN_REQUESTED') {
-          const returnParams = {
+          const returnParams: any = {
             WRKR_ID: userInfo.userId,
-            SO_ID: selectedSoId || '',  // 빈 문자열 = 전체 SO 조회
-            CRR_ID: userInfo.crrId || '',  // 협력업체 ID
+            SO_ID: selectedSoId || '',
+            CRR_ID: userInfo.crrId || '',
           };
+          if (selectedItemMidCd) returnParams.ITEM_MID_CD = selectedItemMidCd;
+          if (selectedEqtClCd) returnParams.EQT_CL_CD = selectedEqtClCd;
           console.log('[반납요청] API 호출 파라미터:', returnParams);
           try {
             const returnResult = await debugApiCall(
@@ -653,11 +658,13 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
 
         // 검사대기 선택 시 - getEquipmentChkStndByA_All API 사용 + STB만 표시
         if (selectedCategory === 'INSPECTION_WAITING') {
-          const inspectionParams = {
+          const inspectionParams: any = {
             WRKR_ID: userInfo.userId,
             CRR_ID: userInfo.crrId || '',
             SO_ID: selectedSoId || '',
           };
+          if (eqtSerno) inspectionParams.EQT_SERNO = eqtSerno;
+          console.log('[검사대기] API 호출 파라미터:', inspectionParams);
           try {
             const inspectionResult = await debugApiCall(
               'EquipmentInquiry',
