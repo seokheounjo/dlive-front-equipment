@@ -1691,7 +1691,7 @@ const EquipmentManagement: React.FC<EquipmentManagementProps> = ({ workItem, onS
               <RotateCcw className="w-4 h-4 sm:w-5 sm:h-5 text-orange-500" />
               철거장비
             </h4>
-            <span className="px-2 sm:px-2.5 py-0.5 sm:py-1 bg-orange-100 text-orange-700 text-[10px] sm:text-xs font-semibold rounded-full">
+            <span className="px-2 sm:px-2.5 py-0.5 sm:py-1 bg-orange-100 text-orange-700 text-[0.625rem] sm:text-xs font-semibold rounded-full">
               {removeEquipments.length}개
             </span>
           </div>
@@ -1833,7 +1833,7 @@ const EquipmentManagement: React.FC<EquipmentManagementProps> = ({ workItem, onS
             <h4 className="text-sm sm:text-base font-bold text-gray-900 flex items-center gap-2">
               📦 고객 설치 장비
             </h4>
-            <span className="px-2 sm:px-2.5 py-0.5 sm:py-1 bg-blue-100 text-blue-700 text-[10px] sm:text-xs font-semibold rounded-full">
+            <span className="px-2 sm:px-2.5 py-0.5 sm:py-1 bg-blue-100 text-blue-700 text-[0.625rem] sm:text-xs font-semibold rounded-full">
               {installedEquipments.length}개
             </span>
           </div>
@@ -1916,7 +1916,7 @@ const EquipmentManagement: React.FC<EquipmentManagementProps> = ({ workItem, onS
               <RotateCcw className="w-4 h-4 sm:w-5 sm:h-5 text-orange-500" />
               회수 장비
             </h4>
-            <span className="px-2 sm:px-2.5 py-0.5 sm:py-1 bg-orange-100 text-orange-700 text-[10px] sm:text-xs font-semibold rounded-full">
+            <span className="px-2 sm:px-2.5 py-0.5 sm:py-1 bg-orange-100 text-orange-700 text-[0.625rem] sm:text-xs font-semibold rounded-full">
               {markedForRemoval.length}개
             </span>
           </div>
@@ -2278,7 +2278,7 @@ const EquipmentManagement: React.FC<EquipmentManagementProps> = ({ workItem, onS
               회수 장비 재사용
               {selectedContract && <span className="text-green-600"> ({selectedContract.type})</span>}
             </h4>
-            <span className="px-2 sm:px-2.5 py-0.5 sm:py-1 bg-green-100 text-green-700 text-[10px] sm:text-xs font-semibold rounded-full">
+            <span className="px-2 sm:px-2.5 py-0.5 sm:py-1 bg-green-100 text-green-700 text-[0.625rem] sm:text-xs font-semibold rounded-full">
               {reusableEquipments.length}개
             </span>
           </div>
@@ -2323,7 +2323,7 @@ const EquipmentManagement: React.FC<EquipmentManagementProps> = ({ workItem, onS
               <RotateCcw className="w-4 h-4 sm:w-5 sm:h-5 text-orange-500" />
               회수 장비
             </h4>
-            <span className="px-2 sm:px-2.5 py-0.5 sm:py-1 bg-orange-100 text-orange-700 text-[10px] sm:text-xs font-semibold rounded-full">
+            <span className="px-2 sm:px-2.5 py-0.5 sm:py-1 bg-orange-100 text-orange-700 text-[0.625rem] sm:text-xs font-semibold rounded-full">
               {markedForRemoval.length}개
             </span>
           </div>

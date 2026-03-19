@@ -1508,7 +1508,7 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
               </svg>
               <span className="text-sm font-semibold text-gray-700">상세 필터</span>
               {(selectedSoId || selectedItemMidCd || eqtSerno) && (
-                <span className="px-1.5 py-0.5 bg-blue-500 text-white text-[10px] rounded-full font-medium">
+                <span className="px-1.5 py-0.5 bg-blue-500 text-white text-[0.625rem] rounded-full font-medium">
                   {getFilterCount()}
                 </span>
               )}
@@ -1528,7 +1528,7 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
             <div className="p-4 border-t border-gray-100 space-y-3">
               {/* 지점 */}
               <div className="flex items-center gap-2">
-                <label className="text-xs font-medium text-gray-600 w-14 flex-shrink-0">지점</label>
+                <label className="text-xs font-medium text-gray-600 flex-shrink-0 whitespace-nowrap">지점</label>
                 <Select
                   value={selectedSoId}
                   onValueChange={(val) => setSelectedSoId(val)}
@@ -1542,7 +1542,7 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
               </div>
               {/* 장비종류 (중분류 + 소분류 한 줄) - 검사대기 시 비활성 */}
               <div className="flex items-center gap-2 overflow-hidden">
-                <label className="text-xs font-medium text-gray-600 w-14 flex-shrink-0">장비종류</label>
+                <label className="text-xs font-medium text-gray-600 flex-shrink-0 whitespace-nowrap">장비종류</label>
                 <Select
                   value={selectedCategory === 'INSPECTION_WAITING' ? '' : selectedItemMidCd}
                   onValueChange={(val) => setSelectedItemMidCd(val)}
@@ -1565,7 +1565,7 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
               </div>
               {/* S/N + 스캔 버튼 */}
               <div className="flex items-center gap-2 overflow-hidden">
-                <label className="text-xs font-medium text-gray-600 w-14 flex-shrink-0">S/N</label>
+                <label className="text-xs font-medium text-gray-600 flex-shrink-0 whitespace-nowrap">S/N</label>
                 <input
                   type="text"
                   value={eqtSerno}
@@ -1708,7 +1708,7 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
                                 disabled={selectableItems.length === 0}
                               />
                               <span className="text-xs font-semibold text-gray-700">{itemMidKey}</span>
-                              <span className="text-[10px] text-gray-500 bg-gray-200 px-1.5 py-0.5 rounded">
+                              <span className="text-[0.625rem] text-gray-500 bg-gray-200 px-1.5 py-0.5 rounded">
                                 {items.length}건 {checkedCount > 0 && `(${checkedCount}선택)`}
                               </span>
                             </div>
@@ -1834,11 +1834,11 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
                         {/* 간단히와 동일: [품목] S/N | MAC [상태] */}
                         <div className="flex items-center justify-between mb-3">
                           <div className="flex items-center gap-2 min-w-0 flex-1 mr-2">
-                            <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium flex-shrink-0 ${getItemColor(item.ITEM_MID_CD)}`}>
+                            <span className={`px-1.5 py-0.5 rounded text-[0.625rem] font-medium flex-shrink-0 ${getItemColor(item.ITEM_MID_CD)}`}>
                               {item.ITEM_MID_NM || '장비'}
                             </span>
                             {isTodayTermination(item.EQT_USE_END_DT) && (
-                              <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-red-500 text-white flex-shrink-0">
+                              <span className="px-1.5 py-0.5 rounded text-[0.625rem] font-bold bg-red-500 text-white flex-shrink-0">
                                 당일해지
                               </span>
                             )}
@@ -2115,9 +2115,9 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
                   {equipmentList.filter(item => item.CHK).map((item, idx) => (
                     <tr key={idx} className="border-t border-gray-100">
                       <td className="px-2 py-1.5">{item.ITEM_NM || item.EQT_CL_NM}</td>
-                      <td className="px-2 py-1.5 font-mono text-[10px]">{item.EQT_SERNO}</td>
+                      <td className="px-2 py-1.5 font-mono text-[0.625rem]">{item.EQT_SERNO}</td>
                       <td className="px-2 py-1.5">
-                        <span className={`px-1 py-0.5 rounded text-[10px] ${item.EQT_USE_ARR_YN === 'Y' ? 'bg-green-100 text-green-700' : item.EQT_USE_ARR_YN === 'A' ? 'bg-amber-100 text-amber-700' : item.EQT_USE_ARR_YN === 'N' ? 'bg-red-100 text-red-700' : 'bg-gray-100 text-gray-600'}`}>
+                        <span className={`px-1 py-0.5 rounded text-[0.625rem] ${item.EQT_USE_ARR_YN === 'Y' ? 'bg-green-100 text-green-700' : item.EQT_USE_ARR_YN === 'A' ? 'bg-amber-100 text-amber-700' : item.EQT_USE_ARR_YN === 'N' ? 'bg-red-100 text-red-700' : 'bg-gray-100 text-gray-600'}`}>
                           {item.EQT_STAT_NM || (item.EQT_USE_ARR_YN === 'Y' ? '사용가능' : item.EQT_USE_ARR_YN === 'A' ? '검사대기' : item.EQT_USE_ARR_YN === 'N' ? '사용불가' : 'N/A')}
                         </span>
                       </td>
@@ -2159,7 +2159,7 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
           onClick={() => setShowReasonWarning(false)}
         >
           <div
-            className="bg-white rounded-xl p-5 mx-4 shadow-2xl max-w-sm animate-pulse"
+            className="bg-white rounded-xl p-5 mx-4 shadow-2xl max-w-md animate-pulse"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center gap-3 mb-3">
@@ -2258,9 +2258,9 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
                   <tbody>
                     <tr className="border-t border-gray-100">
                       <td className="px-2 py-1.5">{selectedEquipment.ITEM_NM || selectedEquipment.EQT_CL_NM}</td>
-                      <td className="px-2 py-1.5 font-mono text-[10px]">{selectedEquipment.EQT_SERNO}</td>
+                      <td className="px-2 py-1.5 font-mono text-[0.625rem]">{selectedEquipment.EQT_SERNO}</td>
                       <td className="px-2 py-1.5">
-                        <span className={`px-1 py-0.5 rounded text-[10px] ${selectedEquipment.EQT_USE_ARR_YN === 'Y' ? 'bg-green-100 text-green-700' : selectedEquipment.EQT_USE_ARR_YN === 'A' ? 'bg-amber-100 text-amber-700' : selectedEquipment.EQT_USE_ARR_YN === 'N' ? 'bg-red-100 text-red-700' : 'bg-gray-100 text-gray-600'}`}>
+                        <span className={`px-1 py-0.5 rounded text-[0.625rem] ${selectedEquipment.EQT_USE_ARR_YN === 'Y' ? 'bg-green-100 text-green-700' : selectedEquipment.EQT_USE_ARR_YN === 'A' ? 'bg-amber-100 text-amber-700' : selectedEquipment.EQT_USE_ARR_YN === 'N' ? 'bg-red-100 text-red-700' : 'bg-gray-100 text-gray-600'}`}>
                           {selectedEquipment.EQT_STAT_NM || (selectedEquipment.EQT_USE_ARR_YN === 'Y' ? '사용가능' : selectedEquipment.EQT_USE_ARR_YN === 'A' ? '검사대기' : selectedEquipment.EQT_USE_ARR_YN === 'N' ? '사용불가' : 'N/A')}
                         </span>
                       </td>
@@ -2387,7 +2387,7 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
                           <span className="text-green-600">{item.ITEM_NM}</span>
                         </div>
                         {item.note && (
-                          <div className="text-amber-600 mt-1 text-[10px]">⚠️ {item.note}</div>
+                          <div className="text-amber-600 mt-1 text-[0.625rem]">⚠️ {item.note}</div>
                         )}
                       </div>
                     ))}

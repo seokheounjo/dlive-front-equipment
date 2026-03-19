@@ -91,7 +91,7 @@ const SignalHistoryList: React.FC<SignalHistoryListProps> = ({ onBack }) => {
         <div className="space-y-2">
           {/* 조회기간 - 한 줄 레이아웃 */}
           <div className="flex items-center gap-1.5">
-            <label className="text-xs font-medium text-gray-600 w-14 flex-shrink-0">조회기간</label>
+            <label className="text-xs font-medium text-gray-600 flex-shrink-0 whitespace-nowrap">조회기간</label>
             <div className="flex-1 flex items-center gap-1 min-w-0">
               <div className="relative flex-1 min-w-0">
                 <input

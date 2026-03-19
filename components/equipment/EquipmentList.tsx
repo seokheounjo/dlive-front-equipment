@@ -592,7 +592,7 @@ const EquipmentList: React.FC<EquipmentListProps> = ({ onBack, showToast }) => {
     // 정보 필드 렌더링 헬퍼
   const InfoRow: React.FC<{ label: string; value: string | number | undefined | null }> = ({ label, value }) => (
     <div className="flex border-b border-gray-100 py-1.5">
-      <span className="w-28 flex-shrink-0 text-xs text-gray-500">{label}</span>
+      <span className="flex-shrink-0 whitespace-nowrap text-xs text-gray-500">{label}</span>
       <span className="flex-1 text-xs text-gray-900 font-medium break-all">{value || '-'}</span>
     </div>
   );
@@ -696,7 +696,7 @@ const EquipmentList: React.FC<EquipmentListProps> = ({ onBack, showToast }) => {
           <div className="space-y-3">
             {/* S/N + 스캔 버튼 */}
             <div className="flex items-center gap-2 overflow-hidden">
-              <label className="text-xs font-medium text-gray-600 w-14 flex-shrink-0">S/N</label>
+              <label className="text-xs font-medium text-gray-600 flex-shrink-0 whitespace-nowrap">S/N</label>
               <input
                 ref={inputRef}
                 type="text"
@@ -779,7 +779,7 @@ const EquipmentList: React.FC<EquipmentListProps> = ({ onBack, showToast }) => {
                         {item.EQT_SERNO || '-'}
                       </span>
                     </div>
-                    <div className="text-[10px] text-gray-400 mt-0.5">
+                    <div className="text-[0.625rem] text-gray-400 mt-0.5">
                       {item.EQT_STAT_CD_NM || item.EQT_USE_STAT_CD_NM || ''}
                       {(() => {
                         const worker = parseWorkerFromLocNm(item.EQT_LOC_NM);
@@ -848,32 +848,32 @@ const EquipmentList: React.FC<EquipmentListProps> = ({ onBack, showToast }) => {
                         </span>
                       </div>
                       <div className="flex items-center gap-1.5 flex-shrink-0">
-                        <span className={`px-1.5 py-0.5 rounded text-[10px] font-semibold whitespace-nowrap ${
+                        <span className={`px-1.5 py-0.5 rounded text-[0.625rem] font-semibold whitespace-nowrap ${
                           enrichedItem.EQT_STAT_CD === '10' ? 'bg-green-100 text-green-700' :
                           enrichedItem.EQT_STAT_CD === '20' ? 'bg-blue-100 text-blue-700' :
                           'bg-gray-100 text-gray-700'
                         }`}>
                           {enrichedItem.EQT_STAT_CD_NM || '-'}
                         </span>
-                        <span className="text-[10px] text-blue-500 whitespace-nowrap">→</span>
+                        <span className="text-[0.625rem] text-blue-500 whitespace-nowrap">→</span>
                       </div>
                     </div>
                     {/* 상세 정보 */}
                     <div className="space-y-1 text-xs">
                       <div className="flex">
-                        <span className="text-gray-400 w-8 flex-shrink-0">S/N</span>
+                        <span className="text-gray-400 flex-shrink-0 whitespace-nowrap mr-1">S/N</span>
                         <span className="font-mono text-gray-800 truncate">{enrichedItem.EQT_SERNO || '-'}</span>
                       </div>
                       <div className="flex">
-                        <span className="text-gray-400 w-8 flex-shrink-0">MAC</span>
+                        <span className="text-gray-400 flex-shrink-0 whitespace-nowrap mr-1">MAC</span>
                         <span className="font-mono text-gray-700 truncate">{enrichedItem.MAC_ADDRESS || '-'}</span>
                       </div>
                       <div className="flex">
-                        <span className="text-gray-400 w-8 flex-shrink-0">No.</span>
+                        <span className="text-gray-400 flex-shrink-0 whitespace-nowrap mr-1">No.</span>
                         <span className="font-mono text-gray-700 truncate">{enrichedItem.EQT_NO || '-'}</span>
                       </div>
                       <div className="flex">
-                        <span className="text-gray-400 w-8 flex-shrink-0">위치</span>
+                        <span className="text-gray-400 flex-shrink-0 whitespace-nowrap mr-1">위치</span>
                         <span className="text-gray-700">{enrichedItem.EQT_LOC_TP_CD_NM || '-'}</span>
                         {enrichedItem.EQT_LOC_NM && (
                           <span className="text-gray-500 ml-1 truncate">· {enrichedItem.EQT_LOC_NM}</span>
@@ -944,11 +944,11 @@ const EquipmentList: React.FC<EquipmentListProps> = ({ onBack, showToast }) => {
                   </h4>
                 </div>
                 <div className="flex border-b border-amber-200 py-1.5">
-                  <span className="w-28 flex-shrink-0 text-xs text-amber-700 font-medium">장비상태</span>
+                  <span className="flex-shrink-0 whitespace-nowrap text-xs text-amber-700 font-medium">장비상태</span>
                   <span className="flex-1 text-xs text-gray-900 font-medium break-all">{equipmentDetail.EQT_STAT_CD_NM || equipmentDetail.EQT_STAT_CD || '-'}</span>
                 </div>
                 <div className="flex border-b border-amber-200 py-1.5">
-                  <span className="w-28 flex-shrink-0 text-xs text-amber-700 font-medium">사용가능여부</span>
+                  <span className="flex-shrink-0 whitespace-nowrap text-xs text-amber-700 font-medium">사용가능여부</span>
                   <span className={`flex-1 text-xs font-bold break-all ${
                     equipmentDetail.EQT_USE_ARR_YN === 'Y' ? 'text-green-600' :
                     equipmentDetail.EQT_USE_ARR_YN === 'A' ? 'text-purple-600' :
@@ -956,7 +956,7 @@ const EquipmentList: React.FC<EquipmentListProps> = ({ onBack, showToast }) => {
                   }`}>{equipmentDetail.EQT_USE_ARR_YN_NM || equipmentDetail.EQT_USE_ARR_YN || '-'}</span>
                 </div>
                 <div className="flex py-1.5">
-                  <span className="w-28 flex-shrink-0 text-xs text-amber-700 font-medium">사용종료일</span>
+                  <span className="flex-shrink-0 whitespace-nowrap text-xs text-amber-700 font-medium">사용종료일</span>
                   <span className="flex-1 text-xs text-gray-900 font-medium break-all">{equipmentDetail.EQT_USE_END_DT || '-'}</span>
                 </div>
               </div>
@@ -1083,7 +1083,7 @@ const EquipmentList: React.FC<EquipmentListProps> = ({ onBack, showToast }) => {
         {/* 이관 확인 팝업 */}
         {showTransferModal && equipmentDetail && (
           <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm">
+            <div className="bg-white rounded-2xl shadow-xl w-full max-w-md">
               <div className="px-5 py-4 border-b border-gray-100">
                 <h3 className="text-base font-bold text-gray-800">기사보유장비로 이관</h3>
               </div>
@@ -1153,7 +1153,7 @@ const EquipmentList: React.FC<EquipmentListProps> = ({ onBack, showToast }) => {
         {/* 복수 결과 선택 모달 */}
         {showMultipleResultModal && multipleResults.length > 0 && (
           <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm sm:max-w-md max-h-[90vh] flex flex-col">
+            <div className="bg-white rounded-2xl shadow-xl w-full max-w-md sm:max-w-md max-h-[90vh] flex flex-col">
               {/* 모달 헤더 */}
               <div className="px-4 sm:px-5 py-3 sm:py-4 border-b border-gray-100 bg-gradient-to-r from-blue-50 to-white rounded-t-2xl flex-shrink-0">
                 <div className="flex items-center justify-between">
@@ -1235,35 +1235,35 @@ const EquipmentList: React.FC<EquipmentListProps> = ({ onBack, showToast }) => {
                       {/* 상세 정보 */}
                       <div className="space-y-1.5 text-xs bg-white/60 rounded-lg p-2.5">
                         <div className="flex">
-                          <span className="text-gray-400 w-16 flex-shrink-0">S/N</span>
+                          <span className="text-gray-400 flex-shrink-0 whitespace-nowrap">S/N</span>
                           <span className="font-mono text-gray-800 font-medium">{enrichedEquipment.EQT_SERNO || '-'}</span>
                         </div>
                         <div className="flex">
-                          <span className="text-gray-400 w-16 flex-shrink-0">장비상태</span>
+                          <span className="text-gray-400 flex-shrink-0 whitespace-nowrap">장비상태</span>
                           <span className={`font-medium ${isDisposed ? 'text-red-600' : 'text-green-600'}`}>
                             {enrichedEquipment.EQT_STAT_CD_NM || '-'}
                           </span>
                         </div>
                         <div className="flex">
-                          <span className="text-gray-400 w-16 flex-shrink-0">장비타입</span>
+                          <span className="text-gray-400 flex-shrink-0 whitespace-nowrap">장비타입</span>
                           <span className={`${enrichedEquipment.EQT_TP_CD_NM === '불량' ? 'text-orange-600' : 'text-gray-700'}`}>
                             {enrichedEquipment.EQT_TP_CD_NM || '-'}
                           </span>
                         </div>
                         <div className="flex">
-                          <span className="text-gray-400 w-16 flex-shrink-0">위치</span>
+                          <span className="text-gray-400 flex-shrink-0 whitespace-nowrap">위치</span>
                           <span className="text-gray-700">
                             {enrichedEquipment.EQT_LOC_NM || enrichedEquipment.SO_NM || '-'}
                           </span>
                         </div>
                         <div className="flex">
-                          <span className="text-gray-400 w-16 flex-shrink-0">변경이력</span>
+                          <span className="text-gray-400 flex-shrink-0 whitespace-nowrap">변경이력</span>
                           <span className={`${isDisposed ? 'text-red-600 font-medium' : 'text-gray-700'}`}>
                             {enrichedEquipment.CHG_KND_CD_NM || '-'}
                           </span>
                         </div>
                         <div className="flex">
-                          <span className="text-gray-400 w-16 flex-shrink-0">변경일</span>
+                          <span className="text-gray-400 flex-shrink-0 whitespace-nowrap">변경일</span>
                           <span className="text-gray-600">
                             {enrichedEquipment.CHG_DATE ? enrichedEquipment.CHG_DATE.split(' ')[0] : '-'}
                           </span>

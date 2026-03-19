@@ -120,7 +120,7 @@ const WorkerSearchModal: React.FC<{
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-xl shadow-xl w-full max-w-sm max-h-[80vh] overflow-hidden">
+      <div className="bg-white rounded-xl shadow-xl w-full max-w-md max-h-[80vh] overflow-hidden">
         <div className="p-4 border-b border-gray-100 bg-gradient-to-r from-blue-500 to-blue-600">
           <h3 className="font-semibold text-white">{title}</h3>
           <p className="text-xs text-white/80 mt-1">{workers.length}명 검색됨</p>
@@ -1166,7 +1166,7 @@ const EquipmentMovement: React.FC<EquipmentMovementProps> = ({ onBack, showToast
         <div className="space-y-3">
           {/* 1. 기사검색 (보유기사 검색) */}
           <div className="flex items-center gap-2 overflow-hidden">
-            <label className="text-xs font-medium text-gray-600 w-14 flex-shrink-0">기사검색</label>
+            <label className="text-xs font-medium text-gray-600 flex-shrink-0 whitespace-nowrap">기사검색</label>
             <div
               className="flex-1 min-w-0 flex items-center gap-1 cursor-pointer"
               onClick={openWorkerSearchModal}
@@ -1190,7 +1190,7 @@ const EquipmentMovement: React.FC<EquipmentMovementProps> = ({ onBack, showToast
 
           {/* 2. 장비종류 (라벨 + select 2개) */}
           <div className="flex items-center gap-2 overflow-hidden">
-            <label className="text-xs font-medium text-gray-600 w-14 flex-shrink-0">장비종류</label>
+            <label className="text-xs font-medium text-gray-600 flex-shrink-0 whitespace-nowrap">장비종류</label>
             <Select
               value={selectedItemMidCd}
               onValueChange={(val) => setSelectedItemMidCd(val)}
@@ -1216,7 +1216,7 @@ const EquipmentMovement: React.FC<EquipmentMovementProps> = ({ onBack, showToast
 
           {/* 4. S/N + 스캔 버튼 */}
           <div className="flex items-center gap-2 overflow-hidden">
-            <label className="text-xs font-medium text-gray-600 w-14 flex-shrink-0">S/N</label>
+            <label className="text-xs font-medium text-gray-600 flex-shrink-0 whitespace-nowrap">S/N</label>
             <input
               type="text"
               value={serialInput}
@@ -1431,7 +1431,7 @@ const EquipmentMovement: React.FC<EquipmentMovementProps> = ({ onBack, showToast
                                 className="rounded w-4 h-4"
                               />
                               <span className="text-xs font-semibold text-gray-700">{itemTypeKey}</span>
-                              <span className="text-[10px] text-gray-500 bg-gray-200 px-1.5 py-0.5 rounded">
+                              <span className="text-[0.625rem] text-gray-500 bg-gray-200 px-1.5 py-0.5 rounded">
                                 {items.length}건 {someChecked && !allChecked && `(${items.filter(i => i.CHK).length}선택)`}
                               </span>
                             </div>
@@ -1671,12 +1671,12 @@ const EquipmentMovement: React.FC<EquipmentMovementProps> = ({ onBack, showToast
               {eqtTrnsList.filter(item => item.CHK).map((item, idx) => (
                 <div key={item.EQT_NO || idx} className="px-4 py-2 flex items-center justify-between">
                   <div className="flex items-center gap-2">
-                    <span className="px-2 py-0.5 bg-blue-100 text-blue-700 text-[10px] rounded font-medium">
+                    <span className="px-2 py-0.5 bg-blue-100 text-blue-700 text-[0.625rem] rounded font-medium">
                       {item.ITEM_MID_NM || item.EQT_CL_NM || '장비'}
                     </span>
                     <span className="text-xs font-mono text-gray-800">{item.EQT_SERNO}</span>
                   </div>
-                  <span className="text-[10px] text-gray-500">{item.SO_NM || item.SO_ID}</span>
+                  <span className="text-[0.625rem] text-gray-500">{item.SO_NM || item.SO_ID}</span>
                 </div>
               ))}
             </div>
@@ -1833,14 +1833,14 @@ const EquipmentMovement: React.FC<EquipmentMovementProps> = ({ onBack, showToast
                     />
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2">
-                        <span className="px-1.5 py-0.5 text-[10px] rounded font-medium bg-blue-100 text-blue-700">
+                        <span className="px-1.5 py-0.5 text-[0.625rem] rounded font-medium bg-blue-100 text-blue-700">
                           {item.ITEM_MID_NM || item.EQT_CL_NM || '장비'}
                         </span>
                         <span className="font-mono text-xs truncate text-gray-800">
                           {item.EQT_SERNO || '-'}
                         </span>
                       </div>
-                      <div className="text-[10px] text-gray-500 mt-1">
+                      <div className="text-[0.625rem] text-gray-500 mt-1">
                         {item.SO_NM || item.SO_ID || '미지정'}
                       </div>
                     </div>

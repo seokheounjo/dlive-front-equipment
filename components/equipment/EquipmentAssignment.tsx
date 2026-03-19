@@ -552,7 +552,7 @@ const EquipmentAssignment: React.FC<EquipmentAssignmentProps> = ({ onBack, showT
           <div className="space-y-3">
             {/* 출고일자 범위 */}
             <div className="flex items-center gap-2">
-              <label className="text-xs font-medium text-gray-600 w-14 flex-shrink-0">할당일자</label>
+              <label className="text-xs font-medium text-gray-600 flex-shrink-0 whitespace-nowrap">할당일자</label>
               <div className="flex-1 flex items-center gap-2 min-w-0">
                 <div className="relative flex-1 min-w-0">
                   <input
@@ -588,7 +588,7 @@ const EquipmentAssignment: React.FC<EquipmentAssignmentProps> = ({ onBack, showT
 
             {/* 지점 선택 */}
             <div className="flex items-center gap-2">
-              <label className="text-xs font-medium text-gray-600 w-14 flex-shrink-0">지점</label>
+              <label className="text-xs font-medium text-gray-600 flex-shrink-0 whitespace-nowrap">지점</label>
               <Select
                 value={selectedSoId}
                 onValueChange={(val) => setSelectedSoId(val)}
@@ -631,11 +631,11 @@ const EquipmentAssignment: React.FC<EquipmentAssignmentProps> = ({ onBack, showT
             </div>
             <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
               {/* 컬럼 헤더 */}
-              <div className="bg-gray-50 px-3 py-2 border-b border-gray-200 flex items-center text-[11px] font-semibold text-gray-600">
-                <span className="w-16 text-center">할당일</span>
-                <span className="w-20 text-center">협력업체</span>
+              <div className="bg-gray-50 px-3 py-2 border-b border-gray-200 flex items-center text-[0.6875rem] font-semibold text-gray-600">
+                <span className="min-w-[4rem] text-center">할당일</span>
+                <span className="min-w-[5rem] text-center">협력업체</span>
                 <span className="flex-1 text-center">출고번호</span>
-                <span className="w-20 text-center flex-shrink-0">입고상태</span>
+                <span className="min-w-[5rem] text-center flex-shrink-0">입고상태</span>
               </div>
               {/* 지점별 그룹핑된 리스트 */}
               <div>
@@ -674,11 +674,11 @@ const EquipmentAssignment: React.FC<EquipmentAssignmentProps> = ({ onBack, showT
                               : 'hover:bg-blue-50/50'
                           }`}
                         >
-                          <div className="flex items-center text-[11px]">
-                            <span className="w-16 text-center text-gray-900">{formatOutDttm(item.OUT_DTTM || item.OUT_REQ_DT)}</span>
-                            <span className="w-20 text-center text-gray-600 truncate">{item.CRR_NM || '-'}</span>
+                          <div className="flex items-center text-[0.6875rem]">
+                            <span className="min-w-[4rem] text-center text-gray-900">{formatOutDttm(item.OUT_DTTM || item.OUT_REQ_DT)}</span>
+                            <span className="min-w-[5rem] text-center text-gray-600 truncate">{item.CRR_NM || '-'}</span>
                             <span className="flex-1 text-center text-gray-700 font-mono">{item.OUT_REQ_NO}</span>
-                            <span className={`w-20 text-center px-1.5 py-0.5 rounded text-[10px] font-bold whitespace-nowrap flex-shrink-0 ${getReceiveStatusDisplay(item).color}`}>
+                            <span className={`min-w-[5rem] text-center px-1.5 py-0.5 rounded text-[0.625rem] font-bold whitespace-nowrap flex-shrink-0 ${getReceiveStatusDisplay(item).color}`}>
                               {getReceiveStatusDisplay(item).label}
                             </span>
                           </div>
@@ -782,7 +782,7 @@ const EquipmentAssignment: React.FC<EquipmentAssignmentProps> = ({ onBack, showT
                                 disabled={selectableItems.length === 0}
                               />
                               <span className="text-xs font-semibold text-gray-700">{itemTypeKey}</span>
-                              <span className="text-[10px] text-gray-500 bg-gray-200 px-1.5 py-0.5 rounded">
+                              <span className="text-[0.625rem] text-gray-500 bg-gray-200 px-1.5 py-0.5 rounded">
                                 {itemCount}건 {checkedCount > 0 && `(${checkedCount}선택)`}
                               </span>
                             </div>
@@ -908,7 +908,7 @@ const EquipmentAssignment: React.FC<EquipmentAssignmentProps> = ({ onBack, showT
                                 {/* 간단히와 동일: [품목] S/N | MAC [상태] */}
                                 <div className="flex items-center justify-between mb-3">
                                   <div className="flex items-center gap-2 min-w-0 flex-1 mr-2">
-                                    <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium flex-shrink-0 ${getItemColor(item.ITEM_MID_CD)}`}>
+                                    <span className={`px-1.5 py-0.5 rounded text-[0.625rem] font-medium flex-shrink-0 ${getItemColor(item.ITEM_MID_CD)}`}>
                                       {item.ITEM_MID_CD_NM || '장비'}
                                     </span>
                                     <span className="font-mono text-xs text-gray-800 truncate">
