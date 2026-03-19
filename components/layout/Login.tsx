@@ -70,7 +70,7 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
     e.preventDefault();
     if (!username || !password) return;
     const skipOtp = OTP_SKIP_USERS.includes(username.toUpperCase());
-    if (OTP_ENABLED && !skipOtp && (!otpCode || otpCode.length < 6)) {
+    if (OTP_ENABLED && !skipOtp && !otpCode) {
       setError('OTP 인증번호를 입력해주세요.');
       return;
     }
@@ -107,7 +107,6 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
         completeLogin(result);
       } else {
         setError(LOGIN_ERROR_MESSAGE);
-        setOtpCode('');
       }
     } catch (err: any) {
       if (err.statusCode === 503) {
@@ -140,7 +139,6 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
         completeLogin(result);
       } else {
         setError(LOGIN_ERROR_MESSAGE);
-        setOtpCode('');
       }
     } catch (err: any) {
       if (err.statusCode === 503) {
@@ -257,7 +255,6 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
                 type="text"
                 inputMode="numeric"
                 pattern="[0-9]*"
-                maxLength={6}
                 autoComplete="one-time-code"
                 disabled={!OTP_ENABLED}
                 className={`${inputBaseClasses} pl-10 pr-3 disabled:bg-white disabled:border-white disabled:cursor-not-allowed`}
@@ -265,7 +262,7 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
                 placeholder="OTP 인증번호"
                 value={otpCode}
                 onChange={(e) => {
-                  const val = e.target.value.replace(/[^0-9]/g, '').slice(0, 6);
+                  const val = e.target.value.replace(/[^0-9]/g, '');
                   setOtpCode(val);
                 }}
               />
