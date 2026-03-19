@@ -444,9 +444,9 @@ const UnpaymentCollectionModal: React.FC<UnpaymentCollectionModalProps> = ({
 
   return (
     <>
-      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+      <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50">
         <div
-          className="bg-white rounded-xl shadow-xl w-full max-w-md mx-4 max-h-[90vh] flex flex-col"
+          className="bg-white rounded-t-xl sm:rounded-xl shadow-xl w-full max-w-md sm:mx-4 max-h-[85dvh] sm:max-h-[80vh] flex flex-col"
           onClick={(e) => e.stopPropagation()}
         >
           {/* 헤더 */}
@@ -750,7 +750,7 @@ const UnpaymentCollectionModal: React.FC<UnpaymentCollectionModalProps> = ({
           </div>
 
           {/* 푸터 */}
-          <div className="p-4 border-t border-gray-200 bg-gray-50 rounded-b-xl">
+          <div className="p-4 pb-[max(1rem,env(safe-area-inset-bottom))] border-t border-gray-200 bg-gray-50 sm:rounded-b-xl">
             <div className="flex gap-2">
               <button
                 onClick={onClose}
