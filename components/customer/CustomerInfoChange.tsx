@@ -720,6 +720,12 @@ const CustomerInfoChange: React.FC<CustomerInfoChangeProps> = ({
   // 휴대폰결제: 신청/해지 그룹 분리
   const filteredHpPayList = hpPayList.filter(item => item.CTRT_STAT_NM === '사용중');
   const isHpPayActive = (stat: string) => stat === '신청' || stat.includes('휴대폰');
+  const formatHpStat = (stat: string) => {
+    if (stat === '일반(후불)결제') return '일반(후불)';
+    if (stat === '휴대폰(선불)결제') return '휴대폰결제(선불)';
+    if (stat === '휴대폰(후불)결제') return '휴대폰결제(후불)';
+    return stat;
+  };
   const hpPayApplyList = filteredHpPayList.filter(item => !isHpPayActive(item.HP_STAT));  // 일반/해제 → 신청 대상
   const hpPayCancelList = filteredHpPayList.filter(item => isHpPayActive(item.HP_STAT));  // 휴대폰결제/신청 → 해지 대상
   const [hpPayApplySelected, setHpPayApplySelected] = useState<Set<string>>(new Set());
@@ -1565,7 +1571,7 @@ const CustomerInfoChange: React.FC<CustomerInfoChangeProps> = ({
               {!isLoadingHpPay && hpPayApplyList.length > 0 && (
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
-                    <label className="flex items-center gap-2 text-sm font-medium text-purple-700">
+                    <label className="flex items-center gap-2 text-base font-semibold text-purple-700">
                       <input
                         type="checkbox"
                         checked={hpPayApplyList.length > 0 && hpPayApplySelected.size === hpPayApplyList.length}
@@ -1577,7 +1583,7 @@ const CustomerInfoChange: React.FC<CustomerInfoChangeProps> = ({
                     <button
                       onClick={handleHpPayBulkApply}
                       disabled={hpPayApplySelected.size === 0}
-                      className="px-3 py-1 text-xs font-medium bg-purple-500 text-white rounded-lg hover:bg-purple-600 disabled:bg-gray-300 transition-colors"
+                      className="px-4 py-2 text-sm font-semibold bg-purple-500 text-white rounded-lg hover:bg-purple-600 disabled:bg-gray-300 transition-colors"
                     >
                       선택 신청 ({hpPayApplySelected.size})
                     </button>
@@ -1598,14 +1604,14 @@ const CustomerInfoChange: React.FC<CustomerInfoChangeProps> = ({
                           onChange={(e) => handleHpPayItemSelect('apply', item.CTRT_ID, e.target.checked)}
                           className="w-4 h-4 text-purple-600 rounded flex-shrink-0"
                         />
-                        <span className="font-medium text-gray-800 text-sm flex-1">
+                        <span className="font-medium text-gray-800 text-base flex-1">
                           {item.PROD_NM || '상품명 없음'}
                         </span>
-                        <span className="px-2 py-0.5 text-xs rounded-full flex-shrink-0 bg-orange-100 text-orange-700">
-                          {item.HP_STAT || '해제'}
+                        <span className="px-2 py-0.5 text-sm rounded-full flex-shrink-0 bg-orange-100 text-orange-700">
+                          {formatHpStat(item.HP_STAT) || '해제'}
                         </span>
                       </div>
-                      <div className="text-xs text-gray-500 space-y-1 ml-6">
+                      <div className="text-sm text-gray-500 space-y-1 ml-6">
                         <div className="flex gap-1">
                           <span>계약ID:</span>
                           <span className="text-gray-700">{item.CTRT_ID}</span>
@@ -1620,7 +1626,7 @@ const CustomerInfoChange: React.FC<CustomerInfoChangeProps> = ({
                       <div className="mt-2 ml-6">
                         <button
                           onClick={() => handleHpPayChange(item)}
-                          className="px-3 py-1 text-xs font-medium bg-purple-500 text-white rounded-lg hover:bg-purple-600 transition-colors"
+                          className="px-5 py-2 text-sm font-semibold bg-purple-500 text-white rounded-lg hover:bg-purple-600 transition-colors"
                         >
                           신청
                         </button>
@@ -1634,7 +1640,7 @@ const CustomerInfoChange: React.FC<CustomerInfoChangeProps> = ({
               {!isLoadingHpPay && hpPayCancelList.length > 0 && (
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
-                    <label className="flex items-center gap-2 text-sm font-medium text-green-700">
+                    <label className="flex items-center gap-2 text-base font-semibold text-green-700">
                       <input
                         type="checkbox"
                         checked={hpPayCancelList.length > 0 && hpPayCancelSelected.size === hpPayCancelList.length}
@@ -1646,7 +1652,7 @@ const CustomerInfoChange: React.FC<CustomerInfoChangeProps> = ({
                     <button
                       onClick={handleHpPayBulkCancel}
                       disabled={hpPayCancelSelected.size === 0}
-                      className="px-3 py-1 text-xs font-medium bg-red-500 text-white rounded-lg hover:bg-red-600 disabled:bg-gray-300 transition-colors"
+                      className="px-4 py-2 text-sm font-semibold bg-red-500 text-white rounded-lg hover:bg-red-600 disabled:bg-gray-300 transition-colors"
                     >
                       선택 해지 ({hpPayCancelSelected.size})
                     </button>
@@ -1667,14 +1673,14 @@ const CustomerInfoChange: React.FC<CustomerInfoChangeProps> = ({
                           onChange={(e) => handleHpPayItemSelect('cancel', item.CTRT_ID, e.target.checked)}
                           className="w-4 h-4 text-green-600 rounded flex-shrink-0"
                         />
-                        <span className="font-medium text-gray-800 text-sm flex-1">
+                        <span className="font-medium text-gray-800 text-base flex-1">
                           {item.PROD_NM || '상품명 없음'}
                         </span>
-                        <span className="px-2 py-0.5 text-xs rounded-full flex-shrink-0 bg-green-100 text-green-700">
-                          {item.HP_STAT || '신청'}
+                        <span className="px-2 py-0.5 text-sm rounded-full flex-shrink-0 bg-green-100 text-green-700">
+                          {formatHpStat(item.HP_STAT) || '신청'}
                         </span>
                       </div>
-                      <div className="text-xs text-gray-500 space-y-1 ml-6">
+                      <div className="text-sm text-gray-500 space-y-1 ml-6">
                         <div className="flex gap-1">
                           <span>계약ID:</span>
                           <span className="text-gray-700">{item.CTRT_ID}</span>
@@ -1689,7 +1695,7 @@ const CustomerInfoChange: React.FC<CustomerInfoChangeProps> = ({
                       <div className="mt-2 ml-6">
                         <button
                           onClick={() => handleHpPayChange(item)}
-                          className="px-3 py-1 text-xs font-medium bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors"
+                          className="px-5 py-2 text-sm font-semibold bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors"
                         >
                           해지
                         </button>
