@@ -1082,8 +1082,8 @@ const EquipmentList: React.FC<EquipmentListProps> = ({ onBack, showToast }) => {
 
         {/* 이관 확인 팝업 */}
         {showTransferModal && equipmentDetail && (
-          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-2xl shadow-xl w-full max-w-md">
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[200] p-4">
+            <div className="bg-white rounded-2xl shadow-xl w-full max-w-md max-h-[85vh] overflow-y-auto">
               <div className="px-5 py-4 border-b border-gray-100">
                 <h3 className="text-base font-bold text-gray-800">기사보유장비로 이관</h3>
               </div>
@@ -1152,7 +1152,7 @@ const EquipmentList: React.FC<EquipmentListProps> = ({ onBack, showToast }) => {
 
         {/* 복수 결과 선택 모달 */}
         {showMultipleResultModal && multipleResults.length > 0 && (
-          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[200] p-4">
             <div className="bg-white rounded-2xl shadow-xl w-full max-w-md sm:max-w-md max-h-[90vh] flex flex-col">
               {/* 모달 헤더 */}
               <div className="px-4 sm:px-5 py-3 sm:py-4 border-b border-gray-100 bg-gradient-to-r from-blue-50 to-white rounded-t-2xl flex-shrink-0">

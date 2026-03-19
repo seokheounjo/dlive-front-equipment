@@ -155,8 +155,8 @@ const RecoveryModal: React.FC<{
   };
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-xl shadow-xl w-full max-w-md overflow-hidden">
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[200] p-4">
+      <div className="bg-white rounded-xl shadow-xl w-full max-w-md max-h-[85vh] overflow-y-auto">
         <div className="p-4 border-b border-gray-100 bg-gradient-to-r from-green-500 to-green-600">
           <h3 className="font-semibold text-white">미회수 장비 회수</h3>
           <p className="text-xs text-white/80 mt-1">{selectedItems.length}건 처리 예정</p>
@@ -303,7 +303,7 @@ const CustomerSearchModal: React.FC<{
   };
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[200] p-4">
       <div className="bg-white rounded-xl shadow-xl w-full max-w-md overflow-hidden max-h-[80vh] flex flex-col">
         {/* 헤더 */}
         <div className="p-3 border-b border-gray-100 bg-gradient-to-r from-blue-500 to-blue-600 flex-shrink-0">

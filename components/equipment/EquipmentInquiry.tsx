@@ -2300,8 +2300,8 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
 
       {/* 사용가능변경 확인 모달 */}
       {showStatusChangeConfirm && pendingStatusChangeItems.length > 0 && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-md overflow-hidden">
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[200] p-4">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-md max-h-[85vh] overflow-y-auto">
             <div className="p-4 bg-gradient-to-r from-blue-500 to-blue-600">
               <h3 className="font-semibold text-white text-lg">사용가능 변경</h3>
               <p className="text-white/80 text-sm mt-1">
@@ -2358,8 +2358,8 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
 
       {/* 상태 변경 결과 모달 */}
       {showStatusChangeResult && statusChangeResult && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-md max-h-[80vh] overflow-hidden">
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[200] p-4">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-md max-h-[85vh] overflow-y-auto">
             <div className={`p-4 ${
               statusChangeResult.failed.length === 0
                 ? 'bg-gradient-to-r from-green-500 to-green-600'
@@ -2429,8 +2429,8 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
 
       {/* 반납요청 중복 경고 모달 */}
       {showReturnWarningModal && returnWarningItems.length > 0 && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-md max-h-[80vh] overflow-hidden">
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[200] p-4">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-md max-h-[85vh] overflow-y-auto">
             <div className="p-4 bg-gradient-to-r from-amber-500 to-amber-600">
               <h3 className="font-semibold text-white text-lg flex items-center gap-2">
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">

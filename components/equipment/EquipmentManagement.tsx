@@ -2501,11 +2501,11 @@ const EquipmentManagement: React.FC<EquipmentManagementProps> = ({ workItem, onS
 
       {isSignalPopupOpen && (
         <div
-          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
+          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[200] p-4"
           onClick={() => !isSignalProcessing && setIsSignalPopupOpen(false)}
         >
           <div
-            className="bg-white rounded-xl shadow-lg max-w-md w-full overflow-hidden"
+            className="bg-white rounded-xl shadow-lg max-w-md w-full max-h-[85vh] overflow-y-auto"
             onClick={(e) => e.stopPropagation()}
           >
             {/* 헤더 */}

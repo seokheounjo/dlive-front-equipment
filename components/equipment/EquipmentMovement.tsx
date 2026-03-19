@@ -119,8 +119,8 @@ const WorkerSearchModal: React.FC<{
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-xl shadow-xl w-full max-w-md max-h-[80vh] overflow-hidden">
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[200] p-4">
+      <div className="bg-white rounded-xl shadow-xl w-full max-w-md max-h-[85vh] overflow-y-auto">
         <div className="p-4 border-b border-gray-100 bg-gradient-to-r from-blue-500 to-blue-600">
           <h3 className="font-semibold text-white">{title}</h3>
           <p className="text-xs text-white/80 mt-1">{workers.length}명 검색됨</p>
@@ -1902,8 +1902,8 @@ const EquipmentMovement: React.FC<EquipmentMovementProps> = ({ onBack, showToast
 
       {/* 이동 결과 모달 */}
       {showResultModal && transferResult && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-md max-h-[80vh] overflow-hidden">
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[200] p-4">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-md max-h-[85vh] overflow-y-auto">
             {/* 헤더 */}
             <div className={`p-4 ${
               transferResult.failed.length === 0
@@ -1981,8 +1981,8 @@ const EquipmentMovement: React.FC<EquipmentMovementProps> = ({ onBack, showToast
 
       {/* 고객사용중/보유기사없음 장비 정보 팝업 */}
       {showCustomerEquipmentModal && customerEquipmentInfo && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-md overflow-hidden">
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[200] p-4">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-md max-h-[85vh] overflow-y-auto">
             {/* 헤더 */}
             <div className={`p-4 ${
               customerEquipmentInfo.EQT_LOC_TP_NM === '고객사용중'
