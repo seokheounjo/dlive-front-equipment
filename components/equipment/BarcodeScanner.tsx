@@ -611,46 +611,39 @@ const BarcodeScanner: React.FC<BarcodeScannerProps> = ({ isOpen, onClose, onScan
         </div>
       </div>
 
-      {/* Native mode: video + hidden canvas */}
-      {scanMode === 'native' && (
-        <div
-          className="absolute inset-0 flex items-center justify-center"
-          style={{ top: '60px', bottom: '180px' }}
-          onClick={handleTapFocus}
-        >
-          <video
-            ref={videoRef}
-            className="w-full h-full object-cover"
-            autoPlay
-            playsInline
-            muted
-            style={{ filter: 'contrast(1.1) brightness(1.05)' }}
-          />
-          <canvas ref={canvasRef} className="hidden" />
-        </div>
-      )}
+      {/* Video + Canvas (항상 렌더링, visibility만 변경) */}
+      <div
+        className="absolute inset-0 flex items-center justify-center"
+        style={{
+          top: '60px',
+          bottom: '180px',
+          display: scanMode === 'fallback' ? 'none' : 'flex',
+        }}
+        onClick={handleTapFocus}
+      >
+        <video
+          ref={videoRef}
+          className="w-full h-full object-cover"
+          autoPlay
+          playsInline
+          muted
+          style={{ filter: 'contrast(1.1) brightness(1.05)' }}
+        />
+        <canvas ref={canvasRef} style={{ display: 'none' }} />
+      </div>
 
-      {/* Native mode: 초기화 전 video (숨김 → play 후 위에서 표시) */}
-      {scanMode === '' && (
-        <div className="absolute inset-0 flex items-center justify-center" style={{ top: '60px', bottom: '180px' }}>
-          <video ref={videoRef} className="w-full h-full object-cover opacity-0" autoPlay playsInline muted />
-          <canvas ref={canvasRef} className="hidden" />
-        </div>
-      )}
-
-      {/* Fallback mode: html5-qrcode container */}
-      {scanMode === 'fallback' && (
-        <div
-          className="absolute inset-0 flex items-center justify-center"
-          style={{ top: '60px', bottom: '180px' }}
-          onClick={handleTapFocus}
-        >
-          <div id="barcode-reader" className="w-full max-w-md mx-4"></div>
-        </div>
-      )}
-
-      {/* Fallback: html5-qrcode 필요 (초기화 전) */}
-      {scanMode === '' && <div id="barcode-reader" className="hidden"></div>}
+      {/* Fallback: html5-qrcode container (항상 렌더링, visibility만 변경) */}
+      <div
+        className="absolute inset-0 flex items-center justify-center"
+        style={{
+          top: '60px',
+          bottom: '180px',
+          display: scanMode === 'fallback' ? 'flex' : 'none',
+        }}
+        onClick={handleTapFocus}
+      >
+        <div id="barcode-reader" className="w-full max-w-md mx-4"></div>
+      </div>
 
       {/* Loading */}
       {isLoading && !isScanning && !error && (
