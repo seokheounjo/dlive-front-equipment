@@ -595,9 +595,10 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
         if (selectedCategory === 'RETURN_REQUESTED') {
           const returnParams = {
             WRKR_ID: userInfo.userId,
-            SO_ID: selectedSoId || userInfo.soId || undefined,
-            CRR_ID: userInfo.crrId,  // 협력업체 ID
+            SO_ID: selectedSoId || '',  // 빈 문자열 = 전체 SO 조회
+            CRR_ID: userInfo.crrId || '',  // 협력업체 ID
           };
+          console.log('[반납요청] API 호출 파라미터:', returnParams);
           try {
             const returnResult = await debugApiCall(
               'EquipmentInquiry',

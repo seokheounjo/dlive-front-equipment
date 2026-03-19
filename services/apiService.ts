@@ -5849,7 +5849,9 @@ export const getEquipmentReturnRequestListAll = async (params: {
     RETURN_TP: params.RETURN_TP || '2',
     RETURN_STAT: params.RETURN_STAT || '2',
   };
-  console.log('[getEquipmentReturnRequestListAll] API 호출:', requestParams);
+  console.log('[getEquipmentReturnRequestListAll] 프론트 전송 파라미터:', params);
+  console.log('[getEquipmentReturnRequestListAll] 내부 고정값 추가:', { RETURN_TP: requestParams.RETURN_TP, RETURN_STAT: requestParams.RETURN_STAT });
+  console.log('[getEquipmentReturnRequestListAll] 최종 페이로드:', requestParams);
 
   try {
     const response = await fetchWithRetry(`${API_BASE}/customer/equipment/getEquipmentReturnRequestList`, {
