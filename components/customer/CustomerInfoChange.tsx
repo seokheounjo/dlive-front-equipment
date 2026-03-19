@@ -1725,7 +1725,7 @@ const CustomerInfoChange: React.FC<CustomerInfoChangeProps> = ({
 
       {/* 주소 검색 모달 */}
       {showAddressModal && (
-        <div className="fixed inset-0 z-50 overflow-y-auto bg-black/50">
+        <div className="fixed inset-0 z-[60] overflow-y-auto overscroll-contain bg-black/50">
           <div className="flex items-center justify-center min-h-full p-4">
           <div className="bg-white rounded-xl shadow-xl w-full max-w-lg overflow-hidden flex flex-col">
             {/* 헤더 */}
@@ -1846,7 +1846,7 @@ const CustomerInfoChange: React.FC<CustomerInfoChangeProps> = ({
             </div>
 
             {/* 검색 결과 */}
-            <div className="flex-1 overflow-y-auto p-3 min-h-0">
+            <div className="p-3">
               {addressSearchType === 'post' ? (
                 postAddressResults.length > 0 ? (
                   <div className="space-y-2">
@@ -1913,7 +1913,7 @@ const CustomerInfoChange: React.FC<CustomerInfoChangeProps> = ({
 
       {/* 서명 모달 */}
       {showSignatureModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[70] p-4">
           <div className="w-full max-w-md">
             <SignaturePad
               title="납부방법 변경 서명"
@@ -1926,7 +1926,7 @@ const CustomerInfoChange: React.FC<CustomerInfoChangeProps> = ({
 
       {/* 납부계정 전환 확인 모달 */}
       {showSwitchConfirm && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[70] p-4">
           <div className="bg-white rounded-xl shadow-xl w-full max-w-sm overflow-hidden">
             <div className="p-4 border-b border-gray-100 bg-gradient-to-r from-yellow-500 to-orange-500">
               <h3 className="font-semibold text-white flex items-center gap-2">

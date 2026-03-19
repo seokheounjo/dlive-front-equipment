@@ -355,7 +355,7 @@ const CustomerSearch: React.FC<CustomerSearchProps> = ({ onCustomerSelect, onCus
 
       {/* 검색 팝업 모달 */}
       {showModal && (
-        <div className="fixed inset-0 z-50 overflow-y-auto bg-black/50">
+        <div className="fixed inset-0 z-[60] overflow-y-auto overscroll-contain bg-black/50">
           <div className="flex items-center justify-center min-h-full p-4">
           <div className="bg-white rounded-xl shadow-xl w-full max-w-md overflow-hidden flex flex-col">
             {/* 헤더 */}
@@ -375,7 +375,7 @@ const CustomerSearch: React.FC<CustomerSearchProps> = ({ onCustomerSelect, onCus
             </div>
 
             {/* 검색 입력 영역 */}
-            <div className="p-4 space-y-3 flex-1 overflow-y-auto min-h-0">
+            <div className="p-4 space-y-3">
               {/* 고객ID */}
               <div className="flex items-center gap-2">
                 <label className="text-xs font-medium text-gray-600 w-16 flex-shrink-0">고객ID</label>
@@ -541,7 +541,7 @@ const CustomerSearch: React.FC<CustomerSearchProps> = ({ onCustomerSelect, onCus
 
       {/* 경고/알림 팝업 (PaymentInfo 스타일 통일) */}
       {warningPopup.show && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[60]">
           <div className="bg-white rounded-lg p-5 max-w-sm mx-4 shadow-xl">
             <div className="flex items-center gap-3 mb-4">
               <div className="w-10 h-10 rounded-full bg-orange-100 flex items-center justify-center">

@@ -535,7 +535,7 @@ const PaymentChangeModal: React.FC<PaymentChangeModalProps> = ({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 overflow-y-auto bg-black/50">
+    <div className="fixed inset-0 z-[60] overflow-y-auto overscroll-contain bg-black/50">
       {/* 인증 로딩 오버레이 */}
       {isVerifying && verifyProgress && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40">
@@ -567,9 +567,7 @@ const PaymentChangeModal: React.FC<PaymentChangeModalProps> = ({
         </div>
 
         {/* 컨텐츠 */}
-        <div ref={contentRef} className="flex-1 overflow-y-auto p-4 space-y-4 min-h-0"
-          onFocus={(e) => { setTimeout(() => { (e.target as HTMLElement)?.scrollIntoView?.({ behavior: 'smooth', block: 'center' }); }, 300); }}
-        >
+        <div ref={contentRef} className="p-4 space-y-4">
           {isLoading ? (
             <div className="flex items-center justify-center py-8">
               <Loader2 className="w-6 h-6 text-orange-500 animate-spin" />

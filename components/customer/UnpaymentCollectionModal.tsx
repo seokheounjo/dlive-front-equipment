@@ -444,7 +444,7 @@ const UnpaymentCollectionModal: React.FC<UnpaymentCollectionModalProps> = ({
 
   return (
     <>
-      <div className="fixed inset-0 z-50 overflow-y-auto bg-black/50">
+      <div className="fixed inset-0 z-[60] overflow-y-auto overscroll-contain bg-black/50">
         <div className="flex items-center justify-center min-h-full p-4">
         <div
           className="bg-white rounded-xl shadow-xl w-full max-w-md flex flex-col"
@@ -485,7 +485,7 @@ const UnpaymentCollectionModal: React.FC<UnpaymentCollectionModalProps> = ({
             </div>
           </div>
 
-          <div className="flex-1 overflow-y-auto p-4 space-y-4 min-h-0">
+          <div className="p-4 space-y-4">
             {/* Pending 배너 */}
             {pendingCount > 0 && (
               <div className="bg-amber-50 border border-amber-200 rounded-lg p-3">
