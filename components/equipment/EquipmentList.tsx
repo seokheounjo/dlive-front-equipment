@@ -1308,7 +1308,7 @@ const EquipmentList: React.FC<EquipmentListProps> = ({ onBack, showToast }) => {
 
         {/* 기사보유장비로 이관 - 하단 고정 버튼 */}
         {equipmentDetail && equipmentDetail.EQT_LOC_TP_CD !== '4' && equipmentDetail.EQT_LOC_TP_CD_NM !== '고객' && (
-          <div className="fixed bottom-[56px] left-0 right-0 p-3 z-40" style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}>
+          <div className="fixed bottom-[68px] left-0 right-0 px-4 pb-2 z-40">
             <button
               onClick={handleTransferToMe}
               disabled={isTransferring}
