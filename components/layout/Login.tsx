@@ -27,6 +27,7 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
   const [error, setError] = useState<string | null>(null);
   const [showDupConfirm, setShowDupConfirm] = useState(false);
   const [otpCode, setOtpCode] = useState('');
+  const [showOtp, setShowOtp] = useState(false);
   const [lockMessage, setLockMessage] = useState<string | null>(null);
   const [blockMessage, setBlockMessage] = useState<string | null>(null);
 
@@ -70,10 +71,6 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
     e.preventDefault();
     if (!username || !password) return;
     const skipOtp = OTP_SKIP_USERS.includes(username.toUpperCase());
-    if (OTP_ENABLED && !skipOtp && !otpCode) {
-      setError('OTP 인증번호를 입력해주세요.');
-      return;
-    }
 
     setIsLoading(true);
     setError(null);
@@ -252,12 +249,12 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
               <input
                 id="otpCode"
                 name="otpCode"
-                type="text"
+                type={showOtp ? 'text' : 'password'}
                 inputMode="numeric"
                 pattern="[0-9]*"
                 autoComplete="one-time-code"
                 disabled={!OTP_ENABLED}
-                className={`${inputBaseClasses} pl-10 pr-3 disabled:bg-white disabled:border-white disabled:cursor-not-allowed`}
+                className={`${inputBaseClasses} pl-10 pr-10 disabled:bg-white disabled:border-white disabled:cursor-not-allowed`}
                 style={inputStyle}
                 placeholder="OTP 인증번호"
                 value={otpCode}
@@ -266,6 +263,18 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
                   setOtpCode(val);
                 }}
               />
+              <div className="absolute inset-y-0 right-0 pr-3.5 flex items-center">
+                <button
+                  type="button"
+                  onClick={() => setShowOtp(!showOtp)}
+                  className="focus:outline-none transition-colors"
+                  style={iconColor}
+                  aria-label={showOtp ? "OTP 숨기기" : "OTP 보기"}
+                  disabled={!OTP_ENABLED}
+                >
+                  {showOtp ? <EyeSlashIcon className="h-5 w-5" /> : <EyeIcon className="h-5 w-5" />}
+                </button>
+              </div>
             </div>
           </div>
 
