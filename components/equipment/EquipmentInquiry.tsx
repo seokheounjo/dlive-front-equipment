@@ -1540,25 +1540,26 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
                   className="flex-1"
                 />
               </div>
-              {/* 장비종류 (중분류 + 소분류 한 줄) */}
+              {/* 장비종류 (중분류 + 소분류 한 줄) - 검사대기 시 비활성 */}
               <div className="flex items-center gap-2 overflow-hidden">
                 <label className="text-xs font-medium text-gray-600 w-14 flex-shrink-0">장비종류</label>
                 <Select
-                  value={selectedItemMidCd}
+                  value={selectedCategory === 'INSPECTION_WAITING' ? '' : selectedItemMidCd}
                   onValueChange={(val) => setSelectedItemMidCd(val)}
                   options={itemMidList.map((item) => ({ value: item.COMMON_CD, label: item.COMMON_CD_NM }))}
                   placeholder="중분류"
                   className="flex-1 min-w-0"
+                  disabled={selectedCategory === 'INSPECTION_WAITING'}
                 />
                 <Select
-                  value={selectedEqtClCd}
+                  value={selectedCategory === 'INSPECTION_WAITING' ? '' : selectedEqtClCd}
                   onValueChange={(val) => setSelectedEqtClCd(val)}
                   options={[
                     { value: '', label: !selectedItemMidCd ? '-' : isLoadingEqtCl ? '...' : (eqtClOptions.length === 0 ? '-' : '전체') },
                     ...eqtClOptions.map(opt => ({ value: opt.code, label: opt.name }))
                   ]}
                   placeholder={!selectedItemMidCd ? '-' : isLoadingEqtCl ? '...' : (eqtClOptions.length === 0 ? '-' : '전체')}
-                  disabled={!selectedItemMidCd || isLoadingEqtCl || eqtClOptions.length === 0}
+                  disabled={selectedCategory === 'INSPECTION_WAITING' || !selectedItemMidCd || isLoadingEqtCl || eqtClOptions.length === 0}
                   className="flex-1 min-w-0"
                 />
               </div>
