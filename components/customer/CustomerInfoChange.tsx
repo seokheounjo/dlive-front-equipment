@@ -680,7 +680,6 @@ const CustomerInfoChange: React.FC<CustomerInfoChangeProps> = ({
   // batch=true: 일괄처리시 alert 없이 결과만 리턴
   const executeHpPayChange = async (item: HPPayInfo, actionText: string, batch = false): Promise<boolean> => {
     if (!selectedCustomer) {
-      console.log('[HP Pay] executeHpPayChange: no selectedCustomer!');
       return false;
     }
 
@@ -695,7 +694,6 @@ const CustomerInfoChange: React.FC<CustomerInfoChangeProps> = ({
         CTRT_ID: item.CTRT_ID,
       });
 
-      console.log('[HP Pay] API response:', response);
       if (response.success) {
         if (!batch) {
           showAlert(`휴대폰결제 ${actionText} 완료되었습니다.`, 'success');
@@ -813,9 +811,7 @@ const CustomerInfoChange: React.FC<CustomerInfoChangeProps> = ({
 
   // 휴대폰결제 신청/해지 처리 (확인 모달 표시)
   const handleHpPayChange = (item: HPPayInfo) => {
-    console.log('[HP Pay] handleHpPayChange:', item.CTRT_ID, item.HP_STAT, item.PROD_NM);
     if (!selectedCustomer) {
-      console.log('[HP Pay] handleHpPayChange: no selectedCustomer!');
       showAlert('고객 정보가 없습니다.', 'warning');
       return;
     }
