@@ -357,7 +357,7 @@ const CustomerSearch: React.FC<CustomerSearchProps> = ({ onCustomerSelect, onCus
       {showModal && (
         <div className="fixed inset-0 z-50 overflow-y-auto bg-black/50">
           <div className="flex items-center justify-center min-h-full p-4">
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-md overflow-hidden max-h-[90vh] flex flex-col">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-md overflow-hidden flex flex-col">
             {/* 헤더 */}
             <div className="p-3 border-b border-gray-100 bg-gradient-to-r from-blue-500 to-blue-600 flex-shrink-0">
               <div className="flex items-center justify-between">

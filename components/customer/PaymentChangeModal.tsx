@@ -548,7 +548,7 @@ const PaymentChangeModal: React.FC<PaymentChangeModalProps> = ({
 
       <div className="flex items-center justify-center min-h-full p-4">
       <div
-        className="bg-white rounded-xl shadow-xl w-full max-w-md max-h-[90vh] flex flex-col"
+        className="bg-white rounded-xl shadow-xl w-full max-w-md flex flex-col"
         onClick={(e) => e.stopPropagation()}
       >
         {/* 헤더 */}
