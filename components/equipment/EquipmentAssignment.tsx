@@ -247,7 +247,7 @@ const EquipmentAssignment: React.FC<EquipmentAssignmentProps> = ({ onBack, showT
       const params: any = {
         FROM_OUT_REQ_DT: fromDate,
         TO_OUT_REQ_DT: toDate,
-        SO_ID: selectedSoId || userInfo?.soId || '',
+        SO_ID: selectedSoId || '',  // empty = all SO
         PROC_STAT: '%',
         WRKR_ID: userInfo?.userId || '',
         CRR_ID: userInfo?.crrId || '',
