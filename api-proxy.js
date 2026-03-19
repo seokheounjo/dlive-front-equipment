@@ -772,6 +772,10 @@ router.post('/auth/login-with-otp', async (req, res) => {
   });
 
   if (!loginOk) {
+    // LOCK: add Korean message for frontend display
+    if (loginResult.code === 'LOCK') {
+      loginResult.message = '계정이 잠겨있습니다. 관리자에게 문의하세요.';
+    }
     // Log final failure (API_3)
     await callLoginApi('pmobileLoginApi_3', {
       P_LOGIN_TRX_ID: trxId,
