@@ -783,7 +783,7 @@ router.post('/auth/login-with-otp', async (req, res) => {
   }
 
   // Step 4: OTP authentication (if OTP code provided)
-  if (otpCode && otpCode.length === 6) {
+  if (otpCode) {
     // Log OTP start (API_1 - OTP)
     // OTP_CODE is NOT included in log
     await callLoginApi('pmobileLoginApi_1', {
