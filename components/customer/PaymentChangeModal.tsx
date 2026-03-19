@@ -535,10 +535,10 @@ const PaymentChangeModal: React.FC<PaymentChangeModalProps> = ({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-[60] overflow-y-auto overscroll-contain bg-black/50">
+    <div className="fixed inset-0 z-[200] overflow-y-auto overscroll-contain bg-black/50 p-4">
       {/* 인증 로딩 오버레이 */}
       {isVerifying && verifyProgress && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40">
+        <div className="fixed inset-0 z-[250] flex items-center justify-center bg-black/40">
           <div className="bg-white rounded-2xl shadow-2xl w-[85vw] max-w-[280px] p-6 flex flex-col items-center">
             <Loader2 className="w-10 h-10 text-blue-500 animate-spin mb-4" />
             <p className="text-sm text-gray-700 text-center font-medium">{verifyProgress}</p>
@@ -546,9 +546,8 @@ const PaymentChangeModal: React.FC<PaymentChangeModalProps> = ({
         </div>
       )}
 
-      <div className="flex items-center justify-center min-h-full p-4">
       <div
-        className="bg-white rounded-xl shadow-xl w-full max-w-md flex flex-col"
+        className="bg-white rounded-xl shadow-xl w-full max-w-md mx-auto flex flex-col"
         onClick={(e) => e.stopPropagation()}
       >
         {/* 헤더 */}
@@ -954,11 +953,10 @@ const PaymentChangeModal: React.FC<PaymentChangeModalProps> = ({
           </div>
         )}
       </div>
-      </div>
 
       {/* 서명 모달 */}
       {showSignatureModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[60] p-4">
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[210] p-4">
           <div className="w-full max-w-md">
             <SignaturePad
               title="납부방법 변경 서명"
@@ -971,7 +969,7 @@ const PaymentChangeModal: React.FC<PaymentChangeModalProps> = ({
 
       {/* 알림 팝업 */}
       {alertPopup.show && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[70]">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[220]">
           <div className="bg-white rounded-lg p-5 max-w-sm mx-4 shadow-xl">
             <div className="flex items-center gap-3 mb-4">
               <div className={`w-10 h-10 rounded-full flex items-center justify-center ${

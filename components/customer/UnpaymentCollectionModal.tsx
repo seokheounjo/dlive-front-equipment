@@ -444,10 +444,9 @@ const UnpaymentCollectionModal: React.FC<UnpaymentCollectionModalProps> = ({
 
   return (
     <>
-      <div className="fixed inset-0 z-[60] overflow-y-auto overscroll-contain bg-black/50">
-        <div className="flex items-center justify-center min-h-full p-4">
+      <div className="fixed inset-0 z-[200] overflow-y-auto overscroll-contain bg-black/50 p-4">
         <div
-          className="bg-white rounded-xl shadow-xl w-full max-w-md flex flex-col"
+          className="bg-white rounded-xl shadow-xl w-full max-w-md mx-auto flex flex-col"
           onClick={(e) => e.stopPropagation()}
         >
           {/* 헤더 */}
@@ -807,13 +806,12 @@ const UnpaymentCollectionModal: React.FC<UnpaymentCollectionModalProps> = ({
             </p>
           </div>
         </div>
-        </div>
       </div>
 
       {/* Payment Popup Overlay */}
       {paymentPopup?.visible && (
         <div
-          className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60"
+          className="fixed inset-0 z-[210] flex items-center justify-center bg-black/60"
           onClick={() => paymentPopup.status !== 'processing' && closePaymentPopup()}
         >
           <div
