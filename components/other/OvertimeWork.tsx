@@ -82,6 +82,23 @@ function formatTimeRange(fromDate: string, fromHour: string, fromMinu: string, t
 const HOURS = Array.from({ length: 24 }, (_, i) => String(i).padStart(2, '0'));
 const MINUTES = ['00', '10', '20', '30', '40', '50'];
 
+// Date input with forced hyphen format (mobile OS shows dots for ko-KR locale)
+function DateInput({ value, onChange, className }: { value: string; onChange: (v: string) => void; className?: string }) {
+  return (
+    <div className={`relative ${className || ''}`}>
+      <input
+        type="date"
+        value={value}
+        onChange={e => onChange(e.target.value)}
+        className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+      />
+      <div className="px-1 py-2 border border-gray-300 rounded-lg text-sm bg-white text-center">
+        {value || 'YYYY-MM-DD'}
+      </div>
+    </div>
+  );
+}
+
 export default function OvertimeWork({ onBack, userInfo, showToast }: OvertimeWorkProps) {
   // Auth
   const [authorized, setAuthorized] = useState<boolean | null>(null);
@@ -560,11 +577,10 @@ export default function OvertimeWork({ onBack, userInfo, showToast }: OvertimeWo
               <div>
                 <label className="block text-sm text-gray-600 mb-1">시작</label>
                 <div className="flex items-center gap-1">
-                  <input
-                    type="date"
+                  <DateInput
                     value={applyForm.fromDate}
-                    onChange={e => setApplyForm(prev => ({ ...prev, fromDate: e.target.value }))}
-                    className="flex-[2] min-w-0 px-1 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                    onChange={v => setApplyForm(prev => ({ ...prev, fromDate: v }))}
+                    className="flex-[2] min-w-0"
                   />
                   <select value={applyForm.fromHour} onChange={e => setApplyForm(prev => ({ ...prev, fromHour: e.target.value }))} className="w-14 px-0.5 py-2 border border-gray-300 rounded-lg text-sm text-center">
                     {HOURS.map(h => <option key={h} value={h}>{h}</option>)}
@@ -579,11 +595,10 @@ export default function OvertimeWork({ onBack, userInfo, showToast }: OvertimeWo
               <div>
                 <label className="block text-sm text-gray-600 mb-1">종료</label>
                 <div className="flex items-center gap-1">
-                  <input
-                    type="date"
+                  <DateInput
                     value={applyForm.toDate}
-                    onChange={e => setApplyForm(prev => ({ ...prev, toDate: e.target.value }))}
-                    className="flex-[2] min-w-0 px-1 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                    onChange={v => setApplyForm(prev => ({ ...prev, toDate: v }))}
+                    className="flex-[2] min-w-0"
                   />
                   <select value={applyForm.toHour} onChange={e => setApplyForm(prev => ({ ...prev, toHour: e.target.value }))} className="w-14 px-0.5 py-2 border border-gray-300 rounded-lg text-sm text-center">
                     {HOURS.map(h => <option key={h} value={h}>{h}</option>)}
@@ -677,11 +692,10 @@ export default function OvertimeWork({ onBack, userInfo, showToast }: OvertimeWo
               <div>
                 <label className="block text-sm text-gray-600 mb-1">시작 (실적)</label>
                 <div className="flex items-center gap-1">
-                  <input
-                    type="date"
+                  <DateInput
                     value={actualForm.fromDate}
-                    onChange={e => setActualForm(prev => ({ ...prev, fromDate: e.target.value }))}
-                    className="flex-[2] min-w-0 px-1 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                    onChange={v => setActualForm(prev => ({ ...prev, fromDate: v }))}
+                    className="flex-[2] min-w-0"
                   />
                   <select value={actualForm.fromHour} onChange={e => setActualForm(prev => ({ ...prev, fromHour: e.target.value }))} className="w-14 px-0.5 py-2 border border-gray-300 rounded-lg text-sm text-center">
                     {HOURS.map(h => <option key={h} value={h}>{h}</option>)}
@@ -696,11 +710,10 @@ export default function OvertimeWork({ onBack, userInfo, showToast }: OvertimeWo
               <div>
                 <label className="block text-sm text-gray-600 mb-1">종료 (실적)</label>
                 <div className="flex items-center gap-1">
-                  <input
-                    type="date"
+                  <DateInput
                     value={actualForm.toDate}
-                    onChange={e => setActualForm(prev => ({ ...prev, toDate: e.target.value }))}
-                    className="flex-[2] min-w-0 px-1 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                    onChange={v => setActualForm(prev => ({ ...prev, toDate: v }))}
+                    className="flex-[2] min-w-0"
                   />
                   <select value={actualForm.toHour} onChange={e => setActualForm(prev => ({ ...prev, toHour: e.target.value }))} className="w-14 px-0.5 py-2 border border-gray-300 rounded-lg text-sm text-center">
                     {HOURS.map(h => <option key={h} value={h}>{h}</option>)}
