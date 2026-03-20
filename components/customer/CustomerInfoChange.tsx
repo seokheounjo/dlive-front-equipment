@@ -809,13 +809,14 @@ const CustomerInfoChange: React.FC<CustomerInfoChangeProps> = ({
       return;
     }
 
-    // [2026-03-20] Use HP_STAT value (e.g. 선불/후불) in title/message, always show as 신청
-    const hpStatLabel = item.HP_STAT || '휴대폰결제';
+    // [2026-03-20] Show opposite HP_STAT label (current→target state change)
+    const isActive = isHpPayActive(item.HP_STAT);
+    const targetLabel = isActive ? '일반(후불)결제' : '휴대폰(선불)결제';
     // ConfirmModal 표시
     setConfirmModal({
       isOpen: true,
-      title: `${hpStatLabel} 신청`,
-      message: `${item.PROD_NM || '해당 상품'}의 ${hpStatLabel}를 신청하시겠습니까?\n\n상담 접수 후 처리됩니다.`,
+      title: `${targetLabel} 신청`,
+      message: `${item.PROD_NM || '해당 상품'}의 ${targetLabel}를 신청하시겠습니까?\n\n상담 접수 후 처리됩니다.`,
       type: 'confirm',
       onConfirm: () => executeHpPayChange(item, '신청')
     });
