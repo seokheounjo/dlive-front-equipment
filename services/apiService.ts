@@ -2608,7 +2608,12 @@ export const getEquipmentOutList = async (params: {
   WRKR_ID?: string;
   CRR_ID?: string;
 }): Promise<any[]> => {
-  console.log('📦 [장비할당조회] API 호출:', params);
+  const requestParams = {
+    ...params,
+    SO_ID: params.SO_ID || '%',
+    PROC_STAT: params.PROC_STAT || '%',
+  };
+  console.log('[getEquipmentOutList] 최종 페이로드:', requestParams);
 
   try {
     const origin = typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000';
@@ -2620,7 +2625,7 @@ export const getEquipmentOutList = async (params: {
         'Origin': origin
       },
       credentials: 'include',
-      body: JSON.stringify(params),
+      body: JSON.stringify(requestParams),
     });
 
     const result = await response.json();
@@ -5854,9 +5859,10 @@ export const getEquipmentReturnRequestListAll = async (params: {
     ...params,
     RETURN_TP: params.RETURN_TP || '2',
     RETURN_STAT: params.RETURN_STAT || '2',
+    SO_ID: params.SO_ID || '%',
+    ITEM_MID_CD: params.ITEM_MID_CD || '%',
+    EQT_CL_CD: params.EQT_CL_CD || '%',
   };
-  console.log('[getEquipmentReturnRequestListAll] 프론트 전송 파라미터:', params);
-  console.log('[getEquipmentReturnRequestListAll] 내부 고정값 추가:', { RETURN_TP: requestParams.RETURN_TP, RETURN_STAT: requestParams.RETURN_STAT });
   console.log('[getEquipmentReturnRequestListAll] 최종 페이로드:', requestParams);
 
   try {
@@ -5994,11 +6000,18 @@ export const getWrkrHaveEqtListAll = async (params: {
   CRR_ID: string;
   SO_ID?: string;
   ITEM_MID_CD?: string;
+  EQT_CL_CD?: string;
   EQT_SERNO?: string;
   EQT_STAT_CD?: string;
   EQT_LOC_TP_CD?: string;
 }): Promise<any[]> => {
-  console.log('[getWrkrHaveEqtListAll] API 호출:', params);
+  const requestParams = {
+    ...params,
+    SO_ID: params.SO_ID || '%',
+    ITEM_MID_CD: params.ITEM_MID_CD || '%',
+    EQT_CL_CD: params.EQT_CL_CD || '%',
+  };
+  console.log('[getWrkrHaveEqtListAll] 최종 페이로드:', requestParams);
 
   try {
     const response = await fetch(`${API_BASE}/customer/equipment/getWrkrHaveEqtList_All`, {
@@ -6007,7 +6020,7 @@ export const getWrkrHaveEqtListAll = async (params: {
         'Content-Type': 'application/json',
       },
       credentials: 'include',
-      body: JSON.stringify(params),
+      body: JSON.stringify(requestParams),
     });
 
     const result = await response.json();
@@ -6035,8 +6048,16 @@ export const getEquipmentChkStndByAAll = async (params: {
   WRKR_ID: string;
   SO_ID?: string;
   EQT_SERNO?: string;
+  ITEM_MID_CD?: string;
+  EQT_CL_CD?: string;
 }): Promise<any[]> => {
-  console.log('[getEquipmentChkStndByAAll] API 호출:', params);
+  const requestParams = {
+    ...params,
+    SO_ID: params.SO_ID || '%',
+    ITEM_MID_CD: params.ITEM_MID_CD || '%',
+    EQT_CL_CD: params.EQT_CL_CD || '%',
+  };
+  console.log('[getEquipmentChkStndByAAll] 최종 페이로드:', requestParams);
 
   try {
     const response = await fetch(`${API_BASE}/customer/equipment/getEquipmentChkStndByA_All`, {
@@ -6045,7 +6066,7 @@ export const getEquipmentChkStndByAAll = async (params: {
         'Content-Type': 'application/json',
       },
       credentials: 'include',
-      body: JSON.stringify(params),
+      body: JSON.stringify(requestParams),
     });
 
     const result = await response.json();
