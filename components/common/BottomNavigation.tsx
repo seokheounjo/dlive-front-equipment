@@ -41,7 +41,7 @@ const BottomNavigation: React.FC<BottomNavigationProps> = ({
     },
     {
       id: 'other-management' as View,
-      label: '기타관리',
+      label: '업무관리',
       icon: MoreHorizontal,
     },
   ];

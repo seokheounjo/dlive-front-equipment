@@ -270,7 +270,7 @@ const VIEW_MENU_NAMES: Record<string, string> = {
   'work-process-flow': '작업진행',
   'customer-management': '고객관리',
   'equipment-management': '장비관리',
-  'other-management': '기타관리',
+  'other-management': '업무관리',
   'settings': '설정',
   'api-explorer': 'API탐색기',
   'coming-soon': '준비중',

@@ -207,7 +207,7 @@ const SideDrawer: React.FC<SideDrawerProps> = ({
                   onClick={() => handleMenuClick('other-management')}
                 >
                   <MoreHorizontal className="w-5 h-5 text-primary-700" />
-                  <span className="font-medium text-sm sm:text-base">기타관리</span>
+                  <span className="font-medium text-sm sm:text-base">업무관리</span>
                 </button>
               </li>
             </ul>

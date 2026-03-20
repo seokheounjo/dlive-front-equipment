@@ -60,7 +60,7 @@ const Header: React.FC<HeaderProps> = ({ onLogout, onNavigateHome, onNavigateBac
       case 'equipment-management':
         return { title: '장비관리' };
       case 'other-management':
-        return { title: '기타관리' };
+        return { title: '업무관리' };
       case 'coming-soon':
         return { title: '준비중' };
       default:
