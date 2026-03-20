@@ -16,8 +16,8 @@ interface EquipmentManagementMenuProps {
  *
  * 탭 전환 시 조회 상태 유지:
  * - 최초 방문 시에만 컴포넌트 마운트 (API 과다호출 방지)
- * - 방문한 탭은 display:none으로 숨김 (언마운트 안 함)
- * - 돌아오면 기존 조회 결과 그대로 표시
+ * - 방문한 탭은 숨김 (언마운트 안 함 → 조회 결과 유지)
+ * - 활성 탭: height 100%, 비활성: height 0 + overflow hidden + invisible
  */
 const EquipmentManagementMenu: React.FC<EquipmentManagementMenuProps> = ({ onNavigateToMenu, showToast }) => {
   const [activeTab, setActiveTab] = useState<string>('equipment-assignment');
@@ -41,8 +41,13 @@ const EquipmentManagementMenu: React.FC<EquipmentManagementMenuProps> = ({ onNav
     });
   }, []);
 
+  const tabStyle = (tabId: string): React.CSSProperties =>
+    activeTab === tabId
+      ? { height: '100%', overflow: 'auto' }
+      : { height: 0, overflow: 'hidden', visibility: 'hidden' as const, position: 'absolute' as const };
+
   return (
-    <div className="h-[calc(100dvh-64px)] flex flex-col bg-gray-50 overflow-hidden">
+    <div className="h-[calc(100dvh-64px)] flex flex-col bg-gray-50">
       <div className="flex-shrink-0 bg-white border-b border-gray-200 z-40">
         <ScrollableTabMenu
           tabs={tabs}
@@ -50,29 +55,29 @@ const EquipmentManagementMenu: React.FC<EquipmentManagementMenuProps> = ({ onNav
           onTabChange={handleTabChange}
         />
       </div>
-      <div className="flex-1 overflow-hidden">
+      <div className="flex-1 relative overflow-hidden">
         {visitedTabs.has('equipment-assignment') && (
-          <div style={{ display: activeTab === 'equipment-assignment' ? 'contents' : 'none' }}>
+          <div style={tabStyle('equipment-assignment')}>
             <EquipmentAssignment onBack={onNavigateToMenu} showToast={showToast} />
           </div>
         )}
         {visitedTabs.has('equipment-inquiry') && (
-          <div style={{ display: activeTab === 'equipment-inquiry' ? 'contents' : 'none' }}>
+          <div style={tabStyle('equipment-inquiry')}>
             <EquipmentInquiry onBack={onNavigateToMenu} showToast={showToast} />
           </div>
         )}
         {visitedTabs.has('equipment-list') && (
-          <div style={{ display: activeTab === 'equipment-list' ? 'contents' : 'none' }}>
+          <div style={tabStyle('equipment-list')}>
             <EquipmentList onBack={onNavigateToMenu} showToast={showToast} />
           </div>
         )}
         {visitedTabs.has('equipment-movement') && (
-          <div style={{ display: activeTab === 'equipment-movement' ? 'contents' : 'none' }}>
+          <div style={tabStyle('equipment-movement')}>
             <EquipmentMovement onBack={onNavigateToMenu} showToast={showToast} />
           </div>
         )}
         {visitedTabs.has('equipment-recovery') && (
-          <div style={{ display: activeTab === 'equipment-recovery' ? 'contents' : 'none' }}>
+          <div style={tabStyle('equipment-recovery')}>
             <EquipmentRecovery onBack={onNavigateToMenu} showToast={showToast} />
           </div>
         )}
