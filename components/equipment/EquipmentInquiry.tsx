@@ -570,6 +570,8 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
                   WRKR_ID: userInfo.userId,
                   CRR_ID: userInfo.crrId || '',
                   SO_ID: selectedSoId || '',
+                  ITEM_MID_CD: selectedItemMidCd || '%',
+                  EQT_CL_CD: selectedEqtClCd || '%',
                 });
                 if (Array.isArray(inspResult)) {
                   const existingEqtNos = new Set(allResults.map((item: any) => item.EQT_NO));
@@ -600,9 +602,9 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
             WRKR_ID: userInfo.userId,
             SO_ID: selectedSoId || '',
             CRR_ID: userInfo.crrId || '',
+            ITEM_MID_CD: selectedItemMidCd || '%',
+            EQT_CL_CD: selectedEqtClCd || '%',
           };
-          if (selectedItemMidCd) returnParams.ITEM_MID_CD = selectedItemMidCd;
-          if (selectedEqtClCd) returnParams.EQT_CL_CD = selectedEqtClCd;
           console.log('[반납요청] API 호출 파라미터:', returnParams);
           try {
             const returnResult = await debugApiCall(
@@ -662,9 +664,9 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
             WRKR_ID: userInfo.userId,
             CRR_ID: userInfo.crrId || '',
             SO_ID: selectedSoId || '',
+            ITEM_MID_CD: selectedItemMidCd || '%',
+            EQT_CL_CD: selectedEqtClCd || '%',
           };
-          if (selectedItemMidCd) inspectionParams.ITEM_MID_CD = selectedItemMidCd;
-          if (selectedEqtClCd) inspectionParams.EQT_CL_CD = selectedEqtClCd;
           if (eqtSerno) inspectionParams.EQT_SERNO = eqtSerno;
           console.log('[검사대기] API 호출 파라미터:', inspectionParams);
           try {
