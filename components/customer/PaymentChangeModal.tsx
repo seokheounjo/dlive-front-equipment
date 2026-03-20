@@ -522,7 +522,7 @@ const PaymentChangeModal: React.FC<PaymentChangeModalProps> = ({
   // 선택된 납부계정 정보
   const selectedPayment = paymentAccounts.find(p => p.PYM_ACNT_ID === selectedPymAcntId);
 
-  // 납부계정 데이터 로드 후 기존 값으로 폼 pre-fill
+  // [2026-03-20] Fixed: use defaultPaymentForm as base instead of prev to prevent stale data when switching accounts
   useEffect(() => {
     if (!isOpen || !selectedPayment || isSaved) return;
     const raw = selectedPayment as any;
@@ -532,15 +532,15 @@ const PaymentChangeModal: React.FC<PaymentChangeModalProps> = ({
     if (pymMthd === '13' || pymMthd === '14' || (raw.PYM_MTHD_NM || '').includes('카드')) {
       pymMthCd = '02';
     }
-    setPaymentForm(prev => ({
-      ...prev,
+    setPaymentForm({
+      ...defaultPaymentForm,
       pymMthCd,
-      acntHolderNm: raw.ACNT_OWNER_NM || prev.acntHolderNm,
-      acntNo: raw.ACNT_NO || raw.BANK_CARD_NO || prev.acntNo,
-      bankCd: raw.BNK_CARD_CD || prev.bankCd,
-      idNumber: raw.RSDTNO ? raw.RSDTNO.substring(0, 6) : prev.idNumber,
-      pyrRel: raw.PYR_REL || prev.pyrRel,
-    }));
+      acntHolderNm: raw.ACNT_OWNER_NM || '',
+      acntNo: raw.ACNT_NO || raw.BANK_CARD_NO || '',
+      bankCd: raw.BNK_CARD_CD || '',
+      idNumber: raw.RSDTNO ? raw.RSDTNO.substring(0, 6) : '',
+      pyrRel: raw.PYR_REL || defaultPaymentForm.pyrRel,
+    });
   }, [selectedPayment, isOpen]);
 
   if (!isOpen) return null;
