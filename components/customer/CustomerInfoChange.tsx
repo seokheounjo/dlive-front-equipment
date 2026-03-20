@@ -815,7 +815,7 @@ const CustomerInfoChange: React.FC<CustomerInfoChangeProps> = ({
     setConfirmModal({
       isOpen: true,
       title: `${hpStatLabel} 신청`,
-      message: `${item.PROD_NM || '해당 상품'}의 ${hpStatLabel}을 신청하시겠습니까?\n\n상담 접수 후 처리됩니다.`,
+      message: `${item.PROD_NM || '해당 상품'}의 ${hpStatLabel}를 신청하시겠습니까?\n\n상담 접수 후 처리됩니다.`,
       type: 'confirm',
       onConfirm: () => executeHpPayChange(item, '신청')
     });
