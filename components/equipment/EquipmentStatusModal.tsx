@@ -174,7 +174,7 @@ const EquipmentStatusModal: React.FC<EquipmentStatusModalProps> = ({
       isOpen={isOpen}
       onClose={handleClose}
       title="장비조회"
-      size="lg"
+      size="large"
     >
       <div className="space-y-4">
         {/* 검색 영역 */}

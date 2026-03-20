@@ -1005,7 +1005,7 @@ const EquipmentAssignment: React.FC<EquipmentAssignmentProps> = ({ onBack, showT
         isOpen={showDetailModal}
         onClose={() => setShowDetailModal(false)}
         title="장비 상세 정보"
-        size="md"
+        size="medium"
       >
         {selectedEquipmentDetail && (
           <div className="space-y-4">

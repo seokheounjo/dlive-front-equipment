@@ -1991,7 +1991,7 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
           setMultipleResults([]);
         }}
         title="장비 선택"
-        size="md"
+        size="medium"
       >
         <div className="space-y-4">
           <p className="text-sm text-gray-600">
@@ -2042,7 +2042,7 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
         isOpen={showReturnModal}
         onClose={() => setShowReturnModal(false)}
         title="장비반납요청-장비선택"
-        size="md"
+        size="medium"
       >
         <div className="space-y-4">
           {/* 지점 (ReadOnly) */}
@@ -2219,7 +2219,7 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
         isOpen={showLossModal}
         onClose={() => { setShowLossModal(false); setSelectedEquipment(null); }}
         title="분실처리-장비선택"
-        size="md"
+        size="medium"
       >
         {selectedEquipment && (
           <div className="space-y-4">
