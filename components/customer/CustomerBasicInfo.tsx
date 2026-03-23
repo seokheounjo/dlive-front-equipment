@@ -641,10 +641,10 @@ const CustomerBasicInfo: React.FC<CustomerBasicInfoProps> = ({
                     <div className="space-y-3">
                       {filteredWork.map((item, index) => (
                         <div key={index} className="p-3 bg-gray-50 rounded-lg text-sm border border-gray-100">
-                          {/* 상단: 계약ID | 작업예정일 | 작업구분 | 작업상태 */}
-                          <div className="grid grid-cols-4 gap-2 text-xs">
+                          {/* [2026-03-23] Row 1: 계약 | 작업예정일 | 작업구분 */}
+                          <div className="grid grid-cols-3 gap-2 text-xs">
                             <div className="flex flex-col">
-                              <span className="text-gray-500 whitespace-nowrap">계약ID</span>
+                              <span className="text-gray-500 whitespace-nowrap">계약</span>
                               <span className="text-gray-800 font-medium text-[10px]">{item.CTRT_ID ? formatId(item.CTRT_ID) : '-'}</span>
                             </div>
                             <div className="flex flex-col">
@@ -655,6 +655,16 @@ const CustomerBasicInfo: React.FC<CustomerBasicInfoProps> = ({
                               <span className="text-gray-500 whitespace-nowrap">작업구분</span>
                               <span className="text-gray-800 font-medium">{item.WRK_CD_NM || '-'}</span>
                             </div>
+                          </div>
+
+                          {/* Row 2: 상품명 */}
+                          <div className="mt-1.5 grid grid-cols-[auto_1fr] gap-2 text-xs items-center">
+                            <span className="text-gray-500 whitespace-nowrap">상품명</span>
+                            <span className="text-gray-800 font-medium truncate">{item.PROD_NM || '-'}</span>
+                          </div>
+
+                          {/* Row 3: 작업상태 | 완료일자 */}
+                          <div className="mt-1.5 grid grid-cols-2 gap-2 text-xs">
                             <div className="flex flex-col">
                               <span className="text-gray-500 whitespace-nowrap">작업상태</span>
                               <span className={`font-medium ${
@@ -663,27 +673,21 @@ const CustomerBasicInfo: React.FC<CustomerBasicInfoProps> = ({
                                 'text-gray-800'
                               }`}>{item.WRK_STAT_CD_NM || '-'}</span>
                             </div>
-                          </div>
-
-                          {/* 상품명 */}
-                          <div className="mt-2 grid grid-cols-[auto_1fr] gap-2 text-xs items-center">
-                            <span className="text-gray-500 whitespace-nowrap">상품명</span>
-                            <span className="text-gray-800 font-medium truncate">{item.PROD_NM || '-'}</span>
-                          </div>
-
-                          {/* 완료일자 | 작업자 | 작업자소속 */}
-                          <div className="mt-2 grid grid-cols-3 gap-2 text-xs">
                             <div className="flex flex-col">
                               <span className="text-gray-500 whitespace-nowrap">완료일자</span>
                               <span className="text-gray-800 font-medium">{item.CMPL_DATE || '-'}</span>
                             </div>
+                          </div>
+
+                          {/* Row 4: 작업자 | 작업자소속 */}
+                          <div className="mt-1.5 grid grid-cols-2 gap-2 text-xs">
                             <div className="flex flex-col">
                               <span className="text-gray-500 whitespace-nowrap">작업자</span>
                               <span className="text-gray-800 font-medium">{item.WRK_NM || '-'}</span>
                             </div>
                             <div className="flex flex-col">
                               <span className="text-gray-500 whitespace-nowrap">작업자소속</span>
-                              <span className="text-gray-800 font-medium">{item.WRK_CRR_NM || '-'}</span>
+                              <span className="text-gray-800 font-medium truncate">{item.WRK_CRR_NM || '-'}</span>
                             </div>
                           </div>
 
