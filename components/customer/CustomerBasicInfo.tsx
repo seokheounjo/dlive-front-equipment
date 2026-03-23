@@ -379,7 +379,8 @@ const CustomerBasicInfo: React.FC<CustomerBasicInfoProps> = ({
                     <div className="flex items-center justify-between">
                       <span className="text-gray-500 whitespace-nowrap">고객주소</span>
                     </div>
-                    <div className="text-gray-700 whitespace-nowrap">
+                    {/* [2026-03-23] Allow address to wrap inside card */}
+                    <div className="text-gray-700 break-words">
                       {selectedCustomer.ROAD_ADDR || selectedCustomer.INST_ADDR || selectedCustomer.CUST_ADDR || '-'}
                     </div>
                   </div>
