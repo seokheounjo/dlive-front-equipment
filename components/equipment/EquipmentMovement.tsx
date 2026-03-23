@@ -1166,7 +1166,7 @@ const EquipmentMovement: React.FC<EquipmentMovementProps> = ({ onBack, showToast
         <div className="space-y-3">
           {/* 1. 기사검색 (보유기사 검색) */}
           <div className="flex items-center gap-2 overflow-hidden">
-            <label className="text-xs font-medium text-gray-600 flex-shrink-0 whitespace-nowrap">기사검색</label>
+            <label className="text-xs font-medium text-gray-600 flex-shrink-0 whitespace-nowrap min-w-[3rem] mr-2">기사검색</label>
             <div
               className="flex-1 min-w-0 flex items-center gap-1 cursor-pointer"
               onClick={openWorkerSearchModal}
@@ -1190,7 +1190,7 @@ const EquipmentMovement: React.FC<EquipmentMovementProps> = ({ onBack, showToast
 
           {/* 2. 장비종류 (라벨 + select 2개) */}
           <div className="flex items-center gap-2 overflow-hidden">
-            <label className="text-xs font-medium text-gray-600 flex-shrink-0 whitespace-nowrap">장비종류</label>
+            <label className="text-xs font-medium text-gray-600 flex-shrink-0 whitespace-nowrap min-w-[3rem] mr-2">장비종류</label>
             <Select
               value={selectedItemMidCd}
               onValueChange={(val) => setSelectedItemMidCd(val)}
@@ -1216,7 +1216,7 @@ const EquipmentMovement: React.FC<EquipmentMovementProps> = ({ onBack, showToast
 
           {/* 4. S/N + 스캔 버튼 */}
           <div className="flex items-center gap-2 overflow-hidden">
-            <label className="text-xs font-medium text-gray-600 flex-shrink-0 whitespace-nowrap">S/N</label>
+            <label className="text-xs font-medium text-gray-600 flex-shrink-0 whitespace-nowrap min-w-[3rem] mr-2">S/N</label>
             <input
               type="text"
               value={serialInput}

@@ -552,7 +552,7 @@ const EquipmentAssignment: React.FC<EquipmentAssignmentProps> = ({ onBack, showT
           <div className="space-y-3">
             {/* 출고일자 범위 */}
             <div className="flex items-center gap-2">
-              <label className="text-xs font-medium text-gray-600 flex-shrink-0 whitespace-nowrap">할당일자</label>
+              <label className="text-xs font-medium text-gray-600 flex-shrink-0 whitespace-nowrap min-w-[3rem] mr-2">할당일자</label>
               <div className="flex-1 flex items-center gap-2 min-w-0">
                 <div className="relative flex-1 min-w-0">
                   <input
@@ -588,7 +588,7 @@ const EquipmentAssignment: React.FC<EquipmentAssignmentProps> = ({ onBack, showT
 
             {/* 지점 선택 */}
             <div className="flex items-center gap-2">
-              <label className="text-xs font-medium text-gray-600 flex-shrink-0 whitespace-nowrap">지점</label>
+              <label className="text-xs font-medium text-gray-600 flex-shrink-0 whitespace-nowrap min-w-[3rem] mr-2">지점</label>
               <Select
                 value={selectedSoId}
                 onValueChange={(val) => setSelectedSoId(val)}

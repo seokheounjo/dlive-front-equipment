@@ -1532,7 +1532,7 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
             <div className="p-4 border-t border-gray-100 space-y-3">
               {/* 지점 */}
               <div className="flex items-center gap-2">
-                <label className="text-xs font-medium text-gray-600 flex-shrink-0 whitespace-nowrap">지점</label>
+                <label className="text-xs font-medium text-gray-600 flex-shrink-0 whitespace-nowrap min-w-[3rem] mr-2">지점</label>
                 <Select
                   value={selectedSoId}
                   onValueChange={(val) => setSelectedSoId(val)}
@@ -1546,7 +1546,7 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
               </div>
               {/* 장비종류 (중분류 + 소분류 한 줄) - 검사대기 시 비활성 */}
               <div className="flex items-center gap-2 overflow-hidden">
-                <label className="text-xs font-medium text-gray-600 flex-shrink-0 whitespace-nowrap">장비종류</label>
+                <label className="text-xs font-medium text-gray-600 flex-shrink-0 whitespace-nowrap min-w-[3rem] mr-2">장비종류</label>
                 <Select
                   value={selectedCategory === 'INSPECTION_WAITING' ? '' : selectedItemMidCd}
                   onValueChange={(val) => setSelectedItemMidCd(val)}
@@ -1569,7 +1569,7 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
               </div>
               {/* S/N + 스캔 버튼 */}
               <div className="flex items-center gap-2 overflow-hidden">
-                <label className="text-xs font-medium text-gray-600 flex-shrink-0 whitespace-nowrap">S/N</label>
+                <label className="text-xs font-medium text-gray-600 flex-shrink-0 whitespace-nowrap min-w-[3rem] mr-2">S/N</label>
                 <input
                   type="text"
                   value={eqtSerno}

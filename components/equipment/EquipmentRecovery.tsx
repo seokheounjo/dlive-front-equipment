@@ -317,7 +317,7 @@ const CustomerSearchModal: React.FC<{
         <div className="p-4 space-y-3 flex-1 overflow-y-auto min-h-0">
           {/* 고객ID */}
           <div className="flex items-center gap-2">
-            <label className="text-xs font-medium text-gray-600 flex-shrink-0 whitespace-nowrap">고객ID</label>
+            <label className="text-xs font-medium text-gray-600 flex-shrink-0 whitespace-nowrap min-w-[3rem] mr-2">고객ID</label>
             <input
               type="text"
               value={customerId}
@@ -330,7 +330,7 @@ const CustomerSearchModal: React.FC<{
 
           {/* 계약ID */}
           <div className="flex items-center gap-2">
-            <label className="text-xs font-medium text-gray-600 flex-shrink-0 whitespace-nowrap">계약ID</label>
+            <label className="text-xs font-medium text-gray-600 flex-shrink-0 whitespace-nowrap min-w-[3rem] mr-2">계약ID</label>
             <input
               type="text"
               value={contractId}
@@ -343,7 +343,7 @@ const CustomerSearchModal: React.FC<{
 
           {/* 전화번호 + 이름 (50:50) */}
           <div className="flex items-center gap-2 overflow-hidden">
-            <label className="text-xs font-medium text-gray-600 flex-shrink-0 whitespace-nowrap">전화번호</label>
+            <label className="text-xs font-medium text-gray-600 flex-shrink-0 whitespace-nowrap min-w-[3rem] mr-2">전화번호</label>
             <div className="flex-1 flex gap-2 min-w-0">
               <input
                 type="tel"
@@ -366,7 +366,7 @@ const CustomerSearchModal: React.FC<{
 
           {/* S/N + 스캔 버튼 */}
           <div className="flex items-center gap-2 overflow-hidden">
-            <label className="text-xs font-medium text-gray-600 flex-shrink-0 whitespace-nowrap">S/N</label>
+            <label className="text-xs font-medium text-gray-600 flex-shrink-0 whitespace-nowrap min-w-[3rem] mr-2">S/N</label>
             <input
               type="text"
               value={equipmentNo}
@@ -1122,7 +1122,7 @@ const EquipmentRecovery: React.FC<EquipmentRecoveryProps> = ({ onBack, showToast
         <div className="space-y-3">
           {/* 고객 검색 - 클릭 시 팝업 (50:50) */}
           <div className="flex items-center gap-2">
-            <label className="text-xs font-medium text-gray-600 flex-shrink-0 whitespace-nowrap">고객검색</label>
+            <label className="text-xs font-medium text-gray-600 flex-shrink-0 whitespace-nowrap min-w-[3rem] mr-2">고객검색</label>
             <div
               onClick={() => setCustomerModalOpen(true)}
               className="flex-1 flex gap-2 cursor-pointer min-w-0 overflow-hidden"
@@ -1161,7 +1161,7 @@ const EquipmentRecovery: React.FC<EquipmentRecoveryProps> = ({ onBack, showToast
 
           {/* S/N + 스캔 버튼 */}
           <div className="flex items-center gap-2 overflow-hidden">
-            <label className="text-xs font-medium text-gray-600 flex-shrink-0 whitespace-nowrap">S/N</label>
+            <label className="text-xs font-medium text-gray-600 flex-shrink-0 whitespace-nowrap min-w-[3rem] mr-2">S/N</label>
             <input
               type="text"
               value={searchParams.EQT_SERNO}
