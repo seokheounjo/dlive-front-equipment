@@ -893,15 +893,15 @@ const EquipmentList: React.FC<EquipmentListProps> = ({ onBack, showToast }) => {
 
         {/* 에러 메시지 */}
         {error && (
-          <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-8">
+          <div className="bg-orange-50 rounded-xl border border-orange-200 shadow-sm p-6">
             <div className="text-center">
-              <div className="w-16 h-16 mx-auto mb-4 bg-blue-100 rounded-full flex items-center justify-center">
-                <svg className="w-8 h-8 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+              <div className="w-14 h-14 mx-auto mb-3 bg-orange-100 rounded-full flex items-center justify-center">
+                <svg className="w-7 h-7 text-orange-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z" />
                 </svg>
               </div>
-              <p className="text-gray-500 text-sm mb-1">장비를 찾을 수 없습니다</p>
-              <p className="text-gray-400 text-xs">S/N 또는 MAC 주소를 확인해주세요</p>
+              <p className="text-orange-700 text-base font-bold mb-1">검색 결과 없음</p>
+              <p className="text-orange-600 text-sm">{error}</p>
             </div>
           </div>
         )}
