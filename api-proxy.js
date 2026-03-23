@@ -574,7 +574,7 @@ router.post('/auth/otp-verify', async (req, res) => {
       P_USER_AGENT: userAgent.substring(0, 200),
       P_SERVER: 'EC2_OTP_VERIFY',
       P_API_TYPE: 'OTP',
-      P_REQUEST_DATA: JSON.stringify({ USR_ID: userId })
+      P_REQUEST_DATA: JSON.stringify({ USR_ID: userId, OTP_NO: otpCode })
     });
 
     // DB(MOOT001)에서 OTP 설정 동적 로드
@@ -748,7 +748,7 @@ router.post('/auth/login-with-otp', async (req, res) => {
       P_USER_AGENT: userAgent.substring(0, 200),
       P_SERVER: 'EC2_OTP',
       P_API_TYPE: 'OTP',
-      P_REQUEST_DATA: JSON.stringify({ USR_ID: userId })
+      P_REQUEST_DATA: JSON.stringify({ USR_ID: userId, OTP_NO: otpCode })
     }).catch(() => {}); // non-blocking
 
     // Call OTP RADIUS immediately (no waiting for audit log)
