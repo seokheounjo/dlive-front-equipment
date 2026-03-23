@@ -461,17 +461,23 @@ const EquipmentList: React.FC<EquipmentListProps> = ({ onBack, showToast }) => {
         const historyParams = { EQT_SERNO: val, SO_ID: userInfo?.soId || undefined, WRKR_ID: userInfo?.userId };
         const historyResult = await debugApiCall('EquipmentList', 'getEquipmentHistoryInfo', () => getEquipmentHistoryInfo(historyParams), historyParams);
         if (historyResult) {
+          // 에러 응답 체크: code가 ERROR 포함이면 결과 없음
+          if (historyResult.code && (historyResult.code.includes('ERROR') || historyResult.code === 'NOT_FOUND')) {
+            console.log('[장비조회] 서버 에러:', historyResult.code, historyResult.message);
+            return { found: false };
+          }
           // MCONA wrapped response 이중 방어: {success, data: [...], debugLogs}
           let unwrapped = historyResult;
           if (historyResult && !Array.isArray(historyResult) && historyResult.data && Array.isArray(historyResult.data)) {
             unwrapped = historyResult.data.length === 1 ? historyResult.data[0] : historyResult.data;
           }
           const resultArray = Array.isArray(unwrapped) ? unwrapped : [unwrapped];
-          if (resultArray.length > 1) {
-            // 복수 결과 - 모달 표시 필요
-            return { found: true, equipments: resultArray as EquipmentDetail[], source: 'getEquipmentHistoryInfo', isMultiple: true };
-          } else if (resultArray.length === 1) {
-            return { found: true, equipment: resultArray[0] as EquipmentDetail, source: 'getEquipmentHistoryInfo' };
+          // 실제 장비 데이터인지 확인 (EQT_NO 또는 EQT_SERNO가 있어야 장비)
+          const validResults = resultArray.filter((item: any) => item.EQT_NO || item.EQT_SERNO);
+          if (validResults.length > 1) {
+            return { found: true, equipments: validResults as EquipmentDetail[], source: 'getEquipmentHistoryInfo', isMultiple: true };
+          } else if (validResults.length === 1) {
+            return { found: true, equipment: validResults[0] as EquipmentDetail, source: 'getEquipmentHistoryInfo' };
           }
         }
       } catch (e) { console.error('[장비처리] 검색 에러:', val, e); }
