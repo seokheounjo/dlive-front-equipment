@@ -503,7 +503,8 @@ const CustomerSearch: React.FC<CustomerSearchProps> = ({ onCustomerSelect, onCus
                             <span className="text-gray-400">계약ID:</span> <span className="font-mono">{customer.CTRT_ID}</span>
                           </div>
                         )}
-                        <div className="mt-1 text-xs text-gray-500 whitespace-nowrap">
+                        {/* [2026-03-23] Allow address to wrap inside card */}
+                        <div className="mt-1 text-xs text-gray-500 break-words">
                           {maskPhoneNumber(customer.TEL_NO || customer.HP_NO)}
                           {customer.CUST_ADDR && ` | ${customer.CUST_ADDR}`}
                         </div>
