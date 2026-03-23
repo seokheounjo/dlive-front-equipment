@@ -1206,8 +1206,8 @@ const ConsultationAS: React.FC<ConsultationASProps> = ({
                           </div>
                         </div>
 
-                        {/* Row 3: 작업상태 | 완료일자 */}
-                        <div className="mt-1.5 grid grid-cols-2 gap-2 text-xs">
+                        {/* [2026-03-23] Row 3: 작업상태 | 완료일자 | 작업자소속 — 3열 */}
+                        <div className="mt-1.5 grid grid-cols-3 gap-2 text-xs">
                           <div className="flex flex-col">
                             <span className="text-gray-500 whitespace-nowrap">작업상태</span>
                             <span className={`font-medium ${
@@ -1220,10 +1220,6 @@ const ConsultationAS: React.FC<ConsultationASProps> = ({
                             <span className="text-gray-500 whitespace-nowrap">완료일자</span>
                             <span className="text-gray-800 font-medium">{item.CMPL_DATE || '-'}</span>
                           </div>
-                        </div>
-
-                        {/* Row 4: 작업자소속 */}
-                        <div className="mt-1.5 grid grid-cols-2 gap-2 text-xs">
                           <div className="flex flex-col">
                             <span className="text-gray-500 whitespace-nowrap">작업자소속</span>
                             <span className="text-gray-800 font-medium">{item.WRK_CRR_NM || '-'}</span>
