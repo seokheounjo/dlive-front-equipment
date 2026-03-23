@@ -341,22 +341,18 @@ const UnpaymentCollectionModal: React.FC<UnpaymentCollectionModalProps> = ({
     setProcessingBillYms(billYmList);
 
     try {
-      // Step 1: Get MID
+      // [2026-03-23] Step 1: Get CARD_VENDOR (vendor name like "NICE", NOT the PG MID)
       const soId = getSoId();
-      let mid = '';
+      let cardVendor = '';
       if (soId) {
         const vendorRes = await getCardVendorBySoId(soId);
         if (vendorRes.success && vendorRes.data) {
           const vendorData = Array.isArray(vendorRes.data) ? vendorRes.data[0] : vendorRes.data;
-          mid = vendorData?.MID || vendorData?.CARD_VENDOR || '';
+          cardVendor = vendorData?.CARD_VENDOR || '';
         }
       }
-      if (!mid) {
-        setPaymentPopup({ visible: true, status: 'fail', message: '가맹점 정보를 조회할 수 없습니다.' });
-        setIsProcessing(false);
-        setProcessingBillYms([]);
-        return;
-      }
+      // [2026-03-23] CARD_VENDOR is optional - backend uses default DECODE path if empty
+      // Don't block payment flow even if CARD_VENDOR lookup fails
 
       const orderNo = generateOrderNo();
       const now = new Date();
@@ -364,13 +360,13 @@ const UnpaymentCollectionModal: React.FC<UnpaymentCollectionModalProps> = ({
         (now.getMonth() + 1).toString().padStart(2, '0') +
         now.getDate().toString().padStart(2, '0');
 
-      // Step 2: Insert DPST & DTL
+      // [2026-03-23] Step 2: Insert DPST & DTL - pass CARD_VENDOR (not MID), backend gets real MID from DB
       const dpstRes = await insertDpstAndDTL({
         CUST_ID: custId,
         PYM_ACNT_ID: pymAcntId,
         SO_ID: soId,
         AMT: selectedTotal,
-        MID: mid,
+        CARD_VENDOR: cardVendor,
         ORDER_DT: orderDt,
         OID: orderNo,
         CUST_NM: custNm || custId || 'Mobile',
@@ -384,13 +380,22 @@ const UnpaymentCollectionModal: React.FC<UnpaymentCollectionModalProps> = ({
         return;
       }
 
-      // Use backend-generated ORDER_NO and MERT_KEY if available
+      // [2026-03-23] Use backend-returned real MID (MASTER_STORE_ID from DB), ORDER_NO, MERT_KEY
       const actualOrderNo = dpstRes.data?.ORDER_NO || orderNo;
       const mertKey = dpstRes.data?.MERT_KEY || '';
+      const mid = dpstRes.data?.MID || '';
 
       // [2026-03-23] Validate MERT_KEY before proceeding to PG payment
       if (!mertKey) {
         setPaymentPopup({ visible: true, status: 'fail', message: '결제 초기화에 실패했습니다. (MERT_KEY 누락)\n관리자에게 문의해주세요.' });
+        setIsProcessing(false);
+        setProcessingBillYms([]);
+        return;
+      }
+
+      // [2026-03-23] Validate real MID (MASTER_STORE_ID) from backend
+      if (!mid) {
+        setPaymentPopup({ visible: true, status: 'fail', message: '가맹점 ID(MID)를 조회할 수 없습니다.\n관리자에게 문의해주세요.' });
         setIsProcessing(false);
         setProcessingBillYms([]);
         return;
@@ -420,7 +425,7 @@ const UnpaymentCollectionModal: React.FC<UnpaymentCollectionModalProps> = ({
         return next;
       });
 
-      // Step 4: Process card payment (may timeout)
+      // [2026-03-23] Step 4: Process card payment - use real MID from Step 2 response, pass CARD_VENDOR separately
       const pgRes = await processCardPayment({
         mid,
         oid: actualOrderNo,
@@ -437,6 +442,7 @@ const UnpaymentCollectionModal: React.FC<UnpaymentCollectionModalProps> = ({
         encrypted_amt: String(selectedTotal),
         so_id: soId,
         cust_id: custId,
+        card_vendor: cardVendor,
         mert_key: mertKey,
       });
 

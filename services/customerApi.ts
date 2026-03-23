@@ -336,6 +336,7 @@ export interface ASRequestUIParams {
   CUST_ID: string;           // 고객ID
   CTRT_ID: string;           // 계약ID
   POST_ID: string;           // 주소ID
+  PG_GUBUN?: string;         // [2026-03-23] '1'=subscriber(가입자), '2'=non-subscriber(비가입자)
   AS_CL_CD: string;          // AS구분코드 (UI 선택값) -> WRK_DTL_TCD로 매핑
   AS_CL_DTL_CD?: string;     // 콤보상세코드 -> AS_BIZ_CL
   TRIP_FEE_CD?: string;      // 출장비코드 -> BIZ_EXPNS_GUIDE
@@ -1922,7 +1923,7 @@ export const registerASRequest = async (params: ASRequestParams): Promise<ApiRes
   const isUIParams = 'AS_CL_CD' in params;
 
   const backendParams: Record<string, any> = {
-    // PG_GUBUN: 1 (legacy mowoe03m03/mowoa03p06 both use 1)
+    // [2026-03-23] PG_GUBUN: always '1' for both subscriber and non-subscriber AS
     PG_GUBUN: isUIParams ? (uiParams.PG_GUBUN || '1') : '1',
     POST_ID: (params as ASRequestParams).POST_ID || '',
     CUST_ID: params.CUST_ID,
@@ -2452,12 +2453,13 @@ export interface CardDpstDtlItem {
   RCPT_AMT: number;          // 수납금액
 }
 
+// [2026-03-23] Changed MID to CARD_VENDOR - backend gets real MID from DB via getMasterStoreID
 export const insertDpstAndDTL = async (params: {
   CUST_ID: string;
   PYM_ACNT_ID: string;
   SO_ID: string;
   AMT: number;
-  MID: string;
+  CARD_VENDOR?: string;
   ORDER_DT: string;
   OID: string;
   CUST_NM?: string;

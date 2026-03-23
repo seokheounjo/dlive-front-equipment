@@ -537,7 +537,8 @@ const ConsultationAS: React.FC<ConsultationASProps> = ({
       return;
     }
 
-    if (!asForm.asClCd) {
+    // [2026-03-23] Non-subscriber: WRK_DTL_TCD='0310' hardcoded, skip AS구분 validation
+    if (asSubscriberType === 'subscriber' && !asForm.asClCd) {
       showPopup('warning', '안내', 'AS구분을 선택해주세요.');
       return;
     }
@@ -580,13 +581,15 @@ const ConsultationAS: React.FC<ConsultationASProps> = ({
           ? (selectedContract?.postId || '')
           : (activeContract?.POST_ID || ''),
         INST_ADDR: isSubscriber ? (selectedContract?.instAddr || '') : '',
-        AS_CL_CD: asForm.asClCd,
+        // [2026-03-23] Non-subscriber: WRK_DTL_TCD='0310' hardcoded per CONA spec
+        AS_CL_CD: isSubscriber ? asForm.asClCd : '0310',
         AS_RESN_L_CD: asForm.asResnLCd,
         AS_RESN_M_CD: asForm.asResnMCd,
         AS_CNTN: asForm.asCntn,
         SCHD_DT: asForm.schdDt.replace(/-/g, ''),
         SCHD_TM: asForm.schdHour + asForm.schdMin,
         WRKR_ID: userInfo.userId || '',
+        // [2026-03-23] PG_GUBUN: always '1' for both subscriber and non-subscriber AS
         PG_GUBUN: '1',
         SO_ID: isSubscriber
           ? (selectedContract?.soId || '')
@@ -915,7 +918,8 @@ const ConsultationAS: React.FC<ConsultationASProps> = ({
             ) : (
               <>
 
-                {/* AS구분 */}
+                {/* [2026-03-23] AS구분 - subscriber only (non-subscriber uses '0310' hardcoded) */}
+                {asSubscriberType === 'subscriber' && (
                 <div>
                   <label className="block text-sm text-gray-600 mb-1">AS구분 *</label>
                   <Select
@@ -928,6 +932,7 @@ const ConsultationAS: React.FC<ConsultationASProps> = ({
                     placeholder="선택"
                   />
                 </div>
+                )}
 
                 {/* AS접수사유 (대/중) */}
                 <div className="grid grid-cols-2 gap-3">
