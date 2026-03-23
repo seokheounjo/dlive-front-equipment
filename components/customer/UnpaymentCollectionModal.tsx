@@ -19,6 +19,24 @@ import {
   getPendingInfoForBillYm
 } from '../../services/customerApi';
 
+// [2026-03-23] Luhn check for card number validation (prevents fake card numbers like 1111...)
+const isValidCardNumber = (num: string): boolean => {
+  const digits = num.replace(/\D/g, '');
+  if (digits.length !== 16) return false;
+  // Reject all-same-digit patterns (e.g., 1111111111111111)
+  if (/^(\d)\1{15}$/.test(digits)) return false;
+  let sum = 0;
+  for (let i = 0; i < digits.length; i++) {
+    let d = parseInt(digits[digits.length - 1 - i], 10);
+    if (i % 2 === 1) {
+      d *= 2;
+      if (d > 9) d -= 9;
+    }
+    sum += d;
+  }
+  return sum % 10 === 0;
+};
+
 // ID 포맷 (3-3-4)
 const formatId = (id: string): string => {
   if (!id) return '-';
@@ -687,6 +705,10 @@ const UnpaymentCollectionModal: React.FC<UnpaymentCollectionModalProps> = ({
                       className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-red-500 focus:border-transparent disabled:bg-gray-100 disabled:text-gray-400"
                       disabled={isCardInputDisabled}
                     />
+                    {/* [2026-03-23] Card number validation message */}
+                    {cardNo.replace(/\D/g, '').length === 16 && !isValidCardNumber(cardNo) && (
+                      <p className="mt-1 text-xs text-red-500">유효하지 않은 카드번호입니다.</p>
+                    )}
                   </div>
 
                   {/* 유효기간 */}
@@ -793,7 +815,7 @@ const UnpaymentCollectionModal: React.FC<UnpaymentCollectionModalProps> = ({
               ) : nonPendingSelected.length > 0 ? (
                 <button
                   onClick={handlePayment}
-                  disabled={isProcessing || cardNo.replace(/\D/g, '').length !== 16}
+                  disabled={isProcessing || !isValidCardNumber(cardNo)}
                   className="flex-1 py-3 text-sm font-medium text-white bg-red-500 rounded-lg hover:bg-red-600 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2"
                 >
                   {isProcessing ? (

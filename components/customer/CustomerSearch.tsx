@@ -494,9 +494,9 @@ const CustomerSearch: React.FC<CustomerSearchProps> = ({ onCustomerSelect, onCus
                         onClick={() => handleSelectCustomer(customer)}
                         className="w-full p-3 bg-white hover:bg-blue-50 rounded-lg border border-gray-200 hover:border-blue-300 text-left transition-colors"
                       >
-                        <div className="flex items-center gap-3">
-                          <span className="text-blue-600 font-mono text-sm">{customer.CUST_ID}</span>
-                          <span className="font-semibold text-gray-900">{customer.CUST_NM}</span>
+                        <div className="flex items-center gap-3 min-w-0">
+                          <span className="text-blue-600 font-mono text-sm whitespace-nowrap">{customer.CUST_ID}</span>
+                          <span className="font-semibold text-gray-900 truncate">{customer.CUST_NM}</span>
                         </div>
                         {customer.CTRT_ID && (
                           <div className="mt-1 text-xs text-gray-600">
@@ -508,7 +508,7 @@ const CustomerSearch: React.FC<CustomerSearchProps> = ({ onCustomerSelect, onCus
                           {customer.CUST_ADDR && ` | ${customer.CUST_ADDR}`}
                         </div>
                         {customer.UNPAY_AMT > 0 && (
-                          <div className="mt-1 text-xs text-red-500 font-medium">
+                          <div className="mt-1 text-xs text-red-500 font-medium whitespace-nowrap">
                             미납: {customer.UNPAY_AMT.toLocaleString()}원
                           </div>
                         )}

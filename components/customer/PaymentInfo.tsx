@@ -341,13 +341,13 @@ const PaymentInfo: React.FC<PaymentInfoProps> = ({
                             }`}
                           >
                             <div className="flex items-center justify-between text-sm">
-                              <div className="flex items-center gap-2">
-                                <span className="font-medium text-gray-700">{index + 1}.</span>
-                                <span className="text-gray-800">{formatPymAcntId(payment.PYM_ACNT_ID)}</span>
+                              <div className="flex items-center gap-2 min-w-0">
+                                <span className="font-medium text-gray-700 whitespace-nowrap">{index + 1}.</span>
+                                <span className="text-gray-800 whitespace-nowrap">{formatPymAcntId(payment.PYM_ACNT_ID)}</span>
                                 <span className="text-gray-400">|</span>
-                                <span className="text-gray-600">{payment.PYM_MTHD_NM || '-'}</span>
+                                <span className="text-gray-600 truncate">{payment.PYM_MTHD_NM || '-'}</span>
                                 {payment.COMMON_CD && payment.COMMON_CD !== '0' && (
-                                  <span className={`px-1.5 py-0.5 text-xs rounded-full ${
+                                  <span className={`px-1.5 py-0.5 text-xs rounded-full whitespace-nowrap ${
                                     payment.COMMON_CD === '3' ? 'bg-red-100 text-red-700' :
                                     payment.COMMON_CD === '1' ? 'bg-green-100 text-green-700' :
                                     'bg-yellow-100 text-yellow-700'
@@ -367,7 +367,7 @@ const PaymentInfo: React.FC<PaymentInfoProps> = ({
                                   </span>
                                 )}
                               </div>
-                              <span className={`font-medium ${payment.UPYM_AMT_ACNT > 0 ? 'text-red-600' : 'text-gray-600'}`}>
+                              <span className={`font-medium whitespace-nowrap ${payment.UPYM_AMT_ACNT > 0 ? 'text-red-600' : 'text-gray-600'}`}>
                                 {formatCurrency(payment.UPYM_AMT_ACNT || 0)}원
                               </span>
                             </div>
@@ -382,13 +382,13 @@ const PaymentInfo: React.FC<PaymentInfoProps> = ({
                         <div className="space-y-2 text-sm">
                           {/* 납부방법 */}
                           <div className="flex justify-between items-center">
-                            <span className="text-gray-500 text-xs">납부방법</span>
-                            <span className="text-gray-800">{selectedPayment.PYM_MTHD_NM || '-'}</span>
+                            <span className="text-gray-500 text-xs whitespace-nowrap">납부방법</span>
+                            <span className="text-gray-800 truncate ml-2">{selectedPayment.PYM_MTHD_NM || '-'}</span>
                           </div>
                           {/* 은행/카드 */}
                           <div className="flex justify-between items-center">
-                            <span className="text-gray-500 text-xs">은행/카드</span>
-                            <span className="text-gray-800">{selectedPayment.BANK_CARD_NM || '-'}</span>
+                            <span className="text-gray-500 text-xs whitespace-nowrap">은행/카드</span>
+                            <span className="text-gray-800 truncate ml-2">{selectedPayment.BANK_CARD_NM || '-'}</span>
                           </div>
                           {/* 계좌/카드번호 */}
                           <div className="flex justify-between items-center">
@@ -520,16 +520,16 @@ const PaymentInfo: React.FC<PaymentInfoProps> = ({
                             <div className="space-y-1 text-sm">
                               <div className="flex justify-between">
                                 <span className="text-gray-500 text-xs">청구금액</span>
-                                <span className="text-gray-800">{formatCurrency(item.BILL_AMT)}원</span>
+                                <span className="text-gray-800 whitespace-nowrap">{formatCurrency(item.BILL_AMT)}원</span>
                               </div>
                               <div className="flex justify-between">
-                                <span className="text-gray-500 text-xs">수납금액</span>
-                                <span className="text-green-600">{formatCurrency(item.RCPT_AMT)}원</span>
+                                <span className="text-gray-500 text-xs whitespace-nowrap">수납금액</span>
+                                <span className="text-green-600 whitespace-nowrap">{formatCurrency(item.RCPT_AMT)}원</span>
                               </div>
                               {item.UPYM_AMT > 0 && (
                                 <div className="flex justify-between pt-1 border-t border-gray-200">
-                                  <span className="text-gray-500 text-xs">미납금액</span>
-                                  <span className={`font-bold ${isPending ? 'text-amber-600' : 'text-red-600'}`}>{formatCurrency(item.UPYM_AMT)}원</span>
+                                  <span className="text-gray-500 text-xs whitespace-nowrap">미납금액</span>
+                                  <span className={`font-bold whitespace-nowrap ${isPending ? 'text-amber-600' : 'text-red-600'}`}>{formatCurrency(item.UPYM_AMT)}원</span>
                                 </div>
                               )}
                             </div>

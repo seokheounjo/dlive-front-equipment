@@ -302,14 +302,14 @@ const ContractSummary: React.FC<ContractSummaryProps> = ({
                       {(contract.STREET_ADDR_FULL || contract.ADDR_FULL || contract.INST_ADDR) && (
                         <div className="flex items-start gap-1 text-sm text-gray-600 mt-1">
                           <MapPin className="w-4 h-4 flex-shrink-0 mt-0.5" />
-                          <div className="min-w-0">
+                          <div className="min-w-0 truncate">
                             {contract.STREET_ADDR_FULL ? (
                               <>
-                                <span className="text-xs text-blue-600 mr-1">[도로명]</span>
-                                <span>{contract.STREET_ADDR_FULL}</span>
+                                <span className="text-xs text-blue-600 mr-1 whitespace-nowrap">[도로명]</span>
+                                <span className="whitespace-nowrap">{contract.STREET_ADDR_FULL}</span>
                               </>
                             ) : (
-                              <span>{contract.ADDR_FULL || contract.INST_ADDR}</span>
+                              <span className="whitespace-nowrap">{contract.ADDR_FULL || contract.INST_ADDR}</span>
                             )}
                           </div>
                         </div>
@@ -333,13 +333,13 @@ const ContractSummary: React.FC<ContractSummaryProps> = ({
                         </div>
 
                         {/* 장비 (NOTRECEV) */}
-                        <div className="text-sm text-gray-600">
+                        <div className="text-sm text-gray-600 truncate">
                           장비: {contract.NOTRECEV || '-'}
                         </div>
 
                         {/* 단체 정보 */}
                         {contract.GRP_NM && (
-                          <div className="text-sm text-gray-600">
+                          <div className="text-sm text-gray-600 truncate">
                             단체명: {contract.GRP_NM}
                           </div>
                         )}
