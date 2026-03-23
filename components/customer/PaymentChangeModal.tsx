@@ -482,25 +482,28 @@ const PaymentChangeModal: React.FC<PaymentChangeModalProps> = ({
           console.log('[PaymentChange] Signature save stub (API not connected yet):', signErr);
         }
 
-        // [2026-03-23] PDF filename DB save — generate UPDATE_DATE if not returned by chgPymMthd_m
+        // [2026-03-23] PDF filename DB save — UPDATE_DATE must come from chgPymMthd_m OUT param
+        // DB WHERE: PYM_ACNT_ID + TO_DATE(UPDATE_DATE, 'YYYYMMDDHH24MISS') — exact match required
         {
-          const now = new Date();
-          const dateStr = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}`;
-          const updateDate = response.data?.UPDATE_DATE || dateStr;
+          const updateDate = response.data?.UPDATE_DATE || '';
           const nextSeq = response.data?.NEXT_AGR_FILE_NAME_SEQ || '001';
           const pymAcntId = response.data?.PYM_ACNT_ID || selectedPymAcntId;
-          const agrFileName = `${pymAcntId}${nextSeq}${updateDate}.pdf`;
-          console.log('[PaymentChange] PDF save:', { PYM_ACNT_ID: selectedPymAcntId, UPDATE_DATE: updateDate, AGR_FILE_NAME: agrFileName, fromResponse: !!response.data?.UPDATE_DATE });
-          try {
-            await updatePymAtmtApplAGRPdf({
-              PYM_ACNT_ID: selectedPymAcntId,
-              UPDATE_DATE: updateDate,
-              AGR_FILE_NAME: agrFileName,
-              AGR_FILE_GB: paymentForm.pymMthCd === '01' ? 'A' : 'C',
-            });
-            console.log('[PaymentChange] PDF filename saved to DB');
-          } catch (e) {
-            console.warn('PDF filename DB save failed:', e);
+          if (updateDate) {
+            const agrFileName = `${pymAcntId}${nextSeq}${updateDate}.pdf`;
+            console.log('[PaymentChange] PDF save:', { PYM_ACNT_ID: selectedPymAcntId, UPDATE_DATE: updateDate, AGR_FILE_NAME: agrFileName });
+            try {
+              await updatePymAtmtApplAGRPdf({
+                PYM_ACNT_ID: selectedPymAcntId,
+                UPDATE_DATE: updateDate,
+                AGR_FILE_NAME: agrFileName,
+                AGR_FILE_GB: paymentForm.pymMthCd === '01' ? 'A' : 'C',
+              });
+              console.log('[PaymentChange] PDF filename saved to DB');
+            } catch (e) {
+              console.warn('PDF filename DB save failed:', e);
+            }
+          } else {
+            console.warn('[PaymentChange] UPDATE_DATE empty — cannot save PDF filename (WHERE clause requires exact timestamp)');
           }
         }
 
