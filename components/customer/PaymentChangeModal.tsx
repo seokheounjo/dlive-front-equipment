@@ -482,12 +482,15 @@ const PaymentChangeModal: React.FC<PaymentChangeModalProps> = ({
           console.log('[PaymentChange] Signature save stub (API not connected yet):', signErr);
         }
 
-        // [2026-03-18] PDF filename DB save — format: PYM_ACNT_ID + NEXT_AGR_FILE_NAME_SEQ + UPDATE_DATE
+        // [2026-03-23] PDF filename DB save — generate UPDATE_DATE if not returned by chgPymMthd_m
         {
-          const updateDate = response.data?.UPDATE_DATE || '';
+          const now = new Date();
+          const dateStr = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}`;
+          const updateDate = response.data?.UPDATE_DATE || dateStr;
           const nextSeq = response.data?.NEXT_AGR_FILE_NAME_SEQ || '001';
           const pymAcntId = response.data?.PYM_ACNT_ID || selectedPymAcntId;
           const agrFileName = `${pymAcntId}${nextSeq}${updateDate}.pdf`;
+          console.log('[PaymentChange] PDF save:', { PYM_ACNT_ID: selectedPymAcntId, UPDATE_DATE: updateDate, AGR_FILE_NAME: agrFileName, fromResponse: !!response.data?.UPDATE_DATE });
           try {
             await updatePymAtmtApplAGRPdf({
               PYM_ACNT_ID: selectedPymAcntId,
@@ -495,6 +498,7 @@ const PaymentChangeModal: React.FC<PaymentChangeModalProps> = ({
               AGR_FILE_NAME: agrFileName,
               AGR_FILE_GB: paymentForm.pymMthCd === '01' ? 'A' : 'C',
             });
+            console.log('[PaymentChange] PDF filename saved to DB');
           } catch (e) {
             console.warn('PDF filename DB save failed:', e);
           }
