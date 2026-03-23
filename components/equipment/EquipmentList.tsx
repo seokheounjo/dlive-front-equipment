@@ -1330,8 +1330,8 @@ const EquipmentList: React.FC<EquipmentListProps> = ({ onBack, showToast }) => {
           </div>
         )}
 
-        {/* 기사보유장비로 이관 - 스크롤 하단 버튼 */}
-        {equipmentDetail && equipmentDetail.EQT_LOC_TP_CD !== '4' && equipmentDetail.EQT_LOC_TP_CD_NM !== '고객' && (
+        {/* 기사보유장비로 이관 - 상시 활성화, 서버가 이관 가능 여부 판단 */}
+        {equipmentDetail && (
           <div className="px-0 pt-3 pb-24">
             <button
               onClick={handleTransferToMe}
