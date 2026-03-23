@@ -388,6 +388,14 @@ const UnpaymentCollectionModal: React.FC<UnpaymentCollectionModalProps> = ({
       const actualOrderNo = dpstRes.data?.ORDER_NO || orderNo;
       const mertKey = dpstRes.data?.MERT_KEY || '';
 
+      // [2026-03-23] Validate MERT_KEY before proceeding to PG payment
+      if (!mertKey) {
+        setPaymentPopup({ visible: true, status: 'fail', message: '결제 초기화에 실패했습니다. (MERT_KEY 누락)\n관리자에게 문의해주세요.' });
+        setIsProcessing(false);
+        setProcessingBillYms([]);
+        return;
+      }
+
       // Step 3: Save pending BEFORE PG call
       const pendingInfo: PendingPaymentInfo = {
         cardNo: cleanCardNo.slice(-4),

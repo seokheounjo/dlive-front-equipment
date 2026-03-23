@@ -483,7 +483,15 @@ const ConsultationAS: React.FC<ConsultationASProps> = ({
         CNSL_RSLT: '5',   // 완료 (원본 CONA mowoe03m04.xml 기준)
         RCPT_TP: 'G1', CUST_REL: 'A', PRESS_RCPT_YN: 'N',
         SUBS_TP: '1', CTI_CID: '0',
-        SO_ID: '', MST_SO_ID: '',
+        // [2026-03-23] SO_ID fallback from selectedContract or session userInfo
+        SO_ID: selectedContract?.soId || (() => {
+          try {
+            const u = JSON.parse(sessionStorage.getItem('userInfo') || localStorage.getItem('userInfo') || '{}');
+            const list = u.authSoList || u.AUTH_SO_List || [];
+            return list[0]?.SO_ID || list[0]?.soId || u.soId || u.SO_ID || '';
+          } catch { return ''; }
+        })(),
+        MST_SO_ID: '',
         CALL_NM: selectedCustomer.custNm || '',
         REQ_CUST_TEL_NO: selectedCustomer.telNo || ''
       };
@@ -1102,28 +1110,33 @@ const ConsultationAS: React.FC<ConsultationASProps> = ({
                           className="p-3 cursor-pointer flex items-center justify-between"
                           onClick={() => toggleConsultItem(index)}
                         >
-                          <div className="grid grid-cols-5 gap-2 text-xs flex-1">
-                            <div className="flex flex-col">
-                              <span className="text-gray-500 whitespace-nowrap">계약ID</span>
-                              <span className="text-gray-800 font-medium text-[10px]">{item.CTRT_ID || '-'}</span>
+                          {/* [2026-03-23] Two-row layout: row1 = 계약ID+접수일 horizontal, row2 = 상담소분류+처리상태+접수자 vertical */}
+                          <div className="flex-1 min-w-0 text-xs">
+                            <div className="flex gap-4 mb-1">
+                              <div className="flex items-center gap-1">
+                                <span className="text-gray-500">계약ID:</span>
+                                <span className="text-gray-800 font-medium text-[10px]">{item.CTRT_ID || '-'}</span>
+                              </div>
+                              <div className="flex items-center gap-1">
+                                <span className="text-gray-500">접수일:</span>
+                                <span className="text-gray-800 font-medium">{item.START_DATE || '-'}</span>
+                              </div>
                             </div>
-                            <div className="flex flex-col">
-                              <span className="text-gray-500 whitespace-nowrap">접수일</span>
-                              <span className="text-gray-800 font-medium">{item.START_DATE || '-'}</span>
-                            </div>
-                            <div className="flex flex-col">
-                              <span className="text-gray-500 whitespace-nowrap">상담소분류</span>
-                              <span className="text-gray-800 font-medium whitespace-nowrap">{item.CNSL_SLV_CL_NM || '-'}</span>
-                            </div>
-                            <div className="flex flex-col">
-                              <span className="text-gray-500 whitespace-nowrap">처리상태</span>
-                              <span className={`font-medium ${
-                                item.CNSL_RSLT?.includes('완료') ? 'text-green-600' : 'text-yellow-600'
-                              }`}>{item.CNSL_RSLT || '처리중'}</span>
-                            </div>
-                            <div className="flex flex-col min-w-0">
-                              <span className="text-gray-500 whitespace-nowrap">접수자</span>
-                              <span className="text-gray-800 font-medium whitespace-nowrap">{item.RCPT_NM || '-'}</span>
+                            <div className="grid grid-cols-3 gap-2">
+                              <div className="flex flex-col min-w-0">
+                                <span className="text-gray-500">상담소분류</span>
+                                <span className="text-gray-800 font-medium break-words">{item.CNSL_SLV_CL_NM || '-'}</span>
+                              </div>
+                              <div className="flex flex-col min-w-0">
+                                <span className="text-gray-500">처리상태</span>
+                                <span className={`font-medium ${
+                                  item.CNSL_RSLT?.includes('완료') ? 'text-green-600' : 'text-yellow-600'
+                                }`}>{item.CNSL_RSLT || '처리중'}</span>
+                              </div>
+                              <div className="flex flex-col min-w-0">
+                                <span className="text-gray-500">접수자</span>
+                                <span className="text-gray-800 font-medium break-words">{item.RCPT_NM || '-'}</span>
+                              </div>
                             </div>
                           </div>
                           {expandedConsultItems.has(index) ? (
@@ -1138,14 +1151,15 @@ const ConsultationAS: React.FC<ConsultationASProps> = ({
                           <div className="px-3 pb-3">
                             <div>
                               <div className="text-xs text-gray-500 mb-1">요청사항</div>
+                              {/* [2026-03-23] Convert escaped \\n to real newlines for proper line breaks */}
                               <div className="p-2 bg-white border border-gray-200 rounded min-h-[48px] text-gray-700 text-xs whitespace-pre-wrap">
-                                {item.REQ_CTX || '-'}
+                                {(item.REQ_CTX || '-').replace(/\\n/g, '\n')}
                               </div>
                             </div>
                             <div className="mt-2">
                               <div className="text-xs text-gray-500 mb-1">응대내용</div>
                               <div className="p-2 bg-white border border-gray-200 rounded min-h-[48px] text-gray-700 text-xs whitespace-pre-wrap">
-                                {item.PROC_CT || '-'}
+                                {(item.PROC_CT || '-').replace(/\\n/g, '\n')}
                               </div>
                             </div>
                           </div>
@@ -1179,10 +1193,16 @@ const ConsultationAS: React.FC<ConsultationASProps> = ({
                           </div>
                         </div>
 
-                        {/* Row 2: 상품명 */}
-                        <div className="mt-1.5 grid grid-cols-[auto_1fr] gap-2 text-xs items-center">
-                          <span className="text-gray-500 whitespace-nowrap">상품명</span>
-                          <span className="text-gray-800 font-medium whitespace-nowrap">{item.PROD_NM || '-'}</span>
+                        {/* [2026-03-23] Row 2: 상품명 | 작업자 — vertical layout (key top, value bottom) */}
+                        <div className="mt-1.5 grid grid-cols-2 gap-2 text-xs">
+                          <div className="flex flex-col">
+                            <span className="text-gray-500 whitespace-nowrap">상품명</span>
+                            <span className="text-gray-800 font-medium">{item.PROD_NM || '-'}</span>
+                          </div>
+                          <div className="flex flex-col">
+                            <span className="text-gray-500 whitespace-nowrap">작업자</span>
+                            <span className="text-gray-800 font-medium">{item.WRK_NM || '-'}</span>
+                          </div>
                         </div>
 
                         {/* Row 3: 작업상태 | 완료일자 */}
@@ -1201,15 +1221,11 @@ const ConsultationAS: React.FC<ConsultationASProps> = ({
                           </div>
                         </div>
 
-                        {/* Row 4: 작업자 | 작업자소속 */}
+                        {/* Row 4: 작업자소속 */}
                         <div className="mt-1.5 grid grid-cols-2 gap-2 text-xs">
                           <div className="flex flex-col">
-                            <span className="text-gray-500 whitespace-nowrap">작업자</span>
-                            <span className="text-gray-800 font-medium">{item.WRK_NM || '-'}</span>
-                          </div>
-                          <div className="flex flex-col">
                             <span className="text-gray-500 whitespace-nowrap">작업자소속</span>
-                            <span className="text-gray-800 font-medium whitespace-nowrap">{item.WRK_CRR_NM || '-'}</span>
+                            <span className="text-gray-800 font-medium">{item.WRK_CRR_NM || '-'}</span>
                           </div>
                         </div>
 
@@ -1234,7 +1250,8 @@ const ConsultationAS: React.FC<ConsultationASProps> = ({
                           </div>
                           {expandedWorkItems.has(index) && (
                             <div className="p-2 bg-white border border-gray-200 rounded min-h-[48px] text-gray-700 text-xs whitespace-pre-wrap">
-                              {item.MEMO || '-'}
+                              {/* [2026-03-23] Convert escaped \\n to real newlines */}
+                              {(item.MEMO || '-').replace(/\\n/g, '\n')}
                             </div>
                           )}
                         </div>

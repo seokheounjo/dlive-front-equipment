@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import ScrollableTabMenu, { TabItem } from '../layout/ScrollableTabMenu';
 import CustomerBasicInfo from './CustomerBasicInfo';
 import CustomerInfoChange from './CustomerInfoChange';
@@ -81,6 +81,18 @@ const CustomerManagementMenu: React.FC<CustomerManagementMenuProps> = ({ onNavig
 
   // 상담/AS 탭의 초기 탭 상태
   const [consultationASInitialTab, setConsultationASInitialTab] = useState<'consultation' | 'as'>('consultation');
+
+  // [2026-03-23] Auto-load contracts when entering consultation/AS tab without prior basic-info tab visit
+  useEffect(() => {
+    if (activeTab === 'consultation-as' && selectedCustomer && cachedContracts.length === 0) {
+      getContractList(selectedCustomer.CUST_ID).then(res => {
+        if (res.success && res.data) {
+          setCachedContracts(res.data);
+          setCachedDataCustId(selectedCustomer.CUST_ID);
+        }
+      }).catch(e => console.warn('[CustomerMgmt] Tab contract load failed:', e));
+    }
+  }, [activeTab, selectedCustomer?.CUST_ID]);
 
   // 재약정 대상 수 계산 (CLOSE_DANGER='Y' + 사용중)
   const reContractCount = cachedContracts.filter(c => {

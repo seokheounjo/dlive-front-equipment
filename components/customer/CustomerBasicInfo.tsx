@@ -517,28 +517,33 @@ const CustomerBasicInfo: React.FC<CustomerBasicInfoProps> = ({
                             className="p-3 cursor-pointer flex items-center justify-between"
                             onClick={() => toggleConsultItem(index)}
                           >
-                            <div className="grid grid-cols-5 gap-2 text-xs flex-1">
-                              <div className="flex flex-col">
-                                <span className="text-gray-500 whitespace-nowrap">계약ID</span>
-                                <span className="text-gray-800 font-medium text-[10px]">{item.CTRT_ID ? formatId(item.CTRT_ID) : '-'}</span>
+                            {/* [2026-03-23] Two-row layout: row1 = 계약ID+접수일 horizontal, row2 = 상담소분류+처리상태+접수자 vertical */}
+                            <div className="flex-1 min-w-0 text-xs">
+                              <div className="flex gap-4 mb-1">
+                                <div className="flex items-center gap-1">
+                                  <span className="text-gray-500">계약ID:</span>
+                                  <span className="text-gray-800 font-medium text-[10px]">{item.CTRT_ID ? formatId(item.CTRT_ID) : '-'}</span>
+                                </div>
+                                <div className="flex items-center gap-1">
+                                  <span className="text-gray-500">접수일:</span>
+                                  <span className="text-gray-800 font-medium">{item.START_DATE || '-'}</span>
+                                </div>
                               </div>
-                              <div className="flex flex-col">
-                                <span className="text-gray-500 whitespace-nowrap">접수일</span>
-                                <span className="text-gray-800 font-medium">{item.START_DATE || '-'}</span>
-                              </div>
-                              <div className="flex flex-col">
-                                <span className="text-gray-500 whitespace-nowrap">상담소분류</span>
-                                <span className="text-gray-800 font-medium whitespace-nowrap">{item.CNSL_SLV_CL_NM || '-'}</span>
-                              </div>
-                              <div className="flex flex-col">
-                                <span className="text-gray-500 whitespace-nowrap">처리상태</span>
-                                <span className={`font-medium ${
-                                  item.CNSL_RSLT?.includes('완료') ? 'text-green-600' : 'text-yellow-600'
-                                }`}>{item.CNSL_RSLT || '처리중'}</span>
-                              </div>
-                              <div className="flex flex-col">
-                                <span className="text-gray-500 whitespace-nowrap">접수자</span>
-                                <span className="text-gray-800 font-medium">{item.RCPT_NM || '-'}</span>
+                              <div className="grid grid-cols-3 gap-2">
+                                <div className="flex flex-col min-w-0">
+                                  <span className="text-gray-500">상담소분류</span>
+                                  <span className="text-gray-800 font-medium break-words">{item.CNSL_SLV_CL_NM || '-'}</span>
+                                </div>
+                                <div className="flex flex-col min-w-0">
+                                  <span className="text-gray-500">처리상태</span>
+                                  <span className={`font-medium ${
+                                    item.CNSL_RSLT?.includes('완료') ? 'text-green-600' : 'text-yellow-600'
+                                  }`}>{item.CNSL_RSLT || '처리중'}</span>
+                                </div>
+                                <div className="flex flex-col min-w-0">
+                                  <span className="text-gray-500">접수자</span>
+                                  <span className="text-gray-800 font-medium break-words">{item.RCPT_NM || '-'}</span>
+                                </div>
                               </div>
                             </div>
                             {expandedConsultItems.has(index) ? (
@@ -553,14 +558,15 @@ const CustomerBasicInfo: React.FC<CustomerBasicInfoProps> = ({
                             <div className="px-3 pb-3">
                               <div>
                                 <div className="text-xs text-gray-500 mb-1">요청사항</div>
+                                {/* [2026-03-23] Convert escaped \\n and double-spaces to real newlines */}
                                 <div className="p-2 bg-white border border-gray-200 rounded min-h-[48px] text-gray-700 text-xs whitespace-pre-line">
-                                  {item.REQ_CTX?.replace(/  /g, '\n') || '-'}
+                                  {(item.REQ_CTX || '-').replace(/\\n/g, '\n').replace(/  /g, '\n')}
                                 </div>
                               </div>
                               <div className="mt-2">
                                 <div className="text-xs text-gray-500 mb-1">응대내용</div>
                                 <div className="p-2 bg-white border border-gray-200 rounded min-h-[48px] text-gray-700 text-xs whitespace-pre-line">
-                                  {item.PROC_CT?.replace(/  /g, '\n') || '-'}
+                                  {(item.PROC_CT || '-').replace(/\\n/g, '\n').replace(/  /g, '\n')}
                                 </div>
                               </div>
                             </div>
@@ -657,10 +663,16 @@ const CustomerBasicInfo: React.FC<CustomerBasicInfoProps> = ({
                             </div>
                           </div>
 
-                          {/* Row 2: 상품명 */}
-                          <div className="mt-1.5 grid grid-cols-[auto_1fr] gap-2 text-xs items-center">
-                            <span className="text-gray-500 whitespace-nowrap">상품명</span>
-                            <span className="text-gray-800 font-medium whitespace-nowrap">{item.PROD_NM || '-'}</span>
+                          {/* [2026-03-23] Row 2: 상품명 | 작업자 — vertical layout (key top, value bottom) */}
+                          <div className="mt-1.5 grid grid-cols-2 gap-2 text-xs">
+                            <div className="flex flex-col">
+                              <span className="text-gray-500 whitespace-nowrap">상품명</span>
+                              <span className="text-gray-800 font-medium">{item.PROD_NM || '-'}</span>
+                            </div>
+                            <div className="flex flex-col">
+                              <span className="text-gray-500 whitespace-nowrap">작업자</span>
+                              <span className="text-gray-800 font-medium">{item.WRK_NM || '-'}</span>
+                            </div>
                           </div>
 
                           {/* Row 3: 작업상태 | 완료일자 */}
@@ -679,15 +691,11 @@ const CustomerBasicInfo: React.FC<CustomerBasicInfoProps> = ({
                             </div>
                           </div>
 
-                          {/* Row 4: 작업자 | 작업자소속 */}
+                          {/* Row 4: 작업자소속 */}
                           <div className="mt-1.5 grid grid-cols-2 gap-2 text-xs">
                             <div className="flex flex-col">
-                              <span className="text-gray-500 whitespace-nowrap">작업자</span>
-                              <span className="text-gray-800 font-medium">{item.WRK_NM || '-'}</span>
-                            </div>
-                            <div className="flex flex-col">
                               <span className="text-gray-500 whitespace-nowrap">작업자소속</span>
-                              <span className="text-gray-800 font-medium whitespace-nowrap">{item.WRK_CRR_NM || '-'}</span>
+                              <span className="text-gray-800 font-medium">{item.WRK_CRR_NM || '-'}</span>
                             </div>
                           </div>
 
@@ -710,9 +718,10 @@ const CustomerBasicInfo: React.FC<CustomerBasicInfoProps> = ({
                                 <ChevronDown className="w-3.5 h-3.5 text-gray-400" />
                               )}
                             </div>
+                            {/* [2026-03-23] Convert escaped \\n and double-spaces to real newlines */}
                             {expandedWorkItems.has(index) && (
                               <div className="p-2 bg-white border border-gray-200 rounded min-h-[48px] text-gray-700 text-xs whitespace-pre-line">
-                                {item.MEMO?.replace(/  /g, '\n') || '-'}
+                                {(item.MEMO || '-').replace(/\\n/g, '\n').replace(/  /g, '\n')}
                               </div>
                             )}
                           </div>
