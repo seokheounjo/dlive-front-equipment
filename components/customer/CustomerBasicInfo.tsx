@@ -517,9 +517,9 @@ const CustomerBasicInfo: React.FC<CustomerBasicInfoProps> = ({
                             className="p-3 cursor-pointer flex items-center justify-between"
                             onClick={() => toggleConsultItem(index)}
                           >
-                            {/* [2026-03-23] Two-row layout: row1 = 계약ID+접수일 horizontal, row2 = 상담소분류+처리상태+접수자 vertical */}
+                            {/* [2026-03-23] Row1: 계약ID|접수일 50:50 fixed, Row2: 상담소분류(wider)|처리상태|접수자 */}
                             <div className="flex-1 min-w-0 text-xs">
-                              <div className="flex gap-4 mb-1">
+                              <div className="grid grid-cols-2 gap-2 mb-1">
                                 <div className="flex items-center gap-1">
                                   <span className="text-gray-500">계약ID:</span>
                                   <span className="text-gray-800 font-medium text-[10px]">{item.CTRT_ID ? formatId(item.CTRT_ID) : '-'}</span>
@@ -529,7 +529,7 @@ const CustomerBasicInfo: React.FC<CustomerBasicInfoProps> = ({
                                   <span className="text-gray-800 font-medium">{item.START_DATE || '-'}</span>
                                 </div>
                               </div>
-                              <div className="grid grid-cols-3 gap-2">
+                              <div className="grid grid-cols-[2fr_1fr_1fr] gap-2">
                                 <div className="flex flex-col min-w-0">
                                   <span className="text-gray-500">상담소분류</span>
                                   <span className="text-gray-800 font-medium break-words">{item.CNSL_SLV_CL_NM || '-'}</span>
