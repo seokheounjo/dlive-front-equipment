@@ -619,7 +619,7 @@ const UnpaymentCollectionModal: React.FC<UnpaymentCollectionModalProps> = ({
                               {formatCurrency(item.UNPAY_AMT)}원
                             </span>
                           </div>
-                          <div className="text-xs text-gray-500 mt-0.5 truncate">
+                          <div className="text-xs text-gray-500 mt-0.5 whitespace-nowrap">
                             {cleanProdNm(item.PROD_NM)}
                             {item.UNPAY_DAYS > 0 && ` | 미납 ${item.UNPAY_DAYS}일`}
                           </div>

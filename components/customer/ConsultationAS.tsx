@@ -721,13 +721,13 @@ const ConsultationAS: React.FC<ConsultationASProps> = ({
               </div>
               {targetUnit === 'contract' && selectedContract && (
                 <div className="text-xs text-blue-700 pt-1 border-t border-blue-200 space-y-0.5">
-                  <div className="flex min-w-0"><span className="text-blue-500 w-14 flex-shrink-0 whitespace-nowrap">상품명</span><span className="font-medium truncate">{selectedContract.prodNm}</span></div>
-                  <div className="flex min-w-0"><span className="text-blue-500 w-14 flex-shrink-0 whitespace-nowrap">계약ID</span><span className="truncate">{formatId(selectedContract.ctrtId)}</span></div>
+                  <div className="flex min-w-0"><span className="text-blue-500 w-14 flex-shrink-0 whitespace-nowrap">상품명</span><span className="font-medium whitespace-nowrap">{selectedContract.prodNm}</span></div>
+                  <div className="flex min-w-0"><span className="text-blue-500 w-14 flex-shrink-0 whitespace-nowrap">계약ID</span><span className="whitespace-nowrap">{formatId(selectedContract.ctrtId)}</span></div>
                   {selectedContract.instAddr && (
-                    <div className="flex min-w-0"><span className="text-blue-500 w-14 flex-shrink-0 whitespace-nowrap">설치주소</span><span className="truncate">{selectedContract.instAddr}</span></div>
+                    <div className="flex min-w-0"><span className="text-blue-500 w-14 flex-shrink-0 whitespace-nowrap">설치주소</span><span className="whitespace-nowrap">{selectedContract.instAddr}</span></div>
                   )}
                   {selectedContract.notrecev && (
-                    <div className="flex min-w-0"><span className="text-blue-500 w-14 flex-shrink-0 whitespace-nowrap">장비</span><span className="truncate">{selectedContract.notrecev}</span></div>
+                    <div className="flex min-w-0"><span className="text-blue-500 w-14 flex-shrink-0 whitespace-nowrap">장비</span><span className="whitespace-nowrap">{selectedContract.notrecev}</span></div>
                   )}
                 </div>
               )}
@@ -866,13 +866,13 @@ const ConsultationAS: React.FC<ConsultationASProps> = ({
               </div>
               {asSubscriberType === 'subscriber' && selectedContract && (
                 <div className="text-xs text-orange-700 pt-1 border-t border-orange-200 space-y-0.5">
-                  <div className="flex min-w-0"><span className="text-orange-500 w-14 flex-shrink-0 whitespace-nowrap">상품명</span><span className="font-medium truncate">{selectedContract.prodNm}</span></div>
-                  <div className="flex min-w-0"><span className="text-orange-500 w-14 flex-shrink-0 whitespace-nowrap">계약ID</span><span className="truncate">{formatId(selectedContract.ctrtId)}</span></div>
+                  <div className="flex min-w-0"><span className="text-orange-500 w-14 flex-shrink-0 whitespace-nowrap">상품명</span><span className="font-medium whitespace-nowrap">{selectedContract.prodNm}</span></div>
+                  <div className="flex min-w-0"><span className="text-orange-500 w-14 flex-shrink-0 whitespace-nowrap">계약ID</span><span className="whitespace-nowrap">{formatId(selectedContract.ctrtId)}</span></div>
                   {selectedContract.instAddr && (
-                    <div className="flex min-w-0"><span className="text-orange-500 w-14 flex-shrink-0 whitespace-nowrap">설치주소</span><span className="truncate">{selectedContract.instAddr}</span></div>
+                    <div className="flex min-w-0"><span className="text-orange-500 w-14 flex-shrink-0 whitespace-nowrap">설치주소</span><span className="whitespace-nowrap">{selectedContract.instAddr}</span></div>
                   )}
                   {selectedContract.notrecev && (
-                    <div className="flex min-w-0"><span className="text-orange-500 w-14 flex-shrink-0 whitespace-nowrap">장비</span><span className="truncate">{selectedContract.notrecev}</span></div>
+                    <div className="flex min-w-0"><span className="text-orange-500 w-14 flex-shrink-0 whitespace-nowrap">장비</span><span className="whitespace-nowrap">{selectedContract.notrecev}</span></div>
                   )}
                 </div>
               )}
@@ -1113,7 +1113,7 @@ const ConsultationAS: React.FC<ConsultationASProps> = ({
                             </div>
                             <div className="flex flex-col">
                               <span className="text-gray-500 whitespace-nowrap">상담소분류</span>
-                              <span className="text-gray-800 font-medium truncate">{item.CNSL_SLV_CL_NM || '-'}</span>
+                              <span className="text-gray-800 font-medium whitespace-nowrap">{item.CNSL_SLV_CL_NM || '-'}</span>
                             </div>
                             <div className="flex flex-col">
                               <span className="text-gray-500 whitespace-nowrap">처리상태</span>
@@ -1123,7 +1123,7 @@ const ConsultationAS: React.FC<ConsultationASProps> = ({
                             </div>
                             <div className="flex flex-col min-w-0">
                               <span className="text-gray-500 whitespace-nowrap">접수자</span>
-                              <span className="text-gray-800 font-medium truncate">{item.RCPT_NM || '-'}</span>
+                              <span className="text-gray-800 font-medium whitespace-nowrap">{item.RCPT_NM || '-'}</span>
                             </div>
                           </div>
                           {expandedConsultItems.has(index) ? (
@@ -1182,7 +1182,7 @@ const ConsultationAS: React.FC<ConsultationASProps> = ({
                         {/* Row 2: 상품명 */}
                         <div className="mt-1.5 grid grid-cols-[auto_1fr] gap-2 text-xs items-center">
                           <span className="text-gray-500 whitespace-nowrap">상품명</span>
-                          <span className="text-gray-800 font-medium truncate">{item.PROD_NM || '-'}</span>
+                          <span className="text-gray-800 font-medium whitespace-nowrap">{item.PROD_NM || '-'}</span>
                         </div>
 
                         {/* Row 3: 작업상태 | 완료일자 */}
@@ -1209,14 +1209,14 @@ const ConsultationAS: React.FC<ConsultationASProps> = ({
                           </div>
                           <div className="flex flex-col">
                             <span className="text-gray-500 whitespace-nowrap">작업자소속</span>
-                            <span className="text-gray-800 font-medium truncate">{item.WRK_CRR_NM || '-'}</span>
+                            <span className="text-gray-800 font-medium whitespace-nowrap">{item.WRK_CRR_NM || '-'}</span>
                           </div>
                         </div>
 
                         {/* 설치주소 */}
                         <div className="mt-1.5 grid grid-cols-[auto_1fr] gap-2 text-xs items-center">
                           <span className="text-gray-500 whitespace-nowrap">설치주소</span>
-                          <span className="text-gray-800 truncate">{item.CTRT_ADDR || '-'}</span>
+                          <span className="text-gray-800 whitespace-nowrap">{item.CTRT_ADDR || '-'}</span>
                         </div>
 
                         {/* 작업지시내용 (접기/펼치기) */}

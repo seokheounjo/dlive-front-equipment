@@ -259,7 +259,7 @@ const ContractSummary: React.FC<ContractSummaryProps> = ({
                           <div className="flex-shrink-0 w-7 h-7 flex items-center justify-center rounded-full bg-blue-500 text-white text-sm font-bold">
                             {index + 1}
                           </div>
-                          <span className="text-sm text-gray-600 truncate">{contract.PROD_NM}</span>
+                          <span className="text-sm text-gray-600 whitespace-nowrap">{contract.PROD_NM}</span>
                         </div>
                         <div className="flex items-center gap-1 flex-shrink-0">
                           <span className={`text-xs px-2 py-0.5 rounded whitespace-nowrap ${
@@ -302,7 +302,7 @@ const ContractSummary: React.FC<ContractSummaryProps> = ({
                       {(contract.STREET_ADDR_FULL || contract.ADDR_FULL || contract.INST_ADDR) && (
                         <div className="flex items-start gap-1 text-sm text-gray-600 mt-1">
                           <MapPin className="w-4 h-4 flex-shrink-0 mt-0.5" />
-                          <div className="min-w-0 truncate">
+                          <div className="min-w-0 whitespace-nowrap">
                             {contract.STREET_ADDR_FULL ? (
                               <>
                                 <span className="text-xs text-blue-600 mr-1 whitespace-nowrap">[도로명]</span>
@@ -333,13 +333,13 @@ const ContractSummary: React.FC<ContractSummaryProps> = ({
                         </div>
 
                         {/* 장비 (NOTRECEV) */}
-                        <div className="text-sm text-gray-600 truncate">
+                        <div className="text-sm text-gray-600 whitespace-nowrap">
                           장비: {contract.NOTRECEV || '-'}
                         </div>
 
                         {/* 단체 정보 */}
                         {contract.GRP_NM && (
-                          <div className="text-sm text-gray-600 truncate">
+                          <div className="text-sm text-gray-600 whitespace-nowrap">
                             단체명: {contract.GRP_NM}
                           </div>
                         )}

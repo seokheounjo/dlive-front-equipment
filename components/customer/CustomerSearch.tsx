@@ -335,7 +335,7 @@ const CustomerSearch: React.FC<CustomerSearchProps> = ({ onCustomerSelect, onCus
             >
               <input
                 readOnly
-                className="flex-1 min-w-0 px-2 py-2 text-sm border border-gray-200 rounded-lg bg-gray-50 cursor-pointer truncate"
+                className="flex-1 min-w-0 px-2 py-2 text-sm border border-gray-200 rounded-lg bg-gray-50 cursor-pointer whitespace-nowrap"
                 placeholder="고객명"
                 type="text"
                 value={selectedCustomer?.CUST_NM || ''}
@@ -496,14 +496,14 @@ const CustomerSearch: React.FC<CustomerSearchProps> = ({ onCustomerSelect, onCus
                       >
                         <div className="flex items-center gap-3 min-w-0">
                           <span className="text-blue-600 font-mono text-sm whitespace-nowrap">{customer.CUST_ID}</span>
-                          <span className="font-semibold text-gray-900 truncate">{customer.CUST_NM}</span>
+                          <span className="font-semibold text-gray-900 whitespace-nowrap">{customer.CUST_NM}</span>
                         </div>
                         {customer.CTRT_ID && (
                           <div className="mt-1 text-xs text-gray-600">
                             <span className="text-gray-400">계약ID:</span> <span className="font-mono">{customer.CTRT_ID}</span>
                           </div>
                         )}
-                        <div className="mt-1 text-xs text-gray-500 truncate">
+                        <div className="mt-1 text-xs text-gray-500 whitespace-nowrap">
                           {maskPhoneNumber(customer.TEL_NO || customer.HP_NO)}
                           {customer.CUST_ADDR && ` | ${customer.CUST_ADDR}`}
                         </div>

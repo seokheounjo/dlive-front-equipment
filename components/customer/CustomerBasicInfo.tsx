@@ -350,27 +350,27 @@ const CustomerBasicInfo: React.FC<CustomerBasicInfoProps> = ({
                   <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-sm">
                     <div className="flex">
                       <span className="text-gray-500 flex-shrink-0 w-14">고객번호</span>
-                      <span className="font-medium text-gray-800 text-right flex-1 truncate">{formatId(selectedCustomer.CUST_ID)}</span>
+                      <span className="font-medium text-gray-800 text-right flex-1 whitespace-nowrap">{formatId(selectedCustomer.CUST_ID)}</span>
                     </div>
                     <div className="flex min-w-0">
                       <span className="text-gray-500 flex-shrink-0 w-14 whitespace-nowrap">고객명</span>
-                      <span className="font-medium text-gray-800 text-right flex-1 truncate">{selectedCustomer.CUST_NM}</span>
+                      <span className="font-medium text-gray-800 text-right flex-1 whitespace-nowrap">{selectedCustomer.CUST_NM}</span>
                     </div>
                     <div className="flex min-w-0">
                       <span className="text-gray-500 flex-shrink-0 w-14 whitespace-nowrap">전화번호</span>
-                      <span className="text-gray-800 text-right flex-1 truncate">{maskPhoneNumber(selectedCustomer.TEL_NO) || '-'}</span>
+                      <span className="text-gray-800 text-right flex-1 whitespace-nowrap">{maskPhoneNumber(selectedCustomer.TEL_NO) || '-'}</span>
                     </div>
                     <div className="flex min-w-0">
                       <span className="text-gray-500 flex-shrink-0 w-14 whitespace-nowrap">휴대폰</span>
-                      <span className="text-gray-800 text-right flex-1 truncate">{maskPhoneNumber(selectedCustomer.HP_NO) || '-'}</span>
+                      <span className="text-gray-800 text-right flex-1 whitespace-nowrap">{maskPhoneNumber(selectedCustomer.HP_NO) || '-'}</span>
                     </div>
                     <div className="flex min-w-0">
                       <span className="text-gray-500 flex-shrink-0 w-14 whitespace-nowrap">고객구분</span>
-                      <span className="text-gray-800 text-right flex-1 truncate">{selectedCustomer.CUST_TP_NM || '-'}</span>
+                      <span className="text-gray-800 text-right flex-1 whitespace-nowrap">{selectedCustomer.CUST_TP_NM || '-'}</span>
                     </div>
                     <div className="flex min-w-0">
                       <span className="text-gray-500 flex-shrink-0 w-14 whitespace-nowrap">단체명</span>
-                      <span className="text-gray-800 text-right flex-1 truncate">{selectedCustomer.GRP_NM || '-'}</span>
+                      <span className="text-gray-800 text-right flex-1 whitespace-nowrap">{selectedCustomer.GRP_NM || '-'}</span>
                     </div>
                   </div>
 
@@ -379,7 +379,7 @@ const CustomerBasicInfo: React.FC<CustomerBasicInfoProps> = ({
                     <div className="flex items-center justify-between">
                       <span className="text-gray-500 whitespace-nowrap">고객주소</span>
                     </div>
-                    <div className="text-gray-700 truncate">
+                    <div className="text-gray-700 whitespace-nowrap">
                       {selectedCustomer.ROAD_ADDR || selectedCustomer.INST_ADDR || selectedCustomer.CUST_ADDR || '-'}
                     </div>
                   </div>
@@ -528,7 +528,7 @@ const CustomerBasicInfo: React.FC<CustomerBasicInfoProps> = ({
                               </div>
                               <div className="flex flex-col">
                                 <span className="text-gray-500 whitespace-nowrap">상담소분류</span>
-                                <span className="text-gray-800 font-medium truncate">{item.CNSL_SLV_CL_NM || '-'}</span>
+                                <span className="text-gray-800 font-medium whitespace-nowrap">{item.CNSL_SLV_CL_NM || '-'}</span>
                               </div>
                               <div className="flex flex-col">
                                 <span className="text-gray-500 whitespace-nowrap">처리상태</span>
@@ -660,7 +660,7 @@ const CustomerBasicInfo: React.FC<CustomerBasicInfoProps> = ({
                           {/* Row 2: 상품명 */}
                           <div className="mt-1.5 grid grid-cols-[auto_1fr] gap-2 text-xs items-center">
                             <span className="text-gray-500 whitespace-nowrap">상품명</span>
-                            <span className="text-gray-800 font-medium truncate">{item.PROD_NM || '-'}</span>
+                            <span className="text-gray-800 font-medium whitespace-nowrap">{item.PROD_NM || '-'}</span>
                           </div>
 
                           {/* Row 3: 작업상태 | 완료일자 */}
@@ -687,14 +687,14 @@ const CustomerBasicInfo: React.FC<CustomerBasicInfoProps> = ({
                             </div>
                             <div className="flex flex-col">
                               <span className="text-gray-500 whitespace-nowrap">작업자소속</span>
-                              <span className="text-gray-800 font-medium truncate">{item.WRK_CRR_NM || '-'}</span>
+                              <span className="text-gray-800 font-medium whitespace-nowrap">{item.WRK_CRR_NM || '-'}</span>
                             </div>
                           </div>
 
                           {/* 설치주소 */}
                           <div className="mt-2 grid grid-cols-[auto_1fr] gap-2 text-xs items-start">
                             <span className="text-gray-500 whitespace-nowrap">설치주소</span>
-                            <span className="text-gray-800 truncate">{item.CTRT_ADDR || '-'}</span>
+                            <span className="text-gray-800 whitespace-nowrap">{item.CTRT_ADDR || '-'}</span>
                           </div>
 
                           {/* 작업지시내용 (접기/펼치기) */}

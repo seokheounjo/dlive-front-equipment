@@ -345,7 +345,7 @@ const PaymentInfo: React.FC<PaymentInfoProps> = ({
                                 <span className="font-medium text-gray-700 whitespace-nowrap">{index + 1}.</span>
                                 <span className="text-gray-800 whitespace-nowrap">{formatPymAcntId(payment.PYM_ACNT_ID)}</span>
                                 <span className="text-gray-400">|</span>
-                                <span className="text-gray-600 truncate">{payment.PYM_MTHD_NM || '-'}</span>
+                                <span className="text-gray-600 whitespace-nowrap">{payment.PYM_MTHD_NM || '-'}</span>
                                 {payment.COMMON_CD && payment.COMMON_CD !== '0' && (
                                   <span className={`px-1.5 py-0.5 text-xs rounded-full whitespace-nowrap ${
                                     payment.COMMON_CD === '3' ? 'bg-red-100 text-red-700' :
@@ -383,12 +383,12 @@ const PaymentInfo: React.FC<PaymentInfoProps> = ({
                           {/* 납부방법 */}
                           <div className="flex justify-between items-center">
                             <span className="text-gray-500 text-xs whitespace-nowrap">납부방법</span>
-                            <span className="text-gray-800 truncate ml-2">{selectedPayment.PYM_MTHD_NM || '-'}</span>
+                            <span className="text-gray-800 whitespace-nowrap ml-2">{selectedPayment.PYM_MTHD_NM || '-'}</span>
                           </div>
                           {/* 은행/카드 */}
                           <div className="flex justify-between items-center">
                             <span className="text-gray-500 text-xs whitespace-nowrap">은행/카드</span>
-                            <span className="text-gray-800 truncate ml-2">{selectedPayment.BANK_CARD_NM || '-'}</span>
+                            <span className="text-gray-800 whitespace-nowrap ml-2">{selectedPayment.BANK_CARD_NM || '-'}</span>
                           </div>
                           {/* 계좌/카드번호 */}
                           <div className="flex justify-between items-center">

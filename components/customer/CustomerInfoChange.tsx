@@ -1614,7 +1614,7 @@ const CustomerInfoChange: React.FC<CustomerInfoChangeProps> = ({
                         {item.ADDR && (
                           <div>
                             <span className="text-gray-400">설치주소: </span>
-                            <span className="text-gray-700 truncate">{item.ADDR}</span>
+                            <span className="text-gray-700 whitespace-nowrap">{item.ADDR}</span>
                           </div>
                         )}
                       </div>
@@ -1693,7 +1693,7 @@ const CustomerInfoChange: React.FC<CustomerInfoChangeProps> = ({
                         {item.ADDR && (
                           <div>
                             <span className="text-gray-400">설치주소: </span>
-                            <span className="text-gray-700 truncate">{item.ADDR}</span>
+                            <span className="text-gray-700 whitespace-nowrap">{item.ADDR}</span>
                           </div>
                         )}
                       </div>

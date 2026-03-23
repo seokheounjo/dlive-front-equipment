@@ -407,7 +407,7 @@ const ReContractModule: React.FC<ReContractModuleProps> = ({
       {/* 고객 정보 */}
       <div className="p-3 bg-purple-50 rounded-lg border border-purple-200">
         <div className="text-sm text-purple-800">
-          <span className="font-medium truncate">{selectedCustomer.custNm}</span>
+          <span className="font-medium whitespace-nowrap">{selectedCustomer.custNm}</span>
           <span className="ml-1 text-purple-600 text-xs whitespace-nowrap">(고객ID: {formatId(selectedCustomer.custId)})</span>
         </div>
       </div>
@@ -473,7 +473,7 @@ const ReContractModule: React.FC<ReContractModuleProps> = ({
                     >
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-1 min-w-0">
-                          <span className="text-sm font-medium text-gray-900 truncate">
+                          <span className="text-sm font-medium text-gray-900 whitespace-nowrap">
                             {ctrt.PROD_NM || '상품명 없음'}
                           </span>
                           <span className="text-xs text-gray-400 flex-shrink-0">
@@ -777,7 +777,7 @@ const ReContractModule: React.FC<ReContractModuleProps> = ({
                       href={signUrl}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="text-sm text-blue-600 underline truncate block"
+                      className="text-sm text-blue-600 underline whitespace-nowrap block"
                     >
                       {signUrl}
                     </a>
