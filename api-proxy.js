@@ -279,9 +279,15 @@ const OTP_SERVER_PORT = 1812;
 const OTP_TIMEOUT = 5000; // 5s
 const OTP_ENV = 'LIVE'; // 운영 환경
 
+// OTP config cache (5 minutes TTL)
+let otpConfigCache = null;
+let otpConfigCacheTime = 0;
+const OTP_CONFIG_CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+
 /**
- * MOOT001 공통코드에서 OTP 설정을 매번 DB에서 로드 (캐시 없음)
+ * MOOT001 공통코드에서 OTP 설정을 DB에서 로드
  * CONA 백엔드 /api/common/getCommonCodes 호출
+ * JSESSIONID가 있으면 전달 (WebSphere 세션 인증 필요할 수 있음)
  */
 async function loadOtpConfig() {
   const http = require('http');
@@ -292,7 +298,7 @@ async function loadOtpConfig() {
     const parsed = urlMod.parse(targetUrl);
     const postData = JSON.stringify({ CODE_GROUP: 'MOOT001' });
 
-    console.log('[OTP-CONFIG] Loading OTP config from DB (MOOT001, ENV=' + OTP_ENV + ')...');
+    console.log('[OTP-CONFIG] Loading OTP config from DB (MOOT001, ENV=' + OTP_ENV + ', hasSession=' + !!storedJSessionId + ')...');
 
     const options = {
       hostname: parsed.hostname,
@@ -301,7 +307,8 @@ async function loadOtpConfig() {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json; charset=utf-8',
-        'Content-Length': Buffer.byteLength(postData)
+        'Content-Length': Buffer.byteLength(postData),
+        ...(storedJSessionId ? { 'Cookie': `JSESSIONID=${storedJSessionId}` } : {})
       },
       timeout: 10000
     };
@@ -312,6 +319,7 @@ async function loadOtpConfig() {
       res.on('data', (chunk) => { body += chunk; });
       res.on('end', () => {
         try {
+          console.log('[OTP-CONFIG] Response status:', res.statusCode, ', body length:', body.length, ', first 200:', body.substring(0, 200));
           const result = JSON.parse(body);
 
           if (Array.isArray(result)) {
@@ -360,17 +368,42 @@ async function loadOtpConfig() {
 }
 
 /**
- * OTP 설정 가져오기 (캐시 + DB 조회)
+ * OTP 설정 가져오기 (5분 캐시 + DB 조회)
+ * 캐시 히트 시 즉시 반환, 만료 시 DB 재조회
  * DB 조회 실패 시 null 반환 → OTP 인증 불가
  */
 async function getOtpConfig() {
   try {
-    return await loadOtpConfig();
+    const now = Date.now();
+    if (otpConfigCache && (now - otpConfigCacheTime) < OTP_CONFIG_CACHE_TTL) {
+      console.log('[OTP-CONFIG] Using cached config (age=' + Math.round((now - otpConfigCacheTime) / 1000) + 's)');
+      return otpConfigCache;
+    }
+    const config = await loadOtpConfig();
+    if (config) {
+      otpConfigCache = config;
+      otpConfigCacheTime = now;
+      console.log('[OTP-CONFIG] Config cached successfully');
+    } else {
+      console.warn('[OTP-CONFIG] loadOtpConfig returned null - OTP will fail');
+    }
+    return config;
   } catch (err) {
     console.error('[OTP-CONFIG] Unexpected error:', err.message);
     return null;
   }
 }
+
+// Preload OTP config on server start (warm cache)
+setTimeout(async () => {
+  console.log('[OTP-CONFIG] Preloading OTP config on server start...');
+  const config = await getOtpConfig();
+  if (config) {
+    console.log('[OTP-CONFIG] Preload SUCCESS - IP:', config.serverIp);
+  } else {
+    console.warn('[OTP-CONFIG] Preload FAILED - first login OTP may fail');
+  }
+}, 3000); // 3s delay for server startup
 
 /**
  * RADIUS Access-Request (RFC 2865)
@@ -685,8 +718,8 @@ router.post('/auth/login-with-otp', async (req, res) => {
   // OTP RADIUS is checked BEFORE CONA login to minimize TOTP time drift
   // (CONA login takes 2-5s, which can cause OTP to expire if checked after)
 
-  // Log login start (API_1 - LOGIN)
-  await callLoginApi('pmobileLoginApi_1', {
+  // Log login start (API_1 - LOGIN) — fire-and-forget when OTP present
+  const loginApi1Promise = callLoginApi('pmobileLoginApi_1', {
     P_LOGIN_TRX_ID: trxId,
     P_USER_ID: userId,
     P_NW_TYPE: nwType,
@@ -697,12 +730,17 @@ router.post('/auth/login-with-otp', async (req, res) => {
     P_REQUEST_DATA: JSON.stringify({ USR_ID: userId, LOGIN_VIEW: 'MOBILE' }),
     P_DEVICE_INFO: JSON.stringify(deviceInfo)
   });
+  if (!otpCode) {
+    await loginApi1Promise; // wait only when no OTP (non-critical path)
+  } else {
+    loginApi1Promise.catch(() => {}); // fire-and-forget for OTP path
+  }
 
   // Step 2: OTP authentication FIRST (if OTP code provided)
   // TOTP has 30s window — must verify before slow CONA calls consume the window
   if (otpCode) {
-    // Log OTP start (API_1 - OTP)
-    await callLoginApi('pmobileLoginApi_1', {
+    // Log OTP start (API_1 - OTP) — fire-and-forget, do NOT block OTP RADIUS
+    callLoginApi('pmobileLoginApi_1', {
       P_LOGIN_TRX_ID: trxId,
       P_USER_ID: userId,
       P_NW_TYPE: nwType,
@@ -711,10 +749,11 @@ router.post('/auth/login-with-otp', async (req, res) => {
       P_SERVER: 'EC2_OTP',
       P_API_TYPE: 'OTP',
       P_REQUEST_DATA: JSON.stringify({ USR_ID: userId })
-    });
+    }).catch(() => {}); // non-blocking
 
-    // Call OTP RADIUS
+    // Call OTP RADIUS immediately (no waiting for audit log)
     const otpUserId = userId;
+    const otpStartTime = Date.now();
     let otpResult;
     try {
       const otpConfig = await getOtpConfig();
@@ -731,7 +770,9 @@ router.post('/auth/login-with-otp', async (req, res) => {
       otpResult = { code: '6042', count: '0', message: 'OTP error: ' + err.message };
     }
 
+    const otpElapsed = Date.now() - otpStartTime;
     const otpOk = otpResult.code === '0';
+    console.log('[OTP] Result: code=' + otpResult.code + ', ok=' + otpOk + ', elapsed=' + otpElapsed + 'ms, message=' + otpResult.message);
 
     // Log OTP result (API_2 - OTP)
     await callLoginApi('pmobileLoginApi_2', {
