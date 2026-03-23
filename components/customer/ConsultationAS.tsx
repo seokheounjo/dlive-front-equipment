@@ -1226,10 +1226,10 @@ const ConsultationAS: React.FC<ConsultationASProps> = ({
                           </div>
                         </div>
 
-                        {/* 설치주소 */}
-                        <div className="mt-1.5 grid grid-cols-[auto_1fr] gap-2 text-xs items-center">
+                        {/* [2026-03-23] 설치주소 — allow line wrap to prevent overflow */}
+                        <div className="mt-1.5 grid grid-cols-[auto_1fr] gap-2 text-xs items-start">
                           <span className="text-gray-500 whitespace-nowrap">설치주소</span>
-                          <span className="text-gray-800 whitespace-nowrap">{item.CTRT_ADDR || '-'}</span>
+                          <span className="text-gray-800 break-words">{item.CTRT_ADDR || '-'}</span>
                         </div>
 
                         {/* 작업지시내용 (접기/펼치기) */}

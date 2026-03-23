@@ -695,10 +695,10 @@ const CustomerBasicInfo: React.FC<CustomerBasicInfoProps> = ({
                             </div>
                           </div>
 
-                          {/* 설치주소 */}
+                          {/* [2026-03-23] 설치주소 — allow line wrap to prevent overflow */}
                           <div className="mt-2 grid grid-cols-[auto_1fr] gap-2 text-xs items-start">
                             <span className="text-gray-500 whitespace-nowrap">설치주소</span>
-                            <span className="text-gray-800 whitespace-nowrap">{item.CTRT_ADDR || '-'}</span>
+                            <span className="text-gray-800 break-words">{item.CTRT_ADDR || '-'}</span>
                           </div>
 
                           {/* 작업지시내용 (접기/펼치기) */}
