@@ -481,10 +481,10 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
             const apiParams: any = {
               WRKR_ID: userInfo.userId,
               CRR_ID: userInfo.crrId || '',
-              SO_ID: selectedSoId || '',
+              SO_ID: selectedSoId || '%',
+              ITEM_MID_CD: selectedItemMidCd || '%',
+              EQT_CL_CD: selectedEqtClCd || '%',
             };
-            if (selectedItemMidCd) apiParams.ITEM_MID_CD = selectedItemMidCd;
-            if (selectedEqtClCd) apiParams.EQT_CL_CD = selectedEqtClCd;
             if (eqtSerno) apiParams.EQT_SERNO = eqtSerno;
             console.log('[보유장비] API 호출 파라미터:', apiParams);
 
@@ -814,7 +814,9 @@ const EquipmentInquiry: React.FC<EquipmentInquiryProps> = ({ onBack, showToast }
       const ownedResult = await getWrkrHaveEqtListAll({
         WRKR_ID: userInfo.userId,
         CRR_ID: userInfo.crrId || '',
-        SO_ID: '',
+        SO_ID: '%',
+        ITEM_MID_CD: '%',
+        EQT_CL_CD: '%',
       });
 
       let matchedItems: EquipmentItem[] = [];
