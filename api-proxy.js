@@ -680,8 +680,12 @@ router.post('/auth/login-with-otp', async (req, res) => {
   const trxId = generateTrxId(userId);
   console.log('[LoginFlow] Start TRX_ID:', trxId, 'DeviceInfo:', JSON.stringify(deviceInfo).substring(0, 300));
 
-  // Step 1: Log login start (API_1 - LOGIN)
+  // Step 1: Log login start + OTP RADIUS check (time-sensitive, must be first)
   // PASSWORD is NOT included in log
+  // OTP RADIUS is checked BEFORE CONA login to minimize TOTP time drift
+  // (CONA login takes 2-5s, which can cause OTP to expire if checked after)
+
+  // Log login start (API_1 - LOGIN)
   await callLoginApi('pmobileLoginApi_1', {
     P_LOGIN_TRX_ID: trxId,
     P_USER_ID: userId,
@@ -694,7 +698,68 @@ router.post('/auth/login-with-otp', async (req, res) => {
     P_DEVICE_INFO: JSON.stringify(deviceInfo)
   });
 
-  // Step 2: ID/PW authentication via CONA
+  // Step 2: OTP authentication FIRST (if OTP code provided)
+  // TOTP has 30s window — must verify before slow CONA calls consume the window
+  if (otpCode) {
+    // Log OTP start (API_1 - OTP)
+    await callLoginApi('pmobileLoginApi_1', {
+      P_LOGIN_TRX_ID: trxId,
+      P_USER_ID: userId,
+      P_NW_TYPE: nwType,
+      P_CLIENT_IP: clientIp,
+      P_USER_AGENT: userAgent.substring(0, 200),
+      P_SERVER: 'EC2_OTP',
+      P_API_TYPE: 'OTP',
+      P_REQUEST_DATA: JSON.stringify({ USR_ID: userId })
+    });
+
+    // Call OTP RADIUS
+    const otpUserId = userId;
+    let otpResult;
+    try {
+      const otpConfig = await getOtpConfig();
+      if (!otpConfig) {
+        otpResult = { code: '6040', count: '0', message: 'OTP 서버 설정을 불러올 수 없습니다.' };
+      } else {
+        console.log('[OTP] login-with-otp using config - IP:', otpConfig.serverIp, ', ENV:', OTP_ENV);
+        otpResult = await radiusAccessRequest(
+          otpConfig.serverIp, OTP_SERVER_PORT, otpConfig.sharedSecret,
+          otpUserId, otpCode, OTP_TIMEOUT
+        );
+      }
+    } catch (err) {
+      otpResult = { code: '6042', count: '0', message: 'OTP error: ' + err.message };
+    }
+
+    const otpOk = otpResult.code === '0';
+
+    // Log OTP result (API_2 - OTP)
+    await callLoginApi('pmobileLoginApi_2', {
+      P_LOGIN_TRX_ID: trxId,
+      P_API_TYPE: 'OTP',
+      P_RESPONSE_DATA: JSON.stringify({ code: otpResult.code, message: otpResult.message }),
+      P_RESULT_CD: otpOk ? 'SUCCESS' : otpResult.code,
+      P_RESULT_MSG: otpOk ? 'OTP OK' : otpResult.message
+    });
+
+    if (!otpOk) {
+      // Log final failure (API_3)
+      await callLoginApi('pmobileLoginApi_3', {
+        P_LOGIN_TRX_ID: trxId,
+        P_FINAL_RESULT_CD: 'OTP_FAIL',
+        P_FINAL_RESULT_MSG: otpResult.message || 'OTP authentication failed'
+      });
+      return res.json({
+        ok: false,
+        code: otpResult.code,
+        message: otpResult.message,
+        errorCount: parseInt(otpResult.count) || 0,
+        trxId
+      });
+    }
+  }
+
+  // Step 3: ID/PW authentication via CONA (OTP already verified above)
   let loginResult;
   try {
     loginResult = await new Promise((resolve, reject) => {
@@ -760,8 +825,7 @@ router.post('/auth/login-with-otp', async (req, res) => {
     return res.json({ ok: false, code: 'LOGIN_ERROR', message: 'Login server error', trxId });
   }
 
-  // Step 3: Log login result (API_2 - LOGIN)
-  // PASSWORD is NOT in response data
+  // Step 4: Log login result (API_2 - LOGIN)
   const loginOk = loginResult.ok === true;
   await callLoginApi('pmobileLoginApi_2', {
     P_LOGIN_TRX_ID: trxId,
@@ -784,69 +848,6 @@ router.post('/auth/login-with-otp', async (req, res) => {
     });
     loginResult.trxId = trxId;
     return res.json(loginResult);
-  }
-
-  // Step 4: OTP authentication (if OTP code provided)
-  if (otpCode) {
-    // Log OTP start (API_1 - OTP)
-    // OTP_CODE is NOT included in log
-    await callLoginApi('pmobileLoginApi_1', {
-      P_LOGIN_TRX_ID: trxId,
-      P_USER_ID: userId,
-      P_NW_TYPE: nwType,
-      P_CLIENT_IP: clientIp,
-      P_USER_AGENT: userAgent.substring(0, 200),
-      P_SERVER: 'EC2_OTP',
-      P_API_TYPE: 'OTP',
-      P_REQUEST_DATA: JSON.stringify({ USR_ID: userId })
-    });
-
-    // Call OTP RADIUS (DB에서 동적 로드)
-    const otpUserId = userId;
-    let otpResult;
-    try {
-      const otpConfig = await getOtpConfig();
-      if (!otpConfig) {
-        otpResult = { code: '6040', count: '0', message: 'OTP 서버 설정을 불러올 수 없습니다.' };
-      } else {
-        console.log('[OTP] login-with-otp using config - IP:', otpConfig.serverIp, ', ENV:', OTP_ENV);
-        otpResult = await radiusAccessRequest(
-          otpConfig.serverIp, OTP_SERVER_PORT, otpConfig.sharedSecret,
-          otpUserId, otpCode, OTP_TIMEOUT
-        );
-      }
-    } catch (err) {
-      otpResult = { code: '6042', count: '0', message: 'OTP error: ' + err.message };
-    }
-
-    const otpOk = otpResult.code === '0';
-
-    // Log OTP result (API_2 - OTP)
-    // OTP_CODE is NOT in response data
-    await callLoginApi('pmobileLoginApi_2', {
-      P_LOGIN_TRX_ID: trxId,
-      P_API_TYPE: 'OTP',
-      P_RESPONSE_DATA: JSON.stringify({ code: otpResult.code, message: otpResult.message }),
-      P_RESULT_CD: otpOk ? 'SUCCESS' : otpResult.code,
-      P_RESULT_MSG: otpOk ? 'OTP OK' : otpResult.message
-    });
-
-    if (!otpOk) {
-      // Log final failure (API_3)
-      await callLoginApi('pmobileLoginApi_3', {
-        P_LOGIN_TRX_ID: trxId,
-        P_FINAL_RESULT_CD: 'OTP_FAIL',
-        P_FINAL_RESULT_MSG: otpResult.message || 'OTP authentication failed'
-      });
-      return res.json({
-        ok: false,
-        code: otpResult.code,
-        message: otpResult.message,
-        errorCount: parseInt(otpResult.count) || 0,
-        loginData: loginResult,
-        trxId
-      });
-    }
   }
 
   // Step 5: All passed - Log final success (API_3)
