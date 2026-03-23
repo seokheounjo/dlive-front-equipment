@@ -257,26 +257,6 @@ const EquipmentList: React.FC<EquipmentListProps> = ({ onBack, showToast }) => {
   // 기사보유장비로 이관 - 팝업 열기
   const handleTransferToMe = () => {
     if (!equipmentDetail) return;
-    // 이관 불가 조건: 고객사용중, 분실, 미회수
-    const locCd = equipmentDetail.EQT_LOC_TP_CD;
-    const locNm = equipmentDetail.EQT_LOC_TP_CD_NM || '';
-    const statCd = equipmentDetail.EQT_STAT_CD;
-    const statNm = equipmentDetail.EQT_STAT_CD_NM || '';
-    const chgKndCd = equipmentDetail.CHG_KND_CD;
-    const chgKndNm = equipmentDetail.CHG_KND_CD_NM || equipmentDetail.CHG_KND_NM || '';
-
-    if (locCd === '4' || locNm.includes('고객')) {
-      showToast?.('고객사용중 장비는 이관할 수 없습니다.', 'warning');
-      return;
-    }
-    if (statCd === '50' || chgKndCd === '51' || chgKndCd === '83' || chgKndNm.includes('분실')) {
-      showToast?.('분실 장비는 이관할 수 없습니다.', 'warning');
-      return;
-    }
-    if (statNm.includes('미회수') || chgKndNm.includes('미회수')) {
-      showToast?.('미회수 장비는 이관할 수 없습니다.', 'warning');
-      return;
-    }
     const userInfo = getLoggedInUser();
     if (!userInfo) {
       showToast?.('로그인 정보를 찾을 수 없습니다.', 'error');
