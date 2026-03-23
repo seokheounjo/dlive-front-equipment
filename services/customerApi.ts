@@ -300,6 +300,9 @@ export interface ConsultationRequest {
   PROC_PLNR_ID?: string;     // 전달자ID (전달처리 시)
   DEPT_CD?: string;          // 지점 선택 시
   CRR_ID?: string;           // 업체 선택 시
+  // [2026-03-23] Transfer processing (전달처리 지점/업체)
+  TRANS_SO_ID?: string;      // 전달 지점 SO_ID
+  TRANS_CRR_ID?: string;     // 전달 업체 CRR_ID
   CNSL_RSLT?: string;        // 상담결과 - '5'=완료 (원본 CONA mowoe03m04.xml 기준)
   CALL_NM?: string;           // 전화자명
   REQ_CUST_TEL_NO?: string;   // 요청고객 연락처

@@ -149,7 +149,10 @@ const ConsultationAS: React.FC<ConsultationASProps> = ({
     cnslSClCd: '',      // 상담소분류
     reqCntn: '',
     transYn: 'N',
-    transDeptCd: ''
+    // [2026-03-23] Transfer processing fields
+    transType: '' as '' | 'branch' | 'company',  // 지점/업체 선택
+    transSoId: '',      // 지점 전달 시 SO_ID
+    transCrrId: '',     // 업체 전달 시 CRR_ID
   });
 
   // 상담/작업 이력 개별 접기/펼치기
@@ -468,6 +471,22 @@ const ConsultationAS: React.FC<ConsultationASProps> = ({
       return;
     }
 
+    // [2026-03-23] Transfer validation: must select branch/company and value
+    if (consultationForm.transYn === 'Y') {
+      if (!consultationForm.transType) {
+        showPopup('warning', '안내', '전달처리 시 지점 또는 업체를 선택해주세요.');
+        return;
+      }
+      if (consultationForm.transType === 'branch' && !consultationForm.transSoId) {
+        showPopup('warning', '안내', '전달할 지점을 선택해주세요.');
+        return;
+      }
+      if (consultationForm.transType === 'company' && !consultationForm.transCrrId.trim()) {
+        showPopup('warning', '안내', '전달할 업체 ID를 입력해주세요.');
+        return;
+      }
+    }
+
     setIsSaving(true);
     try {
       // ConsultationRequest 인터페이스에 맞는 파라미터명 사용
@@ -493,7 +512,14 @@ const ConsultationAS: React.FC<ConsultationASProps> = ({
         })(),
         MST_SO_ID: '',
         CALL_NM: selectedCustomer.custNm || '',
-        REQ_CUST_TEL_NO: selectedCustomer.telNo || ''
+        REQ_CUST_TEL_NO: selectedCustomer.telNo || '',
+        // [2026-03-23] Transfer processing params (전달처리)
+        ...(consultationForm.transYn === 'Y' && consultationForm.transType === 'branch' && consultationForm.transSoId ? {
+          TRANS_SO_ID: consultationForm.transSoId,
+        } : {}),
+        ...(consultationForm.transYn === 'Y' && consultationForm.transType === 'company' && consultationForm.transCrrId ? {
+          TRANS_CRR_ID: consultationForm.transCrrId,
+        } : {}),
       };
 
       const response = await registerConsultation(params);
@@ -507,7 +533,9 @@ const ConsultationAS: React.FC<ConsultationASProps> = ({
           cnslSClCd: '',
           reqCntn: '',
           transYn: 'N',
-          transDeptCd: ''
+          transType: '',
+          transSoId: '',
+          transCrrId: '',
         });
         // [2026-03-23] Fixed: setCnslMCodes/setCnslSCodes were undefined — form values already reset above
         // 이력 새로고침 (계약별 + 전체)
@@ -797,21 +825,92 @@ const ConsultationAS: React.FC<ConsultationASProps> = ({
               />
             </div>
 
-            {/* 전달 처리 */}
-            <div className="flex items-center gap-2">
-              <input
-                type="checkbox"
-                id="transYn"
-                checked={consultationForm.transYn === 'Y'}
-                onChange={(e) => setConsultationForm(prev => ({
-                  ...prev,
-                  transYn: e.target.checked ? 'Y' : 'N'
-                }))}
-                className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
-              />
-              <label htmlFor="transYn" className="text-sm text-gray-600">
-                전달 처리 (지점/업체에 전달)
-              </label>
+            {/* [2026-03-23] 전달 처리 - checkbox + radio buttons for 지점/업체 */}
+            <div className="space-y-2">
+              <div className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  id="transYn"
+                  checked={consultationForm.transYn === 'Y'}
+                  onChange={(e) => setConsultationForm(prev => ({
+                    ...prev,
+                    transYn: e.target.checked ? 'Y' : 'N',
+                    ...(e.target.checked ? {} : { transType: '' as const, transSoId: '', transCrrId: '' }),
+                  }))}
+                  className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                />
+                <label htmlFor="transYn" className="text-sm text-gray-600">
+                  전달 처리 (지점/업체에 전달)
+                </label>
+              </div>
+
+              {consultationForm.transYn === 'Y' && (
+                <div className="ml-6 space-y-2 p-3 bg-blue-50 rounded-lg border border-blue-200">
+                  {/* 지점/업체 라디오 버튼 */}
+                  <div className="flex gap-4">
+                    <label className="flex items-center gap-1.5 cursor-pointer">
+                      <input
+                        type="radio"
+                        name="transType"
+                        value="branch"
+                        checked={consultationForm.transType === 'branch'}
+                        onChange={() => setConsultationForm(prev => ({
+                          ...prev, transType: 'branch' as const, transCrrId: '',
+                        }))}
+                        className="w-4 h-4 text-blue-600 border-gray-300 focus:ring-blue-500"
+                      />
+                      <span className="text-sm text-gray-700 font-medium">지점</span>
+                    </label>
+                    <label className="flex items-center gap-1.5 cursor-pointer">
+                      <input
+                        type="radio"
+                        name="transType"
+                        value="company"
+                        checked={consultationForm.transType === 'company'}
+                        onChange={() => setConsultationForm(prev => ({
+                          ...prev, transType: 'company' as const, transSoId: '',
+                        }))}
+                        className="w-4 h-4 text-blue-600 border-gray-300 focus:ring-blue-500"
+                      />
+                      <span className="text-sm text-gray-700 font-medium">업체</span>
+                    </label>
+                  </div>
+
+                  {/* 지점 선택 드롭다운 */}
+                  {consultationForm.transType === 'branch' && (() => {
+                    let soList: Array<{SO_ID: string; SO_NM: string}> = [];
+                    try {
+                      const u = JSON.parse(sessionStorage.getItem('userInfo') || localStorage.getItem('userInfo') || '{}');
+                      soList = (u.authSoList || u.AUTH_SO_List || []).map((s: any) => ({
+                        SO_ID: s.SO_ID || s.soId || '',
+                        SO_NM: s.SO_NM || s.soNm || s.SO_ID || s.soId || '',
+                      }));
+                    } catch {}
+                    return (
+                      <Select
+                        value={consultationForm.transSoId}
+                        onValueChange={(val) => setConsultationForm(prev => ({ ...prev, transSoId: val }))}
+                        options={[
+                          { value: '', label: '지점 선택' },
+                          ...soList.map(s => ({ value: s.SO_ID, label: `${s.SO_NM} (${s.SO_ID})` })),
+                        ]}
+                        placeholder="전달할 지점 선택"
+                      />
+                    );
+                  })()}
+
+                  {/* 업체 CRR_ID 입력 */}
+                  {consultationForm.transType === 'company' && (
+                    <input
+                      type="text"
+                      value={consultationForm.transCrrId}
+                      onChange={(e) => setConsultationForm(prev => ({ ...prev, transCrrId: e.target.value }))}
+                      placeholder="업체 ID (CRR_ID) 입력"
+                      className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    />
+                  )}
+                </div>
+              )}
             </div>
 
             {/* 등록 버튼 */}
