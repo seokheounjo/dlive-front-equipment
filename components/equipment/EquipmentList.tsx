@@ -257,8 +257,24 @@ const EquipmentList: React.FC<EquipmentListProps> = ({ onBack, showToast }) => {
   // 기사보유장비로 이관 - 팝업 열기
   const handleTransferToMe = () => {
     if (!equipmentDetail) return;
-    if (equipmentDetail.EQT_LOC_TP_CD === '4' || equipmentDetail.EQT_LOC_TP_CD_NM === '고객') {
-      showToast?.('고객사용장비는 이관할 수 없습니다.', 'warning');
+    // 이관 불가 조건: 고객사용중, 분실, 미회수
+    const locCd = equipmentDetail.EQT_LOC_TP_CD;
+    const locNm = equipmentDetail.EQT_LOC_TP_CD_NM || '';
+    const statCd = equipmentDetail.EQT_STAT_CD;
+    const statNm = equipmentDetail.EQT_STAT_CD_NM || '';
+    const chgKndCd = equipmentDetail.CHG_KND_CD;
+    const chgKndNm = equipmentDetail.CHG_KND_CD_NM || equipmentDetail.CHG_KND_NM || '';
+
+    if (locCd === '4' || locNm.includes('고객')) {
+      showToast?.('고객사용중 장비는 이관할 수 없습니다.', 'warning');
+      return;
+    }
+    if (statCd === '50' || chgKndCd === '51' || chgKndCd === '83' || chgKndNm.includes('분실')) {
+      showToast?.('분실 장비는 이관할 수 없습니다.', 'warning');
+      return;
+    }
+    if (statNm.includes('미회수') || chgKndNm.includes('미회수')) {
+      showToast?.('미회수 장비는 이관할 수 없습니다.', 'warning');
       return;
     }
     const userInfo = getLoggedInUser();
@@ -285,11 +301,14 @@ const EquipmentList: React.FC<EquipmentListProps> = ({ onBack, showToast }) => {
   };
 
   // 이관 실행
+  const [transferResult, setTransferResult] = useState<{ success: boolean; message: string } | null>(null);
+
   const executeTransfer = async () => {
     if (!equipmentDetail || isTransferring) return;
     const userInfo = getLoggedInUser();
     if (!userInfo) return;
     setIsTransferring(true);
+    setTransferResult(null);
     try {
       const eqtSoId = equipmentDetail.SO_ID || userInfo.soId || '';
       const params = {
@@ -305,17 +324,22 @@ const EquipmentList: React.FC<EquipmentListProps> = ({ onBack, showToast }) => {
       console.log('[장비처리] 기사보유장비로 이관:', params);
       const result = await changeEquipmentWorker(params);
       console.log('[장비처리] 이관 결과:', result);
-      if (result.code === 'SUCCESS' || result.MSGCODE === 'SUCCESS') {
-        showToast?.('장비가 내 보유로 이관되었습니다.', 'success');
-        setShowTransferModal(false);
+
+      const serverMsg = result.message || result.MESSAGE || result.MSGTEXT || '';
+      const serverCode = result.code || result.MSGCODE || '';
+
+      if (serverCode === 'SUCCESS' || serverCode === 'EQUIPMENT_TRANSFER_SUCCESS') {
+        setTransferResult({ success: true, message: serverMsg || '장비가 내 보유로 이관되었습니다.' });
+        showToast?.('이관 성공', 'success');
         setEquipmentDetail(null);
         setMyEquipments([]);
       } else {
-        showToast?.(result.message || result.MESSAGE || '이관에 실패했습니다.', 'error');
+        setTransferResult({ success: false, message: serverMsg || '이관에 실패했습니다. (코드: ' + serverCode + ')' });
       }
     } catch (err: any) {
       console.error('[장비처리] 이관 실패:', err);
-      showToast?.(err?.message || '이관에 실패했습니다.', 'error');
+      const errMsg = err?.message || '서버 연결에 실패했습니다.';
+      setTransferResult({ success: false, message: errMsg });
     } finally {
       setIsTransferring(false);
     }
@@ -1121,21 +1145,37 @@ const EquipmentList: React.FC<EquipmentListProps> = ({ onBack, showToast }) => {
                   )}
                   <p className="text-xs text-blue-600 mt-2">장비가 선택한 지점의 내 보유로 이관됩니다</p>
                 </div>
+
+                {/* 이관 결과 메시지 */}
+                {transferResult && (
+                  <div className={`rounded-lg p-3 text-sm font-medium ${
+                    transferResult.success
+                      ? 'bg-green-50 border border-green-200 text-green-800'
+                      : 'bg-red-50 border border-red-200 text-red-800'
+                  }`}>
+                    <div className="flex items-start gap-2">
+                      <span className="flex-shrink-0 mt-0.5">{transferResult.success ? '✅' : '❌'}</span>
+                      <span className="break-all">{transferResult.message}</span>
+                    </div>
+                  </div>
+                )}
               </div>
               <div className="px-5 pb-5 grid grid-cols-2 gap-3">
                 <button
-                  onClick={() => setShowTransferModal(false)}
+                  onClick={() => { setShowTransferModal(false); setTransferResult(null); }}
                   className="py-3 text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-lg font-semibold text-sm transition-colors"
                 >
-                  취소
+                  {transferResult?.success ? '닫기' : '취소'}
                 </button>
-                <button
-                  onClick={executeTransfer}
-                  disabled={isTransferring}
-                  className="py-3 bg-indigo-500 hover:bg-indigo-600 disabled:bg-gray-400 text-white rounded-lg font-semibold text-sm transition-all"
-                >
-                  {isTransferring ? '이관 중...' : '이관'}
-                </button>
+                {!transferResult?.success && (
+                  <button
+                    onClick={executeTransfer}
+                    disabled={isTransferring}
+                    className="py-3 bg-indigo-500 hover:bg-indigo-600 disabled:bg-gray-400 text-white rounded-lg font-semibold text-sm transition-all"
+                  >
+                    {isTransferring ? '이관 중...' : '이관'}
+                  </button>
+                )}
               </div>
             </div>
           </div>
