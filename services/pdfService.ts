@@ -233,3 +233,32 @@ export function downloadPdf(blob: Blob, filename: string) {
     URL.revokeObjectURL(url);
   }, 100);
 }
+
+/**
+ * [2026-03-09] PDF Blob을 서버 디렉토리에 저장 (복구)
+ * 저장 경로: /home/ubuntu/dlivepdf/ (EC2) 또는 C:\bottle\dlivepdf (Windows)
+ */
+export async function savePdfToServer(blob: Blob, filename: string): Promise<{ success: boolean; filePath?: string; message?: string }> {
+  try {
+    // Blob -> base64
+    const arrayBuffer = await blob.arrayBuffer();
+    const uint8Array = new Uint8Array(arrayBuffer);
+    let binary = '';
+    for (let i = 0; i < uint8Array.length; i++) {
+      binary += String.fromCharCode(uint8Array[i]);
+    }
+    const pdfBase64 = btoa(binary);
+
+    const response = await fetch('/api/customer/payment/savePdf', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ filename, pdfData: pdfBase64 }),
+    });
+
+    const result = await response.json();
+    return { success: result.success, filePath: result.data?.filePath, message: result.message };
+  } catch (error: any) {
+    console.error('[savePdfToServer] Error:', error);
+    return { success: false, message: error?.message || 'PDF server save failed' };
+  }
+}

@@ -17,7 +17,7 @@ import {
   getCardClassCodes,
   updatePymAtmtApplAGRPdf
 } from '../../services/customerApi';
-import { generateAutoTransferPdf, downloadPdf } from '../../services/pdfService';
+import { generateAutoTransferPdf, downloadPdf, savePdfToServer } from '../../services/pdfService';
 
 // 납부계정ID 포맷 (3-3-4)
 const formatPymAcntId = (pymAcntId: string): string => {
@@ -480,6 +480,32 @@ const PaymentChangeModal: React.FC<PaymentChangeModalProps> = ({
           });
         } catch (signErr) {
           console.log('[PaymentChange] Signature save stub (API not connected yet):', signErr);
+        }
+
+        // [2026-03-25] PDF 서버 저장 복구 — 자동이체 서명 시 서버에 PDF 파일 저장
+        if (paymentForm.pymMthCd === '01' && signatureData) {
+          try {
+            const pdfBlob = await generateAutoTransferPdf({
+              custId,
+              custNm: custNm || '',
+              pymAcntId: selectedPymAcntId,
+              acntHolderNm: paymentForm.acntHolderNm,
+              birthDt: paymentForm.idNumber,
+              bankNm: getCodeName(bankCodes, paymentForm.bankCd),
+              acntNo: paymentForm.acntNo,
+              signatureData,
+            });
+            const dateStr = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+            const pdfFilename = `자동이체_변경신청_${custId}_${dateStr}.pdf`;
+            const saveResult = await savePdfToServer(pdfBlob, pdfFilename);
+            if (saveResult.success) {
+              console.log('[PaymentChange] PDF server save OK:', saveResult.filePath);
+            } else {
+              console.warn('[PaymentChange] PDF server save failed:', saveResult.message);
+            }
+          } catch (pdfErr) {
+            console.warn('[PaymentChange] PDF server save error:', pdfErr);
+          }
         }
 
         // [2026-03-23] PDF filename DB save — UPDATE_DATE must come from chgPymMthd_m OUT param
