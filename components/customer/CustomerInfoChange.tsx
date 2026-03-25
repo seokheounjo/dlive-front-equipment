@@ -112,7 +112,7 @@ interface TelecomCode {
  * - 설치주소 변경
  * - 고객주소 변경
  * - 청구지주소 변경
- * - 휴대폰결제(선결제) 현황 변경
+ * - 휴대폰결제(선불) 현황 변경
  */
 const CustomerInfoChange: React.FC<CustomerInfoChangeProps> = ({
   onBack,
@@ -182,7 +182,7 @@ const CustomerInfoChange: React.FC<CustomerInfoChangeProps> = ({
   const [isSavingPhone, setIsSavingPhone] = useState(false);
   const [isSavingAddress, setIsSavingAddress] = useState(false);
 
-  // 휴대폰결제(선결제) 현황
+  // 휴대폰결제(선불) 현황
   const [hpPayList, setHpPayList] = useState<HPPayInfo[]>([]);
   const [isLoadingHpPay, setIsLoadingHpPay] = useState(false);
   const [hpPayLoaded, setHpPayLoaded] = useState(false);
@@ -432,7 +432,7 @@ const CustomerInfoChange: React.FC<CustomerInfoChangeProps> = ({
     }
   };
 
-  // 휴대폰결제(선결제) 목록 로드
+  // 휴대폰결제(선불) 목록 로드
   const loadHpPayList = async () => {
     if (!selectedCustomer) return;
 
@@ -697,12 +697,15 @@ const CustomerInfoChange: React.FC<CustomerInfoChangeProps> = ({
       if (response.success) {
         if (!batch) {
           showAlert(`휴대폰결제 ${actionText} 완료되었습니다.`, 'success');
-          loadHpPayList();
+          // [2026-03-25] Delay before refresh to allow CONA to process the change
+          setTimeout(() => loadHpPayList(), 1000);
         }
         return true;
       } else {
         if (!batch) {
           showAlert(response.message || `${actionText} 요청에 실패했습니다.`, 'error');
+          // [2026-03-25] Refresh on failure too, to show current state
+          loadHpPayList();
         }
         return false;
       }
@@ -758,7 +761,8 @@ const CustomerInfoChange: React.FC<CustomerInfoChangeProps> = ({
           if (ok) successCount++; else failCount++;
         }
         setHpPayApplySelected(new Set());
-        loadHpPayList();
+        // [2026-03-25] Delay before refresh to allow CONA to process
+        setTimeout(() => loadHpPayList(), 1000);
         if (failCount === 0) {
           showAlert(`${successCount}건 신청 완료`, 'success');
         } else if (successCount === 0) {
@@ -790,7 +794,8 @@ const CustomerInfoChange: React.FC<CustomerInfoChangeProps> = ({
           if (ok) successCount++; else failCount++;
         }
         setHpPayCancelSelected(new Set());
-        loadHpPayList();
+        // [2026-03-25] Delay before refresh to allow CONA to process
+        setTimeout(() => loadHpPayList(), 1000);
         if (failCount === 0) {
           showAlert(`${successCount}건 해지 완료`, 'success');
         } else if (successCount === 0) {
@@ -1506,7 +1511,7 @@ const CustomerInfoChange: React.FC<CustomerInfoChangeProps> = ({
           )}
         </div>
 
-        {/* 휴대폰결제(선결제) 현황 */}
+        {/* 휴대폰결제(선불) 현황 */}
         <div className="bg-white rounded-lg shadow-sm border border-gray-200">
           <button
             onClick={() => toggleSection('hpPay')}
@@ -1514,7 +1519,7 @@ const CustomerInfoChange: React.FC<CustomerInfoChangeProps> = ({
           >
             <div className="flex items-center gap-2">
               <Smartphone className="w-5 h-5 text-purple-500" />
-              <span className="font-medium text-gray-800">휴대폰결제(선결제) 현황</span>
+              <span className="font-medium text-gray-800">휴대폰결제(선불) 현황</span>
             </div>
             {expandedSections.hpPay ? (
               <ChevronUp className="w-5 h-5 text-gray-400" />
