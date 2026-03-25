@@ -617,8 +617,8 @@ const ConsultationAS: React.FC<ConsultationASProps> = ({
         SCHD_DT: asForm.schdDt.replace(/-/g, ''),
         SCHD_TM: asForm.schdHour + asForm.schdMin,
         WRKR_ID: userInfo.userId || '',
-        // [2026-03-23] PG_GUBUN: always '1' for both subscriber and non-subscriber AS
-        PG_GUBUN: '1',
+        // [2026-03-25] PG_GUBUN: subscriber='2', non-subscriber='1' (per manager request)
+        PG_GUBUN: isSubscriber ? '2' : '1',
         SO_ID: isSubscriber
           ? (selectedContract?.soId || '')
           : (activeContract?.SO_ID || userInfo.authSoList?.[0]?.SO_ID || userInfo.authSoList?.[0]?.soId || userInfo.soId || userInfo.SO_ID || ''),
