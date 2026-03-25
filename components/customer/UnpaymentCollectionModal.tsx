@@ -841,6 +841,20 @@ const UnpaymentCollectionModal: React.FC<UnpaymentCollectionModalProps> = ({
                     `${formatCurrency(selectedTotal)}원 카드수납`
                   )}
                 </button>
+              ) : completedBillYms.size > 0 && unpaymentList.every(item => completedBillYms.has(item.BILL_YM)) ? (
+                <button
+                  disabled
+                  className="flex-1 py-3 text-sm font-medium text-white bg-green-500 rounded-lg cursor-not-allowed"
+                >
+                  모든 항목 결제 완료
+                </button>
+              ) : completedBillYms.size > 0 ? (
+                <button
+                  disabled
+                  className="flex-1 py-3 text-sm font-medium text-white bg-gray-400 rounded-lg cursor-not-allowed"
+                >
+                  미결제 항목을 선택하세요
+                </button>
               ) : (
                 <button
                   disabled
