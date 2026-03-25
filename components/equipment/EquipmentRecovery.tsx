@@ -162,11 +162,23 @@ const RecoveryModal: React.FC<{
           <p className="text-xs text-white/80 mt-1">{selectedItems.length}건 처리 예정</p>
         </div>
         <div className="p-4 space-y-3">
-          <div className="bg-gray-50 rounded-lg p-3 max-h-32 overflow-y-auto">
+          {/* 안내 메시지 */}
+          <div className="bg-amber-50 border border-amber-200 rounded-lg p-3">
+            <p className="text-xs text-amber-800 font-medium">회수된 장비는 이전 설치 기사의 보유장비로 이관됩니다.</p>
+          </div>
+          {/* 장비 목록 + 이전 설치 기사 정보 */}
+          <div className="bg-gray-50 rounded-lg p-3 max-h-48 overflow-y-auto space-y-2">
             {selectedItems.map((item, idx) => (
-              <div key={idx} className="text-xs text-gray-600 py-1 border-b border-gray-100 last:border-0">
-                <span className="font-mono font-medium">{item.EQT_SERNO}</span>
-                <span className="text-gray-400 ml-2">{item.CUST_NM}</span>
+              <div key={idx} className="text-xs border-b border-gray-100 last:border-0 pb-2 last:pb-0">
+                <div className="flex justify-between items-center">
+                  <span className="font-mono font-medium text-gray-800">{item.EQT_SERNO}</span>
+                  <span className="text-gray-400">{item.CUST_NM || '-'}</span>
+                </div>
+                <div className="flex items-center gap-1 mt-1 text-blue-700 bg-blue-50 rounded px-2 py-1">
+                  <span className="font-medium">수령 기사:</span>
+                  <span>{item.WRKR_NM || '-'}</span>
+                  <span className="text-blue-500">({item.WRKR_ID || '-'})</span>
+                </div>
               </div>
             ))}
           </div>
